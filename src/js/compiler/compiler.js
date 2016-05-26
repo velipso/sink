@@ -1,3 +1,4 @@
+// (c) Copyright 2016, Sean Connelly (@voidqk), http://syntheti.cc, All Rights Reserved
 
 var Lexer = require('./lexer');
 var Scope = require('./scope');
@@ -8,7 +9,6 @@ module.exports = function(file, readFile, natives){
 	var f = readFile(file, '.');
 	if (f === false)
 		throw new Error('Failed to load file: ' + file);
-	// TODO: handle readFile returning a Promise
 	var tokens = Lexer(f.file, f.source, readFile);
 	var scope = Scope();
 	return scope.newFrame(function(){

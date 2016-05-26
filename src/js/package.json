@@ -7,7 +7,7 @@
 		"sink": "./cmd.js"
 	},
 	"browser": {
-		"./interpreter/index.js": "./interpreter/index-browser.js"
+		"./interpreter/index": "./interpreter/index-browser"
 	},
 	"repository": {
 		"type": "git",

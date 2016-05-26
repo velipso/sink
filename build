@@ -10,6 +10,7 @@ SRC_JS_DIR=$SRC_DIR/js
 SRC_C_DIR=$SRC_DIR/c
 TGT_DIR=$SCRIPT_DIR/tgt
 DIST_DIR=$TGT_DIR/dist
+TESTS_DIR=$SCRIPT_DIR/tests
 
 #
 # change these functions if you want to build the C files differently
@@ -149,7 +150,7 @@ case "$1" in
 
 This build is a SNAPSHOT and not an official release.  You might not want to use it.
 
-Last built: $(date -u)
+Built on: $(date -u)
 
 * \`sink.js\`: Browser version of Sink
 * \`sink/*\`: NPM/Node.js version of Sink
@@ -176,6 +177,35 @@ README
 		;;
 esac
 
+run_tests() {
+	# $1 : 'js' or 'c'
+	test_prog="$1"
+	out=$(mktemp "$TGT_DIR"/test_temp.XXXXX)
+	for test_dir in $TESTS_DIR/*; do
+		test_base=$(basename "$test_dir")
+		test_num=$(echo "$test_base" | cut -d . -f 1)
+		test_name=$(echo "$test_base" | cut -d . -f 2)
+		if [ "$test_prog" = "js" ]; then
+			printf "%3s.%-10s  " "$test_num" "$test_name"
+			$DIST_DIR/sink/cmd.js "$test_dir"/"$test_name".sink "$test_name" > "$out"
+			set +e
+			d=$(diff -u "$test_dir"/pass.txt "$out")
+			set -e
+			if [ $(echo -n "$d" | wc -l) -gt 0 ]; then
+				echo "FAIL"
+				echo "$d"
+				exit 1
+			else
+				echo "PASS"
+			fi
+		else
+			echo TODO
+			exit 1
+		fi
+	done
+	rm -f "$out"
+}
+
 #
 # JavaScript build
 #
@@ -187,6 +217,7 @@ if [ "$BUILD_JS" = "1" ]; then
 	# build node version
 	mkdir -p $DIST_DIR/sink
 	cp -Rf $SRC_JS_DIR/* $DIST_DIR/sink
+	echo 'module.exports = "'$BUILD_ID'";' > $DIST_DIR/sink/build-id-data.js
 
 	# build browser version
 	browserify $SRC_JS_DIR/index.js -o $DIST_DIR/sink.js
@@ -194,8 +225,7 @@ fi
 
 if [ "$TEST_JS" = "1" ]; then
 	echo Testing JavaScript build...
-	echo TODO
-	exit 1
+	run_tests js
 fi
 
 #
@@ -216,8 +246,8 @@ fi
 
 if [ "$TEST_C" = "1" ]; then
 	echo Testing C build...
-	echo TODO
-	exit 1
+	run_tests c
+	echo Done
 fi
 
 echo Done
