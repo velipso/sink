@@ -1,0 +1,207 @@
+#!/bin/bash
+
+set -e
+
+pushd "$(dirname "$0")" > /dev/null
+SCRIPT_DIR="$(pwd)"
+popd > /dev/null
+SRC_DIR=$SCRIPT_DIR/src
+TGT_DIR=$SCRIPT_DIR/tgt
+DIST_DIR=$TGT_DIR/dist
+DIST_C_DIR=$DIST_DIR/c
+DIST_JS_DIR=$DIST_DIR/js
+
+#
+# change these functions if you want to build the C files differently
+#
+
+compile_c() { # production compile
+	# $1 : the input .c file
+	# $2 : the output .o file
+	# $3 : the value of SINK_BUILD_ID macro
+	clang -c -o "$2" -fwrapv -DSINK_BUILD_ID="$3" "$1"
+}
+
+compile_c_debug() { # debug compile
+	# $1 : the input .c file
+	# $2 : the output .o file
+	# $3 : the value of SINK_BUILD_ID macro
+	clang -c -o "$2" -fwrapv -DSINK_BUILD_ID="$3" -g -DSINK_DEBUG "$1"
+}
+
+link_c() { # production link
+	# $1 : the input .o files (space separated list)
+	# $2 : the output binary file
+	clang -o "$2" "$1"
+}
+
+link_c_debug() { # debug link
+	# $1 : the input .o files (space separated list)
+	# $2 : the output binary file
+	clang -o "$2" "$1"
+}
+
+#
+# ---
+#
+
+# calculate build id
+pushd "$SCRIPT_DIR" > /dev/null
+BUILD_ID="$(git log -1 --format='%H' | cut -c-10)"
+if [ "$(git ls-files -o -d --exclude-standard | wc -l)" != "0" ]; then
+	# if we have any untracked files, then this is a snapshot build
+	BUILD_ID="$BUILD_ID-SNAPSHOT"
+fi
+popd >> /dev/null
+
+LINK_FILES=
+BUILD_DEBUG=0
+comp_and_link() {
+	# $1 : the input .c file
+	# $2 : the output .o file
+	if [ "$BUILD_DEBUG" = "1" ]; then
+		echo "Compiling $(basename "$1") (debug)..."
+		compile_c_debug "$1" "$2" "$BUILD_ID"
+	else
+		echo "Compiling $(basename "$1")..."
+		compile_c "$1" "$2" "$BUILD_ID"
+	fi
+	LINK_FILES="$LINK_FILES $2"
+}
+
+link_finish() {
+	# $1 : the output binary
+	if [ "$BUILD_DEBUG" = "1" ]; then
+		echo 'Linking (debug)...'
+		link_c_debug "$LINK_FILES" "$1"
+	else
+		echo 'Linking...'
+		link_c "$LINK_FILES" "$1"
+	fi
+}
+
+case "$1" in
+	"all")
+		BUILD_JS=1
+		TEST_JS=1
+		BUILD_C=1
+		TEST_C=1
+		if [ "$2" = "debug" ]; then
+			BUILD_DEBUG=1
+		fi
+		;;
+	"js")
+		BUILD_JS=1
+		TEST_JS=0
+		BUILD_C=0
+		TEST_C=0
+		if [ "$2" = "debug" ]; then
+			BUILD_DEBUG=1
+		fi
+		;;
+	"test-js")
+		BUILD_JS=0
+		TEST_JS=1
+		BUILD_C=0
+		TEST_C=0
+		;;
+	"c")
+		BUILD_JS=0
+		TEST_JS=0
+		BUILD_C=1
+		TEST_C=0
+		if [ "$2" = "debug" ]; then
+			BUILD_DEBUG=1
+		fi
+		;;
+	"test-c")
+		BUILD_JS=0
+		TEST_JS=0
+		BUILD_C=0
+		TEST_C=1
+		;;
+	"")
+		BUILD_JS=1
+		TEST_JS=1
+		BUILD_C=1
+		TEST_C=1
+		;;
+	"debug")
+		BUILD_JS=1
+		TEST_JS=1
+		BUILD_C=1
+		TEST_C=1
+		BUILD_DEBUG=1
+		;;
+	"clean")
+		echo Cleaning...
+		rm -rf $TGT_DIR
+		echo Done
+		exit 0
+		;;
+	"dist")
+		echo Copying tgt/dist/* to dist/*
+		rm -rf $SCRIPT_DIR/dist
+		cp -Rf $TGT_DIR/dist $SCRIPT_DIR/
+		echo Done
+		exit 0
+		;;
+	*)
+		echo './build [command] [debug]'
+		echo ''
+		echo 'Commands:'
+		echo '  all       Build and test everything (default)'
+		echo '  js        Build the JavaScript source'
+		echo '  test-js   Run the tests against the JavaScript build'
+		echo '  c         Build the C source'
+		echo '  test-c    Run the tests against the C build'
+		echo ''
+		echo '  clean     Delete the tgt directory'
+		echo '  dist      Copy tgt/dist/* into dist/*'
+		echo ''
+		echo 'If "debug" is specified, then builds will be debug versions'
+		exit 0
+		;;
+esac
+
+#
+# JavaScript build
+#
+if [ "$BUILD_JS" = "1" ]; then
+	echo Building JavaScript...
+
+	mkdir -p $DIST_JS_DIR
+
+	echo TODO
+	exit 1
+fi
+
+if [ "$TEST_JS" = "1" ]; then
+	echo Testing JavaScript build...
+	echo TODO
+	exit 1
+fi
+
+#
+# C build
+#
+if [ "$BUILD_C" = "1" ]; then
+	echo Building C...
+
+	mkdir -p $DIST_C_DIR
+
+	echo TODO
+	exit 1
+
+#	comp_and_link a.c a.o
+#	comp_and_link b.c b.o
+	link_finish $DIST_DIR/c/sink
+fi
+
+if [ "$TEST_C" = "1" ]; then
+	echo Testing C build...
+	echo TODO
+	exit 1
+fi
+
+echo Done
