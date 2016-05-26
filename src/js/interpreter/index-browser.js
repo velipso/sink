@@ -1,0 +1,2 @@
+
+console.log('Interpreter (browser)');

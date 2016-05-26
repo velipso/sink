@@ -6,10 +6,10 @@ pushd "$(dirname "$0")" > /dev/null
 SCRIPT_DIR="$(pwd)"
 popd > /dev/null
 SRC_DIR=$SCRIPT_DIR/src
+SRC_JS_DIR=$SRC_DIR/js
+SRC_C_DIR=$SRC_DIR/c
 TGT_DIR=$SCRIPT_DIR/tgt
 DIST_DIR=$TGT_DIR/dist
-DIST_C_DIR=$DIST_DIR/c
-DIST_JS_DIR=$DIST_DIR/js
 
 #
 # change these functions if you want to build the C files differently
@@ -140,9 +140,21 @@ case "$1" in
 		exit 0
 		;;
 	"dist")
-		echo Copying tgt/dist/* to dist/*
+		echo Publishing builds to ./dist
 		rm -rf $SCRIPT_DIR/dist
 		cp -Rf $TGT_DIR/dist $SCRIPT_DIR/
+
+		cat <<README > $SCRIPT_DIR/dist/README.md
+# Builds for Distribution
+
+This build is a SNAPSHOT and not an official release.  You might not want to use it.
+
+Last built: $(date -u)
+
+* \`sink.js\`: Browser version of Sink
+* \`sink/*\`: NPM/Node.js version of Sink
+README
+
 		echo Done
 		exit 0
 		;;
@@ -151,13 +163,13 @@ case "$1" in
 		echo ''
 		echo 'Commands:'
 		echo '  all       Build and test everything (default)'
-		echo '  js        Build the JavaScript source'
+		echo '  js        Build the JavaScript sources (node + browser)'
 		echo '  test-js   Run the tests against the JavaScript build'
 		echo '  c         Build the C source'
 		echo '  test-c    Run the tests against the C build'
 		echo ''
 		echo '  clean     Delete the tgt directory'
-		echo '  dist      Copy tgt/dist/* into dist/*'
+		echo '  dist      Publish JavaScript builds to ./dist'
 		echo ''
 		echo 'If "debug" is specified, then builds will be debug versions'
 		exit 0
@@ -170,10 +182,14 @@ esac
 if [ "$BUILD_JS" = "1" ]; then
 	echo Building JavaScript...
 
-	mkdir -p $DIST_JS_DIR
+	mkdir -p $DIST_DIR
 
-	echo TODO
-	exit 1
+	# build node version
+	mkdir -p $DIST_DIR/sink
+	cp -Rf $SRC_JS_DIR/* $DIST_DIR/sink
+
+	# build browser version
+	browserify $SRC_JS_DIR/index.js -o $DIST_DIR/sink.js
 fi
 
 if [ "$TEST_JS" = "1" ]; then
@@ -188,14 +204,14 @@ fi
 if [ "$BUILD_C" = "1" ]; then
 	echo Building C...
 
-	mkdir -p $DIST_C_DIR
+	mkdir -p $TGT_DIR
 
 	echo TODO
 	exit 1
 
 #	comp_and_link a.c a.o
 #	comp_and_link b.c b.o
-	link_finish $DIST_DIR/c/sink
+	link_finish $TGT_DIR/sink
 fi
 
 if [ "$TEST_C" = "1" ]; then
