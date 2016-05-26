@@ -1,0 +1,20 @@
+{
+	"name": "sink",
+	"version": "0.0.1",
+	"description": "Minimalistic programming language for embedding small scripts in larger programs",
+	"main": "dist/js/index.js",
+	"repository": {
+		"type": "git",
+		"url": "git@github.com:voidqk/sink.git"
+	},
+	"keywords": [
+		"programming language",
+		"scripting"
+	],
+	"author": "Sean (@voidqk)",
+	"license": "MIT",
+	"bugs": {
+		"url": "https://github.com/voidqk/sink/issues"
+	},
+	"homepage": "https://github.com/voidqk/sink"
+}
