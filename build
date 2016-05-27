@@ -185,22 +185,25 @@ run_tests() {
 		test_base=$(basename "$test_dir")
 		test_num=$(echo "$test_base" | cut -d . -f 1)
 		test_name=$(echo "$test_base" | cut -d . -f 2)
+
+		printf "%3s.%-10s  " "$test_num" "$test_name"
+
 		if [ "$test_prog" = "js" ]; then
-			printf "%3s.%-10s  " "$test_num" "$test_name"
 			$DIST_DIR/sink/cmd.js "$test_dir"/"$test_name".sink "$test_name" > "$out"
-			set +e
-			d=$(diff -u "$test_dir"/pass.txt "$out")
-			set -e
-			if [ $(echo -n "$d" | wc -l) -gt 0 ]; then
-				echo "FAIL"
-				echo "$d"
-				exit 1
-			else
-				echo "PASS"
-			fi
 		else
 			echo TODO
 			exit 1
+		fi
+
+		set +e
+		d=$(diff -u "$test_dir"/pass.txt "$out")
+		set -e
+		if [ $(echo -n "$d" | wc -l) -gt 0 ]; then
+			echo "FAIL"
+			echo "$d"
+			exit 1
+		else
+			echo "PASS"
 		fi
 	done
 	rm -f "$out"
@@ -220,7 +223,7 @@ if [ "$BUILD_JS" = "1" ]; then
 	echo 'module.exports = "'$BUILD_ID'";' > $DIST_DIR/sink/build-id-data.js
 
 	# build browser version
-	browserify $SRC_JS_DIR/index.js -o $DIST_DIR/sink.js
+	browserify $DIST_DIR/sink/index.js -o $DIST_DIR/sink.js
 fi
 
 if [ "$TEST_JS" = "1" ]; then
@@ -247,7 +250,6 @@ fi
 if [ "$TEST_C" = "1" ]; then
 	echo Testing C build...
 	run_tests c
-	echo Done
 fi
 
 echo Done
