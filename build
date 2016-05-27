@@ -207,15 +207,13 @@ run_tests() {
 			exit 1
 		fi
 
-		set +e
-		d=$(diff -u "$test_dir"/pass.txt "$out")
-		set -e
-		if [ $(echo -n "$d" | wc -l) -gt 0 ]; then
-			echo "FAIL"
-			echo "$d"
-			exit 1
+		if diff -u "$test_dir"/pass.txt "$out"; then
+			echo PASS
 		else
-			echo "PASS"
+			echo FAIL
+			echo "$d"
+			rm -f "$out"
+			exit 1
 		fi
 	done
 	rm -f "$out"
