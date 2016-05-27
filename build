@@ -20,7 +20,19 @@ compile_c() { # production compile
 	# $1 : the input .c file
 	# $2 : the output .o file
 	# $3 : the value of SINK_BUILD_ID macro
-	clang -c -o "$2" -fwrapv -DSINK_BUILD_ID="$3" "$1"
+	if which clang > /dev/null; then
+		clang -c -o "$2" -fwrapv -DSINK_BUILD_ID="$3" "$1"
+	else
+		echo 'ERROR:'
+		echo 'Missing "clang" which is required for building.'
+		echo ''
+		echo 'Aborting build.'
+		echo ''
+		echo 'You can install "clang" by visiting:'
+		echo '   http://llvm.org/'
+		echo ''
+		exit 1
+	fi
 }
 
 compile_c_debug() { # debug compile
@@ -215,20 +227,57 @@ run_tests() {
 if [ "$BUILD_JS" = "1" ]; then
 	echo Building JavaScript...
 
-	mkdir -p $DIST_DIR
-
 	# build node version
 	mkdir -p $DIST_DIR/sink
 	cp -Rf $SRC_JS_DIR/* $DIST_DIR/sink
 	echo 'module.exports = "'$BUILD_ID'";' > $DIST_DIR/sink/build-id-data.js
 
 	# build browser version
-	browserify $DIST_DIR/sink/index.js -o $DIST_DIR/sink.js
+	if which browserify > /dev/null; then
+		browserify $DIST_DIR/sink/index.js -o $DIST_DIR/sink.js
+	else
+		echo 'WARNING:'
+		echo 'Missing "browserify" which is required for building.'
+		echo ''
+		echo 'Skipping browser build.'
+		echo ''
+			echo 'You can install "browserify" via:'
+		if which npm > /dev/null; then
+			echo '   npm install -g browserify'
+		else
+			echo '   1. Installing node.js from https://nodejs.org/'
+			echo '   2. Executing: npm install -g browserify'
+		fi
+		echo ''
+	fi
 fi
 
 if [ "$TEST_JS" = "1" ]; then
 	echo Testing JavaScript build...
-	run_tests js
+	if which node > /dev/null; then
+		if [ -e $DIST_DIR/sink/cmd.js ]; then
+			run_tests js
+		else
+			echo 'ERROR:'
+			echo 'Missing JavaScript build of sink.'
+			echo ''
+			echo 'Aborting tests for Javascript build.'
+			echo ''
+			echo 'You can build the JavaScript version of sink via:'
+			echo '   ./build js'
+			echo ''
+			exit 1
+		fi
+	else
+		echo 'WARNING:'
+		echo 'Missing "node" which is required for running JavaScript tests.'
+		echo ''
+		echo 'Skipping tests for JavaScript build.'
+		echo ''
+		echo 'You can install "node" by visiting:'
+		echo '   https://nodejs.org/'
+		echi ''
+	fi
 fi
 
 #
