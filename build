@@ -192,7 +192,7 @@ esac
 run_tests() {
 	# $1 : 'js' or 'c'
 	test_prog="$1"
-	out=$(mktemp "$TGT_DIR"/test_temp.XXXXX)
+	out=$(mktemp "$TGT_DIR"/test_output.txt)
 	for test_dir in $TESTS_DIR/*; do
 		test_base=$(basename "$test_dir")
 		test_num=$(echo "$test_base" | cut -d . -f 1)
@@ -207,7 +207,11 @@ run_tests() {
 			exit 1
 		fi
 
-		if diff -u "$test_dir"/pass.txt "$out"; then
+		set +e
+		d=$(diff -u --label 'Expected Output' "$test_dir"/pass.txt --label 'Actual Output' "$out")
+		status=$?
+		set -e
+		if [ "$status" = "0" ]; then
 			echo PASS
 		else
 			echo FAIL
