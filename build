@@ -276,7 +276,7 @@ if [ "$TEST_JS" = "1" ]; then
 		echo ''
 		echo 'You can install "node" by visiting:'
 		echo '   https://nodejs.org/'
-		echi ''
+		echo ''
 	fi
 fi
 
