@@ -241,7 +241,7 @@ if [ "$BUILD_JS" = "1" ]; then
 		echo ''
 		echo 'Skipping browser build.'
 		echo ''
-			echo 'You can install "browserify" via:'
+		echo 'You can install "browserify" via:'
 		if which npm > /dev/null; then
 			echo '   npm install -g browserify'
 		else
