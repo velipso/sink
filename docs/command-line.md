@@ -5,7 +5,7 @@ Command-Line Options
 `./sink [options] [-e 'script' | script.sink | script.sb] [arguments]`
 
 | Option      | Description                                  |
-+-------------+----------------------------------------------+
+|-------------|----------------------------------------------|
 | `-v`        | Print verison information                    |
 | `-e script` | Script specified by command line             |
 | `-c`        | Compile script to bytecode                   |
