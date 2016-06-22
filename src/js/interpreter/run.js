@@ -152,6 +152,9 @@ module.exports = function(bytecode, stdlib, natives, maxTicks){
 	var va_f, va_i, vb_f, vb_i, vc_f, vc_i, vd_f, vd_i;
 
 	function decomp(){
+		function echo(){
+			console.error.apply(console, arguments);
+		}
 		var old_pc = pc;
 		var opcode = read8();
 		var peek = [];
@@ -164,35 +167,35 @@ module.exports = function(bytecode, stdlib, natives, maxTicks){
 			return s;
 		}
 		function v_op(name){
-			console.log(readVar(false) + ' = ' + name);
+			echo(readVar(false) + ' = ' + name);
 		}
 		function v_op_v(name){
-			console.log(readVar(false) + ' = ' + name + ' ' + readVar(true) +
+			echo(readVar(false) + ' = ' + name + ' ' + readVar(true) +
 				' #' + peek.join(', '));
 		}
 		function v_op_v_v(name){
-			console.log(readVar(false) + ' = ' + name + ' ' + readVar(true) + ', ' + readVar(true) +
+			echo(readVar(false) + ' = ' + name + ' ' + readVar(true) + ', ' + readVar(true) +
 				' #' + peek.join(', '));
 		}
 		function v_op_v_v_v(name){
-			console.log(readVar(false) + ' = ' + name + ' ' + readVar(true) + ', ' + readVar(true) +
+			echo(readVar(false) + ' = ' + name + ' ' + readVar(true) + ', ' + readVar(true) +
 				', ' + readVar(true) + ' #' + peek.join(', '));
 		}
 		function v_op_c(name){
-			console.log(readVar(false) + ' = ' + name + ' ' + read16());
+			echo(readVar(false) + ' = ' + name + ' ' + read16());
 		}
 		function op_v(name){
-			console.log(name + ' ' + readVar(true) + ' #' + peek.join(', '));
+			echo(name + ' ' + readVar(true) + ' #' + peek.join(', '));
 		}
 		function op_v_v(name){
-			console.log(name + ' ' + readVar(true) + ', ' + readVar(true) + ' #' + peek.join(', '));
+			echo(name + ' ' + readVar(true) + ', ' + readVar(true) + ' #' + peek.join(', '));
 		}
 		function op_v_v_v(name){
-			console.log(name + ' ' + readVar(true) + ', ' + readVar(true) + ', ' + readVar(true) +
+			echo(name + ' ' + readVar(true) + ', ' + readVar(true) + ', ' + readVar(true) +
 				' #' + peek.join(', '));
 		}
 		function op_v_v_v_v(name){
-			console.log(name + ' ' + readVar(true) + ', ' + readVar(true) + ', ' + readVar(true) +
+			echo(name + ' ' + readVar(true) + ', ' + readVar(true) + ', ' + readVar(true) +
 				', ' + readVar(true) + ' #' + peek.join(', '));
 		}
 		switch (opcode){
@@ -228,7 +231,7 @@ module.exports = function(bytecode, stdlib, natives, maxTicks){
 			case 0x1D: v_op_v_v_v('Slice' ); break;
 			case 0x1E: op_v_v_v_v('Splice'); break;
 			case 0x1F: v_op_v_v('Cat'     ); break;
-			case 0x20: console.log('CallLocal'); break;
+			case 0x20: echo('CallLocal'); break;
 			case 0x21:
 				var opcode = read16();
 				var parLen = read8();
@@ -239,17 +242,17 @@ module.exports = function(bytecode, stdlib, natives, maxTicks){
 					vc_f = read8(); vc_i = read8();
 					pars.push(skval(var_get(vc_f, vc_i)));
 				}
-				console.log('CallNative ' + opcode + ', ' + JSON.stringify(pars));
+				echo('CallNative ' + opcode + ', ' + JSON.stringify(pars));
 				break;
 			case 0x22: op_v('Return'); break;
 			case 0x23:
-				console.log('Jump ' + read32());
+				echo('Jump ' + read32());
 				break;
 			case 0x24:
-				console.log('JumpIfNil ' + read32() + ', ' + readVar(true) + ' #' + peek);
+				echo('JumpIfNil ' + read32() + ', ' + readVar(true) + ' #' + peek);
 				break;
 			default:
-				console.log('Unknown op');
+				echo('Unknown op');
 		}
 		pc = old_pc;
 	}
@@ -356,17 +359,17 @@ module.exports = function(bytecode, stdlib, natives, maxTicks){
 				va_f = read8(); va_i = read8();
 				vb_f = read8(); vb_i = read8();
 				var_set(va_f, va_i, jsval(typeof var_get(vb_f, vb_i) === 'number'));
-				break;				
+				break;
 			case 0x0B: // va = Typestr vb
 				va_f = read8(); va_i = read8();
 				vb_f = read8(); vb_i = read8();
 				var_set(va_f, va_i, jsval(var_get(vb_f, vb_i) instanceof Uint8Array));
-				break;				
+				break;
 			case 0x0C: // va = Typelist vb
 				va_f = read8(); va_i = read8();
 				vb_f = read8(); vb_i = read8();
 				var_set(va_f, va_i, jsval(var_get(vb_f, vb_i) instanceof Array));
-				break;				
+				break;
 			case 0x0D: // va = Add vb, vc
 				va_f = read8(); va_i = read8();
 				vb_f = read8(); vb_i = read8();

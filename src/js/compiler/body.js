@@ -216,7 +216,7 @@ module.exports = function(settings, lblContinue, lblBreak){
 				paramCount: params.length,
 				frameSize: 0
 			});
-			my.scope.newFrame(function(){
+			scope.newFrame(function(){
 				var body = generate();
 				my.Append(body);
 				my.Return(nil);
@@ -256,27 +256,37 @@ module.exports = function(settings, lblContinue, lblBreak){
 			lblEnd.set(pos);
 		},
 		stmtFor: function(newVar, nameVal, nameIndex, expr, generate){
+			var nameValPos = nameVal[nameVal.length - 1].pos;
 			scope.newScope(function(){
 				if (newVar){
-					my.addVar(nameVal.pos, nameVal.data);
-					if (nameIndex !== false)
-						my.addVar(nameIndex.pos, nameIndex.data);
+					if (nameVal.length > 1){
+						throw new CompilerError(nameVal[1].pos,
+							'Cannot declare new variable in another namespace');
+					}
+					my.addVar(nameVal[0].pos, nameVal[0].data);
+					if (nameIndex !== false){
+						if (nameIndex.length > 1){
+							throw new CompilerError(nameIndex[1].pos,
+								'Cannot declare new variable in another namespace');
+						}
+						my.addVar(nameIndex[0].pos, nameIndex[0].data);
+					}
 				}
-				var vn = scope.lookup(nameVal.pos, nameVal.data);
+				var vn = scope.lookup(nameVal);
 				var vi;
 				if (nameIndex !== false)
-					vi = scope.lookup(nameIndex.pos, nameIndex.data);
+					vi = scope.lookup(nameIndex);
 				else
 					vi = my.tempVar();
 				my.Num(vi, 0);
-				var ve = collapse(nameVal.pos, expr);
+				var ve = collapse(nameValPos, expr);
 				var lblNext = my.newLabel('for');
 				var lblExit = my.newLabel('for_end');
-				lblNext.set(nameVal.pos);
+				lblNext.set(nameValPos);
 				var vt = my.tempVar();
 				my.Size(vt, ve);
 				my.Lt(vt, vi, vt);
-				my.JumpIfNil(nameVal.pos, vt, lblExit);
+				my.JumpIfNil(nameValPos, vt, lblExit);
 				my.GetAt(vn, ve, vi);
 				my.tempClear(vt);
 				my.Append(generate(lblNext, lblExit));
@@ -284,8 +294,8 @@ module.exports = function(settings, lblContinue, lblBreak){
 				my.Num(vt, 1);
 				my.Add(vi, vi, vt);
 				my.tempClear(vt, ve, vi);
-				my.Jump(nameVal.pos, lblNext);
-				lblExit.set(nameVal.pos);
+				my.Jump(nameValPos, lblNext);
+				lblExit.set(nameValPos);
 			});
 		},
 		stmtGoto: function(label){
@@ -336,6 +346,11 @@ module.exports = function(settings, lblContinue, lblBreak){
 			my.Append(generate(lblNext, lblExit));
 			my.Jump(pos, lblNext);
 			lblExit.set(false);
+		},
+		stmtNamespace: function(name, generate){
+			scope.pushNamespace(name.pos, name.data);
+			my.Append(generate());
+			scope.popNamespace();
 		},
 		stmtReturn: function(pos, expr){
 			var ve = collapse(pos, expr);
@@ -618,8 +633,8 @@ module.exports = function(settings, lblContinue, lblBreak){
 				}
 			}];
 		},
-		exprLookup: function(tok){
-			var v = scope.lookup(tok.pos, tok.data);
+		exprLookup: function(toks){
+			var v = scope.lookup(toks);
 			var o = {
 				kind: v.v.kind,
 				get: function(){ return v; }
@@ -927,7 +942,7 @@ module.exports = function(settings, lblContinue, lblBreak){
 			ops = ops.concat(body.ops());
 		},
 		finish: function(){
-			var initialFrameSize = my.scope.frameVars().length;
+			var initialFrameSize = scope.frameVars().length;
 			if (initialFrameSize > 255)
 				throw CompilerError(false, 'Too many variables');
 			var header = [

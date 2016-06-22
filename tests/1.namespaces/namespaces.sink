@@ -1,0 +1,9 @@
+
+namespace foo
+	def add a, b
+		say "adding $a $b"
+		return a + b
+	end
+end
+
+say (foo.add 4, 5)

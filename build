@@ -192,7 +192,7 @@ esac
 run_tests() {
 	# $1 : 'js' or 'c'
 	test_prog="$1"
-	out=$(mktemp "$TGT_DIR"/test_output.txt)
+	out=$(mktemp "$TGT_DIR"/test_output.XXXXXX)
 	for test_dir in $TESTS_DIR/*; do
 		test_base=$(basename "$test_dir")
 		test_num=$(echo "$test_base" | cut -d . -f 1)
