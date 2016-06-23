@@ -21,6 +21,6 @@ Standard Library
 
 Need to design split standard library into ops in the VM vs. native functions.
 
-List, math, str, date, etc, stuff should be ops in the VM, and supported across all sink programs.
+List, str, date, etc, stuff should be ops in the VM, and supported across all sink programs.
 
 File system, operating system, process, network (?), etc, should be (optional) native functions.
