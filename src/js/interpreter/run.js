@@ -721,6 +721,51 @@ module.exports = function(bytecode, stdlib, natives, maxTicks){
 				vb_f = read8(); vb_i = read8();
 				Array.prototype.unshift.apply(var_get(va_f, va_i), var_get(vb_f, vb_i));
 				break;
+			case 0x3A: // va = ListNew vb, vc
+				va_f = read8(); va_i = read8();
+				vb_f = read8(); vb_i = read8();
+				vc_f = read8(); vc_i = read8();
+				vb_f = var_get(vb_f, vb_i);
+				vc_f = var_get(vc_f, vc_i);
+				vd_f = [];
+				for (vd_i = 0; vd_i < vb_f; vd_i++)
+					vd_f.push(vc_f);
+				var_set(va_f, va_i, vd_f);
+				break;
+			case 0x3B: // va = ListFind vb, vc, vd
+				va_f = read8(); va_i = read8();
+				vb_f = read8(); vb_i = read8();
+				vc_f = read8(); vc_i = read8();
+				vd_f = read8(); vd_i = read8();
+				vd_f = var_get(vd_f, vd_i);
+				vb_f = var_get(vb_f, vb_i).indexOf(var_get(vc_f, vc_i), vd_f === void 0 ? 0 : vd_f);
+				var_set(va_f, va_i, vb_f < 0 ? void 0 : vb_f);
+				break;
+			case 0x3C: // va = ListFindRev vb, vc, vd
+				va_f = read8(); va_i = read8();
+				vb_f = read8(); vb_i = read8();
+				vc_f = read8(); vc_i = read8();
+				vd_f = read8(); vd_i = read8();
+				vd_f = var_get(vd_f, vd_i);
+				vb_f = var_get(vb_f, vb_i).lastIndexOf(
+					var_get(vc_f, vc_i),
+					vd_f === void 0 ? 0 : vd_f
+				);
+				var_set(va_f, va_i, vb_f < 0 ? void 0 : vb_f);
+				break;
+			case 0x3D: // va = ListRev vb
+				va_f = read8(); va_i = read8();
+				vb_f = read8(); vb_i = read8();
+				vb_f = var_get(vb_f, vb_i);
+				vb_f.reverse();
+				var_set(va_f, va_i, vb_f);
+				break;
+			case 0x3E: // va = ListJoin vb, vc
+				va_f = read8(); va_i = read8();
+				vb_f = read8(); vb_i = read8();
+				vc_f = read8(); vc_i = read8();
+				var_set(va_f, va_i, jsval(var_get(vb_f, vb_i).join(skval(var_get(vc_f, vc_i)))));
+				break;
 
 			default:
 				throw err('bad operator 0x' + opcode.toString(16).toUpperCase());
