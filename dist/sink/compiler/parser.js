@@ -12,6 +12,15 @@ module.exports = function(globalBody, tokens){
 		return tokens.shift();
 	}
 
+	function getNamespaceIdent(){
+		var t = [getIdent()];
+		while (tokens[0].isData('.')){
+			getData('.');
+			t.push(getIdent());
+		}
+		return t;
+	}
+
 	function getData(d){
 		if (!tokens[0].isData(d))
 			throw CompilerError(tokens[0].pos, 'Expecting `' + d + '`');
@@ -19,7 +28,7 @@ module.exports = function(globalBody, tokens){
 	}
 
 	function isAssign(t){
-		return t.isData('=', '+=', '-=', '*=', '/=', '%=', '^=', '~=', '~+', '+~', '||=');
+		return t.isData('=', '+=', '-=', '*=', '/=', '%=', '^=', '~=', '||=');
 	}
 
 	function Statements(){
@@ -38,6 +47,7 @@ module.exports = function(globalBody, tokens){
 		else if (t0.isData('goto'))       return Goto();
 		else if (t0.isData('if'))         return If();
 		else if (t0.kind === 'ident' && t1.isData(':')) return Label();
+		else if (t0.isData('namespace'))  return Namespace();
 		else if (t0.isData('return'))     return Return();
 		else if (t0.isData('var'))        return Var();
 		else if (tokenStartsExpression()) return body.stmtEval(t0.pos, Expr(false).expr);
@@ -154,11 +164,11 @@ module.exports = function(globalBody, tokens){
 				newVar = true;
 				getData('var');
 			}
-			var nameVal = getIdent();
+			var nameVal = getNamespaceIdent();
 			var nameIndex = false;
 			if (tokens[0].isData(',')){
 				getData(',');
-				nameIndex = getIdent();
+				nameIndex = getNamespaceIdent();
 			}
 			getData(':');
 			var expr = Expr(false).expr;
@@ -202,6 +212,15 @@ module.exports = function(globalBody, tokens){
 		body.stmtLabel(label);
 	}
 
+	function Namespace(){
+		getData('namespace');
+		var ns = getIdent();
+		body.stmtNamespace(ns, function(){
+			return Block(false, body.lblContinue, body.lblBreak);
+		});
+		getData('end');
+	}
+
 	function Return(){
 		var pos = getData('return').pos;
 		body.stmtReturn(pos, Expr(false).expr);
@@ -230,8 +249,8 @@ module.exports = function(globalBody, tokens){
 	}
 
 	function isTokenPre(){
-		return tokens[0].isData('+', '-', '!', 'say', 'ask', 'pick', 'typenum', 'typestr',
-			'typelist', 'pop', 'shift');
+		return tokens[0].isData('+', '-', '!', '-~', '~-', 'typenum', 'typestr',
+			'typelist');
 	}
 
 	function isTokenMid(){
@@ -248,6 +267,7 @@ module.exports = function(globalBody, tokens){
 			'=', '==',
 			'~', '~=',
 			'~+', '+~',
+			'~~+', '+~~',
 			'&&', '||', '||=', ',');
 	}
 
@@ -264,9 +284,6 @@ module.exports = function(globalBody, tokens){
 	}
 
 	function isPreBeforeMid(pre, mid){
-		// ask/say/pick behave like commands, so they get executed last
-		if (pre.isData('ask', 'say', 'pick'))
-			return false;
 		// -5^2 is -25, not 25
 		if (pre.isData('-') && mid.isData('^'))
 			return false;
@@ -285,32 +302,34 @@ module.exports = function(globalBody, tokens){
 			// add operators
 			'+':     3,
 			'-':     3,
-			// misc
-			'~':     4,
+			// list
+			'~+':    4,
+			'+~':    4,
+			'~~+':   5,
+			'+~~':   5,
+			'~':     6,
 			// comparison
-			'<=':    5,
-			'<':     5,
-			'>=':    5,
-			'>':     5,
+			'<=':    7,
+			'<':     7,
+			'>=':    7,
+			'>':     7,
 			// equality
-			'!=':    6,
-			'==':    6,
+			'!=':    8,
+			'==':    8,
 			// logic
-			'&&':    7,
-			'||':    8,
+			'&&':    9,
+			'||':   10,
 			// group
-			',':     9,
+			',':    11,
 			// mutation
-			'=' :   10,
-			'+=':   10,
-			'%=':   10,
-			'-=':   10,
-			'*=':   10,
-			'/=':   10,
-			'^=':   10,
-			'~=':   10,
-			'~+':   10,
-			'+~':   10,
+			'=' :   20,
+			'+=':   20,
+			'%=':   20,
+			'-=':   20,
+			'*=':   20,
+			'/=':   20,
+			'^=':   20,
+			'~=':   20,
 		};
 		for (var k in prec){
 			if (mid.isData(k))
@@ -327,7 +346,7 @@ module.exports = function(globalBody, tokens){
 		else if (lp > rp)
 			return false;
 		// otherwise, same precedence...
-		if (lp === 11 || lmid.isData('^')) // mutation and pow are right to left
+		if (lp === 20 || lmid.isData('^')) // mutation and pow are right to left
 			return false;
 		return true;
 	}
@@ -341,29 +360,41 @@ module.exports = function(globalBody, tokens){
 
 	function applyPost(wasCmd, expr){
 		function checkCall(){
-			if (isTokenTerm() || isTokenPre()){
-				var pos = tokens[0].pos;
-				var params = Expr(false);
-				return {
-					expr: body.exprCall(pos, expr.expr, params.expr),
-					newline: params.newline
-				};
-			}
-			return false;
+			if (!isTokenTerm() && !isTokenPre())
+				return false;
+			var pos = tokens[0].pos;
+			var params = Expr(false);
+			return {
+				expr: body.exprCall(pos, expr.expr, params.expr),
+				newline: params.newline
+			};
 		}
 		function checkSize(){
-			if (tokens[0].isData('!')){
-				var t = getData('!');
+			if (!tokens[0].isData('!'))
+				return false;
+			var t = getData('!');
+			return {
+				expr: body.exprSize(t.pos, expr.expr),
+				newline: t.newline
+			};
+		}
+		function checkIndex(){
+			if (!tokens[0].isData('['))
+				return false;
+			var pos = getData('[').pos;
+			if (tokens[0].isData(':')){
+				getData(':');
+				var len = false;
+				if (!tokens[0].isData(']'))
+					len = Expr(false).expr;
+				var t = getData(']');
 				return {
-					expr: body.exprSize(t.pos, expr.expr),
+					expr: body.exprSlice(pos, expr.expr, false, len),
 					newline: t.newline
 				};
 			}
-			return false;
-		}
-		function checkIndex(){
-			if (tokens[0].isData('[')){
-				var pos = getData('[').pos;
+			else{
+				var index = Expr(false).expr;
 				if (tokens[0].isData(':')){
 					getData(':');
 					var len = false;
@@ -371,33 +402,18 @@ module.exports = function(globalBody, tokens){
 						len = Expr(false).expr;
 					var t = getData(']');
 					return {
-						expr: body.exprSlice(pos, expr.expr, false, len),
+						expr: body.exprSlice(pos, expr.expr, index, len),
 						newline: t.newline
 					};
 				}
 				else{
-					var index = Expr(false).expr;
-					if (tokens[0].isData(':')){
-						getData(':');
-						var len = false;
-						if (!tokens[0].isData(']'))
-							len = Expr(false).expr;
-						var t = getData(']');
-						return {
-							expr: body.exprSlice(pos, expr.expr, index, len),
-							newline: t.newline
-						};
-					}
-					else{
-						var t = getData(']');
-						return {
-							expr: body.exprIndex(pos, expr.expr, index),
-							newline: t.newline
-						};
-					}
+					var t = getData(']');
+					return {
+						expr: body.exprIndex(pos, expr.expr, index),
+						newline: t.newline
+					};
 				}
 			}
-			return false;
 		}
 
 		// goofiness due to:
@@ -405,22 +421,21 @@ module.exports = function(globalBody, tokens){
 		// is this:   foo !bar
 		// or:        foo! bar
 		// if foo is a cmd, then assume foo !bar, otherwise, foo! bar
+		var res;
 		if (wasCmd){
-			var res = checkCall();
+			res = checkCall();
 			if (res !== false) return res;
 			res = checkSize();
 			if (res !== false) return res;
-			res = checkIndex();
-			if (res !== false) return res;
 		}
 		else{
-			var res = checkSize();
+			res = checkSize();
 			if (res !== false) return res;
 			res = checkCall();
 			if (res !== false) return res;
-			res = checkIndex();
-			if (res !== false) return res;
 		}
+		res = checkIndex();
+		if (res !== false) return res;
 
 		throw CompilerError(tokens[0].pos, 'Invalid post operator');
 	}
@@ -448,10 +463,10 @@ module.exports = function(globalBody, tokens){
 			};
 		}
 		else if (tokens[0].kind === 'ident'){
-			var t = getIdent();
+			var t = getNamespaceIdent();
 			return {
 				expr: body.exprLookup(t),
-				newline: t.newline
+				newline: t[t.length - 1].newline
 			};
 		}
 		else if (tokens[0].isData('{')){
@@ -503,8 +518,7 @@ module.exports = function(globalBody, tokens){
 
 			// hackey way to detect things like:
 			// add -10, 5    as     add (-10), 5     and not     (add - 10), 5
-			var isCmd = term.expr.length === 1 &&
-				(term.expr[0].kind === 'cmd-local' || term.expr[0].kind === 'cmd-native');
+			var isCmd = term.expr.length === 1 && body.isKindCmd(term.expr[0].kind);
 			// collect Post's
 			while (isTokenPost(term.newline, isCmd))
 				term = applyPost(isCmd, term);

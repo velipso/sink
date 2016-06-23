@@ -79,6 +79,55 @@ module.exports = function(settings, lblContinue, lblBreak){
 		ops: function(){
 			return ops;
 		},
+		loadStdLib: function(){
+			var ns = [];
+			([
+				{ name: 'say'        , opcode: 0x08 , params: false },
+				{ name: 'ask'        , opcode: 0x09 , params: false },
+				{ name: 'pick'       , opcode: false, params:     3 },
+				{ namespace: 'num' },
+					{ name: 'floor'  , opcode: 0x25 , params:     1 },
+					{ name: 'ceil'   , opcode: 0x26 , params:     1 },
+					{ name: 'round'  , opcode: 0x27 , params:     1 },
+					{ name: 'sin'    , opcode: 0x28 , params:     1 },
+					{ name: 'cos'    , opcode: 0x29 , params:     1 },
+					{ name: 'tan'    , opcode: 0x2A , params:     1 },
+					{ name: 'asin'   , opcode: 0x2B , params:     1 },
+					{ name: 'acos'   , opcode: 0x2C , params:     1 },
+					{ name: 'atan'   , opcode: 0x2D , params:     1 },
+					{ name: 'atan2'  , opcode: 0x2E , params:     2 },
+					{ name: 'log'    , opcode: 0x2F , params:     1 },
+					{ name: 'log2'   , opcode: 0x30 , params:     1 },
+					{ name: 'log10'  , opcode: 0x31 , params:     1 },
+					{ name: 'abs'    , opcode: 0x32 , params:     1 },
+					{ name: 'pi'     , opcode: 0x33 , params:     0 },
+					{ name: 'tau'    , opcode: 0x34 , params:     0 },
+					{ name: 'lerp'   , opcode: 0x35 , params:     3 },
+					{ name: 'max'    , opcode: 0x36 , params:     1 },
+					{ name: 'min'    , opcode: 0x37 , params:     1 },
+				{ endnamespace: true },
+				{ namespace: 'list' },
+					{ name: 'new'    , opcode: 0x3A , params:     2 },
+					{ name: 'find'   , opcode: 0x3B , params:     3 },
+					{ name: 'findRev', opcode: 0x3C , params:     3 },
+					{ name: 'rev'    , opcode: 0x3D , params:     1 },
+					{ name: 'join'   , opcode: 0x3E , params:     2 },
+				{ endnamespace: true }
+			]).forEach(function(std){
+				if (std.namespace){
+					scope.pushNamespace(false, std.namespace);
+					ns.push(std.namespace);
+				}
+				else if (std.endnamespace){
+					ns.pop();
+					scope.popNamespace();
+				}
+				else{
+					var n = ns.concat([std.name]);
+					my.addCmdOpcode(n.join('.'), std.name, std.opcode, std.params);
+				}
+			});
+		},
 		tempVar: function(){
 			if (arguments.length > 0)
 				my.tempClear.apply(my, arguments);
@@ -113,6 +162,9 @@ module.exports = function(settings, lblContinue, lblBreak){
 		addVar: function(pos, name){
 			return scope.addSymbol(pos, name, 'var', { temp: false });
 		},
+		isKindCmd: function(kind){
+			return kind === 'cmd-local' || kind === 'cmd-native' || kind === 'cmd-opcode';
+		},
 		addCmdLocal: function(pos, name, lbl, bodyKnown){
 			return scope.addSymbol(pos, name, 'cmd-local', {
 				lbl: lbl,
@@ -121,6 +173,13 @@ module.exports = function(settings, lblContinue, lblBreak){
 		},
 		addCmdNative: function(pos, name, opcode, paramCount){
 			return scope.addSymbol(pos, name, 'cmd-native', {
+				opcode: opcode,
+				paramCount: paramCount
+			});
+		},
+		addCmdOpcode: function(full, name, opcode, paramCount){
+			return scope.addSymbol(false, name, 'cmd-opcode', {
+				full: full,
 				opcode: opcode,
 				paramCount: paramCount
 			});
@@ -216,7 +275,7 @@ module.exports = function(settings, lblContinue, lblBreak){
 				paramCount: params.length,
 				frameSize: 0
 			});
-			my.scope.newFrame(function(){
+			scope.newFrame(function(){
 				var body = generate();
 				my.Append(body);
 				my.Return(nil);
@@ -256,27 +315,37 @@ module.exports = function(settings, lblContinue, lblBreak){
 			lblEnd.set(pos);
 		},
 		stmtFor: function(newVar, nameVal, nameIndex, expr, generate){
+			var nameValPos = nameVal[nameVal.length - 1].pos;
 			scope.newScope(function(){
 				if (newVar){
-					my.addVar(nameVal.pos, nameVal.data);
-					if (nameIndex !== false)
-						my.addVar(nameIndex.pos, nameIndex.data);
+					if (nameVal.length > 1){
+						throw new CompilerError(nameVal[1].pos,
+							'Cannot declare new variable in another namespace');
+					}
+					my.addVar(nameVal[0].pos, nameVal[0].data);
+					if (nameIndex !== false){
+						if (nameIndex.length > 1){
+							throw new CompilerError(nameIndex[1].pos,
+								'Cannot declare new variable in another namespace');
+						}
+						my.addVar(nameIndex[0].pos, nameIndex[0].data);
+					}
 				}
-				var vn = scope.lookup(nameVal.pos, nameVal.data);
+				var vn = scope.lookup(nameVal);
 				var vi;
 				if (nameIndex !== false)
-					vi = scope.lookup(nameIndex.pos, nameIndex.data);
+					vi = scope.lookup(nameIndex);
 				else
 					vi = my.tempVar();
 				my.Num(vi, 0);
-				var ve = collapse(nameVal.pos, expr);
+				var ve = collapse(nameValPos, expr);
 				var lblNext = my.newLabel('for');
 				var lblExit = my.newLabel('for_end');
-				lblNext.set(nameVal.pos);
+				lblNext.set(nameValPos);
 				var vt = my.tempVar();
 				my.Size(vt, ve);
 				my.Lt(vt, vi, vt);
-				my.JumpIfNil(nameVal.pos, vt, lblExit);
+				my.JumpIfNil(nameValPos, vt, lblExit);
 				my.GetAt(vn, ve, vi);
 				my.tempClear(vt);
 				my.Append(generate(lblNext, lblExit));
@@ -284,8 +353,8 @@ module.exports = function(settings, lblContinue, lblBreak){
 				my.Num(vt, 1);
 				my.Add(vi, vi, vt);
 				my.tempClear(vt, ve, vi);
-				my.Jump(nameVal.pos, lblNext);
-				lblExit.set(nameVal.pos);
+				my.Jump(nameValPos, lblNext);
+				lblExit.set(nameValPos);
 			});
 		},
 		stmtGoto: function(label){
@@ -337,14 +406,18 @@ module.exports = function(settings, lblContinue, lblBreak){
 			my.Jump(pos, lblNext);
 			lblExit.set(false);
 		},
+		stmtNamespace: function(name, generate){
+			scope.pushNamespace(name.pos, name.data);
+			my.Append(generate());
+			scope.popNamespace();
+		},
 		stmtReturn: function(pos, expr){
 			var ve = collapse(pos, expr);
 			my.Return(ve);
 			my.tempClear(ve);
 		},
 		stmtEval: function(pos, expr){
-			if (expr.length === 1 &&
-				(expr[0].kind === 'cmd-local' || expr[0].kind === 'cmd-native'))
+			if (expr.length === 1 && my.isKindCmd(expr[0].kind))
 				expr = my.exprCall(pos, expr, []);
 			var ve = collapse(pos, expr);
 			my.tempClear(ve);
@@ -366,18 +439,43 @@ module.exports = function(settings, lblContinue, lblBreak){
 			my.tempClear.apply(my, init);
 		},
 		exprGroup: function(pos, expr){
-			if (expr.length === 1 &&
-				(expr[0].kind === 'cmd-local' || expr[0].kind === 'cmd-native'))
+			if (expr.length === 1 && my.isKindCmd(expr[0].kind))
 				expr = my.exprCall(pos, expr, []);
 			return expr;
 		},
 		exprCall: function(pos, cmd, params){
 			if (cmd.length !== 1)
 				throw CompilerError(pos, 'Command must be a single identifier');
-			cmd = cmd[0];
+			cmd = cmd[0].get();
+			var cmd_level = cmd.level;
+			cmd = cmd.v;
 
-			if (cmd.kind !== 'cmd-local' && cmd.kind !== 'cmd-native')
+			if (!my.isKindCmd(cmd.kind))
 				throw CompilerError(pos, 'Invalid command');
+
+			if (cmd.kind === 'cmd-opcode' && cmd.info.full === 'pick'){
+				// special logic for pick calls to short-circuit parameter evaluation
+				return [{
+					kind: 'var',
+					get: function(){
+						if (params.length !== 3)
+							throw CompilerError(pos, 'Expecting 3 arguments for `pick`');
+						var cond = collapse(pos, [params[0]]);
+						var lblFalse = my.newLabel('pick_false');
+						my.JumpIfNil(pos, cond, lblFalse);
+						my.tempClear(cond);
+						var vl = collapse(pos, [params[1]]);
+						var lblEnd = my.newLabel('pick_end');
+						my.Jump(pos, lblEnd);
+						lblFalse.set(pos);
+						var vr = collapse(pos, [params[2]]);
+						my.tempClear(vr);
+						my.Move(vl, vr);
+						lblEnd.set(pos);
+						return vl;
+					}
+				}];
+			}
 
 			return [{
 				kind: 'var',
@@ -390,22 +488,71 @@ module.exports = function(settings, lblContinue, lblBreak){
 						my.tempClear(ev);
 						my.Str(ev, pos.toString());
 					}
+					var vs;
+					if (cmd.kind === 'cmd-opcode' && cmd.info.paramCount === false &&
+						params.length >= 1){
+						// reserve `vs` now before releasing all the temps
+						vs = my.tempVar();
+						if (params.length > 1)
+							my.Str(vs, [32]);
+						else
+							my.Str(vs, []);
+					}
 					var v = my.tempVar.apply(my, params);
 
 					if (cmd.kind === 'cmd-local'){
-						cmd = cmd.get();
-						my.CallLocal(pos, v, cmd.level, cmd.v.info.lbl, params);
+						my.CallLocal(pos, v, cmd_level, cmd.info.lbl, params);
 						return v;
 					}
 					else if (cmd.kind === 'cmd-native'){
-						cmd = cmd.get().v;
-						if (cmd.info.paramCount < params.length)
-							params = params.slice(0, cmd.info.paramCount);
-						else if (cmd.info.paramCount > params.length){
-							while (cmd.info.paramCount > params.length)
+						cmd = cmd.info;
+						if (cmd.paramCount < params.length)
+							params = params.slice(0, cmd.paramCount);
+						else if (cmd.paramCount > params.length){
+							while (cmd.paramCount > params.length)
 								params.push({ v: nil.v, level: scope.currentLevel - 1 });
 						}
-						my.CallNative(v, ev, cmd.info.opcode, params);
+						my.CallNative(v, ev, cmd.opcode, params);
+						return v;
+					}
+					else{ // cmd.kind === 'cmd-opcode'
+						cmd = cmd.info;
+						if (cmd.paramCount === false){
+							// convert variable length arguments to string
+							if (params.length > 0){
+								my.tempClear(vs);
+								my.Move(v, params.shift());
+								if (params.length > 0){
+									while (params.length > 0){
+										my.Cat(v, v, vs);
+										my.Cat(v, v, params.shift());
+									}
+								}
+								else
+									my.Cat(v, v, vs);
+							}
+							else
+								my.Str(v, []);
+							op_v_v(cmd.opcode, v, v);
+						}
+						else{
+							if (cmd.paramCount < params.length)
+								params = params.slice(0, cmd.paramCount);
+							else if (cmd.paramCount > params.length){
+								while (cmd.paramCount > params.length)
+									params.push({ v: nil.v, level: scope.currentLevel - 1 });
+							}
+							if (cmd.paramCount === 0)
+								op_v(cmd.opcode, v);
+							else if (cmd.paramCount === 1)
+								op_v_v(cmd.opcode, v, params[0]);
+							else if (cmd.paramCount === 2)
+								op_v_v_v(cmd.opcode, v, params[0], params[1]);
+							else if (cmd.paramCount === 3)
+								op_v_v_v_v(cmd.opcode, v, params[0], params[1], params[2]);
+							else
+								throw new Error('standard library opcode has too many parameters');
+						}
 						return v;
 					}
 				}
@@ -428,9 +575,7 @@ module.exports = function(settings, lblContinue, lblBreak){
 						'*': 'Mul', '*=': 'Mul',
 						'/': 'Div', '/=': 'Div',
 						'^': 'Pow', '^=': 'Pow',
-						'~': 'Cat', '~=': 'Cat',
-						'~+': 'Push',
-						'+~': 'Unshift'
+						'~': 'Cat', '~=': 'Cat'
 					};
 
 					// binary operators that muck with variables
@@ -449,15 +594,12 @@ module.exports = function(settings, lblContinue, lblBreak){
 						case '/=':
 						case '^=':
 						case '~=':
-						case '~+':
-						case '+~':
 							if (left.length !== 1)
 								throw CompilerError(tok.pos, 'Cannot mutate multiple variables');
 							var vl = left[0];
 							if (typeof vl.mut !== 'function')
 								throw CompilerError(tok.pos, 'Invalid mutation');
-							return vl.mut(tok.pos, simp[tok.data],
-								tok.data === '~+' || tok.data === '+~', right);
+							return vl.mut(tok.pos, simp[tok.data], right);
 						case '&&':
 							var vl = collapse(tok.pos, left);
 							var lblEnd = my.newLabel('and_end');
@@ -491,26 +633,48 @@ module.exports = function(settings, lblContinue, lblBreak){
 					// simple binary operators
 					var vl = collapse(tok.pos, left);
 					var vr = collapse(tok.pos, right);
-					var v = my.tempVar(vl, vr);
-
-					switch (tok.data){
-						case '+':
-						case '-':
-						case '%':
-						case '*':
-						case '/':
-						case '^':
-						case '~':
-							my[simp[tok.data]](v, vl, vr);
-							break;
-						case '<' : my.Lt (v, vl, vr); break;
-						case '<=': my.Lte(v, vl, vr); break;
-						case '>' : my.Lt (v, vr, vl); break;
-						case '>=': my.Lte(v, vr, vl); break;
-						case '!=': my.Equ(v, vl, vr); my.Not(v, v); break;
-						case '==': my.Equ(v, vl, vr); break;
-						default:
-							throw 'Unknown binary operator: ' + tok;
+					var v;
+					if (tok.data === '~+'){
+						v = vl;
+						my.tempClear(vr);
+						my.Push(vl, vr);
+					}
+					else if (tok.data === '+~'){
+						v = vl;
+						my.tempClear(vr);
+						my.Unshift(vl, vr);
+					}
+					else if (tok.data === '~~+'){
+						v = vl;
+						my.tempClear(vr);
+						my.PushList(vl, vr);
+					}
+					else if (tok.data === '+~~'){
+						v = vl;
+						my.tempClear(vr);
+						my.UnshiftList(vl, vr);
+					}
+					else{
+						v = my.tempVar(vl, vr);
+						switch (tok.data){
+							case '+':
+							case '-':
+							case '%':
+							case '*':
+							case '/':
+							case '^':
+							case '~':
+								my[simp[tok.data]](v, vl, vr);
+								break;
+							case '<' : my.Lt (v, vl, vr); break;
+							case '<=': my.Lte(v, vl, vr); break;
+							case '>' : my.Lt (v, vr, vl); break;
+							case '>=': my.Lte(v, vr, vl); break;
+							case '!=': my.Equ(v, vl, vr); my.Not(v, v); break;
+							case '==': my.Equ(v, vl, vr); break;
+							default:
+								throw 'Unknown binary operator: ' + tok;
+						}
 					}
 					return v;
 				}
@@ -520,50 +684,6 @@ module.exports = function(settings, lblContinue, lblBreak){
 			return [{
 				kind: 'var',
 				get: function(){
-					if (tok.isData('say', 'ask')){
-						for (var i = 0; i < expr.length; i++)
-							expr[i] = forceReadable(tok.pos, expr[i]);
-						var v = my.tempVar();
-						var vs = my.tempVar();
-						my.tempClear(vs);
-						if (expr.length > 1)
-							my.Str(vs, [32]);
-						else
-							my.Str(vs, []);
-						my.tempClear.apply(my, expr);
-						my.Move(v, expr.shift());
-						if (expr.length > 0){
-							while (expr.length > 0){
-								my.Cat(v, v, vs);
-								my.Cat(v, v, expr.shift());
-							}
-						}
-						else
-							my.Cat(v, v, vs);
-						if (tok.isData('say'))
-							my.Say(v, v);
-						else // ask
-							my.Ask(v, v);
-						return v;
-					}
-					else if (tok.isData('pick')){
-						if (expr.length !== 3)
-							throw CompilerError(tok.pos, 'Expecting 3 arguments for `pick`');
-						var cond = collapse(tok.pos, [expr[0]]);
-						var lblFalse = my.newLabel('pick_false');
-						my.JumpIfNil(tok.pos, cond, lblFalse);
-						my.tempClear(cond);
-						var vl = collapse(tok.pos, [expr[1]]);
-						var lblEnd = my.newLabel('pick_end');
-						my.Jump(tok.pos, lblEnd);
-						lblFalse.set(tok.pos);
-						var vr = collapse(tok.pos, [expr[2]]);
-						my.tempClear(vr);
-						my.Move(vl, vr);
-						lblEnd.set(tok.pos);
-						return vl;
-					}
-
 					var ve = collapse(tok.pos, expr);
 					var v = my.tempVar(ve);
 					if (tok.isData('+'))
@@ -572,16 +692,16 @@ module.exports = function(settings, lblContinue, lblBreak){
 						my.Neg(v, ve);
 					else if (tok.isData('!'))
 						my.Not(v, ve);
+					else if (tok.isData('~-'))
+						my.Pop(v, ve);
+					else if (tok.isData('-~'))
+						my.Shift(v, ve);
 					else if (tok.isData('typenum'))
 						my.Typenum(v, ve);
 					else if (tok.isData('typestr'))
 						my.Typestr(v, ve);
 					else if (tok.isData('typelist'))
 						my.Typelist(v, ve);
-					else if (tok.isData('pop'))
-						my.Pop(v, ve);
-					else if (tok.isData('shift'))
-						my.Shift(v, ve);
 					else
 						throw 'Unknown unary operator: ' + tok.data;
 					return v;
@@ -618,8 +738,8 @@ module.exports = function(settings, lblContinue, lblBreak){
 				}
 			}];
 		},
-		exprLookup: function(tok){
-			var v = scope.lookup(tok.pos, tok.data);
+		exprLookup: function(toks){
+			var v = scope.lookup(toks);
 			var o = {
 				kind: v.v.kind,
 				get: function(){ return v; }
@@ -643,13 +763,10 @@ module.exports = function(settings, lblContinue, lblBreak){
 					lblEnd.set(pos);
 					return v;
 				};
-				o.mut = function(pos, mutName, mutList, right){
+				o.mut = function(pos, mutName, right){
 					var ve = collapse(pos, right);
 					my.tempClear(ve);
-					if (mutList)
-						my[mutName](v, ve);
-					else
-						my[mutName](v, v, ve);
+					my[mutName](v, v, ve);
 					return v;
 				};
 			}
@@ -745,18 +862,14 @@ module.exports = function(settings, lblContinue, lblBreak){
 					lblEnd.set(pos);
 					return v;
 				},
-				mut: function(pos, mutName, mutList, right){
+				mut: function(pos, mutName, right){
 					var vl = collapse(pos, expr);
 					var vi = collapse(pos, index);
 					var ve = collapse(pos, right);
 					var v = my.tempVar();
 					my.GetAt(v, vl, vi);
-					if (mutList)
-						my[mutName](v, ve);
-					else{
-						my[mutName](v, v, ve);
-						my.SetAt(vl, vi, v);
-					}
+					my[mutName](v, v, ve);
+					my.SetAt(vl, vi, v);
 					my.tempClear(vl, vi, ve);
 					return v
 				}
@@ -826,8 +939,8 @@ module.exports = function(settings, lblContinue, lblBreak){
 		ToNum   : function(v, ve){ op_v_v(0x05, v, ve); },
 		Neg     : function(v, ve){ op_v_v(0x06, v, ve); },
 		Not     : function(v, ve){ op_v_v(0x07, v, ve); },
-		Say     : function(v, ve){ op_v_v(0x08, v, ve); },
-		Ask     : function(v, ve){ op_v_v(0x09, v, ve); },
+		// Say 0x08
+		// Ask 0x09
 		Typenum : function(v, ve){ op_v_v(0x0A, v, ve); },
 		Typestr : function(v, ve){ op_v_v(0x0B, v, ve); },
 		Typelist: function(v, ve){ op_v_v(0x0C, v, ve); },
@@ -840,8 +953,10 @@ module.exports = function(settings, lblContinue, lblBreak){
 		Lt : function(v, vl, vr){ op_v_v_v(0x13, v, vl, vr); },
 		Lte: function(v, vl, vr){ op_v_v_v(0x14, v, vl, vr); },
 		Equ: function(v, vl, vr){ op_v_v_v(0x15, v, vl, vr); },
-		Push   : function(v, ve){ op_v_v(0x16, v, ve); },
-		Unshift: function(v, ve){ op_v_v(0x17, v, ve); },
+		Push       : function(v, ve){ op_v_v(0x16, v, ve); },
+		PushList   : function(v, ve){ op_v_v(0x38, v, ve); },
+		Unshift    : function(v, ve){ op_v_v(0x17, v, ve); },
+		UnshiftList: function(v, ve){ op_v_v(0x39, v, ve); },
 		Pop    : function(v, ve){ op_v_v(0x18, v, ve); },
 		Shift  : function(v, ve){ op_v_v(0x19, v, ve); },
 		Size   : function(v, ve){ op_v_v(0x1A, v, ve); },
@@ -927,7 +1042,7 @@ module.exports = function(settings, lblContinue, lblBreak){
 			ops = ops.concat(body.ops());
 		},
 		finish: function(){
-			var initialFrameSize = my.scope.frameVars().length;
+			var initialFrameSize = scope.frameVars().length;
 			if (initialFrameSize > 255)
 				throw CompilerError(false, 'Too many variables');
 			var header = [

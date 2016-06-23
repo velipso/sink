@@ -63,11 +63,12 @@ module.exports = function Lexer(file, source, readFile){
 		'=', '==',
 		'~', '~=',
 		'~+', '+~',
+		'~-', '-~',
+		'~~+', '+~~',
 		'&&', '||', '||=',
-		':', ',', '(', ')', '[', ']', '{', '}'
+		':', ',', '.', '(', ')', '[', ']', '{', '}'
 	];
 	var keywords = [
-		'ask',
 		'break',
 		'continue',
 		'declare',
@@ -79,11 +80,8 @@ module.exports = function Lexer(file, source, readFile){
 		'for',
 		'goto',
 		'if',
-		'pick',
-		'pop',
+		'namespace',
 		'return',
-		'say',
-		'shift',
 		'typenum',
 		'typestr',
 		'typelist',

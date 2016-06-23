@@ -13,6 +13,7 @@ module.exports = function(file, readFile, natives){
 	var scope = Scope();
 	return scope.newFrame(function(){
 		var body = Body({ scope: scope, nil: false, nums: [], strs: [] }, false, false);
+		body.loadStdLib();
 		if (typeof natives !== 'undefined' && natives !== false){
 			natives.forEach(function(nat){
 				body.stmtDeclareNative({ pos: false, data: nat.name }, nat.opcode, nat.params);
