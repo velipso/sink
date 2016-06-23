@@ -568,9 +568,7 @@ module.exports = function(settings, lblContinue, lblBreak){
 						'*': 'Mul', '*=': 'Mul',
 						'/': 'Div', '/=': 'Div',
 						'^': 'Pow', '^=': 'Pow',
-						'~': 'Cat', '~=': 'Cat',
-						'~+': 'Push',
-						'+~': 'Unshift'
+						'~': 'Cat', '~=': 'Cat'
 					};
 
 					// binary operators that muck with variables
@@ -589,15 +587,12 @@ module.exports = function(settings, lblContinue, lblBreak){
 						case '/=':
 						case '^=':
 						case '~=':
-						case '~+':
-						case '+~':
 							if (left.length !== 1)
 								throw CompilerError(tok.pos, 'Cannot mutate multiple variables');
 							var vl = left[0];
 							if (typeof vl.mut !== 'function')
 								throw CompilerError(tok.pos, 'Invalid mutation');
-							return vl.mut(tok.pos, simp[tok.data],
-								tok.data === '~+' || tok.data === '+~', right);
+							return vl.mut(tok.pos, simp[tok.data], right);
 						case '&&':
 							var vl = collapse(tok.pos, left);
 							var lblEnd = my.newLabel('and_end');
@@ -631,26 +626,48 @@ module.exports = function(settings, lblContinue, lblBreak){
 					// simple binary operators
 					var vl = collapse(tok.pos, left);
 					var vr = collapse(tok.pos, right);
-					var v = my.tempVar(vl, vr);
-
-					switch (tok.data){
-						case '+':
-						case '-':
-						case '%':
-						case '*':
-						case '/':
-						case '^':
-						case '~':
-							my[simp[tok.data]](v, vl, vr);
-							break;
-						case '<' : my.Lt (v, vl, vr); break;
-						case '<=': my.Lte(v, vl, vr); break;
-						case '>' : my.Lt (v, vr, vl); break;
-						case '>=': my.Lte(v, vr, vl); break;
-						case '!=': my.Equ(v, vl, vr); my.Not(v, v); break;
-						case '==': my.Equ(v, vl, vr); break;
-						default:
-							throw 'Unknown binary operator: ' + tok;
+					var v;
+					if (tok.data === '~+'){
+						v = vl;
+						my.tempClear(vr);
+						my.Push(vl, vr);
+					}
+					else if (tok.data === '+~'){
+						v = vl;
+						my.tempClear(vr);
+						my.Unshift(vl, vr);
+					}
+					else if (tok.data === '~~+'){
+						v = vl;
+						my.tempClear(vr);
+						my.PushList(vl, vr);
+					}
+					else if (tok.data === '+~~'){
+						v = vl;
+						my.tempClear(vr);
+						my.UnshiftList(vl, vr);
+					}
+					else{
+						v = my.tempVar(vl, vr);
+						switch (tok.data){
+							case '+':
+							case '-':
+							case '%':
+							case '*':
+							case '/':
+							case '^':
+							case '~':
+								my[simp[tok.data]](v, vl, vr);
+								break;
+							case '<' : my.Lt (v, vl, vr); break;
+							case '<=': my.Lte(v, vl, vr); break;
+							case '>' : my.Lt (v, vr, vl); break;
+							case '>=': my.Lte(v, vr, vl); break;
+							case '!=': my.Equ(v, vl, vr); my.Not(v, v); break;
+							case '==': my.Equ(v, vl, vr); break;
+							default:
+								throw 'Unknown binary operator: ' + tok;
+						}
 					}
 					return v;
 				}
@@ -668,16 +685,16 @@ module.exports = function(settings, lblContinue, lblBreak){
 						my.Neg(v, ve);
 					else if (tok.isData('!'))
 						my.Not(v, ve);
+					else if (tok.isData('~-'))
+						my.Pop(v, ve);
+					else if (tok.isData('-~'))
+						my.Shift(v, ve);
 					else if (tok.isData('typenum'))
 						my.Typenum(v, ve);
 					else if (tok.isData('typestr'))
 						my.Typestr(v, ve);
 					else if (tok.isData('typelist'))
 						my.Typelist(v, ve);
-					else if (tok.isData('pop'))
-						my.Pop(v, ve);
-					else if (tok.isData('shift'))
-						my.Shift(v, ve);
 					else
 						throw 'Unknown unary operator: ' + tok.data;
 					return v;
@@ -739,13 +756,10 @@ module.exports = function(settings, lblContinue, lblBreak){
 					lblEnd.set(pos);
 					return v;
 				};
-				o.mut = function(pos, mutName, mutList, right){
+				o.mut = function(pos, mutName, right){
 					var ve = collapse(pos, right);
 					my.tempClear(ve);
-					if (mutList)
-						my[mutName](v, ve);
-					else
-						my[mutName](v, v, ve);
+					my[mutName](v, v, ve);
 					return v;
 				};
 			}
@@ -841,18 +855,14 @@ module.exports = function(settings, lblContinue, lblBreak){
 					lblEnd.set(pos);
 					return v;
 				},
-				mut: function(pos, mutName, mutList, right){
+				mut: function(pos, mutName, right){
 					var vl = collapse(pos, expr);
 					var vi = collapse(pos, index);
 					var ve = collapse(pos, right);
 					var v = my.tempVar();
 					my.GetAt(v, vl, vi);
-					if (mutList)
-						my[mutName](v, ve);
-					else{
-						my[mutName](v, v, ve);
-						my.SetAt(vl, vi, v);
-					}
+					my[mutName](v, v, ve);
+					my.SetAt(vl, vi, v);
 					my.tempClear(vl, vi, ve);
 					return v
 				}
@@ -936,8 +946,10 @@ module.exports = function(settings, lblContinue, lblBreak){
 		Lt : function(v, vl, vr){ op_v_v_v(0x13, v, vl, vr); },
 		Lte: function(v, vl, vr){ op_v_v_v(0x14, v, vl, vr); },
 		Equ: function(v, vl, vr){ op_v_v_v(0x15, v, vl, vr); },
-		Push   : function(v, ve){ op_v_v(0x16, v, ve); },
-		Unshift: function(v, ve){ op_v_v(0x17, v, ve); },
+		Push       : function(v, ve){ op_v_v(0x16, v, ve); },
+		PushList   : function(v, ve){ op_v_v(0x38, v, ve); },
+		Unshift    : function(v, ve){ op_v_v(0x17, v, ve); },
+		UnshiftList: function(v, ve){ op_v_v(0x39, v, ve); },
 		Pop    : function(v, ve){ op_v_v(0x18, v, ve); },
 		Shift  : function(v, ve){ op_v_v(0x19, v, ve); },
 		Size   : function(v, ve){ op_v_v(0x1A, v, ve); },

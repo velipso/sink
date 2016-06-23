@@ -28,7 +28,7 @@ module.exports = function(globalBody, tokens){
 	}
 
 	function isAssign(t){
-		return t.isData('=', '+=', '-=', '*=', '/=', '%=', '^=', '~=', '~+', '+~', '||=');
+		return t.isData('=', '+=', '-=', '*=', '/=', '%=', '^=', '~=', '||=');
 	}
 
 	function Statements(){
@@ -249,8 +249,8 @@ module.exports = function(globalBody, tokens){
 	}
 
 	function isTokenPre(){
-		return tokens[0].isData('+', '-', '!', 'typenum', 'typestr',
-			'typelist', 'pop', 'shift');
+		return tokens[0].isData('+', '-', '!', '-~', '~-', 'typenum', 'typestr',
+			'typelist');
 	}
 
 	function isTokenMid(){
@@ -267,6 +267,7 @@ module.exports = function(globalBody, tokens){
 			'=', '==',
 			'~', '~=',
 			'~+', '+~',
+			'~~+', '+~~',
 			'&&', '||', '||=', ',');
 	}
 
@@ -301,32 +302,34 @@ module.exports = function(globalBody, tokens){
 			// add operators
 			'+':     3,
 			'-':     3,
-			// misc
-			'~':     4,
+			// list
+			'~+':    4,
+			'+~':    4,
+			'~~+':   5,
+			'+~~':   5,
+			'~':     6,
 			// comparison
-			'<=':    5,
-			'<':     5,
-			'>=':    5,
-			'>':     5,
+			'<=':    7,
+			'<':     7,
+			'>=':    7,
+			'>':     7,
 			// equality
-			'!=':    6,
-			'==':    6,
+			'!=':    8,
+			'==':    8,
 			// logic
-			'&&':    7,
-			'||':    8,
+			'&&':    9,
+			'||':   10,
 			// group
-			',':     9,
+			',':    11,
 			// mutation
-			'=' :   10,
-			'+=':   10,
-			'%=':   10,
-			'-=':   10,
-			'*=':   10,
-			'/=':   10,
-			'^=':   10,
-			'~=':   10,
-			'~+':   10,
-			'+~':   10,
+			'=' :   20,
+			'+=':   20,
+			'%=':   20,
+			'-=':   20,
+			'*=':   20,
+			'/=':   20,
+			'^=':   20,
+			'~=':   20,
 		};
 		for (var k in prec){
 			if (mid.isData(k))
@@ -343,7 +346,7 @@ module.exports = function(globalBody, tokens){
 		else if (lp > rp)
 			return false;
 		// otherwise, same precedence...
-		if (lp === 11 || lmid.isData('^')) // mutation and pow are right to left
+		if (lp === 20 || lmid.isData('^')) // mutation and pow are right to left
 			return false;
 		return true;
 	}

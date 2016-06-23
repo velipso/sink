@@ -63,6 +63,8 @@ module.exports = function Lexer(file, source, readFile){
 		'=', '==',
 		'~', '~=',
 		'~+', '+~',
+		'~-', '-~',
+		'~~+', '+~~',
 		'&&', '||', '||=',
 		':', ',', '.', '(', ')', '[', ']', '{', '}'
 	];
@@ -79,9 +81,7 @@ module.exports = function Lexer(file, source, readFile){
 		'goto',
 		'if',
 		'namespace',
-		'pop',
 		'return',
-		'shift',
 		'typenum',
 		'typestr',
 		'typelist',

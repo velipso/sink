@@ -711,6 +711,16 @@ module.exports = function(bytecode, stdlib, natives, maxTicks){
 				vb_f = read8(); vb_i = read8();
 				var_set(va_f, va_i, Math.min.apply(Math, var_get(vb_f, vb_i)));
 				break;
+			case 0x38: // PushList va, vb
+				va_f = read8(); va_i = read8();
+				vb_f = read8(); vb_i = read8();
+				Array.prototype.push.apply(var_get(va_f, va_i), var_get(vb_f, vb_i));
+				break;
+			case 0x39: // UnshiftList va, vb
+				va_f = read8(); va_i = read8();
+				vb_f = read8(); vb_i = read8();
+				Array.prototype.unshift.apply(var_get(va_f, va_i), var_get(vb_f, vb_i));
+				break;
 
 			default:
 				throw err('bad operator 0x' + opcode.toString(16).toUpperCase());
