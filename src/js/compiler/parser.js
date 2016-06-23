@@ -249,7 +249,7 @@ module.exports = function(globalBody, tokens){
 	}
 
 	function isTokenPre(){
-		return tokens[0].isData('+', '-', '!', 'say', 'ask', 'pick', 'typenum', 'typestr',
+		return tokens[0].isData('+', '-', '!', 'typenum', 'typestr',
 			'typelist', 'pop', 'shift');
 	}
 
@@ -283,9 +283,6 @@ module.exports = function(globalBody, tokens){
 	}
 
 	function isPreBeforeMid(pre, mid){
-		// ask/say/pick behave like commands, so they get executed last
-		if (pre.isData('ask', 'say', 'pick'))
-			return false;
 		// -5^2 is -25, not 25
 		if (pre.isData('-') && mid.isData('^'))
 			return false;
@@ -518,8 +515,7 @@ module.exports = function(globalBody, tokens){
 
 			// hackey way to detect things like:
 			// add -10, 5    as     add (-10), 5     and not     (add - 10), 5
-			var isCmd = term.expr.length === 1 &&
-				(term.expr[0].kind === 'cmd-local' || term.expr[0].kind === 'cmd-native');
+			var isCmd = term.expr.length === 1 && body.isKindCmd(term.expr[0].kind);
 			// collect Post's
 			while (isTokenPost(term.newline, isCmd))
 				term = applyPost(isCmd, term);

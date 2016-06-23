@@ -79,6 +79,20 @@ module.exports = function(settings, lblContinue, lblBreak){
 		ops: function(){
 			return ops;
 		},
+		loadStdLib: function(){
+			([
+				{ name: 'say' , opcode: 0x08 , params: false },
+				{ name: 'ask' , opcode: 0x09 , params: false },
+				{ name: 'pick', opcode: false, params:     3 }
+			]).forEach(function(std){
+				var n = std.name.split('.');
+				for (var i = 0; i < n.length - 2; i++)
+					scope.pushNamespace(false, n[i]);
+				my.addCmdOpcode(std.name, n[n.length - 1], std.opcode, std.params);
+				for (var i = 0; i < n.length - 2; i++)
+					scope.popNamespace();
+			});
+		},
 		tempVar: function(){
 			if (arguments.length > 0)
 				my.tempClear.apply(my, arguments);
@@ -113,6 +127,9 @@ module.exports = function(settings, lblContinue, lblBreak){
 		addVar: function(pos, name){
 			return scope.addSymbol(pos, name, 'var', { temp: false });
 		},
+		isKindCmd: function(kind){
+			return kind === 'cmd-local' || kind === 'cmd-native' || kind === 'cmd-opcode';
+		},
 		addCmdLocal: function(pos, name, lbl, bodyKnown){
 			return scope.addSymbol(pos, name, 'cmd-local', {
 				lbl: lbl,
@@ -121,6 +138,13 @@ module.exports = function(settings, lblContinue, lblBreak){
 		},
 		addCmdNative: function(pos, name, opcode, paramCount){
 			return scope.addSymbol(pos, name, 'cmd-native', {
+				opcode: opcode,
+				paramCount: paramCount
+			});
+		},
+		addCmdOpcode: function(full, name, opcode, paramCount){
+			return scope.addSymbol(false, name, 'cmd-opcode', {
+				full: full,
 				opcode: opcode,
 				paramCount: paramCount
 			});
@@ -358,8 +382,7 @@ module.exports = function(settings, lblContinue, lblBreak){
 			my.tempClear(ve);
 		},
 		stmtEval: function(pos, expr){
-			if (expr.length === 1 &&
-				(expr[0].kind === 'cmd-local' || expr[0].kind === 'cmd-native'))
+			if (expr.length === 1 && my.isKindCmd(expr[0].kind))
 				expr = my.exprCall(pos, expr, []);
 			var ve = collapse(pos, expr);
 			my.tempClear(ve);
@@ -381,18 +404,43 @@ module.exports = function(settings, lblContinue, lblBreak){
 			my.tempClear.apply(my, init);
 		},
 		exprGroup: function(pos, expr){
-			if (expr.length === 1 &&
-				(expr[0].kind === 'cmd-local' || expr[0].kind === 'cmd-native'))
+			if (expr.length === 1 && my.isKindCmd(expr[0].kind))
 				expr = my.exprCall(pos, expr, []);
 			return expr;
 		},
 		exprCall: function(pos, cmd, params){
 			if (cmd.length !== 1)
 				throw CompilerError(pos, 'Command must be a single identifier');
-			cmd = cmd[0];
+			cmd = cmd[0].get();
+			var cmd_level = cmd.level;
+			cmd = cmd.v;
 
-			if (cmd.kind !== 'cmd-local' && cmd.kind !== 'cmd-native')
+			if (!my.isKindCmd(cmd.kind))
 				throw CompilerError(pos, 'Invalid command');
+
+			if (cmd.kind === 'cmd-opcode' && cmd.info.full === 'pick'){
+				// special logic for pick calls to short-circuit parameter evaluation
+				return [{
+					kind: 'var',
+					get: function(){
+						if (params.length !== 3)
+							throw CompilerError(pos, 'Expecting 3 arguments for `pick`');
+						var cond = collapse(pos, [params[0]]);
+						var lblFalse = my.newLabel('pick_false');
+						my.JumpIfNil(pos, cond, lblFalse);
+						my.tempClear(cond);
+						var vl = collapse(pos, [params[1]]);
+						var lblEnd = my.newLabel('pick_end');
+						my.Jump(pos, lblEnd);
+						lblFalse.set(pos);
+						var vr = collapse(pos, [params[2]]);
+						my.tempClear(vr);
+						my.Move(vl, vr);
+						lblEnd.set(pos);
+						return vl;
+					}
+				}];
+			}
 
 			return [{
 				kind: 'var',
@@ -405,22 +453,71 @@ module.exports = function(settings, lblContinue, lblBreak){
 						my.tempClear(ev);
 						my.Str(ev, pos.toString());
 					}
+					var vs;
+					if (cmd.kind === 'cmd-opcode' && cmd.info.paramCount === false &&
+						params.length >= 1){
+						// reserve `vs` now before releasing all the temps
+						vs = my.tempVar();
+						if (params.length > 1)
+							my.Str(vs, [32]);
+						else
+							my.Str(vs, []);
+					}
 					var v = my.tempVar.apply(my, params);
 
 					if (cmd.kind === 'cmd-local'){
-						cmd = cmd.get();
-						my.CallLocal(pos, v, cmd.level, cmd.v.info.lbl, params);
+						my.CallLocal(pos, v, cmd_level, cmd.info.lbl, params);
 						return v;
 					}
 					else if (cmd.kind === 'cmd-native'){
-						cmd = cmd.get().v;
-						if (cmd.info.paramCount < params.length)
-							params = params.slice(0, cmd.info.paramCount);
-						else if (cmd.info.paramCount > params.length){
-							while (cmd.info.paramCount > params.length)
+						cmd = cmd.info;
+						if (cmd.paramCount < params.length)
+							params = params.slice(0, cmd.paramCount);
+						else if (cmd.paramCount > params.length){
+							while (cmd.paramCount > params.length)
 								params.push({ v: nil.v, level: scope.currentLevel - 1 });
 						}
-						my.CallNative(v, ev, cmd.info.opcode, params);
+						my.CallNative(v, ev, cmd.opcode, params);
+						return v;
+					}
+					else{ // cmd.kind === 'cmd-opcode'
+						cmd = cmd.info;
+						if (cmd.paramCount === false){
+							// convert variable length arguments to string
+							if (params.length > 0){
+								my.tempClear(vs);
+								my.Move(v, params.shift());
+								if (params.length > 0){
+									while (params.length > 0){
+										my.Cat(v, v, vs);
+										my.Cat(v, v, params.shift());
+									}
+								}
+								else
+									my.Cat(v, v, vs);
+							}
+							else
+								my.Str(v, []);
+							op_v_v(cmd.opcode, v, v);
+						}
+						else{
+							if (cmd.paramCount < params.length)
+								params = params.slice(0, cmd.paramCount);
+							else if (cmd.paramCount > params.length){
+								while (cmd.paramCount > params.length)
+									params.push({ v: nil.v, level: scope.currentLevel - 1 });
+							}
+							if (cmd.paramCount === 0)
+								op_v(cmd.opcode, v);
+							else if (cmd.paramCount === 1)
+								op_v_v(cmd.opcode, v, params[0]);
+							else if (cmd.paramCount === 2)
+								op_v_v_v(cmd.opcode, v, params[0], params[1]);
+							else if (cmd.paramCount === 3)
+								op_v_v_v_v(cmd.opcode, v, params[0], params[1], params[2]);
+							else
+								throw new Error('standard library opcode has too many parameters');
+						}
 						return v;
 					}
 				}
@@ -535,50 +632,6 @@ module.exports = function(settings, lblContinue, lblBreak){
 			return [{
 				kind: 'var',
 				get: function(){
-					if (tok.isData('say', 'ask')){
-						for (var i = 0; i < expr.length; i++)
-							expr[i] = forceReadable(tok.pos, expr[i]);
-						var v = my.tempVar();
-						var vs = my.tempVar();
-						my.tempClear(vs);
-						if (expr.length > 1)
-							my.Str(vs, [32]);
-						else
-							my.Str(vs, []);
-						my.tempClear.apply(my, expr);
-						my.Move(v, expr.shift());
-						if (expr.length > 0){
-							while (expr.length > 0){
-								my.Cat(v, v, vs);
-								my.Cat(v, v, expr.shift());
-							}
-						}
-						else
-							my.Cat(v, v, vs);
-						if (tok.isData('say'))
-							my.Say(v, v);
-						else // ask
-							my.Ask(v, v);
-						return v;
-					}
-					else if (tok.isData('pick')){
-						if (expr.length !== 3)
-							throw CompilerError(tok.pos, 'Expecting 3 arguments for `pick`');
-						var cond = collapse(tok.pos, [expr[0]]);
-						var lblFalse = my.newLabel('pick_false');
-						my.JumpIfNil(tok.pos, cond, lblFalse);
-						my.tempClear(cond);
-						var vl = collapse(tok.pos, [expr[1]]);
-						var lblEnd = my.newLabel('pick_end');
-						my.Jump(tok.pos, lblEnd);
-						lblFalse.set(tok.pos);
-						var vr = collapse(tok.pos, [expr[2]]);
-						my.tempClear(vr);
-						my.Move(vl, vr);
-						lblEnd.set(tok.pos);
-						return vl;
-					}
-
 					var ve = collapse(tok.pos, expr);
 					var v = my.tempVar(ve);
 					if (tok.isData('+'))
@@ -841,8 +894,8 @@ module.exports = function(settings, lblContinue, lblBreak){
 		ToNum   : function(v, ve){ op_v_v(0x05, v, ve); },
 		Neg     : function(v, ve){ op_v_v(0x06, v, ve); },
 		Not     : function(v, ve){ op_v_v(0x07, v, ve); },
-		Say     : function(v, ve){ op_v_v(0x08, v, ve); },
-		Ask     : function(v, ve){ op_v_v(0x09, v, ve); },
+		// Say 0x08
+		// Ask 0x09
 		Typenum : function(v, ve){ op_v_v(0x0A, v, ve); },
 		Typestr : function(v, ve){ op_v_v(0x0B, v, ve); },
 		Typelist: function(v, ve){ op_v_v(0x0C, v, ve); },
