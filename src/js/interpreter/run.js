@@ -257,35 +257,49 @@ module.exports = function(bytecode, stdlib, natives, maxTicks){
 		pc = old_pc;
 	}
 
-	function apply_binop(a, b, op){
+	function apply_unop(a, op){
 		if (a instanceof Array){
-			if (b instanceof Array){
-				var ret = [];
-				if (a.length > b.length){
-					for (var i = 0; i < a.length; i++)
-						ret.push(op(a[i], i >= b.length ? 0 : b[i]));
-				}
-				else{
-					for (var i = 0; i < b.length; i++)
-						ret.push(op(i >= a.length ? 0 : a[i], b[i]));
-				}
-				return ret;
-			}
-			else{
-				var ret = [];
-				for (var i = 0; i < a.length; i++)
-					ret.push(op(a[i], b));
-				return ret;
-			}
-		}
-		else if (b instanceof Array){
 			var ret = [];
-			for (var i = 0; i < b.length; i++)
-				ret.push(op(a, b[i]));
+			for (var i = 0; i < a.length; i++)
+				ret.push(op(a[i]));
 			return ret;
 		}
 		else
-			return op(a, b);
+			return op(a);
+	}
+
+	function arget(ar, index){
+		if (ar instanceof Array)
+			return index >= ar.length ? 0 : ar[index];
+		return ar;
+	}
+
+	function arsize(ar){
+		if (ar instanceof Array)
+			return ar.length;
+		return 1;
+	}
+
+	function apply_binop(a, b, op){
+		if (a instanceof Array || b instanceof Array){
+			var ret = [];
+			var m = Math.max(arsize(a), arsize(b));
+			for (var i = 0; i < m; i++)
+				ret.push(op(arget(a, i), arget(b, i)));
+			return ret;
+		}
+		return op(a, b);
+	}
+
+	function apply_triop(a, b, c, op){
+		if (a instanceof Array || b instanceof Array || c instanceof Array){
+			var ret = [];
+			var m = Math.max(arsize(a), arsize(b), arsize(c));
+			for (var i = 0; i < m; i++)
+				ret.push(op(arget(a, i), arget(b, i), arget(c, i)));
+			return ret;
+		}
+		return op(a, b, c);
 	}
 
 	var mt = Infinity;
@@ -571,6 +585,133 @@ module.exports = function(bytecode, stdlib, natives, maxTicks){
 				if (typeof var_get(va_f, va_i) === 'undefined')
 					pc = jpc;
 				break;
+			case 0x25: // va = NumFloor vb
+				va_f = read8(); va_i = read8();
+				vb_f = read8(); vb_i = read8();
+				var_set(va_f, va_i, apply_unop(
+					var_get(vb_f, vb_i),
+					function(a){ return Math.floor(a); }));
+				break;
+			case 0x26: // va = NumCeil vb
+				va_f = read8(); va_i = read8();
+				vb_f = read8(); vb_i = read8();
+				var_set(va_f, va_i, apply_unop(
+					var_get(vb_f, vb_i),
+					function(a){ return Math.ceil(a); }));
+				break;
+			case 0x27: // va = NumRound vb
+				va_f = read8(); va_i = read8();
+				vb_f = read8(); vb_i = read8();
+				var_set(va_f, va_i, apply_unop(
+					var_get(vb_f, vb_i),
+					function(a){ return Math.round(a); }));
+				break;
+			case 0x28: // va = NumSin vb
+				va_f = read8(); va_i = read8();
+				vb_f = read8(); vb_i = read8();
+				var_set(va_f, va_i, apply_unop(
+					var_get(vb_f, vb_i),
+					function(a){ return Math.sin(a); }));
+				break;
+			case 0x29: // va = NumCos vb
+				va_f = read8(); va_i = read8();
+				vb_f = read8(); vb_i = read8();
+				var_set(va_f, va_i, apply_unop(
+					var_get(vb_f, vb_i),
+					function(a){ return Math.cos(a); }));
+				break;
+			case 0x2A: // va = NumTan vb
+				va_f = read8(); va_i = read8();
+				vb_f = read8(); vb_i = read8();
+				var_set(va_f, va_i, apply_unop(
+					var_get(vb_f, vb_i),
+					function(a){ return Math.tan(a); }));
+				break;
+			case 0x2B: // va = NumAsin vb
+				va_f = read8(); va_i = read8();
+				vb_f = read8(); vb_i = read8();
+				var_set(va_f, va_i, apply_unop(
+					var_get(vb_f, vb_i),
+					function(a){ return Math.asin(a); }));
+				break;
+			case 0x2C: // va = NumAcos vb
+				va_f = read8(); va_i = read8();
+				vb_f = read8(); vb_i = read8();
+				var_set(va_f, va_i, apply_unop(
+					var_get(vb_f, vb_i),
+					function(a){ return Math.acos(a); }));
+				break;
+			case 0x2D: // va = NumAtan vb
+				va_f = read8(); va_i = read8();
+				vb_f = read8(); vb_i = read8();
+				var_set(va_f, va_i, apply_unop(
+					var_get(vb_f, vb_i),
+					function(a){ return Math.atan(a); }));
+				break;
+			case 0x2E: // va = NumAtan2 vb, vc
+				va_f = read8(); va_i = read8();
+				vb_f = read8(); vb_i = read8();
+				vc_f = read8(); vc_i = read8();
+				var_set(va_f, va_i, apply_binop(
+					var_get(vb_f, vb_i), var_get(vc_f, vc_i),
+					function(a, b){ return Math.atan2(a, b); }));
+				break;
+			case 0x2F: // va = NumLog vb
+				va_f = read8(); va_i = read8();
+				vb_f = read8(); vb_i = read8();
+				var_set(va_f, va_i, apply_unop(
+					var_get(vb_f, vb_i),
+					function(a){ return Math.log(a); }));
+				break;
+			case 0x30: // va = NumLog2 vb
+				va_f = read8(); va_i = read8();
+				vb_f = read8(); vb_i = read8();
+				var_set(va_f, va_i, apply_unop(
+					var_get(vb_f, vb_i),
+					function(a){ return Math.log2(a); }));
+				break;
+			case 0x31: // va = NumLog10 vb
+				va_f = read8(); va_i = read8();
+				vb_f = read8(); vb_i = read8();
+				var_set(va_f, va_i, apply_unop(
+					var_get(vb_f, vb_i),
+					function(a){ return Math.log10(a); }));
+				break;
+			case 0x32: // va = NumAbs vb
+				va_f = read8(); va_i = read8();
+				vb_f = read8(); vb_i = read8();
+				var_set(va_f, va_i, apply_unop(
+					var_get(vb_f, vb_i),
+					function(a){ return Math.abs(a); }));
+				break;
+			case 0x33: // va = NumPi
+				va_f = read8(); va_i = read8();
+				var_set(va_f, va_i, Math.PI);
+				break;
+			case 0x34: // va = NumTau
+				va_f = read8(); va_i = read8();
+				var_set(va_f, va_i, Math.PI * 2);
+				break;
+			case 0x35: // va = NumLerp vb, vc, vd
+				va_f = read8(); va_i = read8();
+				vb_f = read8(); vb_i = read8();
+				vc_f = read8(); vc_i = read8();
+				vd_f = read8(); vd_i = read8();
+				var_set(va_f, va_i, apply_triop(
+					var_get(vb_f, vb_i), var_get(vc_f, vc_i), var_get(vd_f, vd_i),
+					function(a, b, c){ return a + (b - a) * c; }));
+				break;
+			case 0x36: // va = NumMax vb
+				va_f = read8(); va_i = read8();
+				vb_f = read8(); vb_i = read8();
+				var_set(va_f, va_i, Math.max.apply(Math, var_get(vb_f, vb_i)));
+				break;
+			case 0x37: // va = NumMin vb
+				va_f = read8(); va_i = read8();
+				vb_f = read8(); vb_i = read8();
+				var_set(va_f, va_i, Math.min.apply(Math, var_get(vb_f, vb_i)));
+				break;
+
 			default:
 				throw err('bad operator 0x' + opcode.toString(16).toUpperCase());
 		}

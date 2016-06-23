@@ -80,17 +80,45 @@ module.exports = function(settings, lblContinue, lblBreak){
 			return ops;
 		},
 		loadStdLib: function(){
+			var ns = [];
 			([
-				{ name: 'say' , opcode: 0x08 , params: false },
-				{ name: 'ask' , opcode: 0x09 , params: false },
-				{ name: 'pick', opcode: false, params:     3 }
+				{ name: 'say'      , opcode: 0x08 , params: false },
+				{ name: 'ask'      , opcode: 0x09 , params: false },
+				{ name: 'pick'     , opcode: false, params:     3 },
+				{ namespace: 'num' },
+					{ name: 'floor', opcode: 0x25 , params:     1 },
+					{ name: 'ceil' , opcode: 0x26 , params:     1 },
+					{ name: 'round', opcode: 0x27 , params:     1 },
+					{ name: 'sin'  , opcode: 0x28 , params:     1 },
+					{ name: 'cos'  , opcode: 0x29 , params:     1 },
+					{ name: 'tan'  , opcode: 0x2A , params:     1 },
+					{ name: 'asin' , opcode: 0x2B , params:     1 },
+					{ name: 'acos' , opcode: 0x2C , params:     1 },
+					{ name: 'atan' , opcode: 0x2D , params:     1 },
+					{ name: 'atan2', opcode: 0x2E , params:     2 },
+					{ name: 'log'  , opcode: 0x2F , params:     1 },
+					{ name: 'log2' , opcode: 0x30 , params:     1 },
+					{ name: 'log10', opcode: 0x31 , params:     1 },
+					{ name: 'abs'  , opcode: 0x32 , params:     1 },
+					{ name: 'pi'   , opcode: 0x33 , params:     0 },
+					{ name: 'tau'  , opcode: 0x34 , params:     0 },
+					{ name: 'lerp' , opcode: 0x35 , params:     3 },
+					{ name: 'max'  , opcode: 0x36 , params:     1 },
+					{ name: 'min'  , opcode: 0x37 , params:     1 },
+				{ endnamespace: true }
 			]).forEach(function(std){
-				var n = std.name.split('.');
-				for (var i = 0; i < n.length - 2; i++)
-					scope.pushNamespace(false, n[i]);
-				my.addCmdOpcode(std.name, n[n.length - 1], std.opcode, std.params);
-				for (var i = 0; i < n.length - 2; i++)
+				if (std.namespace){
+					scope.pushNamespace(false, std.namespace);
+					ns.push(std.namespace);
+				}
+				else if (std.endnamespace){
+					ns.pop();
 					scope.popNamespace();
+				}
+				else{
+					var n = ns.concat([std.name]);
+					my.addCmdOpcode(n.join('.'), std.name, std.opcode, std.params);
+				}
 			});
 		},
 		tempVar: function(){
