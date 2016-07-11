@@ -1,15 +1,20 @@
 
 Command-Line Options
---------------------
+====================
 
-`./sink [options] [-e 'script' | script.sink | script.sb] [arguments]`
+`./sink`
 
-| Option      | Description                                  |
-|-------------|----------------------------------------------|
-| `-v`        | Print verison information                    |
-| `-e script` | Script specified by command line             |
-| `-c`        | Compile script to bytecode                   |
-| `-j`        | Transpile script to JavaScript               |
-| `-o output` | Output file for compilation (default stdout) |
+Enter interactive mode (REPL).
 
-If `-c` or `-j` isn't specified, then the script will run immediately with `[arguments]`.
+`./sink <file> [arguments]`
+
+Execute `<file>` with optional `arguments`, outputting results to stdout.  The input `<file>` can be
+a text script or bytecode.
+
+`./sink -c file.sink`
+
+Compile `file.sink`, outputting bytecode to stdout.
+
+`./sink -v`
+
+Print version information.
