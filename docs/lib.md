@@ -10,9 +10,15 @@ execution.  These functions are available in all host environments.
 | `say a, ...`            | Output arguments to stdout; returns outputted string                  |
 | `ask a, ...`            | Prompt the user for input from stdin; returns the inputted string     |
 | `pick cond, a, b`       | If `cond` is true, return `a`, otherwise return `b` (short-circuited) |
+| `num.abs a`             | Absolute value of `a`                                                 |
+| `num.lerp a, b, t`      | Linear interpolation from `a` to `b`, by amount `t`                   |
+| `num.max ls`            | Returns the maximum number in the list `ls`                           |
+| `num.min ls`            | Returns the minimum number in the list `ls`                           |
 | `num.floor a`           | Round `a` down to the nearest integer                                 |
 | `num.ceil a`            | Round `a` up to the nearest integer                                   |
 | `num.round a`           | Round `a` to the nearest integer, `0.5` and above rounds up           |
+| `num.pi`                | Pi (3.141592...)                                                      |
+| `num.tau`               | Tau (6.283185...)                                                     |
 | `num.sin a`             | Sine of `a` (radians)                                                 |
 | `num.cos a`             | Cosine of `a` (radians)                                               |
 | `num.tan a`             | Tangent of `a` (radians)                                              |
@@ -23,17 +29,11 @@ execution.  These functions are available in all host environments.
 | `num.log a`             | Natural log of `a`                                                    |
 | `num.log2 a`            | Log base 2 of `a`                                                     |
 | `num.log10 a`           | Log base 10 of `a`                                                    |
-| `num.abs a`             | Absolute value of `a`                                                 |
-| `num.pi`                | Pi (3.141592...)                                                      |
-| `num.tau`               | Tau (6.283185...)                                                     |
-| `num.lerp a, b, t`      | Linear interpolation from `a` to `b`, by amount `t`                   |
-| `num.max ls`            | Returns the maximum number in the list `ls`                           |
-| `num.min ls`            | Returns the minimum number in the list `ls`                           |
 | `list.new a, b`         | Create a new list with size `a`, with each element set to `b`         |
 | `list.find ls, a, b`    | Find `a` in list `ls` starting at `b`; returns nil if not found       |
 | `list.findRev ls, a, b` | Find `a` in list `ls` starting at `b` and searching in reverse        |
-| `list.rev ls`           | Reverse list `ls`; returns `ls`                                       |
 | `list.join ls, a`       | Convert list `ls` to a string by joining elements with string `a`     |
+| `list.rev ls`           | Reverse list `ls`; returns `ls`                                       |
 
 Shell Library
 =============
