@@ -103,20 +103,6 @@ var Expr = {
 			isCmd: false,
 			group: [left, right]
 		};
-	},
-	groupAmount: function(expr, amount){
-		var g;
-		if (expr.type == 'EXPR_GROUP')
-			g = expr.group.slice(0, amount);
-		else
-			g = ([expr]).slice(0, amount);
-		while (g.length < amount)
-			g.push(Expr.nil());
-		return {
-			type: 'EXPR_GROUP',
-			isCmd: false,
-			group: g
-		};
 	}
 };
 

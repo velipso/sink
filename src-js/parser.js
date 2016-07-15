@@ -3,6 +3,7 @@
 // Project Home: https://github.com/voidqk/sink
 
 var Expr = require('./expr');
+var StackFrame = require('./stack-frame');
 
 function isKeyspec(tk, str){
 	return tk.type == 'TOK_KEYSPEC' && tk.data == str;
@@ -136,8 +137,10 @@ function eps_new(ets, next){ // exprPreStackStack
 	};
 }
 
-function vn_new(ns, name){
+function vn_new(fdiff, index, ns, name){
 	return {
+		fdiff: fdiff,
+		index: index,
 		ns: ns,
 		name: name
 	};
@@ -163,42 +166,6 @@ function state_new(st, lblBreak, lblContinue, next){
 
 function state_newPush(st, next){
 	return state_new(st, next.lblBreak, next.lblContinue, next);
-}
-
-function frame_new(parent){
-	return {
-		vars: [],
-		parent: parent
-	};
-}
-
-function frame_tempGet(f){
-	for (var i = 0; i < f.vars.length; i++){
-		if (f.vars[i] == 'FVR_TEMP_AVAIL'){
-			f.vars[i] = 'FVR_TEMP_INUSE';
-			return i;
-		}
-	}
-	f.vars.push('FVR_TEMP_INUSE');
-	return f.vars.length - 1;
-}
-
-function frame_tempClear(f, i){
-	f.vars[i] = 'FVR_TEMP_AVAIL';
-}
-
-function frame_var(f){
-	f.vars.push('FVR_VAR');
-	return f.vars.length - 1;
-}
-
-function frame_diff(parent, child){
-	var dist = 0;
-	while (child != parent){
-		child = child.parent;
-		dist++;
-	}
-	return dist;
 }
 
 function using_new(ns, next){
@@ -360,7 +327,7 @@ function res_more(){
 
 module.exports = function(body){
 	var st = state_new('PRS_STATEMENT', null, null, null);
-	var fr = frame_new(null);
+	var fr = StackFrame(null);
 	var sc = scope_new(fr, null);
 	var tkR, tk1, tk2;
 
@@ -495,8 +462,10 @@ module.exports = function(body){
 					ns = nsn.ns;
 				}
 
-				// remember to declare `nm` in the `ns` namespace
-				st.varNames.push(vn_new(ns, nm));
+				var fdiff = ns.fr.diff(fr);
+				var index = ns.fr.newVar();
+				body.newVar(fdiff, index);
+				st.varNames.push(vn_new(fdiff, index, ns, nm));
 
 				if (isKeyspec(tk1, ',')){
 					st.st = 'PRS_VAR';
@@ -514,15 +483,40 @@ module.exports = function(body){
 			} break;
 
 			case 'PRS_VAR_INIT': {
-				var exp = Expr.groupAmount(st.exprTerm, st.varNames.length);
+				// evaluate init expression into storage locations
+				if (st.exprTerm.type == 'EXPR_GROUP'){
+					for (var i = 0; i < st.exprTerm.group.length; i++){
+						var r;
+						if (i < st.varNames.length){
+							r = body.evalInto(
+								fr,
+								st.varNames[i].fdiff,
+								st.varNames[i].index,
+								st.exprTerm.group[i]
+							);
+						}
+						else
+							r = body.eval(fr, st.exprTerm.group[i]);
+						if (r.type == 'error')
+							return res_error(r.msg);
+					}
+				}
+				else{
+					for (var i = 0; i < st.varNames.length; i++){
+						var r = body.evalInto(
+							fr,
+							st.varNames[i].fdiff,
+							st.varNames[i].index,
+							i == 0 ? st.exprTerm : Expr.nil()
+						);
+						if (r.type == 'error')
+							return res_error(r.msg);
+					}
+				}
+				// insert symbols into namespace
 				for (var i = 0; i < st.varNames.length; i++){
 					var vn = st.varNames[i];
-					var ns = vn.ns;
-					var nm = vn.name;
-					var ex = exp.group[i];
-					var idx = frame_var(ns.fr);
-					ns.names = nsname_newVar(nm, ns.fr, idx, ns.names);
-					body.newVar(frame_diff(ns.fr, fr), idx, ex);
+					vn.ns.names = nsname_newVar(vn.name, vn.ns.fr, vn.index, vn.ns.names);
 				}
 				st = st.next;
 				return processToken();
@@ -534,7 +528,7 @@ module.exports = function(body){
 				return processToken();
 
 			case 'PRS_EVAL_EXPR': {
-				var r = body.eval(st.exprTerm);
+				var r = body.eval(fr, st.exprTerm);
 				if (r.type == 'error')
 					return res_error(r.msg);
 				st = st.next;
@@ -601,7 +595,7 @@ module.exports = function(body){
 				// lk.nsn.type == 'NSN_VAR', 'NSN_CMD_LOCAL', or 'NSN_CMD_NATIVE'
 				st.lookupNames = null; // free lookup names
 				if (lk.nsn.type == 'NSN_VAR')
-					st.exprTerm = Expr.lookup(frame_diff(lk.nsn.fr, fr), lk.nsn.index);
+					st.exprTerm = Expr.lookup(lk.nsn.fr.diff(fr), lk.nsn.index);
 				else if (lk.nsn.type == 'NSN_CMD_LOCAL')
 					st.exprTerm = Expr.cmdLocal(lk.nsn.label);
 				else // NSN_CMD_NATIVE
@@ -705,8 +699,8 @@ module.exports = function(body){
 					if (st.exprPreStack == null && st.exprMidStack != null &&
 						isMidBeforeMid(st.exprMidStack.tk, tk1)){
 						// apply the previous mMid
-						st.exprTerm = Expr.infix(st.exprMidStack.tk, st.exprTerm,
-							st.exprStack.expr);
+						st.exprTerm = Expr.infix(st.exprMidStack.tk, st.exprStack.expr,
+							st.exprTerm);
 						st.exprPreStack = st.exprPreStackStack.ets;
 						st.exprPreStackStack = st.exprPreStackStack.next;
 						st.exprMidStack = st.exprMidStack.next;
@@ -739,8 +733,8 @@ module.exports = function(body){
 						break;
 
 					// apply the Mid
-					st.exprTerm = Expr.infix(st.exprMidStack.tk, st.exprTerm,
-						st.exprStack.expr);
+					st.exprTerm = Expr.infix(st.exprMidStack.tk, st.exprStack.expr,
+						st.exprTerm);
 					st.exprStack = st.exprStack.next;
 					st.exprPreStack = st.exprPreStackStack.ets;
 					st.exprPreStackStack = st.exprPreStackStack.next;
