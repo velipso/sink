@@ -2,12 +2,9 @@
 	"name": "sink",
 	"version": "0.0.1",
 	"description": "Minimalistic programming language for embedding small scripts in larger programs",
-	"main": "./index.js",
+	"main": "./src-js/index.js",
 	"bin": {
-		"sink": "./cmd.js"
-	},
-	"browser": {
-		"./interpreter/index": "./interpreter/index-browser"
+		"sink": "./src-js/cmd.js"
 	},
 	"repository": {
 		"type": "git",
@@ -17,7 +14,11 @@
 		"programming language",
 		"scripting"
 	],
-	"author": "Sean (@voidqk)",
+	"author": {
+		"name": "Sean",
+		"twitter": "voidqk",
+		"url": "http://syntheti.cc"
+	},
 	"license": "MIT",
 	"bugs": {
 		"url": "https://github.com/voidqk/sink/issues"
