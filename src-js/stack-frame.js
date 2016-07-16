@@ -6,7 +6,8 @@ module.exports = function(parent){
 	var vars = [];
 	var my = {
 		tempClear: function(i){
-			vars[i] = 'FVR_TEMP_AVAIL';
+			if (vars[i] == 'FVR_TEMP_INUSE')
+				vars[i] = 'FVR_TEMP_AVAIL';
 		},
 		newTemp: function(body){
 			for (var i = 0; i < vars.length; i++){

@@ -551,7 +551,7 @@ module.exports = function(body){
 							);
 						}
 						else
-							r = body.eval(fr, st.exprTerm.group[i]);
+							r = body.eval(fr, st.exprTerm.group[i], null);
 						if (r.type == 'error')
 							return res_error(r.msg);
 					}
@@ -585,7 +585,7 @@ module.exports = function(body){
 				return processToken();
 
 			case 'PRS_EVAL_EXPR': {
-				var r = body.eval(fr, st.exprTerm);
+				var r = body.eval(fr, st.exprTerm, null);
 				if (r.type == 'error')
 					return res_error(r.msg);
 				st = st.next;
