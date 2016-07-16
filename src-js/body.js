@@ -30,6 +30,16 @@ function intoloc_new(fdiff, index){
 	};
 }
 
+function str_equ(a, b){
+	if (a.length != b.length)
+		return false;
+	for (var i = 0; i < a.length; i++){
+		if (a[i] != b[i])
+			return false;
+	}
+	return true;
+}
+
 function ev_success(){
 	return { type: 'success' };
 }
@@ -168,8 +178,7 @@ module.exports = function(){
 							else{
 								if (mut_op == -1) // if assignment
 									my.evalIntoLval(fr, lvals[i], ex, out);
-								else{
-									// otherwise, we have an operator that mutates
+								else{ // otherwise, we have an operator that mutates
 									var rest = [];
 									my.eval(fr, ex, rest);
 									tempsClear(fr, rest);
@@ -187,7 +196,16 @@ module.exports = function(){
 					}
 					if (throughTemp){
 						for (var i = 0; i < temps.length; i++){
-							my.evalIntoLval(fr, lvals[i], Expr.lookup(0, temps[i]), out);
+							if (mut_op == -1)
+								my.evalIntoLval(fr, lvals[i], Expr.lookup(0, temps[i]), out);
+							else{
+								op7(mut_op,
+									read[i].fdiff, read[i].index,
+									read[i].fdiff, read[i].index,
+									0, temps[i]);
+								my.evalIntoLval(fr, lvals[i],
+									Expr.lookup(read[i].fdiff, read[i].index), out);
+							}
 							fr.tempClear(temps[i]);
 						}
 					}
@@ -198,7 +216,7 @@ module.exports = function(){
 						my.evalIntoLval(fr, lvals[0], expr.right, rest);
 						out.push(rest[rest.length - 1]);
 					}
-					else{
+					else{ // mutation
 						var rest = [];
 						my.eval(fr, expr.right, rest);
 						tempsClear(fr, rest);
@@ -239,13 +257,15 @@ module.exports = function(){
 			}
 
 			var idx = fr.newTemp(my);
+			// TODO: can I prove I can do this here instead of after the evalInto?
+			// if (out == null) fr.tempClear(idx);
 			var res = my.evalInto(fr, 0, idx, expr);
 			if (res.type == 'error')
 				return res;
 			if (out != null)
 				out.push(intoloc_new(0, idx));
 			else
-				fr.tempClear(idx);
+				fr.tempClear(idx); // remove this and do above instead..?
 			return ev_success();
 		},
 		evalIntoLval: function(fr, lval, expr, out){
@@ -298,6 +318,23 @@ module.exports = function(){
 					op5(OP.NUM_TBL, fdiff, index, idx % 256, Math.floor(idx / 256));
 				} break;
 
+				case 'EXPR_STR': {
+					var idx = -1;
+					for (var i = 0; i < strTable.length; i++){
+						if (str_equ(strTable[i], expr.str)){
+							idx = i;
+							break;
+						}
+					}
+					if (idx < 0){
+						idx = strTable.length;
+						strTable.push(expr.str);
+					}
+					if (idx > 65535)
+						return ev_error('Too many string constants');
+					op5(OP.STR, fdiff, index, idx % 256, Math.floor(idx / 256));
+				} break;
+
 				case 'EXPR_LOOKUP':
 					if (expr.fdiff == fdiff && expr.index == index)
 						break;
@@ -315,7 +352,44 @@ module.exports = function(){
 							}
 
 							if (expr.cmd.params < 0){
-								throw 'TODO: cat all params';
+								var res = fr.newTemp(my);
+								if (expr.params.type == 'EXPR_GROUP'){
+									var div = fr.newTemp(my);
+									my.evalInto(fr, 0, div, Expr.str([ 32 ]));
+									for (var i = 0; i < expr.params.group.length; i++){
+										if (i == 0)
+											my.evalInto(fr, 0, res, expr.params.group[i]);
+										else{
+											var t = fr.newTemp(my);
+											my.evalInto(fr, 0, t, expr.params.group[i]);
+											my.evalInto(fr, 0, t, Expr.infix({
+												type: 'TOK_KEYSPEC',
+												data: '~'
+											}, Expr.lookup(0, div), Expr.lookup(0, t)));
+											my.evalInto(fr, 0, res, Expr.infix({
+												type: 'TOK_KEYSPEC',
+												data: '~'
+											}, Expr.lookup(0, res), Expr.lookup(0, t)));
+											fr.tempClear(t);
+										}
+									}
+									fr.tempClear(div);
+								}
+								else{
+									if (expr.params.type == 'EXPR_STR')
+										my.evalInto(fr, 0, res, expr.params);
+									else{
+										var div = fr.newTemp(my);
+										my.evalInto(fr, 0, div, Expr.str([]));
+										my.evalInto(fr, 0, res, Expr.infix({
+											type: 'TOK_KEYSPEC',
+											data: '~'
+										}, Expr.lookup(0, div), expr.params));
+										fr.tempClear(div);
+									}
+								}
+								op5(expr.cmd.opcode, fdiff, index, 0, res);
+								fr.tempClear(res);
 							}
 							else{
 								switch (expr.cmd.params){
@@ -388,6 +462,42 @@ module.exports = function(){
 							throw new Error('Unknown command type: ' + expr.cmd.type);
 					}
 					break;
+
+				case 'EXPR_INFIX': {
+					var infix_op;
+					if      (expr.tk.data == '^'  ) infix_op = OP.POW;
+					else if (expr.tk.data == '%'  ) infix_op = OP.MOD;
+					else if (expr.tk.data == '*'  ) infix_op = OP.MUL;
+					else if (expr.tk.data == '/'  ) infix_op = OP.DIV;
+					else if (expr.tk.data == '+'  ) infix_op = OP.ADD;
+					else if (expr.tk.data == '-'  ) infix_op = OP.SUB;
+					else if (expr.tk.data == '~'  ) infix_op = OP.CAT;
+					else if (expr.tk.data == '<=' ) infix_op = OP.LTE;
+					else if (expr.tk.data == '<'  ) infix_op = OP.LT;
+					else if (expr.tk.data == '>=' ) infix_op = OP.GTE;
+					else if (expr.tk.data == '>'  ) infix_op = OP.GT;
+					else if (expr.tk.data == '!=' ) infix_op = OP.NEQ;
+					else if (expr.tk.data == '==' ) infix_op = OP.EQU;
+					else{
+						if (expr.tk.data == '&&' ){
+							throw 'TODO: short circuit AND';
+						}
+						else if (expr.tk.data == '||' ){
+							throw 'TODO: short circuit OR';
+						}
+						throw 'TODO: how to evalInto ' + expr.tk.data;
+					}
+					var lv = [];
+					var rv = [];
+					my.eval(fr, expr.left, lv);
+					my.eval(fr, expr.right, rv);
+					op7(infix_op,
+						fdiff, index,
+						lv[lv.length - 1].fdiff, lv[lv.length - 1].index,
+						rv[rv.length - 1].fdiff, rv[rv.length - 1].index);
+					tempsClear(fr, lv);
+					tempsClear(fr, rv);
+				} break;
 
 				default:
 					throw 'TODO: how to evalInto ' + expr.type + '?';

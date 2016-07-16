@@ -143,7 +143,7 @@ module.exports = function(){
 						str_depth--;
 						blob = [];
 						state = 'LEX_STR_INTERP';
-						return [token_new('TOK_STR_EXPR_END', null)];
+						return [token_new('TOK_KEYSPEC', ')'), token_new('TOK_KEYSPEC', '~')];
 					}
 					state = 'LEX_SPECIAL1';
 					return [];
@@ -170,7 +170,7 @@ module.exports = function(){
 				else if (ch1 == '"'){
 					blob = [];
 					state = 'LEX_STR_INTERP';
-					return [token_new('TOK_STR_START', null)];
+					return [token_new('TOK_KEYSPEC', '(')];
 				}
 				else if (ch1 == '\\'){
 					state = 'LEX_BACKSLASH';
@@ -426,11 +426,7 @@ module.exports = function(){
 					return [token_new('TOK_ERROR', 'Missing end of string')];
 				else if (ch1 == '\''){
 					state = 'LEX_START';
-					return [
-						token_new('TOK_STR_START', null),
-						token_new('TOK_STR_BLOB', blob),
-						token_new('TOK_STR_END', null)
-					];
+					return [token_new('TOK_STR', blob)];
 				}
 				else if (ch1 == '\\'){
 					state = 'LEX_STR_BASIC_ESC';
@@ -453,13 +449,18 @@ module.exports = function(){
 				else if (ch1 == '"'){
 					state = 'LEX_START';
 					return [
-						token_new('TOK_STR_BLOB', blob),
-						token_new('TOK_STR_END', null)
+						token_new('TOK_STR', blob),
+						token_new('TOK_KEYSPEC', ')')
 					];
 				}
 				else if (ch1 == '$'){
 					state = 'LEX_STR_INTERP_DLR';
-					return [token_new('TOK_STR_BLOB', blob)];
+					if (blob.length <= 0)
+						return [];
+					return [
+						token_new('TOK_STR', blob),
+						token_new('TOK_KEYSPEC', '~')
+					];
 				}
 				else if (ch1 == '\\'){
 					state = 'LEX_STR_INTERP_ESC';
@@ -472,7 +473,7 @@ module.exports = function(){
 				if (ch1 == '{'){
 					str_depth++;
 					state = 'LEX_START';
-					return [token_new('TOK_STR_EXPR_START', null)];
+					return [token_new('TOK_KEYSPEC', '(')];
 				}
 				else if (isIdentStart(ch1)){
 					str = ch1;
@@ -489,9 +490,8 @@ module.exports = function(){
 					blob = [];
 					state = 'LEX_STR_INTERP';
 					var t = processChar();
-					t.unshift(token_new('TOK_STR_EXPR_END', null));
+					t.unshift(token_new('TOK_KEYSPEC', '~'));
 					t.unshift(tk);
-					t.unshift(token_new('TOK_STR_EXPR_START', null));
 					return t;
 				}
 				str += ch1;
@@ -571,6 +571,8 @@ module.exports = function(){
 			return processChar();
 		},
 		close: function(){
+			if (str_depth > 0)
+				return [token_new('TOK_ERROR', 'Missing end of string')];
 			switch (state){
 				case 'LEX_START':
 				case 'LEX_COMMENT_LINE':

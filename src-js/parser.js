@@ -626,12 +626,26 @@ module.exports = function(body){
 				}
 				else if (isKeyspec(tk1, '(')){
 					st.st = 'PRS_EXPR_TERM_ISNIL';
-					// TODO: needs to check for ')', and put nil in exprTerm
-					// otherwise, needs to call PRS_EXPR and set exprComma to true, then put result
-					// in exprTerm (ending in PRS_EXPR_POST)
 					return res_more();
 				}
 				return res_error('Invalid expression');
+
+			case 'PRS_EXPR_TERM_ISNIL':
+				if (isKeyspec(tk1, ')')){
+					st.st = 'PRS_EXPR_POST';
+					st.exprTerm = Expr.nil();
+					return res_more();
+				}
+				st.st = 'PRS_EXPR_TERM_CLOSEPAREN';
+				st = state_newPush('PRS_EXPR', st);
+				st.exprComma = true;
+				return processToken();
+
+			case 'PRS_EXPR_TERM_CLOSEPAREN':
+				if (!isKeyspec(tk1, ')'))
+					return res_error('Expecting close parenthesis');
+				st.st = 'PRS_EXPR_POST';
+				return res_more();
 
 			case 'PRS_EXPR_TERM_LOOKUP': {
 				var lk = scope_lookup(sc, st.lookupNames);
