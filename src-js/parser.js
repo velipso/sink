@@ -4,6 +4,7 @@
 
 var Expr = require('./expr');
 var StackFrame = require('./stack-frame');
+var OP = require('./op');
 
 function isKeyspec(tk, str){
 	return tk.type == 'TOK_KEYSPEC' && tk.data == str;
@@ -157,6 +158,7 @@ function state_new(st, lblBreak, lblContinue, next){
 		exprMidStack: null, // linked list of ets_new's
 		exprStack: null, // linked list of exs_new's
 		exprTerm: null,
+		exprTerm2: null,
 		lookupNames: null, // list of names
 		varNames: null, // list of vn_new's
 		level: next == null ? 0 : next.level + 1,
@@ -212,13 +214,22 @@ function nsname_newCmdNative(name, cmd, next){
 	};
 }
 
+function nsname_newCmdOpcode(name, opcode, params, next){
+	return {
+		name: name,
+		type: 'NSN_CMD_OPCODE',
+		opcode: opcode,
+		params: params,
+		next: next
+	};
+}
+
 function namespace_new(fr, next){
 	return {
 		fr: fr, // frame that the namespace is in
 		usings: null, // linked list of using's
 		names: null, // linked list of nsname's
-		next: next, // next namespace in the scope list
-		last: null // last namespace in the scope namespace stack
+		next: next // next namespace in the scope list
 	};
 }
 
@@ -288,7 +299,6 @@ function scope_new(fr, parent){
 	var ns = namespace_new(fr, null);
 	return {
 		ns: ns, // linked list of namespace's, via ns.next
-		current: ns, // linked list of current namespace, via ns.last
 		parent: parent
 	};
 }
@@ -330,6 +340,51 @@ module.exports = function(body){
 	var fr = StackFrame(null);
 	var sc = scope_new(fr, null);
 	var tkR, tk1, tk2;
+
+	// load command operators
+	([
+		{ name: 'say'        , opcode: OP.SAY         , params: -1 },
+		{ name: 'ask'        , opcode: OP.ASK         , params: -1 },
+		{ name: 'pick'       , opcode: -1             , params:  3 },
+		{ namespace: 'num' },
+			{ name: 'floor'  , opcode: OP.NUM_FLOOR   , params:  1 },
+			{ name: 'ceil'   , opcode: OP.NUM_CEIL    , params:  1 },
+			{ name: 'round'  , opcode: OP.NUM_ROUND   , params:  1 },
+			{ name: 'sin'    , opcode: OP.NUM_SIN     , params:  1 },
+			{ name: 'cos'    , opcode: OP.NUM_COS     , params:  1 },
+			{ name: 'tan'    , opcode: OP.NUM_TAN     , params:  1 },
+			{ name: 'asin'   , opcode: OP.NUM_ASIN    , params:  1 },
+			{ name: 'acos'   , opcode: OP.NUM_ACOS    , params:  1 },
+			{ name: 'atan'   , opcode: OP.NUM_ATAN    , params:  1 },
+			{ name: 'atan2'  , opcode: OP.NUM_ATAN2   , params:  2 },
+			{ name: 'log'    , opcode: OP.NUM_LOG     , params:  1 },
+			{ name: 'log2'   , opcode: OP.NUM_LOG2    , params:  1 },
+			{ name: 'log10'  , opcode: OP.NUM_LOG10   , params:  1 },
+			{ name: 'abs'    , opcode: OP.NUM_ABS     , params:  1 },
+			{ name: 'pi'     , opcode: OP.NUM_PI      , params:  0 },
+			{ name: 'tau'    , opcode: OP.NUM_TAU     , params:  0 },
+			{ name: 'lerp'   , opcode: OP.NUM_LERP    , params:  3 },
+			{ name: 'max'    , opcode: OP.NUM_MAX     , params:  1 },
+			{ name: 'min'    , opcode: OP.NUM_MIN     , params:  1 },
+		{ endnamespace: true },
+		{ namespace: 'list' },
+			{ name: 'new'    , opcode: OP.LIST_NEW    , params:  2 },
+			{ name: 'find'   , opcode: OP.LIST_FIND   , params:  3 },
+			{ name: 'findRev', opcode: OP.LIST_FINDREV, params:  3 },
+			{ name: 'rev'    , opcode: OP.LIST_REV    , params:  1 },
+			{ name: 'join'   , opcode: OP.LIST_JOIN   , params:  2 },
+		{ endnamespace: true }
+	]).forEach(function(std){
+		if (std.namespace){
+			var ns = namespace_new(fr, sc.ns);
+			sc.ns.names = nsname_newNamespace(std.namespace, ns, sc.ns.names);
+			sc.ns = ns;
+		}
+		else if (std.endnamespace)
+			sc.ns = sc.ns.next;
+		else
+			sc.ns.names = nsname_newCmdOpcode(std.name, std.opcode, std.params, sc.ns.names);
+	});
 
 	function fwd(tk){
 		tk2 = tk1;
@@ -516,6 +571,8 @@ module.exports = function(body){
 				// insert symbols into namespace
 				for (var i = 0; i < st.varNames.length; i++){
 					var vn = st.varNames[i];
+					if (namespace_has(vn.ns, vn.name))
+						return res_error('Cannot redeclare: ' + vn.name);
 					vn.ns.names = nsname_newVar(vn.name, vn.ns.fr, vn.index, vn.ns.names);
 				}
 				st = st.next;
@@ -592,14 +649,16 @@ module.exports = function(body){
 					st.lookupNames = null; // free lookup names
 					return res_error(msg);
 				}
-				// lk.nsn.type == 'NSN_VAR', 'NSN_CMD_LOCAL', or 'NSN_CMD_NATIVE'
+				// lk.nsn.type == 'NSN_VAR', 'NSN_CMD_LOCAL', 'NSN_CMD_NATIVE', 'NSN_CMD_OPCODE'
 				st.lookupNames = null; // free lookup names
 				if (lk.nsn.type == 'NSN_VAR')
 					st.exprTerm = Expr.lookup(lk.nsn.fr.diff(fr), lk.nsn.index);
 				else if (lk.nsn.type == 'NSN_CMD_LOCAL')
 					st.exprTerm = Expr.cmdLocal(lk.nsn.label);
-				else // NSN_CMD_NATIVE
+				else if (lk.nsn.type == 'NSN_CMD_NATIVE')
 					st.exprTerm = Expr.cmdNative(lk.nsn.cmd);
+				else // NSN_CMD_OPCODE
+					st.exprTerm = Expr.cmdOpcode(lk.nsn.opcode, lk.nsn.params);
 				st.st = 'PRS_EXPR_POST';
 				return processToken();
 			} break;
@@ -610,7 +669,10 @@ module.exports = function(body){
 					return processToken();
 				}
 				else if (st.exprTerm.isCmd){
-					throw 'TODO: collect params and perform exprCall';
+					st.st = 'PRS_EXPR_POST_CALL';
+					st.exprTerm2 = st.exprTerm;
+					st = state_newPush('PRS_EXPR', st);
+					return processToken();
 				}
 				else if (isKeyspec(tk1, '!')){
 					st.exprTerm = Expr.postfix(tk1, st.exprTerm);
@@ -660,6 +722,11 @@ module.exports = function(body){
 					st.st = 'PRS_EXPR_MID';
 				return processToken();
 
+			case 'PRS_EXPR_POST_CALL':
+				st.exprTerm = Expr.call(st.exprTerm2, st.exprTerm);
+				st.st = 'PRS_EXPR_POST';
+				return processToken();
+
 			case 'PRS_EXPR_COMMA':
 				if (isKeyspec(tk1, ',')){
 					st.st = 'PRS_EXPR_COMMA2';
@@ -669,6 +736,10 @@ module.exports = function(body){
 				return processToken();
 
 			case 'PRS_EXPR_COMMA2':
+				if (tk1.type == 'TOK_NEWLINE'){
+					rewind(); // keep the comma in tk1
+					return res_more();
+				}
 				if (!isKeyspec(tk1, ')') && !isKeyspec(tk1, '}')){
 					st.st = 'PRS_EXPR_MID';
 					rewind();

@@ -3,13 +3,7 @@
 // Project Home: https://github.com/voidqk/sink
 
 var Expr = require('./expr');
-
-var OP_NOP     = 0x00; //
-var OP_NIL     = 0x01; // fdiff, index
-var OP_MOVE    = 0x02; // fdifftgt, indextgt, fdiffsrc, indexsrc
-var OP_NUM_POS = 0x03; // fdiff, index, valuelow, valuehigh
-var OP_NUM_NEG = 0x04; // fdiff, index, valuelow, valuehigh
-var OP_NUM_TBL = 0x05; // fdiff, index, indexlow, indexhigh
+var OP = require('./op');
 
 function lval_newLookup(fdiff, index){
 	return {
@@ -78,64 +72,67 @@ module.exports = function(){
 		jump: function(lbl){
 		},
 		eval: function(fr, expr){
-			switch (expr.type){
-				case 'EXPR_INFIX':
-					if (expr.tk.type == 'TOK_KEYSPEC' && expr.tk.data == '='){
-						var lvt = lvalsFromExpr(expr.left);
-						if (lvt.type == 'error')
-							return ev_error('Bad assignment');
-						var lvals = lvt.lvals;
-						var temps = null;
-						var tempsLast = null;
-						var throughTemp = lvals != null && lvals.next != null;
-						if (expr.right.type == 'EXPR_GROUP'){
-							for (var i = 0; i < expr.right.group.length; i++){
-								var ex = expr.right.group[i];
-								if (lvals != null){
-									if (throughTemp){
-										var temp_index = fr.newTemp(my);
-										var tlv = lval_newLookup(0, temp_index);
-										if (temps == null)
-											temps = tempsLast = tlv;
-										else{
-											tempsLast.next = tlv;
-											tempsLast = tlv;
-										}
-										my.evalIntoLval(fr, tlv, ex);
-									}
-									else
-										my.evalIntoLval(fr, lvals, ex);
-									lvals = lvals.next;
-								}
-								else
-									my.eval(fr, ex);
-							}
+			// if we're doing an assignment, then instead of evaluating into a temp, evaluate into
+			// the actual assignment location
+			if (expr.type == 'EXPR_INFIX' && expr.tk.type == 'TOK_KEYSPEC' && expr.tk.data == '='){
+				var lvt = lvalsFromExpr(expr.left);
+				if (lvt.type == 'error')
+					return ev_error('Bad assignment');
+				var lvals = lvt.lvals;
+				var temps = null;
+				var tempsLast = null;
+				var throughTemp = lvals != null && lvals.next != null;
+				if (expr.right.type == 'EXPR_GROUP'){
+					for (var i = 0; i < expr.right.group.length; i++){
+						var ex = expr.right.group[i];
+						if (lvals != null){
 							if (throughTemp){
-								lvals = lvt.lvals;
-								while (lvals != null){
-									my.evalIntoLval(fr, lvals,
-										Expr.lookup(temps.fdiff, temps.index));
-									lvals = lvals.next;
-									temps = temps.next;
+								var temp_index = fr.newTemp(my);
+								var tlv = lval_newLookup(0, temp_index);
+								if (temps == null)
+									temps = tempsLast = tlv;
+								else{
+									tempsLast.next = tlv;
+									tempsLast = tlv;
 								}
-							}
-						}
-						else{
-							if (lvals != null){
-								my.evalIntoLval(fr, lvals, expr.right);
-								lvals = lvals.next;
+								my.evalIntoLval(fr, tlv, ex);
 							}
 							else
-								my.eval(fr, expr.right);
-						}
-						while (lvals != null){
-							my.evalIntoLval(fr, lvals, Expr.nil());
+								my.evalIntoLval(fr, lvals, ex);
 							lvals = lvals.next;
 						}
+						else
+							my.eval(fr, ex);
 					}
-					break;
+					if (throughTemp){
+						lvals = lvt.lvals;
+						while (lvals != null){
+							my.evalIntoLval(fr, lvals, Expr.lookup(0, temps.index));
+							fr.tempClear(temps.index);
+							lvals = lvals.next;
+							temps = temps.next;
+						}
+					}
+				}
+				else{
+					if (lvals != null){
+						my.evalIntoLval(fr, lvals, expr.right);
+						lvals = lvals.next;
+					}
+					else
+						my.eval(fr, expr.right);
+				}
+				while (lvals != null){
+					my.evalIntoLval(fr, lvals, Expr.nil());
+					lvals = lvals.next;
+				}
+				return ev_success();
 			}
-			return ev_success();
+			// otherwise, just evaluate into a temp
+			var idx = fr.newTemp(my);
+			var res = my.evalInto(fr, 0, idx, expr);
+			fr.tempClear(idx);
+			return res;
 		},
 		evalIntoLval: function(fr, lval, expr){
 			if (lval.type == 'LVAL_LOOKUP')
@@ -150,7 +147,7 @@ module.exports = function(){
 
 			switch (expr.type){
 				case 'EXPR_NIL':
-					op3(OP_NIL, fdiff, index);
+					op3(OP.NIL, fdiff, index);
 					break;
 
 				case 'EXPR_NUM': {
@@ -158,11 +155,11 @@ module.exports = function(){
 						var n = expr.num;
 						if (n >= -65536 && n < 0){
 							n += 65536;
-							op5(OP_NUM_NEG, fdiff, index, n % 256, Math.floor(n / 256));
+							op5(OP.NUM_NEG, fdiff, index, n % 256, Math.floor(n / 256));
 							break;
 						}
 						else if (n >= 0 && n < 65536){
-							op5(OP_NUM_POS, fdiff, index, n % 256, Math.floor(n / 256));
+							op5(OP.NUM_POS, fdiff, index, n % 256, Math.floor(n / 256));
 							break;
 						}
 					}
@@ -180,17 +177,38 @@ module.exports = function(){
 					}
 					if (idx > 65535)
 						return ev_error('Too many number constants');
-					op5(OP_NUM_TBL, fdiff, index, idx % 256, Math.floor(idx / 256));
+					op5(OP.NUM_TBL, fdiff, index, idx % 256, Math.floor(idx / 256));
 				} break;
 
 				case 'EXPR_LOOKUP':
 					if (expr.fdiff == fdiff && expr.index == index)
 						break;
-					op5(OP_MOVE, fdiff, index, expr.fdiff, expr.index);
+					op5(OP.MOVE, fdiff, index, expr.fdiff, expr.index);
+					break;
+
+				case 'EXPR_CALL':
+					switch (expr.cmd.type){
+						case 'EXPR_CMD_LOCAL':
+						case 'EXPR_CMD_NATIVE':
+							throw 'TODO: exprInto EXPR_CALL ' + expr.cmd.type;
+						case 'EXPR_CMD_OPCODE': {
+							if (expr.cmd.opcode == -1){ // pick
+								throw 'TODO: pick';
+							}
+
+							if (expr.cmd.params < 0){
+								throw 'TODO: cat all params';
+							}
+
+							throw 'TODO: call with params';
+						} break;
+						default:
+							throw new Error('Unknown command type: ' + expr.cmd.type);
+					}
 					break;
 
 				default:
-					throw 'TODO: how to evalInfo ' + expr.type + '?';
+					throw 'TODO: how to evalInto ' + expr.type + '?';
 			}
 			return ev_success();
 		},

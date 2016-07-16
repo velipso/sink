@@ -45,6 +45,14 @@ var Expr = {
 			cmd: cmd
 		};
 	},
+	cmdOpcode: function(opcode, params){
+		return {
+			type: 'EXPR_CMD_OPCODE',
+			isCmd: true,
+			opcode: opcode,
+			params: params
+		};
+	},
 	postfix: function(tk, expr){
 		return {
 			type: 'EXPR_POSTFIX',
@@ -102,6 +110,14 @@ var Expr = {
 			type: 'EXPR_GROUP',
 			isCmd: false,
 			group: [left, right]
+		};
+	},
+	call: function(cmd, params){
+		return {
+			type: 'EXPR_CALL',
+			isCmd: false,
+			cmd: cmd,
+			params: params
 		};
 	}
 };

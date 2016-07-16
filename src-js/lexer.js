@@ -576,47 +576,56 @@ module.exports = function(){
 				case 'LEX_COMMENT_LINE':
 				case 'LEX_BACKSLASH':
 				case 'LEX_RETURN':
-					return [];
+					return [token_new('TOK_NEWLINE', null)];
 
 				case 'LEX_COMMENT_BLOCK':
 					return [token_new('TOK_ERROR', 'Missing end of block comment')];
 
 				case 'LEX_SPECIAL1':
 					if (isSpecial1(ch1))
-						return [token_new('TOK_KEYSPEC', ch1)];
+						return [token_new('TOK_KEYSPEC', ch1), token_new('TOK_NEWLINE', null)];
 					return [token_new('TOK_ERROR', 'Unexpected character: ' + ch1)];
 
 				case 'LEX_SPECIAL2':
-					if (isSpecial2(ch2, ch1))
-						return [token_new('TOK_KEYSPEC', ch2 + ch1)];
+					if (isSpecial2(ch2, ch1)){
+						return [
+							token_new('TOK_KEYSPEC', ch2 + ch1),
+							token_new('TOK_NEWLINE', null)
+						];
+					}
 					if (isSpecial1(ch2)){
 						var tk = token_new('TOK_KEYSPEC', ch2);
-						if (isSpecial1(ch1))
-							return [tk, token_new('TOK_KEYSPEC', ch1)];
+						if (isSpecial1(ch1)){
+							return [
+								tk,
+								token_new('TOK_KEYSPEC', ch1),
+								token_new('TOK_NEWLINE', null)
+							];
+						}
 						return [tk, token_new('TOK_ERROR', 'Unexpected character: ' + ch1)];
 					}
 					return [token_new('TOK_ERROR', 'Unexpected character: ' + ch2)];
 
 				case 'LEX_IDENT':
 					if (isKeyword(str))
-						return [token_new('TOK_KEYSPEC', str)];
-					return [token_new('TOK_IDENT', str)];
+						return [token_new('TOK_KEYSPEC', str), token_new('TOK_NEWLINE', null)];
+					return [token_new('TOK_IDENT', str), token_new('TOK_NEWLINE', null)];
 
 				case 'LEX_NUM_0':
-					return [token_new('TOK_NUM', 0)];
+					return [token_new('TOK_NUM', 0), token_new('TOK_NEWLINE', null)];
 
 				case 'LEX_NUM_2':
 					return [token_new('TOK_ERROR', 'Invalid number')];
 
 				case 'LEX_NUM':
-					return [token_new('TOK_NUM', num_val)];
+					return [token_new('TOK_NUM', num_val), token_new('TOK_NEWLINE', null)];
 
 				case 'LEX_NUM_FRAC':
 					if (num_flen <= 0)
 						return [token_new('TOK_ERROR', 'Invalid number')];
 					var d = Math.pow(num_base, num_flen);
 					num_val = (num_val * d + num_frac) / d;
-					return [token_new('TOK_NUM', num_val)];
+					return [token_new('TOK_NUM', num_val), token_new('TOK_NEWLINE', null)];
 
 				case 'LEX_NUM_EXP':
 					return [token_new('TOK_ERROR', 'Invalid number')];
@@ -630,7 +639,7 @@ module.exports = function(){
 						var d = Math.pow(num_base, num_flen);
 						num_val = (num_val * d + num_frac * e) / d;
 					}
-					return [token_new('TOK_NUM', num_val)];
+					return [token_new('TOK_NUM', num_val), token_new('TOK_NEWLINE', null)];
 
 				case 'LEX_STR_BASIC':
 				case 'LEX_STR_BASIC_ESC':
