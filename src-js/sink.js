@@ -1163,6 +1163,7 @@ var AST_GOTO      = 'AST_GOTO';
 var AST_DO_END    = 'AST_DO_END';
 var AST_DO_WHILE  = 'AST_DO_WHILE';
 var AST_NAMESPACE = 'AST_NAMESPACE';
+var AST_IF        = 'AST_IF';
 
 function ast_break(){
 	return { type: AST_BREAK };
@@ -1196,9 +1197,17 @@ function ast_namespace(names, body){
 	return { type: AST_NAMESPACE, names: names, body: body };
 }
 
+function ast_if(conds, elseBody){
+	return { type: AST_IF, conds: conds, elseBody: elseBody };
+}
+
 //
 // parser state helpers
 //
+
+function cond_new(ex, body){ // conds
+	return { ex: ex, body: body };
+}
 
 function ets_new(tk, next){ // exprPreStack, exprMidStack
 	return { tk: tk, next: next };
@@ -1237,6 +1246,11 @@ var PRS_FOR                         = 'PRS_FOR';
 var PRS_GOTO                        = 'PRS_GOTO';
 var PRS_GOTO_LOOKUP                 = 'PRS_GOTO_LOOKUP';
 var PRS_IF                          = 'PRS_IF';
+var PRS_IF_EXPR                     = 'PRS_IF_EXPR';
+var PRS_IF_BODY                     = 'PRS_IF_BODY';
+var PRS_IF_DONE                     = 'PRS_IF_DONE';
+var PRS_ELSE_BODY                   = 'PRS_ELSE_BODY';
+var PRS_ELSE_DONE                   = 'PRS_ELSE_DONE';
 var PRS_NAMESPACE                   = 'PRS_NAMESPACE';
 var PRS_NAMESPACE_LOOKUP            = 'PRS_NAMESPACE_LOOKUP';
 var PRS_NAMESPACE_BODY              = 'PRS_NAMESPACE_BODY';
@@ -1272,6 +1286,7 @@ function prs_new(state, next){
 		stmt: null,              // single ast_*
 		body: null,              // list of ast_*'s
 		body2: null,             // list of ast_*'s
+		conds: null,             // list of cond_new's
 		exprComma: false,
 		exprPreStackStack: null, // linked list of eps_new's
 		exprPreStack: null,      // linked list of ets_new's
@@ -1280,7 +1295,7 @@ function prs_new(state, next){
 		exprTerm: null,          // expr
 		exprTerm2: null,         // expr
 		exprTerm3: null,         // expr
-		lookupNames: null,       // list of strings
+		names: null,             // list of strings
 		next: next
 	};
 }
@@ -1381,7 +1396,7 @@ function parser_process(pr){
 			else if (tk1.type == TOK_IDENT){
 				st.state = PRS_IDENTS;
 				parser_push(pr, PRS_LOOKUP);
-				pr.state.lookupNames = [tk1.ident];
+				pr.state.names = [tk1.ident];
 				return prr_more();
 			}
 			else if (tok_isPre(tk1) || tok_isTerm(tk1)){
@@ -1398,7 +1413,7 @@ function parser_process(pr){
 
 		case PRS_LOOKUP:
 			if (!tok_isKS(tk1, KS_PERIOD)){
-				st.next.lookupNames = st.lookupNames;
+				st.next.names = st.names;
 				pr.state = st.next;
 				return parser_process(pr);
 			}
@@ -1408,7 +1423,7 @@ function parser_process(pr){
 		case PRS_LOOKUP_IDENT:
 			if (tk1.type != TOK_IDENT)
 				return prr_error('Expecting identifier');
-			st.lookupNames.push(tk1.ident);
+			st.names.push(tk1.ident);
 			st.state = PRS_LOOKUP;
 			return prr_more();
 
@@ -1489,21 +1504,65 @@ function parser_process(pr){
 				return prr_error('Expecting identifier');
 			st.state = PRS_GOTO_LOOKUP;
 			parser_push(pr, PRS_LOOKUP);
-			pr.state.lookupNames = [tk1.ident];
+			pr.state.names = [tk1.ident];
 			return prr_more();
 
 		case PRS_GOTO_LOOKUP:
-			return parser_statement(pr, ast_goto(st.lookupNames));
+			return parser_statement(pr, ast_goto(st.names));
 
 		case PRS_IF:
-			throw 'TODO: if';
+			st.state = PRS_IF_EXPR;
+			st.conds = [];
+			parser_push(pr, PRS_EXPR);
+			return parser_process(pr);
+
+		case PRS_IF_EXPR:
+			if (tk1.type != TOK_NEWLINE)
+				return prr_error('Missing newline or semicolon');
+			st.state = PRS_IF_BODY;
+			parser_push(pr, PRS_BODY);
+			pr.state.body = [];
+			return prr_more();
+
+		case PRS_IF_BODY:
+			st.conds.push(cond_new(st.exprTerm, st.body));
+			st.exprTerm = null;
+			st.body = null;
+			if (tok_isKS(tk1, KS_ELSEIF)){
+				st.state = PRS_IF_EXPR;
+				parser_push(pr, PRS_EXPR);
+				return prr_more();
+			}
+			else if (tok_isKS(tk1, KS_ELSE)){
+				st.state = PRS_ELSE_BODY;
+				parser_push(pr, PRS_BODY);
+				pr.state.body = [];
+				return prr_more();
+			}
+			else if (tok_isKS(tk1, KS_END)){
+				st.state = PRS_IF_DONE;
+				return prr_more();
+			}
+			return prr_error('Missing `elseif`, `else`, or `end` of if block');
+
+		case PRS_IF_DONE:
+			return parser_statement(pr, ast_if(st.conds, []));
+
+		case PRS_ELSE_BODY:
+			if (!tok_isKS(tk1, KS_END))
+				return prr_error('Missing `end` of if block');
+			st.state = PRS_ELSE_DONE;
+			return prr_more();
+
+		case PRS_ELSE_DONE:
+			return parser_statement(pr, ast_if(st.conds, st.body));
 
 		case PRS_NAMESPACE:
 			if (tk1.type != TOK_IDENT)
 				return prr_error('Expecting identifier');
 			st.state = PRS_NAMESPACE_LOOKUP;
 			parser_push(pr, PRS_LOOKUP);
-			pr.state.lookupNames = [tk1.ident];
+			pr.state.names = [tk1.ident];
 			return prr_more();
 
 		case PRS_NAMESPACE_LOOKUP:
@@ -1521,7 +1580,7 @@ function parser_process(pr){
 			return prr_more();
 
 		case PRS_NAMESPACE_DONE:
-			return parser_statement(pr, ast_namespace(st.lookupNames, st.body));
+			return parser_statement(pr, ast_namespace(st.names, st.body));
 
 		case PRS_RETURN:
 			throw 'TODO: return';
@@ -1535,11 +1594,11 @@ function parser_process(pr){
 		case PRS_IDENTS:
 			if (tok_isKS(tk1, KS_COLON)){
 				pr.state = st.next;
-				return parser_statement(pr, ast_label(st.lookupNames));
+				return parser_statement(pr, ast_label(st.names));
 			}
 			st.state = PRS_EVAL_EXPR;
 			parser_push(pr, PRS_EXPR_POST);
-			pr.state.exprTerm = expr_names(st.lookupNames);
+			pr.state.exprTerm = expr_names(st.names);
 			return parser_process(pr);
 
 		case PRS_EVAL:
@@ -1573,7 +1632,7 @@ function parser_process(pr){
 			else if (tk1.type == TOK_IDENT){
 				st.state = PRS_EXPR_TERM_LOOKUP;
 				parser_push(pr, PRS_LOOKUP);
-				pr.state.lookupNames = [tk1.ident];
+				pr.state.names = [tk1.ident];
 				return prr_more();
 			}
 			else if (tok_isKS(tk1, KS_LBRACE)){
@@ -1630,7 +1689,7 @@ function parser_process(pr){
 			return prr_more();
 
 		case PRS_EXPR_TERM_LOOKUP:
-			st.exprTerm = expr_names(st.lookupNames);
+			st.exprTerm = expr_names(st.names);
 			st.state = PRS_EXPR_POST;
 			return parser_process(pr);
 
