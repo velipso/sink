@@ -2,28 +2,6 @@
 // MIT License
 // Project Home: https://github.com/voidqk/sink
 
-var Expr = require('./expr');
-var OP = require('./op');
-
-function toMutateOp(tk){
-	if (tk.type == 'TOK_KEYSPEC'){
-		if      (tk.data == '~+' ) return OP.PUSH;
-		else if (tk.data == '+~' ) return OP.UNSHIFT;
-		else if (tk.data == '~~+') return OP.APPEND;
-		else if (tk.data == '+~~') return OP.PREPEND;
-		else if (tk.data == '='  ) return -1;
-		else if (tk.data == '+=' ) return OP.ADD;
-		else if (tk.data == '%=' ) return OP.MOD;
-		else if (tk.data == '-=' ) return OP.SUB;
-		else if (tk.data == '*=' ) return OP.MUL;
-		else if (tk.data == '/=' ) return OP.DIV;
-		else if (tk.data == '^=' ) return OP.POW;
-		else if (tk.data == '~=' ) return OP.CAT;
-		// does not include &&= and ||= because those are tested specifically for short circuit
-	}
-	return -2;
-}
-
 function intoloc_new(fdiff, index){
 	return {
 		fdiff: fdiff,

@@ -3,6 +3,14 @@
 // Project Home: https://github.com/voidqk/sink
 
 //
+// helper
+//
+
+function varloc_new(fdiff, index){
+	return { fdiff: fdiff, index: index };
+}
+
+//
 // opcodes
 //
 
@@ -54,15 +62,57 @@ var OP_NUM_MIN     = 0x44; // [TGT], [SRC]
 var OP_LIST_NEW    = 0x45; // [TGT], [SRC1], [SRC2]
 var OP_LIST_FIND   = 0x46; // [TGT], [SRC1], [SRC2], [SRC3]
 var OP_LIST_FINDREV= 0x47; // [TGT], [SRC1], [SRC2], [SRC3]
-var OP_LIST_REV    = 0x48; // [SRC]
+var OP_LIST_REV    = 0x48; // [TGT], [SRC]
 var OP_LIST_JOIN   = 0x49; // [TGT], [SRC1], [SRC2]
 
-//
-// helper
-//
+function op_nop(b){
+	b.push(OP_NOP);
+}
 
-function varloc_new(fdiff, index){
-	return { fdiff: fdiff, index: index };
+function op_nil(b, tgt){
+	b.push(OP_NIL, tgt.fdiff, tgt.index);
+}
+
+function op_move(b, tgt, src){
+	b.push(OP_MOVE, tgt.fdiff, tgt.index, src.fdiff, src.index);
+}
+
+function op_num(b, tgt, num){
+	if (num >= 0)
+		b.push(OP_NUM_POS, tgt.fdiff, tgt.index, num % 256, Math.floor(num / 256));
+	else{
+		num += 65536;
+		b.push(OP_NUM_NEG, tgt.fdiff, tgt.index, num % 256, Math.floor(num / 256));
+	}
+}
+
+function op_num_tbl(b, tgt, index){
+	b.push(OP_NUM_TBL, tgt.fdiff, tgt.index, index % 256, Math.floor(index / 256));
+}
+
+function op_str(b, tgt, index){
+	b.push(OP_STR, tgt.fdiff, tgt.index, index % 256, Math.floor(index / 256));
+}
+
+function op_binop(b, opcode, tgt, src1, src2){
+	b.push(opcode, tgt.fdiff, tgt.index, src1.fdiff, src1.index, src2.fdiff, src2.index);
+}
+
+function op_param0(b, opcode, tgt){
+	b.push(opcode, tgt.fdiff, tgt.index);
+}
+
+function op_param1(b, opcode, tgt, src){
+	b.push(opcode, tgt.fdiff, tgt.index, src.fdiff, src.index);
+}
+
+function op_param2(b, opcode, tgt, src1, src2){
+	b.push(opcode, tgt.fdiff, tgt.index, src1.fdiff, src1.index, src2.fdiff, src2.index);
+}
+
+function op_param3(b, opcode, tgt, src1, src2, src3){
+	b.push(opcode, tgt.fdiff, tgt.index, src1.fdiff, src1.index, src2.fdiff, src2.index,
+		src3.fdiff, src3.index);
 }
 
 //
@@ -248,6 +298,148 @@ function tok_error(msg){
 	return { type: TOK_ERROR, msg: msg };
 }
 
+function tok_isKS(tk, k){
+	return tk.type == TOK_KS && tk.k == k;
+}
+
+function tok_isPre(tk){
+	if (tk.type == TOK_KS){
+		return false ||
+			tk.k == KS_PLUS       ||
+			tk.k == KS_MINUS      ||
+			tk.k == KS_BANG       ||
+			tk.k == KS_MINUSTILDE ||
+			tk.k == KS_TILDEMINUS ||
+			tk.k == KS_TYPENUM    ||
+			tk.k == KS_TYPESTR    ||
+			tk.k == KS_TYPELIST;
+	}
+	return false;
+}
+
+function tok_isMid(tk){
+	if (tk.type == TOK_KS){
+		return false ||
+			tk.k == KS_PLUS       ||
+			tk.k == KS_PLUSEQU    ||
+			tk.k == KS_MINUS      ||
+			tk.k == KS_MINUSEQU   ||
+			tk.k == KS_PERCENT    ||
+			tk.k == KS_PERCENTEQU ||
+			tk.k == KS_STAR       ||
+			tk.k == KS_STAREQU    ||
+			tk.k == KS_SLASH      ||
+			tk.k == KS_SLASHEQU   ||
+			tk.k == KS_CARET      ||
+			tk.k == KS_CARETEQU   ||
+			tk.k == KS_LT         ||
+			tk.k == KS_LTEQU      ||
+			tk.k == KS_GT         ||
+			tk.k == KS_GTEQU      ||
+			tk.k == KS_BANGEQU    ||
+			tk.k == KS_EQU        ||
+			tk.k == KS_EQU2       ||
+			tk.k == KS_TILDE      ||
+			tk.k == KS_TILDEEQU   ||
+			tk.k == KS_TILDEPLUS  ||
+			tk.k == KS_PLUSTILDE  ||
+			tk.k == KS_TILDE2PLUS ||
+			tk.k == KS_PLUSTILDE2 ||
+			tk.k == KS_AMP2       ||
+			tk.k == KS_PIPE2      ||
+			tk.k == KS_AMP2EQU    ||
+			tk.k == KS_PIPE2EQU   ||
+			tk.k == KS_COMMA;
+	}
+	return false;
+}
+
+function tok_isTerm(tk){
+	return false ||
+		(tk.type == TOK_KS && (tk.k == KS_LPAREN || tk.k == KS_LBRACE)) ||
+		tk.type == TOK_IDENT    ||
+		tk.type == TOK_BLOB     ||
+		tk.type == TOK_NUM;
+}
+
+function tok_isPreBeforeMid(pre, mid){
+	//assert(pre.type == TOK_KS);
+	//assert(mid.type == TOK_KS);
+	// -5^2 is -25, not 25
+	if (pre.k == KS_MINUS && mid.k == KS_CARET)
+		return false;
+	// otherwise, apply the Pre first
+	return true;
+}
+
+function tok_midPrecedence(tk){
+	//assert(tk.type == TOK_KS);
+	if      (tk.k == KS_CARET     ) return  1;
+	else if (tk.k == KS_PERCENT   ) return  2;
+	else if (tk.k == KS_STAR      ) return  2;
+	else if (tk.k == KS_SLASH     ) return  2;
+	else if (tk.k == KS_PLUS      ) return  3;
+	else if (tk.k == KS_MINUS     ) return  3;
+	else if (tk.k == KS_TILDEPLUS ) return  4;
+	else if (tk.k == KS_PLUSTILDE ) return  4;
+	else if (tk.k == KS_TILDE2PLUS) return  5;
+	else if (tk.k == KS_PLUSTILDE2) return  5;
+	else if (tk.k == KS_TILDE     ) return  6;
+	else if (tk.k == KS_LTEQU     ) return  7;
+	else if (tk.k == KS_LT        ) return  7;
+	else if (tk.k == KS_GTEQU     ) return  7;
+	else if (tk.k == KS_GT        ) return  7;
+	else if (tk.k == KS_BANGEQU   ) return  8;
+	else if (tk.k == KS_EQU2      ) return  8;
+	else if (tk.k == KS_AMP2      ) return  9;
+	else if (tk.k == KS_PIPE2     ) return 10;
+	else if (tk.k == KS_EQU       ) return 20;
+	else if (tk.k == KS_PLUSEQU   ) return 20;
+	else if (tk.k == KS_PERCENTEQU) return 20;
+	else if (tk.k == KS_MINUSEQU  ) return 20;
+	else if (tk.k == KS_STAREQU   ) return 20;
+	else if (tk.k == KS_SLASHEQU  ) return 20;
+	else if (tk.k == KS_CARETEQU  ) return 20;
+	else if (tk.k == KS_TILDEEQU  ) return 20;
+	else if (tk.k == KS_COMMA     ) return 30;
+	//assert(false);
+	return -1;
+}
+
+function tok_isMidBeforeMid(lmid, rmid){
+	//assert(lmid.type == TOK_KS);
+	//assert(rmid.type == TOK_KS);
+	var lp = tok_midPrecedence(lmid);
+	var rp = tok_midPrecedence(rmid);
+	if (lp < rp)
+		return true;
+	else if (lp > rp)
+		return false;
+	// otherwise, same precedence...
+	if (lp === 20 || lmid.k == KS_CARET) // mutation and pow are right to left
+		return false;
+	return true;
+}
+
+function tok_toMutateOp(tk){
+	if (tk.type == TOK_KS){
+		if      (tk.k == KS_TILDEPLUS ) return OP_PUSH;
+		else if (tk.k == KS_PLUSTILDE ) return OP_UNSHIFT;
+		else if (tk.k == KS_TILDE2PLUS) return OP_APPEND;
+		else if (tk.k == KS_PLUETILDE2) return OP_PREPEND;
+		else if (tk.k == KS_EQU       ) return -1;
+		else if (tk.k == KS_PLUSEQU   ) return OP_ADD;
+		else if (tk.k == KS_PERCENTEQU) return OP_MOD;
+		else if (tk.k == KS_MINUSEQU  ) return OP_SUB;
+		else if (tk.k == KS_STAREQU   ) return OP_MUL;
+		else if (tk.k == KS_SLASHEQU  ) return OP_DIV;
+		else if (tk.k == KS_CARETEQU  ) return OP_POW;
+		else if (tk.k == KS_TILDEEQU  ) return OP_CAT;
+		// does not include &&= and ||= because those are tested specifically for short circuit
+	}
+	return -2;
+}
+
 //
 // expr
 //
@@ -325,6 +517,10 @@ function expr_infix(tk, left, right){
 
 function expr_call(cmd, params){
 	return { type: EXPR_CALL, cmd: cmd, params: params };
+}
+
+function expr_isCmd(ex){
+	return ex.type == EXPR_CMD_LOCAL || ex.type == EXPR_CMD_NATIVE || ex.type == EXPR_CMD_OPCODE;
 }
 
 //
@@ -952,6 +1148,330 @@ function lex_close(lx){
 			return [tok_error('Missing end of string')];
 	}
 }
+
+//
+// body
+//
+
+
+
+
+//
+// frame
+//
+
+var FVR_VAR        = 0;
+var FVR_TEMP_AVAIL = 1;
+var FVR_TEMP_INUSE = 2;
+
+function frame_new(parent){
+	return { vars: [], parent: parent };
+}
+
+function frame_tempClear(fr, idx){
+	if (fr.vars[idx] == FVR_TEMP_INUSE)
+		fr.vars[idx] = FVR_TEMP_AVAIL;
+}
+
+function frame_newTemp(fr){
+	for (var i = 0; i < fr.vars.length; i++){
+		if (fr.vars[i] == FVR_TEMP_AVAIL){
+			fr.vars[i] = FVR_TEMP_INUSE;
+			return i;
+		}
+	}
+	fr.vars.push(FVR_TEMP_INUSE);
+	return fr.vars.length - 1;
+}
+
+function frame_newVar(fr){
+	fr.vars.push(FVR_VAR);
+	return fr.vars.length - 1;
+}
+
+function frame_diff(fr, child){
+	var dist = 0;
+	while (child != fr){
+		child = child.parent;
+		dist++;
+	}
+	return dist;
+}
+
+//
+// scope/namespace
+//
+
+function using_new(ns, next){
+	return { ns: ns, next: next };
+}
+
+var NSN_VAR        = 0;
+var NSN_NAMESPACE  = 1;
+var NSN_CMD_LOCAL  = 2;
+var NSN_CMD_NATIVE = 3;
+var NSN_CMD_OPCODE = 4;
+
+function nsname_newVar(name, fr, index, next){
+	return { name: name, type: NSN_VAR, fr: fr, index: index, next: next };
+}
+
+function nsname_newNamespace(name, ns, next){
+	return { name: name, type: NSN_NAMESPACE, ns: ns, next: next };
+}
+
+function nsname_newCmdLocal(name, lbl, next){
+	return { name: name, type: NSN_CMD_LOCAL, lbl: lbl, next: next };
+}
+
+function nsname_newCmdNative(name, cmd, next){
+	return { name: name, type: NSN_CMD_NATIVE, cmd: cmd, next: next };
+}
+
+function nsname_newCmdOpcode(name, opcode, params, next){
+	return { name: name, type: NSN_CMD_OPCODE, opcode: opcode, params: params, next: next };
+}
+
+var LKUP_NSNAME   = 0;
+var LKUP_NOTFOUND = 1;
+var LKUP_ERROR    = 2;
+
+function lkup_nsname(nsn){
+	return { type: LKUP_NSNAME, nsn: nsn };
+}
+
+function lkup_notfound(){
+	return { type: LKUP_NOTFOUND };
+}
+
+function lkup_error(msg){
+	return { type: LKUP_ERROR, msg: msg };
+}
+
+function namespace_new(fr, next){
+	return {
+		fr: fr, // frame that the namespace is in
+		usings: null, // linked list of using_new's
+		names: null, // linked list of nsname_new*'s
+		next: next // next namespace in the scope list
+	};
+}
+
+function namespace_has(ns, name){
+	var here = ns.names;
+	while (here != null){
+		if (here.name == name)
+			return true;
+		here = here.next;
+	}
+	return false;
+}
+
+function namespace_lookup(ns, names, idx, err){
+	// first try name's defined within this namespace
+	var here = ns.names;
+	while (here != null){
+		if (here.name == names[idx]){
+			if (idx == names.length - 1)
+				return lkup_nsname(here);
+			switch (here.type){
+				case NSN_VAR:
+					if (err[0] == null)
+						err[0] = 'Variable "' + here.name + '" is not a namespace';
+					break;
+				case NSN_CMD_LOCAL:
+				case NSN_CMD_NATIVE:
+					if (err[0] == null)
+						err[0] = 'Function "' + here.name + '" is not a namespace';
+					break;
+				case NSN_NAMESPACE: {
+					var lk = namespace_lookup(here.ns, names, idx + 1, err);
+					if (lk.type == LKUP_NSNAME)
+						return lk;
+				} break;
+			}
+		}
+		here = here.next;
+	}
+
+	// failed to find result in namespace's names... check using's
+	var usi = ns.usings;
+	while (usi != null){
+		var lk = namespace_lookup(usi.ns, names, idx, err);
+		if (lk.type == LKUP_NSNAME)
+			return lk;
+		usi = usi.next;
+	}
+
+	// failed entirely
+	return lkup_notfound();
+}
+
+function scope_new(fr, parent){
+	var ns = namespace_new(fr, null);
+	return {
+		ns: ns, // linked list of namespace's, via ns.next
+		parent: parent
+	};
+}
+
+function scope_tryLookup(sc, names, err){
+	// first try the current scope's namespaces
+	var here = sc.ns;
+	while (here != null){
+		var lk = namespace_lookup(here, names, 0, err);
+		if (lk.type == LKUP_NSNAME)
+			return lk;
+		here = here.next;
+	}
+
+	// failed, try parent scope
+	if (sc.parent == null)
+		return lkup_notfound();
+	return scope_lookup(sc.parent, names);
+}
+
+function scope_lookup(sc, names){
+	var err = [null];
+	var lk = scope_tryLookup(sc, names, err);
+	if (lk == LKUP_NOTFOUND && err[0] != null)
+		return lkup_error(err[0]);
+	return lk;
+}
+
+//
+// chunk process result
+//
+
+var CPR_OK      = 0;
+var CPR_INCLUDE = 1;
+var CPR_ERROR   = 2;
+
+function cpr_ok(){
+	return { type: CPR_OK };
+}
+
+function cpr_include(file){
+	return { type: CPR_INCLUDE, file: file };
+}
+
+function cpr_error(msg){
+	return { type: CPR_ERROR, msg: msg };
+}
+
+//
+// chunk state helpers
+//
+
+function ets_new(tk, next){ // exprPreStack, exprMidStack
+	return { tk: tk, next: next };
+}
+
+function exs_new(ex, next){ // exprStack
+	return { ex: ex, next: next };
+}
+
+function eps_new(ets, next){ // exprPreStackStack
+	return { ets: ets, next: next };
+}
+
+function vn_new(vl, ns, name){ // varNames
+	return { vl: vl, ns: ns, name: name };
+}
+
+//
+// chunk state
+//
+
+var CST_STATEMENT = 0;
+
+function cst_new(state, next){
+	return {
+		state: state,
+		exprComma: false,
+		exprPreStackStack: null, // linked list of eps_new's
+		exprPreStack: null,      // linked list of ets_new's
+		exprMidStack: null,      // linked list of ets_new's
+		exprStack: null,         // linked list of exs_new's
+		exprTerm: null,          // expr
+		exprTerm2: null,         // expr
+		lookupNames: null,       // list of strings
+		varNames: null,          // list of vn_new's
+		next: next
+	};
+}
+
+function cst_newPush(state, next){
+	return cst_new(state, next);
+}
+
+//
+// chunk
+//
+
+function chunk_new(parent){
+	var fr = frame_new(null);
+	return {
+		state: cst_new(CST_STATEMENT, null),
+		fr: fr,
+		sc: scope_new(fr, null),
+		tkR: null,
+		tk1: null,
+		tk2: null,
+		level: 0,
+		parent: parent
+	};
+}
+
+function chunk_loadStandardLib(chk){
+	([
+		{ name: 'say'        , opcode: OP_SAY         , params: -1 },
+		{ name: 'ask'        , opcode: OP_ASK         , params: -1 },
+		{ name: 'pick'       , opcode: -1             , params:  3 },
+		{ namespace: 'num' },
+			{ name: 'floor'  , opcode: OP_NUM_FLOOR   , params:  1 },
+			{ name: 'ceil'   , opcode: OP_NUM_CEIL    , params:  1 },
+			{ name: 'round'  , opcode: OP_NUM_ROUND   , params:  1 },
+			{ name: 'sin'    , opcode: OP_NUM_SIN     , params:  1 },
+			{ name: 'cos'    , opcode: OP_NUM_COS     , params:  1 },
+			{ name: 'tan'    , opcode: OP_NUM_TAN     , params:  1 },
+			{ name: 'asin'   , opcode: OP_NUM_ASIN    , params:  1 },
+			{ name: 'acos'   , opcode: OP_NUM_ACOS    , params:  1 },
+			{ name: 'atan'   , opcode: OP_NUM_ATAN    , params:  1 },
+			{ name: 'atan2'  , opcode: OP_NUM_ATAN2   , params:  2 },
+			{ name: 'log'    , opcode: OP_NUM_LOG     , params:  1 },
+			{ name: 'log2'   , opcode: OP_NUM_LOG2    , params:  1 },
+			{ name: 'log10'  , opcode: OP_NUM_LOG10   , params:  1 },
+			{ name: 'abs'    , opcode: OP_NUM_ABS     , params:  1 },
+			{ name: 'pi'     , opcode: OP_NUM_PI      , params:  0 },
+			{ name: 'tau'    , opcode: OP_NUM_TAU     , params:  0 },
+			{ name: 'lerp'   , opcode: OP_NUM_LERP    , params:  3 },
+			{ name: 'max'    , opcode: OP_NUM_MAX     , params:  1 },
+			{ name: 'min'    , opcode: OP_NUM_MIN     , params:  1 },
+		{ endnamespace: true },
+		{ namespace: 'list' },
+			{ name: 'new'    , opcode: OP_LIST_NEW    , params:  2 },
+			{ name: 'find'   , opcode: OP_LIST_FIND   , params:  3 },
+			{ name: 'findRev', opcode: OP_LIST_FINDREV, params:  3 },
+			{ name: 'rev'    , opcode: OP_LIST_REV    , params:  1 },
+			{ name: 'join'   , opcode: OP_LIST_JOIN   , params:  2 },
+		{ endnamespace: true }
+	]).forEach(function(s){
+		if (s.namespace){
+			var ns = namespace_new(chk.fr, chk.sc.ns);
+			chk.sc.ns.names = nsname_newNamespace(s.namespace, ns, chk.sc.ns.names);
+			chk.sc.ns = ns;
+		}
+		else if (s.endnamespace)
+			chk.sc.ns = chk.sc.ns.next;
+		else
+			chk.sc.ns.names = nsname_newCmdOpcode(s.name, s.opcode, s.params, chk.sc.ns.names);
+	});
+}
+
+function chunk_process(chk, tk){
+}
+
 
 
 
