@@ -117,6 +117,10 @@ function isMidBeforeMid(lmid, rmid){
 	return true;
 }
 
+function isCmd(type){
+	return type == 'EXPR_CMD_LOCAL' || type == 'EXPR_CMD_NATIVE' || type == 'EXPR_CMD_OPCODE';
+}
+
 function ets_new(tk, next){ // exprPreStack, exprMidStack
 	return {
 		tk: tk,
@@ -161,7 +165,6 @@ function state_new(st, lblBreak, lblContinue, next){
 		exprTerm2: null,
 		lookupNames: null, // list of names
 		varNames: null, // list of vn_new's
-		level: next == null ? 0 : next.level + 1,
 		next: next
 	};
 }
@@ -328,17 +331,18 @@ function scope_lookup(sc, names){
 }
 
 function res_error(msg){
-	return { type: 'error', msg: msg };
+	return { type: 'PRR_ERROR', msg: msg };
 }
 
 function res_more(){
-	return { type: 'more' };
+	return { type: 'PRR_MORE' };
 }
 
 module.exports = function(body){
 	var st = state_new('PRS_STATEMENT', null, null, null);
 	var fr = StackFrame(null);
 	var sc = scope_new(fr, null);
+	var level = 0;
 	var tkR, tk1, tk2;
 
 	// load command operators
@@ -398,7 +402,7 @@ module.exports = function(body){
 	}
 
 	function processToken(){
-		console.log('   ', st.st, tk1);
+		//console.log('   ' + st.st);
 		switch (st.st){
 			case 'PRS_STATEMENT':
 				if (tk1.type == 'TOK_NEWLINE')
@@ -414,38 +418,47 @@ module.exports = function(body){
 					body.jump(st.lblContinue);
 				}
 				else if (isKeyspec(tk1, 'declare')){
+					level++;
 					st = state_newPush('PRS_DECLARE', st);
 					return res_more();
 				}
 				else if (isKeyspec(tk1, 'def')){
+					level++;
 					st = state_newPush('PRS_DEF', st);
 					return res_more();
 				}
 				else if (isKeyspec(tk1, 'do')){
+					level++;
 					st = state_newPush('PRS_DO', st);
 					return res_more();
 				}
 				else if (isKeyspec(tk1, 'for')){
+					level++;
 					st = state_newPush('PRS_FOR', st);
 					return res_more();
 				}
 				else if (isKeyspec(tk1, 'goto')){
+					level++;
 					st = state_newPush('PRS_GOTO', st);
 					return res_more();
 				}
 				else if (isKeyspec(tk1, 'if')){
+					level++;
 					st = state_newPush('PRS_IF', st);
 					return res_more();
 				}
 				else if (isKeyspec(tk1, 'namespace')){
+					level++;
 					st = state_newPush('PRS_NAMESPACE', st);
 					return res_more();
 				}
 				else if (isKeyspec(tk1, 'return')){
+					level++;
 					st = state_newPush('PRS_RETURN', st);
 					return res_more();
 				}
 				else if (isKeyspec(tk1, 'using')){
+					level++;
 					st = state_newPush('PRS_USING', st);
 					return res_more();
 				}
@@ -576,6 +589,7 @@ module.exports = function(body){
 					vn.ns.names = nsname_newVar(vn.name, vn.ns.fr, vn.index, vn.ns.names);
 				}
 				st = st.next;
+				level--;
 				return processToken();
 			} break;
 
@@ -593,6 +607,8 @@ module.exports = function(body){
 			} break;
 
 			case 'PRS_EXPR':
+				if (tk1.type == 'TOK_NEWLINE')
+					return res_more();
 				if (isPre(tk1)){
 					st.exprPreStack = ets_new(tk1, st.exprPreStack);
 					return res_more();
@@ -639,12 +655,16 @@ module.exports = function(body){
 				st.st = 'PRS_EXPR_TERM_CLOSEPAREN';
 				st = state_newPush('PRS_EXPR', st);
 				st.exprComma = true;
+				level++;
 				return processToken();
 
 			case 'PRS_EXPR_TERM_CLOSEPAREN':
+				if (tk1.type == 'TOK_NEWLINE')
+					return res_more();
 				if (!isKeyspec(tk1, ')'))
 					return res_error('Expecting close parenthesis');
 				st.st = 'PRS_EXPR_POST';
+				level--;
 				return res_more();
 
 			case 'PRS_EXPR_TERM_LOOKUP': {
@@ -682,7 +702,7 @@ module.exports = function(body){
 					st.st = 'PRS_EXPR_FINISH';
 					return processToken();
 				}
-				else if (st.exprTerm.isCmd){
+				else if (isCmd(st.exprTerm.type)){
 					st.st = 'PRS_EXPR_POST_CALL';
 					st.exprTerm2 = st.exprTerm;
 					st = state_newPush('PRS_EXPR', st);
@@ -789,6 +809,7 @@ module.exports = function(body){
 						st.exprPreStack = st.exprPreStackStack.ets;
 						st.exprPreStackStack = st.exprPreStackStack.next;
 						st.exprMidStack = st.exprMidStack.next;
+						level--;
 					}
 					else // otherwise, the current Mid wins
 						break;
@@ -801,6 +822,7 @@ module.exports = function(body){
 				st.exprStack = exs_new(st.exprTerm, st.exprStack);
 				st.exprMidStack = ets_new(tk1, st.exprMidStack);
 				st.st = 'PRS_EXPR';
+				level++;
 				return res_more();
 
 			case 'PRS_EXPR_FINISH':
@@ -824,6 +846,7 @@ module.exports = function(body){
 					st.exprPreStack = st.exprPreStackStack.ets;
 					st.exprPreStackStack = st.exprPreStackStack.next;
 					st.exprMidStack = st.exprMidStack.next;
+					level--;
 				}
 				// everything has been applied, and exprTerm has been set!
 				st.next.exprTerm = st.exprTerm;
@@ -838,11 +861,15 @@ module.exports = function(body){
 
 	return {
 		level: function(){
-			return st.level;
+			return level;
 		},
 		add: function(tk){
 			fwd(tk);
 			return processToken();
+		},
+		reset: function(){
+			while (st.st != 'PRS_STATEMENT')
+				st = st.next;
 		}
 	};
 };

@@ -7,29 +7,30 @@ var Parser = require('./parser');
 var Body = require('./body');
 var UTF8 = require('./utf8');
 
-function res_more(levels){
-	return { err: false, levels: levels };
+function make_error(file, line, chr, msg){
+	return (file === null ? '' : file + ':') + line + ':' + chr + ': ' + msg
 }
 
-function res_error(file, line, chr, msg){
-	return { err: true, msg: (file === false ? '' : file + ':') + line + ':' + chr + ': ' + msg };
-}
-
-function processLex(parser, file, line, chr, rls){
+function processLex(parser, file, line, chr, rls, err){
 	for (var i = 0; i < rls.length; i++){
 		var rl = rls[i];
-		if (rl.type == 'TOK_ERROR')
-			return res_error(file, line, chr, rl.data);
-		console.log(rl);
+		if (rl.type == 'TOK_ERROR'){
+			err[0] = make_error(file, line, chr, rl.data);
+			return false;
+		}
+		//console.log(rl);
 		var rp = parser.add(rl);
 		switch (rp.type){
-			case 'more':
+			case 'PRR_MORE':
 				break;
-			case 'error':
-				return res_error(file, line, chr, rp.msg);
+			case 'PRR_ERROR':
+				err[0] = make_error(file, line, chr, rp.msg);
+				return false;
+			default:
+				throw 'TODO: parser result ' + rp.type;
 		}
 	}
-	return res_more(parser.level());
+	return true;
 }
 
 module.exports = function(immediate){
@@ -47,17 +48,16 @@ module.exports = function(immediate){
 				next: state
 			};
 		},
-		popFile: function(){
+		popFile: function(err){
 			var rls = state.lex.close();
-			var res = processLex(parser, state.file, state.line, state.chr, rls);
+			var res = processLex(parser, state.file, state.line, state.chr, rls, err);
 			state = state.next;
 			return res;
 		},
-		add: function(str){
-			return my.addBytes(UTF8.encode(str));
+		add: function(str, err){
+			return my.addBytes(UTF8.encode(str), err);
 		},
-		addBytes: function(bytes){
-			var res = res_more(parser.level());
+		addBytes: function(bytes, err){
 			for (var i = 0; i < bytes.length; i++){
 				var line = state.line;
 				var chr = state.chr;
@@ -83,11 +83,14 @@ module.exports = function(immediate){
 				}
 
 				var rls = state.lex.add(ch);
-				res = processLex(parser, state.file, line, chr, rls);
-				if (res.err)
-					return res;
+				res = processLex(parser, state.file, line, chr, rls, err);
+				if (!res)
+					return false;
 			}
-			return res;
+			return true;
+		},
+		reset: function(){
+			parser.reset();
 		}
 	};
 	return my;

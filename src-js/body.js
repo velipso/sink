@@ -19,6 +19,7 @@ function toMutateOp(tk){
 		else if (tk.data == '/=' ) return OP.DIV;
 		else if (tk.data == '^=' ) return OP.POW;
 		else if (tk.data == '~=' ) return OP.CAT;
+		// does not include &&= and ||= because those are tested specifically for short circuit
 	}
 	return -2;
 }
@@ -58,23 +59,30 @@ module.exports = function(){
 		return (a.length < 2 ? '0x0' : '0x') + a;
 	}
 
+	function decomp(){
+		var out = [];
+		for (var i = 0; i < arguments.length; i++)
+			out.push(i == 0 ? OP.decomp(arguments[i]) : hex(arguments[i]));
+		//console.log('##', out.join(' '));
+	}
+
 	function op3(a, b, c){
-		console.log('##', hex(a), hex(b), hex(c));
+		decomp(a, b, c);
 		ops.push(a, b, c);
 	}
 
 	function op5(a, b, c, d, e){
-		console.log('##', hex(a), hex(b), hex(c), hex(d), hex(e));
+		decomp(a, b, c, d, e);
 		ops.push(a, b, c, d, e);
 	}
 
 	function op7(a, b, c, d, e, f, g){
-		console.log('##', hex(a), hex(b), hex(c), hex(d), hex(e), hex(f), hex(g));
+		decomp(a, b, c, d, e, f, g);
 		ops.push(a, b, c, d, e, f, g);
 	}
 
 	function op9(a, b, c, d, e, f, g, h, i){
-		console.log('##', hex(a), hex(b), hex(c), hex(d), hex(e), hex(f), hex(g), hex(h), hex(i));
+		decomp(a, b, c, d, e, f, g, h, i);
 		ops.push(a, b, c, d, e, f, g, h, i);
 	}
 
@@ -154,93 +162,103 @@ module.exports = function(){
 
 			// if we're doing an assignment, then instead of evaluating into a temp, evaluate into
 			// the actual assignment location
-			var mut_op = expr.type == 'EXPR_INFIX' ? toMutateOp(expr.tk) : -2;
-			if (expr.type == 'EXPR_INFIX' && mut_op >= -1){
-				var read = mut_op < 0 ? null : [];
-				var lvt = lvals_new(expr.left, read);
-				if (lvt.type == 'error')
-					return ev_error('Bad assignment');
-				var lvals = lvt.lvals;
-				var lvals_nil = 0;
-				var throughTemp = lvals.length > 1;
-				var temps = throughTemp ? [] : null;
+			if (expr.type == 'EXPR_INFIX' && expr.tk.type == 'TOK_KEYSPEC'){
+				var mut_op = toMutateOp(expr.tk);
+				if (mut_op >= -1){
+					var read = mut_op < 0 ? null : [];
+					var lvt = lvals_new(expr.left, read);
+					if (lvt.type == 'error')
+						return ev_error('Bad assignment');
+					var lvals = lvt.lvals;
+					var lvals_nil = 0;
+					var throughTemp = lvals.length > 1;
+					var temps = throughTemp ? [] : null;
 
-				if (expr.right.type == 'EXPR_GROUP'){
-					lvals_nil = expr.right.group.length;
-					for (var i = 0; i < expr.right.group.length; i++){
-						var ex = expr.right.group[i];
-						if (i < lvals.length){
-							if (throughTemp){
-								var temp_index = fr.newTemp(my);
-								temps.push(temp_index);
-								my.evalInto(fr, 0, temp_index, ex);
+					if (expr.right.type == 'EXPR_GROUP'){
+						lvals_nil = expr.right.group.length;
+						for (var i = 0; i < expr.right.group.length; i++){
+							var ex = expr.right.group[i];
+							if (i < lvals.length){
+								if (throughTemp){
+									var temp_index = fr.newTemp(my);
+									temps.push(temp_index);
+									my.evalInto(fr, 0, temp_index, ex);
+								}
+								else{
+									if (mut_op == -1) // if assignment
+										my.evalIntoLval(fr, lvals[i], ex, out);
+									else{ // otherwise, we have an operator that mutates
+										var rest = [];
+										my.eval(fr, ex, rest);
+										tempsClear(fr, rest);
+										op7(mut_op,
+											read[i].fdiff, read[i].index,
+											read[i].fdiff, read[i].index,
+											rest[rest.length - 1].fdiff,
+											rest[rest.length - 1].index);
+										my.evalIntoLval(fr, lvals[i],
+											Expr.lookup(read[i].fdiff, read[i].index), null);
+									}
+								}
 							}
-							else{
-								if (mut_op == -1) // if assignment
-									my.evalIntoLval(fr, lvals[i], ex, out);
-								else{ // otherwise, we have an operator that mutates
-									var rest = [];
-									my.eval(fr, ex, rest);
-									tempsClear(fr, rest);
+							else
+								my.eval(fr, ex, null);
+						}
+						if (throughTemp){
+							for (var i = 0; i < temps.length; i++){
+								if (mut_op == -1)
+									my.evalIntoLval(fr, lvals[i], Expr.lookup(0, temps[i]), out);
+								else{
 									op7(mut_op,
 										read[i].fdiff, read[i].index,
 										read[i].fdiff, read[i].index,
-										rest[rest.length - 1].fdiff, rest[rest.length - 1].index);
+										0, temps[i]);
 									my.evalIntoLval(fr, lvals[i],
-										Expr.lookup(read[i].fdiff, read[i].index), null);
+										Expr.lookup(read[i].fdiff, read[i].index), out);
 								}
+								fr.tempClear(temps[i]);
 							}
 						}
-						else
-							my.eval(fr, ex, null);
 					}
-					if (throughTemp){
-						for (var i = 0; i < temps.length; i++){
-							if (mut_op == -1)
-								my.evalIntoLval(fr, lvals[i], Expr.lookup(0, temps[i]), out);
-							else{
-								op7(mut_op,
-									read[i].fdiff, read[i].index,
-									read[i].fdiff, read[i].index,
-									0, temps[i]);
-								my.evalIntoLval(fr, lvals[i],
-									Expr.lookup(read[i].fdiff, read[i].index), out);
-							}
-							fr.tempClear(temps[i]);
+					else{
+						if (mut_op == -1){ // assignment
+							var rest = [];
+							my.evalIntoLval(fr, lvals[0], expr.right, rest);
+							out.push(rest[rest.length - 1]);
 						}
+						else{ // mutation
+							var rest = [];
+							my.eval(fr, expr.right, rest);
+							tempsClear(fr, rest);
+							op7(mut_op,
+								read[0].fdiff, read[0].index,
+								read[0].fdiff, read[0].index,
+								rest[rest.length - 1].fdiff,
+								rest[rest.length - 1].index);
+							my.evalIntoLval(fr, lvals[0],
+								Expr.lookup(read[0].fdiff, read[0].index), null);
+						}
+						lvals_nil = 1;
 					}
-				}
-				else{
-					if (mut_op == -1){ // assignment
-						var rest = [];
-						my.evalIntoLval(fr, lvals[0], expr.right, rest);
-						out.push(rest[rest.length - 1]);
+					if (mut_op >= 0)
+						tempsClear(fr, read);
+					if (lvals_nil > lvals.length){
+						var tn = fr.newTemp(my);
+						my.evalInto(fr, 0, tn, Expr.nil());
+						for (var i = lvals_nil; i < lvals.length; i++)
+							my.evalIntoLval(fr, lvals[i], Expr.lookup(0, tn), out);
+						fr.tempClear(tn);
 					}
-					else{ // mutation
-						var rest = [];
-						my.eval(fr, expr.right, rest);
-						tempsClear(fr, rest);
-						op7(mut_op,
-							read[0].fdiff, read[0].index,
-							read[0].fdiff, read[0].index,
-							rest[rest.length - 1].fdiff, rest[rest.length - 1].index);
-						my.evalIntoLval(fr, lvals[0],
-							Expr.lookup(read[0].fdiff, read[0].index), null);
-					}
-					lvals_nil = 1;
+					for (var i = 0; i < lvals.length; i++)
+						lval_free(lvals[i]);
+					return ev_success();
 				}
-				if (mut_op >= 0)
-					tempsClear(fr, read);
-				if (lvals_nil > lvals.length){
-					var tn = fr.newTemp(my);
-					my.evalInto(fr, 0, tn, Expr.nil());
-					for (var i = lvals_nil; i < lvals.length; i++)
-						my.evalIntoLval(fr, lvals[i], Expr.lookup(0, tn), out);
-					fr.tempClear(tn);
+				else if (expr.tk.data == '&&='){
+					throw 'TODO: &&=';
 				}
-				for (var i = 0; i < lvals.length; i++)
-					lval_free(lvals[i]);
-				return ev_success();
+				else if (expr.tk.data == '||='){
+					throw 'TODO: ||=';
+				}
 			}
 
 			// otherwise, just evaluate into temps
@@ -329,6 +347,10 @@ module.exports = function(){
 					if (idx < 0){
 						idx = strTable.length;
 						strTable.push(expr.str);
+						var ch = '';
+						for (var i = 0; i < expr.str.length; i++)
+							ch += String.fromCharCode(expr.str[i]);
+						//console.log('STR[' + idx + '] = "' + ch + '"');
 					}
 					if (idx > 65535)
 						return ev_error('Too many string constants');
@@ -505,10 +527,7 @@ module.exports = function(){
 			return ev_success();
 		},
 		newVar: function(fdiff, index){
-			console.log('newVar', {
-				fdiff: fdiff,
-				index: index
-			});
+			// TODO: do I even need this?
 		}
 	};
 	return my;
