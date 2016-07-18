@@ -157,30 +157,31 @@ var KS_TILDEMINUS = 34;
 var KS_MINUSTILDE = 35;
 var KS_AMP2       = 36;
 var KS_PIPE2      = 37;
-var KS_TILDE2PLUS = 38;
-var KS_PLUSTILDE2 = 39;
-var KS_PIPE2EQU   = 40;
-var KS_AMP2EQU    = 41;
-var KS_BREAK      = 42;
-var KS_CONTINUE   = 43;
-var KS_DECLARE    = 44;
-var KS_DEF        = 45;
-var KS_DO         = 46;
-var KS_ELSE       = 47;
-var KS_ELSEIF     = 48;
-var KS_END        = 49;
-var KS_FOR        = 50;
-var KS_GOTO       = 51;
-var KS_IF         = 52;
-var KS_INCLUDE    = 53;
-var KS_NAMESPACE  = 54;
-var KS_RETURN     = 55;
-var KS_TYPENUM    = 56;
-var KS_TYPESTR    = 57;
-var KS_TYPELIST   = 58;
-var KS_USING      = 59;
-var KS_VAR        = 60;
-var KS_WHILE      = 61;
+var KS_PERIOD3    = 38;
+var KS_TILDE2PLUS = 39;
+var KS_PLUSTILDE2 = 40;
+var KS_PIPE2EQU   = 41;
+var KS_AMP2EQU    = 42;
+var KS_BREAK      = 43;
+var KS_CONTINUE   = 44;
+var KS_DECLARE    = 45;
+var KS_DEF        = 46;
+var KS_DO         = 47;
+var KS_ELSE       = 48;
+var KS_ELSEIF     = 49;
+var KS_END        = 50;
+var KS_FOR        = 51;
+var KS_GOTO       = 52;
+var KS_IF         = 53;
+var KS_INCLUDE    = 54;
+var KS_NAMESPACE  = 55;
+var KS_RETURN     = 56;
+var KS_TYPENUM    = 57;
+var KS_TYPESTR    = 58;
+var KS_TYPELIST   = 59;
+var KS_USING      = 60;
+var KS_VAR        = 61;
+var KS_WHILE      = 62;
 
 function ks_char(c){
 	if      (c == '+') return KS_PLUS;
@@ -228,7 +229,8 @@ function ks_char2(c1, c2){
 }
 
 function ks_char3(c1, c2, c3){
-	if      (c1 == '~' && c2 == '~' && c3 == '+') return KS_TILDE2PLUS;
+	if      (c1 == '.' && c2 == '.' && c3 == '.') return KS_PERIOD3;
+	else if (c1 == '~' && c2 == '~' && c3 == '+') return KS_TILDE2PLUS;
 	else if (c1 == '+' && c2 == '~' && c3 == '~') return KS_PLUSTILDE2;
 	else if (c1 == '|' && c2 == '|' && c3 == '=') return KS_PIPE2EQU;
 	else if (c1 == '&' && c2 == '&' && c3 == '=') return KS_AMP2EQU;
@@ -504,7 +506,7 @@ function expr_group(left, right){
 	else if (right.type == EXPR_GROUP){
 		var g = right.group.concat();
 		g.unshift(left);
-		return { type: EXPR_GROUP: group: g };
+		return { type: EXPR_GROUP, group: g };
 	}
 	return { type: EXPR_GROUP, group: [left, right] };
 }
@@ -1087,24 +1089,25 @@ function lex_close(lx){
 
 		case LEX_SPECIAL2: {
 			var ks2 = ks_char2(lx.ch2, ls.ch1);
-			if (ks2 != KS_INVALID){
+			if (ks2 != KS_INVALID)
 				return [tok_ks(ks2), tok_newline()];
-			}
 			var ks1 = ks_char(lx.ch2);
 			ks2 = ks_char(lx.ch1);
 			if (ks1 != KS_INVALID){
 				var tk = tok_ks(ks1);
-				if (ks2 != KS_INVALID){
+				if (ks2 != KS_INVALID)
 					return [tk, tok_ks(ks2), tok_newline()];
 				return [tk, tok_error('Unexpected character: ' + lx.ch1)];
 			}
 			return [tok_error('Unexpected character: ' + lx.ch2)];
+		} break;
 
 		case LEX_IDENT: {
 			var ksk = ks_str(lx.str);
 			if (ksk != KS_INVALID)
 				return [tok_ks(ksk), tok_newline()];
 			return [tok_ident(lx.str), tok_newline()];
+		} break;
 
 		case LEX_NUM_0:
 			return [tok_num(0), tok_newline()];
@@ -1196,6 +1199,19 @@ function frame_diff(fr, child){
 		dist++;
 	}
 	return dist;
+}
+
+function frame_snapshot(fr){
+	//assert(all vars are either FVR_VAR or FVR_TEMP_AVAIL);
+	return fr.vars.length;
+}
+
+function frame_restore(frss){
+	fr.vars.splice(frss);
+	for (var i = 0; i < fr.vars.length; i++){
+		if (fr.vars[i] == FVR_TEMP_INUSE)
+			fr.vars[i] = FVR_TEMP_AVAIL;
+	}
 }
 
 //
@@ -1328,15 +1344,7 @@ function scope_tryLookup(sc, names, err){
 	// failed, try parent scope
 	if (sc.parent == null)
 		return lkup_notfound();
-	return scope_lookup(sc.parent, names);
-}
-
-function scope_lookup(sc, names){
-	var err = [null];
-	var lk = scope_tryLookup(sc, names, err);
-	if (lk == LKUP_NOTFOUND && err[0] != null)
-		return lkup_error(err[0]);
-	return lk;
+	return scope_tryLookup(sc.parent, names, err);
 }
 
 //
@@ -1384,6 +1392,21 @@ function vn_new(vl, ns, name){ // varNames
 //
 
 var CST_STATEMENT = 0;
+CST_DECLARE
+CST_DEF
+CST_DO
+CST_FOR
+CST_GOTO
+CST_IF
+CST_NAMESPACE
+CST_RETURN
+CST_USING
+CST_VAR
+CST_IDENT
+CST_EVAL
+CST_LOOKUP
+CST_LOOKUP_IDENT
+
 
 function cst_new(state, next){
 	return {
@@ -1396,7 +1419,6 @@ function cst_new(state, next){
 		exprTerm: null,          // expr
 		exprTerm2: null,         // expr
 		lookupNames: null,       // list of strings
-		varNames: null,          // list of vn_new's
 		next: next
 	};
 }
@@ -1410,10 +1432,11 @@ function cst_newPush(state, next){
 //
 
 function chunk_new(parent){
-	var fr = frame_new(null);
+	var fr = parent == null ? frame_new(null) : parent.fr;
 	return {
 		state: cst_new(CST_STATEMENT, null),
 		fr: fr,
+		frss: parent == null ? -1 : frame_snapshot(fr),
 		sc: scope_new(fr, null),
 		tkR: null,
 		tk1: null,
@@ -1423,53 +1446,563 @@ function chunk_new(parent){
 	};
 }
 
-function chunk_loadStandardLib(chk){
-	([
-		{ name: 'say'        , opcode: OP_SAY         , params: -1 },
-		{ name: 'ask'        , opcode: OP_ASK         , params: -1 },
-		{ name: 'pick'       , opcode: -1             , params:  3 },
-		{ namespace: 'num' },
-			{ name: 'floor'  , opcode: OP_NUM_FLOOR   , params:  1 },
-			{ name: 'ceil'   , opcode: OP_NUM_CEIL    , params:  1 },
-			{ name: 'round'  , opcode: OP_NUM_ROUND   , params:  1 },
-			{ name: 'sin'    , opcode: OP_NUM_SIN     , params:  1 },
-			{ name: 'cos'    , opcode: OP_NUM_COS     , params:  1 },
-			{ name: 'tan'    , opcode: OP_NUM_TAN     , params:  1 },
-			{ name: 'asin'   , opcode: OP_NUM_ASIN    , params:  1 },
-			{ name: 'acos'   , opcode: OP_NUM_ACOS    , params:  1 },
-			{ name: 'atan'   , opcode: OP_NUM_ATAN    , params:  1 },
-			{ name: 'atan2'  , opcode: OP_NUM_ATAN2   , params:  2 },
-			{ name: 'log'    , opcode: OP_NUM_LOG     , params:  1 },
-			{ name: 'log2'   , opcode: OP_NUM_LOG2    , params:  1 },
-			{ name: 'log10'  , opcode: OP_NUM_LOG10   , params:  1 },
-			{ name: 'abs'    , opcode: OP_NUM_ABS     , params:  1 },
-			{ name: 'pi'     , opcode: OP_NUM_PI      , params:  0 },
-			{ name: 'tau'    , opcode: OP_NUM_TAU     , params:  0 },
-			{ name: 'lerp'   , opcode: OP_NUM_LERP    , params:  3 },
-			{ name: 'max'    , opcode: OP_NUM_MAX     , params:  1 },
-			{ name: 'min'    , opcode: OP_NUM_MIN     , params:  1 },
-		{ endnamespace: true },
-		{ namespace: 'list' },
-			{ name: 'new'    , opcode: OP_LIST_NEW    , params:  2 },
-			{ name: 'find'   , opcode: OP_LIST_FIND   , params:  3 },
-			{ name: 'findRev', opcode: OP_LIST_FINDREV, params:  3 },
-			{ name: 'rev'    , opcode: OP_LIST_REV    , params:  1 },
-			{ name: 'join'   , opcode: OP_LIST_JOIN   , params:  2 },
-		{ endnamespace: true }
-	]).forEach(function(s){
-		if (s.namespace){
-			var ns = namespace_new(chk.fr, chk.sc.ns);
-			chk.sc.ns.names = nsname_newNamespace(s.namespace, ns, chk.sc.ns.names);
-			chk.sc.ns = ns;
-		}
-		else if (s.endnamespace)
-			chk.sc.ns = chk.sc.ns.next;
-		else
-			chk.sc.ns.names = nsname_newCmdOpcode(s.name, s.opcode, s.params, chk.sc.ns.names);
-	});
+function chunk_pushNamespace(chk, name){
+	var ns = namespace_new(chk.fr, chk.sc.ns);
+	chk.sc.ns.names = nsname_newNamespace(name, ns, chk.sc.ns.names);
+	chk.sc.ns = ns;
 }
 
-function chunk_process(chk, tk){
+function chunk_popNamespace(chk){
+	chk.sc.ns = chk.sc.ns.next;
+}
+
+function chunk_defOp(chk, name, opcode, params){
+	chk.sc.ns.names = nsname_newCmdOpcode(name, opcode, params, chk.sc.ns.names);
+}
+
+function chunk_loadStandardOps(chk){
+	chunk_defOp(chk, 'say'        , OP_SAY         , -1);
+	chunk_defOp(chk, 'ask'        , OP_ASK         , -1);
+	chunk_defOp(chk, 'pick'       , -1             ,  3);
+	chunk_pushNamespace(chk, 'num');
+		chunk_defOp(chk, 'floor'  , OP_NUM_FLOOR   ,  1);
+		chunk_defOp(chk, 'ceil'   , OP_NUM_CEIL    ,  1);
+		chunk_defOp(chk, 'round'  , OP_NUM_ROUND   ,  1);
+		chunk_defOp(chk, 'sin'    , OP_NUM_SIN     ,  1);
+		chunk_defOp(chk, 'cos'    , OP_NUM_COS     ,  1);
+		chunk_defOp(chk, 'tan'    , OP_NUM_TAN     ,  1);
+		chunk_defOp(chk, 'asin'   , OP_NUM_ASIN    ,  1);
+		chunk_defOp(chk, 'acos'   , OP_NUM_ACOS    ,  1);
+		chunk_defOp(chk, 'atan'   , OP_NUM_ATAN    ,  1);
+		chunk_defOp(chk, 'atan2'  , OP_NUM_ATAN2   ,  2);
+		chunk_defOp(chk, 'log'    , OP_NUM_LOG     ,  1);
+		chunk_defOp(chk, 'log2'   , OP_NUM_LOG2    ,  1);
+		chunk_defOp(chk, 'log10'  , OP_NUM_LOG10   ,  1);
+		chunk_defOp(chk, 'abs'    , OP_NUM_ABS     ,  1);
+		chunk_defOp(chk, 'pi'     , OP_NUM_PI      ,  0);
+		chunk_defOp(chk, 'tau'    , OP_NUM_TAU     ,  0);
+		chunk_defOp(chk, 'lerp'   , OP_NUM_LERP    ,  3);
+		chunk_defOp(chk, 'max'    , OP_NUM_MAX     ,  1);
+		chunk_defOp(chk, 'min'    , OP_NUM_MIN     ,  1);
+	chunk_popNamespace(chk);
+	chunk_pushNamespace(chk, 'list');
+		chunk_defOp(chk, 'new'    , OP_LIST_NEW    ,  2);
+		chunk_defOp(chk, 'find'   , OP_LIST_FIND   ,  3);
+		chunk_defOp(chk, 'findRev', OP_LIST_FINDREV,  3);
+		chunk_defOp(chk, 'rev'    , OP_LIST_REV    ,  1);
+		chunk_defOp(chk, 'join'   , OP_LIST_JOIN   ,  2);
+	chunk_popNamespace(chk);
+}
+
+function chunk_lookup(chk, names){
+	var err = [null];
+	var lk = scope_tryLookup(chk.sc, names, err);
+	if (lk.type == LKUP_NOTFOUND){
+		if (chk.parent != null)
+			return chunk_lookup(chk.parent, names);
+		if (err[0] != null)
+			return lkup_error(err[0]);
+	}
+	return lk;
+}
+
+function chunk_fwd(chk, tk){
+	chk.tk2 = chk.tk1;
+	chk.tk1 = tk;
+}
+
+function chunk_reverse(chk){
+	chk.tkR = chk.tk1;
+	chk.tk1 = chk.tk2;
+	chk.tk2 = null;
+}
+
+function chunk_push(chk, state){
+	chk.state = cst_newPush(state, chk.state);
+}
+
+function chunk_process(chk){
+	var tk1 = chk.tk1;
+	var st = chk.state;
+	switch (st.state){
+		case CST_STATEMENT:
+			if (tk1.type == TOK_NEWLINE)
+				return cpr_ok();
+			else if (tok_isKS(tk1, KS_BREAK)){
+				throw 'TODO: break';
+			}
+			else if (tok_isKS(tk1, KS_CONTINUE)){
+				throw 'TODO: continue';
+			}
+			else if (tok_isKS(tk1, KS_DECLARE)){
+				chk.level++;
+				chunk_push(chk, CST_DECLARE);
+				return cpr_ok();
+			}
+			else if (tok_isKS(tk1, KS_DEF)){
+				chk.level++;
+				chunk_push(chk, CST_DEF);
+				return cpr_ok();
+			}
+			else if (tok_isKS(tk1, KS_DO)){
+				chk.level++;
+				chunk_push(chk, CST_DO);
+				return cpr_ok();
+			}
+			else if (tok_isKS(tk1, KS_FOR)){
+				chk.level++;
+				chunk_push(chk, CST_FOR);
+				return cpr_ok();
+			}
+			else if (tok_isKS(tk1, KS_GOTO)){
+				chk.level++;
+				chunk_push(chk, CST_GOTO);
+				return cpr_ok();
+			}
+			else if (tok_isKS(tk1, KS_IF)){
+				chk.level++;
+				chunk_push(chk, CST_IF);
+				return cpr_ok();
+			}
+			else if (tok_isKS(tk1, KS_NAMESPACE)){
+				chk.level++;
+				chunk_push(chk, CST_NAMESPACE);
+				return cpr_ok();
+			}
+			else if (tok_isKS(tk1, KS_RETURN)){
+				chk.level++;
+				chunk_push(chk, CST_RETURN);
+				return cpr_ok();
+			}
+			else if (tok_isKS(tk1, KS_USING)){
+				chk.level++;
+				chunk_push(chk, CST_USING);
+				return cpr_ok();
+			}
+			else if (tok_isKS(tk1, KS_VAR)){
+				chk.level++;
+				chunk_push(chk, CST_VAR);
+				return cpr_ok();
+			}
+			else if (tk1.type == TOK_IDENT){
+				chk.level++;
+				chunk_push(chk, CST_IDENT);
+				return cpr_ok();
+			}
+			else if (tok_isPre(tk1) || tok_isTerm(tk1)){
+				chunk_push(chk, CST_EVAL);
+				return chunk_process(chk);
+			}
+			return cpr_error('Invalid statement');
+
+		case CST_IDENT: {
+			if (tok_isKS(tk1, KS_COLON)){
+				throw 'TODO: define label';
+			}
+			st.state = CST_EVAL;
+			chunk_rewind(chk);
+			var t = chunk_process(chk);
+			if (t.type == CPR_ERROR)
+				return t;
+			chunk_fwd(chk, chk.tkR);
+			return chunk_process(chk);
+		} break;
+
+		case CST_LOOKUP:
+			if (!tok_isKS(tk1, KS_PERIOD)){
+				st.next.lookupNames = st.lookupNames;
+				chk.state = st.next;
+				return chunk_process(chk);
+			}
+			st.state = CST_LOOKUP_IDENT;
+			return cpr_ok();
+
+		case CST_LOOKUP_IDENT:
+			if (tk1.type != TOK_IDENT)
+				return cpr_error('Expecting identifier');
+			st.lookupNames.push(tk1.str);
+			st.state = CST_LOOKUP;
+			return cpr_ok();
+//
+//
+// TODO: keep porting this code
+//
+// also:
+//
+//   we are doing list decomposition instead of multi-assignment:
+//
+//   this:       {x, y} = {1, 2}
+//   not this:   x, y = 1, 2
+//
+//   which means:
+//
+//   var {x, y} = {1, 2}
+//   def foo {x, y} = {1, 2}, z = 3, w = 4; <body>; end
+//
+//   and boy it would be really nice to be able to do:
+//
+//   {x, y, {z, w}} = {1, 2, {3, 4}}
+//
+//   and as a bonus:
+//
+//   {x, ...y} = {1, 2, 3, 4}
+//   say y # => {2, 3, 4}
+//
+//   also:
+//
+//   def foo a, b, ...c; <body>; end
+//
+//
+
+			case 'PRS_VAR':
+				if (tk1.type == 'TOK_IDENT'){
+					st.st = 'PRS_VAR_NAME';
+					st = state_newPush('PRS_LOOKUP', st);
+					st.lookupNames = [tk1.data];
+					return res_more();
+				}
+				st.varNames = null; // free varNames
+				return res_error('Expecting identifier');
+
+			case 'PRS_VAR_NAME': {
+				var ns = sc.ns;
+				var nm = st.lookupNames.pop();
+				if (st.lookupNames.length > 0){
+					var nsn = scope_lookup(sc, st.lookupNames);
+					if (nsn.type == 'NSN_ERROR')
+						return res_error(nsn.msg);
+					else if (nsn.type != 'NSN_NAMESPACE')
+						return res_error('Bad declaration; invalid namespace');
+					ns = nsn.ns;
+				}
+
+				var fdiff = ns.fr.diff(fr);
+				var index = ns.fr.newVar();
+				body.newVar(fdiff, index);
+				st.varNames.push(vn_new(fdiff, index, ns, nm));
+
+				if (isKeyspec(tk1, ',')){
+					st.st = 'PRS_VAR';
+					return res_more();
+				}
+				else if (isKeyspec(tk1, '=')){
+					st.st = 'PRS_VAR_INIT';
+					st = state_newPush('PRS_EXPR', st);
+					return res_more();
+				}
+
+				st.exprTerm = Expr.nil();
+				st.st = 'PRS_VAR_INIT';
+				return processToken();
+			} break;
+
+			case 'PRS_VAR_INIT': {
+				// evaluate init expression into storage locations
+				if (st.exprTerm.type == 'EXPR_GROUP'){
+					for (var i = 0; i < st.exprTerm.group.length; i++){
+						var r;
+						if (i < st.varNames.length){
+							r = body.evalInto(
+								fr,
+								st.varNames[i].fdiff,
+								st.varNames[i].index,
+								st.exprTerm.group[i]
+							);
+						}
+						else
+							r = body.eval(fr, st.exprTerm.group[i], null);
+						if (r.type == 'error')
+							return res_error(r.msg);
+					}
+				}
+				else{
+					for (var i = 0; i < st.varNames.length; i++){
+						var r = body.evalInto(
+							fr,
+							st.varNames[i].fdiff,
+							st.varNames[i].index,
+							i == 0 ? st.exprTerm : Expr.nil()
+						);
+						if (r.type == 'error')
+							return res_error(r.msg);
+					}
+				}
+				// insert symbols into namespace
+				for (var i = 0; i < st.varNames.length; i++){
+					var vn = st.varNames[i];
+					if (namespace_has(vn.ns, vn.name))
+						return res_error('Cannot redeclare: ' + vn.name);
+					vn.ns.names = nsname_newVar(vn.name, vn.ns.fr, vn.index, vn.ns.names);
+				}
+				st = st.next;
+				level--;
+				return processToken();
+			} break;
+
+			case 'PRS_EVAL':
+				st.st = 'PRS_EVAL_EXPR';
+				st = state_newPush('PRS_EXPR', st);
+				return processToken();
+
+			case 'PRS_EVAL_EXPR': {
+				var r = body.eval(fr, st.exprTerm, null);
+				if (r.type == 'error')
+					return res_error(r.msg);
+				st = st.next;
+				return processToken();
+			} break;
+
+			case 'PRS_EXPR':
+				if (tk1.type == 'TOK_NEWLINE')
+					return res_more();
+				if (isPre(tk1)){
+					st.exprPreStack = ets_new(tk1, st.exprPreStack);
+					return res_more();
+				}
+				st.st = 'PRS_EXPR_TERM';
+				return processToken();
+
+			case 'PRS_EXPR_TERM':
+				if (tk1.type == 'TOK_NUM'){
+					st.st = 'PRS_EXPR_POST';
+					st.exprTerm = Expr.num(tk1.data);
+					return res_more();
+				}
+				else if (tk1.type == 'TOK_STR'){
+					st.st = 'PRS_EXPR_POST';
+					st.exprTerm = Expr.str(tk1.data);
+					return res_more();
+				}
+				else if (tk1.type == 'TOK_IDENT'){
+					st.st = 'PRS_EXPR_TERM_LOOKUP';
+					st = state_newPush('PRS_LOOKUP', st);
+					st.lookupNames = [tk1.data];
+					return res_more();
+				}
+				else if (isKeyspec(tk1, '{')){
+					st.st = 'PRS_EXPR_TERM_ISEMPTYLIST';
+					// TODO: needs to check for '}', and put empty list in exprTerm
+					// otherwise, needs to call PRS_EXPR and set exprComma to true, then put result
+					// in exprTerm (ending in PRS_EXPR_POST)
+					return res_more();
+				}
+				else if (isKeyspec(tk1, '(')){
+					st.st = 'PRS_EXPR_TERM_ISNIL';
+					return res_more();
+				}
+				return res_error('Invalid expression');
+
+			case 'PRS_EXPR_TERM_ISNIL':
+				if (isKeyspec(tk1, ')')){
+					st.st = 'PRS_EXPR_POST';
+					st.exprTerm = Expr.nil();
+					return res_more();
+				}
+				st.st = 'PRS_EXPR_TERM_CLOSEPAREN';
+				st = state_newPush('PRS_EXPR', st);
+				st.exprComma = true;
+				level++;
+				return processToken();
+
+			case 'PRS_EXPR_TERM_CLOSEPAREN':
+				if (tk1.type == 'TOK_NEWLINE')
+					return res_more();
+				if (!isKeyspec(tk1, ')'))
+					return res_error('Expecting close parenthesis');
+				st.st = 'PRS_EXPR_POST';
+				level--;
+				return res_more();
+
+			case 'PRS_EXPR_TERM_LOOKUP': {
+				var lk = scope_lookup(sc, st.lookupNames);
+				if (lk.type == 'LKUP_NOTFOUND'){
+					var msg = 'Variable not defined: ' + st.lookupNames.join('.');
+					st.lookupNames = null; // free lookup names
+					return res_error(msg);
+				}
+				else if (lk.type == 'LKUP_ERROR'){
+					st.lookupNames = null; // free lookup names
+					return res_error(lk.msg);
+				}
+				else if (lk.nsn.type == 'NSN_NAMESPACE'){
+					var msg = 'Cannot use namespace as variable: ' + st.lookupNames.join('.');
+					st.lookupNames = null; // free lookup names
+					return res_error(msg);
+				}
+				// lk.nsn.type == 'NSN_VAR', 'NSN_CMD_LOCAL', 'NSN_CMD_NATIVE', 'NSN_CMD_OPCODE'
+				st.lookupNames = null; // free lookup names
+				if (lk.nsn.type == 'NSN_VAR')
+					st.exprTerm = Expr.lookup(lk.nsn.fr.diff(fr), lk.nsn.index);
+				else if (lk.nsn.type == 'NSN_CMD_LOCAL')
+					st.exprTerm = Expr.cmdLocal(lk.nsn.label);
+				else if (lk.nsn.type == 'NSN_CMD_NATIVE')
+					st.exprTerm = Expr.cmdNative(lk.nsn.cmd);
+				else // NSN_CMD_OPCODE
+					st.exprTerm = Expr.cmdOpcode(lk.nsn.opcode, lk.nsn.params);
+				st.st = 'PRS_EXPR_POST';
+				return processToken();
+			} break;
+
+			case 'PRS_EXPR_POST':
+				if (tk1.type == 'TOK_NEWLINE'){
+					st.st = 'PRS_EXPR_FINISH';
+					return processToken();
+				}
+				else if (isCmd(st.exprTerm.type)){
+					st.st = 'PRS_EXPR_POST_CALL';
+					st.exprTerm2 = st.exprTerm;
+					st = state_newPush('PRS_EXPR', st);
+					return processToken();
+				}
+				else if (isKeyspec(tk1, '!')){
+					st.exprTerm = Expr.postfix(tk1, st.exprTerm);
+					return res_more();
+				}
+				else if (isKeyspec(tk1, '[')){
+					throw 'TODO: collect index';
+					/*
+					if (tokens[0].isData(':')){
+						getData(':');
+						var len = false;
+						if (!tokens[0].isData(']'))
+							len = Expr(false).expr;
+						var t = getData(']');
+						return {
+							expr: body.exprSlice(pos, expr.expr, false, len),
+							newline: t.newline
+						};
+					}
+					else{
+						var index = Expr(false).expr;
+						if (tokens[0].isData(':')){
+							getData(':');
+							var len = false;
+							if (!tokens[0].isData(']'))
+								len = Expr(false).expr;
+							var t = getData(']');
+							return {
+								expr: body.exprSlice(pos, expr.expr, index, len),
+								newline: t.newline
+							};
+						}
+						else{
+							var t = getData(']');
+							return {
+								expr: body.exprIndex(pos, expr.expr, index),
+								newline: t.newline
+							};
+						}
+					}
+					*/
+					return res_more();
+				}
+				if (st.exprComma)
+					st.st = 'PRS_EXPR_COMMA';
+				else
+					st.st = 'PRS_EXPR_MID';
+				return processToken();
+
+			case 'PRS_EXPR_POST_CALL':
+				st.exprTerm = Expr.call(st.exprTerm2, st.exprTerm);
+				st.st = 'PRS_EXPR_POST';
+				return processToken();
+
+			case 'PRS_EXPR_COMMA':
+				if (isKeyspec(tk1, ',')){
+					st.st = 'PRS_EXPR_COMMA2';
+					return res_more();
+				}
+				st.st = 'PRS_EXPR_MID';
+				return processToken();
+
+			case 'PRS_EXPR_COMMA2':
+				if (tk1.type == 'TOK_NEWLINE'){
+					rewind(); // keep the comma in tk1
+					return res_more();
+				}
+				if (!isKeyspec(tk1, ')') && !isKeyspec(tk1, '}')){
+					st.st = 'PRS_EXPR_MID';
+					rewind();
+					var t = processToken();
+					if (t.type == 'error')
+						return t;
+					fwd(tkR);
+					return processToken();
+				}
+				// found a trailing comma
+				st.st = 'PRS_EXPR_FINISH';
+				return processToken();
+
+			case 'PRS_EXPR_MID':
+				if (!isMid(tk1)){
+					st.st = 'PRS_EXPR_FINISH';
+					return processToken();
+				}
+				while (true){
+					// fight between the Pre and the Mid
+					while (st.exprPreStack != null && isPreBeforeMid(st.exprPreStack.tk, tk1)){
+						// apply the Pre
+						st.exprTerm = Expr.prefix(st.exprPreStack.tk, st.exprTerm);
+						st.exprPreStack = st.exprPreStack.next;
+					}
+
+					// if we've exhaused the exprPreStack, then check against the exprMidStack
+					if (st.exprPreStack == null && st.exprMidStack != null &&
+						isMidBeforeMid(st.exprMidStack.tk, tk1)){
+						// apply the previous mMid
+						st.exprTerm = Expr.infix(st.exprMidStack.tk, st.exprStack.expr,
+							st.exprTerm);
+						st.exprPreStack = st.exprPreStackStack.ets;
+						st.exprPreStackStack = st.exprPreStackStack.next;
+						st.exprMidStack = st.exprMidStack.next;
+						level--;
+					}
+					else // otherwise, the current Mid wins
+						break;
+				}
+				// finally, we're safe to apply the Mid...
+				// except instead of applying it, we need to schedule to apply it, in case another
+				// operator takes precedence over this one
+				st.exprPreStackStack = eps_new(st.exprPreStack, st.exprPreStackStack);
+				st.exprPreStack = null;
+				st.exprStack = exs_new(st.exprTerm, st.exprStack);
+				st.exprMidStack = ets_new(tk1, st.exprMidStack);
+				st.st = 'PRS_EXPR';
+				level++;
+				return res_more();
+
+			case 'PRS_EXPR_FINISH':
+				while (true){
+					// fight between the Pre and the Mid
+					while (st.exprPreStack != null &&
+						(st.exprMidStack == null ||
+							isPreBeforeMid(st.exprPreStack.tk, st.exprMidStack.tk))){
+						// apply the Pre
+						st.exprTerm = Expr.prefix(st.exprPreStack.tk, st.exprTerm);
+						st.exprPreStack = st.exprPreStack.next;
+					}
+
+					if (st.exprMidStack == null)
+						break;
+
+					// apply the Mid
+					st.exprTerm = Expr.infix(st.exprMidStack.tk, st.exprStack.expr,
+						st.exprTerm);
+					st.exprStack = st.exprStack.next;
+					st.exprPreStack = st.exprPreStackStack.ets;
+					st.exprPreStackStack = st.exprPreStackStack.next;
+					st.exprMidStack = st.exprMidStack.next;
+					level--;
+				}
+				// everything has been applied, and exprTerm has been set!
+				st.next.exprTerm = st.exprTerm;
+				st = st.next;
+				return processToken();
+}
+
+function chunk_add(chk, tk){
+	chunk_fwd(chk, tk);
+	return chunk_process(chk);
 }
 
 
