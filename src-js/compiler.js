@@ -38,22 +38,6 @@ module.exports = function(immediate){
 	var parser = Parser(body);
 	var state = null;
 	var my = {
-		pushFile: function(f){
-			state = {
-				file: f,
-				line: 1,
-				chr: 1,
-				lastret: false,
-				lex: Lexer(f),
-				next: state
-			};
-		},
-		popFile: function(err){
-			var rls = state.lex.close();
-			var res = processLex(parser, state.file, state.line, state.chr, rls, err);
-			state = state.next;
-			return res;
-		},
 		add: function(str, err){
 			return my.addBytes(UTF8.encode(str), err);
 		},
@@ -89,9 +73,6 @@ module.exports = function(immediate){
 			}
 			return true;
 		},
-		reset: function(){
-			parser.reset();
-		}
 	};
 	return my;
 };

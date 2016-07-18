@@ -119,69 +119,70 @@ function op_param3(b, opcode, tgt, src1, src2, src3){
 // keywords/specials
 //
 
-var KS_INVALID    =  0;
-var KS_PLUS       =  1;
-var KS_MINUS      =  2;
-var KS_PERCENT    =  3;
-var KS_STAR       =  4;
-var KS_SLASH      =  5;
-var KS_CARET      =  6;
-var KS_LT         =  7;
-var KS_GT         =  8;
-var KS_BANG       =  9;
-var KS_EQU        = 10;
-var KS_TILDE      = 11;
-var KS_COLON      = 12;
-var KS_COMMA      = 13;
-var KS_PERIOD     = 14;
-var KS_LPAREN     = 15;
-var KS_LBRACKET   = 16;
-var KS_LBRACE     = 17;
-var KS_RPAREN     = 18;
-var KS_RBRACKET   = 19;
-var KS_RBRACE     = 20;
-var KS_PLUSEQU    = 21;
-var KS_MINUSEQU   = 22;
-var KS_PERCENTEQU = 23;
-var KS_STAREQU    = 24;
-var KS_SLASHEQU   = 25;
-var KS_CARETEQU   = 26;
-var KS_LTEQU      = 27;
-var KS_GTEQU      = 28;
-var KS_BANGEQU    = 29;
-var KS_EQU2       = 30;
-var KS_TILDEEQU   = 31;
-var KS_TILDEPLUS  = 32;
-var KS_PLUSTILDE  = 33;
-var KS_TILDEMINUS = 34;
-var KS_MINUSTILDE = 35;
-var KS_AMP2       = 36;
-var KS_PIPE2      = 37;
-var KS_PERIOD3    = 38;
-var KS_TILDE2PLUS = 39;
-var KS_PLUSTILDE2 = 40;
-var KS_PIPE2EQU   = 41;
-var KS_AMP2EQU    = 42;
-var KS_BREAK      = 43;
-var KS_CONTINUE   = 44;
-var KS_DECLARE    = 45;
-var KS_DEF        = 46;
-var KS_DO         = 47;
-var KS_ELSE       = 48;
-var KS_ELSEIF     = 49;
-var KS_END        = 50;
-var KS_FOR        = 51;
-var KS_GOTO       = 52;
-var KS_IF         = 53;
-var KS_INCLUDE    = 54;
-var KS_NAMESPACE  = 55;
-var KS_RETURN     = 56;
-var KS_TYPENUM    = 57;
-var KS_TYPESTR    = 58;
-var KS_TYPELIST   = 59;
-var KS_USING      = 60;
-var KS_VAR        = 61;
-var KS_WHILE      = 62;
+var KS_INVALID    = 'KS_INVALID';
+var KS_PLUS       = 'KS_PLUS';
+var KS_MINUS      = 'KS_MINUS';
+var KS_PERCENT    = 'KS_PERCENT';
+var KS_STAR       = 'KS_STAR';
+var KS_SLASH      = 'KS_SLASH';
+var KS_CARET      = 'KS_CARET';
+var KS_AMP        = 'KS_AMP';
+var KS_LT         = 'KS_LT';
+var KS_GT         = 'KS_GT';
+var KS_BANG       = 'KS_BANG';
+var KS_EQU        = 'KS_EQU';
+var KS_TILDE      = 'KS_TILDE';
+var KS_COLON      = 'KS_COLON';
+var KS_COMMA      = 'KS_COMMA';
+var KS_PERIOD     = 'KS_PERIOD';
+var KS_LPAREN     = 'KS_LPAREN';
+var KS_LBRACKET   = 'KS_LBRACKET';
+var KS_LBRACE     = 'KS_LBRACE';
+var KS_RPAREN     = 'KS_RPAREN';
+var KS_RBRACKET   = 'KS_RBRACKET';
+var KS_RBRACE     = 'KS_RBRACE';
+var KS_PLUSEQU    = 'KS_PLUSEQU';
+var KS_MINUSEQU   = 'KS_MINUSEQU';
+var KS_PERCENTEQU = 'KS_PERCENTEQU';
+var KS_STAREQU    = 'KS_STAREQU';
+var KS_SLASHEQU   = 'KS_SLASHEQU';
+var KS_CARETEQU   = 'KS_CARETEQU';
+var KS_LTEQU      = 'KS_LTEQU';
+var KS_GTEQU      = 'KS_GTEQU';
+var KS_BANGEQU    = 'KS_BANGEQU';
+var KS_EQU2       = 'KS_EQU2';
+var KS_TILDEEQU   = 'KS_TILDEEQU';
+var KS_TILDEPLUS  = 'KS_TILDEPLUS';
+var KS_PLUSTILDE  = 'KS_PLUSTILDE';
+var KS_TILDEMINUS = 'KS_TILDEMINUS';
+var KS_MINUSTILDE = 'KS_MINUSTILDE';
+var KS_AMP2       = 'KS_AMP2';
+var KS_PIPE2      = 'KS_PIPE2';
+var KS_PERIOD3    = 'KS_PERIOD3';
+var KS_TILDE2PLUS = 'KS_TILDE2PLUS';
+var KS_PLUSTILDE2 = 'KS_PLUSTILDE2';
+var KS_PIPE2EQU   = 'KS_PIPE2EQU';
+var KS_AMP2EQU    = 'KS_AMP2EQU';
+var KS_BREAK      = 'KS_BREAK';
+var KS_CONTINUE   = 'KS_CONTINUE';
+var KS_DECLARE    = 'KS_DECLARE';
+var KS_DEF        = 'KS_DEF';
+var KS_DO         = 'KS_DO';
+var KS_ELSE       = 'KS_ELSE';
+var KS_ELSEIF     = 'KS_ELSEIF';
+var KS_END        = 'KS_END';
+var KS_FOR        = 'KS_FOR';
+var KS_GOTO       = 'KS_GOTO';
+var KS_IF         = 'KS_IF';
+var KS_INCLUDE    = 'KS_INCLUDE';
+var KS_NAMESPACE  = 'KS_NAMESPACE';
+var KS_RETURN     = 'KS_RETURN';
+var KS_TYPENUM    = 'KS_TYPENUM';
+var KS_TYPESTR    = 'KS_TYPESTR';
+var KS_TYPELIST   = 'KS_TYPELIST';
+var KS_USING      = 'KS_USING';
+var KS_VAR        = 'KS_VAR';
+var KS_WHILE      = 'KS_WHILE';
 
 function ks_char(c){
 	if      (c == '+') return KS_PLUS;
@@ -190,6 +191,7 @@ function ks_char(c){
 	else if (c == '*') return KS_STAR;
 	else if (c == '/') return KS_SLASH;
 	else if (c == '^') return KS_CARET;
+	else if (c == '&') return KS_AMP;
 	else if (c == '<') return KS_LT;
 	else if (c == '>') return KS_GT;
 	else if (c == '!') return KS_BANG;
@@ -238,7 +240,7 @@ function ks_char3(c1, c2, c3){
 }
 
 function ks_isSpecial(c){
-	return ks_char(c) != KS_INVALID || c == '&' || c == '|';
+	return ks_char(c) != KS_INVALID || c == '|';
 }
 
 function ks_str(s){
@@ -269,12 +271,12 @@ function ks_str(s){
 // tokens
 //
 
-var TOK_NEWLINE = 0;
-var TOK_KS      = 1;
-var TOK_IDENT   = 2;
-var TOK_NUM     = 3;
-var TOK_BLOB    = 4;
-var TOK_ERROR   = 5;
+var TOK_NEWLINE = 'TOK_NEWLINE';
+var TOK_KS      = 'TOK_KS';
+var TOK_IDENT   = 'TOK_IDENT';
+var TOK_NUM     = 'TOK_NUM';
+var TOK_STR     = 'TOK_STR';
+var TOK_ERROR   = 'TOK_ERROR';
 
 function tok_newline(){
 	return { type: TOK_NEWLINE };
@@ -284,16 +286,16 @@ function tok_ks(k){
 	return { type: TOK_KS, k: k };
 }
 
-function tok_ident(str){
-	return { type: TOK_IDENT, str: str };
+function tok_ident(ident){
+	return { type: TOK_IDENT, ident: ident };
 }
 
 function tok_num(num){
 	return { type: TOK_NUM, num: num };
 }
 
-function tok_blob(blob){
-	return { type: TOK_BLOB, blob: blob };
+function tok_str(str){
+	return { type: TOK_STR, str: str };
 }
 
 function tok_error(msg){
@@ -309,6 +311,7 @@ function tok_isPre(tk){
 		return false ||
 			tk.k == KS_PLUS       ||
 			tk.k == KS_MINUS      ||
+			tk.k == KS_AMP        ||
 			tk.k == KS_BANG       ||
 			tk.k == KS_MINUSTILDE ||
 			tk.k == KS_TILDEMINUS ||
@@ -359,9 +362,9 @@ function tok_isMid(tk){
 function tok_isTerm(tk){
 	return false ||
 		(tk.type == TOK_KS && (tk.k == KS_LPAREN || tk.k == KS_LBRACE)) ||
-		tk.type == TOK_IDENT    ||
-		tk.type == TOK_BLOB     ||
-		tk.type == TOK_NUM;
+		tk.type == TOK_IDENT ||
+		tk.type == TOK_NUM   ||
+		tk.type == TOK_STR;
 }
 
 function tok_isPreBeforeMid(pre, mid){
@@ -446,18 +449,18 @@ function tok_toMutateOp(tk){
 // expr
 //
 
-var EXPR_NIL        =  0;
-var EXPR_NUM        =  1;
-var EXPR_STR        =  2;
-var EXPR_LOOKUP     =  3;
-var EXPR_CMD_LOCAL  =  4;
-var EXPR_CMD_NATIVE =  5;
-var EXPR_CMD_OPCODE =  6;
-var EXPR_POSTFIX    =  7;
-var EXPR_PREFIX     =  8;
-var EXPR_INFIX      =  9;
-var EXPR_GROUP      = 10;
-var EXPR_CALL       = 11;
+var EXPR_NIL     = 'EXPR_NIL';
+var EXPR_NUM     = 'EXPR_NUM';
+var EXPR_STR     = 'EXPR_STR';
+var EXPR_LIST    = 'EXPR_LIST';
+var EXPR_NAMES   = 'EXPR_NAMES';
+var EXPR_POSTFIX = 'EXPR_POSTFIX';
+var EXPR_PREFIX  = 'EXPR_PREFIX';
+var EXPR_INFIX   = 'EXPR_INFIX';
+var EXPR_GROUP   = 'EXPR_GROUP';
+var EXPR_CALL    = 'EXPR_CALL';
+var EXPR_INDEX   = 'EXPR_INDEX';
+var EXPR_SLICE   = 'EXPR_SLICE';
 
 function expr_nil(){
 	return { type: EXPR_NIL };
@@ -471,20 +474,12 @@ function expr_str(str){
 	return { type: EXPR_STR, str: str };
 }
 
-function expr_lookup(vl){
-	return { type: EXPR_LOOKUP, vl: vl };
+function expr_list(ex){
+	return { type: EXPR_LIST, ex: ex };
 }
 
-function expr_cmdLocal(lbl){
-	return { type: EXPR_CMD_LOCAL, lbl: lbl };
-}
-
-function expr_cmdNative(cmd){
-	return { type: EXPR_CMD_NATIVE, cmd: cmd };
-}
-
-function expr_cmdOpcode(opcode, params){
-	return { type: EXPR_CMD_OPCODE, opcode: opcode, params: params };
+function expr_names(names){
+	return { type: EXPR_NAMES, names: names };
 }
 
 function expr_postfix(tk, ex){
@@ -511,18 +506,22 @@ function expr_group(left, right){
 	return { type: EXPR_GROUP, group: [left, right] };
 }
 
-function expr_infix(tk, left, right){
-	if (tk.type == TOK_KS && tk.k == KS_COMMA)
+function expr_infix(k, left, right){
+	if (k == KS_COMMA)
 		return expr_group(left, right);
-	return { type: EXPR_INFIX, tk: tk, left: left, right: right };
+	return { type: EXPR_INFIX, k: k, left: left, right: right };
 }
 
 function expr_call(cmd, params){
 	return { type: EXPR_CALL, cmd: cmd, params: params };
 }
 
-function expr_isCmd(ex){
-	return ex.type == EXPR_CMD_LOCAL || ex.type == EXPR_CMD_NATIVE || ex.type == EXPR_CMD_OPCODE;
+function expr_index(ex, index){
+	return { type: EXPR_INDEX, ex: ex, index: index };
+}
+
+function expr_slice(ex, left, right){
+	return { type: EXPR_SLICE, ex: ex, left: left, right: right };
 }
 
 //
@@ -565,27 +564,27 @@ function toHex(c){
 // lexer
 //
 
-var LEX_START              =  0;
-var LEX_COMMENT_LINE       =  1;
-var LEX_BACKSLASH          =  2;
-var LEX_RETURN             =  3;
-var LEX_COMMENT_BLOCK      =  4;
-var LEX_SPECIAL1           =  5;
-var LEX_SPECIAL2           =  6;
-var LEX_IDENT              =  7;
-var LEX_NUM_0              =  8;
-var LEX_NUM_2              =  9;
-var LEX_NUM                = 10;
-var LEX_NUM_FRAC           = 11;
-var LEX_NUM_EXP            = 12;
-var LEX_NUM_EXP_BODY       = 13;
-var LEX_STR_BASIC          = 14;
-var LEX_STR_BASIC_ESC      = 15;
-var LEX_STR_INTERP         = 16;
-var LEX_STR_INTERP_DLR     = 17;
-var LEX_STR_INTERP_DLR_ID  = 18;
-var LEX_STR_INTERP_ESC     = 19;
-var LEX_STR_INTERP_ESC_HEX = 20;
+var LEX_START              = 'LEX_START';
+var LEX_COMMENT_LINE       = 'LEX_COMMENT_LINE';
+var LEX_BACKSLASH          = 'LEX_BACKSLASH';
+var LEX_RETURN             = 'LEX_RETURN';
+var LEX_COMMENT_BLOCK      = 'LEX_COMMENT_BLOCK';
+var LEX_SPECIAL1           = 'LEX_SPECIAL1';
+var LEX_SPECIAL2           = 'LEX_SPECIAL2';
+var LEX_IDENT              = 'LEX_IDENT';
+var LEX_NUM_0              = 'LEX_NUM_0';
+var LEX_NUM_2              = 'LEX_NUM_2';
+var LEX_NUM                = 'LEX_NUM';
+var LEX_NUM_FRAC           = 'LEX_NUM_FRAC';
+var LEX_NUM_EXP            = 'LEX_NUM_EXP';
+var LEX_NUM_EXP_BODY       = 'LEX_NUM_EXP_BODY';
+var LEX_STR_BASIC          = 'LEX_STR_BASIC';
+var LEX_STR_BASIC_ESC      = 'LEX_STR_BASIC_ESC';
+var LEX_STR_INTERP         = 'LEX_STR_INTERP';
+var LEX_STR_INTERP_DLR     = 'LEX_STR_INTERP_DLR';
+var LEX_STR_INTERP_DLR_ID  = 'LEX_STR_INTERP_DLR_ID';
+var LEX_STR_INTERP_ESC     = 'LEX_STR_INTERP_ESC';
+var LEX_STR_INTERP_ESC_HEX = 'LEX_STR_INTERP_ESC_HEX';
 
 function lex_new(){
 	return {
@@ -594,8 +593,8 @@ function lex_new(){
 		ch1: 0,
 		ch2: 0,
 		ch3: 0,
-		str: '',
-		blob: null,
+		ident: '',
+		str: null,
 		num_val: 0,
 		num_base: 0,
 		num_frac: 0,
@@ -615,7 +614,7 @@ function lex_fwd(lx, ch){
 	lx.ch1 = ch;
 }
 
-function lex_rewind(lx){
+function lex_rev(lx){
 	lx.chR = lx.ch1;
 	lx.ch1 = lx.ch2;
 	lx.ch2 = lx.ch3;
@@ -634,7 +633,7 @@ function lex_process(lx){
 			else if (ks_isSpecial(ch1)){
 				if (ch1 == '}' && lx.str_depth > 0){
 					lx.str_depth--;
-					lx.blob = [];
+					lx.str = [];
 					lx.state = LEX_STR_INTERP;
 					return [tok_ks(KS_RPAREN), tok_ks(KS_TILDE)];
 				}
@@ -642,26 +641,26 @@ function lex_process(lx){
 				return [];
 			}
 			else if (isIdentStart(ch1)){
-				lx.str = ch1;
+				lx.ident = ch1;
 				lx.state = LEX_IDENT;
 				return [];
 			}
 			else if (isNum(ch1)){
 				lx.num_val = toHex(ch1);
 				lx.num_base = 10;
-				if (num_val == 0)
+				if (lx.num_val == 0)
 					lx.state = LEX_NUM_0;
 				else
 					lx.state = LEX_NUM;
 				return [];
 			}
 			else if (ch1 == '\''){
-				lx.blob = [];
+				lx.str = [];
 				lx.state = LEX_STR_BASIC;
 				return [];
 			}
 			else if (ch1 == '"'){
-				lx.blob = [];
+				lx.str = [];
 				lx.state = LEX_STR_INTERP;
 				return [tok_ks(KS_LPAREN)];
 			}
@@ -719,7 +718,7 @@ function lex_process(lx){
 			var ks1 = ks_char(lx.ch2);
 			if (ks1 != KS_INVALID){
 				var tk = tok_ks(ks1);
-				state = LEX_START;
+				lx.state = LEX_START;
 				var t = lex_process(lx);
 				t.unshift(tk);
 				return t;
@@ -730,13 +729,13 @@ function lex_process(lx){
 		case LEX_SPECIAL2: {
 			var ks3 = ks_char3(lx.ch3, lx.ch2, ch1);
 			if (ks3 != KS_INVALID){
-				state = LEX_START;
+				lx.state = LEX_START;
 				return [tok_ks(ks3)];
 			}
 			var ks2 = ks_char2(lx.ch3, lx.ch2);
 			if (ks2 != KS_INVALID){
 				var tk = tok_ks(ks2);
-				state = LEX_START;
+				lx.state = LEX_START;
 				var t = lex_process(lx);
 				t.unshift(tk);
 				return t;
@@ -744,10 +743,10 @@ function lex_process(lx){
 			var ks1 = ks_char(lx.ch3);
 			if (ks1 != KS_INVALID){
 				var tk = tok_ks(ks1);
-				state = LEX_START;
-				lex_rewind(lx);
+				lx.state = LEX_START;
+				lex_rev(lx);
 				var t1 = lex_process(lx);
-				lex_fwd(lx, chR);
+				lex_fwd(lx, lx.chR);
 				var t2 = lex_process(lx);
 				t1.unshift(tk);
 				return t1.concat(t2);
@@ -758,18 +757,18 @@ function lex_process(lx){
 		case LEX_IDENT:
 			if (!isIdentBody(ch1)){
 				var tk;
-				var ksk = ks_str(str);
+				var ksk = ks_str(lx.ident);
 				if (ksk != KS_INVALID)
 					tk = tok_ks(ksk);
 				else
-					tk = tok_ident(lx.str);
+					tk = tok_ident(lx.ident);
 				lx.state = LEX_START;
 				var t = lex_process(lx);
 				t.unshift(tk);
 				return t;
 			}
-			lx.str += ch1;
-			if (lx.str.length > 1024)
+			lx.ident += ch1;
+			if (lx.ident.length > 1024)
 				return [tok_error('Identifier too long')];
 			return [];
 
@@ -848,7 +847,7 @@ function lex_process(lx){
 			}
 			else if (!isIdentStart(ch1)){
 				var tk = tok_num(lx.num_val);
-				state = LEX_START;
+				lx.state = LEX_START;
 				var t = lex_process(lx);
 				t.unshift(tk);
 				return t;
@@ -926,18 +925,18 @@ function lex_process(lx){
 				return [tok_error('Missing end of string')];
 			else if (ch1 == '\''){
 				lx.state = LEX_START;
-				return [tok_blob(lx.blob)];
+				return [tok_str(lx.str)];
 			}
 			else if (ch1 == '\\'){
 				lx.state = LEX_STR_BASIC_ESC;
 				return [];
 			}
-			lx.blob.push(ch1.charCodeAt(0));
+			lx.str.push(ch1.charCodeAt(0));
 			return [];
 
 		case LEX_STR_BASIC_ESC:
 			if (ch1 == '\\' || ch1 == '\''){
-				lx.blob.push(ch1.charCodeAt(0));
+				lx.str.push(ch1.charCodeAt(0));
 				lx.state = LEX_STR_BASIC;
 				return [];
 			}
@@ -948,19 +947,19 @@ function lex_process(lx){
 				return [tok_error('Missing end of string')];
 			else if (ch1 == '"'){
 				lx.state = LEX_START;
-				return [tok_blob(lx.blob), tok_ks(KS_RPAREN)];
+				return [tok_str(lx.str), tok_ks(KS_RPAREN)];
 			}
 			else if (ch1 == '$'){
 				lx.state = LEX_STR_INTERP_DLR;
-				if (lx.blob.length <= 0)
+				if (lx.str.length <= 0)
 					return [];
-				return [tok_blob(lx.blob), tok_ks(KS_TILDE)];
+				return [tok_str(lx.str), tok_ks(KS_TILDE)];
 			}
 			else if (ch1 == '\\'){
 				lx.state = LEX_STR_INTERP_ESC;
 				return [];
 			}
-			lx.blob.push(ch1.charCodeAt(0));
+			lx.str.push(ch1.charCodeAt(0));
 			return [];
 
 		case LEX_STR_INTERP_DLR:
@@ -970,7 +969,7 @@ function lex_process(lx){
 				return [tok_ks(KS_LPAREN)];
 			}
 			else if (isIdentStart(ch1)){
-				lx.str = ch1;
+				lx.ident = ch1;
 				lx.state = LEX_STR_INTERP_DLR_ID;
 				return [];
 			}
@@ -985,15 +984,15 @@ function lex_process(lx){
 					lx.state = LEX_START;
 					return [tk, tok_ks(KS_RPAREN)];
 				}
-				lx.blob = [];
+				lx.str = [];
 				lx.state = LEX_STR_INTERP;
 				var t = lex_process(lx);
 				t.unshift(tok_ks(KS_TILDE));
 				t.unshift(tk);
 				return t;
 			}
-			lx.str += ch1;
-			if (lx.str.length > 1024)
+			lx.ident += ch1;
+			if (lx.ident.length > 1024)
 				return [tok_error('Identifier too long')];
 			return [];
 
@@ -1007,42 +1006,42 @@ function lex_process(lx){
 				return [];
 			}
 			else if (ch1 == '0'){
-				lx.blob.push(0);
+				lx.str.push(0);
 				lx.state = LEX_STR_INTERP;
 				return [];
 			}
 			else if (ch1 == 'b'){
-				lx.blob.push(8);
+				lx.str.push(8);
 				lx.state = LEX_STR_INTERP;
 				return [];
 			}
 			else if (ch1 == 't'){
-				lx.blob.push(9);
+				lx.str.push(9);
 				lx.state = LEX_STR_INTERP;
 				return [];
 			}
 			else if (ch1 == 'n'){
-				lx.blob.push(10);
+				lx.str.push(10);
 				lx.state = LEX_STR_INTERP;
 				return [];
 			}
 			else if (ch1 == 'v'){
-				lx.blob.push(11);
+				lx.str.push(11);
 				lx.state = LEX_STR_INTERP;
 				return [];
 			}
 			else if (ch1 == 'f'){
-				lx.blob.push(12);
+				lx.str.push(12);
 				lx.state = LEX_STR_INTERP;
 				return [];
 			}
 			else if (ch1 == 'r'){
-				lx.blob.push(13);
+				lx.str.push(13);
 				lx.state = LEX_STR_INTERP;
 				return [];
 			}
 			else if (ch1 == '\\' || ch1 == '\'' || ch1 == '"' || ch1 == '$'){
-				lx.blob.push(ch1.charCodeAt(0));
+				lx.str.push(ch1.charCodeAt(0));
 				lx.state = LEX_STR_INTERP;
 				return [];
 			}
@@ -1053,7 +1052,7 @@ function lex_process(lx){
 				lx.str_hexval = (str_hexval * 16) + toHex(ch1);
 				lx.str_hexleft--;
 				if (lx.str_hexleft <= 0){
-					lx.blob.push(lx.str_hexval);
+					lx.str.push(lx.str_hexval);
 					lx.state = LEX_STR_INTERP;
 				}
 				return [];
@@ -1088,7 +1087,7 @@ function lex_close(lx){
 		} break;
 
 		case LEX_SPECIAL2: {
-			var ks2 = ks_char2(lx.ch2, ls.ch1);
+			var ks2 = ks_char2(lx.ch2, lx.ch1);
 			if (ks2 != KS_INVALID)
 				return [tok_ks(ks2), tok_newline()];
 			var ks1 = ks_char(lx.ch2);
@@ -1103,10 +1102,10 @@ function lex_close(lx){
 		} break;
 
 		case LEX_IDENT: {
-			var ksk = ks_str(lx.str);
+			var ksk = ks_str(lx.ident);
 			if (ksk != KS_INVALID)
 				return [tok_ks(ksk), tok_newline()];
-			return [tok_ident(lx.str), tok_newline()];
+			return [tok_ident(lx.ident), tok_newline()];
 		} break;
 
 		case LEX_NUM_0:
@@ -1153,19 +1152,692 @@ function lex_close(lx){
 }
 
 //
-// body
+// ast
 //
 
+var AST_BREAK     = 'AST_BREAK';
+var AST_CONTINUE  = 'AST_CONTINUE';
+var AST_LABEL     = 'AST_LABEL';
+var AST_EVAL      = 'AST_EVAL';
+var AST_GOTO      = 'AST_GOTO';
+var AST_DO_END    = 'AST_DO_END';
+var AST_DO_WHILE  = 'AST_DO_WHILE';
+var AST_NAMESPACE = 'AST_NAMESPACE';
 
+function ast_break(){
+	return { type: AST_BREAK };
+}
 
+function ast_continue(){
+	return { type: AST_CONTINUE };
+}
+
+function ast_label(names){
+	return { type: AST_LABEL, names: names };
+}
+
+function ast_eval(ex){
+	return { type: AST_EVAL, ex: ex };
+}
+
+function ast_goto(names){
+	return { type: AST_GOTO, names: names };
+}
+
+function ast_doEnd(body){
+	return { type: AST_DO_END, body: body };
+}
+
+function ast_doWhile(doBody, cond, whileBody){
+	return { type: AST_DO_WHILE, doBody: doBody, cond: cond, whileBody: whileBody };
+}
+
+function ast_namespace(names, body){
+	return { type: AST_NAMESPACE, names: names, body: body };
+}
+
+//
+// parser state helpers
+//
+
+function ets_new(tk, next){ // exprPreStack, exprMidStack
+	return { tk: tk, next: next };
+}
+
+function exs_new(ex, next){ // exprStack
+	return { ex: ex, next: next };
+}
+
+function eps_new(ets, next){ // exprPreStackStack
+	return { ets: ets, next: next };
+}
+
+//
+// parser state
+//
+
+var PRS_START                       = 'PRS_START';
+var PRS_START_STATEMENT             = 'PRS_START_STATEMENT';
+var PRS_STATEMENT                   = 'PRS_STATEMENT';
+var PRS_LOOKUP                      = 'PRS_LOOKUP';
+var PRS_LOOKUP_IDENT                = 'PRS_LOOKUP_IDENT';
+var PRS_BODY                        = 'PRS_BODY';
+var PRS_BODY_STATEMENT              = 'PRS_BODY_STATEMENT';
+var PRS_BREAK                       = 'PRS_BREAK';
+var PRS_CONTINUE                    = 'PRS_CONTINUE';
+var PRS_DECLARE                     = 'PRS_DECLARE';
+var PRS_DEF                         = 'PRS_DEF';
+var PRS_DO                          = 'PRS_DO';
+var PRS_DO_BODY                     = 'PRS_DO_BODY';
+var PRS_DO_DONE                     = 'PRS_DO_DONE';
+var PRS_DO_WHILE_EXPR               = 'PRS_DO_WHILE_EXPR';
+var PRS_DO_WHILE_BODY               = 'PRS_DO_WHILE_BODY';
+var PRS_DO_WHILE_DONE               = 'PRS_DO_WHILE_DONE';
+var PRS_FOR                         = 'PRS_FOR';
+var PRS_GOTO                        = 'PRS_GOTO';
+var PRS_GOTO_LOOKUP                 = 'PRS_GOTO_LOOKUP';
+var PRS_IF                          = 'PRS_IF';
+var PRS_NAMESPACE                   = 'PRS_NAMESPACE';
+var PRS_NAMESPACE_LOOKUP            = 'PRS_NAMESPACE_LOOKUP';
+var PRS_NAMESPACE_BODY              = 'PRS_NAMESPACE_BODY';
+var PRS_NAMESPACE_DONE              = 'PRS_NAMESPACE_DONE';
+var PRS_RETURN                      = 'PRS_RETURN';
+var PRS_USING                       = 'PRS_USING';
+var PRS_VAR                         = 'PRS_VAR';
+var PRS_IDENTS                      = 'PRS_IDENTS';
+var PRS_EVAL                        = 'PRS_EVAL';
+var PRS_EVAL_EXPR                   = 'PRS_EVAL_EXPR';
+var PRS_EXPR                        = 'PRS_EXPR';
+var PRS_EXPR_TERM                   = 'PRS_EXPR_TERM';
+var PRS_EXPR_TERM_ISEMPTYLIST       = 'PRS_EXPR_TERM_ISEMPTYLIST';
+var PRS_EXPR_TERM_CLOSEBRACE        = 'PRS_EXPR_TERM_CLOSEBRACE';
+var PRS_EXPR_TERM_ISNIL             = 'PRS_EXPR_TERM_ISNIL';
+var PRS_EXPR_TERM_CLOSEPAREN        = 'PRS_EXPR_TERM_CLOSEPAREN';
+var PRS_EXPR_TERM_LOOKUP            = 'PRS_EXPR_TERM_LOOKUP';
+var PRS_EXPR_POST                   = 'PRS_EXPR_POST';
+var PRS_EXPR_POST_CALL              = 'PRS_EXPR_POST_CALL';
+var PRS_EXPR_INDEX_CHECK            = 'PRS_EXPR_INDEX_CHECK';
+var PRS_EXPR_INDEX_COLON_CHECK      = 'PRS_EXPR_INDEX_COLON_CHECK';
+var PRS_EXPR_INDEX_COLON_EXPR       = 'PRS_EXPR_INDEX_COLON_EXPR';
+var PRS_EXPR_INDEX_EXPR_CHECK       = 'PRS_EXPR_INDEX_EXPR_CHECK';
+var PRS_EXPR_INDEX_EXPR_COLON_CHECK = 'PRS_EXPR_INDEX_EXPR_COLON_CHECK';
+var PRS_EXPR_INDEX_EXPR_COLON_EXPR  = 'PRS_EXPR_INDEX_EXPR_COLON_EXPR';
+var PRS_EXPR_COMMA                  = 'PRS_EXPR_COMMA';
+var PRS_EXPR_MID                    = 'PRS_EXPR_MID';
+var PRS_EXPR_FINISH                 = 'PRS_EXPR_FINISH';
+
+function prs_new(state, next){
+	return {
+		state: state,
+		stmt: null,              // single ast_*
+		body: null,              // list of ast_*'s
+		body2: null,             // list of ast_*'s
+		exprComma: false,
+		exprPreStackStack: null, // linked list of eps_new's
+		exprPreStack: null,      // linked list of ets_new's
+		exprMidStack: null,      // linked list of ets_new's
+		exprStack: null,         // linked list of exs_new's
+		exprTerm: null,          // expr
+		exprTerm2: null,         // expr
+		exprTerm3: null,         // expr
+		lookupNames: null,       // list of strings
+		next: next
+	};
+}
+
+//
+// parser result
+//
+
+var PRR_MORE      = 'PRR_MORE';
+var PRR_STATEMENT = 'PRR_STATEMENT';
+var PRR_ERROR     = 'PRR_ERROR';
+
+function prr_more(){
+	return { type: PRR_MORE };
+}
+
+function prr_statement(stmt){
+	return { type: PRR_STATEMENT, stmt: stmt };
+}
+
+function prr_error(msg){
+	return { type: PRR_ERROR, msg: msg };
+}
+
+//
+// parser
+//
+
+function parser_new(){
+	return {
+		state: prs_new(PRS_START, null),
+		tkR: null,
+		tk1: null,
+		tk2: null,
+		level: 0
+	};
+}
+
+function parser_fwd(pr, tk){
+	pr.tk2 = pr.tk1;
+	pr.tk1 = tk;
+	pr.tkR = null;
+}
+
+function parser_rev(pr){
+	pr.tkR = pr.tk1;
+	pr.tk1 = pr.tk2;
+	pr.tk2 = null;
+}
+
+function parser_statement(pr, stmt){
+	pr.level--;
+	pr.state = pr.state.next;
+	pr.state.stmt = stmt;
+	return parser_process(pr);
+}
+
+function parser_push(pr, state){
+	pr.state = prs_new(state, pr.state);
+}
+
+function parser_start(pr, state){
+	pr.level++;
+	pr.state.state = state;
+	return prr_more();
+}
+
+function parser_process(pr){
+	var tk1 = pr.tk1;
+	var st = pr.state;
+	switch (st.state){
+		case PRS_START:
+			st.state = PRS_START_STATEMENT;
+			st.stmt = null;
+			parser_push(pr, PRS_STATEMENT);
+			return parser_process(pr);
+
+		case PRS_START_STATEMENT:
+			if (tk1.type != TOK_NEWLINE)
+				return prr_error('Missing newline or semicolon');
+			st.state = PRS_START;
+			return prr_statement(st.stmt);
+
+		case PRS_STATEMENT:
+			if      (tk1.type == TOK_NEWLINE    ) return prr_more();
+			else if (tok_isKS(tk1, KS_BREAK    )) return parser_start(pr, PRS_BREAK    );
+			else if (tok_isKS(tk1, KS_CONTINUE )) return parser_start(pr, PRS_CONTINUE );
+			else if (tok_isKS(tk1, KS_DECLARE  )) return parser_start(pr, PRS_DECLARE  );
+			else if (tok_isKS(tk1, KS_DEF      )) return parser_start(pr, PRS_DEF      );
+			else if (tok_isKS(tk1, KS_DO       )) return parser_start(pr, PRS_DO       );
+			else if (tok_isKS(tk1, KS_FOR      )) return parser_start(pr, PRS_FOR      );
+			else if (tok_isKS(tk1, KS_GOTO     )) return parser_start(pr, PRS_GOTO     );
+			else if (tok_isKS(tk1, KS_IF       )) return parser_start(pr, PRS_IF       );
+			else if (tok_isKS(tk1, KS_NAMESPACE)) return parser_start(pr, PRS_NAMESPACE);
+			else if (tok_isKS(tk1, KS_RETURN   )) return parser_start(pr, PRS_RETURN   );
+			else if (tok_isKS(tk1, KS_USING    )) return parser_start(pr, PRS_USING    );
+			else if (tok_isKS(tk1, KS_VAR      )) return parser_start(pr, PRS_VAR      );
+			else if (tk1.type == TOK_IDENT){
+				st.state = PRS_IDENTS;
+				parser_push(pr, PRS_LOOKUP);
+				pr.state.lookupNames = [tk1.ident];
+				return prr_more();
+			}
+			else if (tok_isPre(tk1) || tok_isTerm(tk1)){
+				st.state = PRS_EVAL;
+				return parser_process(pr);
+			}
+			else if (tok_isKS(tk1, KS_END) || tok_isKS(tk1, KS_ELSE) || tok_isKS(tk1, KS_ELSEIF) ||
+				tok_isKS(tk1, KS_WHILE)){
+				// stmt is already null, so don't touch it, so we return null
+				pr.state = st.next;
+				return parser_process(pr);
+			}
+			return prr_error('Invalid statement');
+
+		case PRS_LOOKUP:
+			if (!tok_isKS(tk1, KS_PERIOD)){
+				st.next.lookupNames = st.lookupNames;
+				pr.state = st.next;
+				return parser_process(pr);
+			}
+			st.state = PRS_LOOKUP_IDENT;
+			return prr_more();
+
+		case PRS_LOOKUP_IDENT:
+			if (tk1.type != TOK_IDENT)
+				return prr_error('Expecting identifier');
+			st.lookupNames.push(tk1.ident);
+			st.state = PRS_LOOKUP;
+			return prr_more();
+
+		case PRS_BODY:
+			st.state = PRS_BODY_STATEMENT;
+			st.stmt = null;
+			parser_push(pr, PRS_STATEMENT);
+			return parser_process(pr);
+
+		case PRS_BODY_STATEMENT:
+			if (st.stmt == null){
+				st.next.body = st.body;
+				pr.state = st.next;
+				return parser_process(pr);
+			}
+			st.body.push(st.stmt);
+			st.stmt = null;
+			parser_push(pr, PRS_STATEMENT);
+			return prr_more();
+
+		case PRS_BREAK:
+			return parser_statement(pr, ast_break());
+
+		case PRS_CONTINUE:
+			return parser_statement(pr, ast_continue());
+
+		case PRS_DECLARE:
+			throw 'TODO: declare';
+
+		case PRS_DEF:
+			throw 'TODO: def';
+
+		case PRS_DO:
+			st.state = PRS_DO_BODY;
+			parser_push(pr, PRS_BODY);
+			pr.state.body = [];
+			return parser_process(pr);
+
+		case PRS_DO_BODY:
+			if (tok_isKS(tk1, KS_WHILE)){
+				st.body2 = st.body;
+				st.body = null;
+				st.state = PRS_DO_WHILE_EXPR;
+				parser_push(pr, PRS_EXPR);
+				return prr_more();
+			}
+			else if (tok_isKS(tk1, KS_END)){
+				st.state = PRS_DO_DONE;
+				return prr_more();
+			}
+			return prr_error('Missing `while` or `end` of do block');
+
+		case PRS_DO_DONE:
+			return parser_statement(pr, ast_doEnd(st.body));
+
+		case PRS_DO_WHILE_EXPR:
+			if (tk1.type != TOK_NEWLINE)
+				return prr_error('Missing newline or semicolon');
+			st.state = PRS_DO_WHILE_BODY;
+			parser_push(pr, PRS_BODY);
+			pr.state.body = [];
+			return prr_more();
+
+		case PRS_DO_WHILE_BODY:
+			if (!tok_isKS(tk1, KS_END))
+				return prr_error('Missing `end` of do-while block');
+			st.state = PRS_DO_WHILE_DONE;
+			return prr_more();
+
+		case PRS_DO_WHILE_DONE:
+			return parser_statement(pr, ast_doWhile(st.body2, st.exprTerm, st.body));
+
+		case PRS_FOR:
+			throw 'TODO: for';
+
+		case PRS_GOTO:
+			if (tk1.type != TOK_IDENT)
+				return prr_error('Expecting identifier');
+			st.state = PRS_GOTO_LOOKUP;
+			parser_push(pr, PRS_LOOKUP);
+			pr.state.lookupNames = [tk1.ident];
+			return prr_more();
+
+		case PRS_GOTO_LOOKUP:
+			return parser_statement(pr, ast_goto(st.lookupNames));
+
+		case PRS_IF:
+			throw 'TODO: if';
+
+		case PRS_NAMESPACE:
+			if (tk1.type != TOK_IDENT)
+				return prr_error('Expecting identifier');
+			st.state = PRS_NAMESPACE_LOOKUP;
+			parser_push(pr, PRS_LOOKUP);
+			pr.state.lookupNames = [tk1.ident];
+			return prr_more();
+
+		case PRS_NAMESPACE_LOOKUP:
+			if (tk1.type != TOK_NEWLINE)
+				return prr_error('Missing newline or semicolon');
+			st.state = PRS_NAMESPACE_BODY;
+			parser_push(pr, PRS_BODY);
+			pr.state.body = [];
+			return prr_more();
+
+		case PRS_NAMESPACE_BODY:
+			if (!tok_isKS(tk1, KS_END))
+				return prr_error('Missing `end` of namespace block');
+			st.state = PRS_NAMESPACE_DONE;
+			return prr_more();
+
+		case PRS_NAMESPACE_DONE:
+			return parser_statement(pr, ast_namespace(st.lookupNames, st.body));
+
+		case PRS_RETURN:
+			throw 'TODO: return';
+
+		case PRS_USING:
+			throw 'TODO: using';
+
+		case PRS_VAR:
+			throw 'TODO: var';
+
+		case PRS_IDENTS:
+			if (tok_isKS(tk1, KS_COLON)){
+				pr.state = st.next;
+				return parser_statement(pr, ast_label(st.lookupNames));
+			}
+			st.state = PRS_EVAL_EXPR;
+			parser_push(pr, PRS_EXPR_POST);
+			pr.state.exprTerm = expr_names(st.lookupNames);
+			return parser_process(pr);
+
+		case PRS_EVAL:
+			st.state = PRS_EVAL_EXPR;
+			parser_push(pr, PRS_EXPR);
+			return parser_process(pr);
+
+		case PRS_EVAL_EXPR:
+			pr.level++;
+			return parser_statement(pr, ast_eval(st.exprTerm));
+
+		case PRS_EXPR:
+			if (tok_isPre(tk1)){
+				st.exprPreStack = ets_new(tk1, st.exprPreStack);
+				return prr_more();
+			}
+			st.state = PRS_EXPR_TERM;
+			return parser_process(pr);
+
+		case PRS_EXPR_TERM:
+			if (tk1.type == TOK_NUM){
+				st.state = PRS_EXPR_POST;
+				st.exprTerm = expr_num(tk1.num);
+				return prr_more();
+			}
+			else if (tk1.type == TOK_STR){
+				st.state = PRS_EXPR_POST;
+				st.exprTerm = expr_str(tk1.str);
+				return prr_more();
+			}
+			else if (tk1.type == TOK_IDENT){
+				st.state = PRS_EXPR_TERM_LOOKUP;
+				parser_push(pr, PRS_LOOKUP);
+				pr.state.lookupNames = [tk1.ident];
+				return prr_more();
+			}
+			else if (tok_isKS(tk1, KS_LBRACE)){
+				st.state = PRS_EXPR_TERM_ISEMPTYLIST;
+				return prr_more();
+			}
+			else if (tok_isKS(tk1, KS_LPAREN)){
+				st.state = PRS_EXPR_TERM_ISNIL;
+				return prr_more();
+			}
+			return prr_error('Invalid expression');
+
+		case PRS_EXPR_TERM_ISEMPTYLIST:
+			if (tok_isKS(tk1, KS_RBRACE)){
+				st.state = PRS_EXPR_POST;
+				st.exprTerm = expr_list(null);
+				return prr_more();
+			}
+			st.state = PRS_EXPR_TERM_CLOSEBRACE;
+			parser_push(pr, PRS_EXPR);
+			pr.state.exprComma = true;
+			pr.level++;
+			return parser_process(pr);
+
+		case PRS_EXPR_TERM_CLOSEBRACE:
+			if (tk1.type == TOK_NEWLINE)
+				return prr_more();
+			if (!tok_isKS(tk1, KS_RBRACE))
+				return prr_error('Expecting close brace');
+			st.exprTerm = expr_list(st.exprTerm);
+			st.state = PRS_EXPR_POST;
+			pr.level--;
+			return prr_more();
+
+		case PRS_EXPR_TERM_ISNIL:
+			if (tok_isKS(tk1, KS_RPAREN)){
+				st.state = PRS_EXPR_POST;
+				st.exprTerm = expr_nil();
+				return prr_more();
+			}
+			st.state = PRS_EXPR_TERM_CLOSEPAREN;
+			parser_push(pr, PRS_EXPR);
+			pr.state.exprComma = true;
+			pr.level++;
+			return parser_process(pr);
+
+		case PRS_EXPR_TERM_CLOSEPAREN:
+			if (tk1.type == TOK_NEWLINE)
+				return prr_more();
+			if (!tok_isKS(tk1, KS_RPAREN))
+				return prr_error('Expecting close parenthesis');
+			st.state = PRS_EXPR_POST;
+			pr.level--;
+			return prr_more();
+
+		case PRS_EXPR_TERM_LOOKUP:
+			st.exprTerm = expr_names(st.lookupNames);
+			st.state = PRS_EXPR_POST;
+			return parser_process(pr);
+
+		case PRS_EXPR_POST:
+			if (tk1.type == TOK_NEWLINE){
+				st.state = PRS_EXPR_FINISH;
+				return parser_process(pr);
+			}
+			else if (tok_isKS(tk1, KS_LBRACKET)){
+				st.state = PRS_EXPR_INDEX_CHECK;
+				return prr_more();
+			}
+			else if (tok_isMid(tk1)){
+				if (st.exprComma && tok_isKS(pr, KS_COMMA)){
+					st.state = PRS_EXPR_COMMA;
+					return prr_more();
+				}
+				st.state = PRS_EXPR_MID;
+				return parser_process(pr);
+			}
+			else if (tok_isKS(tk1, KS_RBRACE) || tok_isKS(tk1, KS_RBRACKET) ||
+				tok_isKS(tk1, KS_RPAREN) || tok_isKS(tk1, KS_COLON)){
+				st.state = PRS_EXPR_FINISH;
+				return parser_process(pr);
+			}
+			// otherwise, this should be a call
+			st.exprTerm2 = st.exprTerm;
+			st.exprTerm = null;
+			st.state = PRS_EXPR_POST_CALL;
+			parser_push(pr, PRS_EXPR);
+			return parser_process(pr);
+
+		case PRS_EXPR_POST_CALL:
+			st.exprTerm = expr_call(st.exprTerm2, st.exprTerm);
+			st.exprTerm2 = null;
+			st.state = PRS_EXPR_POST;
+			return parser_process(pr);
+
+		case PRS_EXPR_INDEX_CHECK:
+			if (tk1.type == TOK_NEWLINE)
+				return prr_more();
+			if (tok_isKS(tk1, KS_COLON)){
+				st.state = PRS_EXPR_INDEX_COLON_CHECK;
+				return prr_more();
+			}
+			st.exprTerm2 = st.exprTerm;
+			st.exprTerm = null;
+			st.state = PRS_EXPR_INDEX_EXPR_CHECK;
+			parser_push(pr, PRS_EXPR);
+			return parser_process(pr);
+
+		case PRS_EXPR_INDEX_COLON_CHECK:
+			if (tk1.type == TOK_NEWLINE)
+				return prr_more();
+			if (tok_isKS(tk1, KS_RBRACKET)){
+				st.exprTerm = expr_slice(st.exprTerm, null, null);
+				st.state = PRS_EXPR_POST;
+				return prr_more();
+			}
+			st.exprTerm2 = st.exprTerm;
+			st.exprTerm = null;
+			st.state = PRS_EXPR_INDEX_COLON_EXPR;
+			parser_push(pr, PRS_EXPR);
+			return parser_process(pr);
+
+		case PRS_EXPR_INDEX_COLON_EXPR:
+			if (tk1.type == TOK_NEWLINE)
+				return prr_more();
+			if (!tok_isKS(tk1, KS_RBRACKET))
+				return prr_error('Missing close bracket');
+			st.exprTerm = expr_slice(st.exprTerm2, null, st.exprTerm);
+			st.state = PRS_EXPR_POST;
+			return prr_more();
+
+		case PRS_EXPR_INDEX_EXPR_CHECK:
+			if (tk1.type == TOK_NEWLINE)
+				return prr_more();
+			if (tok_isKS(tk1, KS_COLON)){
+				st.state = PRS_EXPR_INDEX_EXPR_COLON_CHECK;
+				return prr_more();
+			}
+			if (!tok_isKS(tk1, KS_RBRACKET))
+				return prr_error('Missing close bracket');
+			st.exprTerm = expr_index(st.exprTerm2, st.exprTerm);
+			st.exprTerm2 = null;
+			st.state = PRS_EXPR_POST;
+			return prr_more();
+
+		case PRS_EXPR_INDEX_EXPR_COLON_CHECK:
+			if (tk1.type == TOK_NEWLINE)
+				return prr_more();
+			if (tok_isKS(tk1, KS_RBRACKET)){
+				st.exprTerm = expr_slice(st.exprTerm2, st.exprTerm, null);
+				st.state = PRS_EXPR_POST;
+				return prr_more();
+			}
+			st.exprTerm3 = st.exprTerm;
+			st.exprTerm = null;
+			st.state = PRS_EXPR_INDEX_EXPR_COLON_EXPR;
+			parser_push(pr, PRS_EXPR);
+			return parser_process(pr);
+
+		case PRS_EXPR_INDEX_EXPR_COLON_EXPR:
+			if (tk1.type == TOK_NEWLINE)
+				return prr_more();
+			if (!tok_isKS(tk1, KS_RBRACKET))
+				return prr_error('Missing close bracket');
+			st.exprTerm = expr_slice(st.exprTerm2, st.exprTerm3, st.exprTerm);
+			st.exprTerm2 = null;
+			st.exprTerm3 = null;
+			st.state = PRS_EXPR_POST;
+			return prr_more();
+
+		case PRS_EXPR_COMMA:
+			if (tk1.type == TOK_NEWLINE){
+				parser_rev(pr); // keep the comma in tk1
+				return prr_more();
+			}
+			if (!tok_isKS(tk1, KS_RPAREN) && !tok_isKS(tk1, KS_RBRACE)){
+				st.state = PRS_EXPR_MID;
+				parser_rev(pr);
+				parser_process(pr);
+				parser_fwd(pr, pr.tkR);
+				return parser_process(pr);
+			}
+			// found a trailing comma
+			st.state = PRS_EXPR_FINISH;
+			return parser_process(pr);
+
+		case PRS_EXPR_MID:
+			if (!tok_isMid(tk1)){
+				st.state = PRS_EXPR_FINISH;
+				return parser_process(pr);
+			}
+			while (true){
+				// fight between the Pre and the Mid
+				while (st.exprPreStack != null && tok_isPreBeforeMid(st.exprPreStack.tk, tk1)){
+					// apply the Pre
+					st.exprTerm = expr_prefix(st.exprPreStack.tk, st.exprTerm);
+					st.exprPreStack = st.exprPreStack.next;
+				}
+
+				// if we've exhaused the exprPreStack, then check against the exprMidStack
+				if (st.exprPreStack == null && st.exprMidStack != null &&
+					tok_isMidBeforeMid(st.exprMidStack.tk, tk1)){
+					// apply the previous mMid
+					st.exprTerm = expr_infix(st.exprMidStack.tk.k, st.exprStack.ex, st.exprTerm);
+					st.exprPreStack = st.exprPreStackStack.ets;
+					st.exprPreStackStack = st.exprPreStackStack.next;
+					st.exprMidStack = st.exprMidStack.next;
+					pr.level--;
+				}
+				else // otherwise, the current Mid wins
+					break;
+			}
+			// finally, we're safe to apply the Mid...
+			// except instead of applying it, we need to schedule to apply it, in case another
+			// operator takes precedence over this one
+			st.exprPreStackStack = eps_new(st.exprPreStack, st.exprPreStackStack);
+			st.exprPreStack = null;
+			st.exprStack = exs_new(st.exprTerm, st.exprStack);
+			st.exprMidStack = ets_new(tk1, st.exprMidStack);
+			st.state = PRS_EXPR;
+			pr.level++;
+			return prr_more();
+
+		case PRS_EXPR_FINISH:
+			while (true){
+				// fight between the Pre and the Mid
+				while (st.exprPreStack != null &&
+					(st.exprMidStack == null ||
+						tok_isPreBeforeMid(st.exprPreStack.tk, st.exprMidStack.tk))){
+					// apply the Pre
+					st.exprTerm = expr_prefix(st.exprPreStack.tk, st.exprTerm);
+					st.exprPreStack = st.exprPreStack.next;
+				}
+
+				if (st.exprMidStack == null)
+					break;
+
+				// apply the Mid
+				st.exprTerm = expr_infix(st.exprMidStack.tk.k, st.exprStack.ex, st.exprTerm);
+				st.exprStack = st.exprStack.next;
+				st.exprPreStack = st.exprPreStackStack.ets;
+				st.exprPreStackStack = st.exprPreStackStack.next;
+				st.exprMidStack = st.exprMidStack.next;
+				pr.level--;
+			}
+			// everything has been applied, and exprTerm has been set!
+			st.next.exprTerm = st.exprTerm;
+			pr.state = st.next;
+			return parser_process(pr);
+	}
+}
+
+function parser_add(pr, tk){
+	parser_fwd(pr, tk);
+	return parser_process(pr);
+}
 
 //
 // frame
 //
 
-var FVR_VAR        = 0;
-var FVR_TEMP_AVAIL = 1;
-var FVR_TEMP_INUSE = 2;
+var FVR_VAR        = 'FVR_VAR';
+var FVR_TEMP_AVAIL = 'FVR_TEMP_AVAIL';
+var FVR_TEMP_INUSE = 'FVR_TEMP_INUSE';
 
 function frame_new(parent){
 	return { vars: [], parent: parent };
@@ -1201,19 +1873,6 @@ function frame_diff(fr, child){
 	return dist;
 }
 
-function frame_snapshot(fr){
-	//assert(all vars are either FVR_VAR or FVR_TEMP_AVAIL);
-	return fr.vars.length;
-}
-
-function frame_restore(frss){
-	fr.vars.splice(frss);
-	for (var i = 0; i < fr.vars.length; i++){
-		if (fr.vars[i] == FVR_TEMP_INUSE)
-			fr.vars[i] = FVR_TEMP_AVAIL;
-	}
-}
-
 //
 // scope/namespace
 //
@@ -1222,11 +1881,11 @@ function using_new(ns, next){
 	return { ns: ns, next: next };
 }
 
-var NSN_VAR        = 0;
-var NSN_NAMESPACE  = 1;
-var NSN_CMD_LOCAL  = 2;
-var NSN_CMD_NATIVE = 3;
-var NSN_CMD_OPCODE = 4;
+var NSN_VAR        = 'NSN_VAR';
+var NSN_NAMESPACE  = 'NSN_NAMESPACE';
+var NSN_CMD_LOCAL  = 'NSN_CMD_LOCAL';
+var NSN_CMD_NATIVE = 'NSN_CMD_NATIVE';
+var NSN_CMD_OPCODE = 'NSN_CMD_OPCODE';
 
 function nsname_newVar(name, fr, index, next){
 	return { name: name, type: NSN_VAR, fr: fr, index: index, next: next };
@@ -1348,117 +2007,8 @@ function scope_tryLookup(sc, names, err){
 }
 
 //
-// chunk process result
-//
-
-var CPR_OK      = 0;
-var CPR_INCLUDE = 1;
-var CPR_ERROR   = 2;
-
-function cpr_ok(){
-	return { type: CPR_OK };
-}
-
-function cpr_include(file){
-	return { type: CPR_INCLUDE, file: file };
-}
-
-function cpr_error(msg){
-	return { type: CPR_ERROR, msg: msg };
-}
-
-//
-// chunk state helpers
-//
-
-function ets_new(tk, next){ // exprPreStack, exprMidStack
-	return { tk: tk, next: next };
-}
-
-function exs_new(ex, next){ // exprStack
-	return { ex: ex, next: next };
-}
-
-function eps_new(ets, next){ // exprPreStackStack
-	return { ets: ets, next: next };
-}
-
-function vn_new(vl, ns, name){ // varNames
-	return { vl: vl, ns: ns, name: name };
-}
-
-//
-// chunk state
-//
-
-var CST_STATEMENT = 0;
-CST_DECLARE
-CST_DEF
-CST_DO
-CST_FOR
-CST_GOTO
-CST_IF
-CST_NAMESPACE
-CST_RETURN
-CST_USING
-CST_VAR
-CST_IDENT
-CST_EVAL
-CST_LOOKUP
-CST_LOOKUP_IDENT
-
-
-function cst_new(state, next){
-	return {
-		state: state,
-		exprComma: false,
-		exprPreStackStack: null, // linked list of eps_new's
-		exprPreStack: null,      // linked list of ets_new's
-		exprMidStack: null,      // linked list of ets_new's
-		exprStack: null,         // linked list of exs_new's
-		exprTerm: null,          // expr
-		exprTerm2: null,         // expr
-		lookupNames: null,       // list of strings
-		next: next
-	};
-}
-
-function cst_newPush(state, next){
-	return cst_new(state, next);
-}
-
-//
 // chunk
 //
-
-function chunk_new(parent){
-	var fr = parent == null ? frame_new(null) : parent.fr;
-	return {
-		state: cst_new(CST_STATEMENT, null),
-		fr: fr,
-		frss: parent == null ? -1 : frame_snapshot(fr),
-		sc: scope_new(fr, null),
-		tkR: null,
-		tk1: null,
-		tk2: null,
-		level: 0,
-		parent: parent
-	};
-}
-
-function chunk_pushNamespace(chk, name){
-	var ns = namespace_new(chk.fr, chk.sc.ns);
-	chk.sc.ns.names = nsname_newNamespace(name, ns, chk.sc.ns.names);
-	chk.sc.ns = ns;
-}
-
-function chunk_popNamespace(chk){
-	chk.sc.ns = chk.sc.ns.next;
-}
-
-function chunk_defOp(chk, name, opcode, params){
-	chk.sc.ns.names = nsname_newCmdOpcode(name, opcode, params, chk.sc.ns.names);
-}
 
 function chunk_loadStandardOps(chk){
 	chunk_defOp(chk, 'say'        , OP_SAY         , -1);
@@ -1494,518 +2044,115 @@ function chunk_loadStandardOps(chk){
 	chunk_popNamespace(chk);
 }
 
-function chunk_lookup(chk, names){
-	var err = [null];
-	var lk = scope_tryLookup(chk.sc, names, err);
-	if (lk.type == LKUP_NOTFOUND){
-		if (chk.parent != null)
-			return chunk_lookup(chk.parent, names);
-		if (err[0] != null)
-			return lkup_error(err[0]);
+//
+// compiler
+//
+
+var UTF8 = require('./utf8');
+
+function compiler_new(){
+	return {
+		pr: parser_new(),
+		file: null
+	};
+}
+
+function compiler_makeError(cmp, msg){
+	return (cmp.file.file == null ? '' : cmp.file.file + ':') +
+		cmp.file.line + ':' + cmp.file.chr + ': ' + msg;
+}
+
+function compiler_processTokens(cmp, tks, err){
+	for (var i = 0; i < tks.length; i++){
+		var tk = tks[i];
+		if (tk.type == TOK_ERROR){
+			err[0] = compiler_makeError(cmp, tk.msg);
+			return false;
+		}
+		console.log('token:', tk);
+		var res = parser_add(cmp.pr, tk);
+		if (res.type == PRR_STATEMENT)
+			console.log(JSON.stringify(res.stmt, null, '  '));
+		else if (res.type == PRR_ERROR){
+			console.log('ERROR:', res.msg);
+			cmp.pr = parser_new();
+		}
 	}
-	return lk;
+	return true;
 }
 
-function chunk_fwd(chk, tk){
-	chk.tk2 = chk.tk1;
-	chk.tk1 = tk;
+function compiler_pushFile(cmp, file){
+	cmp.file = {
+		file: file,
+		line: 1,
+		chr: 1,
+		lastret: false,
+		lx: lex_new(),
+		next: cmp.file
+	};
 }
 
-function chunk_reverse(chk){
-	chk.tkR = chk.tk1;
-	chk.tk1 = chk.tk2;
-	chk.tk2 = null;
+function compiler_popFile(cmp, err){
+	var tks = lex_close(cmp.lx);
+	var res = compiler_processTokens(cmp, tks, err);
+	cmp.file = cmp.file.next;
+	return res;
 }
 
-function chunk_push(chk, state){
-	chk.state = cst_newPush(state, chk.state);
+function compiler_add(cmp, str, err){
+	return compiler_addBytes(cmp, UTF8.encode(str), err);
 }
 
-function chunk_process(chk){
-	var tk1 = chk.tk1;
-	var st = chk.state;
-	switch (st.state){
-		case CST_STATEMENT:
-			if (tk1.type == TOK_NEWLINE)
-				return cpr_ok();
-			else if (tok_isKS(tk1, KS_BREAK)){
-				throw 'TODO: break';
+function compiler_addBytes(cmp, bytes, err){
+	for (var i = 0; i < bytes.length; i++){
+		var line = cmp.file.line;
+		var chr = cmp.file.chr;
+
+		var ch = String.fromCharCode(bytes[i]);
+
+		// calculate future line/chr
+		if (ch == '\r'){
+			cmp.file.lastret = true;
+			cmp.file.line++;
+			cmp.file.chr = 1;
+		}
+		else{
+			if (ch == '\n'){
+				if (!cmp.file.lastret){
+					cmp.file.line++;
+					cmp.file.chr = 1;
+				}
 			}
-			else if (tok_isKS(tk1, KS_CONTINUE)){
-				throw 'TODO: continue';
-			}
-			else if (tok_isKS(tk1, KS_DECLARE)){
-				chk.level++;
-				chunk_push(chk, CST_DECLARE);
-				return cpr_ok();
-			}
-			else if (tok_isKS(tk1, KS_DEF)){
-				chk.level++;
-				chunk_push(chk, CST_DEF);
-				return cpr_ok();
-			}
-			else if (tok_isKS(tk1, KS_DO)){
-				chk.level++;
-				chunk_push(chk, CST_DO);
-				return cpr_ok();
-			}
-			else if (tok_isKS(tk1, KS_FOR)){
-				chk.level++;
-				chunk_push(chk, CST_FOR);
-				return cpr_ok();
-			}
-			else if (tok_isKS(tk1, KS_GOTO)){
-				chk.level++;
-				chunk_push(chk, CST_GOTO);
-				return cpr_ok();
-			}
-			else if (tok_isKS(tk1, KS_IF)){
-				chk.level++;
-				chunk_push(chk, CST_IF);
-				return cpr_ok();
-			}
-			else if (tok_isKS(tk1, KS_NAMESPACE)){
-				chk.level++;
-				chunk_push(chk, CST_NAMESPACE);
-				return cpr_ok();
-			}
-			else if (tok_isKS(tk1, KS_RETURN)){
-				chk.level++;
-				chunk_push(chk, CST_RETURN);
-				return cpr_ok();
-			}
-			else if (tok_isKS(tk1, KS_USING)){
-				chk.level++;
-				chunk_push(chk, CST_USING);
-				return cpr_ok();
-			}
-			else if (tok_isKS(tk1, KS_VAR)){
-				chk.level++;
-				chunk_push(chk, CST_VAR);
-				return cpr_ok();
-			}
-			else if (tk1.type == TOK_IDENT){
-				chk.level++;
-				chunk_push(chk, CST_IDENT);
-				return cpr_ok();
-			}
-			else if (tok_isPre(tk1) || tok_isTerm(tk1)){
-				chunk_push(chk, CST_EVAL);
-				return chunk_process(chk);
-			}
-			return cpr_error('Invalid statement');
+			else
+				cmp.file.chr++;
+			cmp.file.lastret = false;
+		}
 
-		case CST_IDENT: {
-			if (tok_isKS(tk1, KS_COLON)){
-				throw 'TODO: define label';
-			}
-			st.state = CST_EVAL;
-			chunk_rewind(chk);
-			var t = chunk_process(chk);
-			if (t.type == CPR_ERROR)
-				return t;
-			chunk_fwd(chk, chk.tkR);
-			return chunk_process(chk);
-		} break;
-
-		case CST_LOOKUP:
-			if (!tok_isKS(tk1, KS_PERIOD)){
-				st.next.lookupNames = st.lookupNames;
-				chk.state = st.next;
-				return chunk_process(chk);
-			}
-			st.state = CST_LOOKUP_IDENT;
-			return cpr_ok();
-
-		case CST_LOOKUP_IDENT:
-			if (tk1.type != TOK_IDENT)
-				return cpr_error('Expecting identifier');
-			st.lookupNames.push(tk1.str);
-			st.state = CST_LOOKUP;
-			return cpr_ok();
-//
-//
-// TODO: keep porting this code
-//
-// also:
-//
-//   we are doing list decomposition instead of multi-assignment:
-//
-//   this:       {x, y} = {1, 2}
-//   not this:   x, y = 1, 2
-//
-//   which means:
-//
-//   var {x, y} = {1, 2}
-//   def foo {x, y} = {1, 2}, z = 3, w = 4; <body>; end
-//
-//   and boy it would be really nice to be able to do:
-//
-//   {x, y, {z, w}} = {1, 2, {3, 4}}
-//
-//   and as a bonus:
-//
-//   {x, ...y} = {1, 2, 3, 4}
-//   say y # => {2, 3, 4}
-//
-//   also:
-//
-//   def foo a, b, ...c; <body>; end
-//
-//
-
-			case 'PRS_VAR':
-				if (tk1.type == 'TOK_IDENT'){
-					st.st = 'PRS_VAR_NAME';
-					st = state_newPush('PRS_LOOKUP', st);
-					st.lookupNames = [tk1.data];
-					return res_more();
-				}
-				st.varNames = null; // free varNames
-				return res_error('Expecting identifier');
-
-			case 'PRS_VAR_NAME': {
-				var ns = sc.ns;
-				var nm = st.lookupNames.pop();
-				if (st.lookupNames.length > 0){
-					var nsn = scope_lookup(sc, st.lookupNames);
-					if (nsn.type == 'NSN_ERROR')
-						return res_error(nsn.msg);
-					else if (nsn.type != 'NSN_NAMESPACE')
-						return res_error('Bad declaration; invalid namespace');
-					ns = nsn.ns;
-				}
-
-				var fdiff = ns.fr.diff(fr);
-				var index = ns.fr.newVar();
-				body.newVar(fdiff, index);
-				st.varNames.push(vn_new(fdiff, index, ns, nm));
-
-				if (isKeyspec(tk1, ',')){
-					st.st = 'PRS_VAR';
-					return res_more();
-				}
-				else if (isKeyspec(tk1, '=')){
-					st.st = 'PRS_VAR_INIT';
-					st = state_newPush('PRS_EXPR', st);
-					return res_more();
-				}
-
-				st.exprTerm = Expr.nil();
-				st.st = 'PRS_VAR_INIT';
-				return processToken();
-			} break;
-
-			case 'PRS_VAR_INIT': {
-				// evaluate init expression into storage locations
-				if (st.exprTerm.type == 'EXPR_GROUP'){
-					for (var i = 0; i < st.exprTerm.group.length; i++){
-						var r;
-						if (i < st.varNames.length){
-							r = body.evalInto(
-								fr,
-								st.varNames[i].fdiff,
-								st.varNames[i].index,
-								st.exprTerm.group[i]
-							);
-						}
-						else
-							r = body.eval(fr, st.exprTerm.group[i], null);
-						if (r.type == 'error')
-							return res_error(r.msg);
-					}
-				}
-				else{
-					for (var i = 0; i < st.varNames.length; i++){
-						var r = body.evalInto(
-							fr,
-							st.varNames[i].fdiff,
-							st.varNames[i].index,
-							i == 0 ? st.exprTerm : Expr.nil()
-						);
-						if (r.type == 'error')
-							return res_error(r.msg);
-					}
-				}
-				// insert symbols into namespace
-				for (var i = 0; i < st.varNames.length; i++){
-					var vn = st.varNames[i];
-					if (namespace_has(vn.ns, vn.name))
-						return res_error('Cannot redeclare: ' + vn.name);
-					vn.ns.names = nsname_newVar(vn.name, vn.ns.fr, vn.index, vn.ns.names);
-				}
-				st = st.next;
-				level--;
-				return processToken();
-			} break;
-
-			case 'PRS_EVAL':
-				st.st = 'PRS_EVAL_EXPR';
-				st = state_newPush('PRS_EXPR', st);
-				return processToken();
-
-			case 'PRS_EVAL_EXPR': {
-				var r = body.eval(fr, st.exprTerm, null);
-				if (r.type == 'error')
-					return res_error(r.msg);
-				st = st.next;
-				return processToken();
-			} break;
-
-			case 'PRS_EXPR':
-				if (tk1.type == 'TOK_NEWLINE')
-					return res_more();
-				if (isPre(tk1)){
-					st.exprPreStack = ets_new(tk1, st.exprPreStack);
-					return res_more();
-				}
-				st.st = 'PRS_EXPR_TERM';
-				return processToken();
-
-			case 'PRS_EXPR_TERM':
-				if (tk1.type == 'TOK_NUM'){
-					st.st = 'PRS_EXPR_POST';
-					st.exprTerm = Expr.num(tk1.data);
-					return res_more();
-				}
-				else if (tk1.type == 'TOK_STR'){
-					st.st = 'PRS_EXPR_POST';
-					st.exprTerm = Expr.str(tk1.data);
-					return res_more();
-				}
-				else if (tk1.type == 'TOK_IDENT'){
-					st.st = 'PRS_EXPR_TERM_LOOKUP';
-					st = state_newPush('PRS_LOOKUP', st);
-					st.lookupNames = [tk1.data];
-					return res_more();
-				}
-				else if (isKeyspec(tk1, '{')){
-					st.st = 'PRS_EXPR_TERM_ISEMPTYLIST';
-					// TODO: needs to check for '}', and put empty list in exprTerm
-					// otherwise, needs to call PRS_EXPR and set exprComma to true, then put result
-					// in exprTerm (ending in PRS_EXPR_POST)
-					return res_more();
-				}
-				else if (isKeyspec(tk1, '(')){
-					st.st = 'PRS_EXPR_TERM_ISNIL';
-					return res_more();
-				}
-				return res_error('Invalid expression');
-
-			case 'PRS_EXPR_TERM_ISNIL':
-				if (isKeyspec(tk1, ')')){
-					st.st = 'PRS_EXPR_POST';
-					st.exprTerm = Expr.nil();
-					return res_more();
-				}
-				st.st = 'PRS_EXPR_TERM_CLOSEPAREN';
-				st = state_newPush('PRS_EXPR', st);
-				st.exprComma = true;
-				level++;
-				return processToken();
-
-			case 'PRS_EXPR_TERM_CLOSEPAREN':
-				if (tk1.type == 'TOK_NEWLINE')
-					return res_more();
-				if (!isKeyspec(tk1, ')'))
-					return res_error('Expecting close parenthesis');
-				st.st = 'PRS_EXPR_POST';
-				level--;
-				return res_more();
-
-			case 'PRS_EXPR_TERM_LOOKUP': {
-				var lk = scope_lookup(sc, st.lookupNames);
-				if (lk.type == 'LKUP_NOTFOUND'){
-					var msg = 'Variable not defined: ' + st.lookupNames.join('.');
-					st.lookupNames = null; // free lookup names
-					return res_error(msg);
-				}
-				else if (lk.type == 'LKUP_ERROR'){
-					st.lookupNames = null; // free lookup names
-					return res_error(lk.msg);
-				}
-				else if (lk.nsn.type == 'NSN_NAMESPACE'){
-					var msg = 'Cannot use namespace as variable: ' + st.lookupNames.join('.');
-					st.lookupNames = null; // free lookup names
-					return res_error(msg);
-				}
-				// lk.nsn.type == 'NSN_VAR', 'NSN_CMD_LOCAL', 'NSN_CMD_NATIVE', 'NSN_CMD_OPCODE'
-				st.lookupNames = null; // free lookup names
-				if (lk.nsn.type == 'NSN_VAR')
-					st.exprTerm = Expr.lookup(lk.nsn.fr.diff(fr), lk.nsn.index);
-				else if (lk.nsn.type == 'NSN_CMD_LOCAL')
-					st.exprTerm = Expr.cmdLocal(lk.nsn.label);
-				else if (lk.nsn.type == 'NSN_CMD_NATIVE')
-					st.exprTerm = Expr.cmdNative(lk.nsn.cmd);
-				else // NSN_CMD_OPCODE
-					st.exprTerm = Expr.cmdOpcode(lk.nsn.opcode, lk.nsn.params);
-				st.st = 'PRS_EXPR_POST';
-				return processToken();
-			} break;
-
-			case 'PRS_EXPR_POST':
-				if (tk1.type == 'TOK_NEWLINE'){
-					st.st = 'PRS_EXPR_FINISH';
-					return processToken();
-				}
-				else if (isCmd(st.exprTerm.type)){
-					st.st = 'PRS_EXPR_POST_CALL';
-					st.exprTerm2 = st.exprTerm;
-					st = state_newPush('PRS_EXPR', st);
-					return processToken();
-				}
-				else if (isKeyspec(tk1, '!')){
-					st.exprTerm = Expr.postfix(tk1, st.exprTerm);
-					return res_more();
-				}
-				else if (isKeyspec(tk1, '[')){
-					throw 'TODO: collect index';
-					/*
-					if (tokens[0].isData(':')){
-						getData(':');
-						var len = false;
-						if (!tokens[0].isData(']'))
-							len = Expr(false).expr;
-						var t = getData(']');
-						return {
-							expr: body.exprSlice(pos, expr.expr, false, len),
-							newline: t.newline
-						};
-					}
-					else{
-						var index = Expr(false).expr;
-						if (tokens[0].isData(':')){
-							getData(':');
-							var len = false;
-							if (!tokens[0].isData(']'))
-								len = Expr(false).expr;
-							var t = getData(']');
-							return {
-								expr: body.exprSlice(pos, expr.expr, index, len),
-								newline: t.newline
-							};
-						}
-						else{
-							var t = getData(']');
-							return {
-								expr: body.exprIndex(pos, expr.expr, index),
-								newline: t.newline
-							};
-						}
-					}
-					*/
-					return res_more();
-				}
-				if (st.exprComma)
-					st.st = 'PRS_EXPR_COMMA';
-				else
-					st.st = 'PRS_EXPR_MID';
-				return processToken();
-
-			case 'PRS_EXPR_POST_CALL':
-				st.exprTerm = Expr.call(st.exprTerm2, st.exprTerm);
-				st.st = 'PRS_EXPR_POST';
-				return processToken();
-
-			case 'PRS_EXPR_COMMA':
-				if (isKeyspec(tk1, ',')){
-					st.st = 'PRS_EXPR_COMMA2';
-					return res_more();
-				}
-				st.st = 'PRS_EXPR_MID';
-				return processToken();
-
-			case 'PRS_EXPR_COMMA2':
-				if (tk1.type == 'TOK_NEWLINE'){
-					rewind(); // keep the comma in tk1
-					return res_more();
-				}
-				if (!isKeyspec(tk1, ')') && !isKeyspec(tk1, '}')){
-					st.st = 'PRS_EXPR_MID';
-					rewind();
-					var t = processToken();
-					if (t.type == 'error')
-						return t;
-					fwd(tkR);
-					return processToken();
-				}
-				// found a trailing comma
-				st.st = 'PRS_EXPR_FINISH';
-				return processToken();
-
-			case 'PRS_EXPR_MID':
-				if (!isMid(tk1)){
-					st.st = 'PRS_EXPR_FINISH';
-					return processToken();
-				}
-				while (true){
-					// fight between the Pre and the Mid
-					while (st.exprPreStack != null && isPreBeforeMid(st.exprPreStack.tk, tk1)){
-						// apply the Pre
-						st.exprTerm = Expr.prefix(st.exprPreStack.tk, st.exprTerm);
-						st.exprPreStack = st.exprPreStack.next;
-					}
-
-					// if we've exhaused the exprPreStack, then check against the exprMidStack
-					if (st.exprPreStack == null && st.exprMidStack != null &&
-						isMidBeforeMid(st.exprMidStack.tk, tk1)){
-						// apply the previous mMid
-						st.exprTerm = Expr.infix(st.exprMidStack.tk, st.exprStack.expr,
-							st.exprTerm);
-						st.exprPreStack = st.exprPreStackStack.ets;
-						st.exprPreStackStack = st.exprPreStackStack.next;
-						st.exprMidStack = st.exprMidStack.next;
-						level--;
-					}
-					else // otherwise, the current Mid wins
-						break;
-				}
-				// finally, we're safe to apply the Mid...
-				// except instead of applying it, we need to schedule to apply it, in case another
-				// operator takes precedence over this one
-				st.exprPreStackStack = eps_new(st.exprPreStack, st.exprPreStackStack);
-				st.exprPreStack = null;
-				st.exprStack = exs_new(st.exprTerm, st.exprStack);
-				st.exprMidStack = ets_new(tk1, st.exprMidStack);
-				st.st = 'PRS_EXPR';
-				level++;
-				return res_more();
-
-			case 'PRS_EXPR_FINISH':
-				while (true){
-					// fight between the Pre and the Mid
-					while (st.exprPreStack != null &&
-						(st.exprMidStack == null ||
-							isPreBeforeMid(st.exprPreStack.tk, st.exprMidStack.tk))){
-						// apply the Pre
-						st.exprTerm = Expr.prefix(st.exprPreStack.tk, st.exprTerm);
-						st.exprPreStack = st.exprPreStack.next;
-					}
-
-					if (st.exprMidStack == null)
-						break;
-
-					// apply the Mid
-					st.exprTerm = Expr.infix(st.exprMidStack.tk, st.exprStack.expr,
-						st.exprTerm);
-					st.exprStack = st.exprStack.next;
-					st.exprPreStack = st.exprPreStackStack.ets;
-					st.exprPreStackStack = st.exprPreStackStack.next;
-					st.exprMidStack = st.exprMidStack.next;
-					level--;
-				}
-				// everything has been applied, and exprTerm has been set!
-				st.next.exprTerm = st.exprTerm;
-				st = st.next;
-				return processToken();
+		var tks = lex_add(cmp.file.lx, ch);
+		var res = compiler_processTokens(cmp, tks, err);
+		if (!res)
+			return false;
+	}
+	return true;
 }
 
-function chunk_add(chk, tk){
-	chunk_fwd(chk, tk);
-	return chunk_process(chk);
-}
+//
+// JavaScript API
+//
 
-
-
-
-
+module.exports = {
+	create: function(){
+		var cmp = compiler_new();
+		return {
+			pushFile: function(file){
+				compiler_pushFile(cmp, file);
+			},
+			popFile: function(){
+				compiler_popFile(cmp);
+			},
+			add: function(str){
+				compiler_add(cmp, str);
+			}
+		};
+	}
+};

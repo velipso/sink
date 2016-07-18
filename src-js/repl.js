@@ -7,8 +7,8 @@ var rl = readline.createInterface({
 	input: process.stdin,
 	output: process.stdout
 });
-var Compiler = require('./compiler');
-var c = Compiler(true);
+var Sink = require('./sink');
+var c = Sink.create();
 c.pushFile(null);
 
 function nextLine(levels){
@@ -17,11 +17,8 @@ function nextLine(levels){
 		p = (new Array(levels + 2)).join('..') + ' ';
 	rl.question(p, function(ans){
 		var res = c.add(ans + '\n');
-		if (res.type == 'error'){
-			console.log('Error: ' + res.msg);
-			res = c.reset();
-		}
-		nextLine(res.levels);
+		console.log('result:', res);
+		nextLine(0);
 	});
 }
 nextLine(0);
