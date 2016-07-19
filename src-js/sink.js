@@ -313,6 +313,7 @@ function tok_isPre(tk){
 			tk.k == KS_MINUS      ||
 			tk.k == KS_AMP        ||
 			tk.k == KS_BANG       ||
+			tk.k == KS_PERIOD3    ||
 			tk.k == KS_MINUSTILDE ||
 			tk.k == KS_TILDEMINUS ||
 			tk.k == KS_TYPENUM    ||
@@ -322,7 +323,7 @@ function tok_isPre(tk){
 	return false;
 }
 
-function tok_isMid(tk){
+function tok_isMid(tk, allowComma){
 	if (tk.type == TOK_KS){
 		return false ||
 			tk.k == KS_PLUS       ||
@@ -354,7 +355,7 @@ function tok_isMid(tk){
 			tk.k == KS_PIPE2      ||
 			tk.k == KS_AMP2EQU    ||
 			tk.k == KS_PIPE2EQU   ||
-			tk.k == KS_COMMA;
+			(allowComma && tk.k == KS_COMMA);
 	}
 	return false;
 }
@@ -482,12 +483,12 @@ function expr_names(names){
 	return { type: EXPR_NAMES, names: names };
 }
 
-function expr_postfix(tk, ex){
-	return { type: EXPR_POSTFIX, tk: tk, ex: ex };
+function expr_postfix(k, ex){
+	return { type: EXPR_POSTFIX, k: k, ex: ex };
 }
 
-function expr_prefix(tk, ex){
-	return { type: EXPR_PREFIX, tk: tk, ex: ex };
+function expr_prefix(k, ex){
+	return { type: EXPR_PREFIX, k: k, ex: ex };
 }
 
 function expr_group(left, right){
@@ -1167,6 +1168,7 @@ var AST_IF        = 'AST_IF';
 var AST_RETURN    = 'AST_RETURN';
 var AST_USING     = 'AST_USING';
 var AST_DECLARE   = 'AST_DECLARE';
+var AST_VAR       = 'AST_VAR';
 
 function ast_break(){
 	return { type: AST_BREAK };
@@ -1216,6 +1218,10 @@ function ast_declare(decls){
 	return { type: AST_DECLARE, decls: decls };
 }
 
+function ast_var(lvalues){
+	return { type: AST_VAR, lvalues: lvalues };
+}
+
 //
 // parser state helpers
 //
@@ -1235,6 +1241,10 @@ function decl_native(names, key){
 	return { type: DECL_NATIVE, names: names, key: key };
 }
 
+function pvar_new(names, ex){
+	return { names: names, ex: ex };
+}
+
 function ets_new(tk, next){ // exprPreStack, exprMidStack
 	return { tk: tk, next: next };
 }
@@ -1251,87 +1261,103 @@ function eps_new(ets, next){ // exprPreStackStack
 // parser state
 //
 
-var PRS_START                       = 'PRS_START';
-var PRS_START_STATEMENT             = 'PRS_START_STATEMENT';
-var PRS_STATEMENT                   = 'PRS_STATEMENT';
-var PRS_LOOKUP                      = 'PRS_LOOKUP';
-var PRS_LOOKUP_IDENT                = 'PRS_LOOKUP_IDENT';
-var PRS_BODY                        = 'PRS_BODY';
-var PRS_BODY_STATEMENT              = 'PRS_BODY_STATEMENT';
-var PRS_BREAK                       = 'PRS_BREAK';
-var PRS_CONTINUE                    = 'PRS_CONTINUE';
-var PRS_DECLARE                     = 'PRS_DECLARE';
-var PRS_DECLARE2                    = 'PRS_DECLARE2';
-var PRS_DECLARE_LOOKUP              = 'PRS_DECLARE_LOOKUP';
-var PRS_DECLARE_STR                 = 'PRS_DECLARE_STR';
-var PRS_DECLARE_STR2                = 'PRS_DECLARE_STR2';
-var PRS_DECLARE_STR3                = 'PRS_DECLARE_STR3';
-var PRS_DEF                         = 'PRS_DEF';
-var PRS_DO                          = 'PRS_DO';
-var PRS_DO_BODY                     = 'PRS_DO_BODY';
-var PRS_DO_DONE                     = 'PRS_DO_DONE';
-var PRS_DO_WHILE_EXPR               = 'PRS_DO_WHILE_EXPR';
-var PRS_DO_WHILE_BODY               = 'PRS_DO_WHILE_BODY';
-var PRS_DO_WHILE_DONE               = 'PRS_DO_WHILE_DONE';
-var PRS_FOR                         = 'PRS_FOR';
-var PRS_GOTO                        = 'PRS_GOTO';
-var PRS_GOTO_LOOKUP                 = 'PRS_GOTO_LOOKUP';
-var PRS_IF                          = 'PRS_IF';
-var PRS_IF_EXPR                     = 'PRS_IF_EXPR';
-var PRS_IF_BODY                     = 'PRS_IF_BODY';
-var PRS_IF_DONE                     = 'PRS_IF_DONE';
-var PRS_ELSE_BODY                   = 'PRS_ELSE_BODY';
-var PRS_ELSE_DONE                   = 'PRS_ELSE_DONE';
-var PRS_NAMESPACE                   = 'PRS_NAMESPACE';
-var PRS_NAMESPACE_LOOKUP            = 'PRS_NAMESPACE_LOOKUP';
-var PRS_NAMESPACE_BODY              = 'PRS_NAMESPACE_BODY';
-var PRS_NAMESPACE_DONE              = 'PRS_NAMESPACE_DONE';
-var PRS_RETURN                      = 'PRS_RETURN';
-var PRS_RETURN_DONE                 = 'PRS_RETURN_DONE';
-var PRS_USING                       = 'PRS_USING';
-var PRS_USING2                      = 'PRS_USING2';
-var PRS_USING_LOOKUP                = 'PRS_USING_LOOKUP';
-var PRS_VAR                         = 'PRS_VAR';
-var PRS_IDENTS                      = 'PRS_IDENTS';
-var PRS_EVAL                        = 'PRS_EVAL';
-var PRS_EVAL_EXPR                   = 'PRS_EVAL_EXPR';
-var PRS_EXPR                        = 'PRS_EXPR';
-var PRS_EXPR_TERM                   = 'PRS_EXPR_TERM';
-var PRS_EXPR_TERM_ISEMPTYLIST       = 'PRS_EXPR_TERM_ISEMPTYLIST';
-var PRS_EXPR_TERM_CLOSEBRACE        = 'PRS_EXPR_TERM_CLOSEBRACE';
-var PRS_EXPR_TERM_ISNIL             = 'PRS_EXPR_TERM_ISNIL';
-var PRS_EXPR_TERM_CLOSEPAREN        = 'PRS_EXPR_TERM_CLOSEPAREN';
-var PRS_EXPR_TERM_LOOKUP            = 'PRS_EXPR_TERM_LOOKUP';
-var PRS_EXPR_POST                   = 'PRS_EXPR_POST';
-var PRS_EXPR_POST_CALL              = 'PRS_EXPR_POST_CALL';
-var PRS_EXPR_INDEX_CHECK            = 'PRS_EXPR_INDEX_CHECK';
-var PRS_EXPR_INDEX_COLON_CHECK      = 'PRS_EXPR_INDEX_COLON_CHECK';
-var PRS_EXPR_INDEX_COLON_EXPR       = 'PRS_EXPR_INDEX_COLON_EXPR';
-var PRS_EXPR_INDEX_EXPR_CHECK       = 'PRS_EXPR_INDEX_EXPR_CHECK';
-var PRS_EXPR_INDEX_EXPR_COLON_CHECK = 'PRS_EXPR_INDEX_EXPR_COLON_CHECK';
-var PRS_EXPR_INDEX_EXPR_COLON_EXPR  = 'PRS_EXPR_INDEX_EXPR_COLON_EXPR';
-var PRS_EXPR_COMMA                  = 'PRS_EXPR_COMMA';
-var PRS_EXPR_MID                    = 'PRS_EXPR_MID';
-var PRS_EXPR_FINISH                 = 'PRS_EXPR_FINISH';
+var PRS_START                         = 'PRS_START';
+var PRS_START_STATEMENT               = 'PRS_START_STATEMENT';
+var PRS_STATEMENT                     = 'PRS_STATEMENT';
+var PRS_LOOKUP                        = 'PRS_LOOKUP';
+var PRS_LOOKUP_IDENT                  = 'PRS_LOOKUP_IDENT';
+var PRS_BODY                          = 'PRS_BODY';
+var PRS_BODY_STATEMENT                = 'PRS_BODY_STATEMENT';
+var PRS_LVALUES                       = 'PRS_LVALUES';
+var PRS_LVALUES_TERM                  = 'PRS_LVALUES_TERM';
+var PRS_LVALUES_TERM_LOOKUP           = 'PRS_LVALUES_TERM_LOOKUP';
+var PRS_LVALUES_TERM_LIST             = 'PRS_LVALUES_TERM_LIST';
+var PRS_LVALUES_TERM_LIST_TERM_DONE   = 'PRS_LVALUES_TERM_LIST_TERM_DONE';
+var PRS_LVALUES_TERM_LIST_TAIL        = 'PRS_LVALUES_TERM_LIST_TAIL';
+var PRS_LVALUES_TERM_LIST_TAIL_LOOKUP = 'PRS_LVALUES_TERM_LIST_TAIL_LOOKUP';
+var PRS_LVALUES_TERM_LIST_TAIL_DONE   = 'PRS_LVALUES_TERM_LIST_TAIL_DONE';
+var PRS_LVALUES_TERM_LIST_DONE        = 'PRS_LVALUES_TERM_LIST_DONE';
+var PRS_LVALUES_TERM_DONE             = 'PRS_LVALUES_TERM_DONE';
+var PRS_LVALUES_TERM_EXPR             = 'PRS_LVALUES_TERM_EXPR';
+var PRS_LVALUES_MORE                  = 'PRS_LVALUES_MORE';
+var PRS_BREAK                         = 'PRS_BREAK';
+var PRS_CONTINUE                      = 'PRS_CONTINUE';
+var PRS_DECLARE                       = 'PRS_DECLARE';
+var PRS_DECLARE2                      = 'PRS_DECLARE2';
+var PRS_DECLARE_LOOKUP                = 'PRS_DECLARE_LOOKUP';
+var PRS_DECLARE_STR                   = 'PRS_DECLARE_STR';
+var PRS_DECLARE_STR2                  = 'PRS_DECLARE_STR2';
+var PRS_DECLARE_STR3                  = 'PRS_DECLARE_STR3';
+var PRS_DEF                           = 'PRS_DEF';
+var PRS_DO                            = 'PRS_DO';
+var PRS_DO_BODY                       = 'PRS_DO_BODY';
+var PRS_DO_DONE                       = 'PRS_DO_DONE';
+var PRS_DO_WHILE_EXPR                 = 'PRS_DO_WHILE_EXPR';
+var PRS_DO_WHILE_BODY                 = 'PRS_DO_WHILE_BODY';
+var PRS_DO_WHILE_DONE                 = 'PRS_DO_WHILE_DONE';
+var PRS_FOR                           = 'PRS_FOR';
+var PRS_GOTO                          = 'PRS_GOTO';
+var PRS_GOTO_LOOKUP                   = 'PRS_GOTO_LOOKUP';
+var PRS_IF                            = 'PRS_IF';
+var PRS_IF_EXPR                       = 'PRS_IF_EXPR';
+var PRS_IF_BODY                       = 'PRS_IF_BODY';
+var PRS_IF_DONE                       = 'PRS_IF_DONE';
+var PRS_ELSE_BODY                     = 'PRS_ELSE_BODY';
+var PRS_ELSE_DONE                     = 'PRS_ELSE_DONE';
+var PRS_NAMESPACE                     = 'PRS_NAMESPACE';
+var PRS_NAMESPACE_LOOKUP              = 'PRS_NAMESPACE_LOOKUP';
+var PRS_NAMESPACE_BODY                = 'PRS_NAMESPACE_BODY';
+var PRS_NAMESPACE_DONE                = 'PRS_NAMESPACE_DONE';
+var PRS_RETURN                        = 'PRS_RETURN';
+var PRS_RETURN_DONE                   = 'PRS_RETURN_DONE';
+var PRS_USING                         = 'PRS_USING';
+var PRS_USING2                        = 'PRS_USING2';
+var PRS_USING_LOOKUP                  = 'PRS_USING_LOOKUP';
+var PRS_VAR                           = 'PRS_VAR';
+var PRS_VAR_LVALUES                   = 'PRS_VAR_LVALUES';
+var PRS_IDENTS                        = 'PRS_IDENTS';
+var PRS_EVAL                          = 'PRS_EVAL';
+var PRS_EVAL_EXPR                     = 'PRS_EVAL_EXPR';
+var PRS_EXPR                          = 'PRS_EXPR';
+var PRS_EXPR_TERM                     = 'PRS_EXPR_TERM';
+var PRS_EXPR_TERM_ISEMPTYLIST         = 'PRS_EXPR_TERM_ISEMPTYLIST';
+var PRS_EXPR_TERM_CLOSEBRACE          = 'PRS_EXPR_TERM_CLOSEBRACE';
+var PRS_EXPR_TERM_ISNIL               = 'PRS_EXPR_TERM_ISNIL';
+var PRS_EXPR_TERM_CLOSEPAREN          = 'PRS_EXPR_TERM_CLOSEPAREN';
+var PRS_EXPR_TERM_LOOKUP              = 'PRS_EXPR_TERM_LOOKUP';
+var PRS_EXPR_POST                     = 'PRS_EXPR_POST';
+var PRS_EXPR_POST_CALL                = 'PRS_EXPR_POST_CALL';
+var PRS_EXPR_INDEX_CHECK              = 'PRS_EXPR_INDEX_CHECK';
+var PRS_EXPR_INDEX_COLON_CHECK        = 'PRS_EXPR_INDEX_COLON_CHECK';
+var PRS_EXPR_INDEX_COLON_EXPR         = 'PRS_EXPR_INDEX_COLON_EXPR';
+var PRS_EXPR_INDEX_EXPR_CHECK         = 'PRS_EXPR_INDEX_EXPR_CHECK';
+var PRS_EXPR_INDEX_EXPR_COLON_CHECK   = 'PRS_EXPR_INDEX_EXPR_COLON_CHECK';
+var PRS_EXPR_INDEX_EXPR_COLON_EXPR    = 'PRS_EXPR_INDEX_EXPR_COLON_EXPR';
+var PRS_EXPR_COMMA                    = 'PRS_EXPR_COMMA';
+var PRS_EXPR_MID                      = 'PRS_EXPR_MID';
+var PRS_EXPR_FINISH                   = 'PRS_EXPR_FINISH';
 
 function prs_new(state, next){
 	return {
 		state: state,
-		stmt: null,              // single ast_*
-		body: null,              // list of ast_*'s
-		body2: null,             // list of ast_*'s
-		conds: null,             // list of cond_new's
-		decls: null,             // list of decl_*'s
-		exprComma: false,
-		exprPreStackStack: null, // linked list of eps_new's
-		exprPreStack: null,      // linked list of ets_new's
-		exprMidStack: null,      // linked list of ets_new's
-		exprStack: null,         // linked list of exs_new's
-		exprTerm: null,          // expr
-		exprTerm2: null,         // expr
-		exprTerm3: null,         // expr
-		names: null,             // list of strings
-		namesList: null,         // list of list of strings
+		stmt: null,                 // single ast_*
+		body: null,                 // list of ast_*'s
+		body2: null,                // list of ast_*'s
+		conds: null,                // list of cond_new's
+		decls: null,                // list of decl_*'s
+		lvalues: null,              // list of expr
+		lvaluesPeriods: false,
+		exprAllowComma: true,
+		exprAllowTrailComma: false,
+		exprPreStackStack: null,    // linked list of eps_new's
+		exprPreStack: null,         // linked list of ets_new's
+		exprMidStack: null,         // linked list of ets_new's
+		exprStack: null,            // linked list of exs_new's
+		exprTerm: null,             // expr
+		exprTerm2: null,            // expr
+		exprTerm3: null,            // expr
+		names: null,                // list of strings
+		namesList: null,            // list of list of strings
 		next: next
 	};
 }
@@ -1402,6 +1428,17 @@ function parser_start(pr, state){
 function parser_process(pr){
 	var tk1 = pr.tk1;
 	var st = pr.state;
+
+	var here = st;
+	var heres = [];
+	while (here != null){
+		heres.unshift(here.state);
+		here = here.next;
+	}
+	for (var i = 0; i < heres.length; i++)
+		console.log('' + (i + 1), heres[i]);
+	console.log('--');
+
 	switch (st.state){
 		case PRS_START:
 			st.state = PRS_START_STATEMENT;
@@ -1479,6 +1516,151 @@ function parser_process(pr){
 			st.stmt = null;
 			parser_push(pr, PRS_STATEMENT);
 			return prr_more();
+
+		case PRS_LVALUES:
+			if (tk1.type == TOK_NEWLINE){
+				st.next.lvalues = st.lvalues;
+				pr.state = st.next;
+				return parser_process(pr);
+			}
+			st.state = PRS_LVALUES_TERM_DONE;
+			parser_push(pr, PRS_LVALUES_TERM);
+			return parser_process(pr);
+
+		case PRS_LVALUES_TERM:
+			if (tk1.type == TOK_IDENT){
+				st.state = PRS_LVALUES_TERM_LOOKUP;
+				parser_push(pr, PRS_LOOKUP);
+				pr.state.names = [tk1.ident];
+				return prr_more();
+			}
+			else if (tok_isKS(tk1, KS_LBRACE)){
+				st.state = PRS_LVALUES_TERM_LIST_DONE;
+				parser_push(pr, PRS_LVALUES_TERM_LIST);
+				return prr_more();
+			}
+			else if (st.lvaluesPeriods && tok_isKS(tk1, KS_PERIOD3)){
+				st.state = PRS_LVALUES_TERM_LIST_TAIL;
+				return prr_more();
+			}
+			return prr_error('Expecting variable');
+
+		case PRS_LVALUES_TERM_LOOKUP:
+			st.next.exprTerm = expr_names(st.names);
+			pr.state = st.next;
+			return parser_process(pr);
+
+		case PRS_LVALUES_TERM_LIST:
+			if (tk1.type == TOK_NEWLINE)
+				return prr_more();
+			else if (tok_isKS(tk1, KS_RBRACE)){
+				st.next.exprTerm = st.exprTerm;
+				pr.state = st.next;
+				return prr_more();
+			}
+			st.state = PRS_LVALUES_TERM_LIST_TERM_DONE;
+			parser_push(pr, PRS_LVALUES_TERM);
+			pr.state.lvaluesPeriods = true;
+			return parser_process(pr);
+
+		case PRS_LVALUES_TERM_LIST_TERM_DONE:
+			if (tk1.type == TOK_NEWLINE)
+				return prr_more();
+			if (st.exprTerm2 == null){
+				st.exprTerm2 = st.exprTerm;
+				st.exprTerm = null;
+			}
+			else{
+				st.exprTerm2 = expr_infix(KS_COMMA, st.exprTerm2, st.exprTerm);
+				st.exprTerm = null;
+			}
+			if (tok_isKS(tk1, KS_RBRACE)){
+				st.next.exprTerm = st.exprTerm2;
+				pr.state = st.next;
+				return prr_more();
+			}
+			else if (tok_isKS(tk1, KS_COMMA)){
+				parser_push(pr, PRS_LVALUES_TERM);
+				pr.state.lvaluesPeriods = true;
+				return prr_more();
+			}
+			return prr_error('Invalid list');
+
+		case PRS_LVALUES_TERM_LIST_TAIL:
+			if (tk1.type == TOK_NEWLINE)
+				return prr_more();
+			if (tk1.type != TOK_IDENT)
+				return prr_error('Expecting identifier');
+			st.state = PRS_LVALUES_TERM_LIST_TAIL_LOOKUP;
+			parser_push(pr, PRS_LOOKUP);
+			pr.state.names = [tk1.ident];
+			return prr_more();
+
+		case PRS_LVALUES_TERM_LIST_TAIL_LOOKUP:
+			if (tk1.type == TOK_NEWLINE)
+				return prr_more();
+			st.state = PRS_LVALUES_TERM_LIST_TAIL_DONE;
+			if (tok_isKS(tk1, KS_COMMA))
+				return prr_more();
+			return parser_process(pr);
+
+		case PRS_LVALUES_TERM_LIST_TAIL_DONE:
+			if (!tok_isKS(tk1, KS_RBRACE))
+				return prr_error('Missing end of list');
+			st.next.exprTerm = expr_prefix(KS_PERIOD3, expr_names(st.names));
+			pr.state = st.next;
+			return parser_process(pr);
+
+		case PRS_LVALUES_TERM_LIST_DONE:
+			st.next.exprTerm = expr_list(st.exprTerm);
+			pr.state = st.next;
+			return parser_process(pr);
+
+		case PRS_LVALUES_TERM_DONE:
+			if (tk1.type == TOK_NEWLINE){
+				st.lvalues.push(expr_infix(tok_ks(KS_EQU), st.exprTerm, expr_nil()));
+				st.exprTerm = null;
+				st.next.lvalues = st.lvalues;
+				pr.state = st.next;
+				return parser_process(pr);
+			}
+			else if (tok_isKS(tk1, KS_EQU)){
+				st.exprTerm2 = st.exprTerm;
+				st.exprTerm = null;
+				st.state = PRS_LVALUES_TERM_EXPR;
+				parser_push(pr, PRS_EXPR);
+				pr.state.exprAllowComma = false;
+				return prr_more();
+			}
+			else if (tok_isKS(tk1, KS_COMMA)){
+				st.lvalues.push(expr_infix(tok_ks(KS_EQU), st.exprTerm, expr_nil()));
+				st.exprTerm = null;
+				st.state = PRS_LVALUES_MORE;
+				return prr_more();
+			}
+			return prr_error('Invalid declaration');
+
+		case PRS_LVALUES_TERM_EXPR:
+			st.lvalues.push(expr_infix(tok_ks(KS_EQU), st.exprTerm2, st.exprTerm));
+			st.exprTerm2 = null;
+			st.exprTerm = null;
+			if (tk1.type == TOK_NEWLINE){
+				st.next.lvalues = st.lvalues;
+				pr.state = st.next;
+				return parser_process(pr);
+			}
+			else if (tok_isKS(tk1, KS_COMMA)){
+				st.state = PRS_LVALUES_MORE;
+				return prr_more();
+			}
+			return prr_error('Invalid declaration');
+
+		case PRS_LVALUES_MORE:
+			if (tk1.type == TOK_NEWLINE)
+				return prr_more();
+			st.state = PRS_LVALUES_TERM_DONE;
+			parser_push(pr, PRS_LVALUES_TERM);
+			return parser_process(pr);
 
 		case PRS_BREAK:
 			return parser_statement(pr, ast_break());
@@ -1702,7 +1884,15 @@ function parser_process(pr){
 			return parser_statement(pr, ast_using(st.namesList));
 
 		case PRS_VAR:
-			throw 'TODO: var';
+			st.state = PRS_VAR_LVALUES;
+			parser_push(pr, PRS_LVALUES);
+			pr.state.lvalues = [];
+			return parser_process(pr);
+
+		case PRS_VAR_LVALUES:
+			if (st.lvalues.length <= 0)
+				return prr_error('Invalid variable declaration');
+			return parser_statement(pr, ast_var(st.lvalues));
 
 		case PRS_IDENTS:
 			if (tok_isKS(tk1, KS_COLON)){
@@ -1759,14 +1949,16 @@ function parser_process(pr){
 			return prr_error('Invalid expression');
 
 		case PRS_EXPR_TERM_ISEMPTYLIST:
-			if (tok_isKS(tk1, KS_RBRACE)){
+			if (tk1.type == TOK_NEWLINE)
+				return prr_more();
+			else if (tok_isKS(tk1, KS_RBRACE)){
 				st.state = PRS_EXPR_POST;
 				st.exprTerm = expr_list(null);
 				return prr_more();
 			}
 			st.state = PRS_EXPR_TERM_CLOSEBRACE;
 			parser_push(pr, PRS_EXPR);
-			pr.state.exprComma = true;
+			pr.state.exprAllowTrailComma = true;
 			pr.level++;
 			return parser_process(pr);
 
@@ -1788,7 +1980,7 @@ function parser_process(pr){
 			}
 			st.state = PRS_EXPR_TERM_CLOSEPAREN;
 			parser_push(pr, PRS_EXPR);
-			pr.state.exprComma = true;
+			pr.state.exprAllowTrailComma = true;
 			pr.level++;
 			return parser_process(pr);
 
@@ -1815,8 +2007,8 @@ function parser_process(pr){
 				st.state = PRS_EXPR_INDEX_CHECK;
 				return prr_more();
 			}
-			else if (tok_isMid(tk1)){
-				if (st.exprComma && tok_isKS(pr, KS_COMMA)){
+			else if (tok_isMid(tk1, st.exprAllowComma)){
+				if (st.exprAllowTrailComma && tok_isKS(pr, KS_COMMA)){
 					st.state = PRS_EXPR_COMMA;
 					return prr_more();
 				}
@@ -1824,7 +2016,7 @@ function parser_process(pr){
 				return parser_process(pr);
 			}
 			else if (tok_isKS(tk1, KS_RBRACE) || tok_isKS(tk1, KS_RBRACKET) ||
-				tok_isKS(tk1, KS_RPAREN) || tok_isKS(tk1, KS_COLON)){
+				tok_isKS(tk1, KS_RPAREN) || tok_isKS(tk1, KS_COLON) || tok_isKS(tk1, KS_COMMA)){
 				st.state = PRS_EXPR_FINISH;
 				return parser_process(pr);
 			}
@@ -1933,7 +2125,7 @@ function parser_process(pr){
 			return parser_process(pr);
 
 		case PRS_EXPR_MID:
-			if (!tok_isMid(tk1)){
+			if (!tok_isMid(tk1, st.exprAllowComma)){
 				st.state = PRS_EXPR_FINISH;
 				return parser_process(pr);
 			}
@@ -1941,7 +2133,7 @@ function parser_process(pr){
 				// fight between the Pre and the Mid
 				while (st.exprPreStack != null && tok_isPreBeforeMid(st.exprPreStack.tk, tk1)){
 					// apply the Pre
-					st.exprTerm = expr_prefix(st.exprPreStack.tk, st.exprTerm);
+					st.exprTerm = expr_prefix(st.exprPreStack.tk.k, st.exprTerm);
 					st.exprPreStack = st.exprPreStack.next;
 				}
 
@@ -1976,7 +2168,7 @@ function parser_process(pr){
 					(st.exprMidStack == null ||
 						tok_isPreBeforeMid(st.exprPreStack.tk, st.exprMidStack.tk))){
 					// apply the Pre
-					st.exprTerm = expr_prefix(st.exprPreStack.tk, st.exprTerm);
+					st.exprTerm = expr_prefix(st.exprPreStack.tk.k, st.exprTerm);
 					st.exprPreStack = st.exprPreStack.next;
 				}
 
