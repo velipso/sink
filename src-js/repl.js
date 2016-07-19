@@ -19,7 +19,7 @@ function nextLine(levels){
 		var res = c.add(ans + '\n');
 		if (res !== false)
 			console.log('Error:', res);
-		nextLine(0);
+		nextLine(c.level());
 	});
 }
 nextLine(0);

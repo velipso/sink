@@ -447,85 +447,6 @@ function tok_toMutateOp(tk){
 }
 
 //
-// expr
-//
-
-var EXPR_NIL     = 'EXPR_NIL';
-var EXPR_NUM     = 'EXPR_NUM';
-var EXPR_STR     = 'EXPR_STR';
-var EXPR_LIST    = 'EXPR_LIST';
-var EXPR_NAMES   = 'EXPR_NAMES';
-var EXPR_POSTFIX = 'EXPR_POSTFIX';
-var EXPR_PREFIX  = 'EXPR_PREFIX';
-var EXPR_INFIX   = 'EXPR_INFIX';
-var EXPR_GROUP   = 'EXPR_GROUP';
-var EXPR_CALL    = 'EXPR_CALL';
-var EXPR_INDEX   = 'EXPR_INDEX';
-var EXPR_SLICE   = 'EXPR_SLICE';
-
-function expr_nil(){
-	return { type: EXPR_NIL };
-}
-
-function expr_num(num){
-	return { type: EXPR_NUM, num: num };
-}
-
-function expr_str(str){
-	return { type: EXPR_STR, str: str };
-}
-
-function expr_list(ex){
-	return { type: EXPR_LIST, ex: ex };
-}
-
-function expr_names(names){
-	return { type: EXPR_NAMES, names: names };
-}
-
-function expr_postfix(k, ex){
-	return { type: EXPR_POSTFIX, k: k, ex: ex };
-}
-
-function expr_prefix(k, ex){
-	return { type: EXPR_PREFIX, k: k, ex: ex };
-}
-
-function expr_group(left, right){
-	if (left.type == EXPR_GROUP){
-		if (right.type == EXPR_GROUP)
-			return { type: EXPR_GROUP, group: left.group.concat(right.group) };
-		var g = left.group.concat();
-		g.push(right);
-		return { type: EXPR_GROUP, group: g };
-	}
-	else if (right.type == EXPR_GROUP){
-		var g = right.group.concat();
-		g.unshift(left);
-		return { type: EXPR_GROUP, group: g };
-	}
-	return { type: EXPR_GROUP, group: [left, right] };
-}
-
-function expr_infix(k, left, right){
-	if (k == KS_COMMA)
-		return expr_group(left, right);
-	return { type: EXPR_INFIX, k: k, left: left, right: right };
-}
-
-function expr_call(cmd, params){
-	return { type: EXPR_CALL, cmd: cmd, params: params };
-}
-
-function expr_index(ex, index){
-	return { type: EXPR_INDEX, ex: ex, index: index };
-}
-
-function expr_slice(ex, left, right){
-	return { type: EXPR_SLICE, ex: ex, left: left, right: right };
-}
-
-//
 // lexer helper functions
 //
 
@@ -978,9 +899,9 @@ function lex_process(lx){
 
 		case LEX_STR_INTERP_DLR_ID:
 			if (!isIdentBody(ch1)){
-				if (ks_str(str) != KS_INVALID)
+				if (ks_str(lx.ident) != KS_INVALID)
 					return [tok_error('Invalid substitution')];
-				var tk = tok_ident(str);
+				var tk = tok_ident(lx.ident);
 				if (ch1 == '"'){
 					lx.state = LEX_START;
 					return [tk, tok_ks(KS_RPAREN)];
@@ -1153,25 +1074,104 @@ function lex_close(lx){
 }
 
 //
+// expr
+//
+
+var EXPR_NIL     = 'EXPR_NIL';
+var EXPR_NUM     = 'EXPR_NUM';
+var EXPR_STR     = 'EXPR_STR';
+var EXPR_LIST    = 'EXPR_LIST';
+var EXPR_NAMES   = 'EXPR_NAMES';
+var EXPR_PAREN   = 'EXPR_PAREN';
+var EXPR_GROUP   = 'EXPR_GROUP';
+var EXPR_PREFIX  = 'EXPR_PREFIX';
+var EXPR_INFIX   = 'EXPR_INFIX';
+var EXPR_CALL    = 'EXPR_CALL';
+var EXPR_INDEX   = 'EXPR_INDEX';
+var EXPR_SLICE   = 'EXPR_SLICE';
+
+function expr_nil(){
+	return { type: EXPR_NIL };
+}
+
+function expr_num(num){
+	return { type: EXPR_NUM, num: num };
+}
+
+function expr_str(str){
+	return { type: EXPR_STR, str: str };
+}
+
+function expr_list(ex){
+	return { type: EXPR_LIST, ex: ex };
+}
+
+function expr_names(names){
+	return { type: EXPR_NAMES, names: names };
+}
+
+function expr_paren(ex){
+	return { type: EXPR_PAREN, ex: ex };
+}
+
+function expr_group(left, right){
+	if (left.type == EXPR_GROUP){
+		if (right.type == EXPR_GROUP)
+			return { type: EXPR_GROUP, group: left.group.concat(right.group) };
+		var g = left.group.concat();
+		g.push(right);
+		return { type: EXPR_GROUP, group: g };
+	}
+	else if (right.type == EXPR_GROUP){
+		var g = right.group.concat();
+		g.unshift(left);
+		return { type: EXPR_GROUP, group: g };
+	}
+	return { type: EXPR_GROUP, group: [left, right] };
+}
+
+function expr_prefix(k, ex){
+	return { type: EXPR_PREFIX, k: k, ex: ex };
+}
+
+function expr_infix(k, left, right){
+	if (k == KS_COMMA)
+		return expr_group(left, right);
+	return { type: EXPR_INFIX, k: k, left: left, right: right };
+}
+
+function expr_call(cmd, params){
+	return { type: EXPR_CALL, cmd: cmd, params: params };
+}
+
+function expr_index(ex, index){
+	return { type: EXPR_INDEX, ex: ex, index: index };
+}
+
+function expr_slice(ex, left, right){
+	return { type: EXPR_SLICE, ex: ex, left: left, right: right };
+}
+
+//
 // ast
 //
 
 var AST_BREAK     = 'AST_BREAK';
 var AST_CONTINUE  = 'AST_CONTINUE';
-var AST_LABEL     = 'AST_LABEL';
-var AST_EVAL      = 'AST_EVAL';
-var AST_GOTO      = 'AST_GOTO';
+var AST_DECLARE   = 'AST_DECLARE';
+var AST_DEF       = 'AST_DEF';
 var AST_DO_END    = 'AST_DO_END';
 var AST_DO_WHILE  = 'AST_DO_WHILE';
-var AST_NAMESPACE = 'AST_NAMESPACE';
+var AST_FOR       = 'AST_FOR';
+var AST_LOOP      = 'AST_LOOP';
+var AST_GOTO      = 'AST_GOTO';
 var AST_IF        = 'AST_IF';
+var AST_NAMESPACE = 'AST_NAMESPACE';
 var AST_RETURN    = 'AST_RETURN';
 var AST_USING     = 'AST_USING';
-var AST_DECLARE   = 'AST_DECLARE';
 var AST_VAR       = 'AST_VAR';
-var AST_DEF       = 'AST_DEF';
-var AST_LOOP      = 'AST_LOOP';
-var AST_FOR       = 'AST_FOR';
+var AST_EVAL      = 'AST_EVAL';
+var AST_LABEL     = 'AST_LABEL';
 
 function ast_break(){
 	return { type: AST_BREAK };
@@ -1181,16 +1181,12 @@ function ast_continue(){
 	return { type: AST_CONTINUE };
 }
 
-function ast_label(names){
-	return { type: AST_LABEL, names: names };
+function ast_declare(decls){
+	return { type: AST_DECLARE, decls: decls };
 }
 
-function ast_eval(ex){
-	return { type: AST_EVAL, ex: ex };
-}
-
-function ast_goto(names){
-	return { type: AST_GOTO, names: names };
+function ast_def(names, lvalues, body){
+	return { type: AST_DEF, names: names, lvalues: lvalues, body: body };
 }
 
 function ast_doEnd(body){
@@ -1201,12 +1197,24 @@ function ast_doWhile(doBody, cond, whileBody){
 	return { type: AST_DO_WHILE, doBody: doBody, cond: cond, whileBody: whileBody };
 }
 
-function ast_namespace(names, body){
-	return { type: AST_NAMESPACE, names: names, body: body };
+function ast_for(forVar, names1, names2, ex, body){
+	return { type: AST_FOR, forVar: forVar, names1: names1, names2: names2, ex: ex, body: body };
+}
+
+function ast_loop(body){
+	return { type: AST_LOOP, body: body };
+}
+
+function ast_goto(names){
+	return { type: AST_GOTO, names: names };
 }
 
 function ast_if(conds, elseBody){
 	return { type: AST_IF, conds: conds, elseBody: elseBody };
+}
+
+function ast_namespace(names, body){
+	return { type: AST_NAMESPACE, names: names, body: body };
 }
 
 function ast_return(ex){
@@ -1217,24 +1225,16 @@ function ast_using(namesList){
 	return { type: AST_USING, namesList: namesList };
 }
 
-function ast_declare(decls){
-	return { type: AST_DECLARE, decls: decls };
-}
-
 function ast_var(lvalues){
 	return { type: AST_VAR, lvalues: lvalues };
 }
 
-function ast_def(names, lvalues, body){
-	return { type: AST_DEF, names: names, lvalues: lvalues, body: body };
+function ast_eval(ex){
+	return { type: AST_EVAL, ex: ex };
 }
 
-function ast_loop(body){
-	return { type: AST_LOOP, body: body };
-}
-
-function ast_for(forVar, names1, names2, ex, body){
-	return { type: AST_FOR, forVar: forVar, names1: names1, names2: names2, ex: ex, body: body };
+function ast_label(names){
+	return { type: AST_LABEL, names: names };
 }
 
 //
@@ -1254,10 +1254,6 @@ function decl_local(names){
 
 function decl_native(names, key){
 	return { type: DECL_NATIVE, names: names, key: key };
-}
-
-function pvar_new(names, ex){
-	return { names: names, ex: ex };
 }
 
 function ets_new(tk, next){ // exprPreStack, exprMidStack
@@ -2106,6 +2102,7 @@ function parser_process(pr){
 				return prr_more();
 			if (!tok_isKS(tk1, KS_RPAREN))
 				return prr_error('Expecting close parenthesis');
+			st.exprTerm = expr_paren(st.exprTerm);
 			st.state = PRS_EXPR_POST;
 			pr.level--;
 			return prr_more();
@@ -2550,7 +2547,6 @@ function compiler_processTokens(cmp, tks, err){
 			err[0] = compiler_makeError(cmp, tk.msg);
 			return false;
 		}
-		console.log('token:', tk);
 		var res = parser_add(cmp.pr, tk);
 		if (res.type == PRR_STATEMENT)
 			console.log(JSON.stringify(res.stmt, null, '  '));
@@ -2618,6 +2614,10 @@ function compiler_addBytes(cmp, bytes, err){
 	return true;
 }
 
+function compiler_level(cmp){
+	return cmp.pr.level;
+}
+
 //
 // JavaScript API
 //
@@ -2640,6 +2640,9 @@ module.exports = {
 				if (compiler_add(cmp, str, err) == false)
 					return err[0];
 				return false;
+			},
+			level: function(){
+				return compiler_level(cmp);
 			}
 		};
 	}
