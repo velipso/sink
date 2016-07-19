@@ -545,29 +545,29 @@ function lex_rev(lx){
 	lx.ch3 = 0;
 }
 
-function lex_process(lx){
+function lex_process(lx, tks){
 	var ch1 = lx.ch1;
 
 	switch (lx.state){
 		case LEX_START:
 			if (ch1 == '#'){
 				lx.state = LEX_COMMENT_LINE;
-				return [tok_newline()];
+				tks.push(tok_newline());
 			}
 			else if (ks_char(ch1) != KS_INVALID){
 				if (ch1 == '}' && lx.str_depth > 0){
 					lx.str_depth--;
 					lx.str = [];
 					lx.state = LEX_STR_INTERP;
-					return [tok_ks(KS_RPAREN), tok_ks(KS_TILDE)];
+					tks.push(tok_ks(KS_RPAREN));
+					tks.push(tok_ks(KS_TILDE));
 				}
-				lx.state = LEX_SPECIAL1;
-				return [];
+				else
+					lx.state = LEX_SPECIAL1;
 			}
 			else if (isIdentStart(ch1)){
 				lx.ident = ch1;
 				lx.state = LEX_IDENT;
-				return [];
 			}
 			else if (isNum(ch1)){
 				lx.num_val = toHex(ch1);
@@ -576,38 +576,36 @@ function lex_process(lx){
 					lx.state = LEX_NUM_0;
 				else
 					lx.state = LEX_NUM;
-				return [];
 			}
 			else if (ch1 == '\''){
 				lx.str = [];
 				lx.state = LEX_STR_BASIC;
-				return [];
 			}
 			else if (ch1 == '"'){
 				lx.str = [];
 				lx.state = LEX_STR_INTERP;
-				return [tok_ks(KS_LPAREN)];
+				tks.push(tok_ks(KS_LPAREN));
 			}
-			else if (ch1 == '\\'){
+			else if (ch1 == '\\')
 				lx.state = LEX_BACKSLASH;
-				return [];
-			}
 			else if (ch1 == '\r'){
 				lx.state = LEX_RETURN;
-				return [tok_newline()];
+				tks.push(tok_newline());
 			}
 			else if (ch1 == '\n' || ch1 == ';')
-				return [tok_newline()];
+				tks.push(tok_newline());
 			else if (isSpace(ch1))
-				return [];
-			return [tok_error('Unexpected character: ' + ch1)];
+				/* do nothing */;
+			else
+				tks.push(tok_error('Unexpected character: ' + ch1));
+			break;
 
 		case LEX_COMMENT_LINE:
 			if (ch1 == '\r')
 				lx.state = LEX_RETURN;
 			else if (ch1 == '\n')
 				lx.state = LEX_START;
-			return [];
+			break;
 
 		case LEX_BACKSLASH:
 			if (ch1 == '#')
@@ -617,110 +615,105 @@ function lex_process(lx){
 			else if (ch1 == '\n')
 				lx.state = LEX_START;
 			else if (!isSpace(ch1))
-				return [tok_error('Invalid character after backslash')];
-			return [];
+				tks.push(tok_error('Invalid character after backslash'));
+			break;
 
-		case LEX_RETURN:
-			if (ch1 == '\n')
-				return [];
-			lx.state = LEX_START;
-			return lex_process(lx);
+		case LEX_RETURN: // TODO: how's this work again..?
+			if (ch1 != '\n'){
+				lx.state = LEX_START;
+				lex_process(lx, tks);
+			}
+			break;
 
 		case LEX_COMMENT_BLOCK:
 			if (lx.ch2 == '*' && ch1 == '/')
 				lx.state = LEX_START;
-			return [];
+			break;
 
-		case LEX_SPECIAL1: {
+		case LEX_SPECIAL1:
 			if (ks_char(ch1) != KS_INVALID){
 				if (lx.ch2 == '/' && ch1 == '*')
 					lx.state = LEX_COMMENT_BLOCK;
 				else
 					lx.state = LEX_SPECIAL2;
-				return [];
 			}
-			var ks1 = ks_char(lx.ch2);
-			if (ks1 != KS_INVALID){
-				var tk = tok_ks(ks1);
-				lx.state = LEX_START;
-				var t = lex_process(lx);
-				t.unshift(tk);
-				return t;
+			else{
+				var ks1 = ks_char(lx.ch2);
+				if (ks1 != KS_INVALID){
+					tks.push(tok_ks(ks1));
+					lx.state = LEX_START;
+					lex_process(lx, tks);
+				}
+				else
+					tks.push(tok_error('Unexpected characters: ' + lx.ch2 + ch1));
 			}
-			return [tok_error('Unexpected characters: ' + lx.ch2 + ch1)];
-		} break;
+			break;
 
 		case LEX_SPECIAL2: {
 			var ks3 = ks_char3(lx.ch3, lx.ch2, ch1);
 			if (ks3 != KS_INVALID){
 				lx.state = LEX_START;
-				return [tok_ks(ks3)];
+				tks.push(tok_ks(ks3));
 			}
-			var ks2 = ks_char2(lx.ch3, lx.ch2);
-			if (ks2 != KS_INVALID){
-				var tk = tok_ks(ks2);
-				lx.state = LEX_START;
-				var t = lex_process(lx);
-				t.unshift(tk);
-				return t;
+			else{
+				var ks2 = ks_char2(lx.ch3, lx.ch2);
+				if (ks2 != KS_INVALID){
+					tks.push(tok_ks(ks2));
+					lx.state = LEX_START;
+					lex_process(lx, tks);
+				}
+				else{
+					var ks1 = ks_char(lx.ch3);
+					if (ks1 != KS_INVALID){
+						tks.push(tok_ks(ks1));
+						lx.state = LEX_START;
+						lex_rev(lx);
+						lex_process(lx, tks);
+						lex_fwd(lx, lx.chR);
+						lex_process(lx, tks);
+					}
+					else
+						tks.push(tok_error('Unexpected characters: ' + lx.ch3 + lx.ch2 + ch1));
+				}
 			}
-			var ks1 = ks_char(lx.ch3);
-			if (ks1 != KS_INVALID){
-				var tk = tok_ks(ks1);
-				lx.state = LEX_START;
-				lex_rev(lx);
-				var t1 = lex_process(lx);
-				lex_fwd(lx, lx.chR);
-				var t2 = lex_process(lx);
-				t1.unshift(tk);
-				return t1.concat(t2);
-			}
-			return [tok_error('Unexpected characters: ' + lx.ch3 + lx.ch2 + ch1)];
 		} break;
 
 		case LEX_IDENT:
 			if (!isIdentBody(ch1)){
-				var tk;
 				var ksk = ks_str(lx.ident);
 				if (ksk != KS_INVALID)
-					tk = tok_ks(ksk);
+					tks.push(tok_ks(ksk));
 				else
-					tk = tok_ident(lx.ident);
+					tks.push(tok_ident(lx.ident));
 				lx.state = LEX_START;
-				var t = lex_process(lx);
-				t.unshift(tk);
-				return t;
+				lex_process(lx, tks);
 			}
-			lx.ident += ch1;
-			if (lx.ident.length > 1024)
-				return [tok_error('Identifier too long')];
-			return [];
+			else{
+				lx.ident += ch1;
+				if (lx.ident.length > 1024)
+					tks.push(tok_error('Identifier too long'));
+			}
+			break;
 
 		case LEX_NUM_0:
 			if (ch1 == 'b'){
 				lx.num_base = 2;
 				lx.state = LEX_NUM_2;
-				return [];
 			}
 			else if (ch1 == 'c'){
 				lx.num_base = 8;
 				lx.state = LEX_NUM_2;
-				return [];
 			}
 			else if (ch1 == 'x'){
 				lx.num_base = 16;
 				lx.state = LEX_NUM_2;
-				return [];
 			}
-			else if (ch1 == '_'){
+			else if (ch1 == '_')
 				lx.state = LEX_NUM;
-				return [];
-			}
 			else if (ch1 == '.'){
 				lx.num_frac = 0;
 				lx.num_flen = 0;
 				lx.state = LEX_NUM_FRAC;
-				return [];
 			}
 			else if (ch1 == 'e' || ch1 == 'E'){
 				lx.num_frac = 0;
@@ -729,28 +722,30 @@ function lex_process(lx){
 				lx.num_eval = 0;
 				lx.num_elen = 0;
 				lx.state = LEX_NUM_EXP;
-				return [];
 			}
-			return [tok_error('Invalid number')];
+			else
+				tks.push(tok_error('Invalid number'));
+			break;
 
 		case LEX_NUM_2:
 			if (isHex(ch1)){
 				lx.num_val = toHex(ch1);
 				if (lx.num_val > lx.num_base)
-					return [tok_error('Invalid number')];
-				lx.state = LEX_NUM;
-				return [];
+					tks.push(tok_error('Invalid number'));
+				else
+					lx.state = LEX_NUM;
 			}
-			return [tok_error('Invalid number')];
+			else
+				tks.push(tok_error('Invalid number'));
+			break;
 
 		case LEX_NUM:
 			if (ch1 == '_')
-				return [];
+				/* do nothing */;
 			else if (ch1 == '.'){
 				lx.num_frac = 0;
 				lx.num_flen = 0;
 				lx.state = LEX_NUM_FRAC;
-				return [];
 			}
 			else if ((lx.num_base == 10 && (ch1 == 'e' || ch1 == 'E')) ||
 				(lx.num_base != 10 && (ch1 == 'p' || ch1 == 'P'))){
@@ -760,216 +755,219 @@ function lex_process(lx){
 				lx.num_eval = 0;
 				lx.num_elen = 0;
 				lx.state = LEX_NUM_EXP;
-				return [];
 			}
 			else if (isHex(ch1)){
 				var v = toHex(ch1);
 				if (v > lx.num_base)
-					return [tok_error('Invalid number')];
-				lx.num_val = lx.num_val * lx.num_base + v;
-				return [];
+					tks.push(tok_error('Invalid number'));
+				else
+					lx.num_val = lx.num_val * lx.num_base + v;
 			}
 			else if (!isIdentStart(ch1)){
-				var tk = tok_num(lx.num_val);
+				tks.push(tok_num(lx.num_val));
 				lx.state = LEX_START;
-				var t = lex_process(lx);
-				t.unshift(tk);
-				return t;
+				lex_process(lx, tks);
 			}
-			return [tok_error('Invalid number')];
+			else
+				tks.push(tok_error('Invalid number'));
+			break;
 
 		case LEX_NUM_FRAC:
 			if (ch1 == '_')
-				return [];
+				/* do nothing */;
 			else if ((lx.num_base == 10 && (ch1 == 'e' || ch1 == 'E')) ||
 				(lx.num_base != 10 && (ch1 == 'p' || ch1 == 'P'))){
 				lx.num_esign = 0;
 				lx.num_eval = 0;
 				lx.num_elen = 0;
 				lx.state = LEX_NUM_EXP;
-				return [];
 			}
 			else if (isHex(ch1)){
 				var v = toHex(ch1);
 				if (v > lx.num_base)
-					return [tok_error('Invalid number')];
-				lx.num_frac = lx.num_frac * lx.num_base + v;
-				lx.num_flen++;
-				return [];
+					tks.push(tok_error('Invalid number'));
+				else{
+					lx.num_frac = lx.num_frac * lx.num_base + v;
+					lx.num_flen++;
+				}
 			}
 			else if (!isIdentStart(ch1)){
 				if (lx.num_flen <= 0)
-					return [tok_error('Invalid number')];
-				var d = Math.pow(lx.num_base, lx.num_flen);
-				lx.num_val = (lx.num_val * d + lx.num_frac) / d;
-				var tk = tok_num(lx.num_val);
-				lx.state = LEX_START;
-				var t = lex_process(lx);
-				t.unshift(tk);
-				return t;
+					tks.push(tok_error('Invalid number'));
+				else{
+					var d = Math.pow(lx.num_base, lx.num_flen);
+					lx.num_val = (lx.num_val * d + lx.num_frac) / d;
+					tks.push(tok_num(lx.num_val));
+					lx.state = LEX_START;
+					lex_process(lx, tks);
+				}
 			}
-			return [tok_error('Invalid number')];
+			else
+				tks.push(tok_error('Invalid number'));
+			break;
 
 		case LEX_NUM_EXP:
-			if (ch1 == '_')
-				return [];
-			lx.num_esign = ch1 == '-' ? -1 : 1;
-			lx.state = LEX_NUM_EXP_BODY;
-			if (ch1 == '+' || ch1 == '-')
-				return [];
-			return lex_process(lx);
+			if (ch1 != '_'){
+				lx.num_esign = ch1 == '-' ? -1 : 1;
+				lx.state = LEX_NUM_EXP_BODY;
+				if (ch1 != '+' && ch1 != '-')
+					lex_process(lx, tks);
+			}
+			break;
 
 		case LEX_NUM_EXP_BODY:
 			if (ch1 == '_')
-				return [];
+				/* do nothing */;
 			else if (isNum(ch1)){
 				lx.num_eval = lx.num_eval * 10 + toHex(ch1);
 				lx.num_elen++;
-				return [];
 			}
 			else if (!isIdentStart(ch1)){
 				if (lx.num_elen <= 0)
-					return [tok_error('Invalid number')];
-				var e = Math.pow(lx.num_base == 10 ? 10 : 2, lx.num_esign * lx.num_eval);
-				lx.num_val *= e;
-				if (lx.num_flen > 0){
-					var d = Math.pow(lx.num_base, lx.num_flen);
-					lx.num_val = (lx.num_val * d + lx.num_frac * e) / d;
+					tks.push(tok_error('Invalid number'));
+				else{
+					var e = Math.pow(lx.num_base == 10 ? 10 : 2, lx.num_esign * lx.num_eval);
+					lx.num_val *= e;
+					if (lx.num_flen > 0){
+						var d = Math.pow(lx.num_base, lx.num_flen);
+						lx.num_val = (lx.num_val * d + lx.num_frac * e) / d;
+					}
+					tks.push(tok_num(lx.num_val));
+					lx.state = LEX_START;
+					lex_process(lx, tks);
 				}
-				var tk = tok_num(lx.num_val);
-				lx.state = LEX_START;
-				var t = lex_process(lx);
-				t.unshift(tk);
-				return t;
 			}
-			return [tok_error('Invalid number')];
+			else
+				tks.push(tok_error('Invalid number'));
+			break;
 
 		case LEX_STR_BASIC:
 			if (ch1 == '\r' || ch1 == '\n')
-				return [tok_error('Missing end of string')];
+				tks.push(tok_error('Missing end of string'));
 			else if (ch1 == '\''){
 				lx.state = LEX_START;
-				return [tok_ks(KS_LPAREN), tok_str(lx.str), tok_ks(KS_RPAREN)];
+				tks.push(tok_ks(KS_LPAREN));
+				tks.push(tok_str(lx.str));
+				tks.push(tok_ks(KS_RPAREN));
 			}
-			else if (ch1 == '\\'){
+			else if (ch1 == '\\')
 				lx.state = LEX_STR_BASIC_ESC;
-				return [];
-			}
-			lx.str.push(ch1.charCodeAt(0));
-			return [];
+			else
+				lx.str.push(ch1.charCodeAt(0));
+			break;
 
 		case LEX_STR_BASIC_ESC:
 			if (ch1 == '\\' || ch1 == '\''){
 				lx.str.push(ch1.charCodeAt(0));
 				lx.state = LEX_STR_BASIC;
-				return [];
 			}
-			return [tok_error('Invalid escape sequence: \\' + ch1)];
+			else
+				tks.push(tok_error('Invalid escape sequence: \\' + ch1));
+			break;
 
 		case LEX_STR_INTERP:
 			if (ch1 == '\r' || ch1 == '\n')
-				return [tok_error('Missing end of string')];
+				tks.push(tok_error('Missing end of string'));
 			else if (ch1 == '"'){
 				lx.state = LEX_START;
-				return [tok_str(lx.str), tok_ks(KS_RPAREN)];
+				tks.push(tok_str(lx.str));
+				tks.push(tok_ks(KS_RPAREN));
 			}
 			else if (ch1 == '$'){
 				lx.state = LEX_STR_INTERP_DLR;
-				if (lx.str.length <= 0)
-					return [];
-				return [tok_str(lx.str), tok_ks(KS_TILDE)];
+				if (lx.str.length > 0){
+					tks.push(tok_str(lx.str));
+					tks.push(tok_ks(KS_TILDE));
+				}
 			}
-			else if (ch1 == '\\'){
+			else if (ch1 == '\\')
 				lx.state = LEX_STR_INTERP_ESC;
-				return [];
-			}
-			lx.str.push(ch1.charCodeAt(0));
-			return [];
+			else
+				lx.str.push(ch1.charCodeAt(0));
+			break;
 
 		case LEX_STR_INTERP_DLR:
 			if (ch1 == '{'){
 				lx.str_depth++;
 				lx.state = LEX_START;
-				return [tok_ks(KS_LPAREN)];
+				tks.push(tok_ks(KS_LPAREN));
 			}
 			else if (isIdentStart(ch1)){
 				lx.ident = ch1;
 				lx.state = LEX_STR_INTERP_DLR_ID;
-				return [];
 			}
-			return [tok_error('Invalid substitution')];
+			else
+				tks.push(tok_error('Invalid substitution'));
+			break;
 
 		case LEX_STR_INTERP_DLR_ID:
 			if (!isIdentBody(ch1)){
 				if (ks_str(lx.ident) != KS_INVALID)
-					return [tok_error('Invalid substitution')];
-				var tk = tok_ident(lx.ident);
-				if (ch1 == '"'){
-					lx.state = LEX_START;
-					return [tk, tok_ks(KS_RPAREN)];
+					tks.push(tok_error('Invalid substitution'));
+				else{
+					tks.push(tok_ident(lx.ident));
+					if (ch1 == '"'){
+						lx.state = LEX_START;
+						tks.push(tok_ks(KS_RPAREN));
+					}
+					else{
+						lx.str = [];
+						lx.state = LEX_STR_INTERP;
+						tks.push(tok_ks(KS_TILDE));
+						lex_process(lx, tks);
+					}
 				}
-				lx.str = [];
-				lx.state = LEX_STR_INTERP;
-				var t = lex_process(lx);
-				t.unshift(tok_ks(KS_TILDE));
-				t.unshift(tk);
-				return t;
 			}
-			lx.ident += ch1;
-			if (lx.ident.length > 1024)
-				return [tok_error('Identifier too long')];
-			return [];
+			else{
+				lx.ident += ch1;
+				if (lx.ident.length > 1024)
+					tks.push(tok_error('Identifier too long'));
+			}
+			break;
 
 		case LEX_STR_INTERP_ESC:
 			if (ch1 == '\r' || ch1 == '\n')
-				return [tok_error('Missing end of string')];
+				tks.push(tok_error('Missing end of string'));
 			else if (ch1 == 'x'){
 				lx.str_hexval = 0;
 				lx.str_hexleft = 2;
 				lx.state = LEX_STR_INTERP_ESC_HEX;
-				return [];
 			}
 			else if (ch1 == '0'){
 				lx.str.push(0);
 				lx.state = LEX_STR_INTERP;
-				return [];
 			}
 			else if (ch1 == 'b'){
 				lx.str.push(8);
 				lx.state = LEX_STR_INTERP;
-				return [];
 			}
 			else if (ch1 == 't'){
 				lx.str.push(9);
 				lx.state = LEX_STR_INTERP;
-				return [];
 			}
 			else if (ch1 == 'n'){
 				lx.str.push(10);
 				lx.state = LEX_STR_INTERP;
-				return [];
 			}
 			else if (ch1 == 'v'){
 				lx.str.push(11);
 				lx.state = LEX_STR_INTERP;
-				return [];
 			}
 			else if (ch1 == 'f'){
 				lx.str.push(12);
 				lx.state = LEX_STR_INTERP;
-				return [];
 			}
 			else if (ch1 == 'r'){
 				lx.str.push(13);
 				lx.state = LEX_STR_INTERP;
-				return [];
 			}
 			else if (ch1 == '\\' || ch1 == '\'' || ch1 == '"' || ch1 == '$'){
 				lx.str.push(ch1.charCodeAt(0));
 				lx.state = LEX_STR_INTERP;
-				return [];
 			}
-			return [tok_error('Invalid escape sequence: \\' + ch1)];
+			else
+				tks.push(tok_error('Invalid escape sequence: \\' + ch1));
+			break;
 
 		case LEX_STR_INTERP_ESC_HEX:
 			if (isHex(ch1)){
@@ -979,90 +977,108 @@ function lex_process(lx){
 					lx.str.push(lx.str_hexval);
 					lx.state = LEX_STR_INTERP;
 				}
-				return [];
 			}
-			return [tok_error('Invalid escape sequence; expecting hex value')];
+			else
+				tks.push(tok_error('Invalid escape sequence; expecting hex value'));
+			break;
 	}
 }
 
-function lex_add(lx, ch){
+function lex_add(lx, ch, tks){
 	lex_fwd(lx, ch);
-	return lex_process(lx);
+	return lex_process(lx, tks);
 }
 
-function lex_close(lx){
-	if (lx.str_depth > 0)
-		return [tok_error('Missing end of string')];
+function lex_close(lx, tks){
+	if (lx.str_depth > 0){
+		tks.push(tok_error('Missing end of string'));
+		return;
+	}
 	switch (lx.state){
 		case LEX_START:
 		case LEX_COMMENT_LINE:
 		case LEX_BACKSLASH:
 		case LEX_RETURN:
-			return [tok_newline()];
+			break;
 
 		case LEX_COMMENT_BLOCK:
-			return [tok_error('Missing end of block comment')];
+			tks.push(tok_error('Missing end of block comment'));
+			return;
 
 		case LEX_SPECIAL1: {
 			var ks1 = ks_char(lx.ch1);
 			if (ks1 != KS_INVALID)
-				return [tok_ks(ks1), tok_newline()];
-			return [tok_error('Unexpected character: ' + lx.ch1)];
+				tks.push(tok_ks(ks1));
+			else
+				tks.push(tok_error('Unexpected character: ' + lx.ch1));
 		} break;
 
 		case LEX_SPECIAL2: {
 			var ks2 = ks_char2(lx.ch2, lx.ch1);
 			if (ks2 != KS_INVALID)
-				return [tok_ks(ks2), tok_newline()];
-			var ks1 = ks_char(lx.ch2);
-			ks2 = ks_char(lx.ch1);
-			if (ks1 != KS_INVALID){
-				var tk = tok_ks(ks1);
-				if (ks2 != KS_INVALID)
-					return [tk, tok_ks(ks2), tok_newline()];
-				return [tk, tok_error('Unexpected character: ' + lx.ch1)];
+				tks.push(tok_ks(ks2))
+			else{
+				var ks1 = ks_char(lx.ch2);
+				ks2 = ks_char(lx.ch1);
+				if (ks1 != KS_INVALID){
+					tks.push(tok_ks(ks1));
+					if (ks2 != KS_INVALID)
+						tks.push(tok_ks(ks2));
+					else
+						tks.push(tok_error('Unexpected character: ' + lx.ch1));
+				}
+				else
+					tks.push(tok_error('Unexpected character: ' + lx.ch2));
 			}
-			return [tok_error('Unexpected character: ' + lx.ch2)];
 		} break;
 
 		case LEX_IDENT: {
 			var ksk = ks_str(lx.ident);
 			if (ksk != KS_INVALID)
-				return [tok_ks(ksk), tok_newline()];
-			return [tok_ident(lx.ident), tok_newline()];
+				tks.push(tok_ks(ksk));
+			else
+				tks.push(tok_ident(lx.ident));
 		} break;
 
 		case LEX_NUM_0:
-			return [tok_num(0), tok_newline()];
+			tks.push(tok_num(0));
+			break;
 
 		case LEX_NUM_2:
-			return [tok_error('Invalid number')];
+			tks.push(tok_error('Invalid number'));
+			break;
 
 		case LEX_NUM:
-			return [tok_num(lx.num_val), tok_newline()];
+			tks.push(tok_num(lx.num_val));
+			break;
 
-		case LEX_NUM_FRAC: {
+		case LEX_NUM_FRAC:
 			if (lx.num_flen <= 0)
-				return [tok_error('Invalid number')];
-			var d = Math.pow(lx.num_base, lx.num_flen);
-			lx.num_val = (lx.num_val * d + lx.num_frac) / d;
-			return [tok_num(lx.num_val), tok_newline()];
-		} break;
+				tks.push(tok_error('Invalid number'));
+			else{
+				var d = Math.pow(lx.num_base, lx.num_flen);
+				lx.num_val = (lx.num_val * d + lx.num_frac) / d;
+				tks.push(tok_num(lx.num_val));
+			}
+			break;
 
 		case LEX_NUM_EXP:
-			return [tok_error('Invalid number')];
+			tks.push(tok_error('Invalid number'));
+			break;
 
-		case LEX_NUM_EXP_BODY: {
+		case LEX_NUM_EXP_BODY:
 			if (lx.num_elen <= 0)
-				return [tok_error('Invalid number')];
-			var e = Math.pow(lx.num_base == 10 ? 10 : 2, lx.num_esign * lx.num_eval);
-			lx.num_val *= e;
-			if (lx.num_flen > 0){
-				var d = Math.pow(lx.num_base, lx.num_flen);
-				lx.num_val = (lx.num_val * d + lx.num_frac * e) / d;
+				tks.push(tok_error('Invalid number'));
+			else{
+				var e = Math.pow(lx.num_base == 10 ? 10 : 2, lx.num_esign * lx.num_eval);
+				lx.num_val *= e;
+				if (lx.num_flen > 0){
+					var d = Math.pow(lx.num_base, lx.num_flen);
+					lx.num_val = (lx.num_val * d + lx.num_frac * e) / d;
+				}
+				tks.push(tok_num(lx.num_val));
 			}
-			return [tok_num(lx.num_val), tok_newline()];
-		} break;
+			break;
 
 		case LEX_STR_BASIC:
 		case LEX_STR_BASIC_ESC:
@@ -1071,8 +1087,10 @@ function lex_close(lx){
 		case LEX_STR_INTERP_DLR_ID:
 		case LEX_STR_INTERP_ESC:
 		case LEX_STR_INTERP_ESC_HEX:
-			return [tok_error('Missing end of string')];
+			tks.push(tok_error('Missing end of string'));
+			break;
 	}
+	tks.push(tok_newline());
 }
 
 //
@@ -1324,6 +1342,7 @@ var PRS_FOR_VARS                      = 'PRS_FOR_VARS';
 var PRS_FOR_VARS_LOOKUP               = 'PRS_FOR_VARS_LOOKUP';
 var PRS_FOR_VARS2                     = 'PRS_FOR_VARS2';
 var PRS_FOR_VARS2_LOOKUP              = 'PRS_FOR_VARS2_LOOKUP';
+var PRS_FOR_VARS_DONE                 = 'PRS_FOR_VARS_DONE';
 var PRS_FOR_EXPR                      = 'PRS_FOR_EXPR';
 var PRS_FOR_BODY                      = 'PRS_FOR_BODY';
 var PRS_FOR_DONE                      = 'PRS_FOR_DONE';
@@ -1521,10 +1540,8 @@ function parser_process(pr){
 				pr.state.names = [tk1.ident];
 				return prr_more();
 			}
-			else if (tok_isPre(tk1) || tok_isTerm(tk1)){
-				st.state = PRS_EVAL;
-				return parser_process(pr);
-			}
+			else if (tok_isPre(tk1) || tok_isTerm(tk1))
+				return parser_start(pr, PRS_EVAL);
 			else if (tok_isKS(tk1, KS_END) || tok_isKS(tk1, KS_ELSE) || tok_isKS(tk1, KS_ELSEIF) ||
 				tok_isKS(tk1, KS_WHILE)){
 				// stmt is already null, so don't touch it, so we return null
@@ -1889,9 +1906,15 @@ function parser_process(pr){
 		case PRS_FOR_VARS2_LOOKUP:
 			if (!tok_isKS(tk1, KS_COLON))
 				return prr_error('Expecting `:`');
+			st.state = PRS_FOR_VARS_DONE;
+			return prr_more();
+
+		case PRS_FOR_VARS_DONE:
+			if (tk1.type == TOK_NEWLINE)
+				return prr_error('Expecting expression in for statement');
 			st.state = PRS_FOR_EXPR;
 			parser_push(pr, PRS_EXPR);
-			return prr_more();
+			return parser_process(pr);
 
 		case PRS_FOR_EXPR:
 			if (tk1.type != TOK_NEWLINE)
@@ -2068,6 +2091,7 @@ function parser_process(pr){
 				pr.state = st.next;
 				return parser_statement(pr, ast_label(st.names));
 			}
+			pr.level++;
 			st.state = PRS_EVAL_EXPR;
 			parser_push(pr, PRS_EXPR_POST);
 			pr.state.exprTerm = expr_names(st.names);
@@ -2079,7 +2103,6 @@ function parser_process(pr){
 			return parser_process(pr);
 
 		case PRS_EVAL_EXPR:
-			pr.level++;
 			return parser_statement(pr, ast_eval(st.exprTerm));
 
 		case PRS_EXPR:
@@ -2091,7 +2114,9 @@ function parser_process(pr){
 			return parser_process(pr);
 
 		case PRS_EXPR_TERM:
-			if (tk1.type == TOK_NUM){
+			if (tk1.type == TOK_NEWLINE)
+				return prr_more();
+			else if (tk1.type == TOK_NUM){
 				st.state = PRS_EXPR_POST;
 				st.exprTerm = expr_num(tk1.num);
 				return prr_more();
@@ -2320,7 +2345,6 @@ function parser_process(pr){
 					st.exprPreStack = st.exprPreStackStack.ets;
 					st.exprPreStackStack = st.exprPreStackStack.next;
 					st.exprMidStack = st.exprMidStack.next;
-					pr.level--;
 				}
 				else // otherwise, the current Mid wins
 					break;
@@ -2333,7 +2357,6 @@ function parser_process(pr){
 			st.exprStack = exs_new(st.exprTerm, st.exprStack);
 			st.exprMidStack = ets_new(tk1, st.exprMidStack);
 			st.state = PRS_EXPR;
-			pr.level++;
 			return prr_more();
 
 		case PRS_EXPR_FINISH:
@@ -2359,7 +2382,6 @@ function parser_process(pr){
 				st.exprPreStack = st.exprPreStackStack.ets;
 				st.exprPreStackStack = st.exprPreStackStack.next;
 				st.exprMidStack = st.exprMidStack.next;
-				pr.level--;
 			}
 			// everything has been applied, and exprTerm has been set!
 			st.next.exprTerm = st.exprTerm;
@@ -2635,7 +2657,8 @@ function compiler_pushFile(cmp, file){
 }
 
 function compiler_popFile(cmp, err){
-	var tks = lex_close(cmp.lx);
+	var tks = [];
+	lex_close(cmp.lx, tks);
 	var res = compiler_processTokens(cmp, tks, err);
 	cmp.file = cmp.file.next;
 	return res;
@@ -2646,6 +2669,7 @@ function compiler_add(cmp, str, err){
 }
 
 function compiler_addBytes(cmp, bytes, err){
+	var tks = [];
 	for (var i = 0; i < bytes.length; i++){
 		var line = cmp.file.line;
 		var chr = cmp.file.chr;
@@ -2670,12 +2694,9 @@ function compiler_addBytes(cmp, bytes, err){
 			cmp.file.lastret = false;
 		}
 
-		var tks = lex_add(cmp.file.lx, ch);
-		var res = compiler_processTokens(cmp, tks, err);
-		if (!res)
-			return false;
+		lex_add(cmp.file.lx, ch, tks);
 	}
-	return true;
+	return compiler_processTokens(cmp, tks, err);
 }
 
 function compiler_level(cmp){
