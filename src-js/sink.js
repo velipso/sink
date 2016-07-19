@@ -1166,6 +1166,7 @@ var AST_FOR       = 'AST_FOR';
 var AST_LOOP      = 'AST_LOOP';
 var AST_GOTO      = 'AST_GOTO';
 var AST_IF        = 'AST_IF';
+var AST_INCLUDE   = 'AST_INCLUDE';
 var AST_NAMESPACE = 'AST_NAMESPACE';
 var AST_RETURN    = 'AST_RETURN';
 var AST_USING     = 'AST_USING';
@@ -1211,6 +1212,10 @@ function ast_goto(names){
 
 function ast_if(conds, elseBody){
 	return { type: AST_IF, conds: conds, elseBody: elseBody };
+}
+
+function ast_include(file){
+	return { type: AST_INCLUDE, file: file };
 }
 
 function ast_namespace(names, body){
@@ -1328,6 +1333,10 @@ var PRS_IF_BODY                       = 'PRS_IF_BODY';
 var PRS_IF_DONE                       = 'PRS_IF_DONE';
 var PRS_ELSE_BODY                     = 'PRS_ELSE_BODY';
 var PRS_ELSE_DONE                     = 'PRS_ELSE_DONE';
+var PRS_INCLUDE                       = 'PRS_INCLUDE';
+var PRS_INCLUDE_STR                   = 'PRS_INCLUDE_STR';
+var PRS_INCLUDE_STR2                  = 'PRS_INCLUDE_STR2';
+var PRS_INCLUDE_DONE                  = 'PRS_INCLUDE_DONE';
 var PRS_NAMESPACE                     = 'PRS_NAMESPACE';
 var PRS_NAMESPACE_LOOKUP              = 'PRS_NAMESPACE_LOOKUP';
 var PRS_NAMESPACE_BODY                = 'PRS_NAMESPACE_BODY';
@@ -1372,6 +1381,7 @@ function prs_new(state, next){
 		lvalues: null,              // list of expr
 		lvaluesPeriods: false,
 		forVar: false,
+		str: null,
 		exprAllowComma: true,
 		exprAllowTrailComma: false,
 		exprPreStackStack: null,    // linked list of eps_new's
@@ -1477,6 +1487,7 @@ function parser_process(pr){
 			else if (tok_isKS(tk1, KS_FOR      )) return parser_start(pr, PRS_FOR      );
 			else if (tok_isKS(tk1, KS_GOTO     )) return parser_start(pr, PRS_GOTO     );
 			else if (tok_isKS(tk1, KS_IF       )) return parser_start(pr, PRS_IF       );
+			else if (tok_isKS(tk1, KS_INCLUDE  )) return parser_start(pr, PRS_INCLUDE  );
 			else if (tok_isKS(tk1, KS_NAMESPACE)) return parser_start(pr, PRS_NAMESPACE);
 			else if (tok_isKS(tk1, KS_RETURN   )) return parser_start(pr, PRS_RETURN   );
 			else if (tok_isKS(tk1, KS_USING    )) return parser_start(pr, PRS_USING    );
@@ -1934,6 +1945,28 @@ function parser_process(pr){
 
 		case PRS_ELSE_DONE:
 			return parser_statement(pr, ast_if(st.conds, st.body));
+
+		case PRS_INCLUDE:
+			if (!tok_isKS(tk1, KS_LPAREN))
+				return prr_error('Expecting file as constant string literal');
+			st.state = PRS_INCLUDE_STR;
+			return prr_more();
+
+		case PRS_INCLUDE_STR:
+			if (tk1.type != TOK_STR)
+				return prr_error('Expecting file as constant string literal');
+			st.str = tk1.str;
+			st.state = PRS_INCLUDE_STR2;
+			return prr_more();
+
+		case PRS_INCLUDE_STR2:
+			if (!tok_isKS(tk1, KS_RPAREN))
+				return prr_error('Expecting file as constant string literal');
+			st.state = PRS_INCLUDE_DONE;
+			return prr_more();
+
+		case PRS_INCLUDE_DONE:
+			return parser_statement(pr, ast_include(st.str));
 
 		case PRS_NAMESPACE:
 			if (tk1.type != TOK_IDENT)
