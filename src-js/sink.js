@@ -925,7 +925,7 @@ function lex_process(lx){
 				return [tok_error('Missing end of string')];
 			else if (ch1 == '\''){
 				lx.state = LEX_START;
-				return [tok_str(lx.str)];
+				return [tok_ks(KS_LPAREN), tok_str(lx.str), tok_ks(KS_RPAREN)];
 			}
 			else if (ch1 == '\\'){
 				lx.state = LEX_STR_BASIC_ESC;
@@ -1164,6 +1164,9 @@ var AST_DO_END    = 'AST_DO_END';
 var AST_DO_WHILE  = 'AST_DO_WHILE';
 var AST_NAMESPACE = 'AST_NAMESPACE';
 var AST_IF        = 'AST_IF';
+var AST_RETURN    = 'AST_RETURN';
+var AST_USING     = 'AST_USING';
+var AST_DECLARE   = 'AST_DECLARE';
 
 function ast_break(){
 	return { type: AST_BREAK };
@@ -1201,12 +1204,35 @@ function ast_if(conds, elseBody){
 	return { type: AST_IF, conds: conds, elseBody: elseBody };
 }
 
+function ast_return(ex){
+	return { type: AST_RETURN, ex: ex };
+}
+
+function ast_using(namesList){
+	return { type: AST_USING, namesList: namesList };
+}
+
+function ast_declare(decls){
+	return { type: AST_DECLARE, decls: decls };
+}
+
 //
 // parser state helpers
 //
 
 function cond_new(ex, body){ // conds
 	return { ex: ex, body: body };
+}
+
+var DECL_LOCAL  = 'DECL_LOCAL';
+var DECL_NATIVE = 'DECL_NATIVE';
+
+function decl_local(names){
+	return { type: DECL_LOCAL, names: names };
+}
+
+function decl_native(names, key){
+	return { type: DECL_NATIVE, names: names, key: key };
 }
 
 function ets_new(tk, next){ // exprPreStack, exprMidStack
@@ -1235,6 +1261,11 @@ var PRS_BODY_STATEMENT              = 'PRS_BODY_STATEMENT';
 var PRS_BREAK                       = 'PRS_BREAK';
 var PRS_CONTINUE                    = 'PRS_CONTINUE';
 var PRS_DECLARE                     = 'PRS_DECLARE';
+var PRS_DECLARE2                    = 'PRS_DECLARE2';
+var PRS_DECLARE_LOOKUP              = 'PRS_DECLARE_LOOKUP';
+var PRS_DECLARE_STR                 = 'PRS_DECLARE_STR';
+var PRS_DECLARE_STR2                = 'PRS_DECLARE_STR2';
+var PRS_DECLARE_STR3                = 'PRS_DECLARE_STR3';
 var PRS_DEF                         = 'PRS_DEF';
 var PRS_DO                          = 'PRS_DO';
 var PRS_DO_BODY                     = 'PRS_DO_BODY';
@@ -1256,7 +1287,10 @@ var PRS_NAMESPACE_LOOKUP            = 'PRS_NAMESPACE_LOOKUP';
 var PRS_NAMESPACE_BODY              = 'PRS_NAMESPACE_BODY';
 var PRS_NAMESPACE_DONE              = 'PRS_NAMESPACE_DONE';
 var PRS_RETURN                      = 'PRS_RETURN';
+var PRS_RETURN_DONE                 = 'PRS_RETURN_DONE';
 var PRS_USING                       = 'PRS_USING';
+var PRS_USING2                      = 'PRS_USING2';
+var PRS_USING_LOOKUP                = 'PRS_USING_LOOKUP';
 var PRS_VAR                         = 'PRS_VAR';
 var PRS_IDENTS                      = 'PRS_IDENTS';
 var PRS_EVAL                        = 'PRS_EVAL';
@@ -1287,6 +1321,7 @@ function prs_new(state, next){
 		body: null,              // list of ast_*'s
 		body2: null,             // list of ast_*'s
 		conds: null,             // list of cond_new's
+		decls: null,             // list of decl_*'s
 		exprComma: false,
 		exprPreStackStack: null, // linked list of eps_new's
 		exprPreStack: null,      // linked list of ets_new's
@@ -1296,6 +1331,7 @@ function prs_new(state, next){
 		exprTerm2: null,         // expr
 		exprTerm3: null,         // expr
 		names: null,             // list of strings
+		namesList: null,         // list of list of strings
 		next: next
 	};
 }
@@ -1451,7 +1487,54 @@ function parser_process(pr){
 			return parser_statement(pr, ast_continue());
 
 		case PRS_DECLARE:
-			throw 'TODO: declare';
+			if (tk1.type == TOK_NEWLINE)
+				return prr_error('Expecting identifier');
+			st.decls = [];
+			st.state = PRS_DECLARE2;
+			return parser_process(pr);
+
+		case PRS_DECLARE2:
+			if (tk1.type == TOK_NEWLINE)
+				return prr_more();
+			if (tk1.type != TOK_IDENT)
+				return prr_error('Expecting identifier');
+			st.state = PRS_DECLARE_LOOKUP;
+			parser_push(pr, PRS_LOOKUP);
+			pr.state.names = [tk1.ident];
+			return prr_more();
+
+		case PRS_DECLARE_LOOKUP:
+			if (tok_isKS(tk1, KS_LPAREN)){
+				st.state = PRS_DECLARE_STR;
+				return prr_more();
+			}
+			else if (tok_isKS(tk1, KS_COMMA)){
+				st.decls.push(decl_local(st.names));
+				st.state = PRS_DECLARE2;
+				return prr_more();
+			}
+			st.decls.push(decl_local(st.names));
+			return parser_statement(pr, ast_declare(st.decls));
+
+		case PRS_DECLARE_STR:
+			if (tk1.type != TOK_STR)
+				return prr_error('Expecting string constant');
+			st.decls.push(decl_native(st.names, tk1.str));
+			st.state = PRS_DECLARE_STR2;
+			return prr_more();
+
+		case PRS_DECLARE_STR2:
+			if (!tok_isKS(tk1, KS_RPAREN))
+				return prr_error('Expecting string constant');
+			st.state = PRS_DECLARE_STR3;
+			return prr_more();
+
+		case PRS_DECLARE_STR3:
+			if (tok_isKS(tk1, KS_COMMA)){
+				st.state = PRS_DECLARE2;
+				return prr_more();
+			}
+			return parser_statement(pr, ast_declare(st.decls));
 
 		case PRS_DEF:
 			throw 'TODO: def';
@@ -1583,10 +1666,40 @@ function parser_process(pr){
 			return parser_statement(pr, ast_namespace(st.names, st.body));
 
 		case PRS_RETURN:
-			throw 'TODO: return';
+			if (tk1.type == TOK_NEWLINE)
+				return parser_statement(pr, ast_return(expr_nil()));
+			st.state = PRS_RETURN_DONE;
+			parser_push(pr, PRS_EXPR);
+			return parser_process(pr);
+
+		case PRS_RETURN_DONE:
+			return parser_statement(pr, ast_return(st.exprTerm));
 
 		case PRS_USING:
-			throw 'TODO: using';
+			if (tk1.type == TOK_NEWLINE)
+				return prr_error('Expecting identifier');
+			st.namesList = [];
+			st.state = PRS_USING2;
+			return parser_process(pr);
+
+		case PRS_USING2:
+			if (tk1.type == TOK_NEWLINE)
+				return prr_more();
+			if (tk1.type != TOK_IDENT)
+				return prr_error('Expecting identifier');
+			st.state = PRS_USING_LOOKUP;
+			parser_push(pr, PRS_LOOKUP);
+			pr.state.names = [tk1.ident];
+			return prr_more();
+
+		case PRS_USING_LOOKUP:
+			st.namesList.push(st.names);
+			st.names = null;
+			if (tok_isKS(tk1, KS_COMMA)){
+				st.state = PRS_USING2;
+				return prr_more();
+			}
+			return parser_statement(pr, ast_using(st.namesList));
 
 		case PRS_VAR:
 			throw 'TODO: var';
@@ -2133,8 +2246,9 @@ function compiler_processTokens(cmp, tks, err){
 		if (res.type == PRR_STATEMENT)
 			console.log(JSON.stringify(res.stmt, null, '  '));
 		else if (res.type == PRR_ERROR){
-			console.log('ERROR:', res.msg);
+			err[0] = res.msg;
 			cmp.pr = parser_new();
+			return false;
 		}
 	}
 	return true;
@@ -2207,10 +2321,16 @@ module.exports = {
 				compiler_pushFile(cmp, file);
 			},
 			popFile: function(){
-				compiler_popFile(cmp);
+				var err = [null];
+				if (compiler_popFile(cmp, err) == false)
+					return err[0];
+				return false;
 			},
 			add: function(str){
-				compiler_add(cmp, str);
+				var err = [null];
+				if (compiler_add(cmp, str, err) == false)
+					return err[0];
+				return false;
 			}
 		};
 	}

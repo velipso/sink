@@ -17,7 +17,8 @@ function nextLine(levels){
 		p = (new Array(levels + 2)).join('..') + ' ';
 	rl.question(p, function(ans){
 		var res = c.add(ans + '\n');
-		console.log('result:', res);
+		if (res !== false)
+			console.log('Error:', res);
 		nextLine(0);
 	});
 }
