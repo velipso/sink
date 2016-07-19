@@ -116,6 +116,22 @@ function op_param3(b, opcode, tgt, src1, src2, src3){
 }
 
 //
+// file position
+//
+
+function filepos_new(file, line, chr){
+	return { file: file, line: line, chr: chr };
+}
+
+function filepos_newCopy(flp){
+	return filepos_new(flp.file, flp.line, flp.chr);
+}
+
+function filepos_err(flp, msg){
+	return (flp.file == null ? '' : flp.file + ':') + flp.line + ':' + flp.chr + ': ' + msg;
+}
+
+//
 // keywords/specials
 //
 
@@ -1109,66 +1125,66 @@ var EXPR_CALL    = 'EXPR_CALL';
 var EXPR_INDEX   = 'EXPR_INDEX';
 var EXPR_SLICE   = 'EXPR_SLICE';
 
-function expr_nil(){
-	return { type: EXPR_NIL };
+function expr_nil(flp){
+	return { flp: flp, type: EXPR_NIL };
 }
 
-function expr_num(num){
-	return { type: EXPR_NUM, num: num };
+function expr_num(flp, num){
+	return { flp: flp, type: EXPR_NUM, num: num };
 }
 
-function expr_str(str){
-	return { type: EXPR_STR, str: str };
+function expr_str(flp, str){
+	return { flp: flp, type: EXPR_STR, str: str };
 }
 
-function expr_list(ex){
-	return { type: EXPR_LIST, ex: ex };
+function expr_list(flp, ex){
+	return { flp: flp, type: EXPR_LIST, ex: ex };
 }
 
-function expr_names(names){
-	return { type: EXPR_NAMES, names: names };
+function expr_names(flp, names){
+	return { flp: flp, type: EXPR_NAMES, names: names };
 }
 
-function expr_paren(ex){
-	return { type: EXPR_PAREN, ex: ex };
+function expr_paren(flp, ex){
+	return { flp: flp, type: EXPR_PAREN, ex: ex };
 }
 
-function expr_group(left, right){
+function expr_group(flp, left, right){
 	if (left.type == EXPR_GROUP){
 		if (right.type == EXPR_GROUP)
-			return { type: EXPR_GROUP, group: left.group.concat(right.group) };
+			return { flp: flp, type: EXPR_GROUP, group: left.group.concat(right.group) };
 		var g = left.group.concat();
 		g.push(right);
-		return { type: EXPR_GROUP, group: g };
+		return { flp: flp, type: EXPR_GROUP, group: g };
 	}
 	else if (right.type == EXPR_GROUP){
 		var g = right.group.concat();
 		g.unshift(left);
-		return { type: EXPR_GROUP, group: g };
+		return { flp: flp, type: EXPR_GROUP, group: g };
 	}
-	return { type: EXPR_GROUP, group: [left, right] };
+	return { flp: flp, type: EXPR_GROUP, group: [left, right] };
 }
 
-function expr_prefix(k, ex){
-	return { type: EXPR_PREFIX, k: k, ex: ex };
+function expr_prefix(flp, k, ex){
+	return { flp: flp, type: EXPR_PREFIX, k: k, ex: ex };
 }
 
-function expr_infix(k, left, right){
+function expr_infix(flp, k, left, right){
 	if (k == KS_COMMA)
-		return expr_group(left, right);
-	return { type: EXPR_INFIX, k: k, left: left, right: right };
+		return expr_group(flp, left, right);
+	return { flp: flp, type: EXPR_INFIX, k: k, left: left, right: right };
 }
 
-function expr_call(cmd, params){
-	return { type: EXPR_CALL, cmd: cmd, params: params };
+function expr_call(flp, cmd, params){
+	return { flp: flp, type: EXPR_CALL, cmd: cmd, params: params };
 }
 
-function expr_index(ex, index){
-	return { type: EXPR_INDEX, ex: ex, index: index };
+function expr_index(flp, ex, index){
+	return { flp: flp, type: EXPR_INDEX, ex: ex, index: index };
 }
 
-function expr_slice(ex, left, right){
-	return { type: EXPR_SLICE, ex: ex, left: left, right: right };
+function expr_slice(flp, ex, left, right){
+	return { flp: flp, type: EXPR_SLICE, ex: ex, left: left, right: right };
 }
 
 //
@@ -1193,72 +1209,80 @@ var AST_VAR       = 'AST_VAR';
 var AST_EVAL      = 'AST_EVAL';
 var AST_LABEL     = 'AST_LABEL';
 
-function ast_break(){
-	return { type: AST_BREAK };
+function ast_break(flp){
+	return { flp: flp, type: AST_BREAK };
 }
 
-function ast_continue(){
-	return { type: AST_CONTINUE };
+function ast_continue(flp){
+	return { flp: flp, type: AST_CONTINUE };
 }
 
-function ast_declare(decls){
-	return { type: AST_DECLARE, decls: decls };
+function ast_declare(flp, decls){
+	return { flp: flp, type: AST_DECLARE, decls: decls };
 }
 
-function ast_def(names, lvalues, body){
-	return { type: AST_DEF, names: names, lvalues: lvalues, body: body };
+function ast_def(flp, names, lvalues, body){
+	return { flp: flp, type: AST_DEF, names: names, lvalues: lvalues, body: body };
 }
 
-function ast_doEnd(body){
-	return { type: AST_DO_END, body: body };
+function ast_doEnd(flp, body){
+	return { flp: flp, type: AST_DO_END, body: body };
 }
 
-function ast_doWhile(doBody, cond, whileBody){
-	return { type: AST_DO_WHILE, doBody: doBody, cond: cond, whileBody: whileBody };
+function ast_doWhile(flp, doBody, cond, whileBody){
+	return { flp: flp, type: AST_DO_WHILE, doBody: doBody, cond: cond, whileBody: whileBody };
 }
 
-function ast_for(forVar, names1, names2, ex, body){
-	return { type: AST_FOR, forVar: forVar, names1: names1, names2: names2, ex: ex, body: body };
+function ast_for(flp, forVar, names1, names2, ex, body){
+	return {
+		flp: flp,
+		type: AST_FOR,
+		forVar: forVar,
+		names1: names1,
+		names2: names2,
+		ex: ex,
+		body: body
+	};
 }
 
-function ast_loop(body){
-	return { type: AST_LOOP, body: body };
+function ast_loop(flp, body){
+	return { flp: flp, type: AST_LOOP, body: body };
 }
 
-function ast_goto(names){
-	return { type: AST_GOTO, names: names };
+function ast_goto(flp, names){
+	return { flp: flp, type: AST_GOTO, names: names };
 }
 
-function ast_if(conds, elseBody){
-	return { type: AST_IF, conds: conds, elseBody: elseBody };
+function ast_if(flp, conds, elseBody){
+	return { flp: flp, type: AST_IF, conds: conds, elseBody: elseBody };
 }
 
-function ast_include(file){
-	return { type: AST_INCLUDE, file: file };
+function ast_include(flp, file){
+	return { flp: flp, type: AST_INCLUDE, file: file };
 }
 
-function ast_namespace(names, body){
-	return { type: AST_NAMESPACE, names: names, body: body };
+function ast_namespace(flp, names, body){
+	return { flp: flp, type: AST_NAMESPACE, names: names, body: body };
 }
 
-function ast_return(ex){
-	return { type: AST_RETURN, ex: ex };
+function ast_return(flp, ex){
+	return { flp: flp, type: AST_RETURN, ex: ex };
 }
 
-function ast_using(namesList){
-	return { type: AST_USING, namesList: namesList };
+function ast_using(flp, namesList){
+	return { flp: flp, type: AST_USING, namesList: namesList };
 }
 
-function ast_var(lvalues){
-	return { type: AST_VAR, lvalues: lvalues };
+function ast_var(flp, lvalues){
+	return { flp: flp, type: AST_VAR, lvalues: lvalues };
 }
 
-function ast_eval(ex){
-	return { type: AST_EVAL, ex: ex };
+function ast_eval(flp, ex){
+	return { flp: flp, type: AST_EVAL, ex: ex };
 }
 
-function ast_label(names){
-	return { type: AST_LABEL, names: names };
+function ast_label(flp, names){
+	return { flp: flp, type: AST_LABEL, names: names };
 }
 
 //
@@ -1272,12 +1296,12 @@ function cond_new(ex, body){ // conds
 var DECL_LOCAL  = 'DECL_LOCAL';
 var DECL_NATIVE = 'DECL_NATIVE';
 
-function decl_local(names){
-	return { type: DECL_LOCAL, names: names };
+function decl_local(flp, names){
+	return { flp: flp, type: DECL_LOCAL, names: names };
 }
 
-function decl_native(names, key){
-	return { type: DECL_NATIVE, names: names, key: key };
+function decl_native(flp, names, key){
+	return { flp: flp, type: DECL_NATIVE, names: names, key: key };
 }
 
 function ets_new(tk, next){ // exprPreStack, exprMidStack
@@ -1449,7 +1473,7 @@ function parser_statement(pr, stmt){
 	pr.level--;
 	pr.state = pr.state.next;
 	pr.state.stmt = stmt;
-	return parser_process(pr);
+	return parser_process(pr, stmt.flp);
 }
 
 function parser_push(pr, state){
@@ -1467,17 +1491,17 @@ function pri_error(msg){
 	return { type: PRI_ERROR, msg: msg };
 }
 
-function parser_infix(k, left, right){
+function parser_infix(flp, k, left, right){
 	if (k == KS_PIPE){
 		if (right.type == EXPR_CALL){
-			right.params = expr_infix(KS_COMMA, expr_paren(left), right.params);
+			right.params = expr_infix(flp, KS_COMMA, expr_paren(flp, left), right.params);
 			return pri_ok(right);
 		}
 		else if (right.type == EXPR_NAMES)
-			return pri_ok(expr_call(right, left));
+			return pri_ok(expr_call(flp, right, left));
 		return pri_error('Invalid pipe');
 	}
-	return pri_ok(expr_infix(k, left, right));
+	return pri_ok(expr_infix(flp, k, left, right));
 }
 
 var PRR_MORE      = 'PRR_MORE';
@@ -1502,7 +1526,7 @@ function parser_start(pr, state){
 	return prr_more();
 }
 
-function parser_process(pr){
+function parser_process(pr, flp){
 	var tk1 = pr.tk1;
 	var st = pr.state;
 	switch (st.state){
@@ -1510,7 +1534,7 @@ function parser_process(pr){
 			st.state = PRS_START_STATEMENT;
 			st.stmt = null;
 			parser_push(pr, PRS_STATEMENT);
-			return parser_process(pr);
+			return parser_process(pr, flp);
 
 		case PRS_START_STATEMENT:
 			if (tk1.type != TOK_NEWLINE)
@@ -1539,13 +1563,16 @@ function parser_process(pr){
 				pr.state.names = [tk1.ident];
 				return prr_more();
 			}
-			else if (tok_isPre(tk1) || tok_isTerm(tk1))
-				return parser_start(pr, PRS_EVAL);
+			else if (tok_isPre(tk1) || tok_isTerm(tk1)){
+				pr.level++;
+				st.state = PRS_EVAL;
+				return parser_process(pr, flp);
+			}
 			else if (tok_isKS(tk1, KS_END) || tok_isKS(tk1, KS_ELSE) || tok_isKS(tk1, KS_ELSEIF) ||
 				tok_isKS(tk1, KS_WHILE)){
 				// stmt is already null, so don't touch it, so we return null
 				pr.state = st.next;
-				return parser_process(pr);
+				return parser_process(pr, flp);
 			}
 			return prr_error('Invalid statement');
 
@@ -1553,7 +1580,7 @@ function parser_process(pr){
 			if (!tok_isKS(tk1, KS_PERIOD)){
 				st.next.names = st.names;
 				pr.state = st.next;
-				return parser_process(pr);
+				return parser_process(pr, flp);
 			}
 			st.state = PRS_LOOKUP_IDENT;
 			return prr_more();
@@ -1569,13 +1596,13 @@ function parser_process(pr){
 			st.state = PRS_BODY_STATEMENT;
 			st.stmt = null;
 			parser_push(pr, PRS_STATEMENT);
-			return parser_process(pr);
+			return parser_process(pr, flp);
 
 		case PRS_BODY_STATEMENT:
 			if (st.stmt == null){
 				st.next.body = st.body;
 				pr.state = st.next;
-				return parser_process(pr);
+				return parser_process(pr, flp);
 			}
 			st.body.push(st.stmt);
 			st.stmt = null;
@@ -1586,11 +1613,11 @@ function parser_process(pr){
 			if (tk1.type == TOK_NEWLINE && !tk1.soft){
 				st.next.lvalues = st.lvalues;
 				pr.state = st.next;
-				return parser_process(pr);
+				return parser_process(pr, flp);
 			}
 			st.state = PRS_LVALUES_TERM_DONE;
 			parser_push(pr, PRS_LVALUES_TERM);
-			return parser_process(pr);
+			return parser_process(pr, flp);
 
 		case PRS_LVALUES_TERM:
 			if (tk1.type == TOK_IDENT){
@@ -1611,9 +1638,9 @@ function parser_process(pr){
 			return prr_error('Expecting variable');
 
 		case PRS_LVALUES_TERM_LOOKUP:
-			st.next.exprTerm = expr_names(st.names);
+			st.next.exprTerm = expr_names(flp, st.names);
 			pr.state = st.next;
-			return parser_process(pr);
+			return parser_process(pr, flp);
 
 		case PRS_LVALUES_TERM_LIST:
 			if (tk1.type == TOK_NEWLINE && !tk1.soft)
@@ -1626,7 +1653,7 @@ function parser_process(pr){
 			st.state = PRS_LVALUES_TERM_LIST_TERM_DONE;
 			parser_push(pr, PRS_LVALUES_TERM);
 			pr.state.lvaluesPeriods = true;
-			return parser_process(pr);
+			return parser_process(pr, flp);
 
 		case PRS_LVALUES_TERM_LIST_TERM_DONE:
 			if (tk1.type == TOK_NEWLINE && !tk1.soft)
@@ -1636,7 +1663,7 @@ function parser_process(pr){
 				st.exprTerm = null;
 			}
 			else{
-				st.exprTerm2 = expr_infix(KS_COMMA, st.exprTerm2, st.exprTerm);
+				st.exprTerm2 = expr_infix(flp, KS_COMMA, st.exprTerm2, st.exprTerm);
 				st.exprTerm = null;
 			}
 			if (tok_isKS(tk1, KS_RBRACE)){
@@ -1665,27 +1692,27 @@ function parser_process(pr){
 			st.state = PRS_LVALUES_TERM_LIST_TAIL_DONE;
 			if (tok_isKS(tk1, KS_COMMA))
 				return prr_more();
-			return parser_process(pr);
+			return parser_process(pr, flp);
 
 		case PRS_LVALUES_TERM_LIST_TAIL_DONE:
 			if (!tok_isKS(tk1, KS_RBRACE))
 				return prr_error('Missing end of list');
-			st.next.exprTerm = expr_prefix(KS_PERIOD3, expr_names(st.names));
+			st.next.exprTerm = expr_prefix(flp, KS_PERIOD3, expr_names(flp, st.names));
 			pr.state = st.next;
-			return parser_process(pr);
+			return parser_process(pr, flp);
 
 		case PRS_LVALUES_TERM_LIST_DONE:
-			st.next.exprTerm = expr_list(st.exprTerm);
+			st.next.exprTerm = expr_list(flp, st.exprTerm);
 			pr.state = st.next;
-			return parser_process(pr);
+			return parser_process(pr, flp);
 
 		case PRS_LVALUES_TERM_DONE:
 			if (tk1.type == TOK_NEWLINE){
-				st.lvalues.push(expr_infix(KS_EQU, st.exprTerm, null));
+				st.lvalues.push(expr_infix(flp, KS_EQU, st.exprTerm, null));
 				st.exprTerm = null;
 				st.next.lvalues = st.lvalues;
 				pr.state = st.next;
-				return parser_process(pr);
+				return parser_process(pr, flp);
 			}
 			else if (tok_isKS(tk1, KS_EQU)){
 				st.exprTerm2 = st.exprTerm;
@@ -1696,7 +1723,7 @@ function parser_process(pr){
 				return prr_more();
 			}
 			else if (tok_isKS(tk1, KS_COMMA)){
-				st.lvalues.push(expr_infix(KS_EQU, st.exprTerm, null));
+				st.lvalues.push(expr_infix(flp, KS_EQU, st.exprTerm, null));
 				st.exprTerm = null;
 				st.state = PRS_LVALUES_MORE;
 				return prr_more();
@@ -1704,13 +1731,13 @@ function parser_process(pr){
 			return prr_error('Invalid declaration');
 
 		case PRS_LVALUES_TERM_EXPR:
-			st.lvalues.push(expr_infix(KS_EQU, st.exprTerm2, st.exprTerm));
+			st.lvalues.push(expr_infix(flp, KS_EQU, st.exprTerm2, st.exprTerm));
 			st.exprTerm2 = null;
 			st.exprTerm = null;
 			if (tk1.type == TOK_NEWLINE){
 				st.next.lvalues = st.lvalues;
 				pr.state = st.next;
-				return parser_process(pr);
+				return parser_process(pr, flp);
 			}
 			else if (tok_isKS(tk1, KS_COMMA)){
 				st.state = PRS_LVALUES_MORE;
@@ -1723,20 +1750,20 @@ function parser_process(pr){
 				return prr_more();
 			st.state = PRS_LVALUES_TERM_DONE;
 			parser_push(pr, PRS_LVALUES_TERM);
-			return parser_process(pr);
+			return parser_process(pr, flp);
 
 		case PRS_BREAK:
-			return parser_statement(pr, ast_break());
+			return parser_statement(pr, ast_break(flp));
 
 		case PRS_CONTINUE:
-			return parser_statement(pr, ast_continue());
+			return parser_statement(pr, ast_continue(flp));
 
 		case PRS_DECLARE:
 			if (tk1.type == TOK_NEWLINE)
 				return prr_error('Expecting identifier');
 			st.decls = [];
 			st.state = PRS_DECLARE2;
-			return parser_process(pr);
+			return parser_process(pr, flp);
 
 		case PRS_DECLARE2:
 			if (tk1.type == TOK_NEWLINE && !tk1.soft)
@@ -1754,17 +1781,17 @@ function parser_process(pr){
 				return prr_more();
 			}
 			else if (tok_isKS(tk1, KS_COMMA)){
-				st.decls.push(decl_local(st.names));
+				st.decls.push(decl_local(flp, st.names));
 				st.state = PRS_DECLARE2;
 				return prr_more();
 			}
-			st.decls.push(decl_local(st.names));
-			return parser_statement(pr, ast_declare(st.decls));
+			st.decls.push(decl_local(flp, st.names));
+			return parser_statement(pr, ast_declare(flp, st.decls));
 
 		case PRS_DECLARE_STR:
 			if (tk1.type != TOK_STR)
 				return prr_error('Expecting string constant');
-			st.decls.push(decl_native(st.names, tk1.str));
+			st.decls.push(decl_native(flp, st.names, tk1.str));
 			st.state = PRS_DECLARE_STR2;
 			return prr_more();
 
@@ -1779,7 +1806,7 @@ function parser_process(pr){
 				st.state = PRS_DECLARE2;
 				return prr_more();
 			}
-			return parser_statement(pr, ast_declare(st.decls));
+			return parser_statement(pr, ast_declare(flp, st.decls));
 
 		case PRS_DEF:
 			if (tk1.type != TOK_IDENT)
@@ -1793,13 +1820,13 @@ function parser_process(pr){
 			st.state = PRS_DEF_LVALUES;
 			parser_push(pr, PRS_LVALUES);
 			pr.state.lvalues = [];
-			return parser_process(pr);
+			return parser_process(pr, flp);
 
 		case PRS_DEF_LVALUES:
 			st.state = PRS_DEF_BODY;
 			parser_push(pr, PRS_BODY);
 			pr.state.body = [];
-			return parser_process(pr);
+			return parser_process(pr, flp);
 
 		case PRS_DEF_BODY:
 			if (!tok_isKS(tk1, KS_END))
@@ -1808,13 +1835,13 @@ function parser_process(pr){
 			return prr_more();
 
 		case PRS_DEF_DONE:
-			return parser_statement(pr, ast_def(st.names, st.lvalues, st.body));
+			return parser_statement(pr, ast_def(flp, st.names, st.lvalues, st.body));
 
 		case PRS_DO:
 			st.state = PRS_DO_BODY;
 			parser_push(pr, PRS_BODY);
 			pr.state.body = [];
-			return parser_process(pr);
+			return parser_process(pr, flp);
 
 		case PRS_DO_BODY:
 			if (tok_isKS(tk1, KS_WHILE)){
@@ -1831,7 +1858,7 @@ function parser_process(pr){
 			return prr_error('Missing `while` or `end` of do block');
 
 		case PRS_DO_DONE:
-			return parser_statement(pr, ast_doEnd(st.body));
+			return parser_statement(pr, ast_doEnd(flp, st.body));
 
 		case PRS_DO_WHILE_EXPR:
 			if (tk1.type != TOK_NEWLINE)
@@ -1848,7 +1875,7 @@ function parser_process(pr){
 			return prr_more();
 
 		case PRS_DO_WHILE_DONE:
-			return parser_statement(pr, ast_doWhile(st.body2, st.exprTerm, st.body));
+			return parser_statement(pr, ast_doWhile(flp, st.body2, st.exprTerm, st.body));
 
 		case PRS_FOR:
 			if (tk1.type == TOK_NEWLINE){
@@ -1862,7 +1889,7 @@ function parser_process(pr){
 				st.forVar = true;
 				return prr_more();
 			}
-			return parser_process(pr);
+			return parser_process(pr, flp);
 
 		case PRS_LOOP_BODY:
 			if (!tok_isKS(tk1, KS_END))
@@ -1871,7 +1898,7 @@ function parser_process(pr){
 			return prr_more();
 
 		case PRS_LOOP_DONE:
-			return parser_statement(pr, ast_loop(st.body));
+			return parser_statement(pr, ast_loop(flp, st.body));
 
 		case PRS_FOR_VARS:
 			if (tk1.type != TOK_IDENT)
@@ -1890,7 +1917,7 @@ function parser_process(pr){
 			}
 			else if (tok_isKS(tk1, KS_COLON)){
 				st.state = PRS_FOR_VARS2_LOOKUP;
-				return parser_process(pr);
+				return parser_process(pr, flp);
 			}
 			return prr_error('Invalid for loop');
 
@@ -1913,7 +1940,7 @@ function parser_process(pr){
 				return prr_error('Expecting expression in for statement');
 			st.state = PRS_FOR_EXPR;
 			parser_push(pr, PRS_EXPR);
-			return parser_process(pr);
+			return parser_process(pr, flp);
 
 		case PRS_FOR_EXPR:
 			if (tk1.type != TOK_NEWLINE)
@@ -1931,7 +1958,7 @@ function parser_process(pr){
 
 		case PRS_FOR_DONE:
 			return parser_statement(pr,
-				ast_for(st.forVar, st.names2, st.names, st.exprTerm, st.body));
+				ast_for(flp, st.forVar, st.names2, st.names, st.exprTerm, st.body));
 
 		case PRS_GOTO:
 			if (tk1.type != TOK_IDENT)
@@ -1942,13 +1969,13 @@ function parser_process(pr){
 			return prr_more();
 
 		case PRS_GOTO_LOOKUP:
-			return parser_statement(pr, ast_goto(st.names));
+			return parser_statement(pr, ast_goto(flp, st.names));
 
 		case PRS_IF:
 			st.state = PRS_IF_EXPR;
 			st.conds = [];
 			parser_push(pr, PRS_EXPR);
-			return parser_process(pr);
+			return parser_process(pr, flp);
 
 		case PRS_IF_EXPR:
 			if (tk1.type != TOK_NEWLINE)
@@ -1980,7 +2007,7 @@ function parser_process(pr){
 			return prr_error('Missing `elseif`, `else`, or `end` of if block');
 
 		case PRS_IF_DONE:
-			return parser_statement(pr, ast_if(st.conds, []));
+			return parser_statement(pr, ast_if(flp, st.conds, []));
 
 		case PRS_ELSE_BODY:
 			if (!tok_isKS(tk1, KS_END))
@@ -1989,7 +2016,7 @@ function parser_process(pr){
 			return prr_more();
 
 		case PRS_ELSE_DONE:
-			return parser_statement(pr, ast_if(st.conds, st.body));
+			return parser_statement(pr, ast_if(flp, st.conds, st.body));
 
 		case PRS_INCLUDE:
 			if (!tok_isKS(tk1, KS_LPAREN))
@@ -2011,7 +2038,7 @@ function parser_process(pr){
 			return prr_more();
 
 		case PRS_INCLUDE_DONE:
-			return parser_statement(pr, ast_include(st.str));
+			return parser_statement(pr, ast_include(flp, st.str));
 
 		case PRS_NAMESPACE:
 			if (tk1.type != TOK_IDENT)
@@ -2036,24 +2063,24 @@ function parser_process(pr){
 			return prr_more();
 
 		case PRS_NAMESPACE_DONE:
-			return parser_statement(pr, ast_namespace(st.names, st.body));
+			return parser_statement(pr, ast_namespace(flp, st.names, st.body));
 
 		case PRS_RETURN:
 			if (tk1.type == TOK_NEWLINE)
-				return parser_statement(pr, ast_return(expr_nil()));
+				return parser_statement(pr, ast_return(flp, expr_nil(flp)));
 			st.state = PRS_RETURN_DONE;
 			parser_push(pr, PRS_EXPR);
-			return parser_process(pr);
+			return parser_process(pr, flp);
 
 		case PRS_RETURN_DONE:
-			return parser_statement(pr, ast_return(st.exprTerm));
+			return parser_statement(pr, ast_return(flp, st.exprTerm));
 
 		case PRS_USING:
 			if (tk1.type == TOK_NEWLINE)
 				return prr_error('Expecting identifier');
 			st.namesList = [];
 			st.state = PRS_USING2;
-			return parser_process(pr);
+			return parser_process(pr, flp);
 
 		case PRS_USING2:
 			if (tk1.type == TOK_NEWLINE && !tk1.soft)
@@ -2072,37 +2099,37 @@ function parser_process(pr){
 				st.state = PRS_USING2;
 				return prr_more();
 			}
-			return parser_statement(pr, ast_using(st.namesList));
+			return parser_statement(pr, ast_using(flp, st.namesList));
 
 		case PRS_VAR:
 			st.state = PRS_VAR_LVALUES;
 			parser_push(pr, PRS_LVALUES);
 			pr.state.lvalues = [];
-			return parser_process(pr);
+			return parser_process(pr, flp);
 
 		case PRS_VAR_LVALUES:
 			if (st.lvalues.length <= 0)
 				return prr_error('Invalid variable declaration');
-			return parser_statement(pr, ast_var(st.lvalues));
+			return parser_statement(pr, ast_var(flp, st.lvalues));
 
 		case PRS_IDENTS:
 			if (tok_isKS(tk1, KS_COLON)){
 				pr.state = st.next;
-				return parser_statement(pr, ast_label(st.names));
+				return parser_statement(pr, ast_label(flp, st.names));
 			}
 			pr.level++;
 			st.state = PRS_EVAL_EXPR;
 			parser_push(pr, PRS_EXPR_POST);
-			pr.state.exprTerm = expr_names(st.names);
-			return parser_process(pr);
+			pr.state.exprTerm = expr_names(flp, st.names);
+			return parser_process(pr, flp);
 
 		case PRS_EVAL:
 			st.state = PRS_EVAL_EXPR;
 			parser_push(pr, PRS_EXPR);
-			return parser_process(pr);
+			return parser_process(pr, flp);
 
 		case PRS_EVAL_EXPR:
-			return parser_statement(pr, ast_eval(st.exprTerm));
+			return parser_statement(pr, ast_eval(flp, st.exprTerm));
 
 		case PRS_EXPR:
 			if (tok_isPre(tk1)){
@@ -2110,19 +2137,19 @@ function parser_process(pr){
 				return prr_more();
 			}
 			st.state = PRS_EXPR_TERM;
-			return parser_process(pr);
+			return parser_process(pr, flp);
 
 		case PRS_EXPR_TERM:
 			if (tk1.type == TOK_NEWLINE && !tk1.soft)
 				return prr_more();
 			else if (tk1.type == TOK_NUM){
 				st.state = PRS_EXPR_POST;
-				st.exprTerm = expr_num(tk1.num);
+				st.exprTerm = expr_num(flp, tk1.num);
 				return prr_more();
 			}
 			else if (tk1.type == TOK_STR){
 				st.state = PRS_EXPR_POST;
-				st.exprTerm = expr_str(tk1.str);
+				st.exprTerm = expr_str(flp, tk1.str);
 				return prr_more();
 			}
 			else if (tk1.type == TOK_IDENT){
@@ -2146,52 +2173,52 @@ function parser_process(pr){
 				return prr_more();
 			else if (tok_isKS(tk1, KS_RBRACE)){
 				st.state = PRS_EXPR_POST;
-				st.exprTerm = expr_list(null);
+				st.exprTerm = expr_list(flp, null);
 				return prr_more();
 			}
 			st.state = PRS_EXPR_TERM_CLOSEBRACE;
 			parser_push(pr, PRS_EXPR);
 			pr.state.exprAllowTrailComma = true;
-			return parser_process(pr);
+			return parser_process(pr, flp);
 
 		case PRS_EXPR_TERM_CLOSEBRACE:
 			if (tk1.type == TOK_NEWLINE && !tk1.soft)
 				return prr_more();
 			if (!tok_isKS(tk1, KS_RBRACE))
 				return prr_error('Expecting close brace');
-			st.exprTerm = expr_list(st.exprTerm);
+			st.exprTerm = expr_list(flp, st.exprTerm);
 			st.state = PRS_EXPR_POST;
 			return prr_more();
 
 		case PRS_EXPR_TERM_ISNIL:
 			if (tok_isKS(tk1, KS_RPAREN)){
 				st.state = PRS_EXPR_POST;
-				st.exprTerm = expr_nil();
+				st.exprTerm = expr_nil(flp);
 				return prr_more();
 			}
 			st.state = PRS_EXPR_TERM_CLOSEPAREN;
 			parser_push(pr, PRS_EXPR);
 			pr.state.exprAllowTrailComma = true;
-			return parser_process(pr);
+			return parser_process(pr, flp);
 
 		case PRS_EXPR_TERM_CLOSEPAREN:
 			if (tk1.type == TOK_NEWLINE && !tk1.soft)
 				return prr_more();
 			if (!tok_isKS(tk1, KS_RPAREN))
 				return prr_error('Expecting close parenthesis');
-			st.exprTerm = expr_paren(st.exprTerm);
+			st.exprTerm = expr_paren(flp, st.exprTerm);
 			st.state = PRS_EXPR_POST;
 			return prr_more();
 
 		case PRS_EXPR_TERM_LOOKUP:
-			st.exprTerm = expr_names(st.names);
+			st.exprTerm = expr_names(flp, st.names);
 			st.state = PRS_EXPR_POST;
-			return parser_process(pr);
+			return parser_process(pr, flp);
 
 		case PRS_EXPR_POST:
 			if (tk1.type == TOK_NEWLINE){
 				st.state = PRS_EXPR_FINISH;
-				return parser_process(pr);
+				return parser_process(pr, flp);
 			}
 			else if (tok_isKS(tk1, KS_LBRACKET)){
 				st.state = PRS_EXPR_INDEX_CHECK;
@@ -2203,13 +2230,13 @@ function parser_process(pr){
 					return prr_more();
 				}
 				st.state = PRS_EXPR_MID;
-				return parser_process(pr);
+				return parser_process(pr, flp);
 			}
 			else if (tok_isKS(tk1, KS_RBRACE) || tok_isKS(tk1, KS_RBRACKET) ||
 				tok_isKS(tk1, KS_RPAREN) || tok_isKS(tk1, KS_COLON) || tok_isKS(tk1, KS_COMMA) ||
 				tok_isKS(tk1, KS_PIPE)){
 				st.state = PRS_EXPR_FINISH;
-				return parser_process(pr);
+				return parser_process(pr, flp);
 			}
 			// otherwise, this should be a call
 			st.exprTerm2 = st.exprTerm;
@@ -2217,13 +2244,13 @@ function parser_process(pr){
 			st.state = PRS_EXPR_POST_CALL;
 			parser_push(pr, PRS_EXPR);
 			pr.state.exprAllowPipe = false;
-			return parser_process(pr);
+			return parser_process(pr, flp);
 
 		case PRS_EXPR_POST_CALL:
-			st.exprTerm = expr_call(st.exprTerm2, st.exprTerm);
+			st.exprTerm = expr_call(flp, st.exprTerm2, st.exprTerm);
 			st.exprTerm2 = null;
 			st.state = PRS_EXPR_POST;
-			return parser_process(pr);
+			return parser_process(pr, flp);
 
 		case PRS_EXPR_INDEX_CHECK:
 			if (tk1.type == TOK_NEWLINE && !tk1.soft)
@@ -2236,13 +2263,13 @@ function parser_process(pr){
 			st.exprTerm = null;
 			st.state = PRS_EXPR_INDEX_EXPR_CHECK;
 			parser_push(pr, PRS_EXPR);
-			return parser_process(pr);
+			return parser_process(pr, flp);
 
 		case PRS_EXPR_INDEX_COLON_CHECK:
 			if (tk1.type == TOK_NEWLINE && !tk1.soft)
 				return prr_more();
 			if (tok_isKS(tk1, KS_RBRACKET)){
-				st.exprTerm = expr_slice(st.exprTerm, null, null);
+				st.exprTerm = expr_slice(flp, st.exprTerm, null, null);
 				st.state = PRS_EXPR_POST;
 				return prr_more();
 			}
@@ -2250,14 +2277,14 @@ function parser_process(pr){
 			st.exprTerm = null;
 			st.state = PRS_EXPR_INDEX_COLON_EXPR;
 			parser_push(pr, PRS_EXPR);
-			return parser_process(pr);
+			return parser_process(pr, flp);
 
 		case PRS_EXPR_INDEX_COLON_EXPR:
 			if (tk1.type == TOK_NEWLINE && !tk1.soft)
 				return prr_more();
 			if (!tok_isKS(tk1, KS_RBRACKET))
 				return prr_error('Missing close bracket');
-			st.exprTerm = expr_slice(st.exprTerm2, null, st.exprTerm);
+			st.exprTerm = expr_slice(flp, st.exprTerm2, null, st.exprTerm);
 			st.state = PRS_EXPR_POST;
 			return prr_more();
 
@@ -2270,7 +2297,7 @@ function parser_process(pr){
 			}
 			if (!tok_isKS(tk1, KS_RBRACKET))
 				return prr_error('Missing close bracket');
-			st.exprTerm = expr_index(st.exprTerm2, st.exprTerm);
+			st.exprTerm = expr_index(flp, st.exprTerm2, st.exprTerm);
 			st.exprTerm2 = null;
 			st.state = PRS_EXPR_POST;
 			return prr_more();
@@ -2279,7 +2306,7 @@ function parser_process(pr){
 			if (tk1.type == TOK_NEWLINE && !tk1.soft)
 				return prr_more();
 			if (tok_isKS(tk1, KS_RBRACKET)){
-				st.exprTerm = expr_slice(st.exprTerm2, st.exprTerm, null);
+				st.exprTerm = expr_slice(flp, st.exprTerm2, st.exprTerm, null);
 				st.state = PRS_EXPR_POST;
 				return prr_more();
 			}
@@ -2287,14 +2314,14 @@ function parser_process(pr){
 			st.exprTerm = null;
 			st.state = PRS_EXPR_INDEX_EXPR_COLON_EXPR;
 			parser_push(pr, PRS_EXPR);
-			return parser_process(pr);
+			return parser_process(pr, flp);
 
 		case PRS_EXPR_INDEX_EXPR_COLON_EXPR:
 			if (tk1.type == TOK_NEWLINE && !tk1.soft)
 				return prr_more();
 			if (!tok_isKS(tk1, KS_RBRACKET))
 				return prr_error('Missing close bracket');
-			st.exprTerm = expr_slice(st.exprTerm2, st.exprTerm3, st.exprTerm);
+			st.exprTerm = expr_slice(flp, st.exprTerm2, st.exprTerm3, st.exprTerm);
 			st.exprTerm2 = null;
 			st.exprTerm3 = null;
 			st.state = PRS_EXPR_POST;
@@ -2308,24 +2335,24 @@ function parser_process(pr){
 			if (!tok_isKS(tk1, KS_RPAREN) && !tok_isKS(tk1, KS_RBRACE)){
 				st.state = PRS_EXPR_MID;
 				parser_rev(pr);
-				parser_process(pr);
+				parser_process(pr, flp);
 				parser_fwd(pr, pr.tkR);
-				return parser_process(pr);
+				return parser_process(pr, flp);
 			}
 			// found a trailing comma
 			st.state = PRS_EXPR_FINISH;
-			return parser_process(pr);
+			return parser_process(pr, flp);
 
 		case PRS_EXPR_MID:
 			if (!tok_isMid(tk1, st.exprAllowComma, st.exprAllowPipe)){
 				st.state = PRS_EXPR_FINISH;
-				return parser_process(pr);
+				return parser_process(pr, flp);
 			}
 			while (true){
 				// fight between the Pre and the Mid
 				while (st.exprPreStack != null && tok_isPreBeforeMid(st.exprPreStack.tk, tk1)){
 					// apply the Pre
-					st.exprTerm = expr_prefix(st.exprPreStack.tk.k, st.exprTerm);
+					st.exprTerm = expr_prefix(flp, st.exprPreStack.tk.k, st.exprTerm);
 					st.exprPreStack = st.exprPreStack.next;
 				}
 
@@ -2361,7 +2388,7 @@ function parser_process(pr){
 					(st.exprMidStack == null ||
 						tok_isPreBeforeMid(st.exprPreStack.tk, st.exprMidStack.tk))){
 					// apply the Pre
-					st.exprTerm = expr_prefix(st.exprPreStack.tk.k, st.exprTerm);
+					st.exprTerm = expr_prefix(flp, st.exprPreStack.tk.k, st.exprTerm);
 					st.exprPreStack = st.exprPreStack.next;
 				}
 
@@ -2381,13 +2408,13 @@ function parser_process(pr){
 			// everything has been applied, and exprTerm has been set!
 			st.next.exprTerm = st.exprTerm;
 			pr.state = st.next;
-			return parser_process(pr);
+			return parser_process(pr, flp);
 	}
 }
 
-function parser_add(pr, tk){
+function parser_add(pr, tk, flp){
 	parser_fwd(pr, tk);
-	return parser_process(pr);
+	return parser_process(pr, flp);
 }
 
 //
@@ -2609,6 +2636,10 @@ function chunk_loadStandardOps(chk){
 
 var UTF8 = require('./utf8');
 
+function comppr_new(flp, tks){
+	return { flp: flp, tks: tks };
+}
+
 function compiler_new(){
 	return {
 		pr: parser_new(),
@@ -2616,25 +2647,24 @@ function compiler_new(){
 	};
 }
 
-function compiler_makeError(cmp, msg){
-	return (cmp.file.file == null ? '' : cmp.file.file + ':') +
-		cmp.file.line + ':' + cmp.file.chr + ': ' + msg;
-}
-
-function compiler_processTokens(cmp, tks, err){
-	for (var i = 0; i < tks.length; i++){
-		var tk = tks[i];
-		if (tk.type == TOK_ERROR){
-			err[0] = compiler_makeError(cmp, tk.msg);
-			return false;
-		}
-		var res = parser_add(cmp.pr, tk);
-		if (res.type == PRR_STATEMENT)
-			console.log(JSON.stringify(res.stmt, null, '  '));
-		else if (res.type == PRR_ERROR){
-			err[0] = compiler_makeError(cmp, res.msg);
-			cmp.pr = parser_new(); // reset the parser
-			return false;
+function compiler_processTokens(cmp, cmpr, err){
+	for (var c = 0; c < cmpr.length; c++){
+		var flp = cmpr[c].flp;
+		var tks = cmpr[c].tks;
+		for (var i = 0; i < tks.length; i++){
+			var tk = tks[i];
+			if (tk.type == TOK_ERROR){
+				err[0] = filepos_err(flp, tk.msg);
+				return false;
+			}
+			var res = parser_add(cmp.pr, tk, flp);
+			if (res.type == PRR_STATEMENT)
+				console.log(JSON.stringify(res.stmt, null, '  '));
+			else if (res.type == PRR_ERROR){
+				err[0] = filepos_err(flp, res.msg);
+				cmp.pr = parser_new(); // reset the parser
+				return false;
+			}
 		}
 	}
 	return true;
@@ -2642,9 +2672,7 @@ function compiler_processTokens(cmp, tks, err){
 
 function compiler_pushFile(cmp, file){
 	cmp.file = {
-		file: file,
-		line: 1,
-		chr: 1,
+		flp: filepos_new(file, 1, 1),
 		lastret: false,
 		lx: lex_new(),
 		next: cmp.file
@@ -2654,7 +2682,8 @@ function compiler_pushFile(cmp, file){
 function compiler_popFile(cmp, err){
 	var tks = [];
 	lex_close(cmp.lx, tks);
-	var res = compiler_processTokens(cmp, tks, err);
+	var cmpr = [comppr_new(cmp.flp, tks)];
+	var res = compiler_processTokens(cmp, cmpr, err);
 	cmp.file = cmp.file.next;
 	return res;
 }
@@ -2664,34 +2693,35 @@ function compiler_add(cmp, str, err){
 }
 
 function compiler_addBytes(cmp, bytes, err){
-	var tks = [];
+	var cmpr = [];
 	for (var i = 0; i < bytes.length; i++){
-		var line = cmp.file.line;
-		var chr = cmp.file.chr;
+		var flp = filepos_newCopy(cmp.file.flp);
 
 		var ch = String.fromCharCode(bytes[i]);
 
 		// calculate future line/chr
 		if (ch == '\r'){
 			cmp.file.lastret = true;
-			cmp.file.line++;
-			cmp.file.chr = 1;
+			cmp.file.flp.line++;
+			cmp.file.flp.chr = 1;
 		}
 		else{
 			if (ch == '\n'){
 				if (!cmp.file.lastret){
-					cmp.file.line++;
-					cmp.file.chr = 1;
+					cmp.file.flp.line++;
+					cmp.file.flp.chr = 1;
 				}
 			}
 			else
-				cmp.file.chr++;
+				cmp.file.flp.chr++;
 			cmp.file.lastret = false;
 		}
 
+		var tks = [];
 		lex_add(cmp.file.lx, ch, tks);
+		cmpr.push(comppr_new(flp, tks));
 	}
-	return compiler_processTokens(cmp, tks, err);
+	return compiler_processTokens(cmp, cmpr, err);
 }
 
 function compiler_level(cmp){
