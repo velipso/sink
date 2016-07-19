@@ -1339,6 +1339,8 @@ var PRS_LVALUES_TERM_LIST_DONE        = 'PRS_LVALUES_TERM_LIST_DONE';
 var PRS_LVALUES_TERM_DONE             = 'PRS_LVALUES_TERM_DONE';
 var PRS_LVALUES_TERM_EXPR             = 'PRS_LVALUES_TERM_EXPR';
 var PRS_LVALUES_MORE                  = 'PRS_LVALUES_MORE';
+var PRS_LVALUES_DEF_TAIL              = 'PRS_LVALUES_DEF_TAIL';
+var PRS_LVALUES_DEF_TAIL_DONE         = 'PRS_LVALUES_DEF_TAIL_DONE';
 var PRS_BREAK                         = 'PRS_BREAK';
 var PRS_CONTINUE                      = 'PRS_CONTINUE';
 var PRS_DECLARE                       = 'PRS_DECLARE';
@@ -1423,7 +1425,7 @@ function prs_new(state, next){
 		conds: null,                // list of cond_new's
 		decls: null,                // list of decl_*'s
 		lvalues: null,              // list of expr
-		lvaluesPeriods: false,
+		lvaluesPeriods: 0,          // 0 off, 1 def, 2 nested list
 		forVar: false,
 		str: null,
 		exprAllowComma: true,
@@ -1617,6 +1619,7 @@ function parser_process(pr, flp){
 			}
 			st.state = PRS_LVALUES_TERM_DONE;
 			parser_push(pr, PRS_LVALUES_TERM);
+			pr.state.lvaluesPeriods = st.lvaluesPeriods;
 			return parser_process(pr, flp);
 
 		case PRS_LVALUES_TERM:
@@ -1631,8 +1634,11 @@ function parser_process(pr, flp){
 				parser_push(pr, PRS_LVALUES_TERM_LIST);
 				return prr_more();
 			}
-			else if (st.lvaluesPeriods && tok_isKS(tk1, KS_PERIOD3)){
-				st.state = PRS_LVALUES_TERM_LIST_TAIL;
+			else if (st.lvaluesPeriods > 0 && tok_isKS(tk1, KS_PERIOD3)){
+				if (st.lvaluesPeriods == 1)
+					st.state = PRS_LVALUES_DEF_TAIL;
+				else
+					st.state = PRS_LVALUES_TERM_LIST_TAIL;
 				return prr_more();
 			}
 			return prr_error('Expecting variable');
@@ -1652,7 +1658,7 @@ function parser_process(pr, flp){
 			}
 			st.state = PRS_LVALUES_TERM_LIST_TERM_DONE;
 			parser_push(pr, PRS_LVALUES_TERM);
-			pr.state.lvaluesPeriods = true;
+			pr.state.lvaluesPeriods = 2;
 			return parser_process(pr, flp);
 
 		case PRS_LVALUES_TERM_LIST_TERM_DONE:
@@ -1673,7 +1679,7 @@ function parser_process(pr, flp){
 			}
 			else if (tok_isKS(tk1, KS_COMMA)){
 				parser_push(pr, PRS_LVALUES_TERM);
-				pr.state.lvaluesPeriods = true;
+				pr.state.lvaluesPeriods = 2;
 				return prr_more();
 			}
 			return prr_error('Invalid list');
@@ -1750,6 +1756,24 @@ function parser_process(pr, flp){
 				return prr_more();
 			st.state = PRS_LVALUES_TERM_DONE;
 			parser_push(pr, PRS_LVALUES_TERM);
+			pr.state.lvaluesPeriods = st.lvaluesPeriods;
+			return parser_process(pr, flp);
+
+		case PRS_LVALUES_DEF_TAIL:
+			if (tk1.type != TOK_IDENT)
+				return prr_error('Expecting identifier');
+			st.state = PRS_LVALUES_DEF_TAIL_DONE;
+			parser_push(pr, PRS_LOOKUP);
+			pr.state.names = [tk1.ident];
+			return prr_more();
+
+		case PRS_LVALUES_DEF_TAIL_DONE:
+			if (tk1.type != TOK_NEWLINE)
+				return prr_error('Missing newline or semicolon');
+			st = st.next; // pop *twice*
+			st.lvalues.push(expr_prefix(flp, KS_PERIOD3, expr_names(flp, st.names)));
+			st.next.lvalues = st.lvalues;
+			pr.state = st.next;
 			return parser_process(pr, flp);
 
 		case PRS_BREAK:
@@ -1820,6 +1844,7 @@ function parser_process(pr, flp){
 			st.state = PRS_DEF_LVALUES;
 			parser_push(pr, PRS_LVALUES);
 			pr.state.lvalues = [];
+			pr.state.lvaluesPeriods = 1;
 			return parser_process(pr, flp);
 
 		case PRS_DEF_LVALUES:
@@ -2493,9 +2518,9 @@ function nsname_newCmdOpcode(name, opcode, params, next){
 	return { name: name, type: NSN_CMD_OPCODE, opcode: opcode, params: params, next: next };
 }
 
-var LKUP_NSNAME   = 0;
-var LKUP_NOTFOUND = 1;
-var LKUP_ERROR    = 2;
+var LKUP_NSNAME   = 'LKUP_NSNAME';
+var LKUP_NOTFOUND = 'LKUP_NOTFOUND';
+var LKUP_ERROR    = 'LKUP_ERROR';
 
 function lkup_nsname(nsn){
 	return { type: LKUP_NSNAME, nsn: nsn };
@@ -2733,18 +2758,10 @@ function compiler_level(cmp){
 //
 
 module.exports = {
-	create: function(){
+	repl: function(){
 		var cmp = compiler_new();
+		compiler_pushFile(cmp, null);
 		return {
-			pushFile: function(file){
-				compiler_pushFile(cmp, file);
-			},
-			popFile: function(){
-				var err = [null];
-				if (compiler_popFile(cmp, err) == false)
-					return err[0];
-				return false;
-			},
 			add: function(str){
 				var err = [null];
 				if (compiler_add(cmp, str, err) == false)

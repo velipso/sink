@@ -8,8 +8,7 @@ var rl = readline.createInterface({
 	output: process.stdout
 });
 var Sink = require('./sink');
-var c = Sink.create();
-c.pushFile(null);
+var c = Sink.repl();
 var line = 1;
 
 function nextLine(levels){
