@@ -14,7 +14,7 @@ var line = 1;
 function nextLine(levels){
 	var p = ': ';
 	if (levels > 0)
-		p = (new Array(levels + 2)).join('..') + ' ';
+		p = (new Array(levels + 1)).join('..') + '. ';
 	if (line < 10)
 		p = ' ' + line + p;
 	else

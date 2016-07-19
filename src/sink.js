@@ -1368,6 +1368,7 @@ var PRS_GOTO_LOOKUP                   = 'PRS_GOTO_LOOKUP';
 var PRS_IF                            = 'PRS_IF';
 var PRS_IF_EXPR                       = 'PRS_IF_EXPR';
 var PRS_IF_BODY                       = 'PRS_IF_BODY';
+var PRS_ELSEIF                        = 'PRS_ELSEIF';
 var PRS_IF_DONE                       = 'PRS_IF_DONE';
 var PRS_ELSE_BODY                     = 'PRS_ELSE_BODY';
 var PRS_ELSE_DONE                     = 'PRS_ELSE_DONE';
@@ -1531,6 +1532,8 @@ function parser_process(pr, flp){
 			return parser_process(pr, flp);
 
 		case PRS_START_STATEMENT:
+			if (st.stmt == null)
+				return prr_error('Invalid statement');
 			if (tk1.type != TOK_NEWLINE)
 				return prr_error('Missing newline or semicolon');
 			st.state = PRS_START;
@@ -1989,6 +1992,8 @@ function parser_process(pr, flp){
 			return parser_statement(pr, ast_goto(flp, st.names));
 
 		case PRS_IF:
+			if (tk1.type == TOK_NEWLINE)
+				return prr_error('Missing conditional expression');
 			st.state = PRS_IF_EXPR;
 			st.conds = [];
 			parser_push(pr, PRS_EXPR);
@@ -2007,8 +2012,7 @@ function parser_process(pr, flp){
 			st.exprTerm = null;
 			st.body = null;
 			if (tok_isKS(tk1, KS_ELSEIF)){
-				st.state = PRS_IF_EXPR;
-				parser_push(pr, PRS_EXPR);
+				st.state = PRS_ELSEIF;
 				return prr_more();
 			}
 			else if (tok_isKS(tk1, KS_ELSE)){
@@ -2022,6 +2026,13 @@ function parser_process(pr, flp){
 				return prr_more();
 			}
 			return prr_error('Missing `elseif`, `else`, or `end` of if block');
+
+		case PRS_ELSEIF:
+			if (tk1.type == TOK_NEWLINE)
+				return prr_error('Missing conditional expression');
+			st.state = PRS_IF_EXPR;
+			parser_push(pr, PRS_EXPR);
+			return parser_process(pr, flp);
 
 		case PRS_IF_DONE:
 			return parser_statement(pr, ast_if(flp, st.conds, []));
@@ -2119,6 +2130,8 @@ function parser_process(pr, flp){
 			return parser_statement(pr, ast_using(flp, st.namesList));
 
 		case PRS_VAR:
+			if (tk1.type == TOK_NEWLINE && !tk1.soft)
+				return prr_more();
 			st.state = PRS_VAR_LVALUES;
 			parser_push(pr, PRS_LVALUES);
 			pr.state.lvalues = [];
@@ -2675,13 +2688,15 @@ function compiler_processTokens(cmp, cmpr, err){
 				return false;
 			}
 			var res = parser_add(cmp.pr, tk, flp);
-			if (res.type == PRR_STATEMENT)
-				console.log(JSON.stringify(res.stmt, null, '  '));
+			if (res.type == PRR_MORE)
+				continue;
 			else if (res.type == PRR_ERROR){
 				err[0] = filepos_err(flp, res.msg);
 				cmp.pr = parser_new(); // reset the parser
 				return false;
 			}
+
+			console.log(JSON.stringify(res.stmt, null, '  '));
 		}
 	}
 	return true;
