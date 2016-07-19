@@ -1169,6 +1169,9 @@ var AST_RETURN    = 'AST_RETURN';
 var AST_USING     = 'AST_USING';
 var AST_DECLARE   = 'AST_DECLARE';
 var AST_VAR       = 'AST_VAR';
+var AST_DEF       = 'AST_DEF';
+var AST_LOOP      = 'AST_LOOP';
+var AST_FOR       = 'AST_FOR';
 
 function ast_break(){
 	return { type: AST_BREAK };
@@ -1220,6 +1223,18 @@ function ast_declare(decls){
 
 function ast_var(lvalues){
 	return { type: AST_VAR, lvalues: lvalues };
+}
+
+function ast_def(names, lvalues, body){
+	return { type: AST_DEF, names: names, lvalues: lvalues, body: body };
+}
+
+function ast_loop(body){
+	return { type: AST_LOOP, body: body };
+}
+
+function ast_for(forVar, names1, names2, ex, body){
+	return { type: AST_FOR, forVar: forVar, names1: names1, names2: names2, ex: ex, body: body };
 }
 
 //
@@ -1289,6 +1304,10 @@ var PRS_DECLARE_STR                   = 'PRS_DECLARE_STR';
 var PRS_DECLARE_STR2                  = 'PRS_DECLARE_STR2';
 var PRS_DECLARE_STR3                  = 'PRS_DECLARE_STR3';
 var PRS_DEF                           = 'PRS_DEF';
+var PRS_DEF_LOOKUP                    = 'PRS_DEF_LOOKUP';
+var PRS_DEF_LVALUES                   = 'PRS_DEF_LVALUES';
+var PRS_DEF_BODY                      = 'PRS_DEF_BODY';
+var PRS_DEF_DONE                      = 'PRS_DEF_DONE';
 var PRS_DO                            = 'PRS_DO';
 var PRS_DO_BODY                       = 'PRS_DO_BODY';
 var PRS_DO_DONE                       = 'PRS_DO_DONE';
@@ -1296,6 +1315,15 @@ var PRS_DO_WHILE_EXPR                 = 'PRS_DO_WHILE_EXPR';
 var PRS_DO_WHILE_BODY                 = 'PRS_DO_WHILE_BODY';
 var PRS_DO_WHILE_DONE                 = 'PRS_DO_WHILE_DONE';
 var PRS_FOR                           = 'PRS_FOR';
+var PRS_LOOP_BODY                     = 'PRS_LOOP_BODY';
+var PRS_LOOP_DONE                     = 'PRS_LOOP_DONE';
+var PRS_FOR_VARS                      = 'PRS_FOR_VARS';
+var PRS_FOR_VARS_LOOKUP               = 'PRS_FOR_VARS_LOOKUP';
+var PRS_FOR_VARS2                     = 'PRS_FOR_VARS2';
+var PRS_FOR_VARS2_LOOKUP              = 'PRS_FOR_VARS2_LOOKUP';
+var PRS_FOR_EXPR                      = 'PRS_FOR_EXPR';
+var PRS_FOR_BODY                      = 'PRS_FOR_BODY';
+var PRS_FOR_DONE                      = 'PRS_FOR_DONE';
 var PRS_GOTO                          = 'PRS_GOTO';
 var PRS_GOTO_LOOKUP                   = 'PRS_GOTO_LOOKUP';
 var PRS_IF                            = 'PRS_IF';
@@ -1347,6 +1375,7 @@ function prs_new(state, next){
 		decls: null,                // list of decl_*'s
 		lvalues: null,              // list of expr
 		lvaluesPeriods: false,
+		forVar: false,
 		exprAllowComma: true,
 		exprAllowTrailComma: false,
 		exprPreStackStack: null,    // linked list of eps_new's
@@ -1357,6 +1386,7 @@ function prs_new(state, next){
 		exprTerm2: null,            // expr
 		exprTerm3: null,            // expr
 		names: null,                // list of strings
+		names2: null,               // list of strings
 		namesList: null,            // list of list of strings
 		next: next
 	};
@@ -1428,17 +1458,6 @@ function parser_start(pr, state){
 function parser_process(pr){
 	var tk1 = pr.tk1;
 	var st = pr.state;
-
-	var here = st;
-	var heres = [];
-	while (here != null){
-		heres.unshift(here.state);
-		here = here.next;
-	}
-	for (var i = 0; i < heres.length; i++)
-		console.log('' + (i + 1), heres[i]);
-	console.log('--');
-
 	switch (st.state){
 		case PRS_START:
 			st.state = PRS_START_STATEMENT;
@@ -1587,8 +1606,6 @@ function parser_process(pr){
 			return prr_error('Invalid list');
 
 		case PRS_LVALUES_TERM_LIST_TAIL:
-			if (tk1.type == TOK_NEWLINE)
-				return prr_more();
 			if (tk1.type != TOK_IDENT)
 				return prr_error('Expecting identifier');
 			st.state = PRS_LVALUES_TERM_LIST_TAIL_LOOKUP;
@@ -1618,7 +1635,7 @@ function parser_process(pr){
 
 		case PRS_LVALUES_TERM_DONE:
 			if (tk1.type == TOK_NEWLINE){
-				st.lvalues.push(expr_infix(tok_ks(KS_EQU), st.exprTerm, expr_nil()));
+				st.lvalues.push(expr_infix(tok_ks(KS_EQU), st.exprTerm, null));
 				st.exprTerm = null;
 				st.next.lvalues = st.lvalues;
 				pr.state = st.next;
@@ -1633,7 +1650,7 @@ function parser_process(pr){
 				return prr_more();
 			}
 			else if (tok_isKS(tk1, KS_COMMA)){
-				st.lvalues.push(expr_infix(tok_ks(KS_EQU), st.exprTerm, expr_nil()));
+				st.lvalues.push(expr_infix(tok_ks(KS_EQU), st.exprTerm, null));
 				st.exprTerm = null;
 				st.state = PRS_LVALUES_MORE;
 				return prr_more();
@@ -1719,7 +1736,33 @@ function parser_process(pr){
 			return parser_statement(pr, ast_declare(st.decls));
 
 		case PRS_DEF:
-			throw 'TODO: def';
+			if (tk1.type != TOK_IDENT)
+				return prr_error('Expecting identifier');
+			st.state = PRS_DEF_LOOKUP;
+			parser_push(pr, PRS_LOOKUP);
+			pr.state.names = [tk1.ident];
+			return prr_more();
+
+		case PRS_DEF_LOOKUP:
+			st.state = PRS_DEF_LVALUES;
+			parser_push(pr, PRS_LVALUES);
+			pr.state.lvalues = [];
+			return parser_process(pr);
+
+		case PRS_DEF_LVALUES:
+			st.state = PRS_DEF_BODY;
+			parser_push(pr, PRS_BODY);
+			pr.state.body = [];
+			return parser_process(pr);
+
+		case PRS_DEF_BODY:
+			if (!tok_isKS(tk1, KS_END))
+				return prr_error('Missing `end` of def block');
+			st.state = PRS_DEF_DONE;
+			return prr_more();
+
+		case PRS_DEF_DONE:
+			return parser_statement(pr, ast_def(st.names, st.lvalues, st.body));
 
 		case PRS_DO:
 			st.state = PRS_DO_BODY;
@@ -1762,7 +1805,81 @@ function parser_process(pr){
 			return parser_statement(pr, ast_doWhile(st.body2, st.exprTerm, st.body));
 
 		case PRS_FOR:
-			throw 'TODO: for';
+			if (tk1.type == TOK_NEWLINE){
+				st.state = PRS_LOOP_BODY;
+				parser_push(pr, PRS_BODY);
+				pr.state.body = [];
+				return prr_more();
+			}
+			st.state = PRS_FOR_VARS;
+			if (tok_isKS(tk1, KS_VAR)){
+				st.forVar = true;
+				return prr_more();
+			}
+			return parser_process(pr);
+
+		case PRS_LOOP_BODY:
+			if (!tok_isKS(tk1, KS_END))
+				return prr_error('Missing `end` of for block');
+			st.state = PRS_LOOP_DONE;
+			return prr_more();
+
+		case PRS_LOOP_DONE:
+			return parser_statement(pr, ast_loop(st.body));
+
+		case PRS_FOR_VARS:
+			if (tk1.type != TOK_IDENT)
+				return prr_error('Expecting identifier');
+			st.state = PRS_FOR_VARS_LOOKUP;
+			parser_push(pr, PRS_LOOKUP);
+			pr.state.names = [tk1.ident];
+			return prr_more();
+
+		case PRS_FOR_VARS_LOOKUP:
+			st.names2 = st.names;
+			st.names = null;
+			if (tok_isKS(tk1, KS_COMMA)){
+				st.state = PRS_FOR_VARS2;
+				return prr_more();
+			}
+			else if (tok_isKS(tk1, KS_COLON)){
+				st.state = PRS_FOR_VARS2_LOOKUP;
+				return parser_process(pr);
+			}
+			return prr_error('Invalid for loop');
+
+		case PRS_FOR_VARS2:
+			if (!tok_isKS(tk1, KS_IDENT))
+				return prr_error('Expecting identifier');
+			st.state = PRS_FOR_VARS2_LOOKUP;
+			parser_push(pr, PRS_LOOKUP);
+			pr.state.names = [tk1.ident];
+			return prr_more();
+
+		case PRS_FOR_VARS2_LOOKUP:
+			if (!tok_isKS(tk1, KS_COLON))
+				return prr_error('Expecting `:`');
+			st.state = PRS_FOR_EXPR;
+			parser_push(pr, PRS_EXPR);
+			return prr_more();
+
+		case PRS_FOR_EXPR:
+			if (tk1.type != TOK_NEWLINE)
+				return prr_error('Missing newline or semicolon');
+			st.state = PRS_FOR_BODY;
+			parser_push(pr, PRS_BODY);
+			pr.state.body = [];
+			return prr_more();
+
+		case PRS_FOR_BODY:
+			if (!tok_isKS(tk1, KS_END))
+				return prr_error('Missing `end` of for block');
+			st.state = PRS_FOR_DONE;
+			return prr_more();
+
+		case PRS_FOR_DONE:
+			return parser_statement(pr,
+				ast_for(st.forVar, st.names2, st.names, st.exprTerm, st.body));
 
 		case PRS_GOTO:
 			if (tk1.type != TOK_IDENT)
