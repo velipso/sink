@@ -135,6 +135,7 @@ var KS_TILDE      = 'KS_TILDE';
 var KS_COLON      = 'KS_COLON';
 var KS_COMMA      = 'KS_COMMA';
 var KS_PERIOD     = 'KS_PERIOD';
+var KS_PIPE       = 'KS_PIPE';
 var KS_LPAREN     = 'KS_LPAREN';
 var KS_LBRACKET   = 'KS_LBRACKET';
 var KS_LBRACE     = 'KS_LBRACE';
@@ -200,6 +201,7 @@ function ks_char(c){
 	else if (c == ':') return KS_COLON;
 	else if (c == ',') return KS_COMMA;
 	else if (c == '.') return KS_PERIOD;
+	else if (c == '|') return KS_PIPE;
 	else if (c == '(') return KS_LPAREN;
 	else if (c == '[') return KS_LBRACKET;
 	else if (c == '{') return KS_LBRACE;
@@ -237,10 +239,6 @@ function ks_char3(c1, c2, c3){
 	else if (c1 == '|' && c2 == '|' && c3 == '=') return KS_PIPE2EQU;
 	else if (c1 == '&' && c2 == '&' && c3 == '=') return KS_AMP2EQU;
 	return KS_INVALID;
-}
-
-function ks_isSpecial(c){
-	return ks_char(c) != KS_INVALID || c == '|';
 }
 
 function ks_str(s){
@@ -323,7 +321,7 @@ function tok_isPre(tk){
 	return false;
 }
 
-function tok_isMid(tk, allowComma){
+function tok_isMid(tk, allowComma, allowPipe){
 	if (tk.type == TOK_KS){
 		return false ||
 			tk.k == KS_PLUS       ||
@@ -355,7 +353,8 @@ function tok_isMid(tk, allowComma){
 			tk.k == KS_PIPE2      ||
 			tk.k == KS_AMP2EQU    ||
 			tk.k == KS_PIPE2EQU   ||
-			(allowComma && tk.k == KS_COMMA);
+			(allowComma && tk.k == KS_COMMA) ||
+			(allowPipe  && tk.k == KS_PIPE );
 	}
 	return false;
 }
@@ -380,34 +379,36 @@ function tok_isPreBeforeMid(pre, mid){
 
 function tok_midPrecedence(tk){
 	//assert(tk.type == TOK_KS);
-	if      (tk.k == KS_CARET     ) return  1;
-	else if (tk.k == KS_PERCENT   ) return  2;
-	else if (tk.k == KS_STAR      ) return  2;
-	else if (tk.k == KS_SLASH     ) return  2;
-	else if (tk.k == KS_PLUS      ) return  3;
-	else if (tk.k == KS_MINUS     ) return  3;
-	else if (tk.k == KS_TILDEPLUS ) return  4;
-	else if (tk.k == KS_PLUSTILDE ) return  4;
-	else if (tk.k == KS_TILDE2PLUS) return  5;
-	else if (tk.k == KS_PLUSTILDE2) return  5;
-	else if (tk.k == KS_TILDE     ) return  6;
-	else if (tk.k == KS_LTEQU     ) return  7;
-	else if (tk.k == KS_LT        ) return  7;
-	else if (tk.k == KS_GTEQU     ) return  7;
-	else if (tk.k == KS_GT        ) return  7;
-	else if (tk.k == KS_BANGEQU   ) return  8;
-	else if (tk.k == KS_EQU2      ) return  8;
-	else if (tk.k == KS_AMP2      ) return  9;
-	else if (tk.k == KS_PIPE2     ) return 10;
-	else if (tk.k == KS_EQU       ) return 20;
-	else if (tk.k == KS_PLUSEQU   ) return 20;
-	else if (tk.k == KS_PERCENTEQU) return 20;
-	else if (tk.k == KS_MINUSEQU  ) return 20;
-	else if (tk.k == KS_STAREQU   ) return 20;
-	else if (tk.k == KS_SLASHEQU  ) return 20;
-	else if (tk.k == KS_CARETEQU  ) return 20;
-	else if (tk.k == KS_TILDEEQU  ) return 20;
-	else if (tk.k == KS_COMMA     ) return 30;
+	var k = tk.k;
+	if      (k == KS_CARET     ) return  1;
+	else if (k == KS_PERCENT   ) return  2;
+	else if (k == KS_STAR      ) return  2;
+	else if (k == KS_SLASH     ) return  2;
+	else if (k == KS_PLUS      ) return  3;
+	else if (k == KS_MINUS     ) return  3;
+	else if (k == KS_TILDEPLUS ) return  4;
+	else if (k == KS_PLUSTILDE ) return  4;
+	else if (k == KS_TILDE2PLUS) return  5;
+	else if (k == KS_PLUSTILDE2) return  5;
+	else if (k == KS_TILDE     ) return  6;
+	else if (k == KS_LTEQU     ) return  7;
+	else if (k == KS_LT        ) return  7;
+	else if (k == KS_GTEQU     ) return  7;
+	else if (k == KS_GT        ) return  7;
+	else if (k == KS_BANGEQU   ) return  8;
+	else if (k == KS_EQU2      ) return  8;
+	else if (k == KS_AMP2      ) return  9;
+	else if (k == KS_PIPE2     ) return 10;
+	else if (k == KS_EQU       ) return 20;
+	else if (k == KS_PLUSEQU   ) return 20;
+	else if (k == KS_PERCENTEQU) return 20;
+	else if (k == KS_MINUSEQU  ) return 20;
+	else if (k == KS_STAREQU   ) return 20;
+	else if (k == KS_SLASHEQU  ) return 20;
+	else if (k == KS_CARETEQU  ) return 20;
+	else if (k == KS_TILDEEQU  ) return 20;
+	else if (k == KS_COMMA     ) return 30;
+	else if (k == KS_PIPE      ) return 40;
 	//assert(false);
 	return -1;
 }
@@ -429,18 +430,19 @@ function tok_isMidBeforeMid(lmid, rmid){
 
 function tok_toMutateOp(tk){
 	if (tk.type == TOK_KS){
-		if      (tk.k == KS_TILDEPLUS ) return OP_PUSH;
-		else if (tk.k == KS_PLUSTILDE ) return OP_UNSHIFT;
-		else if (tk.k == KS_TILDE2PLUS) return OP_APPEND;
-		else if (tk.k == KS_PLUETILDE2) return OP_PREPEND;
-		else if (tk.k == KS_EQU       ) return -1;
-		else if (tk.k == KS_PLUSEQU   ) return OP_ADD;
-		else if (tk.k == KS_PERCENTEQU) return OP_MOD;
-		else if (tk.k == KS_MINUSEQU  ) return OP_SUB;
-		else if (tk.k == KS_STAREQU   ) return OP_MUL;
-		else if (tk.k == KS_SLASHEQU  ) return OP_DIV;
-		else if (tk.k == KS_CARETEQU  ) return OP_POW;
-		else if (tk.k == KS_TILDEEQU  ) return OP_CAT;
+		var k = tk.k;
+		if      (k == KS_TILDEPLUS ) return OP_PUSH;
+		else if (k == KS_PLUSTILDE ) return OP_UNSHIFT;
+		else if (k == KS_TILDE2PLUS) return OP_APPEND;
+		else if (k == KS_PLUETILDE2) return OP_PREPEND;
+		else if (k == KS_EQU       ) return -1;
+		else if (k == KS_PLUSEQU   ) return OP_ADD;
+		else if (k == KS_PERCENTEQU) return OP_MOD;
+		else if (k == KS_MINUSEQU  ) return OP_SUB;
+		else if (k == KS_STAREQU   ) return OP_MUL;
+		else if (k == KS_SLASHEQU  ) return OP_DIV;
+		else if (k == KS_CARETEQU  ) return OP_POW;
+		else if (k == KS_TILDEEQU  ) return OP_CAT;
 		// does not include &&= and ||= because those are tested specifically for short circuit
 	}
 	return -2;
@@ -552,7 +554,7 @@ function lex_process(lx){
 				lx.state = LEX_COMMENT_LINE;
 				return [tok_newline()];
 			}
-			else if (ks_isSpecial(ch1)){
+			else if (ks_char(ch1) != KS_INVALID){
 				if (ch1 == '}' && lx.str_depth > 0){
 					lx.str_depth--;
 					lx.str = [];
@@ -630,7 +632,7 @@ function lex_process(lx){
 			return [];
 
 		case LEX_SPECIAL1: {
-			if (ks_isSpecial(ch1)){
+			if (ks_char(ch1) != KS_INVALID){
 				if (lx.ch2 == '/' && ch1 == '*')
 					lx.state = LEX_COMMENT_BLOCK;
 				else
@@ -1383,6 +1385,7 @@ function prs_new(state, next){
 		forVar: false,
 		str: null,
 		exprAllowComma: true,
+		exprAllowPipe: true,
 		exprAllowTrailComma: false,
 		exprPreStackStack: null,    // linked list of eps_new's
 		exprPreStack: null,         // linked list of ets_new's
@@ -1396,26 +1399,6 @@ function prs_new(state, next){
 		namesList: null,            // list of list of strings
 		next: next
 	};
-}
-
-//
-// parser result
-//
-
-var PRR_MORE      = 'PRR_MORE';
-var PRR_STATEMENT = 'PRR_STATEMENT';
-var PRR_ERROR     = 'PRR_ERROR';
-
-function prr_more(){
-	return { type: PRR_MORE };
-}
-
-function prr_statement(stmt){
-	return { type: PRR_STATEMENT, stmt: stmt };
-}
-
-function prr_error(msg){
-	return { type: PRR_ERROR, msg: msg };
 }
 
 //
@@ -1453,6 +1436,46 @@ function parser_statement(pr, stmt){
 
 function parser_push(pr, state){
 	pr.state = prs_new(state, pr.state);
+}
+
+var PRI_OK    = 'PRI_OK';
+var PRI_ERROR = 'PRI_ERROR';
+
+function pri_ok(ex){
+	return { type: PRI_OK, ex: ex };
+}
+
+function pri_error(msg){
+	return { type: PRI_ERROR, msg: msg };
+}
+
+function parser_infix(k, left, right){
+	if (k == KS_PIPE){
+		if (right.type == EXPR_CALL){
+			right.params = expr_infix(KS_COMMA, expr_paren(left), right.params);
+			return pri_ok(right);
+		}
+		else if (right.type == EXPR_NAMES)
+			return pri_ok(expr_call(right, left));
+		return pri_error('Invalid pipe');
+	}
+	return pri_ok(expr_infix(k, left, right));
+}
+
+var PRR_MORE      = 'PRR_MORE';
+var PRR_STATEMENT = 'PRR_STATEMENT';
+var PRR_ERROR     = 'PRR_ERROR';
+
+function prr_more(){
+	return { type: PRR_MORE };
+}
+
+function prr_statement(stmt){
+	return { type: PRR_STATEMENT, stmt: stmt };
+}
+
+function prr_error(msg){
+	return { type: PRR_ERROR, msg: msg };
 }
 
 function parser_start(pr, state){
@@ -1642,7 +1665,7 @@ function parser_process(pr){
 
 		case PRS_LVALUES_TERM_DONE:
 			if (tk1.type == TOK_NEWLINE){
-				st.lvalues.push(expr_infix(tok_ks(KS_EQU), st.exprTerm, null));
+				st.lvalues.push(expr_infix(KS_EQU, st.exprTerm, null));
 				st.exprTerm = null;
 				st.next.lvalues = st.lvalues;
 				pr.state = st.next;
@@ -1657,7 +1680,7 @@ function parser_process(pr){
 				return prr_more();
 			}
 			else if (tok_isKS(tk1, KS_COMMA)){
-				st.lvalues.push(expr_infix(tok_ks(KS_EQU), st.exprTerm, null));
+				st.lvalues.push(expr_infix(KS_EQU, st.exprTerm, null));
 				st.exprTerm = null;
 				st.state = PRS_LVALUES_MORE;
 				return prr_more();
@@ -1665,7 +1688,7 @@ function parser_process(pr){
 			return prr_error('Invalid declaration');
 
 		case PRS_LVALUES_TERM_EXPR:
-			st.lvalues.push(expr_infix(tok_ks(KS_EQU), st.exprTerm2, st.exprTerm));
+			st.lvalues.push(expr_infix(KS_EQU, st.exprTerm2, st.exprTerm));
 			st.exprTerm2 = null;
 			st.exprTerm = null;
 			if (tk1.type == TOK_NEWLINE){
@@ -2154,7 +2177,7 @@ function parser_process(pr){
 				st.state = PRS_EXPR_INDEX_CHECK;
 				return prr_more();
 			}
-			else if (tok_isMid(tk1, st.exprAllowComma)){
+			else if (tok_isMid(tk1, st.exprAllowComma, st.exprAllowPipe)){
 				if (st.exprAllowTrailComma && tok_isKS(pr, KS_COMMA)){
 					st.state = PRS_EXPR_COMMA;
 					return prr_more();
@@ -2163,7 +2186,8 @@ function parser_process(pr){
 				return parser_process(pr);
 			}
 			else if (tok_isKS(tk1, KS_RBRACE) || tok_isKS(tk1, KS_RBRACKET) ||
-				tok_isKS(tk1, KS_RPAREN) || tok_isKS(tk1, KS_COLON) || tok_isKS(tk1, KS_COMMA)){
+				tok_isKS(tk1, KS_RPAREN) || tok_isKS(tk1, KS_COLON) || tok_isKS(tk1, KS_COMMA) ||
+				tok_isKS(tk1, KS_PIPE)){
 				st.state = PRS_EXPR_FINISH;
 				return parser_process(pr);
 			}
@@ -2172,6 +2196,7 @@ function parser_process(pr){
 			st.exprTerm = null;
 			st.state = PRS_EXPR_POST_CALL;
 			parser_push(pr, PRS_EXPR);
+			pr.state.exprAllowPipe = false;
 			return parser_process(pr);
 
 		case PRS_EXPR_POST_CALL:
@@ -2272,7 +2297,7 @@ function parser_process(pr){
 			return parser_process(pr);
 
 		case PRS_EXPR_MID:
-			if (!tok_isMid(tk1, st.exprAllowComma)){
+			if (!tok_isMid(tk1, st.exprAllowComma, st.exprAllowPipe)){
 				st.state = PRS_EXPR_FINISH;
 				return parser_process(pr);
 			}
@@ -2288,7 +2313,10 @@ function parser_process(pr){
 				if (st.exprPreStack == null && st.exprMidStack != null &&
 					tok_isMidBeforeMid(st.exprMidStack.tk, tk1)){
 					// apply the previous mMid
-					st.exprTerm = expr_infix(st.exprMidStack.tk.k, st.exprStack.ex, st.exprTerm);
+					var pri = parser_infix(st.exprMidStack.tk.k, st.exprStack.ex, st.exprTerm)
+					if (pri.type == PRI_ERROR)
+						return prr_error(pri.msg);
+					st.exprTerm = pri.ex;
 					st.exprPreStack = st.exprPreStackStack.ets;
 					st.exprPreStackStack = st.exprPreStackStack.next;
 					st.exprMidStack = st.exprMidStack.next;
@@ -2323,7 +2351,10 @@ function parser_process(pr){
 					break;
 
 				// apply the Mid
-				st.exprTerm = expr_infix(st.exprMidStack.tk.k, st.exprStack.ex, st.exprTerm);
+				var pri = parser_infix(st.exprMidStack.tk.k, st.exprStack.ex, st.exprTerm);
+				if (pri.type == PRI_ERROR)
+					return prr_error(pri.msg);
+				st.exprTerm = pri.ex;
 				st.exprStack = st.exprStack.next;
 				st.exprPreStack = st.exprPreStackStack.ets;
 				st.exprPreStackStack = st.exprPreStackStack.next;
