@@ -12,13 +12,13 @@ var c = Sink.repl();
 var line = 1;
 
 function nextLine(levels){
-	var p = '> ';
+	var p = ': ';
 	if (levels > 0)
 		p = (new Array(levels + 2)).join('..') + ' ';
 	if (line < 10)
-		p = ' ' + line + ': ' + p;
+		p = ' ' + line + p;
 	else
-		p = line + ': ' + p;
+		p = line + p;
 	rl.question(p, function(ans){
 		var res = c.add(ans + '\n');
 		if (res !== false)

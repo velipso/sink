@@ -3,14 +3,6 @@
 // Project Home: https://github.com/voidqk/sink
 
 //
-// helper
-//
-
-function varloc_new(fdiff, index){
-	return { fdiff: fdiff, index: index };
-}
-
-//
 // opcodes
 //
 
