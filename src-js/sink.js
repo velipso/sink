@@ -276,8 +276,8 @@ var TOK_NUM     = 'TOK_NUM';
 var TOK_STR     = 'TOK_STR';
 var TOK_ERROR   = 'TOK_ERROR';
 
-function tok_newline(){
-	return { type: TOK_NEWLINE };
+function tok_newline(soft){
+	return { type: TOK_NEWLINE, soft: soft };
 }
 
 function tok_ks(k){
@@ -552,7 +552,7 @@ function lex_process(lx, tks){
 		case LEX_START:
 			if (ch1 == '#'){
 				lx.state = LEX_COMMENT_LINE;
-				tks.push(tok_newline());
+				tks.push(tok_newline(false));
 			}
 			else if (ks_char(ch1) != KS_INVALID){
 				if (ch1 == '}' && lx.str_depth > 0){
@@ -590,10 +590,10 @@ function lex_process(lx, tks){
 				lx.state = LEX_BACKSLASH;
 			else if (ch1 == '\r'){
 				lx.state = LEX_RETURN;
-				tks.push(tok_newline());
+				tks.push(tok_newline(false));
 			}
 			else if (ch1 == '\n' || ch1 == ';')
-				tks.push(tok_newline());
+				tks.push(tok_newline(ch1 == ';'));
 			else if (isSpace(ch1))
 				/* do nothing */;
 			else
@@ -618,11 +618,10 @@ function lex_process(lx, tks){
 				tks.push(tok_error('Invalid character after backslash'));
 			break;
 
-		case LEX_RETURN: // TODO: how's this work again..?
-			if (ch1 != '\n'){
-				lx.state = LEX_START;
+		case LEX_RETURN:
+			lx.state = LEX_START;
+			if (ch1 != '\n')
 				lex_process(lx, tks);
-			}
 			break;
 
 		case LEX_COMMENT_BLOCK:
@@ -1090,7 +1089,7 @@ function lex_close(lx, tks){
 			tks.push(tok_error('Missing end of string'));
 			break;
 	}
-	tks.push(tok_newline());
+	tks.push(tok_newline(false));
 }
 
 //
@@ -1584,7 +1583,7 @@ function parser_process(pr){
 			return prr_more();
 
 		case PRS_LVALUES:
-			if (tk1.type == TOK_NEWLINE){
+			if (tk1.type == TOK_NEWLINE && !tk1.soft){
 				st.next.lvalues = st.lvalues;
 				pr.state = st.next;
 				return parser_process(pr);
@@ -1617,7 +1616,7 @@ function parser_process(pr){
 			return parser_process(pr);
 
 		case PRS_LVALUES_TERM_LIST:
-			if (tk1.type == TOK_NEWLINE)
+			if (tk1.type == TOK_NEWLINE && !tk1.soft)
 				return prr_more();
 			else if (tok_isKS(tk1, KS_RBRACE)){
 				st.next.exprTerm = st.exprTerm;
@@ -1630,7 +1629,7 @@ function parser_process(pr){
 			return parser_process(pr);
 
 		case PRS_LVALUES_TERM_LIST_TERM_DONE:
-			if (tk1.type == TOK_NEWLINE)
+			if (tk1.type == TOK_NEWLINE && !tk1.soft)
 				return prr_more();
 			if (st.exprTerm2 == null){
 				st.exprTerm2 = st.exprTerm;
@@ -1661,7 +1660,7 @@ function parser_process(pr){
 			return prr_more();
 
 		case PRS_LVALUES_TERM_LIST_TAIL_LOOKUP:
-			if (tk1.type == TOK_NEWLINE)
+			if (tk1.type == TOK_NEWLINE && !tk1.soft)
 				return prr_more();
 			st.state = PRS_LVALUES_TERM_LIST_TAIL_DONE;
 			if (tok_isKS(tk1, KS_COMMA))
@@ -1720,7 +1719,7 @@ function parser_process(pr){
 			return prr_error('Invalid declaration');
 
 		case PRS_LVALUES_MORE:
-			if (tk1.type == TOK_NEWLINE)
+			if (tk1.type == TOK_NEWLINE && !tk1.soft)
 				return prr_more();
 			st.state = PRS_LVALUES_TERM_DONE;
 			parser_push(pr, PRS_LVALUES_TERM);
@@ -1740,7 +1739,7 @@ function parser_process(pr){
 			return parser_process(pr);
 
 		case PRS_DECLARE2:
-			if (tk1.type == TOK_NEWLINE)
+			if (tk1.type == TOK_NEWLINE && !tk1.soft)
 				return prr_more();
 			if (tk1.type != TOK_IDENT)
 				return prr_error('Expecting identifier');
@@ -2057,7 +2056,7 @@ function parser_process(pr){
 			return parser_process(pr);
 
 		case PRS_USING2:
-			if (tk1.type == TOK_NEWLINE)
+			if (tk1.type == TOK_NEWLINE && !tk1.soft)
 				return prr_more();
 			if (tk1.type != TOK_IDENT)
 				return prr_error('Expecting identifier');
@@ -2114,7 +2113,7 @@ function parser_process(pr){
 			return parser_process(pr);
 
 		case PRS_EXPR_TERM:
-			if (tk1.type == TOK_NEWLINE)
+			if (tk1.type == TOK_NEWLINE && !tk1.soft)
 				return prr_more();
 			else if (tk1.type == TOK_NUM){
 				st.state = PRS_EXPR_POST;
@@ -2143,7 +2142,7 @@ function parser_process(pr){
 			return prr_error('Invalid expression');
 
 		case PRS_EXPR_TERM_ISEMPTYLIST:
-			if (tk1.type == TOK_NEWLINE)
+			if (tk1.type == TOK_NEWLINE && !tk1.soft)
 				return prr_more();
 			else if (tok_isKS(tk1, KS_RBRACE)){
 				st.state = PRS_EXPR_POST;
@@ -2153,17 +2152,15 @@ function parser_process(pr){
 			st.state = PRS_EXPR_TERM_CLOSEBRACE;
 			parser_push(pr, PRS_EXPR);
 			pr.state.exprAllowTrailComma = true;
-			pr.level++;
 			return parser_process(pr);
 
 		case PRS_EXPR_TERM_CLOSEBRACE:
-			if (tk1.type == TOK_NEWLINE)
+			if (tk1.type == TOK_NEWLINE && !tk1.soft)
 				return prr_more();
 			if (!tok_isKS(tk1, KS_RBRACE))
 				return prr_error('Expecting close brace');
 			st.exprTerm = expr_list(st.exprTerm);
 			st.state = PRS_EXPR_POST;
-			pr.level--;
 			return prr_more();
 
 		case PRS_EXPR_TERM_ISNIL:
@@ -2175,17 +2172,15 @@ function parser_process(pr){
 			st.state = PRS_EXPR_TERM_CLOSEPAREN;
 			parser_push(pr, PRS_EXPR);
 			pr.state.exprAllowTrailComma = true;
-			pr.level++;
 			return parser_process(pr);
 
 		case PRS_EXPR_TERM_CLOSEPAREN:
-			if (tk1.type == TOK_NEWLINE)
+			if (tk1.type == TOK_NEWLINE && !tk1.soft)
 				return prr_more();
 			if (!tok_isKS(tk1, KS_RPAREN))
 				return prr_error('Expecting close parenthesis');
 			st.exprTerm = expr_paren(st.exprTerm);
 			st.state = PRS_EXPR_POST;
-			pr.level--;
 			return prr_more();
 
 		case PRS_EXPR_TERM_LOOKUP:
@@ -2231,7 +2226,7 @@ function parser_process(pr){
 			return parser_process(pr);
 
 		case PRS_EXPR_INDEX_CHECK:
-			if (tk1.type == TOK_NEWLINE)
+			if (tk1.type == TOK_NEWLINE && !tk1.soft)
 				return prr_more();
 			if (tok_isKS(tk1, KS_COLON)){
 				st.state = PRS_EXPR_INDEX_COLON_CHECK;
@@ -2244,7 +2239,7 @@ function parser_process(pr){
 			return parser_process(pr);
 
 		case PRS_EXPR_INDEX_COLON_CHECK:
-			if (tk1.type == TOK_NEWLINE)
+			if (tk1.type == TOK_NEWLINE && !tk1.soft)
 				return prr_more();
 			if (tok_isKS(tk1, KS_RBRACKET)){
 				st.exprTerm = expr_slice(st.exprTerm, null, null);
@@ -2258,7 +2253,7 @@ function parser_process(pr){
 			return parser_process(pr);
 
 		case PRS_EXPR_INDEX_COLON_EXPR:
-			if (tk1.type == TOK_NEWLINE)
+			if (tk1.type == TOK_NEWLINE && !tk1.soft)
 				return prr_more();
 			if (!tok_isKS(tk1, KS_RBRACKET))
 				return prr_error('Missing close bracket');
@@ -2267,7 +2262,7 @@ function parser_process(pr){
 			return prr_more();
 
 		case PRS_EXPR_INDEX_EXPR_CHECK:
-			if (tk1.type == TOK_NEWLINE)
+			if (tk1.type == TOK_NEWLINE && !tk1.soft)
 				return prr_more();
 			if (tok_isKS(tk1, KS_COLON)){
 				st.state = PRS_EXPR_INDEX_EXPR_COLON_CHECK;
@@ -2281,7 +2276,7 @@ function parser_process(pr){
 			return prr_more();
 
 		case PRS_EXPR_INDEX_EXPR_COLON_CHECK:
-			if (tk1.type == TOK_NEWLINE)
+			if (tk1.type == TOK_NEWLINE && !tk1.soft)
 				return prr_more();
 			if (tok_isKS(tk1, KS_RBRACKET)){
 				st.exprTerm = expr_slice(st.exprTerm2, st.exprTerm, null);
@@ -2295,7 +2290,7 @@ function parser_process(pr){
 			return parser_process(pr);
 
 		case PRS_EXPR_INDEX_EXPR_COLON_EXPR:
-			if (tk1.type == TOK_NEWLINE)
+			if (tk1.type == TOK_NEWLINE && !tk1.soft)
 				return prr_more();
 			if (!tok_isKS(tk1, KS_RBRACKET))
 				return prr_error('Missing close bracket');
@@ -2306,7 +2301,7 @@ function parser_process(pr){
 			return prr_more();
 
 		case PRS_EXPR_COMMA:
-			if (tk1.type == TOK_NEWLINE){
+			if (tk1.type == TOK_NEWLINE && !tk1.soft){
 				parser_rev(pr); // keep the comma in tk1
 				return prr_more();
 			}
@@ -2637,8 +2632,8 @@ function compiler_processTokens(cmp, tks, err){
 		if (res.type == PRR_STATEMENT)
 			console.log(JSON.stringify(res.stmt, null, '  '));
 		else if (res.type == PRR_ERROR){
-			err[0] = res.msg;
-			cmp.pr = parser_new();
+			err[0] = compiler_makeError(cmp, res.msg);
+			cmp.pr = parser_new(); // reset the parser
 			return false;
 		}
 	}
