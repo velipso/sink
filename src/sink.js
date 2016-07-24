@@ -6,6 +6,10 @@
 // opcodes
 //
 
+function varloc_new(fdiff, index){
+	return { fdiff: fdiff, index: index };
+}
+
 var OP_NOP         = 0x00; //
 var OP_NIL         = 0x01; // [TGT]
 var OP_MOVE        = 0x02; // [TGT], [SRC]
@@ -30,6 +34,18 @@ var OP_GTE         = 0x14; // [TGT], [SRC1], [SRC2]
 var OP_GT          = 0x15; // [TGT], [SRC1], [SRC2]
 var OP_NEQ         = 0x16; // [TGT], [SRC1], [SRC2]
 var OP_EQU         = 0x17; // [TGT], [SRC1], [SRC2]
+var OP_GETAT       = 0x18; // [TGT], [SRC1], [SRC2]
+var OP_SETAT       = 0x19; // [SRC1], [SRC2], [SRC3]
+var OP_SLICE       = 0x1A; // [TGT], [SRC1], [SRC2], [SRC3]
+var OP_TONUM       = 0x1B; // [TGT], [SRC]
+var OP_NEG         = 0x1C; // [TGT], [SRC]
+var OP_SIZE        = 0x1D; // [TGT], [SRC]
+var OP_NOT         = 0x1E; // [TGT], [SRC]
+var OP_SHIFT       = 0x1F; // [TGT], [SRC]
+var OP_POP         = 0x20; // [TGT], [SRC]
+var OP_ISNUM       = 0x21; // [TGT], [SRC]
+var OP_ISSTR       = 0x22; // [TGT], [SRC]
+var OP_ISLIST      = 0x23; // [TGT], [SRC]
 var OP_SAY         = 0x30; // [TGT], [SRC]
 var OP_ASK         = 0x31; // [TGT], [SRC]
 var OP_NUM_FLOOR   = 0x32; // [TGT], [SRC]
@@ -58,18 +74,22 @@ var OP_LIST_REV    = 0x48; // [TGT], [SRC]
 var OP_LIST_JOIN   = 0x49; // [TGT], [SRC1], [SRC2]
 
 function op_nop(b){
+	console.log('> NOP');
 	b.push(OP_NOP);
 }
 
 function op_nil(b, tgt){
+	console.log('> NIL ' + tgt.fdiff + ':' + tgt.index);
 	b.push(OP_NIL, tgt.fdiff, tgt.index);
 }
 
 function op_move(b, tgt, src){
+	console.log('> MOVE ' + tgt.fdiff + ':' + tgt.index + ', ' + src.fdiff + ':' + src.index);
 	b.push(OP_MOVE, tgt.fdiff, tgt.index, src.fdiff, src.index);
 }
 
 function op_num(b, tgt, num){
+	console.log('> NUM ' + tgt.fdiff + ':' + tgt.index + ', ' + num);
 	if (num >= 0)
 		b.push(OP_NUM_POS, tgt.fdiff, tgt.index, num % 256, Math.floor(num / 256));
 	else{
@@ -79,6 +99,7 @@ function op_num(b, tgt, num){
 }
 
 function op_num_tbl(b, tgt, index){
+	console.log('> NUM_TBL ' + tgt.fdiff + ':' + tgt.index + ', numTable[' + index + ']');
 	b.push(OP_NUM_TBL, tgt.fdiff, tgt.index, index % 256, Math.floor(index / 256));
 }
 
@@ -86,8 +107,69 @@ function op_str(b, tgt, index){
 	b.push(OP_STR, tgt.fdiff, tgt.index, index % 256, Math.floor(index / 256));
 }
 
+function op_unop(b, opcode, tgt, src){
+	var opstr = '???';
+	if      (opcode == OP_TONUM ) opstr = 'TONUM';
+	else if (opcode == OP_NEG   ) opstr = 'NEG';
+	else if (opcode == OP_SIZE  ) opstr = 'SIZE';
+	else if (opcode == OP_NOT   ) opstr = 'NOT';
+	else if (opcode == OP_SHIFT ) opstr = 'SHIFT';
+	else if (opcode == OP_POP   ) opstr = 'POP';
+	else if (opcode == OP_ISNUM ) opstr = 'ISNUM';
+	else if (opcode == OP_ISSTR ) opstr = 'ISSTR';
+	else if (opcode == OP_ISLIST) opstr = 'ISLIST';
+	console.log('> ' + opstr + ' ' +
+		tgt.fdiff + ':' + tgt.index + ', ' +
+		src.fdiff + ':' + src.index);
+	b.push(opcode, tgt.fdiff, tgt.index, src.fdiff, src.index);
+}
+
 function op_binop(b, opcode, tgt, src1, src2){
+	var opstr = '???';
+	if      (opcode == OP_ADD) opstr = 'ADD';
+	else if (opcode == OP_SUB) opstr = 'SUB';
+	else if (opcode == OP_MOD) opstr = 'MOD';
+	else if (opcode == OP_MUL) opstr = 'MUL';
+	else if (opcode == OP_DIV) opstr = 'DIV';
+	else if (opcode == OP_POW) opstr = 'POW';
+	else if (opcode == OP_LT ) opstr = 'LT';
+	else if (opcode == OP_GT ) opstr = 'GT';
+	else if (opcode == OP_CAT) opstr = 'CAT';
+	else if (opcode == OP_LTE) opstr = 'LTE';
+	else if (opcode == OP_GTE) opstr = 'GTE';
+	else if (opcode == OP_NEQ) opstr = 'NEQ';
+	else if (opcode == OP_EQU) opstr = 'EQU';
+	console.log('> ' + opstr + ' ' +
+		tgt.fdiff + ':' + tgt.index + ', ' +
+		src1.fdiff + ':' + src1.index + ', ' +
+		src2.fdiff + ':' + src2.index);
 	b.push(opcode, tgt.fdiff, tgt.index, src1.fdiff, src1.index, src2.fdiff, src2.index);
+}
+
+function op_getat(b, tgt, src1, src2){
+	console.log('> GETAT ' +
+		tgt.fdiff + ':' + tgt.index + ', ' +
+		src1.fdiff + ':' + src1.index + ', ' +
+		src2.fdiff + ':' + src2.index);
+	b.push(OP_GETAT, tgt.fdiff, tgt.index, src1.fdiff, src1.index, src2.fdiff, src2.index);
+}
+
+function op_setat(b, src1, src2, src3){
+	console.log('> SETAT ' +
+		src1.fdiff + ':' + src1.index + ', ' +
+		src2.fdiff + ':' + src2.index + ', ' +
+		src3.fdiff + ':' + src3.index);
+	b.push(OP_GETAT, src1.fdiff, src1.index, src2.fdiff, src2.index, src3.fdiff, src3.index);
+}
+
+function op_slice(b, tgt, src1, src2, src3){
+	console.log('> SLICE ' +
+		tgt.fdiff + ':' + tgt.index + ', ' +
+		src1.fdiff + ':' + src1.index + ', ' +
+		src2.fdiff + ':' + src2.index + ', ' +
+		src3.fdiff + ':' + src3.index);
+	b.push(OP_SLICE, tgt.fdiff, tgt.index, src1.fdiff, src1.index, src2.fdiff, src2.index,
+		src3.fdiff, src3.index);
 }
 
 function op_param0(b, opcode, tgt){
@@ -273,6 +355,51 @@ function ks_str(s){
 	return KS_INVALID;
 }
 
+function ks_toUnaryOp(k){
+	if      (k == KS_PLUS      ) return OP_TONUM;
+	else if (k == KS_MINUS     ) return OP_NEG;
+	else if (k == KS_AMP       ) return OP_SIZE;
+	else if (k == KS_BANG      ) return OP_NOT;
+	else if (k == KS_MINUSTILDE) return OP_SHIFT;
+	else if (k == KS_TILDEMINUS) return OP_POP;
+	else if (k == KS_TYPENUM   ) return OP_ISNUM;
+	else if (k == KS_TYPESTR   ) return OP_ISSTR;
+	else if (k == KS_TYPELIST  ) return OP_ISLIST;
+	return -1;
+}
+
+function ks_toBinaryOp(k){
+	if      (k == KS_PLUS   ) return OP_ADD;
+	else if (k == KS_MINUS  ) return OP_SUB;
+	else if (k == KS_PERCENT) return OP_MOD;
+	else if (k == KS_STAR   ) return OP_MUL;
+	else if (k == KS_SLASH  ) return OP_DIV;
+	else if (k == KS_CARET  ) return OP_POW;
+	else if (k == KS_LT     ) return OP_LT;
+	else if (k == KS_GT     ) return OP_GT;
+	else if (k == KS_TILDE  ) return OP_CAT;
+	else if (k == KS_LTEQU  ) return OP_LTE;
+	else if (k == KS_GTEQU  ) return OP_GTE;
+	else if (k == KS_BANGEQU) return OP_NEQ;
+	else if (k == KS_EQU2   ) return OP_EQU;
+	return -1;
+}
+
+function ks_toMutateOp(k){
+	if      (k == KS_TILDEPLUS ) return OP_PUSH;
+	else if (k == KS_PLUSTILDE ) return OP_UNSHIFT;
+	else if (k == KS_TILDE2PLUS) return OP_APPEND;
+	else if (k == KS_PLUSTILDE2) return OP_PREPEND;
+	else if (k == KS_PLUSEQU   ) return OP_ADD;
+	else if (k == KS_PERCENTEQU) return OP_MOD;
+	else if (k == KS_MINUSEQU  ) return OP_SUB;
+	else if (k == KS_STAREQU   ) return OP_MUL;
+	else if (k == KS_SLASHEQU  ) return OP_DIV;
+	else if (k == KS_CARETEQU  ) return OP_POW;
+	else if (k == KS_TILDEEQU  ) return OP_CAT;
+	return -1;
+}
+
 //
 // tokens
 //
@@ -434,26 +561,6 @@ function tok_isMidBeforeMid(lmid, rmid){
 	if (lp === 20 || lmid.k == KS_CARET) // mutation and pow are right to left
 		return false;
 	return true;
-}
-
-function tok_toMutateOp(tk){
-	if (tk.type == TOK_KS){
-		var k = tk.k;
-		if      (k == KS_TILDEPLUS ) return OP_PUSH;
-		else if (k == KS_PLUSTILDE ) return OP_UNSHIFT;
-		else if (k == KS_TILDE2PLUS) return OP_APPEND;
-		else if (k == KS_PLUETILDE2) return OP_PREPEND;
-		else if (k == KS_EQU       ) return -1;
-		else if (k == KS_PLUSEQU   ) return OP_ADD;
-		else if (k == KS_PERCENTEQU) return OP_MOD;
-		else if (k == KS_MINUSEQU  ) return OP_SUB;
-		else if (k == KS_STAREQU   ) return OP_MUL;
-		else if (k == KS_SLASHEQU  ) return OP_DIV;
-		else if (k == KS_CARETEQU  ) return OP_POW;
-		else if (k == KS_TILDEEQU  ) return OP_CAT;
-		// does not include &&= and ||= because those are tested specifically for short circuit
-	}
-	return -2;
 }
 
 //
@@ -729,6 +836,11 @@ function lex_process(lx, tks){
 				lx.num_eval = 0;
 				lx.num_elen = 0;
 				lx.state = LEX_NUM_EXP;
+			}
+			else if (!isIdentStart(ch1)){
+				tks.push(tok_num(0));
+				lx.state = LEX_START;
+				lex_process(lx, tks);
 			}
 			else
 				tks.push(tok_error('Invalid number'));
@@ -1104,18 +1216,19 @@ function lex_close(lx, tks){
 // expr
 //
 
-var EXPR_NIL     = 'EXPR_NIL';
-var EXPR_NUM     = 'EXPR_NUM';
-var EXPR_STR     = 'EXPR_STR';
-var EXPR_LIST    = 'EXPR_LIST';
-var EXPR_NAMES   = 'EXPR_NAMES';
-var EXPR_PAREN   = 'EXPR_PAREN';
-var EXPR_GROUP   = 'EXPR_GROUP';
-var EXPR_PREFIX  = 'EXPR_PREFIX';
-var EXPR_INFIX   = 'EXPR_INFIX';
-var EXPR_CALL    = 'EXPR_CALL';
-var EXPR_INDEX   = 'EXPR_INDEX';
-var EXPR_SLICE   = 'EXPR_SLICE';
+var EXPR_NIL    = 'EXPR_NIL';
+var EXPR_NUM    = 'EXPR_NUM';
+var EXPR_STR    = 'EXPR_STR';
+var EXPR_LIST   = 'EXPR_LIST';
+var EXPR_NAMES  = 'EXPR_NAMES';
+var EXPR_VAR    = 'EXPR_VAR';
+var EXPR_PAREN  = 'EXPR_PAREN';
+var EXPR_GROUP  = 'EXPR_GROUP';
+var EXPR_PREFIX = 'EXPR_PREFIX';
+var EXPR_INFIX  = 'EXPR_INFIX';
+var EXPR_CALL   = 'EXPR_CALL';
+var EXPR_INDEX  = 'EXPR_INDEX';
+var EXPR_SLICE  = 'EXPR_SLICE';
 
 function expr_nil(flp){
 	return { flp: flp, type: EXPR_NIL };
@@ -1135,6 +1248,10 @@ function expr_list(flp, ex){
 
 function expr_names(flp, names){
 	return { flp: flp, type: EXPR_NAMES, names: names };
+}
+
+function expr_var(flp, vlc){
+	return { flp: flp, type: EXPR_VAR, vlc: vlc };
 }
 
 function expr_paren(flp, ex){
@@ -1158,6 +1275,10 @@ function expr_group(flp, left, right){
 }
 
 function expr_prefix(flp, k, ex){
+	if (k == KS_MINUS && ex.type == EXPR_NUM)
+		return expr_num(flp, -ex.num);
+	else if (k == KS_PLUS && ex.type == EXPR_NUM)
+		return ex;
 	return { flp: flp, type: EXPR_PREFIX, k: k, ex: ex };
 }
 
@@ -1171,12 +1292,12 @@ function expr_call(flp, cmd, params){
 	return { flp: flp, type: EXPR_CALL, cmd: cmd, params: params };
 }
 
-function expr_index(flp, ex, index){
-	return { flp: flp, type: EXPR_INDEX, ex: ex, index: index };
+function expr_index(flp, obj, key){
+	return { flp: flp, type: EXPR_INDEX, obj: obj, key: key };
 }
 
-function expr_slice(flp, ex, left, right){
-	return { flp: flp, type: EXPR_SLICE, ex: ex, left: left, right: right };
+function expr_slice(flp, obj, start, len){
+	return { flp: flp, type: EXPR_SLICE, obj: obj, start: start, len: len };
 }
 
 //
@@ -1241,8 +1362,8 @@ function ast_loop(flp, body){
 	return { flp: flp, type: AST_LOOP, body: body };
 }
 
-function ast_goto(flp, names){
-	return { flp: flp, type: AST_GOTO, names: names };
+function ast_goto(flp, ident){
+	return { flp: flp, type: AST_GOTO, ident: ident };
 }
 
 function ast_if(flp, conds, elseBody){
@@ -1273,8 +1394,8 @@ function ast_eval(flp, ex){
 	return { flp: flp, type: AST_EVAL, ex: ex };
 }
 
-function ast_label(flp, names){
-	return { flp: flp, type: AST_LABEL, names: names };
+function ast_label(flp, ident){
+	return { flp: flp, type: AST_LABEL, ident: ident };
 }
 
 //
@@ -1364,7 +1485,7 @@ var PRS_FOR_EXPR                      = 'PRS_FOR_EXPR';
 var PRS_FOR_BODY                      = 'PRS_FOR_BODY';
 var PRS_FOR_DONE                      = 'PRS_FOR_DONE';
 var PRS_GOTO                          = 'PRS_GOTO';
-var PRS_GOTO_LOOKUP                   = 'PRS_GOTO_LOOKUP';
+var PRS_GOTO_DONE                     = 'PRS_GOTO_DONE';
 var PRS_IF                            = 'PRS_IF';
 var PRS_IF_EXPR                       = 'PRS_IF_EXPR';
 var PRS_IF_BODY                       = 'PRS_IF_BODY';
@@ -1534,7 +1655,8 @@ function parser_process(pr, flp){
 		case PRS_START_STATEMENT:
 			if (st.stmt == null)
 				return prr_error('Invalid statement');
-			if (tk1.type != TOK_NEWLINE)
+			// all statements require a newline to terminate it... except labels
+			if (st.stmt.type != AST_LABEL && tk1.type != TOK_NEWLINE)
 				return prr_error('Missing newline or semicolon');
 			st.state = PRS_START;
 			return prr_statement(st.stmt);
@@ -1778,8 +1900,6 @@ function parser_process(pr, flp){
 			return parser_statement(pr, ast_continue(flp));
 
 		case PRS_DECLARE:
-			if (tk1.type == TOK_NEWLINE)
-				return prr_error('Expecting identifier');
 			st.decls = [];
 			st.state = PRS_DECLARE2;
 			return parser_process(pr, flp);
@@ -1983,13 +2103,11 @@ function parser_process(pr, flp){
 		case PRS_GOTO:
 			if (tk1.type != TOK_IDENT)
 				return prr_error('Expecting identifier');
-			st.state = PRS_GOTO_LOOKUP;
-			parser_push(pr, PRS_LOOKUP);
-			pr.state.names = [tk1.ident];
+			st.state = PRS_GOTO_DONE;
 			return prr_more();
 
-		case PRS_GOTO_LOOKUP:
-			return parser_statement(pr, ast_goto(flp, st.names));
+		case PRS_GOTO_DONE:
+			return parser_statement(pr, ast_goto(flp, pr.tk2.ident));
 
 		case PRS_IF:
 			if (tk1.type == TOK_NEWLINE)
@@ -2143,10 +2261,8 @@ function parser_process(pr, flp){
 			return parser_statement(pr, ast_var(flp, st.lvalues));
 
 		case PRS_IDENTS:
-			if (tok_isKS(tk1, KS_COLON)){
-				pr.state = st.next;
-				return parser_statement(pr, ast_label(flp, st.names));
-			}
+			if (st.names.length == 1 && tok_isKS(tk1, KS_COLON))
+				return parser_statement(pr, ast_label(flp, st.names[0]));
 			pr.level++;
 			st.state = PRS_EVAL_EXPR;
 			parser_push(pr, PRS_EXPR_POST);
@@ -2390,7 +2506,7 @@ function parser_process(pr, flp){
 				if (st.exprPreStack == null && st.exprMidStack != null &&
 					tok_isMidBeforeMid(st.exprMidStack.tk, tk1)){
 					// apply the previous mMid
-					var pri = parser_infix(st.exprMidStack.tk.k, st.exprStack.ex, st.exprTerm)
+					var pri = parser_infix(flp, st.exprMidStack.tk.k, st.exprStack.ex, st.exprTerm)
 					if (pri.type == PRI_ERROR)
 						return prr_error(pri.msg);
 					st.exprTerm = pri.ex;
@@ -2426,7 +2542,7 @@ function parser_process(pr, flp){
 					break;
 
 				// apply the Mid
-				var pri = parser_infix(st.exprMidStack.tk.k, st.exprStack.ex, st.exprTerm);
+				var pri = parser_infix(flp, st.exprMidStack.tk.k, st.exprStack.ex, st.exprTerm);
 				if (pri.type == PRI_ERROR)
 					return prr_error(pri.msg);
 				st.exprTerm = pri.ex;
@@ -2448,178 +2564,891 @@ function parser_add(pr, tk, flp){
 }
 
 //
-// frame
+// symbol table
 //
 
 var FVR_VAR        = 'FVR_VAR';
-var FVR_TEMP_AVAIL = 'FVR_TEMP_AVAIL';
 var FVR_TEMP_INUSE = 'FVR_TEMP_INUSE';
+var FVR_TEMP_AVAIL = 'FVR_TEMP_AVAIL';
 
 function frame_new(parent){
-	return { vars: [], parent: parent };
-}
-
-function frame_tempClear(fr, idx){
-	if (fr.vars[idx] == FVR_TEMP_INUSE)
-		fr.vars[idx] = FVR_TEMP_AVAIL;
-}
-
-function frame_newTemp(fr){
-	for (var i = 0; i < fr.vars.length; i++){
-		if (fr.vars[i] == FVR_TEMP_AVAIL){
-			fr.vars[i] = FVR_TEMP_INUSE;
-			return i;
-		}
-	}
-	fr.vars.push(FVR_TEMP_INUSE);
-	return fr.vars.length - 1;
-}
-
-function frame_newVar(fr){
-	fr.vars.push(FVR_VAR);
-	return fr.vars.length - 1;
-}
-
-function frame_diff(fr, child){
-	var dist = 0;
-	while (child != fr){
-		child = child.parent;
-		dist++;
-	}
-	return dist;
-}
-
-//
-// scope/namespace
-//
-
-function using_new(ns, next){
-	return { ns: ns, next: next };
-}
-
-var NSN_VAR        = 'NSN_VAR';
-var NSN_NAMESPACE  = 'NSN_NAMESPACE';
-var NSN_CMD_LOCAL  = 'NSN_CMD_LOCAL';
-var NSN_CMD_NATIVE = 'NSN_CMD_NATIVE';
-var NSN_CMD_OPCODE = 'NSN_CMD_OPCODE';
-
-function nsname_newVar(name, fr, index, next){
-	return { name: name, type: NSN_VAR, fr: fr, index: index, next: next };
-}
-
-function nsname_newNamespace(name, ns, next){
-	return { name: name, type: NSN_NAMESPACE, ns: ns, next: next };
-}
-
-function nsname_newCmdLocal(name, lbl, next){
-	return { name: name, type: NSN_CMD_LOCAL, lbl: lbl, next: next };
-}
-
-function nsname_newCmdNative(name, cmd, next){
-	return { name: name, type: NSN_CMD_NATIVE, cmd: cmd, next: next };
-}
-
-function nsname_newCmdOpcode(name, opcode, params, next){
-	return { name: name, type: NSN_CMD_OPCODE, opcode: opcode, params: params, next: next };
-}
-
-var LKUP_NSNAME   = 'LKUP_NSNAME';
-var LKUP_NOTFOUND = 'LKUP_NOTFOUND';
-var LKUP_ERROR    = 'LKUP_ERROR';
-
-function lkup_nsname(nsn){
-	return { type: LKUP_NSNAME, nsn: nsn };
-}
-
-function lkup_notfound(){
-	return { type: LKUP_NOTFOUND };
-}
-
-function lkup_error(msg){
-	return { type: LKUP_ERROR, msg: msg };
-}
-
-function namespace_new(fr, next){
 	return {
-		fr: fr, // frame that the namespace is in
-		usings: null, // linked list of using_new's
-		names: null, // linked list of nsname_new*'s
-		next: next // next namespace in the scope list
-	};
-}
-
-function namespace_has(ns, name){
-	var here = ns.names;
-	while (here != null){
-		if (here.name == name)
-			return true;
-		here = here.next;
-	}
-	return false;
-}
-
-function namespace_lookup(ns, names, idx, err){
-	// first try name's defined within this namespace
-	var here = ns.names;
-	while (here != null){
-		if (here.name == names[idx]){
-			if (idx == names.length - 1)
-				return lkup_nsname(here);
-			switch (here.type){
-				case NSN_VAR:
-					if (err[0] == null)
-						err[0] = 'Variable "' + here.name + '" is not a namespace';
-					break;
-				case NSN_CMD_LOCAL:
-				case NSN_CMD_NATIVE:
-					if (err[0] == null)
-						err[0] = 'Function "' + here.name + '" is not a namespace';
-					break;
-				case NSN_NAMESPACE: {
-					var lk = namespace_lookup(here.ns, names, idx + 1, err);
-					if (lk.type == LKUP_NSNAME)
-						return lk;
-				} break;
-			}
-		}
-		here = here.next;
-	}
-
-	// failed to find result in namespace's names... check using's
-	var usi = ns.usings;
-	while (usi != null){
-		var lk = namespace_lookup(usi.ns, names, idx, err);
-		if (lk.type == LKUP_NSNAME)
-			return lk;
-		usi = usi.next;
-	}
-
-	// failed entirely
-	return lkup_notfound();
-}
-
-function scope_new(fr, parent){
-	var ns = namespace_new(fr, null);
-	return {
-		ns: ns, // linked list of namespace's, via ns.next
+		vars: [FVR_VAR], // first frame variable reserved for arguments
+		labels: [],
 		parent: parent
 	};
 }
 
-function scope_tryLookup(sc, names, err){
-	// first try the current scope's namespaces
-	var here = sc.ns;
-	while (here != null){
-		var lk = namespace_lookup(here, names, 0, err);
-		if (lk.type == LKUP_NSNAME)
-			return lk;
-		here = here.next;
+function frame_diff(parent, child){
+	var fdiff = 0;
+	while (child != parent && child != null){
+		child = child.parent;
+		fdiff++;
 	}
+	if (child == null)
+		return -1;
+	return fdiff;
+}
 
-	// failed, try parent scope
-	if (sc.parent == null)
-		return lkup_notfound();
-	return scope_tryLookup(sc.parent, names, err);
+var NSN_VAR        = 'NSN_VAR';
+var NSN_CMD_LOCAL  = 'NSN_CMD_LOCAL';
+var NSN_CMD_NATIVE = 'NSN_CMD_NATIVE';
+var NSN_CMD_OPCODE = 'NSN_CMD_OPCODE';
+var NSN_NAMESPACE  = 'NSN_NAMESPACE';
+
+function nsname_var(name, fr, index){
+	return {
+		name: name,
+		type: NSN_VAR,
+		fr: fr,
+		index: index
+	};
+}
+
+function nsname_cmdLocal(name, lbl){
+	return {
+		name: name,
+		type: NSN_CMD_LOCAL,
+		lbl: lbl
+	};
+}
+
+function nsname_cmdNative(name, key){
+	return {
+		name: name,
+		type: NSN_CMD_NATIVE,
+		key: key
+	};
+}
+
+function nsname_cmdOpcode(name, opcode, params){
+	return {
+		name: name,
+		type: NSN_CMD_OPCODE,
+		opcode: opcode,
+		params: params
+	};
+}
+
+function nsname_namespace(name, ns){
+	return {
+		name: name,
+		type: NSN_NAMESPACE,
+		ns: ns
+	};
+}
+
+function namespace_new(fr){
+	return {
+		fr: fr,
+		names: []
+	};
+}
+
+function scope_new(fr, parent){
+	var ns = namespace_new(fr);
+	return {
+		ns: ns,
+		nsStack: [ns],
+		parent: parent
+	};
+}
+
+function symtbl_new(overwrite){
+	var fr = frame_new(null);
+	var sc = scope_new(fr, null);
+	return {
+		overwrite: overwrite, // allow definitions to be overwritten?
+		fr: fr,
+		sc: sc
+	};
+}
+
+var SFN_OK    = 'SFN_OK';
+var SFN_ERROR = 'SFN_ERROR';
+
+function sfn_ok(ns){
+	return { type: SFN_OK, ns: ns };
+}
+
+function sfn_error(msg){
+	return { type: SFN_ERROR, msg: msg };
+}
+
+function symtbl_findNamespace(sym, names, max){
+	var ns = sym.sc.ns;
+	for (var ni = 0; ni < max; ni++){
+		var name = names[ni];
+		var found = false;
+		for (var i = 0; i < ns.names.length; i++){
+			var nsn = ns.names[i];
+			if (nsn.name == name){
+				if (nsn.type != NSN_NAMESPACE){
+					if (!sym.overwrite)
+						return sfn_error('Not a namespace: "' + nsn.name + '"');
+					nsn = ns.names[i] = nsname_namespace(nsn.name, namespace_new(ns.fr));
+				}
+				ns = nsn.ns;
+				found = true;
+				break;
+			}
+		}
+		if (!found){
+			var nns = namespace_new(ns.fr);
+			ns.names.push(nsname_namespace(name, nns));
+			ns = nns;
+		}
+	}
+	return sfn_ok(ns);
+}
+
+var SPN_OK    = 'SPN_OK';
+var SPN_ERROR = 'SPN_ERROR';
+
+function spn_ok(){
+	return { type: SPN_OK };
+}
+
+function spn_error(msg){
+	return { type: SPN_ERROR, msg: msg };
+}
+
+function symtbl_pushNamespace(sym, names){
+	var nsr = symtbl_findNamespace(sym, names, names.length);
+	if (nsr.type == NSR_ERROR)
+		return spn_error(nsr.msg);
+	sym.nsStack.push(nsr.ns);
+	sym.ns = nsr.ns;
+}
+
+function symtbl_popNamespace(sym){
+	sym.ns = sym.nsStack.pop();
+}
+
+function symtbl_pushScope(sym){
+	sym.sc = scope_new(sym.fr, sym.sc);
+}
+
+function symtbl_popScope(sym){
+	sym.sc = sym.sc.parent;
+}
+
+function symtbl_pushFrame(sym){
+	sym.fr = frame_new(sym.fr);
+	symtbl_pushScope(sym);
+}
+
+function symtbl_popFrame(sym){
+	symtbl_popScope(sym);
+	sym.fr = sym.fr.next;
+}
+
+var STL_OK    = 'STL_OK';
+var STL_ERROR = 'STL_ERROR';
+
+function stl_ok(nsn){
+	return { type: STL_OK, nsn: nsn };
+}
+
+function stl_error(msg){
+	return { type: STL_ERROR, msg: msg };
+}
+
+function symtbl_lookup(sym, names){
+	var trysc = sym.sc;
+	while (trysc != null){
+		for (var trynsi = trysc.nsStack.length - 1; trynsi >= 0; trynsi--){
+			var tryns = trysc.nsStack[trynsi];
+			for (var ni = 0; ni < names.length; ni++){
+				var found = false;
+				for (var nsni = 0; nsni < tryns.names.length; nsni++){
+					var nsn = tryns.names[nsni];
+					if (nsn.name == names[ni]){
+						if (nsn.type == NSN_NAMESPACE){
+							tryns = nsn.ns;
+							found = true;
+							break;
+						}
+						else if (ni == names.length - 1)
+							return stl_ok(nsn);
+						else
+							break;
+					}
+				}
+				if (!found)
+					break;
+			}
+		}
+		trysc = trysc.parent;
+	}
+	return stl_error('Not found: ' + names.join('.'));
+}
+
+function symtbl_addTemp(sym){
+	for (var i = 0; i < sym.fr.vars.length; i++){
+		if (sym.fr.vars[i] == FVR_TEMP_AVAIL){
+			sym.fr.vars[i] = FVR_TEMP_INUSE;
+			return varloc_new(0, i);
+		}
+	}
+	sym.fr.vars.push(FVR_TEMP_INUSE);
+	return varloc_new(0, sym.fr.vars.length - 1);
+}
+
+function symtbl_clearTemp(sym, vlc){
+	if (vlc.fdiff == 0 && sym.fr.vars[vlc.index] == FVR_TEMP_INUSE)
+		sym.fr.vars[vlc.index] = FVR_TEMP_AVAIL;
+}
+
+var STA_OK    = 'STA_OK';
+var STA_VAR   = 'STA_VAR';
+var STA_ERROR = 'STA_ERROR';
+
+function sta_ok(){
+	return { type: STA_OK };
+}
+
+function sta_var(vlc){
+	return { type: STA_VAR, vlc: vlc };
+}
+
+function sta_error(msg){
+	return { type: STA_ERROR, msg: msg };
+}
+
+function symtbl_addVar(sym, names){
+	var nsr = symtbl_findNamespace(sym, names, names.length - 1);
+	if (nsr.type == SFN_ERROR)
+		return sta_error(nsr.msg);
+	var ns = nsr.ns;
+	for (var i = 0; i < ns.names.length; i++){
+		var nsn = ns.names[i];
+		if (nsn.name == names[names.length - 1]){
+			if (!sym.overwrite)
+				return sta_error('Cannot redefine "' + nsn.name + '"');
+			if (nsn.type == NSN_VAR)
+				return sta_var(varloc_new(frame_diff(nsn.fr, sym.fr), nsn.index));
+			sym.fr.vars.push(FVR_VAR);
+			ns.names[i] = nsname_var(nsn.name, sym.fr, sym.fr.vars.length - 1);
+			return sta_var(varloc_new(0, sym.fr.vars.length - 1));
+		}
+	}
+	sym.fr.vars.push(FVR_VAR);
+	ns.names.push(nsname_var(names[names.length - 1], sym.fr, sym.fr.vars.length - 1));
+	return sta_var(varloc_new(0, sym.fr.vars.length - 1));
+}
+
+function symtbl_addCmdLocal(sym, names, lbl){
+	var nsr = symtbl_findNamespace(sym, names, names.length - 1);
+	if (nsr.type == SFN_ERROR)
+		return sta_error(nsr.msg);
+	var ns = nsr.ns;
+	for (var i = 0; i < ns.names.length; i++){
+		var nsn = ns.names[i];
+		if (nsn.name == names[names.length - 1]){
+			if (!sym.overwrite)
+				return sta_error('Cannot redefine "' + nsn.name + '"');
+			ns.names[i] = nsname_cmdLocal(nsn.name, lbl);
+			return sta_ok();
+		}
+	}
+	ns.names.push(nsname_cmdLocal(names[names.length - 1], lbl));
+	return sta_ok();
+}
+
+function symtbl_addCmdNative(sym, names, key){
+	var nsr = symtbl_findNamespace(sym, names, names.length - 1);
+	if (nsr.type == SFN_ERROR)
+		return sta_error(nsr.msg);
+	var ns = nsr.ns;
+	for (var i = 0; i < ns.names.length; i++){
+		var nsn = ns.names[i];
+		if (nsn.name == names[names.length - 1]){
+			if (!sym.overwrite)
+				return sta_error('Cannot redefine "' + nsn.name + '"');
+			ns.names[i] = nsname_cmdNative(nsn.name, key);
+			return sta_ok();
+		}
+	}
+	ns.names.push(nsname_cmdNative(names[names.length - 1], key));
+	return sta_ok();
+}
+
+function symtbl_addCmdOpcode(sym, name, opcode, params){
+	// can simplify this function because it is only called internally
+	sym.ns.names.push(nsname_cmdOpcode(name, opcode, params));
+}
+
+//
+// program
+//
+
+function program_new(){
+	return {
+		initFrameSize: 0,
+		strTable: [],
+		numTable: [],
+		ops: []
+	};
+}
+
+var SER_OK    = 'SEP_OK';
+var SER_ERROR = 'SEP_ERROR';
+
+function ser_ok(obj, start, len){
+	return { type: SER_OK, obj: obj, start: start, len: len };
+}
+
+function ser_error(msg){
+	return { type: SER_ERROR, msg: msg };
+}
+
+function slice_eval(prg, sym, ex){
+	var oe = program_eval(prg, sym, ex.obj, false);
+	if (oe.type == PER_ERROR)
+		return ser_error(oe.msg);
+	var le;
+	var iszero = false;
+	if (ex.start == null){
+		le = program_eval(prg, sym, expr_num(ex.flp, 0), false);
+		iszero = true;
+	}
+	else{
+		iszero = ex.start.type == EXPR_NUM && ex.start.num == 0;
+		le = program_eval(prg, sym, ex.start, false);
+	}
+	if (le.type == PER_ERROR)
+		return sep_error(le.msg);
+	var re;
+	if (ex.len == null){
+		if (iszero){
+			re = program_eval(prg, sym,
+				expr_prefix(ex.flp, KS_AMP, expr_var(ex.flp, oe.vlc)));
+		}
+		else{
+			re = program_eval(prg, sym,
+				expr_infix(ex.flp, KS_MINUS,
+					expr_prefix(ex.flp, KS_AMP, expr_var(ex.flp, oe.vlc)),
+					expr_var(ex.flp, le.vlc)
+				),
+				false);
+		}
+	}
+	else
+		re = program_eval(prg, sym, ex.len, false);
+	if (re.type == PER_ERROR)
+		return ser_error(re.msg);
+	return ser_ok(oe.vlc, le.vlc, re.vlc);
+}
+
+var PIR_OK    = 'PIR_OK';
+var PIR_ERROR = 'PIR_ERROR';
+
+function pir_ok(){
+	return { type: PIR_OK };
+}
+
+function pir_error(msg){
+	return { type: PIR_ERROR, msg: msg };
+}
+
+function program_evalInto(prg, sym, vlc, ex){
+	switch (ex.type){
+		case EXPR_NIL:
+			op_nil(prg.ops, vlc);
+			return pir_ok();
+
+		case EXPR_NUM: {
+			if (Math.floor(ex.num) == ex.num && ex.num >= -65536 && ex.num < 65536){
+				op_num(prg.ops, vlc, ex.num);
+				return pir_ok();
+			}
+			for (var i = 0; i < prg.numTable.length; i++){
+				if (prg.numTable[i] == ex.num){
+					op_num_tbl(prg.ops, vlc, i);
+					return pir_ok();
+				}
+			}
+			if (prg.numTable.length >= 65535)
+				return pir_error('Too many number constants');
+			prg.numTable.push(ex.num);
+			op_num_tbl(prg.ops, vlc, prg.numTable.length - 1);
+			return pir_ok();
+		} break;
+
+		case EXPR_STR:
+			throw 'TODO program_evalInto ' + ex.type;
+
+		case EXPR_LIST:
+			// TODO: reminder, ex.ex could be null for empty list
+			throw 'TODO program_evalInto ' + ex.type;
+
+		case EXPR_NAMES: {
+			var sl = symtbl_lookup(sym, ex.names);
+			if (sl.type == STL_ERROR)
+				return pir_error(sl.msg);
+			switch (sl.nsn.type){
+				case NSN_VAR: {
+					var fdiff = frame_diff(sl.nsn.fr, sym.fr);
+					if (fdiff != vlc.fdiff || sl.nsn.index != vlc.index)
+						op_move(prg.ops, vlc, varloc_new(fdiff, sl.nsn.index));
+					return pir_ok();
+				} break;
+				case NSN_CMD_LOCAL:
+				case NSN_CMD_NATIVE:
+				case NSN_CMD_OPCODE:
+					throw 'TODO: evalInto execute cmd with empty args into vlc';
+				case NSN_NAMESPACE:
+					return pir_error('Invalid expression');
+			}
+			throw new Error('Unknown NSN type: ' + sl.nsn.type);
+		} break;
+
+		case EXPR_VAR: {
+			if (ex.vlc.fdiff != vlc.fdiff || ex.vlc.index != vlc.index)
+				op_move(prg.ops, vlc, ex.vlc);
+			return pir_ok();
+		} break;
+
+		case EXPR_PAREN:
+			return program_evalInto(prg, sym, vlc, ex.ex);
+
+		case EXPR_GROUP:
+			for (var i = 0; i < ex.group.length; i++){
+				if (i == ex.group.length - 1)
+					return program_evalInto(prg, sym, vlc, ex.group[i]);
+				var pr = program_evalEmpty(prg, sym, ex.group[i], true);
+				if (pr.type == PEM_ERROR)
+					return pir_error(pr.msg);
+			}
+			break;
+
+		case EXPR_PREFIX: {
+			var unop = ks_toUnaryOp(ex.k);
+			if (unop < 0)
+				return pir_error('Invalid unary operator');
+			var ee = program_eval(prg, sym, ex.ex, false);
+			if (ee.type == PER_ERROR)
+				return pir_error(ee.msg);
+			op_unop(prg.ops, unop, vlc, ee.vlc);
+			symtbl_clearTemp(sym, ee.vlc);
+			return pir_ok();
+		} break;
+
+		case EXPR_INFIX: {
+			var binop = ks_toBinaryOp(ex.k);
+			if (binop >= 0){
+				var le = program_eval(prg, sym, ex.left, false);
+				if (le.type == PER_ERROR)
+					return pir_error(le.msg);
+				var re = program_eval(prg, sym, ex.right, false);
+				if (re.type == PER_ERROR)
+					return pir_error(re.msg);
+				op_binop(prg.ops, binop, vlc, le.vlc, re.vlc);
+				symtbl_clearTemp(sym, le.vlc);
+				symtbl_clearTemp(sym, re.vlc);
+				return pir_ok();
+			}
+
+			var mutop = ks_toMutateOp(ex.k);
+			if (ex.k == KS_EQU || mutop >= 0){
+				var lp = lval_prepare(prg, sym, ex.left);
+				if (lp.type == LVP_ERROR)
+					return pir_error(lp.msg);
+				var lv = lp.lv;
+				switch (lv.type){
+					case LVR_VAR: {
+						if (ex.k == KS_EQU){
+							var pr = program_evalInto(prg, sym, lv.vlc, ex.right);
+							if (pr.type == PIR_ERROR)
+								return pr;
+						}
+						else{
+							var pr = program_eval(prg, sym, ex.right, true);
+							if (pr.type == PER_ERROR)
+								return pir_error(pr.msg);
+							op_binop(prg.ops, mutop, lv.vlc, lv.vlc, pr.vlc);
+						}
+						if (vlc.fdiff != lv.vlc.fdiff || vlc.index != lv.vlc.index)
+							op_move(prg.ops, vlc, lv.vlc);
+						return pir_ok();
+					} break;
+					case LVR_INDEX: // TODO: clear out temps inside lvr
+					case LVR_SLICE: // TODO: clear out temps inside lvr
+					case LVR_LIST:
+						throw 'TODO: program_evalInto EXPR_INFIX ' + lv.type;
+				}
+			}
+
+			if (ex.k == KS_AMP2){
+				throw 'TODO: infix AND';
+			}
+			else if (ex.k == KS_PIPE2){
+				throw 'TODO: infix OR';
+			}
+			else if (ex.k == KS_AMP2EQU){
+				throw 'TODO: AND equal';
+			}
+			else if (ex.k == KS_PIPE2EQU){
+				throw 'TODO: PIPE equal';
+			}
+
+			return pir_error('Invalid operation');
+		} break;
+		case EXPR_CALL:
+			throw 'TODO program_evalInto ' + ex.type;
+		case EXPR_INDEX: {
+			var oe = program_eval(prg, sym, ex.obj, false);
+			if (oe.type == PER_ERROR)
+				return pir_error(oe.msg);
+			var ke = program_eval(prg, sym, ex.key, false);
+			if (ke.type == PER_ERROR)
+				return pir_error(ke.msg);
+			op_getat(prg.ops, vlc, oe.vlc, ke.vlc);
+			symtbl_clearTemp(sym, oe.vlc);
+			symtbl_clearTemp(sym, ke.vlc);
+			return pir_ok();
+		} break;
+		case EXPR_SLICE: {
+			var se = slice_eval(prg, sym, ex);
+			if (se.type == SER_ERROR)
+				return pir_error(se.msg);
+			op_slice(prg.ops, vlc, se.obj, se.start, se.len);
+			symtbl_clearTemp(sym, se.obj);
+			symtbl_clearTemp(sym, se.start);
+			symtbl_clearTemp(sym, se.len);
+			return pir_ok();
+		} break;
+	}
+	throw 'failed to return value for program_evalInto ' + ex.type;
+}
+
+var PER_OK    = 'PER_OK';
+var PER_ERROR = 'PER_ERROR';
+
+function per_ok(vlc){
+	return { type: PER_OK, vlc: vlc };
+}
+
+function per_error(msg){
+	return { type: PER_ERROR, msg: msg };
+}
+
+var LVR_VAR    = 'LVR_VAR';
+var LVR_INDEX  = 'LVR_INDEX';
+var LVR_SLICE  = 'LVR_SLICE';
+var LVR_LIST   = 'LVR_LIST';
+
+function lvr_var(vlc){
+	return { type: LVR_VAR, vlc: vlc };
+}
+
+function lvr_index(obj, key){
+	return { type: LVR_INDEX, obj: obj, key: key };
+}
+
+function lvr_slice(obj, start, len){
+	return { type: LVR_SLICE, obj: obj, start: start, len: len };
+}
+
+function lvr_list(body, rest){
+	return { type: LVR_LIST, body: body, rest: rest };
+}
+
+var LVP_OK    = 'LVP_OK';
+var LVP_ERROR = 'LVP_ERROR';
+
+function lvp_ok(lv){
+	return { type: LVP_OK, lv: lv };
+}
+
+function lvp_error(msg){
+	return { type: LVP_ERROR, msg: msg };
+}
+
+function lval_prepare(prg, sym, ex){
+	switch (ex.type){
+		case EXPR_NAMES: {
+			var sl = symtbl_lookup(sym, ex.names);
+			if (sl.type == STL_ERROR)
+				return lvp_error(sl.msg);
+			if (sl.nsn.type != NSN_VAR)
+				return lvp_error('Invalid assignment');
+			return lvp_ok(lvr_var(varloc_new(frame_diff(sl.nsn.fr, sym.fr), sl.nsn.index)));
+		} break;
+
+		case EXPR_INDEX: {
+			var oe = program_eval(prg, sym, ex.obj, false);
+			if (oe.type == PER_ERROR)
+				return lvp_error(oe.msg);
+			var ke = program_eval(prg, sym, ex.key, false);
+			if (ke.type == PER_ERROR)
+				return lvp_error(ke.msg);
+			return lvp_ok(lvr_index(oe.vlc, ke.vlc));
+		} break;
+
+		case EXPR_SLICE: {
+			var se = slice_eval(prg, sym, ex);
+			if (se.type == SER_ERROR)
+				return lvp_error(se.msg);
+			return lvp_ok(lvr_slice(se.obj, se.start, se.len));
+		} break;
+
+		case EXPR_LIST: {
+			if (ex.ex == null)
+				return lvp_error('Invalid assignment');
+			var body = [];
+			var rest = null;
+			if (ex.ex.type == EXPR_GROUP){
+				for (var i = 0; i < ex.ex.group.length; i++){
+					var gex = ex.ex.group[i];
+					if (i == ex.ex.group.length - 1 && gex.type == EXPR_PREFIX &&
+						gex.k == KS_PERIOD3){
+						var lp = lval_prepare(prg, sym, gex.ex);
+						if (lp.type == LVP_ERROR)
+							return lp;
+						rest = lp.lv;
+					}
+					else{
+						var lp = lval_prepare(prg, sym, gex);
+						if (lp.type == LVP_ERROR)
+							return lp;
+						body.push(lp.lv);
+					}
+				}
+			}
+			else{
+				if (ex.ex.type == EXPR_PREFIX && ex.ex.k == KS_PERIOD3){
+					var lp = lval_prepare(prg, sym, ex.ex.ex);
+					if (lp.type == LVP_ERROR)
+						return lp;
+					rest = lp.lv;
+				}
+				else{
+					var lp = lval_prepare(prg, sym, ex.ex);
+					if (lp.type == LVP_ERROR)
+						return lp;
+					body.push(lp.lv);
+				}
+			}
+			return lvp_ok(lvr_list(body, rest));
+		} break;
+
+		default:
+			throw 'TODO: lval_prepare ' + ex.type;
+	}
+	return lvp_error('Invalid assignment');
+}
+
+function program_eval(prg, sym, ex, autoclear){
+	if (ex.type == EXPR_INFIX){
+		var mutop = ks_toMutateOp(ex.k);
+		if (ex.k == KS_EQU || mutop >= 0){
+			var lp = lval_prepare(prg, sym, ex.left);
+			if (lp.type == LVP_ERROR)
+				return per_error(lp.msg);
+			var lv = lp.lv;
+			switch (lv.type){
+				case LVR_VAR: {
+					if (ex.k == KS_EQU){
+						var pr = program_evalInto(prg, sym, lv.vlc, ex.right);
+						if (pr.type == PIR_ERROR)
+							return per_error(pr.msg);
+						return per_ok(lv.vlc);
+					}
+					var pr = program_eval(prg, sym, ex.right, true);
+					if (pr.type == PER_ERROR)
+						return pr;
+					op_binop(prg.ops, mutop, lv.vlc, lv.vlc, pr.vlc);
+					return per_ok(lv.vlc);
+				} break;
+				case LVR_INDEX: // TODO: clear out temps inside lvr
+				case LVR_SLICE: // TODO: clear out temps inside lvr
+				case LVR_LIST:
+					throw 'TODO: program_eval ' + lv.type;
+			}
+			throw new Error('Unknown lvalue type: ' + lv.type);
+		}
+
+		if (ex.k == KS_AMP2EQU){
+			throw 'TODO: program_eval AND equal';
+		}
+		else if (ex.k == KS_PIPE2EQU){
+			throw 'TODO: program_Eval PIPE equal';
+		}
+	}
+	else if (ex.type == EXPR_NAMES){
+		var sl = symtbl_lookup(sym, ex.names);
+		if (sl.type == STL_ERROR)
+			return per_error(sl.msg);
+		if (sl.nsn.type == NSN_VAR)
+			return per_ok(varloc_new(frame_diff(sl.nsn.fr, sym.fr), sl.nsn.index));
+		// otherwise, fall through and evaluate the results into a temp
+	}
+	else if (ex.type == EXPR_VAR)
+		return per_ok(ex.vlc);
+	var tmp = symtbl_addTemp(sym);
+	if (autoclear)
+		symtbl_clearTemp(sym, tmp);
+	var pr = program_evalInto(prg, sym, tmp, ex);
+	if (pr.type == PIR_ERROR)
+		return per_error(pr.msg);
+	return per_ok(tmp);
+}
+
+var PEM_OK    = 'PEM_OK';
+var PEM_ERROR = 'PEM_ERROR';
+
+function pem_ok(){
+	return { type: PEM_OK };
+}
+
+function pem_error(msg){
+	return { type: PEM_ERROR, msg: msg };
+}
+
+function program_evalEmpty(prg, sym, ex){
+	if (ex.type == EXPR_NIL || ex.type == EXPR_NUM || ex.type == EXPR_STR || ex.type == EXPR_VAR)
+		return pem_ok();
+	else if (ex.type == EXPR_NAMES){
+		var sl = symtbl_lookup(sym, ex.names);
+		if (sl.type == STL_ERROR)
+			return pem_error(sl.msg);
+		return pem_ok();
+	}
+	var pr = program_eval(prg, sym, ex, true);
+	if (pr.type == PER_ERROR)
+		return pem_error(pr.msg);
+	return pem_ok();
+}
+
+var LVA_OK    = 'LV_OK';
+var LVA_ERROR = 'LV_ERROR';
+
+function lva_ok(){
+	return { type: LVA_OK };
+}
+
+function lva_error(msg){
+	return { type: LVA_ERROR, msg: msg };
+}
+
+function lval_addVars(sym, ex){
+	switch (ex.type){
+		case EXPR_NAMES: {
+			var sr = symtbl_addVar(sym, ex.names);
+			if (sr.type == STA_ERROR)
+				return lva_error(sr.msg);
+			return lva_ok();
+		} break;
+		case EXPR_LIST:
+			if (ex.ex == null)
+				return lva_error('Invalid assignment');
+			return lval_addVars(sym, ex.ex);
+		case EXPR_GROUP:
+			for (var i = 0; i < ex.group.length; i++){
+				var sr = lval_addVars(sym, ex.group[i]);
+				if (sr.type == STA_ERROR)
+					return lva_error(sr.msg);
+			}
+			return lva_ok();
+		case EXPR_PREFIX:
+			if (ex.k == KS_PERIOD3)
+				return lval_addVars(sym, ex.ex);
+			break;
+	}
+	return lva_error('Invalid assignment');
+}
+
+var PGR_OK    = 'PGR_OK';
+var PGR_ERROR = 'PGR_ERROR';
+
+function pgr_ok(){
+	return { type: PGR_OK };
+}
+
+function pgr_error(msg){
+	return { type: PGR_ERROR, msg: msg };
+}
+
+function program_gen(prg, sym, stmt){
+	switch (stmt.type){
+		case AST_BREAK:
+			throw 'TODO program_gen' + stmt.type;
+		case AST_CONTINUE:
+			throw 'TODO program_gen' + stmt.type;
+		case AST_DECLARE:
+			throw 'TODO program_gen' + stmt.type;
+		case AST_DEF:
+			throw 'TODO program_gen' + stmt.type;
+		case AST_DO_END:
+			throw 'TODO program_gen' + stmt.type;
+		case AST_DO_WHILE:
+			throw 'TODO program_gen' + stmt.type;
+		case AST_FOR:
+			throw 'TODO program_gen' + stmt.type;
+		case AST_LOOP:
+			throw 'TODO program_gen' + stmt.type;
+		case AST_GOTO:
+			throw 'TODO program_gen' + stmt.type;
+		case AST_IF:
+			throw 'TODO program_gen' + stmt.type;
+		case AST_INCLUDE:
+			throw 'TODO program_gen' + stmt.type;
+		case AST_NAMESPACE:
+			throw 'TODO program_gen' + stmt.type;
+		case AST_RETURN:
+			throw 'TODO program_gen' + stmt.type;
+		case AST_USING:
+			throw 'TODO program_gen' + stmt.type;
+		case AST_VAR:
+			for (var i = 0; i < stmt.lvalues.length; i++){
+				var ex = stmt.lvalues[i];
+				if (ex.type == EXPR_INFIX){
+					var lr = lval_addVars(sym, ex.left);
+					if (lr.type == LVA_ERROR)
+						return pgr_error(lr.msg);
+					if (ex.right != null){
+						var pr = program_eval(prg, sym, ex, true);
+						if (pr.type == PER_ERROR)
+							return pgr_error(pr.msg);
+					}
+				}
+				else
+					throw 'TODO: don\'t know how to AST_VAR the expression ' + ex.type;
+			}
+			return pgr_ok();
+		case AST_EVAL: {
+			var pr = program_eval(prg, sym, stmt.ex, true);
+			if (pr.type == PER_ERROR)
+				return pgr_error(pr.msg);
+			return pgr_ok();
+		} break;
+		case AST_LABEL:
+			throw 'TODO program_gen' + stmt.type;
+	}
+}
+
+//
+// context
+//
+
+function context_new(prg){
+	return {
+		prg: prg,
+		callStack: [],
+		lexStack: [new Array(prg.initFrameSize)],
+		lexIndex: 0,
+		pc: 0
+	};
+}
+
+var CRR_DONE   = 'CRR_DONE';
+var CRR_PAUSED = 'CRR_PAUSED';
+var CRR_ERROR  = 'CRR_ERROR';
+
+function context_run(ctx){
+	throw 'TODO: execute';
 }
 
 //
@@ -2670,10 +3499,13 @@ function comppr_new(flp, tks){
 	return { flp: flp, tks: tks };
 }
 
-function compiler_new(){
+function compiler_new(repl){
 	return {
 		pr: parser_new(),
-		file: null
+		file: null,
+		repl: repl,
+		prg: program_new(),
+		sym: symtbl_new(repl)
 	};
 }
 
@@ -2697,6 +3529,9 @@ function compiler_processTokens(cmp, cmpr, err){
 			}
 
 			console.log(JSON.stringify(res.stmt, null, '  '));
+			var pr = program_gen(cmp.prg, cmp.sym, res.stmt);
+			if (pr.type == PGR_ERROR)
+				console.log('Error:', pr.msg);
 		}
 	}
 	return true;
@@ -2766,7 +3601,7 @@ function compiler_level(cmp){
 
 module.exports = {
 	repl: function(){
-		var cmp = compiler_new();
+		var cmp = compiler_new(true);
 		compiler_pushFile(cmp, null);
 		return {
 			add: function(str){
