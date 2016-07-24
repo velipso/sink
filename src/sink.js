@@ -46,6 +46,7 @@ var OP_POP         = 0x20; // [TGT], [SRC]
 var OP_ISNUM       = 0x21; // [TGT], [SRC]
 var OP_ISSTR       = 0x22; // [TGT], [SRC]
 var OP_ISLIST      = 0x23; // [TGT], [SRC]
+var OP_LIST        = 0x24; // [TGT]
 var OP_SAY         = 0x30; // [TGT], [SRC]
 var OP_ASK         = 0x31; // [TGT], [SRC]
 var OP_NUM_FLOOR   = 0x32; // [TGT], [SRC]
@@ -126,19 +127,23 @@ function op_unop(b, opcode, tgt, src){
 
 function op_binop(b, opcode, tgt, src1, src2){
 	var opstr = '???';
-	if      (opcode == OP_ADD) opstr = 'ADD';
-	else if (opcode == OP_SUB) opstr = 'SUB';
-	else if (opcode == OP_MOD) opstr = 'MOD';
-	else if (opcode == OP_MUL) opstr = 'MUL';
-	else if (opcode == OP_DIV) opstr = 'DIV';
-	else if (opcode == OP_POW) opstr = 'POW';
-	else if (opcode == OP_LT ) opstr = 'LT';
-	else if (opcode == OP_GT ) opstr = 'GT';
-	else if (opcode == OP_CAT) opstr = 'CAT';
-	else if (opcode == OP_LTE) opstr = 'LTE';
-	else if (opcode == OP_GTE) opstr = 'GTE';
-	else if (opcode == OP_NEQ) opstr = 'NEQ';
-	else if (opcode == OP_EQU) opstr = 'EQU';
+	if      (opcode == OP_ADD    ) opstr = 'ADD';
+	else if (opcode == OP_SUB    ) opstr = 'SUB';
+	else if (opcode == OP_MOD    ) opstr = 'MOD';
+	else if (opcode == OP_MUL    ) opstr = 'MUL';
+	else if (opcode == OP_DIV    ) opstr = 'DIV';
+	else if (opcode == OP_POW    ) opstr = 'POW';
+	else if (opcode == OP_LT     ) opstr = 'LT';
+	else if (opcode == OP_GT     ) opstr = 'GT';
+	else if (opcode == OP_CAT    ) opstr = 'CAT';
+	else if (opcode == OP_LTE    ) opstr = 'LTE';
+	else if (opcode == OP_GTE    ) opstr = 'GTE';
+	else if (opcode == OP_NEQ    ) opstr = 'NEQ';
+	else if (opcode == OP_EQU    ) opstr = 'EQU';
+	else if (opcode == OP_PUSH   ) opstr = 'PUSH';
+	else if (opcode == OP_UNSHIFT) opstr = 'UNSHIFT';
+	else if (opcode == OP_APPEND ) opstr = 'APPEND';
+	else if (opcode == OP_PREPEND) opstr = 'PREPEND';
 	console.log('> ' + opstr + ' ' +
 		tgt.fdiff + ':' + tgt.index + ', ' +
 		src1.fdiff + ':' + src1.index + ', ' +
@@ -172,11 +177,19 @@ function op_slice(b, tgt, src1, src2, src3){
 		src3.fdiff, src3.index);
 }
 
+function op_list(b, tgt){
+	console.log('> LIST ' + tgt.fdiff + ':' + tgt.index);
+	b.push(OP_LIST, tgt.fdiff, tgt.index);
+}
+
 function op_param0(b, opcode, tgt){
 	b.push(opcode, tgt.fdiff, tgt.index);
 }
 
 function op_param1(b, opcode, tgt, src){
+	console.log('> 0x' + opcode.toString(16) + ' ' +
+		tgt.fdiff + ':' + tgt.index + ', ' +
+		src.fdiff + ':' + src.index);
 	b.push(opcode, tgt.fdiff, tgt.index, src.fdiff, src.index);
 }
 
@@ -2715,14 +2728,16 @@ function spn_error(msg){
 
 function symtbl_pushNamespace(sym, names){
 	var nsr = symtbl_findNamespace(sym, names, names.length);
-	if (nsr.type == NSR_ERROR)
+	if (nsr.type == SFN_ERROR)
 		return spn_error(nsr.msg);
-	sym.nsStack.push(nsr.ns);
-	sym.ns = nsr.ns;
+	sym.sc.nsStack.push(nsr.ns);
+	sym.sc.ns = nsr.ns;
+	return spn_ok();
 }
 
 function symtbl_popNamespace(sym){
-	sym.ns = sym.nsStack.pop();
+	sym.sc.nsStack.pop();
+	sym.sc.ns = sym.sc.nsStack[sym.sc.nsStack.length - 1];
 }
 
 function symtbl_pushScope(sym){
@@ -2876,8 +2891,43 @@ function symtbl_addCmdNative(sym, names, key){
 
 function symtbl_addCmdOpcode(sym, name, opcode, params){
 	// can simplify this function because it is only called internally
-	sym.ns.names.push(nsname_cmdOpcode(name, opcode, params));
+	sym.sc.ns.names.push(nsname_cmdOpcode(name, opcode, params));
 }
+
+function symtbl_loadStdlib(sym){
+	symtbl_addCmdOpcode(sym, 'say'        , OP_SAY         , -1);
+	symtbl_addCmdOpcode(sym, 'ask'        , OP_ASK         , -1);
+	symtbl_addCmdOpcode(sym, 'pick'       , -1             ,  3);
+	symtbl_pushNamespace(sym, ['num']);
+		symtbl_addCmdOpcode(sym, 'floor'  , OP_NUM_FLOOR   ,  1);
+		symtbl_addCmdOpcode(sym, 'ceil'   , OP_NUM_CEIL    ,  1);
+		symtbl_addCmdOpcode(sym, 'round'  , OP_NUM_ROUND   ,  1);
+		symtbl_addCmdOpcode(sym, 'sin'    , OP_NUM_SIN     ,  1);
+		symtbl_addCmdOpcode(sym, 'cos'    , OP_NUM_COS     ,  1);
+		symtbl_addCmdOpcode(sym, 'tan'    , OP_NUM_TAN     ,  1);
+		symtbl_addCmdOpcode(sym, 'asin'   , OP_NUM_ASIN    ,  1);
+		symtbl_addCmdOpcode(sym, 'acos'   , OP_NUM_ACOS    ,  1);
+		symtbl_addCmdOpcode(sym, 'atan'   , OP_NUM_ATAN    ,  1);
+		symtbl_addCmdOpcode(sym, 'atan2'  , OP_NUM_ATAN2   ,  2);
+		symtbl_addCmdOpcode(sym, 'log'    , OP_NUM_LOG     ,  1);
+		symtbl_addCmdOpcode(sym, 'log2'   , OP_NUM_LOG2    ,  1);
+		symtbl_addCmdOpcode(sym, 'log10'  , OP_NUM_LOG10   ,  1);
+		symtbl_addCmdOpcode(sym, 'abs'    , OP_NUM_ABS     ,  1);
+		symtbl_addCmdOpcode(sym, 'pi'     , OP_NUM_PI      ,  0);
+		symtbl_addCmdOpcode(sym, 'tau'    , OP_NUM_TAU     ,  0);
+		symtbl_addCmdOpcode(sym, 'lerp'   , OP_NUM_LERP    ,  3);
+		symtbl_addCmdOpcode(sym, 'max'    , OP_NUM_MAX     ,  1);
+		symtbl_addCmdOpcode(sym, 'min'    , OP_NUM_MIN     ,  1);
+	symtbl_popNamespace(sym);
+	symtbl_pushNamespace(sym, ['list']);
+		symtbl_addCmdOpcode(sym, 'new'    , OP_LIST_NEW    ,  2);
+		symtbl_addCmdOpcode(sym, 'find'   , OP_LIST_FIND   ,  3);
+		symtbl_addCmdOpcode(sym, 'findRev', OP_LIST_FINDREV,  3);
+		symtbl_addCmdOpcode(sym, 'rev'    , OP_LIST_REV    ,  1);
+		symtbl_addCmdOpcode(sym, 'join'   , OP_LIST_JOIN   ,  2);
+	symtbl_popNamespace(sym);
+}
+
 
 //
 // program
@@ -2903,7 +2953,7 @@ function ser_error(msg){
 	return { type: SER_ERROR, msg: msg };
 }
 
-function slice_eval(prg, sym, ex){
+function program_sliceEval(prg, sym, ex){
 	var oe = program_eval(prg, sym, ex.obj, false);
 	if (oe.type == PER_ERROR)
 		return ser_error(oe.msg);
@@ -2939,6 +2989,41 @@ function slice_eval(prg, sym, ex){
 	if (re.type == PER_ERROR)
 		return ser_error(re.msg);
 	return ser_ok(oe.vlc, le.vlc, re.vlc);
+}
+
+var PCE_OK    = 'PCE_OK';
+var PCE_ERROR = 'PCE_ERROR';
+
+function pce_ok(){
+	return { type: PCE_OK };
+}
+
+function pce_error(msg){
+	return { type: PCE_ERROR, msg: msg };
+}
+
+function program_callEval(prg, sym, vlc, nsn, params, flp){
+	// params can be null to indicate emptiness
+	switch (nsn.type){
+		case NSN_CMD_LOCAL: throw 'TODO: program_callEval NSN_CMD_LOCAL';
+		case NSN_CMD_NATIVE: throw 'TODO: program_callEval NSN_CMD_NATIVE';
+		case NSN_CMD_OPCODE: {
+			if (nsn.opcode == -1){ // pick
+				throw 'TODO: pick';
+			}
+			if (nsn.params == -1){ // variable arguments
+				var pr = program_eval(prg, sym, expr_list(flp, params));
+				if (pr.type == PER_ERROR)
+					return pce_error(pr.msg);
+				op_param1(prg.ops, nsn.opcode, vlc, pr.vlc);
+				return pce_ok();
+			}
+			else{
+				throw 'TODO: program_callEval opcode with params: ' + nsn.params;
+			}
+		} break;
+	}
+	return pce_error('Invalid call');
 }
 
 var PIR_OK    = 'PIR_OK';
@@ -2979,9 +3064,26 @@ function program_evalInto(prg, sym, vlc, ex){
 		case EXPR_STR:
 			throw 'TODO program_evalInto ' + ex.type;
 
-		case EXPR_LIST:
-			// TODO: reminder, ex.ex could be null for empty list
-			throw 'TODO program_evalInto ' + ex.type;
+		case EXPR_LIST: {
+			op_list(prg.ops, vlc);
+			if (ex.ex != null){
+				if (ex.ex.type == EXPR_GROUP){
+					for (var i = 0; i < ex.ex.group.length; i++){
+						var pr = program_eval(prg, sym, ex.ex.group[i], true);
+						if (pr.type == PER_ERROR)
+							return pir_error(pr.msg);
+						op_binop(prg.ops, OP_PUSH, vlc, vlc, pr.vlc);
+					}
+				}
+				else{
+					var pr = program_eval(prg, sym, ex.ex, true);
+					if (pr.type == PER_ERROR)
+						return pir_error(pr.msg);
+					op_binop(prg.ops, OP_PUSH, vlc, vlc, pr.vlc);
+				}
+			}
+			return pir_ok();
+		} break;
 
 		case EXPR_NAMES: {
 			var sl = symtbl_lookup(sym, ex.names);
@@ -2996,8 +3098,12 @@ function program_evalInto(prg, sym, vlc, ex){
 				} break;
 				case NSN_CMD_LOCAL:
 				case NSN_CMD_NATIVE:
-				case NSN_CMD_OPCODE:
-					throw 'TODO: evalInto execute cmd with empty args into vlc';
+				case NSN_CMD_OPCODE: {
+					var pe = program_callEval(prg, sym, vlc, sl.nsn, null, ex.flp);
+					if (pe.type == PCE_ERROR)
+						return pir_error(pe.msg);
+					return pir_ok();
+				} break;
 				case NSN_NAMESPACE:
 					return pir_error('Invalid expression');
 			}
@@ -3095,8 +3201,19 @@ function program_evalInto(prg, sym, vlc, ex){
 
 			return pir_error('Invalid operation');
 		} break;
-		case EXPR_CALL:
-			throw 'TODO program_evalInto ' + ex.type;
+
+		case EXPR_CALL: {
+			if (ex.cmd.type != EXPR_NAMES)
+				return pir_error('Invalid call');
+			var sl = symtbl_lookup(sym, ex.cmd.names);
+			if (sl.type == STL_ERROR)
+				return pir_error(sl.msg);
+			var pe = program_callEval(prg, sym, vlc, sl.nsn, ex.params, ex.flp);
+			if (pe.type == PCE_ERROR)
+				return pir_error(pe.msg);
+			return pir_ok();
+		} break;
+
 		case EXPR_INDEX: {
 			var oe = program_eval(prg, sym, ex.obj, false);
 			if (oe.type == PER_ERROR)
@@ -3109,8 +3226,9 @@ function program_evalInto(prg, sym, vlc, ex){
 			symtbl_clearTemp(sym, ke.vlc);
 			return pir_ok();
 		} break;
+
 		case EXPR_SLICE: {
-			var se = slice_eval(prg, sym, ex);
+			var se = program_sliceEval(prg, sym, ex);
 			if (se.type == SER_ERROR)
 				return pir_error(se.msg);
 			op_slice(prg.ops, vlc, se.obj, se.start, se.len);
@@ -3188,7 +3306,7 @@ function lval_prepare(prg, sym, ex){
 		} break;
 
 		case EXPR_SLICE: {
-			var se = slice_eval(prg, sym, ex);
+			var se = program_sliceEval(prg, sym, ex);
 			if (se.type == SER_ERROR)
 				return lvp_error(se.msg);
 			return lvp_ok(lvr_slice(se.obj, se.start, se.len));
@@ -3452,44 +3570,6 @@ function context_run(ctx){
 }
 
 //
-// chunk
-//
-
-function chunk_loadStandardOps(chk){
-	chunk_defOp(chk, 'say'        , OP_SAY         , -1);
-	chunk_defOp(chk, 'ask'        , OP_ASK         , -1);
-	chunk_defOp(chk, 'pick'       , -1             ,  3);
-	chunk_pushNamespace(chk, 'num');
-		chunk_defOp(chk, 'floor'  , OP_NUM_FLOOR   ,  1);
-		chunk_defOp(chk, 'ceil'   , OP_NUM_CEIL    ,  1);
-		chunk_defOp(chk, 'round'  , OP_NUM_ROUND   ,  1);
-		chunk_defOp(chk, 'sin'    , OP_NUM_SIN     ,  1);
-		chunk_defOp(chk, 'cos'    , OP_NUM_COS     ,  1);
-		chunk_defOp(chk, 'tan'    , OP_NUM_TAN     ,  1);
-		chunk_defOp(chk, 'asin'   , OP_NUM_ASIN    ,  1);
-		chunk_defOp(chk, 'acos'   , OP_NUM_ACOS    ,  1);
-		chunk_defOp(chk, 'atan'   , OP_NUM_ATAN    ,  1);
-		chunk_defOp(chk, 'atan2'  , OP_NUM_ATAN2   ,  2);
-		chunk_defOp(chk, 'log'    , OP_NUM_LOG     ,  1);
-		chunk_defOp(chk, 'log2'   , OP_NUM_LOG2    ,  1);
-		chunk_defOp(chk, 'log10'  , OP_NUM_LOG10   ,  1);
-		chunk_defOp(chk, 'abs'    , OP_NUM_ABS     ,  1);
-		chunk_defOp(chk, 'pi'     , OP_NUM_PI      ,  0);
-		chunk_defOp(chk, 'tau'    , OP_NUM_TAU     ,  0);
-		chunk_defOp(chk, 'lerp'   , OP_NUM_LERP    ,  3);
-		chunk_defOp(chk, 'max'    , OP_NUM_MAX     ,  1);
-		chunk_defOp(chk, 'min'    , OP_NUM_MIN     ,  1);
-	chunk_popNamespace(chk);
-	chunk_pushNamespace(chk, 'list');
-		chunk_defOp(chk, 'new'    , OP_LIST_NEW    ,  2);
-		chunk_defOp(chk, 'find'   , OP_LIST_FIND   ,  3);
-		chunk_defOp(chk, 'findRev', OP_LIST_FINDREV,  3);
-		chunk_defOp(chk, 'rev'    , OP_LIST_REV    ,  1);
-		chunk_defOp(chk, 'join'   , OP_LIST_JOIN   ,  2);
-	chunk_popNamespace(chk);
-}
-
-//
 // compiler
 //
 
@@ -3500,12 +3580,14 @@ function comppr_new(flp, tks){
 }
 
 function compiler_new(repl){
+	var sym = symtbl_new(repl);
+	symtbl_loadStdlib(sym);
 	return {
 		pr: parser_new(),
 		file: null,
 		repl: repl,
 		prg: program_new(),
-		sym: symtbl_new(repl)
+		sym: sym
 	};
 }
 
