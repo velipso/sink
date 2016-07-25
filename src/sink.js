@@ -47,6 +47,7 @@ var OP_ISNUM       = 0x21; // [TGT], [SRC]
 var OP_ISSTR       = 0x22; // [TGT], [SRC]
 var OP_ISLIST      = 0x23; // [TGT], [SRC]
 var OP_LIST        = 0x24; // [TGT]
+var OP_JUMP        = 0x25; // [[LOCATION]]
 var OP_SAY         = 0x30; // [TGT], [SRC]
 var OP_ASK         = 0x31; // [TGT], [SRC]
 var OP_NUM_FLOOR   = 0x32; // [TGT], [SRC]
@@ -180,6 +181,15 @@ function op_slice(b, tgt, src1, src2, src3){
 function op_list(b, tgt){
 	console.log('> LIST ' + tgt.fdiff + ':' + tgt.index);
 	b.push(OP_LIST, tgt.fdiff, tgt.index);
+}
+
+function op_jump(b, index){
+	console.log('> JUMP 0x' + index.toString(16));
+	b.push(OP_JUMP,
+		index % 256,
+		Math.floor(index /      256) % 256,
+		Math.floor(index /    65536) % 256,
+		Math.floor(index / 16777216) % 256);
 }
 
 function op_param0(b, opcode, tgt){
@@ -2577,6 +2587,47 @@ function parser_add(pr, tk, flp){
 }
 
 //
+// labels
+//
+
+function label_new(name){
+	return {
+		name: name,
+		pos: -1,
+		rewrites: []
+	};
+}
+
+function label_write(lbl, ops, index){
+	// writes label position to ops[index], ops[index+1], ops[index+2], ops[index+3]
+	if (lbl.pos < 0)
+		lbl.rewrites.push(index);
+	else{
+		ops[index + 0] = lbl.pos % 256;
+		ops[index + 1] = Math.floor(lbl.pos /      256) % 256;
+		ops[index + 2] = Math.floor(lbl.pos /    65536) % 256;
+		ops[index + 3] = Math.floor(lbl.pos / 16777216) % 256;
+	}
+}
+
+function label_jump(lbl, ops){
+	if (lbl.pos < 0){
+		op_jump(ops, 0xFFFFFFFF);
+		label_write(lbl, ops, ops.length - 4);
+	}
+	else
+		op_jump(ops, lbl.pos);
+}
+
+function label_declare(lbl, ops){
+	//assert(lbl.pos < 0);
+	lbl.pos = ops.length;
+	for (var i = 0; i < lbl.rewrites.length; i++)
+		label_write(lbl, ops, lbl.rewrites[i]);
+	lbl.rewrites = null;
+}
+
+//
 // symbol table
 //
 
@@ -2587,7 +2638,7 @@ var FVR_TEMP_AVAIL = 'FVR_TEMP_AVAIL';
 function frame_new(parent){
 	return {
 		vars: [FVR_VAR], // first frame variable reserved for arguments
-		labels: [],
+		lbls: [],
 		parent: parent
 	};
 }
@@ -2658,18 +2709,20 @@ function namespace_new(fr){
 	};
 }
 
-function scope_new(fr, parent){
+function scope_new(fr, lblBreak, lblContinue, parent){
 	var ns = namespace_new(fr);
 	return {
 		ns: ns,
 		nsStack: [ns],
+		lblBreak: lblBreak,
+		lblContinue: lblContinue,
 		parent: parent
 	};
 }
 
 function symtbl_new(overwrite){
 	var fr = frame_new(null);
-	var sc = scope_new(fr, null);
+	var sc = scope_new(fr, null, null, null);
 	return {
 		overwrite: overwrite, // allow definitions to be overwritten?
 		fr: fr,
@@ -2741,7 +2794,7 @@ function symtbl_popNamespace(sym){
 }
 
 function symtbl_pushScope(sym){
-	sym.sc = scope_new(sym.fr, sym.sc);
+	sym.sc = scope_new(sym.fr, sym.sc.lblBreak, sym.sc.lblContinue, sym.sc);
 }
 
 function symtbl_popScope(sym){
@@ -2750,12 +2803,20 @@ function symtbl_popScope(sym){
 
 function symtbl_pushFrame(sym){
 	sym.fr = frame_new(sym.fr);
-	symtbl_pushScope(sym);
+	sym.sc = scope_new(sym.fr, null, null, sym.sc);
+}
+
+function symtbl_frameOpenLabels(sym){
+	for (var i = 0; i < sym.fr.lbls.length; i++){
+		if (sym.fr.lbls[i].pos < 0)
+			return true;
+	}
+	return false;
 }
 
 function symtbl_popFrame(sym){
-	symtbl_popScope(sym);
-	sym.fr = sym.fr.next;
+	sym.sc = sym.sc.parent;
+	sym.fr = sym.fr.parent;
 }
 
 var STL_OK    = 'STL_OK';
@@ -2928,7 +2989,6 @@ function symtbl_loadStdlib(sym){
 	symtbl_popNamespace(sym);
 }
 
-
 //
 // program
 //
@@ -2949,14 +3009,14 @@ function ser_ok(obj, start, len){
 	return { type: SER_OK, obj: obj, start: start, len: len };
 }
 
-function ser_error(msg){
-	return { type: SER_ERROR, msg: msg };
+function ser_error(flp, msg){
+	return { type: SER_ERROR, flp: flp, msg: msg };
 }
 
 function program_sliceEval(prg, sym, ex){
 	var oe = program_eval(prg, sym, ex.obj, false);
 	if (oe.type == PER_ERROR)
-		return ser_error(oe.msg);
+		return ser_error(oe.flp, oe.msg);
 	var le;
 	var iszero = false;
 	if (ex.start == null){
@@ -2987,7 +3047,7 @@ function program_sliceEval(prg, sym, ex){
 	else
 		re = program_eval(prg, sym, ex.len, false);
 	if (re.type == PER_ERROR)
-		return ser_error(re.msg);
+		return ser_error(re.flp, re.msg);
 	return ser_ok(oe.vlc, le.vlc, re.vlc);
 }
 
@@ -2998,8 +3058,8 @@ function pce_ok(){
 	return { type: PCE_OK };
 }
 
-function pce_error(msg){
-	return { type: PCE_ERROR, msg: msg };
+function pce_error(flp, msg){
+	return { type: PCE_ERROR, flp: flp, msg: msg };
 }
 
 function program_callEval(prg, sym, vlc, nsn, params, flp){
@@ -3012,9 +3072,10 @@ function program_callEval(prg, sym, vlc, nsn, params, flp){
 				throw 'TODO: pick';
 			}
 			if (nsn.params == -1){ // variable arguments
-				var pr = program_eval(prg, sym, expr_list(flp, params));
+				var pr = program_eval(prg, sym, expr_list(flp, params), false);
 				if (pr.type == PER_ERROR)
-					return pce_error(pr.msg);
+					return pce_error(pr.flp, pr.msg);
+				symtbl_clearTemp(sym, pr.vlc);
 				op_param1(prg.ops, nsn.opcode, vlc, pr.vlc);
 				return pce_ok();
 			}
@@ -3023,7 +3084,7 @@ function program_callEval(prg, sym, vlc, nsn, params, flp){
 			}
 		} break;
 	}
-	return pce_error('Invalid call');
+	return pce_error(flp, 'Invalid call');
 }
 
 var PIR_OK    = 'PIR_OK';
@@ -3033,8 +3094,8 @@ function pir_ok(){
 	return { type: PIR_OK };
 }
 
-function pir_error(msg){
-	return { type: PIR_ERROR, msg: msg };
+function pir_error(flp, msg){
+	return { type: PIR_ERROR, flp: flp, msg: msg };
 }
 
 function program_evalInto(prg, sym, vlc, ex){
@@ -3055,7 +3116,7 @@ function program_evalInto(prg, sym, vlc, ex){
 				}
 			}
 			if (prg.numTable.length >= 65535)
-				return pir_error('Too many number constants');
+				return pir_error(ex.flp, 'Too many number constants');
 			prg.numTable.push(ex.num);
 			op_num_tbl(prg.ops, vlc, prg.numTable.length - 1);
 			return pir_ok();
@@ -3071,14 +3132,14 @@ function program_evalInto(prg, sym, vlc, ex){
 					for (var i = 0; i < ex.ex.group.length; i++){
 						var pr = program_eval(prg, sym, ex.ex.group[i], true);
 						if (pr.type == PER_ERROR)
-							return pir_error(pr.msg);
+							return pir_error(pr.flp, pr.msg);
 						op_binop(prg.ops, OP_PUSH, vlc, vlc, pr.vlc);
 					}
 				}
 				else{
 					var pr = program_eval(prg, sym, ex.ex, true);
 					if (pr.type == PER_ERROR)
-						return pir_error(pr.msg);
+						return pir_error(pr.flp, pr.msg);
 					op_binop(prg.ops, OP_PUSH, vlc, vlc, pr.vlc);
 				}
 			}
@@ -3088,7 +3149,7 @@ function program_evalInto(prg, sym, vlc, ex){
 		case EXPR_NAMES: {
 			var sl = symtbl_lookup(sym, ex.names);
 			if (sl.type == STL_ERROR)
-				return pir_error(sl.msg);
+				return pir_error(ex.flp, sl.msg);
 			switch (sl.nsn.type){
 				case NSN_VAR: {
 					var fdiff = frame_diff(sl.nsn.fr, sym.fr);
@@ -3101,11 +3162,11 @@ function program_evalInto(prg, sym, vlc, ex){
 				case NSN_CMD_OPCODE: {
 					var pe = program_callEval(prg, sym, vlc, sl.nsn, null, ex.flp);
 					if (pe.type == PCE_ERROR)
-						return pir_error(pe.msg);
+						return pir_error(pe.flp, pe.msg);
 					return pir_ok();
 				} break;
 				case NSN_NAMESPACE:
-					return pir_error('Invalid expression');
+					return pir_error(ex.flp, 'Invalid expression');
 			}
 			throw new Error('Unknown NSN type: ' + sl.nsn.type);
 		} break;
@@ -3125,17 +3186,17 @@ function program_evalInto(prg, sym, vlc, ex){
 					return program_evalInto(prg, sym, vlc, ex.group[i]);
 				var pr = program_evalEmpty(prg, sym, ex.group[i], true);
 				if (pr.type == PEM_ERROR)
-					return pir_error(pr.msg);
+					return pir_error(pr.flp, pr.msg);
 			}
 			break;
 
 		case EXPR_PREFIX: {
 			var unop = ks_toUnaryOp(ex.k);
 			if (unop < 0)
-				return pir_error('Invalid unary operator');
+				return pir_error(ex.flp, 'Invalid unary operator');
 			var ee = program_eval(prg, sym, ex.ex, false);
 			if (ee.type == PER_ERROR)
-				return pir_error(ee.msg);
+				return pir_error(ee.flp, ee.msg);
 			op_unop(prg.ops, unop, vlc, ee.vlc);
 			symtbl_clearTemp(sym, ee.vlc);
 			return pir_ok();
@@ -3146,10 +3207,10 @@ function program_evalInto(prg, sym, vlc, ex){
 			if (binop >= 0){
 				var le = program_eval(prg, sym, ex.left, false);
 				if (le.type == PER_ERROR)
-					return pir_error(le.msg);
+					return pir_error(le.flp, le.msg);
 				var re = program_eval(prg, sym, ex.right, false);
 				if (re.type == PER_ERROR)
-					return pir_error(re.msg);
+					return pir_error(re.flp, re.msg);
 				op_binop(prg.ops, binop, vlc, le.vlc, re.vlc);
 				symtbl_clearTemp(sym, le.vlc);
 				symtbl_clearTemp(sym, re.vlc);
@@ -3160,7 +3221,7 @@ function program_evalInto(prg, sym, vlc, ex){
 			if (ex.k == KS_EQU || mutop >= 0){
 				var lp = lval_prepare(prg, sym, ex.left);
 				if (lp.type == LVP_ERROR)
-					return pir_error(lp.msg);
+					return pir_error(lp.flp, lp.msg);
 				var lv = lp.lv;
 				switch (lv.type){
 					case LVR_VAR: {
@@ -3172,7 +3233,7 @@ function program_evalInto(prg, sym, vlc, ex){
 						else{
 							var pr = program_eval(prg, sym, ex.right, true);
 							if (pr.type == PER_ERROR)
-								return pir_error(pr.msg);
+								return pir_error(pr.flp, pr.msg);
 							op_binop(prg.ops, mutop, lv.vlc, lv.vlc, pr.vlc);
 						}
 						if (vlc.fdiff != lv.vlc.fdiff || vlc.index != lv.vlc.index)
@@ -3204,23 +3265,23 @@ function program_evalInto(prg, sym, vlc, ex){
 
 		case EXPR_CALL: {
 			if (ex.cmd.type != EXPR_NAMES)
-				return pir_error('Invalid call');
+				return pir_error(ex.flp, 'Invalid call');
 			var sl = symtbl_lookup(sym, ex.cmd.names);
 			if (sl.type == STL_ERROR)
-				return pir_error(sl.msg);
+				return pir_error(ex.flp, sl.msg);
 			var pe = program_callEval(prg, sym, vlc, sl.nsn, ex.params, ex.flp);
 			if (pe.type == PCE_ERROR)
-				return pir_error(pe.msg);
+				return pir_error(pe.flp, pe.msg);
 			return pir_ok();
 		} break;
 
 		case EXPR_INDEX: {
 			var oe = program_eval(prg, sym, ex.obj, false);
 			if (oe.type == PER_ERROR)
-				return pir_error(oe.msg);
+				return pir_error(oe.flp, oe.msg);
 			var ke = program_eval(prg, sym, ex.key, false);
 			if (ke.type == PER_ERROR)
-				return pir_error(ke.msg);
+				return pir_error(ke.flp, ke.msg);
 			op_getat(prg.ops, vlc, oe.vlc, ke.vlc);
 			symtbl_clearTemp(sym, oe.vlc);
 			symtbl_clearTemp(sym, ke.vlc);
@@ -3230,7 +3291,7 @@ function program_evalInto(prg, sym, vlc, ex){
 		case EXPR_SLICE: {
 			var se = program_sliceEval(prg, sym, ex);
 			if (se.type == SER_ERROR)
-				return pir_error(se.msg);
+				return pir_error(se.flp, se.msg);
 			op_slice(prg.ops, vlc, se.obj, se.start, se.len);
 			symtbl_clearTemp(sym, se.obj);
 			symtbl_clearTemp(sym, se.start);
@@ -3248,8 +3309,8 @@ function per_ok(vlc){
 	return { type: PER_OK, vlc: vlc };
 }
 
-function per_error(msg){
-	return { type: PER_ERROR, msg: msg };
+function per_error(flp, msg){
+	return { type: PER_ERROR, flp: flp, msg: msg };
 }
 
 var LVR_VAR    = 'LVR_VAR';
@@ -3280,8 +3341,8 @@ function lvp_ok(lv){
 	return { type: LVP_OK, lv: lv };
 }
 
-function lvp_error(msg){
-	return { type: LVP_ERROR, msg: msg };
+function lvp_error(flp, msg){
+	return { type: LVP_ERROR, flp: flp, msg: msg };
 }
 
 function lval_prepare(prg, sym, ex){
@@ -3289,32 +3350,32 @@ function lval_prepare(prg, sym, ex){
 		case EXPR_NAMES: {
 			var sl = symtbl_lookup(sym, ex.names);
 			if (sl.type == STL_ERROR)
-				return lvp_error(sl.msg);
+				return lvp_error(ex.flp, sl.msg);
 			if (sl.nsn.type != NSN_VAR)
-				return lvp_error('Invalid assignment');
+				return lvp_error(ex.flp, 'Invalid assignment');
 			return lvp_ok(lvr_var(varloc_new(frame_diff(sl.nsn.fr, sym.fr), sl.nsn.index)));
 		} break;
 
 		case EXPR_INDEX: {
 			var oe = program_eval(prg, sym, ex.obj, false);
 			if (oe.type == PER_ERROR)
-				return lvp_error(oe.msg);
+				return lvp_error(oe.flp, oe.msg);
 			var ke = program_eval(prg, sym, ex.key, false);
 			if (ke.type == PER_ERROR)
-				return lvp_error(ke.msg);
+				return lvp_error(ke.flp, ke.msg);
 			return lvp_ok(lvr_index(oe.vlc, ke.vlc));
 		} break;
 
 		case EXPR_SLICE: {
 			var se = program_sliceEval(prg, sym, ex);
 			if (se.type == SER_ERROR)
-				return lvp_error(se.msg);
+				return lvp_error(se.flp, se.msg);
 			return lvp_ok(lvr_slice(se.obj, se.start, se.len));
 		} break;
 
 		case EXPR_LIST: {
 			if (ex.ex == null)
-				return lvp_error('Invalid assignment');
+				return lvp_error(ex.flp, 'Invalid assignment');
 			var body = [];
 			var rest = null;
 			if (ex.ex.type == EXPR_GROUP){
@@ -3355,7 +3416,7 @@ function lval_prepare(prg, sym, ex){
 		default:
 			throw 'TODO: lval_prepare ' + ex.type;
 	}
-	return lvp_error('Invalid assignment');
+	return lvp_error(ex.flp, 'Invalid assignment');
 }
 
 function program_eval(prg, sym, ex, autoclear){
@@ -3364,14 +3425,14 @@ function program_eval(prg, sym, ex, autoclear){
 		if (ex.k == KS_EQU || mutop >= 0){
 			var lp = lval_prepare(prg, sym, ex.left);
 			if (lp.type == LVP_ERROR)
-				return per_error(lp.msg);
+				return per_error(lp.flp, lp.msg);
 			var lv = lp.lv;
 			switch (lv.type){
 				case LVR_VAR: {
 					if (ex.k == KS_EQU){
 						var pr = program_evalInto(prg, sym, lv.vlc, ex.right);
 						if (pr.type == PIR_ERROR)
-							return per_error(pr.msg);
+							return per_error(pr.flp, pr.msg);
 						return per_ok(lv.vlc);
 					}
 					var pr = program_eval(prg, sym, ex.right, true);
@@ -3398,7 +3459,7 @@ function program_eval(prg, sym, ex, autoclear){
 	else if (ex.type == EXPR_NAMES){
 		var sl = symtbl_lookup(sym, ex.names);
 		if (sl.type == STL_ERROR)
-			return per_error(sl.msg);
+			return per_error(ex.flp, sl.msg);
 		if (sl.nsn.type == NSN_VAR)
 			return per_ok(varloc_new(frame_diff(sl.nsn.fr, sym.fr), sl.nsn.index));
 		// otherwise, fall through and evaluate the results into a temp
@@ -3410,7 +3471,7 @@ function program_eval(prg, sym, ex, autoclear){
 		symtbl_clearTemp(sym, tmp);
 	var pr = program_evalInto(prg, sym, tmp, ex);
 	if (pr.type == PIR_ERROR)
-		return per_error(pr.msg);
+		return per_error(pr.flp, pr.msg);
 	return per_ok(tmp);
 }
 
@@ -3421,8 +3482,8 @@ function pem_ok(){
 	return { type: PEM_OK };
 }
 
-function pem_error(msg){
-	return { type: PEM_ERROR, msg: msg };
+function pem_error(flp, msg){
+	return { type: PEM_ERROR, flp: flp, msg: msg };
 }
 
 function program_evalEmpty(prg, sym, ex){
@@ -3431,12 +3492,12 @@ function program_evalEmpty(prg, sym, ex){
 	else if (ex.type == EXPR_NAMES){
 		var sl = symtbl_lookup(sym, ex.names);
 		if (sl.type == STL_ERROR)
-			return pem_error(sl.msg);
+			return pem_error(ex.flp, sl.msg);
 		return pem_ok();
 	}
 	var pr = program_eval(prg, sym, ex, true);
 	if (pr.type == PER_ERROR)
-		return pem_error(pr.msg);
+		return pem_error(pr.flp, pr.msg);
 	return pem_ok();
 }
 
@@ -3447,8 +3508,8 @@ function lva_ok(){
 	return { type: LVA_OK };
 }
 
-function lva_error(msg){
-	return { type: LVA_ERROR, msg: msg };
+function lva_error(flp, msg){
+	return { type: LVA_ERROR, flp: flp, msg: msg };
 }
 
 function lval_addVars(sym, ex){
@@ -3456,18 +3517,18 @@ function lval_addVars(sym, ex){
 		case EXPR_NAMES: {
 			var sr = symtbl_addVar(sym, ex.names);
 			if (sr.type == STA_ERROR)
-				return lva_error(sr.msg);
+				return lva_error(ex.flp, sr.msg);
 			return lva_ok();
 		} break;
 		case EXPR_LIST:
 			if (ex.ex == null)
-				return lva_error('Invalid assignment');
+				return lva_error(ex.flp, 'Invalid assignment');
 			return lval_addVars(sym, ex.ex);
 		case EXPR_GROUP:
 			for (var i = 0; i < ex.group.length; i++){
 				var sr = lval_addVars(sym, ex.group[i]);
-				if (sr.type == STA_ERROR)
-					return lva_error(sr.msg);
+				if (sr.type == LVA_ERROR)
+					return sr;
 			}
 			return lva_ok();
 		case EXPR_PREFIX:
@@ -3485,30 +3546,103 @@ function pgr_ok(){
 	return { type: PGR_OK };
 }
 
-function pgr_error(msg){
-	return { type: PGR_ERROR, msg: msg };
+function pgr_error(flp, msg){
+	return { type: PGR_ERROR, flp: flp, msg: msg };
+}
+
+function program_genBody(prg, sym, body){
+	for (var i = 0; i < body.length; i++){
+		var pr = program_gen(prg, sym, body[i]);
+		if (pr.type == PGR_ERROR)
+			return pr;
+	}
+	return pgr_ok();
 }
 
 function program_gen(prg, sym, stmt){
 	switch (stmt.type){
 		case AST_BREAK:
-			throw 'TODO program_gen' + stmt.type;
+			if (sym.sc.lblBreak == null)
+				return pgr_error(stmt.flp, 'Invalid `break`');
+			label_jump(sym.sc.lblBreak, prg.ops);
+			return pgr_ok();
+
 		case AST_CONTINUE:
-			throw 'TODO program_gen' + stmt.type;
+			if (sym.sc.lblContinue == null)
+				return pgr_error(stmt.flp, 'Invalid `continue`');
+			label_jump(sym.sc.lblContinue, prg.ops);
+			return pgr_ok();
+
 		case AST_DECLARE:
-			throw 'TODO program_gen' + stmt.type;
+			for (var i = 0; i < stmt.decls.length; i++){
+				var dc = stmt.decls[i];
+				switch (dc.type){
+					case DECL_LOCAL: {
+						var lbl = label_new('%def');
+						sym.sc.fr.lbls.push(lbl);
+						var sr = symtbl_addCmdLocal(sym, dc.names, lbl);
+						if (sr.type == STA_ERROR)
+							return pgr_error(dc.flp, sr.msg);
+					} break;
+					case DECL_NATIVE: {
+
+					} break;
+				}
+function decl_native(flp, names, key){
+	return { flp: flp, type: DECL_NATIVE, names: names, key: key };
+}
+
+			}
+			return pgr_ok();
+
 		case AST_DEF:
 			throw 'TODO program_gen' + stmt.type;
-		case AST_DO_END:
-			throw 'TODO program_gen' + stmt.type;
+
+		case AST_DO_END: {
+			symtbl_pushScope(sym);
+			sym.sc.lblBreak = label_new('%do_break');
+			var pr = program_genBody(prg, sym, stmt.body);
+			if (pr.type == PGR_ERROR)
+				return pr;
+			label_declare(sym.sc.lblBreak, prg.ops);
+			symtbl_popScope(sym);
+			return pgr_ok();
+		} break;
+
 		case AST_DO_WHILE:
 			throw 'TODO program_gen' + stmt.type;
 		case AST_FOR:
 			throw 'TODO program_gen' + stmt.type;
-		case AST_LOOP:
-			throw 'TODO program_gen' + stmt.type;
-		case AST_GOTO:
-			throw 'TODO program_gen' + stmt.type;
+
+		case AST_LOOP: {
+			symtbl_pushScope(sym);
+			sym.sc.lblContinue = label_new('%loop_continue');
+			sym.sc.lblBreak = label_new('%loop_break');
+			label_declare(sym.sc.lblContinue, prg.ops);
+			var pr = program_genBody(prg, sym, stmt.body);
+			if (pr.type == PGR_ERROR)
+				return pr;
+			label_jump(sym.sc.lblContinue, prg.ops);
+			label_declare(sym.sc.lblBreak, prg.ops);
+			symtbl_popScope(sym);
+			return pgr_ok();
+		} break;
+
+		case AST_GOTO: {
+			for (var i = 0; i < sym.fr.lbls.length; i++){
+				var lbl = sym.fr.lbls[i];
+				if (lbl.name == stmt.ident){
+					label_jump(lbl, prg.ops);
+					return pgr_ok();
+				}
+			}
+			// label doesn't exist yet, so we'll need to create it
+			var lbl = label_new(stmt.ident);
+			label_jump(lbl, prg.ops);
+			sym.fr.lbls.push(lbl);
+			return pgr_ok();
+		} break;
+
 		case AST_IF:
 			throw 'TODO program_gen' + stmt.type;
 		case AST_INCLUDE:
@@ -3519,31 +3653,43 @@ function program_gen(prg, sym, stmt){
 			throw 'TODO program_gen' + stmt.type;
 		case AST_USING:
 			throw 'TODO program_gen' + stmt.type;
+
 		case AST_VAR:
 			for (var i = 0; i < stmt.lvalues.length; i++){
 				var ex = stmt.lvalues[i];
 				if (ex.type == EXPR_INFIX){
 					var lr = lval_addVars(sym, ex.left);
 					if (lr.type == LVA_ERROR)
-						return pgr_error(lr.msg);
+						return pgr_error(lr.flp, lr.msg);
 					if (ex.right != null){
 						var pr = program_eval(prg, sym, ex, true);
 						if (pr.type == PER_ERROR)
-							return pgr_error(pr.msg);
+							return pgr_error(pr.flp, pr.msg);
 					}
 				}
 				else
 					throw 'TODO: don\'t know how to AST_VAR the expression ' + ex.type;
 			}
 			return pgr_ok();
+
 		case AST_EVAL: {
 			var pr = program_eval(prg, sym, stmt.ex, true);
 			if (pr.type == PER_ERROR)
-				return pgr_error(pr.msg);
+				return pgr_error(pr.flp, pr.msg);
 			return pgr_ok();
 		} break;
-		case AST_LABEL:
-			throw 'TODO program_gen' + stmt.type;
+
+		case AST_LABEL: {
+			for (var i = 0; i < sym.fr.lbls.length; i++){
+				var lbl = sym.fr.lbls[i];
+				if (lbl.name == stmt.ident)
+					return pgr_error(stmt.flp, 'Cannot redclare label "' + stmt.ident + '"');
+			}
+			var lbl = label_new(stmt.ident);
+			label_declare(lbl, prg.ops);
+			sym.fr.lbls.push(lbl);
+			return pgr_ok();
+		} break;
 	}
 }
 

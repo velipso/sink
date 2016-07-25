@@ -15,28 +15,28 @@ module.exports = {
 					0x80 | (ch & 0x3F)
 				);
 			}
-        	else if (ch < 0xD800 || ch >= 0xE000){
-        		bytes.push(
-        			0xE0 | (ch >> 12),
-        			0x80 | ((ch >> 6) & 0x3F),
-        			0x80 | (ch & 0x3F)
-        		);
-	        }
-	        else{
-	        	i++;
-	        	var ch2 = str.charCodeAt(i);
-	        	if (ch >= 0xD800 && ch < 0xDC00 && ch2 >= 0xDC00 && ch2 < 0xE000){
-	        		ch = 0x10000 + (((ch & 0x3FF) << 10) | (ch2 & 0x3FF));
-	        		bytes.push(
-	        			0xF0 | (ch >> 18),
-	        			0x80 | ((ch >> 12) & 0x3F),
-	        			0x80 | ((ch >> 6) & 0x3F),
-	        			0x80 | (ch & 0x3F)
-	        		);
-	        	}
-	        	else
-	        		throw new Error('Invalid UTF-16 string');
-	        }
+			else if (ch < 0xD800 || ch >= 0xE000){
+				bytes.push(
+					0xE0 | (ch >> 12),
+					0x80 | ((ch >> 6) & 0x3F),
+					0x80 | (ch & 0x3F)
+				);
+			}
+			else{
+				i++;
+				var ch2 = str.charCodeAt(i);
+				if (ch >= 0xD800 && ch < 0xDC00 && ch2 >= 0xDC00 && ch2 < 0xE000){
+					ch = 0x10000 + (((ch & 0x3FF) << 10) | (ch2 & 0x3FF));
+					bytes.push(
+						0xF0 | (ch >> 18),
+						0x80 | ((ch >> 12) & 0x3F),
+						0x80 | ((ch >> 6) & 0x3F),
+						0x80 | (ch & 0x3F)
+					);
+				}
+				else
+					throw new Error('Invalid UTF-16 string');
+			}
 		}
 		return bytes;
 	},
