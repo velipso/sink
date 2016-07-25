@@ -51,6 +51,8 @@ var OP_JUMP        = 0x25; // [[LOCATION]]
 var OP_RETURN      = 0x26; // [SRC]
 var OP_CALL        = 0x27; // [TGT], [SRC], [[LOCATION]]
 var OP_NATIVE      = 0x28; // [TGT], [SRC], [INDEX]
+var OP_JUMPTRUE    = 0x29; // [SRC], [[LOCATION]]
+var OP_JUMPFALSE   = 0x2A; // [SRC], [[LOCATION]]
 var OP_SAY         = 0x30; // [TGT], [SRC]
 var OP_ASK         = 0x31; // [TGT], [SRC]
 var OP_NUM_FLOOR   = 0x32; // [TGT], [SRC]
@@ -189,6 +191,24 @@ function op_list(b, tgt){
 function op_jump(b, index){
 	console.log('> JUMP 0x' + index.toString(16));
 	b.push(OP_JUMP,
+		index % 256,
+		Math.floor(index /      256) % 256,
+		Math.floor(index /    65536) % 256,
+		Math.floor(index / 16777216) % 256);
+}
+
+function op_jumpTrue(b, src, index){
+	console.log('> JUMPTRUE ' + src.fdiff + ':' + src.index + ', 0x' + index.toString(16));
+	b.push(OP_JUMPTRUE, src.fdiff, src.index,
+		index % 256,
+		Math.floor(index /      256) % 256,
+		Math.floor(index /    65536) % 256,
+		Math.floor(index / 16777216) % 256);
+}
+
+function op_jumpFalse(b, src, index){
+	console.log('> JUMPFALSE ' + src.fdiff + ':' + src.index + ', 0x' + index.toString(16));
+	b.push(OP_JUMPFALSE, src.fdiff, src.index,
 		index % 256,
 		Math.floor(index /      256) % 256,
 		Math.floor(index /    65536) % 256,
@@ -2644,6 +2664,20 @@ function label_jump(lbl, ops){
 		label_refresh(lbl, ops, lbl.rewrites.length - 1);
 }
 
+function label_jumpTrue(lbl, ops, src){
+	op_jumpTrue(ops, src, 0xFFFFFFFF);
+	lbl.rewrites.push(ops.length - 4);
+	if (lbl.pos >= 0)
+		label_refresh(lbl, ops, lbl.rewrites.length - 1);
+}
+
+function label_jumpFalse(lbl, ops, src){
+	op_jumpFalse(ops, src, 0xFFFFFFFF);
+	lbl.rewrites.push(ops.length - 4);
+	if (lbl.pos >= 0)
+		label_refresh(lbl, ops, lbl.rewrites.length - 1);
+}
+
 function label_call(lbl, ops, ret, arg){
 	op_call(ops, ret, arg, 0xFFFFFFFF);
 	lbl.rewrites.push(ops.length - 4);
@@ -3782,42 +3816,55 @@ function program_evalEmpty(prg, sym, ex){
 	return pem_ok();
 }
 
-var LVA_OK    = 'LV_OK';
-var LVA_ERROR = 'LV_ERROR';
-
-function lva_ok(){
-	return { type: LVA_OK };
-}
-
-function lva_error(flp, msg){
-	return { type: LVA_ERROR, flp: flp, msg: msg };
-}
-
 function lval_addVars(sym, ex){
 	switch (ex.type){
 		case EXPR_NAMES: {
 			var sr = symtbl_addVar(sym, ex.names);
 			if (sr.type == STA_ERROR)
 				return lva_error(ex.flp, sr.msg);
-			return lva_ok();
+			return lvp_ok(lvr_var(ex.flp, sr.vlc));
 		} break;
-		case EXPR_LIST:
+		case EXPR_LIST: {
 			if (ex.ex == null)
-				return lva_error(ex.flp, 'Invalid assignment');
-			return lval_addVars(sym, ex.ex);
-		case EXPR_GROUP:
-			for (var i = 0; i < ex.group.length; i++){
-				var sr = lval_addVars(sym, ex.group[i]);
-				if (sr.type == LVA_ERROR)
-					return sr;
+				return lvp_error(ex.flp, 'Invalid assignment');
+			var body = [];
+			var rest = null;
+			if (ex.ex.type == EXPR_GROUP){
+				for (var i = 0; i < ex.ex.group.length; i++){
+					var gex = ex.ex.group[i];
+					if (i == ex.ex.group.length - 1 && gex.type == EXPR_PREFIX &&
+						gex.k == KS_PERIOD3){
+						var lp = lval_addVars(sym, gex.ex);
+						if (lp.type == LVP_ERROR)
+							return lp;
+						rest = lp.lv;
+					}
+					else{
+						var lp = lval_addVars(sym, gex);
+						if (lp.type == LVP_ERROR)
+							return lp;
+						body.push(lp.lv);
+					}
+				}
 			}
-			return lva_ok();
-		case EXPR_PREFIX:
-			if (ex.k == KS_PERIOD3)
-				return lval_addVars(sym, ex.ex);
-			break;
+			else{
+				if (ex.ex.type == EXPR_PREFIX && ex.ex.k == KS_PERIOD3){
+					var lp = lval_addVars(sym, ex.ex.ex);
+					if (lp.type == LVP_ERROR)
+						return lp;
+					rest = lp.lv;
+				}
+				else{
+					var lp = lval_addVars(sym, ex.ex);
+					if (lp.type == LVP_ERROR)
+						return lp;
+					body.push(lp.lv);
+				}
+			}
+			return lvp_ok(lvr_list(ex.flp, body, rest));
+		} break;
 	}
-	return lva_error('Invalid assignment');
+	return lvp_error(ex.flp, 'Invalid assignment');
 }
 
 var PGR_OK    = 'PGR_OK';
@@ -3904,16 +3951,81 @@ function program_gen(prg, sym, stmt){
 			label_declare(lbl, prg.ops);
 			symtbl_pushFrame(sym);
 
-			// TODO: handle argument unpacking
+			if (stmt.lvalues.length > 0){
+				var t = symtbl_addTemp(sym);
+				for (var i = 0; i < stmt.lvalues.length; i++){
+					var ex = stmt.lvalues[i];
+					if (ex.type == EXPR_INFIX){
+						// init code has to happen first, because we want name resolution to be
+						// as though these variables haven't been defined yet... so a bit of goofy
+						// jumping, but not bad
+						var pr = null;
+						var perfinit = null;
+						var doneinit = null;
+						if (ex.right != null){
+							perfinit = label_new('%perfinit');
+							doneinit = label_new('%doneinit');
+							var skipinit = label_new('%skipinit');
+							label_jump(skipinit, prg.ops);
+							label_declare(perfinit, prg.ops);
+							pr = program_eval(prg, sym, ex.right, false);
+							if (pr.type == PER_ERROR)
+								return pgr_error(pr.flp, pr.msg);
+							label_jump(doneinit, prg.ops);
+							label_declare(skipinit, prg.ops);
+						}
+
+						// now we can add the param symbols
+						var lr = lval_addVars(sym, ex.left);
+						if (lr.type == LVP_ERROR)
+							return pgr_error(lr.flp, lr.msg);
+
+						// and grab the appropriate value from the args
+						op_num(prg.ops, t, i);
+						op_getat(prg.ops, t, varloc_new(0, 0), t); // 0:0 are the passed in arguments
+
+						var finish = null;
+						if (ex.right != null){
+							finish = label_new('%finish');
+							var passinit = label_new('%passinit');
+							label_jumpFalse(perfinit, prg.ops, t);
+							label_jump(passinit, prg.ops);
+							label_declare(doneinit, prg.ops);
+							var pe = program_evalLvalue(prg, sym, lr.lv, pr.vlc);
+							if (pe.type == PLR_ERROR)
+								return pgr_error(pe.flp, pe.msg);
+							label_jump(finish, prg.ops);
+							label_declare(passinit, prg.ops);
+						}
+
+						var pe = program_evalLvalue(prg, sym, lr.lv, t);
+						if (pe.type == PLR_ERROR)
+							return pgr_error(pe.flp, pe.msg);
+
+						if (ex.right != null)
+							label_declare(finish, prg.ops);
+					}
+					else if (i == stmt.lvalues.length - 1 && ex.type == EXPR_PREFIX &&
+						ex.k == KS_PERIOD3){
+						throw 'TODO: def lvalue KS_PERIOD3';
+						// TODO: some sort of slice with 0:0
+					}
+					else
+						throw new Error('Unknown lvalue type in def (this shouldn\'t happen)');
+				}
+				symtbl_clearTemp(sym, t);
+			}
 
 			var pr = program_genBody(prg, sym, stmt.body);
 			if (pr.type == PGR_ERROR)
 				return pr;
 
-			var nil = symtbl_addTemp(sym);
-			op_nil(prg.ops, nil);
-			op_return(prg.ops, nil);
-			symtbl_clearTemp(sym, nil);
+			if (stmt.body.length <= 0 || stmt.body[stmt.body.length - 1].type != AST_RETURN){
+				var nil = symtbl_addTemp(sym);
+				op_nil(prg.ops, nil);
+				op_return(prg.ops, nil);
+				symtbl_clearTemp(sym, nil);
+			}
 
 			symtbl_popFrame(sym);
 			label_declare(skip, prg.ops);
@@ -3972,8 +4084,15 @@ function program_gen(prg, sym, stmt){
 			throw 'TODO program_gen' + stmt.type;
 		case AST_NAMESPACE:
 			throw 'TODO program_gen' + stmt.type;
-		case AST_RETURN:
-			throw 'TODO program_gen' + stmt.type;
+
+		case AST_RETURN: {
+			var pr = program_eval(prg, sym, stmt.ex, false);
+			if (pr.type == PER_ERROR)
+				return pgr_error(pr.flp, pr.msg);
+			symtbl_clearTemp(sym, pr.vlc);
+			op_return(prg.ops, pr.vlc);
+			return pgr_ok();
+		} break;
 
 		case AST_USING: {
 			for (var i = 0; i < stmt.namesList.length; i++){
@@ -3992,18 +4111,23 @@ function program_gen(prg, sym, stmt){
 		case AST_VAR:
 			for (var i = 0; i < stmt.lvalues.length; i++){
 				var ex = stmt.lvalues[i];
-				if (ex.type == EXPR_INFIX){
-					var lr = lval_addVars(sym, ex.left);
-					if (lr.type == LVA_ERROR)
-						return pgr_error(lr.flp, lr.msg);
-					if (ex.right != null){
-						var pr = program_eval(prg, sym, ex, true);
-						if (pr.type == PER_ERROR)
-							return pgr_error(pr.flp, pr.msg);
-					}
+				if (ex.type != EXPR_INFIX)
+					throw new Error('Var expression should be EXPR_INFIX (this shouldn\'t happen)');
+				var pr = null;
+				if (ex.right != null){
+					pr = program_eval(prg, sym, ex.right, false);
+					if (pr.type == PER_ERROR)
+						return pgr_error(pr.flp, pr.msg);
 				}
-				else
-					throw 'TODO: don\'t know how to AST_VAR the expression ' + ex.type;
+				var lr = lval_addVars(sym, ex.left);
+				if (lr.type == LVP_ERROR)
+					return pgr_error(lr.flp, lr.msg);
+				if (ex.right != null){
+					var pe = program_evalLvalue(prg, sym, lr.lv, pr.vlc);
+					if (pe.type == PLR_ERROR)
+						return pgr_error(pe.flp, pe.msg);
+					symtbl_clearTemp(sym, pr.vlc);
+				}
 			}
 			return pgr_ok();
 
@@ -4091,7 +4215,7 @@ function compiler_processTokens(cmp, cmpr, err){
 				return false;
 			}
 
-			console.log(JSON.stringify(res.stmt, null, '  '));
+			//console.log(JSON.stringify(res.stmt, null, '  '));
 			var pr = program_gen(cmp.prg, cmp.sym, res.stmt);
 			if (pr.type == PGR_ERROR)
 				console.log('Error:', pr.msg);
