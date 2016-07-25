@@ -4046,6 +4046,7 @@ function program_gen(prg, sym, stmt){
 
 		case AST_DO_WHILE:
 			throw 'TODO program_gen' + stmt.type;
+
 		case AST_FOR:
 			throw 'TODO program_gen' + stmt.type;
 
@@ -4080,10 +4081,20 @@ function program_gen(prg, sym, stmt){
 
 		case AST_IF:
 			throw 'TODO program_gen' + stmt.type;
+
 		case AST_INCLUDE:
 			throw 'TODO program_gen' + stmt.type;
-		case AST_NAMESPACE:
-			throw 'TODO program_gen' + stmt.type;
+
+		case AST_NAMESPACE: {
+			var sr = symtbl_pushNamespace(sym, stmt.names);
+			if (sr.type == SPN_ERROR)
+				return pgr_error(stmt.flp, sr.msg);
+			var pr = program_genBody(prg, sym, stmt.body);
+			if (pr.type == PGR_ERROR)
+				return pr;
+			symtbl_popNamespace(sym);
+			return pgr_ok();
+		} break;
 
 		case AST_RETURN: {
 			var pr = program_eval(prg, sym, stmt.ex, false);
