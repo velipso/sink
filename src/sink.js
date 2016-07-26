@@ -54,6 +54,7 @@ var OP_NATIVE      = 0x28; // [TGT], [SRC], [INDEX]
 var OP_JUMPTRUE    = 0x29; // [SRC], [[LOCATION]]
 var OP_JUMPFALSE   = 0x2A; // [SRC], [[LOCATION]]
 var OP_INC         = 0x2B; // [TGT/SRC]
+var OP_SPLICE      = 0x2C; // [SRC1], [SRC2], [SRC3], [SRC4]
 var OP_SAY         = 0x30; // [TGT], [SRC]
 var OP_ASK         = 0x31; // [TGT], [SRC]
 var OP_NUM_FLOOR   = 0x32; // [TGT], [SRC]
@@ -248,6 +249,19 @@ function op_return(b, src){
 function op_inc(b, src){
 	console.log('> INC ' + src.fdiff + ':' + src.index);
 	b.push(OP_INC, src.fdiff, src.index);
+}
+
+function op_splice(b, src1, src2, src3, src4){
+	console.log('> SPLICE ' +
+		src1.fdiff + ':' + src1.index + ', ' +
+		src2.fdiff + ':' + src2.index + ', ' +
+		src3.fdiff + ':' + src3.index + ', ' +
+		src4.fdiff + ':' + src4.index);
+	b.push(OP_SPLICE,
+		src1.fdiff, src1.index,
+		src2.fdiff, src2.index,
+		src3.fdiff, src3.index,
+		src4.fdiff, src4.index);
 }
 
 function op_param0(b, opcode, tgt){
@@ -3366,6 +3380,59 @@ function program_callEval(prg, sym, vlc, nsn, params, flp){
 	return pce_error(flp, 'Invalid call');
 }
 
+var PELS_OK    = 'PELS_OK';
+var PELS_ERROR = 'PELS_ERROR';
+
+function pels_ok(vlc){
+	return { type: PELS_OK, vlc: vlc };
+}
+
+function pels_error(flp, msg){
+	return { type: PELS_ERROR, flp: flp, msg: msg };
+}
+
+function program_evalLvalueSlice(prg, sym, lv, ex, mutop, vlc){
+	var pr = program_eval(prg, sym, ex, false);
+	if (pr.type == PER_ERROR)
+		return pels_error(pr.flp, pr.msg);
+	if (mutop < 0)
+		op_splice(prg.ops, lv.obj, lv.start, lv.len, pr.vlc);
+	else{
+		var idx = symtbl_addTemp(sym);
+		var len = symtbl_addTemp(sym);
+		var tm1 = symtbl_addTemp(sym);
+		var tm2 = symtbl_addTemp(sym);
+
+		var top = label_new('%mutslicetop');
+		var finish = label_new('%mutslicefinish');
+
+		op_move(prg.ops, idx, lv.start);
+		op_num(prg.ops, len, 0);
+		label_declare(top, prg.ops);
+		op_binop(prg.ops, OP_LT, tm1, len, lv.len);
+		label_jumpFalse(finish, prg.ops, tm1);
+		op_getat(prg.ops, tm1, lv.obj, idx);
+		op_getat(prg.ops, tm2, pr.vlc, idx);
+		op_binop(prg.ops, mutop, tm1, tm1, tm2);
+		op_setat(prg.ops, lv.obj, idx, tm1);
+		op_inc(prg.ops, idx);
+		op_inc(prg.ops, len);
+		label_jump(top, prg.ops);
+		label_declare(finish, prg.ops);
+
+		symtbl_clearTemp(sym, idx);
+		symtbl_clearTemp(sym, len);
+		symtbl_clearTemp(sym, tm1);
+		symtbl_clearTemp(sym, tm2);
+	}
+	if (vlc != null)
+		op_move(prg.ops, vlc, lv.obj);
+	symtbl_clearTemp(sym, pr.vlc);
+	symtbl_clearTemp(sym, lv.start);
+	symtbl_clearTemp(sym, lv.len);
+	return pels_ok(lv.obj);
+}
+
 var PIR_OK    = 'PIR_OK';
 var PIR_ERROR = 'PIR_ERROR';
 
@@ -3537,10 +3604,11 @@ function program_evalInto(prg, sym, vlc, ex){
 								return pr;
 						}
 						else{
-							var pr = program_eval(prg, sym, ex.right, true);
+							var pr = program_eval(prg, sym, ex.right, false);
 							if (pr.type == PER_ERROR)
 								return pir_error(pr.flp, pr.msg);
 							op_binop(prg.ops, mutop, lv.vlc, lv.vlc, pr.vlc);
+							symtbl_clearTemp(sym, pr.vlc);
 						}
 						op_move(prg.ops, vlc, lv.vlc);
 						return pir_ok();
@@ -3568,7 +3636,14 @@ function program_evalInto(prg, sym, vlc, ex){
 						return pir_ok();
 					} break;
 
-					case LVR_SLICE: // TODO: clear out temps inside lvr
+					case LVR_SLICE: {
+						var pe = program_evalLvalueSlice(prg, sym, lv, ex.right, mutop, vlc);
+						if (pe.type == PELS_ERROR)
+							return pir_error(pe.flp, pe.msg);
+						symtbl_clearTemp(sym, pe.vlc);
+						return pir_ok();
+					} break;
+
 					case LVR_LIST:
 						throw 'TODO: program_evalInto EXPR_INFIX ' + lv.type;
 				}
@@ -3787,8 +3862,13 @@ function program_evalLvalue(prg, sym, lv, vlc){
 			return plr_ok();
 		} break;
 
-		case LVR_SLICE: // TODO: clear out temps inside lvr
-			throw 'TODO: program_evalLvalue for LVR_INDEX/LVR_SLICE';
+		case LVR_SLICE: {
+			op_splice(prg.ops, lv.obj, lv.start, lv.len, vlc);
+			symtbl_clearTemp(sym, lv.obj);
+			symtbl_clearTemp(sym, lv.start);
+			symtbl_clearTemp(sym, lv.len);
+			return plr_ok();
+		} break;
 
 		case LVR_LIST: {
 			if (lv.body.length > 256)
@@ -3868,8 +3948,14 @@ function program_eval(prg, sym, ex, autoclear){
 					return per_ok(out);
 				} break;
 
-				case LVR_SLICE: // TODO: clear out temps inside lvr
-					throw 'TODO: program_eval ' + lv.type;
+				case LVR_SLICE: {
+					var pe = program_evalLvalueSlice(prg, sym, lv, ex.right, mutop, null);
+					if (pe.type == PELS_ERROR)
+						return pir_error(pe.flp, pe.msg);
+					if (autoclear)
+						symtbl_clearTemp(sym, pe.vlc);
+					return per_ok(pe.vlc);
+				} break;
 
 				case LVR_LIST: {
 					// if we're here, then we know we're doing assignment, based on the `if` above
