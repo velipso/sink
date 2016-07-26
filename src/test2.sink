@@ -1,0 +1,6 @@
+
+say 4444
+
+include test './test.sink'
+
+say 5555

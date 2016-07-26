@@ -1451,8 +1451,8 @@ function ast_if(flp, conds, elseBody){
 	return { flp: flp, type: AST_IF, conds: conds, elseBody: elseBody };
 }
 
-function ast_include(flp, file){
-	return { flp: flp, type: AST_INCLUDE, file: file };
+function ast_include(flp, incls){
+	return { flp: flp, type: AST_INCLUDE, incls: incls };
 }
 
 function ast_namespace(flp, names, body){
@@ -1496,6 +1496,10 @@ function decl_local(flp, names){
 
 function decl_native(flp, names, key){
 	return { flp: flp, type: DECL_NATIVE, names: names, key: key };
+}
+
+function incl_new(flp, names, file){
+	return { flp: flp, names: names, file: file };
 }
 
 function ets_new(tk, next){ // exprPreStack, exprMidStack
@@ -1575,9 +1579,11 @@ var PRS_IF_DONE                       = 'PRS_IF_DONE';
 var PRS_ELSE_BODY                     = 'PRS_ELSE_BODY';
 var PRS_ELSE_DONE                     = 'PRS_ELSE_DONE';
 var PRS_INCLUDE                       = 'PRS_INCLUDE';
+var PRS_INCLUDE2                      = 'PRS_INCLUDE2';
+var PRS_INCLUDE_LOOKUP                = 'PRS_INCLUDE_LOOKUP';
 var PRS_INCLUDE_STR                   = 'PRS_INCLUDE_STR';
 var PRS_INCLUDE_STR2                  = 'PRS_INCLUDE_STR2';
-var PRS_INCLUDE_DONE                  = 'PRS_INCLUDE_DONE';
+var PRS_INCLUDE_STR3                  = 'PRS_INCLUDE_STR3';
 var PRS_NAMESPACE                     = 'PRS_NAMESPACE';
 var PRS_NAMESPACE_LOOKUP              = 'PRS_NAMESPACE_LOOKUP';
 var PRS_NAMESPACE_BODY                = 'PRS_NAMESPACE_BODY';
@@ -1619,6 +1625,7 @@ function prs_new(state, next){
 		body2: null,                // list of ast_*'s
 		conds: null,                // list of cond_new's
 		decls: null,                // list of decl_*'s
+		incls: null,                // list of incl_new's
 		lvalues: null,              // list of expr
 		lvaluesPeriods: 0,          // 0 off, 1 def, 2 nested list
 		forVar: false,
@@ -2246,6 +2253,26 @@ function parser_process(pr, flp){
 			return parser_statement(pr, ast_if(flp, st.conds, st.body));
 
 		case PRS_INCLUDE:
+			st.incls = [];
+			st.state = PRS_INCLUDE2;
+			return parser_process(pr, flp);
+
+		case PRS_INCLUDE2:
+			if (tk1.type == TOK_NEWLINE && !tk1.soft)
+				return prr_more();
+			else if (tk1.type == TOK_IDENT){
+				st.state = PRS_INCLUDE_LOOKUP;
+				parser_push(pr, PRS_LOOKUP);
+				pr.state.names = [tk1.ident];
+				return prr_more();
+			}
+			else if (tok_isKS(tk1, KS_LPAREN)){
+				st.state = PRS_INCLUDE_STR;
+				return prr_more();
+			}
+			return prr_error('Expecting file as constant string literal');
+
+		case PRS_INCLUDE_LOOKUP:
 			if (!tok_isKS(tk1, KS_LPAREN))
 				return prr_error('Expecting file as constant string literal');
 			st.state = PRS_INCLUDE_STR;
@@ -2261,11 +2288,16 @@ function parser_process(pr, flp){
 		case PRS_INCLUDE_STR2:
 			if (!tok_isKS(tk1, KS_RPAREN))
 				return prr_error('Expecting file as constant string literal');
-			st.state = PRS_INCLUDE_DONE;
+			st.state = PRS_INCLUDE_STR3;
 			return prr_more();
 
-		case PRS_INCLUDE_DONE:
-			return parser_statement(pr, ast_include(flp, st.str));
+		case PRS_INCLUDE_STR3:
+			st.incls.push(incl_new(flp, st.names, st.str));
+			if (tok_isKS(tk1, KS_COMMA)){
+				st.state = PRS_INCLUDE2;
+				return prr_more();
+			}
+			return parser_statement(pr, ast_include(flp, st.incls));
 
 		case PRS_NAMESPACE:
 			if (tk1.type != TOK_IDENT)
@@ -4336,7 +4368,7 @@ function program_gen(prg, sym, stmt){
 		} break;
 
 		case AST_INCLUDE:
-			throw 'TODO program_gen' + stmt.type;
+			throw new Error('Cannot generate code for include (this shouldn\'t happen)');
 
 		case AST_NAMESPACE: {
 			var sr = symtbl_pushNamespace(sym, stmt.names);
@@ -4442,6 +4474,48 @@ function context_run(ctx){
 // compiler
 //
 
+/*
+
+Example Usage:
+
+	Note: the API user is in charge of file locating and reading
+
+	var cmp = compiler_new(false);
+
+	function process(){
+		while (true){
+			var cm = compiler_process(cmp);
+			if (cm.type == CMA_OK)
+				break;
+			else if (cm.type == CMA_ERROR)
+				throw new Error(cm.msg);
+			else if (cm.type == CMA_INCLUDE)
+				processFile(cm.file);
+		}
+	}
+
+	function processFile(file){
+		var cf = compiler_pushFile(cmp, file);
+		if (cf.type == CMF_ERROR)
+			throw new Error(cf.msg);
+		while (fileHasData){
+			compiler_add(cmp, "someFileDataAsString");
+			// and/or:
+			compiler_addBytes(cmp, [some, file, data, as, bytes]);
+
+			// incremental processing (optional):
+			process();
+		}
+		compiler_popFile(cmp);
+		process();
+	}
+
+	processFile('./start-file');
+
+If doing a REPL, pass `true` into `compiler_new`, and push your first file as `null` for the name
+
+*/
+
 var UTF8 = require('./utf8');
 
 function comppr_new(flp, tks){
@@ -4460,58 +4534,124 @@ function compiler_new(repl){
 	};
 }
 
-function compiler_processTokens(cmp, cmpr, err){
-	for (var c = 0; c < cmpr.length; c++){
-		var flp = cmpr[c].flp;
-		var tks = cmpr[c].tks;
+var CMA_OK      = 'CMA_OK';
+var CMA_INCLUDE = 'CMA_INCLUDE';
+var CMA_ERROR   = 'CMA_ERROR';
+
+function cma_ok(){
+	return { type: CMA_OK };
+}
+
+function cma_include(file){
+	return { type: CMA_INCLUDE, file: file };
+}
+
+function cma_error(msg){
+	return { type: CMA_ERROR, msg: msg };
+}
+
+function compiler_process(cmp){
+	if (cmp.file.incls.length > 0)
+		return cma_include(cmp.file.incls[0].file);
+	var cmprs = cmp.file.cmprs;
+	for (var c = 0; c < cmprs.length; c++){
+		var flp = cmprs[c].flp;
+		var tks = cmprs[c].tks;
 		for (var i = 0; i < tks.length; i++){
 			var tk = tks[i];
 			if (tk.type == TOK_ERROR){
-				err[0] = filepos_err(flp, tk.msg);
-				return false;
+				cmprs.splice(0, c);
+				tks.splice(0, i + 1);
+				return cma_error(filepos_err(flp, tk.msg));
 			}
 			var res = parser_add(cmp.pr, tk, flp);
 			if (res.type == PRR_MORE)
 				continue;
 			else if (res.type == PRR_ERROR){
-				err[0] = filepos_err(flp, res.msg);
+				cmprs.splice(0, c);
+				tks.splice(0, i + 1);
 				cmp.pr = parser_new(); // reset the parser
-				return false;
+				return cma_error(filepos_err(flp, res.msg));
 			}
 
 			//console.log(JSON.stringify(res.stmt, null, '  '));
-			var pr = program_gen(cmp.prg, cmp.sym, res.stmt);
-			if (pr.type == PGR_ERROR)
-				console.log('Error:', pr.msg);
+			if (res.stmt.type == AST_INCLUDE){
+				// cmp.file.incls is guaranteed to be empty, so just overwrite it
+				cmp.file.incls = res.stmt.incls;
+				cmprs.splice(0, c);
+				tks.splice(0, i + 1);
+				return cma_include(cmp.file.incls[0].file);
+			}
+			else{
+				var pr = program_gen(cmp.prg, cmp.sym, res.stmt);
+				if (pr.type == PGR_ERROR){
+					cmprs.splice(0, c);
+					tks.splice(0, i + 1);
+					return cma_error(filepos_err(pr.flp, pr.msg));
+				}
+			}
 		}
 	}
-	return true;
+
+	cmp.file.cmprs = [];
+
+	if (cmp.file.popped){
+		cmp.file = cmp.file.next;
+		if (cmp.file != null && cmp.file.incls.length > 0){
+			// assume user is finished with the next included file
+			if (cmp.file.incls[0].names != null)
+				symtbl_popNamespace(cmp.sym);
+			cmp.file.incls.shift();
+		}
+	}
+
+	return cma_ok();
+}
+
+var CMF_OK    = 'CMF_OK';
+var CMF_ERROR = 'CMF_ERROR';
+
+function cmf_ok(){
+	return { type: CMF_OK };
+}
+
+function cmf_error(msg){
+	return { type: CMF_ERROR, msg: msg };
 }
 
 function compiler_pushFile(cmp, file){
+	if (cmp.file != null && cmp.file.incls.length > 0){
+		// assume user is pushing the next included file
+		if (cmp.file.incls[0].names != null){
+			var sr = symtbl_pushNamespace(cmp.sym, cmp.file.incls[0].names);
+			if (sr.type == SPN_ERROR)
+				return cmf_error(filepos_err(cmp.file.incls[0].flp, sr.msg));
+		}
+	}
 	cmp.file = {
 		flp: filepos_new(file, 1, 1),
 		lastret: false,
 		lx: lex_new(),
+		incls: [],
+		cmprs: [],
+		popped: false,
 		next: cmp.file
 	};
+	return cmf_ok();
 }
 
-function compiler_popFile(cmp, err){
+function compiler_popFile(cmp){
 	var tks = [];
-	lex_close(cmp.lx, tks);
-	var cmpr = [comppr_new(cmp.flp, tks)];
-	var res = compiler_processTokens(cmp, cmpr, err);
-	cmp.file = cmp.file.next;
-	return res;
+	lex_close(cmp.file.lx, tks);
+	cmp.file.cmprs.push(comppr_new(cmp.file.flp, tks));
+	cmp.file.popped = true;
 }
 
-function compiler_add(cmp, str, err){
-	return compiler_addBytes(cmp, UTF8.encode(str), err);
+function compiler_add(cmp, str){
+	compiler_addBytes(cmp, UTF8.encode(str));
 }
 
-function compiler_addBytes(cmp, bytes, err){
-	var cmpr = [];
+function compiler_addBytes(cmp, bytes){
 	for (var i = 0; i < bytes.length; i++){
 		var flp = filepos_newCopy(cmp.file.flp);
 
@@ -4537,9 +4677,9 @@ function compiler_addBytes(cmp, bytes, err){
 
 		var tks = [];
 		lex_add(cmp.file.lx, ch, tks);
-		cmpr.push(comppr_new(flp, tks));
+		if (tks.length > 0)
+			cmp.file.cmprs.push(comppr_new(flp, tks));
 	}
-	return compiler_processTokens(cmp, cmpr, err);
 }
 
 function compiler_level(cmp){
@@ -4550,20 +4690,72 @@ function compiler_level(cmp){
 // JavaScript API
 //
 
+function isPromise(obj){
+	return !!obj && (typeof obj === 'object' || typeof obj === 'function') &&
+		typeof obj.then === 'function';
+}
+
 module.exports = {
-	repl: function(){
+	repl: function(prompt, fileResolve, fileRead){
 		var cmp = compiler_new(true);
 		compiler_pushFile(cmp, null);
-		return {
-			add: function(str){
-				var err = [null];
-				if (compiler_add(cmp, str, err) == false)
-					return err[0];
-				return false;
-			},
-			level: function(){
-				return compiler_level(cmp);
+		var depth = 0;
+
+		function process(){
+			while (true){
+				var cm = compiler_process(cmp);
+				if (cm.type == CMA_OK){
+					if (depth > 0){
+						depth--;
+						continue;
+					}
+					prompt(compiler_level(cmp), function(data){
+						compiler_add(cmp, data);
+						process();
+					});
+					break;
+				}
+				else if (cm.type == CMA_ERROR)
+					console.log('Error:', cm.msg);
+				else if (cm.type == CMA_INCLUDE){
+					depth++;
+					var f = '';
+					for (var i = 0; i < cm.file.length; i++)
+						f += String.fromCharCode(cm.file[i]);
+					var r = fileResolve(f, cmp.file.flp.file);
+					if (isPromise(r))
+						r.then(fileResolved).catch(incError);
+					else
+						fileResolved(r);
+					break;
+				}
 			}
-		};
+		}
+
+		function fileResolved(file){
+			var r = fileRead(file);
+			if (isPromise(r))
+				r.then(function(data){ fileLoaded(file, data); }).catch(incError);
+			else
+				fileLoaded(file, r);
+		}
+
+		function fileLoaded(file, data){
+			var cf = compiler_pushFile(cmp, file);
+			if (cf.type == CMF_ERROR)
+				throw new Error(cf.msg);
+			compiler_add(cmp, data);
+			compiler_popFile(cmp);
+			process();
+		}
+
+		function incError(err){
+			console.log(err.toString());
+			compiler_pushFile(cmp, 'failure');
+			compiler_popFile(cmp);
+			process();
+		}
+
+		process();
 	}
 };

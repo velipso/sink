@@ -2,29 +2,42 @@
 // MIT License
 // Project Home: https://github.com/voidqk/sink
 
+var fs = require('fs');
+var path = require('path');
 var readline = require('readline');
 var rl = readline.createInterface({
 	input: process.stdin,
 	output: process.stdout
 });
-var Sink = require('./sink');
-var c = Sink.repl();
 var line = 1;
-
-function nextLine(levels){
-	var p = ': ';
-	if (levels > 0)
-		p = (new Array(levels + 1)).join('..') + '. ';
-	if (line < 10)
-		p = ' ' + line + p;
-	else
-		p = line + p;
-	rl.question(p, function(ans){
-		var res = c.add(ans + '\n');
-		if (res !== false)
-			console.log('Error:', res);
-		line++;
-		nextLine(c.level());
-	});
-}
-nextLine(0);
+var Sink = require('./sink');
+Sink.repl(
+	// prompt for new line, call `result` with the data
+	function(levels, result){
+		var p = ': ';
+		if (levels > 0)
+			p = (new Array(levels + 1)).join('..') + '. ';
+		if (line < 10)
+			p = ' ' + line + p;
+		else
+			p = line + p;
+		rl.question(p, function(ans){
+			line++;
+			result(ans + '\n');
+		});
+	},
+	// resolve `file` relative to `fromFile`, return the full file
+	function(file, fromFile){
+		return path.resolve(process.cwd(), fromFile == null ? '' : path.dirname(fromFile), file);
+	},
+	// return the contents of `file` (which is a full file from above)
+	function(file){
+		return new Promise(function(resolve, reject){
+			fs.readFile(file, 'utf8', function(err, data){
+				if (err)
+					return reject(err);
+				resolve(data);
+			});
+		});
+	}
+);
