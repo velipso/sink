@@ -3380,23 +3380,9 @@ function program_callEval(prg, sym, vlc, nsn, params, flp){
 	return pce_error(flp, 'Invalid call');
 }
 
-var PELS_OK    = 'PELS_OK';
-var PELS_ERROR = 'PELS_ERROR';
-
-function pels_ok(vlc){
-	return { type: PELS_OK, vlc: vlc };
-}
-
-function pels_error(flp, msg){
-	return { type: PELS_ERROR, flp: flp, msg: msg };
-}
-
-function program_evalLvalueSlice(prg, sym, lv, ex, mutop, vlc){
-	var pr = program_eval(prg, sym, ex, false);
-	if (pr.type == PER_ERROR)
-		return pels_error(pr.flp, pr.msg);
+function program_evalLvalueSlice(prg, sym, lv, exvlc, mutop, vlc){
 	if (mutop < 0)
-		op_splice(prg.ops, lv.obj, lv.start, lv.len, pr.vlc);
+		op_splice(prg.ops, lv.obj, lv.start, lv.len, exvlc);
 	else{
 		var idx = symtbl_addTemp(sym);
 		var len = symtbl_addTemp(sym);
@@ -3412,7 +3398,7 @@ function program_evalLvalueSlice(prg, sym, lv, ex, mutop, vlc){
 		op_binop(prg.ops, OP_LT, tm1, len, lv.len);
 		label_jumpFalse(finish, prg.ops, tm1);
 		op_getat(prg.ops, tm1, lv.obj, idx);
-		op_getat(prg.ops, tm2, pr.vlc, idx);
+		op_getat(prg.ops, tm2, exvlc, idx);
 		op_binop(prg.ops, mutop, tm1, tm1, tm2);
 		op_setat(prg.ops, lv.obj, idx, tm1);
 		op_inc(prg.ops, idx);
@@ -3427,10 +3413,10 @@ function program_evalLvalueSlice(prg, sym, lv, ex, mutop, vlc){
 	}
 	if (vlc != null)
 		op_move(prg.ops, vlc, lv.obj);
-	symtbl_clearTemp(sym, pr.vlc);
+	symtbl_clearTemp(sym, exvlc);
 	symtbl_clearTemp(sym, lv.start);
 	symtbl_clearTemp(sym, lv.len);
-	return pels_ok(lv.obj);
+	return lv.obj;
 }
 
 var PIR_OK    = 'PIR_OK';
@@ -3452,6 +3438,51 @@ function str_equ(s1, s2){
 			return false;
 	}
 	return true;
+}
+
+function program_evalLvalueInto(prg, sym, vlc, lv, mutop, exvlc){
+	switch (lv.type){
+		case LVR_VAR: {
+			if (mutop < 0)
+				op_move(prg.ops, lv.vlc, exvlc);
+			else
+				op_binop(prg.ops, mutop, lv.vlc, lv.vlc, exvlc);
+			op_move(prg.ops, vlc, lv.vlc);
+			symtbl_clearTemp(sym, exvlc);
+			return pir_ok();
+		} break;
+
+		case LVR_INDEX: {
+			if (mutop < 0){
+				op_setat(prg.ops, lv.obj, lv.key, exvlc);
+				op_move(prg.ops, vlc, exvlc);
+			}
+			else{
+				var t = symtbl_addTemp(sym);
+				op_getat(prg.ops, t, lv.obj, lv.key);
+				op_binop(prg.ops, mutop, t, t, exvlc);
+				op_setat(prg.ops, lv.obj, lv.key, t);
+				op_move(prg.ops, vlc, t);
+				symtbl_clearTemp(sym, t);
+			}
+			symtbl_clearTemp(sym, exvlc);
+			symtbl_clearTemp(sym, lv.obj);
+			symtbl_clearTemp(sym, lv.key);
+			return pir_ok();
+		} break;
+
+		case LVR_SLICE: {
+			var ovlc = program_evalLvalueSlice(prg, sym, lv, exvlc, mutop, vlc);
+			symtbl_clearTemp(sym, ovlc);
+			return pir_ok();
+		} break;
+
+		case LVR_LIST: {
+			throw 'TODO: LVR_LIST in program_evalLvalueInto';
+			symtbl_clearTemp(sym, exvlc);
+			return pir_ok();
+		} break;
+	}
 }
 
 function program_evalInto(prg, sym, vlc, ex){
@@ -3596,56 +3627,19 @@ function program_evalInto(prg, sym, vlc, ex){
 				if (lp.type == LVP_ERROR)
 					return pir_error(lp.flp, lp.msg);
 				var lv = lp.lv;
-				switch (lv.type){
-					case LVR_VAR: {
-						if (ex.k == KS_EQU){
-							var pr = program_evalInto(prg, sym, lv.vlc, ex.right);
-							if (pr.type == PIR_ERROR)
-								return pr;
-						}
-						else{
-							var pr = program_eval(prg, sym, ex.right, false);
-							if (pr.type == PER_ERROR)
-								return pir_error(pr.flp, pr.msg);
-							op_binop(prg.ops, mutop, lv.vlc, lv.vlc, pr.vlc);
-							symtbl_clearTemp(sym, pr.vlc);
-						}
-						op_move(prg.ops, vlc, lv.vlc);
-						return pir_ok();
-					} break;
-
-					case LVR_INDEX: {
-						var pr = program_eval(prg, sym, ex.right, false);
-						if (pr.type == PER_ERROR)
-							return pir_error(pr.flp, pr.msg);
-						if (ex.k == KS_EQU){
-							op_setat(prg.ops, lv.obj, lv.key, pr.vlc);
-							op_move(prg.ops, vlc, pr.vlc);
-						}
-						else{
-							var t = symtbl_addTemp(sym);
-							op_getat(prg.ops, t, lv.obj, lv.key);
-							op_binop(prg.ops, mutop, t, t, pr.vlc);
-							op_setat(prg.ops, lv.obj, lv.key, t);
-							op_move(prg.ops, vlc, t);
-							symtbl_clearTemp(sym, t);
-						}
-						symtbl_clearTemp(sym, pr.vlc);
-						symtbl_clearTemp(sym, lv.obj);
-						symtbl_clearTemp(sym, lv.key);
-						return pir_ok();
-					} break;
-
-					case LVR_SLICE: {
-						var pe = program_evalLvalueSlice(prg, sym, lv, ex.right, mutop, vlc);
-						if (pe.type == PELS_ERROR)
-							return pir_error(pe.flp, pe.msg);
-						symtbl_clearTemp(sym, pe.vlc);
-						return pir_ok();
-					} break;
-
-					case LVR_LIST:
-						throw 'TODO: program_evalInto EXPR_INFIX ' + lv.type;
+				if (lv.type == LVR_VAR && ex.k == KS_EQU){
+					// special case for basic assignment to remove the need for a temp
+					var pr = program_evalInto(prg, sym, lv.vlc, ex.right);
+					if (pr.type == PIR_ERROR)
+						return pr;
+					op_move(prg.ops, vlc, lv.vlc);
+					return pir_ok();
+				}
+				else{
+					var pr = program_eval(prg, sym, ex.right, false);
+					if (pr.type == PER_ERROR)
+						return pir_error(pr.flp, pr.msg);
+					return program_evalLvalueInto(prg, sym, vlc, lv, mutop, pr.vlc);
 				}
 			}
 			else if (ex.k == KS_AMP2){
@@ -3949,12 +3943,13 @@ function program_eval(prg, sym, ex, autoclear){
 				} break;
 
 				case LVR_SLICE: {
-					var pe = program_evalLvalueSlice(prg, sym, lv, ex.right, mutop, null);
-					if (pe.type == PELS_ERROR)
-						return pir_error(pe.flp, pe.msg);
+					var pr = program_eval(prg, sym, ex.right, false);
+					if (pr.type == PER_ERROR)
+						return pr;
+					var ovlc = program_evalLvalueSlice(prg, sym, lv, pr.vlc, mutop, null);
 					if (autoclear)
-						symtbl_clearTemp(sym, pe.vlc);
-					return per_ok(pe.vlc);
+						symtbl_clearTemp(sym, ovlc);
+					return per_ok(ovlc);
 				} break;
 
 				case LVR_LIST: {
