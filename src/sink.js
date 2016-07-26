@@ -3541,12 +3541,29 @@ function program_evalInto(prg, sym, vlc, ex){
 						throw 'TODO: program_evalInto EXPR_INFIX ' + lv.type;
 				}
 			}
-
-			if (ex.k == KS_AMP2){
-				throw 'TODO: infix AND';
+			else if (ex.k == KS_AMP2){
+				var pr = program_evalInto(prg, sym, vlc, ex.left);
+				if (pr.type == PIR_ERROR)
+					return pr;
+				var finish = label_new('%andfinish');
+				label_jumpFalse(finish, prg.ops, vlc);
+				pr = program_evalInto(prg, sym, vlc, ex.right);
+				if (pr.type == PIR_ERROR)
+					return pr;
+				label_declare(finish, prg.ops);
+				return pir_ok();
 			}
 			else if (ex.k == KS_PIPE2){
-				throw 'TODO: infix OR';
+				var pr = program_evalInto(prg, sym, vlc, ex.left);
+				if (pr.type == PIR_ERROR)
+					return pr;
+				var finish = label_new('%orfinish');
+				label_jumpTrue(finish, prg.ops, vlc);
+				pr = program_evalInto(prg, sym, vlc, ex.right);
+				if (pr.type == PIR_ERROR)
+					return pr;
+				label_declare(finish, prg.ops);
+				return pir_ok();
 			}
 			else if (ex.k == KS_AMP2EQU){
 				throw 'TODO: AND equal';
