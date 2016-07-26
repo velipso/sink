@@ -112,6 +112,7 @@ function op_num_tbl(b, tgt, index){
 }
 
 function op_str(b, tgt, index){
+	console.log('> STR ' + tgt.fdiff + ':' + tgt.index + ', strTable[' + index + ']');
 	b.push(OP_STR, tgt.fdiff, tgt.index, index % 256, Math.floor(index / 256));
 }
 
@@ -3327,6 +3328,16 @@ function pir_error(flp, msg){
 	return { type: PIR_ERROR, flp: flp, msg: msg };
 }
 
+function str_equ(s1, s2){
+	if (s1.length != s2.length)
+		return false;
+	for (var i = 0; i < s1.length; i++){
+		if (s1[i] != s2[i])
+			return false;
+	}
+	return true;
+}
+
 function program_evalInto(prg, sym, vlc, ex){
 	switch (ex.type){
 		case EXPR_NIL:
@@ -3338,21 +3349,38 @@ function program_evalInto(prg, sym, vlc, ex){
 				op_num(prg.ops, vlc, ex.num);
 				return pir_ok();
 			}
-			for (var i = 0; i < prg.numTable.length; i++){
-				if (prg.numTable[i] == ex.num){
-					op_num_tbl(prg.ops, vlc, i);
-					return pir_ok();
-				}
+			var found = false;
+			var index;
+			for (index = 0; index < prg.numTable.length; index++){
+				found = prg.numTable[index] == ex.num;
+				if (found)
+					break;
 			}
-			if (prg.numTable.length >= 65535)
-				return pir_error(ex.flp, 'Too many number constants');
-			prg.numTable.push(ex.num);
-			op_num_tbl(prg.ops, vlc, prg.numTable.length - 1);
+			if (!found){
+				if (index >= 65536)
+					return pir_error(ex.flp, 'Too many number constants');
+				prg.numTable.push(ex.num);
+			}
+			op_num_tbl(prg.ops, vlc, index);
 			return pir_ok();
 		} break;
 
-		case EXPR_STR:
-			throw 'TODO program_evalInto ' + ex.type;
+		case EXPR_STR: {
+			var found = false;
+			var index;
+			for (index = 0; index < prg.strTable.length; index++){
+				found = str_equ(ex.str, prg.strTable[index]);
+				if (found)
+					break;
+			}
+			if (!found){
+				if (index >= 65536)
+					return pir_error(ex.flp, 'Too many string constants');
+				prg.strTable.push(ex.str);
+			}
+			op_str(prg.ops, vlc, index);
+			return pir_ok();
+		} break;
 
 		case EXPR_LIST: {
 			op_list(prg.ops, vlc);
@@ -3921,8 +3949,11 @@ function program_gen(prg, sym, stmt){
 					case DECL_NATIVE: {
 						var found = false;
 						var index;
-						for (index = 0; index < prg.keyTable.length && !found; index++)
+						for (index = 0; index < prg.keyTable.length; index++){
 							found = prg.keyTable[index] == dc.key;
+							if (found)
+								break;
+						}
 						if (!found){
 							if (index >= 65536)
 								return pgr_error(dc.flp, 'Too many native functions');
