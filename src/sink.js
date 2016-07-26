@@ -53,6 +53,7 @@ var OP_CALL        = 0x27; // [TGT], [SRC], [[LOCATION]]
 var OP_NATIVE      = 0x28; // [TGT], [SRC], [INDEX]
 var OP_JUMPTRUE    = 0x29; // [SRC], [[LOCATION]]
 var OP_JUMPFALSE   = 0x2A; // [SRC], [[LOCATION]]
+var OP_INC         = 0x2B; // [TGT/SRC]
 var OP_SAY         = 0x30; // [TGT], [SRC]
 var OP_ASK         = 0x31; // [TGT], [SRC]
 var OP_NUM_FLOOR   = 0x32; // [TGT], [SRC]
@@ -239,6 +240,11 @@ function op_native(b, ret, arg, index){
 function op_return(b, src){
 	console.log('> RETURN ' + src.fdiff + ':' + src.index);
 	b.push(OP_RETURN, src.fdiff, src.index);
+}
+
+function op_inc(b, src){
+	console.log('> INC ' + src.fdiff + ':' + src.index);
+	b.push(OP_INC, src.fdiff, src.index);
 }
 
 function op_param0(b, opcode, tgt){
@@ -2134,7 +2140,7 @@ function parser_process(pr, flp){
 			return prr_error('Invalid for loop');
 
 		case PRS_FOR_VARS2:
-			if (!tok_isKS(tk1, KS_IDENT))
+			if (tk1.type != TOK_IDENT)
 				return prr_error('Expecting identifier');
 			st.state = PRS_FOR_VARS2_LOOKUP;
 			parser_push(pr, PRS_LOOKUP);
@@ -3640,7 +3646,7 @@ function lval_prepare(prg, sym, ex){
 		} break;
 
 		default:
-			throw 'TODO: lval_prepare ' + ex.type;
+			throw new Error('Invalid lval_prepare type');
 	}
 	return lvp_error(ex.flp, 'Invalid assignment');
 }
@@ -4044,11 +4050,121 @@ function program_gen(prg, sym, stmt){
 			return pgr_ok();
 		} break;
 
-		case AST_DO_WHILE:
-			throw 'TODO program_gen' + stmt.type;
+		case AST_DO_WHILE: {
+			var top    = label_new('%dowhile_top');
+			var cond   = label_new('%dowhile_cond');
+			var finish = label_new('%dowhile_finish');
 
-		case AST_FOR:
-			throw 'TODO program_gen' + stmt.type;
+			symtbl_pushScope(sym);
+			sym.sc.lblBreak = finish;
+			sym.sc.lblContinue = cond;
+
+			label_declare(top, prg.ops);
+
+			var pr = program_genBody(prg, sym, stmt.doBody);
+			if (pr.type == PGR_ERROR)
+				return pr;
+
+			label_declare(cond, prg.ops);
+			var pe = program_eval(prg, sym, stmt.cond, false);
+			if (pe.type == PER_ERROR)
+				return pgr_error(pe.flp, pe.msg);
+			label_jumpFalse(finish, prg.ops, pe.vlc);
+			symtbl_clearTemp(sym, pe.vlc);
+
+			sym.sc.lblContinue = top;
+
+			pr = program_genBody(prg, sym, stmt.whileBody);
+			if (pr.type == PGR_ERROR)
+				return pr;
+
+			label_jump(top, prg.ops);
+
+			label_declare(finish, prg.ops);
+			symtbl_popScope(sym);
+			return pgr_ok();
+		} break;
+
+		case AST_FOR: {
+			var pe = program_eval(prg, sym, stmt.ex, false);
+			if (pe.type == PER_ERROR)
+				return pgr_error(pe.flp, pe.msg);
+
+			symtbl_pushScope(sym);
+
+			var val_vlc;
+			var idx_vlc;
+
+			// load VLC's for the value and index
+			if (stmt.forVar){
+				var sr = symtbl_addVar(sym, stmt.names1);
+				if (sr.type == STA_ERROR)
+					return pgr_error(stmt.flp, sr.msg);
+				val_vlc = sr.vlc;
+
+				if (stmt.names2 == null)
+					idx_vlc = symtbl_addTemp(sym);
+				else{
+					sr = symtbl_addVar(sym, stmt.names2);
+					if (sr.type == STA_ERROR)
+						return pgr_error(stmt.flp, sr.msg);
+					idx_vlc = sr.vlc;
+				}
+			}
+			else{
+				var sl = symtbl_lookup(sym, stmt.names1);
+				if (sl.type == STL_ERROR)
+					return pgr_error(stmt.flp, sl.msg);
+				if (sl.nsn.type != NSN_VAR)
+					return pgr_error(stmt.flp, 'Cannot use non-variable in for loop');
+				val_vlc = varloc_new(frame_diff(sl.nsn.fr, sym.fr), sl.nsn.index);
+
+				if (stmt.names2 == null)
+					idx_vlc = symtbl_addTemp(sym);
+				else{
+					sl = symtbl_lookup(sym, stmt.names2);
+					if (sl.type == STL_ERROR)
+						return pgr_error(stmt.flp, sl.msg);
+					if (sl.nsn.type != NSN_VAR)
+						return pgr_error(stmt.flp, 'Cannot use non-variable in for loop');
+					idx_vlc = varloc_new(frame_diff(sl.nsn.fr, sym.fr), sl.nsn.index);
+				}
+			}
+
+			// clear the index
+			op_num(prg.ops, idx_vlc, 0);
+
+			var top    = label_new('%for_top');
+			var inc    = label_new('%for_inc');
+			var finish = label_new('%for_finish');
+
+			var t = symtbl_addTemp(sym);
+
+			label_declare(top, prg.ops);
+
+			op_unop(prg.ops, OP_SIZE, t, pe.vlc);
+			op_binop(prg.ops, OP_LT, t, idx_vlc, t);
+			label_jumpFalse(finish, prg.ops, t);
+
+			op_getat(prg.ops, val_vlc, pe.vlc, idx_vlc);
+			sym.sc.lblBreak = finish;
+			sym.sc.lblContinue = inc;
+
+			var pr = program_genBody(prg, sym, stmt.body);
+			if (pr.type == PGR_ERROR)
+				return pr;
+
+			label_declare(inc, prg.ops);
+			op_inc(prg.ops, idx_vlc);
+			label_jump(top, prg.ops);
+
+			label_declare(finish, prg.ops);
+			symtbl_clearTemp(sym, t);
+			symtbl_clearTemp(sym, idx_vlc);
+			symtbl_clearTemp(sym, pe.vlc);
+			symtbl_popScope(sym);
+			return pgr_ok();
+		} break;
 
 		case AST_LOOP: {
 			symtbl_pushScope(sym);
@@ -4079,8 +4195,35 @@ function program_gen(prg, sym, stmt){
 			return pgr_ok();
 		} break;
 
-		case AST_IF:
-			throw 'TODO program_gen' + stmt.type;
+		case AST_IF: {
+			var nextcond = null;
+			var ifdone = label_new('%ifdone');
+			for (var i = 0; i < stmt.conds.length; i++){
+				if (i > 0)
+					label_declare(nextcond, prg.ops);
+				nextcond = label_new('%nextcond');
+				var pr = program_eval(prg, sym, stmt.conds[i].ex, false);
+				if (pr.type == PER_ERROR)
+					return pgr_error(pr.flp, pr.msg);
+				label_jumpFalse(nextcond, prg.ops, pr.vlc);
+				symtbl_clearTemp(sym, pr.vlc);
+
+				symtbl_pushScope(sym);
+				var pg = program_genBody(prg, sym, stmt.conds[i].body);
+				if (pg.type == PGR_ERROR)
+					return pg;
+				symtbl_popScope(sym);
+				label_jump(ifdone, prg.ops);
+			}
+			label_declare(nextcond, prg.ops);
+			symtbl_pushScope(sym);
+			var pg = program_genBody(prg, sym, stmt.elseBody);
+			if (pg.type == PGR_ERROR)
+				return pg;
+			symtbl_popScope(sym);
+			label_declare(ifdone, prg.ops);
+			return pgr_ok();
+		} break;
 
 		case AST_INCLUDE:
 			throw 'TODO program_gen' + stmt.type;
