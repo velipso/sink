@@ -3,7 +3,8 @@ Standard Library
 ================
 
 The standard library is available to all sink scripts, and is native to sink itself for basic
-execution.  These functions are available in all host environments.
+execution.  These functions are available in all host environments, and always produce the same
+results.
 
 | Function                | Description                                                           |
 |-------------------------|-----------------------------------------------------------------------|
@@ -14,8 +15,8 @@ execution.  These functions are available in all host environments.
 Number
 ------
 
-Note that number functions will operate on lists by performing the operation on each element, just
-like the built-in unary and binary operators.
+Number functions will operate on lists by performing the operation on each element, just like the
+built-in unary and binary operators.
 
 | Function            | Description                                                               |
 |---------------------|---------------------------------------------------------------------------|
@@ -53,8 +54,8 @@ Integer
 Sink only operates on 64-bit floating point numbers, but it's possible to simulate operations on
 signed 32-bit integers using the `int` namespace, with appropriate two's-complement wrapping.
 
-Note that integer functions will operate on lists by performing the operation on each element, just
-like the built-in unary and binary operators.
+Integer functions will operate on lists by performing the operation on each element, just like the
+built-in unary and binary operators.
 
 | Function          | Description                                                                 |
 |-------------------|-----------------------------------------------------------------------------|
@@ -80,8 +81,9 @@ Random
 |-------------------|-----------------------------------------------------------------------------|
 | `rand.seed a`     | Set the seed of the RNG to `a` (interpretted as a 32-bit unsigned integer)  |
 | `rand.seedauto`   | Set the seed of the RNG based on the current time in milliseconds           |
-| `rand.int`        | Random 32-bit unsigned integer in the range [0, 2<sup>32</sup> - 1]         |
-| `rand.num`        | Random number in the range [0, 1)                                           |
+| `rand.int`        | Random 32-bit signed integer ranging [-2<sup>31</sup>, 2<sup>31</sup> - 1]  |
+| `rand.uint`       | Random 32-bit unsigned integer ranging [0, 2<sup>32</sup> - 1]              |
+| `rand.num`        | Random number ranging [0, 1)                                                |
 | `rand.getstate`   | Returns a two-item list of the current state of the RNG                     |
 | `rand.setstate a` | Restores a previous state (`a` should be a two-item list of 32-bit uints)   |
 | `rand.pick a`     | Pick a random item out of the list `a`                                      |
@@ -136,8 +138,7 @@ and ignore bytes 128-255.
 | `str.replace a, b, c`  | Replace all occurrences of `b` in string `a` with `c`                  |
 | `str.startsWith a, b`  | True if string `a` starts with string `b`; false otherwise             |
 | `str.endsWith a, b`    | True if string `a` ends with string `b`; false otherwise               |
-| `str.padLeft a, b`     | Pads the string `a` at the start with space until it is length `b`     |
-| `str.padRight a, b`    | Pads the string `a` at the end with space until it is length `b`       |
+| `str.pad a, b`         | Pads string `a` with space until it is length `b` (`-b` to pad left)   |
 | `str.find a, b, c`     | Find `b` in string `a` starting at `c`; returns nil if not found       |
 | `str.findRev a, b, c`  | Find `b` in string `a` starting at `c` and searching in reverse        |
 | `str.lower a`          | Convert `a` to lowercase, ignoring bytes >= 128                        |
@@ -155,7 +156,7 @@ and decoding.
 
 | Function               | Description                                                            |
 |------------------------|------------------------------------------------------------------------|
-| `utf8.valid a`         | Checks whether `a` is valid UTF-8 (string or list of codepoints)       |
+| `utf8.valid a`         | Checks whether `a` is valid UTF-8 (`a` is string or list of codepoints)|
 | `utf8.list a`          | Converts string `a` (UTF-8 bytes) to a list of codepoints (integers)   |
 | `utf8.str a`           | Converts a list of codepoints (integers) `a` to a string (UTF-8 bytes) |
 
@@ -206,3 +207,9 @@ values.
 | `json.valid a`         | Checks whether `a` is a valid JSON string that can be converted to sink|
 | `json.str a`           | Converts any sink value `a` to a JSON string                           |
 | `json.val a`           | Converts a JSON string `a` to a sink value                             |
+
+```
+json.str [1, ()]    # => '[1,null]'
+json.valid '{a:1}'  # => nil even though this is valid JSON -- it cannot be converted to sink
+json.valid 'null'   # => 1, it is valid JSON, and can be converted to sink
+```
