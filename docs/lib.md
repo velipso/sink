@@ -209,7 +209,7 @@ values.
 | `json.val a`           | Converts a JSON string `a` to a sink value                             |
 
 ```
-json.str [1, ()]    # => '[1,null]'
-json.valid '{a:1}'  # => nil even though this is valid JSON -- it cannot be converted to sink
-json.valid 'null'   # => 1, it is valid JSON, and can be converted to sink
+json.str [1, ()]   # => '[1,null]'
+json.valid 'true'  # => nil even though this is valid JSON -- it cannot be converted to sink
+json.valid 'null'  # => 1, it is valid JSON, and can be converted to sink
 ```
