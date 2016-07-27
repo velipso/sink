@@ -29,7 +29,7 @@ like the built-in unary and binary operators.
 | `num.round a`       | Round `a` to the nearest integer, 0.5 and above rounds up                 |
 | `num.trunc a`       | Round `a` towards 0                                                       |
 | `num.pi`            | Pi (3.141592...)                                                          |
-| `num.tau`           | Tau (6.283185...)                                                         |
+| `num.tau`           | Tau (2 * Pi = 6.283185...)                                                |
 | `num.sin a`         | Sine of `a` (radians)                                                     |
 | `num.cos a`         | Cosine of `a` (radians)                                                   |
 | `num.tan a`         | Tangent of `a` (radians)                                                  |
@@ -38,9 +38,9 @@ like the built-in unary and binary operators.
 | `num.atan a`        | Arc-tangent of `a`, returns radians                                       |
 | `num.atan2 a, b`    | Arc-tangent of `a / b`, returns radians                                   |
 | `num.log a`         | Natural log of `a`                                                        |
+| `num.log1p a`       | Natural log of `a` + 1                                                    |
 | `num.log2 a`        | Log base 2 of `a`                                                         |
 | `num.log10 a`       | Log base 10 of `a`                                                        |
-| `num.log1p a`       | Natural log of `a + 1`                                                    |
 | `num.exp a`         | *e*<sup>`a`</sup>                                                         |
 | `num.expm1 a`       | *e*<sup>`a`</sup> - 1                                                     |
 | `num.seed a`        | Seeds the random number generator with `a` (treated as 32-bit uint)       |
@@ -77,7 +77,7 @@ double num_rand(){
 ```
 
 Integer
---------
+-------
 
 Sink only operates on 64-bit floating point numbers, but it's possible to simulate operations on
 32-bit integers (signed and unsigned) using the `int` namespace, with appropriate two's-complement
@@ -209,7 +209,7 @@ Shell Library
 The shell library is an extension available to sink scripts using the command line program.  This
 allows sink to behave as a more fully featured language in a shell environment.
 
-These extentions might not be available when sink is embedded in other environments, depending on
+These extensions might not be available when sink is embedded in other environments, depending on
 the host application.
 
 TODO: this
