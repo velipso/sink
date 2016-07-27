@@ -3130,8 +3130,8 @@ function symtbl_loadStdlib(sym){
 		symtbl_addCmdOpcode(sym, 'pi'     , OP_NUM_PI      ,  0);
 		symtbl_addCmdOpcode(sym, 'tau'    , OP_NUM_TAU     ,  0);
 		symtbl_addCmdOpcode(sym, 'lerp'   , OP_NUM_LERP    ,  3);
-		symtbl_addCmdOpcode(sym, 'max'    , OP_NUM_MAX     ,  1);
-		symtbl_addCmdOpcode(sym, 'min'    , OP_NUM_MIN     ,  1);
+		symtbl_addCmdOpcode(sym, 'max'    , OP_NUM_MAX     , -1);
+		symtbl_addCmdOpcode(sym, 'min'    , OP_NUM_MIN     , -1);
 	symtbl_popNamespace(sym);
 	symtbl_pushNamespace(sym, ['list']);
 		symtbl_addCmdOpcode(sym, 'new'    , OP_LIST_NEW    ,  2);

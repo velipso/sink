@@ -21,8 +21,9 @@ like the built-in unary and binary operators.
 |---------------------|---------------------------------------------------------------------------|
 | `num.abs a`         | Absolute value of `a`                                                     |
 | `num.sign a`        | Sign of `a` (-1, 0, or 1)                                                 |
-| `num.max ls`        | Returns the maximum number in the list `ls`                               |
-| `num.min ls`        | Returns the minimum number in the list `ls`                               |
+| `num.max a, b, ...` | Returns the maximum number from all arguments                             |
+| `num.min a, b, ...` | Returns the minimum number from all arguments                             |
+| `num.clamp a, b, c` | Clamp `a` to be between `b` and `c`                                       |
 | `num.floor a`       | Round `a` down to the nearest integer                                     |
 | `num.ceil a`        | Round `a` up to the nearest integer                                       |
 | `num.round a`       | Round `a` to the nearest integer, 0.5 and above rounds up                 |
@@ -95,6 +96,8 @@ like the built-in unary and binary operators.
 | `int.shl a, b`    | Bit-shift left `a` by `b` bits                                              |
 | `int.shr a, b`    | Bit-shift right `a` by `b` bits (`a` is unsigned)                           |
 | `int.sar a, b`    | Bit-shift right `a` by `b` bits (`a` is signed)                             |
+| `int.rotl a, b`   | Bit-rotate left `a` by `b` bits                                             |
+| `int.rotr a, b`   | Bit-rotate right `a` by `b` bits                                            |
 | `int.add a, b`    | `a + b`                                                                     |
 | `int.sub a, b`    | `a - b`                                                                     |
 | `int.mul a, b`    | `a * b`                                                                     |
@@ -110,6 +113,7 @@ like the built-in unary and binary operators.
 | `int.clz a`       | Count leading zeros of `a` (0-32)                                           |
 | `int.ctz a`       | Count trailing zeros of `a` (0-32)                                          |
 | `int.clrsb a`     | Count leading redundant sign bits of `a` (0-31)                             |
+| `int.nextpow2 a`  | Round `a` up to the next closest power of 2                                 |
 | `int.ffs a`       | Find first bit set, bits numbered starting at 1, 0 means no bits set        |
 | `int.fls a`       | Find last bit set, bits numbered starting at 1, 0 means no bits set         |
 
