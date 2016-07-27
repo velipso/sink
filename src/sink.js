@@ -306,7 +306,9 @@ function filepos_err(flp, msg){
 
 var KS_INVALID    = 'KS_INVALID';
 var KS_PLUS       = 'KS_PLUS';
+var KS_UNPLUS     = 'KS_UNPLUS';
 var KS_MINUS      = 'KS_MINUS';
+var KS_UNMINUS    = 'KS_UNMINUS';
 var KS_PERCENT    = 'KS_PERCENT';
 var KS_STAR       = 'KS_STAR';
 var KS_SLASH      = 'KS_SLASH';
@@ -452,7 +454,9 @@ function ks_str(s){
 
 function ks_toUnaryOp(k){
 	if      (k == KS_PLUS      ) return OP_TONUM;
+	else if (k == KS_UNPLUS    ) return OP_TONUM;
 	else if (k == KS_MINUS     ) return OP_NEG;
+	else if (k == KS_UNMINUS   ) return OP_NEG;
 	else if (k == KS_AMP       ) return OP_SIZE;
 	else if (k == KS_BANG      ) return OP_NOT;
 	else if (k == KS_MINUSTILDE) return OP_SHIFT;
@@ -538,7 +542,9 @@ function tok_isPre(tk){
 	if (tk.type == TOK_KS){
 		return false ||
 			tk.k == KS_PLUS       ||
+			tk.k == KS_UNPLUS     ||
 			tk.k == KS_MINUS      ||
+			tk.k == KS_UNMINUS    ||
 			tk.k == KS_AMP        ||
 			tk.k == KS_BANG       ||
 			tk.k == KS_PERIOD3    ||
@@ -601,7 +607,7 @@ function tok_isPreBeforeMid(pre, mid){
 	//assert(pre.type == TOK_KS);
 	//assert(mid.type == TOK_KS);
 	// -5^2 is -25, not 25
-	if (pre.k == KS_MINUS && mid.k == KS_CARET)
+	if ((pre.k == KS_MINUS || pre.k == KS_UNMINUS) && mid.k == KS_CARET)
 		return false;
 	// otherwise, apply the Pre first
 	return true;
@@ -849,6 +855,15 @@ function lex_process(lx, tks){
 			else{
 				var ks1 = ks_char(lx.ch2);
 				if (ks1 != KS_INVALID){
+					// hack to detect difference between binary and unary +/-
+					if (ks1 == KS_PLUS){
+						if (!isSpace(ch1) && isSpace(lx.ch3))
+							ks1 = KS_UNPLUS;
+					}
+					else if (ks1 == KS_MINUS){
+						if (!isSpace(ch1) && isSpace(lx.ch3))
+							ks1 = KS_UNMINUS;
+					}
 					tks.push(tok_ks(ks1));
 					lx.state = LEX_START;
 					lex_process(lx, tks);
@@ -4211,7 +4226,7 @@ function program_gen(prg, sym, stmt){
 
 						// and grab the appropriate value from the args
 						op_num(prg.ops, t, i);
-						op_getat(prg.ops, t, varloc_new(0, 0), t); // 0:0 are the passed in arguments
+						op_getat(prg.ops, t, varloc_new(0, 0), t); // 0:0 are passed in arguments
 
 						var finish = null;
 						if (ex.right != null){
