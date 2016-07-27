@@ -733,6 +733,7 @@ function lex_new(){
 		ch1: 0,
 		ch2: 0,
 		ch3: 0,
+		ch4: 0,
 		ident: '',
 		str: null,
 		num_val: 0,
@@ -749,6 +750,7 @@ function lex_new(){
 }
 
 function lex_fwd(lx, ch){
+	lx.ch4 = lx.ch3;
 	lx.ch3 = lx.ch2;
 	lx.ch2 = lx.ch1;
 	lx.ch1 = ch;
@@ -758,7 +760,8 @@ function lex_rev(lx){
 	lx.chR = lx.ch1;
 	lx.ch1 = lx.ch2;
 	lx.ch2 = lx.ch3;
-	lx.ch3 = 0;
+	lx.ch3 = lx.ch4;
+	lx.ch4 = 0;
 }
 
 function lex_process(lx, tks){
@@ -889,6 +892,15 @@ function lex_process(lx, tks){
 				else{
 					var ks1 = ks_char(lx.ch3);
 					if (ks1 != KS_INVALID){
+						// hack to detect difference between binary and unary +/-
+						if (ks1 == KS_PLUS){
+							if (!isSpace(lx.ch2) && isSpace(lx.ch4))
+								ks1 = KS_UNPLUS;
+						}
+						else if (ks1 == KS_MINUS){
+							if (!isSpace(lx.ch2) && isSpace(lx.ch4))
+								ks1 = KS_UNMINUS;
+						}
 						tks.push(tok_ks(ks1));
 						lx.state = LEX_START;
 						lex_rev(lx);
@@ -1385,7 +1397,7 @@ function expr_group(flp, left, right){
 }
 
 function expr_prefix(flp, k, ex){
-	if (k == KS_MINUS && ex.type == EXPR_NUM)
+	if ((k == KS_MINUS || k == KS_UNMINUS) && ex.type == EXPR_NUM)
 		return expr_num(flp, -ex.num);
 	else if (k == KS_PLUS && ex.type == EXPR_NUM)
 		return ex;
