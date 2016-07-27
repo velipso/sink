@@ -51,8 +51,9 @@ like the built-in unary and binary operators.
 ### Random Numbers
 
 The random number generator is the same on all host environments, defined below.  It is fast,
-simple, and passes most statistical tests.  On startup, it is seeded with the current time in
-milliseconds.
+simple, and
+[passes many statistical tests](https://gist.github.com/voidqk/d112165a26b45244a65298933c0349a4).
+On startup, it is seeded with the current time in milliseconds.
 
 Note that the state is shared between `num.seed`, `num.rand`, and `int.rand`.
 
