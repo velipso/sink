@@ -43,7 +43,7 @@ like the built-in unary and binary operators.
 | `num.log1p a`       | Natural log of `a + 1`                                                    |
 | `num.exp a`         | *e*<sup>`a`</sup>                                                         |
 | `num.expm1 a`       | *e*<sup>`a`</sup> - 1                                                     |
-| `num.seed a`        | Seeds the random number generator with `a` (treated as 32 bit uint)       |
+| `num.seed a`        | Seeds the random number generator with `a` (treated as 32-bit uint)       |
 | `num.rand`          | Random number between [0, 1)                                              |
 | `num.lerp a, b, t`  | Linear interpolation from `a` to `b`, by amount `t`                       |
 | `num.now`           | Current time in milliseconds since epoch                                  |
@@ -79,8 +79,8 @@ double num_rand(){
 Integer
 --------
 
-Sink only operates on 64-bit floating point numbers, but it's possible to simulate operations on 32
-bit integers (signed and unsigned) using the `int` namespace, with appropriate two's-complement
+Sink only operates on 64-bit floating point numbers, but it's possible to simulate operations on
+32-bit integers (signed and unsigned) using the `int` namespace, with appropriate two's-complement
 wrapping.
 
 Note that integer functions will operate on lists by performing the operation on each element, just
