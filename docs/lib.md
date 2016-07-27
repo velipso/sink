@@ -128,6 +128,17 @@ and ignore bytes 128-255.
 | Function               | Description                                                            |
 |------------------------|------------------------------------------------------------------------|
 | `str.new a, b`         | Create a new string by repeating string `a` `b` times                  |
+| `str.split a, b`       | Split `a` into an array of strings based on separator `b`              |
+| `str.replace a, b, c`  | Replace all occurrences of `b` in string `a` with `c`                  |
+| `str.startsWith a, b`  | True if string `a` starts with string `b`; false otherwise             |
+| `str.endsWith a, b`    | True if string `a` ends with string `b`; false otherwise               |
+| `str.find a, b, c`     | Find `b` in string `a` starting at `c`; returns nil if not found       |
+| `str.findRev a, b, c`  | Find `b` in string `a` starting at `c` and searching in reverse        |
+| `str.lower a`          | Convert `a` to lowercase, ignoring bytes >= 128                        |
+| `str.upper a`          | Convert `a` to uppercase, ignoring bytes >= 128                        |
+| `str.trim a`           | Trim surrounding whitespace from `a`; bytes >= 128 considered non-white|
+| `str.rev a`            | Reverse `a`                                                            |
+| `str.list a`           | Convert a string to a list of bytes                                    |
 | `str.newByte a`        | New string from byte `a`                                               |
 | `str.newSbyte a`       | New string from signed byte `a`                                        |
 | `str.newInt16 a`       | New two-byte string from signed 16-bit integer `a` (little endian)     |
@@ -142,17 +153,6 @@ and ignore bytes 128-255.
 | `str.newFloat32BE a`   | New four-byte string from 32-bit float `a` (big endian)                |
 | `str.newFloat64 a`     | New eight-byte string from 64-bit float `a` (little endian)            |
 | `str.newFloat64BE a`   | New eight-byte string from 64-bit float `a` (big endian)               |
-| `str.split a, b`       | Split `a` into an array of strings based on separator `b`              |
-| `str.replace a, b, c`  | Replace all occurrences of `b` in string `a` with `c`                  |
-| `str.startsWith a, b`  | True if string `a` starts with string `b`; false otherwise             |
-| `str.endsWith a, b`    | True if string `a` ends with string `b`; false otherwise               |
-| `str.find a, b, c`     | Find `b` in string `a` starting at `c`; returns nil if not found       |
-| `str.findRev a, b, c`  | Find `b` in string `a` starting at `c` and searching in reverse        |
-| `str.lower a`          | Convert `a` to lowercase, ignoring bytes >= 128                        |
-| `str.upper a`          | Convert `a` to uppercase, ignoring bytes >= 128                        |
-| `str.trim a`           | Trim surrounding whitespace from `a`; bytes >= 128 considered non-white|
-| `str.rev a`            | Reverse `a`                                                            |
-| `str.list a`           | Convert a string to a list of bytes                                    |
 | `str.sbyte a, b`       | Signed byte from string `a` at index `b`                               |
 | `str.byte a, b`        | Unsigned byte from string `a` at index `b`                             |
 | `str.int16 a, b`       | Signed 16-bit integer from `a` starting at index `b` (little endian)   |
