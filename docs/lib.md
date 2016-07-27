@@ -74,7 +74,7 @@ double num_rand(){
 }
 ```
 
-Interger
+Integer
 --------
 
 Sink only operates on 64-bit floating point numbers, but it's possible to simulate operations on 32
@@ -118,7 +118,7 @@ String
 
 Strings are 8-bit clean, and interpretted as binary data.  In cases where character meaning matters
 (for example, `str.lower`), the algorithms interpret bytes 0-127 as defined by Unicode codepage 0,
-and ignores bytes 128-255.
+and ignore bytes 128-255.
 
 | Function               | Description                                                            |
 |------------------------|----------------------------------------------------------------------- |
