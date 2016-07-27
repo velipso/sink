@@ -126,8 +126,22 @@ Strings are 8-bit clean, and interpretted as binary data.  In cases where charac
 and ignore bytes 128-255.
 
 | Function               | Description                                                            |
-|------------------------|----------------------------------------------------------------------- |
+|------------------------|------------------------------------------------------------------------|
 | `str.new a, b`         | Create a new string by repeating string `a` `b` times                  |
+| `str.newByte a`        | New string from byte `a`                                               |
+| `str.newSbyte a`       | New string from signed byte `a`                                        |
+| `str.newInt16 a`       | New two-byte string from signed 16-bit integer `a` (little endian)     |
+| `str.newInt16BE a`     | New two-byte string from signed 16-bit integer `a` (big endian)        |
+| `str.newUint16 a`      | New two-byte string from unsigned 16-bit integer `a` (little endian)   |
+| `str.newUint16BE a`    | New two-byte string from unsigned 16-bit integer `a` (big endian)      |
+| `str.newInt32 a`       | New four-byte string from signed 32-bit integer `a` (little endian)    |
+| `str.newInt32BE a`     | New four-byte string from signed 32-bit integer `a` (big endian)       |
+| `str.newUint32 a`      | New four-byte string from unsigned 32-bit integer `a` (little endian)  |
+| `str.newUint32BE a`    | New four-byte string from unsigned 32-bit integer `a` (big endian)     |
+| `str.newFloat32 a`     | New four-byte string from 32-bit float `a` (little endian)             |
+| `str.newFloat32BE a`   | New four-byte string from 32-bit float `a` (big endian)                |
+| `str.newFloat64 a`     | New eight-byte string from 64-bit float `a` (little endian)            |
+| `str.newFloat64BE a`   | New eight-byte string from 64-bit float `a` (big endian)               |
 | `str.split a, b`       | Split `a` into an array of strings based on separator `b`              |
 | `str.replace a, b, c`  | Replace all occurrences of `b` in string `a` with `c`                  |
 | `str.startsWith a, b`  | True if string `a` starts with string `b`; false otherwise             |
