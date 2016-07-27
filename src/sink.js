@@ -1399,7 +1399,7 @@ function expr_group(flp, left, right){
 function expr_prefix(flp, k, ex){
 	if ((k == KS_MINUS || k == KS_UNMINUS) && ex.type == EXPR_NUM)
 		return expr_num(flp, -ex.num);
-	else if (k == KS_PLUS && ex.type == EXPR_NUM)
+	else if ((k == KS_PLUS || k == KS_UNPLUS) && ex.type == EXPR_NUM)
 		return ex;
 	return { flp: flp, type: EXPR_PREFIX, k: k, ex: ex };
 }
