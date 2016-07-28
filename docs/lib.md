@@ -176,8 +176,8 @@ and ignore bytes 128-255.
 UTF-8
 -----
 
-The `utf8` library operates on strings (bytes), and only provides some basic functions for encoding
-and decoding.
+The `utf8` namespace operates on strings (bytes), and only provides some basic functions for
+encoding and decoding.
 
 | Function       | Description                                                                    |
 |----------------|--------------------------------------------------------------------------------|
@@ -268,9 +268,9 @@ list.sortRev {3, 2, (), 4}  # => {4, 3, 2, ()}
 JSON
 ----
 
-The JSON library is not general purpose, and specifically works on a subset of JSON that only allows
-numbers, strings, null, and lists -- which means it can convert losslessly between JSON and sink
-values.
+The `json` namespace is not general purpose, and specifically works on a subset of JSON that only
+allows numbers, strings, null, and lists -- which means it can convert losslessly between JSON and
+sink values.
 
 | Function       | Description                                                                    |
 |----------------|--------------------------------------------------------------------------------|
