@@ -95,7 +95,8 @@ simple, and
 On startup, it is automatically seeded via `rand.seedauto`.
 
 ```c
-static uint32_t seed = 0, i = 0;
+// RNG has 64-bit state
+static uint32_t seed, i;
 
 void rand_seed(uint32_t s){
   seed = s;
@@ -114,7 +115,13 @@ int32_t rand_int(){
 }
 
 double rand_num(){
-  return (double)rand_uint() / 4294967296.0;
+  uint64_t M1 = rand_uint();
+  uint64_t M2 = rand_uint();
+  uint64_t M = (M1 << 20) | (M2 >> 12); // 52 bit random number
+  const union { uint64_t i; double d; } u = {
+    .i = UINT64_C(0x3FF) << 52 | M
+  };
+  return u.d - 1.0;
 }
 
 void rand_getstate(uint8_t *state){
