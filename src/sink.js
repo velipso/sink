@@ -29,10 +29,10 @@ var OP_ISNUM          = 0x0F; // [TGT], [SRC]
 var OP_ISSTR          = 0x10; // [TGT], [SRC]
 var OP_ISLIST         = 0x11; // [TGT], [SRC]
 var OP_ADD            = 0x12; // [TGT], [SRC1], [SRC2]
-var OP_MOD            = 0x13; // [TGT], [SRC1], [SRC2]
-var OP_SUB            = 0x14; // [TGT], [SRC1], [SRC2]
-var OP_MUL            = 0x15; // [TGT], [SRC1], [SRC2]
-var OP_DIV            = 0x16; // [TGT], [SRC1], [SRC2]
+var OP_SUB            = 0x13; // [TGT], [SRC1], [SRC2]
+var OP_MUL            = 0x14; // [TGT], [SRC1], [SRC2]
+var OP_DIV            = 0x15; // [TGT], [SRC1], [SRC2]
+var OP_MOD            = 0x16; // [TGT], [SRC1], [SRC2]
 var OP_POW            = 0x17; // [TGT], [SRC1], [SRC2]
 var OP_CAT            = 0x18; // [TGT], [SRC1], [SRC2]
 var OP_PUSH           = 0x19; // [TGT], [SRC1], [SRC2]
@@ -148,16 +148,21 @@ function op_nop(b){
 	b.push(OP_NOP);
 }
 
-function op_nil(b, tgt){
-	console.log('> NIL ' + tgt.fdiff + ':' + tgt.index);
-	b.push(OP_NIL, tgt.fdiff, tgt.index);
-}
-
 function op_move(b, tgt, src){
 	if (tgt.fdiff == src.fdiff && tgt.index == src.index)
 		return;
 	console.log('> MOVE ' + tgt.fdiff + ':' + tgt.index + ', ' + src.fdiff + ':' + src.index);
 	b.push(OP_MOVE, tgt.fdiff, tgt.index, src.fdiff, src.index);
+}
+
+function op_inc(b, src){
+	console.log('> INC ' + src.fdiff + ':' + src.index);
+	b.push(OP_INC, src.fdiff, src.index);
+}
+
+function op_nil(b, tgt){
+	console.log('> NIL ' + tgt.fdiff + ':' + tgt.index);
+	b.push(OP_NIL, tgt.fdiff, tgt.index);
 }
 
 function op_num(b, tgt, num){
@@ -180,12 +185,19 @@ function op_str(b, tgt, index){
 	b.push(OP_STR, tgt.fdiff, tgt.index, index % 256, Math.floor(index / 256));
 }
 
+function op_list(b, tgt, hint){
+	if (hint > 255)
+		hint = 255;
+	console.log('> LIST ' + tgt.fdiff + ':' + tgt.index + ', ' + hint);
+	b.push(OP_LIST, tgt.fdiff, tgt.index, hint);
+}
+
 function op_unop(b, opcode, tgt, src){
 	var opstr = '???';
-	if      (opcode == OP_TONUM ) opstr = 'TONUM';
-	else if (opcode == OP_NEG   ) opstr = 'NEG';
-	else if (opcode == OP_SIZE  ) opstr = 'SIZE';
+	if      (opcode == OP_NEG   ) opstr = 'NEG';
 	else if (opcode == OP_NOT   ) opstr = 'NOT';
+	else if (opcode == OP_SIZE  ) opstr = 'SIZE';
+	else if (opcode == OP_TONUM ) opstr = 'TONUM';
 	else if (opcode == OP_SHIFT ) opstr = 'SHIFT';
 	else if (opcode == OP_POP   ) opstr = 'POP';
 	else if (opcode == OP_ISNUM ) opstr = 'ISNUM';
@@ -215,19 +227,19 @@ function op_binop(b, opcode, tgt, src1, src2){
 	var opstr = '???';
 	if      (opcode == OP_ADD    ) opstr = 'ADD';
 	else if (opcode == OP_SUB    ) opstr = 'SUB';
-	else if (opcode == OP_MOD    ) opstr = 'MOD';
 	else if (opcode == OP_MUL    ) opstr = 'MUL';
 	else if (opcode == OP_DIV    ) opstr = 'DIV';
+	else if (opcode == OP_MOD    ) opstr = 'MOD';
 	else if (opcode == OP_POW    ) opstr = 'POW';
-	else if (opcode == OP_LT     ) opstr = 'LT';
 	else if (opcode == OP_CAT    ) opstr = 'CAT';
-	else if (opcode == OP_LTE    ) opstr = 'LTE';
-	else if (opcode == OP_NEQ    ) opstr = 'NEQ';
-	else if (opcode == OP_EQU    ) opstr = 'EQU';
 	else if (opcode == OP_PUSH   ) opstr = 'PUSH';
 	else if (opcode == OP_UNSHIFT) opstr = 'UNSHIFT';
 	else if (opcode == OP_APPEND ) opstr = 'APPEND';
 	else if (opcode == OP_PREPEND) opstr = 'PREPEND';
+	else if (opcode == OP_LT     ) opstr = 'LT';
+	else if (opcode == OP_LTE    ) opstr = 'LTE';
+	else if (opcode == OP_NEQ    ) opstr = 'NEQ';
+	else if (opcode == OP_EQU    ) opstr = 'EQU';
 	console.log('> ' + opstr + ' ' +
 		tgt.fdiff + ':' + tgt.index + ', ' +
 		src1.fdiff + ':' + src1.index + ', ' +
@@ -243,14 +255,6 @@ function op_getat(b, tgt, src1, src2){
 	b.push(OP_GETAT, tgt.fdiff, tgt.index, src1.fdiff, src1.index, src2.fdiff, src2.index);
 }
 
-function op_setat(b, src1, src2, src3){
-	console.log('> SETAT ' +
-		src1.fdiff + ':' + src1.index + ', ' +
-		src2.fdiff + ':' + src2.index + ', ' +
-		src3.fdiff + ':' + src3.index);
-	b.push(OP_GETAT, src1.fdiff, src1.index, src2.fdiff, src2.index, src3.fdiff, src3.index);
-}
-
 function op_slice(b, tgt, src1, src2, src3){
 	console.log('> SLICE ' +
 		tgt.fdiff + ':' + tgt.index + ', ' +
@@ -261,11 +265,25 @@ function op_slice(b, tgt, src1, src2, src3){
 		src3.fdiff, src3.index);
 }
 
-function op_list(b, tgt, hint){
-	if (hint > 255)
-		hint = 255;
-	console.log('> LIST ' + tgt.fdiff + ':' + tgt.index + ', ' + hint);
-	b.push(OP_LIST, tgt.fdiff, tgt.index, hint);
+function op_setat(b, src1, src2, src3){
+	console.log('> SETAT ' +
+		src1.fdiff + ':' + src1.index + ', ' +
+		src2.fdiff + ':' + src2.index + ', ' +
+		src3.fdiff + ':' + src3.index);
+	b.push(OP_GETAT, src1.fdiff, src1.index, src2.fdiff, src2.index, src3.fdiff, src3.index);
+}
+
+function op_splice(b, src1, src2, src3, src4){
+	console.log('> SPLICE ' +
+		src1.fdiff + ':' + src1.index + ', ' +
+		src2.fdiff + ':' + src2.index + ', ' +
+		src3.fdiff + ':' + src3.index + ', ' +
+		src4.fdiff + ':' + src4.index);
+	b.push(OP_SPLICE,
+		src1.fdiff, src1.index,
+		src2.fdiff, src2.index,
+		src3.fdiff, src3.index,
+		src4.fdiff, src4.index);
 }
 
 function op_jump(b, index){
@@ -319,24 +337,6 @@ function op_native(b, ret, arg, index){
 function op_return(b, src){
 	console.log('> RETURN ' + src.fdiff + ':' + src.index);
 	b.push(OP_RETURN, src.fdiff, src.index);
-}
-
-function op_inc(b, src){
-	console.log('> INC ' + src.fdiff + ':' + src.index);
-	b.push(OP_INC, src.fdiff, src.index);
-}
-
-function op_splice(b, src1, src2, src3, src4){
-	console.log('> SPLICE ' +
-		src1.fdiff + ':' + src1.index + ', ' +
-		src2.fdiff + ':' + src2.index + ', ' +
-		src3.fdiff + ':' + src3.index + ', ' +
-		src4.fdiff + ':' + src4.index);
-	b.push(OP_SPLICE,
-		src1.fdiff, src1.index,
-		src2.fdiff, src2.index,
-		src3.fdiff, src3.index,
-		src4.fdiff, src4.index);
 }
 
 function op_param0(b, opcode, tgt){
