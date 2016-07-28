@@ -81,8 +81,7 @@ Random
 |-------------------|-----------------------------------------------------------------------------|
 | `rand.seed a`     | Set the seed of the RNG to `a` (interpreted as a 32-bit unsigned integer)   |
 | `rand.seedauto`   | Set the seed of the RNG automatically (likely based on current time)        |
-| `rand.int`        | Random 32-bit signed integer ranging [-2<sup>31</sup>, 2<sup>31</sup> - 1]  |
-| `rand.uint`       | Random 32-bit unsigned integer ranging [0, 2<sup>32</sup> - 1]              |
+| `rand.int`        | Random 32-bit unsigned integer ranging [0, 2<sup>32</sup> - 1]              |
 | `rand.num`        | Random number ranging [0, 1)                                                |
 | `rand.getstate`   | Returns an 8 byte string that is the entire RNG state                       |
 | `rand.setstate a` | Restores a previous state (`a` should be an 8 byte string)                  |
@@ -103,20 +102,16 @@ void rand_seed(uint32_t s){
   i = 0;
 }
 
-uint32_t rand_uint(){
+uint32_t rand_int(){
   const uint32_t m = 0x5bd1e995;
   const uint32_t k = i++ * m;
   seed = (k ^ (k >> 24) ^ (seed * m)) * m;
   return seed ^ (seed >> 13);
 }
 
-int32_t rand_int(){
-  return (int32_t)rand_uint();
-}
-
 double rand_num(){
-  uint64_t M1 = rand_uint();
-  uint64_t M2 = rand_uint();
+  uint64_t M1 = rand_int();
+  uint64_t M2 = rand_int();
   uint64_t M = (M1 << 20) | (M2 >> 12); // 52 bit random number
   const union { uint64_t i; double d; } u = {
     .i = UINT64_C(0x3FF) << 52 | M
