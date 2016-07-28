@@ -340,6 +340,8 @@ function op_return(b, src){
 }
 
 function op_param0(b, opcode, tgt){
+	console.log('> 0x' + opcode.toString(16) + ' ' +
+		tgt.fdiff + ':' + tgt.index);
 	b.push(opcode, tgt.fdiff, tgt.index);
 }
 
@@ -351,10 +353,19 @@ function op_param1(b, opcode, tgt, src){
 }
 
 function op_param2(b, opcode, tgt, src1, src2){
+	console.log('> 0x' + opcode.toString(16) + ' ' +
+		tgt.fdiff + ':' + tgt.index + ', ' +
+		src1.fdiff + ':' + src1.index + ', ' +
+		src2.fdiff + ':' + src2.index);
 	b.push(opcode, tgt.fdiff, tgt.index, src1.fdiff, src1.index, src2.fdiff, src2.index);
 }
 
 function op_param3(b, opcode, tgt, src1, src2, src3){
+	console.log('> 0x' + opcode.toString(16) + ' ' +
+		tgt.fdiff + ':' + tgt.index + ', ' +
+		src1.fdiff + ':' + src1.index + ', ' +
+		src2.fdiff + ':' + src2.index + ', ' +
+		src3.fdiff + ':' + src3.index);
 	b.push(opcode, tgt.fdiff, tgt.index, src1.fdiff, src1.index, src2.fdiff, src2.index,
 		src3.fdiff, src3.index);
 }
@@ -552,10 +563,10 @@ function ks_toBinaryOp(k){
 	else if (k == KS_SLASH  ) return OP_DIV;
 	else if (k == KS_CARET  ) return OP_POW;
 	else if (k == KS_LT     ) return OP_LT;
-	else if (k == KS_GT     ) return 0x100;
+	else if (k == KS_GT     ) return 0x100; // intercepted by op_binop
 	else if (k == KS_TILDE  ) return OP_CAT;
 	else if (k == KS_LTEQU  ) return OP_LTE;
-	else if (k == KS_GTEQU  ) return 0x101;
+	else if (k == KS_GTEQU  ) return 0x101; // intercepted by op_binop
 	else if (k == KS_BANGEQU) return OP_NEQ;
 	else if (k == KS_EQU2   ) return OP_EQU;
 	return -1;
@@ -616,61 +627,59 @@ function tok_isKS(tk, k){
 }
 
 function tok_isPre(tk){
-	if (tk.type == TOK_KS){
-		return false ||
-			tk.k == KS_PLUS       ||
-			tk.k == KS_UNPLUS     ||
-			tk.k == KS_MINUS      ||
-			tk.k == KS_UNMINUS    ||
-			tk.k == KS_AMP        ||
-			tk.k == KS_BANG       ||
-			tk.k == KS_PERIOD3    ||
-			tk.k == KS_MINUSTILDE ||
-			tk.k == KS_TILDEMINUS ||
-			tk.k == KS_TYPENUM    ||
-			tk.k == KS_TYPESTR    ||
-			tk.k == KS_TYPELIST;
-	}
-	return false;
+	if (tk.type != TOK_KS)
+		return false;
+	return false ||
+		tk.k == KS_PLUS       ||
+		tk.k == KS_UNPLUS     ||
+		tk.k == KS_MINUS      ||
+		tk.k == KS_UNMINUS    ||
+		tk.k == KS_AMP        ||
+		tk.k == KS_BANG       ||
+		tk.k == KS_PERIOD3    ||
+		tk.k == KS_MINUSTILDE ||
+		tk.k == KS_TILDEMINUS ||
+		tk.k == KS_TYPENUM    ||
+		tk.k == KS_TYPESTR    ||
+		tk.k == KS_TYPELIST;
 }
 
 function tok_isMid(tk, allowComma, allowPipe){
-	if (tk.type == TOK_KS){
-		return false ||
-			tk.k == KS_PLUS       ||
-			tk.k == KS_PLUSEQU    ||
-			tk.k == KS_MINUS      ||
-			tk.k == KS_MINUSEQU   ||
-			tk.k == KS_PERCENT    ||
-			tk.k == KS_PERCENTEQU ||
-			tk.k == KS_STAR       ||
-			tk.k == KS_STAREQU    ||
-			tk.k == KS_SLASH      ||
-			tk.k == KS_SLASHEQU   ||
-			tk.k == KS_CARET      ||
-			tk.k == KS_CARETEQU   ||
-			tk.k == KS_AT         ||
-			tk.k == KS_LT         ||
-			tk.k == KS_LTEQU      ||
-			tk.k == KS_GT         ||
-			tk.k == KS_GTEQU      ||
-			tk.k == KS_BANGEQU    ||
-			tk.k == KS_EQU        ||
-			tk.k == KS_EQU2       ||
-			tk.k == KS_TILDE      ||
-			tk.k == KS_TILDEEQU   ||
-			tk.k == KS_TILDEPLUS  ||
-			tk.k == KS_PLUSTILDE  ||
-			tk.k == KS_TILDE2PLUS ||
-			tk.k == KS_PLUSTILDE2 ||
-			tk.k == KS_AMP2       ||
-			tk.k == KS_PIPE2      ||
-			tk.k == KS_AMP2EQU    ||
-			tk.k == KS_PIPE2EQU   ||
-			(allowComma && tk.k == KS_COMMA) ||
-			(allowPipe  && tk.k == KS_PIPE );
-	}
-	return false;
+	if (tk.type != TOK_KS)
+		return false;
+	return false ||
+		tk.k == KS_PLUS       ||
+		tk.k == KS_PLUSEQU    ||
+		tk.k == KS_MINUS      ||
+		tk.k == KS_MINUSEQU   ||
+		tk.k == KS_PERCENT    ||
+		tk.k == KS_PERCENTEQU ||
+		tk.k == KS_STAR       ||
+		tk.k == KS_STAREQU    ||
+		tk.k == KS_SLASH      ||
+		tk.k == KS_SLASHEQU   ||
+		tk.k == KS_CARET      ||
+		tk.k == KS_CARETEQU   ||
+		tk.k == KS_AT         ||
+		tk.k == KS_LT         ||
+		tk.k == KS_LTEQU      ||
+		tk.k == KS_GT         ||
+		tk.k == KS_GTEQU      ||
+		tk.k == KS_BANGEQU    ||
+		tk.k == KS_EQU        ||
+		tk.k == KS_EQU2       ||
+		tk.k == KS_TILDE      ||
+		tk.k == KS_TILDEEQU   ||
+		tk.k == KS_TILDEPLUS  ||
+		tk.k == KS_PLUSTILDE  ||
+		tk.k == KS_TILDE2PLUS ||
+		tk.k == KS_PLUSTILDE2 ||
+		tk.k == KS_AMP2       ||
+		tk.k == KS_PIPE2      ||
+		tk.k == KS_AMP2EQU    ||
+		tk.k == KS_PIPE2EQU   ||
+		(allowComma && tk.k == KS_COMMA) ||
+		(allowPipe  && tk.k == KS_PIPE );
 }
 
 function tok_isTerm(tk){
@@ -695,9 +704,9 @@ function tok_midPrecedence(tk){
 	//assert(tk.type == TOK_KS);
 	var k = tk.k;
 	if      (k == KS_CARET     ) return  1;
-	else if (k == KS_PERCENT   ) return  2;
 	else if (k == KS_STAR      ) return  2;
 	else if (k == KS_SLASH     ) return  2;
+	else if (k == KS_PERCENT   ) return  2;
 	else if (k == KS_PLUS      ) return  3;
 	else if (k == KS_MINUS     ) return  3;
 	else if (k == KS_TILDEPLUS ) return  4;
@@ -1460,19 +1469,18 @@ function expr_paren(flp, ex){
 }
 
 function expr_group(flp, left, right){
+	var g;
 	if (left.type == EXPR_GROUP){
 		if (right.type == EXPR_GROUP)
-			return { flp: flp, type: EXPR_GROUP, group: left.group.concat(right.group) };
-		var g = left.group.concat();
-		g.push(right);
-		return { flp: flp, type: EXPR_GROUP, group: g };
+			g = left.group.concat(right.group);
+		else
+			g = left.group.concat([right]);
 	}
-	else if (right.type == EXPR_GROUP){
-		var g = right.group.concat();
-		g.unshift(left);
-		return { flp: flp, type: EXPR_GROUP, group: g };
-	}
-	return { flp: flp, type: EXPR_GROUP, group: [left, right] };
+	else if (right.type == EXPR_GROUP)
+		g = [left].concat(right.group);
+	else
+		g = [left, right];
+	return { flp: flp, type: EXPR_GROUP, group: g };
 }
 
 function expr_prefix(flp, k, ex){
@@ -1610,15 +1618,15 @@ function cond_new(ex, body){ // conds
 var DECL_LOCAL  = 'DECL_LOCAL';
 var DECL_NATIVE = 'DECL_NATIVE';
 
-function decl_local(flp, names){
+function decl_local(flp, names){ // decls
 	return { flp: flp, type: DECL_LOCAL, names: names };
 }
 
-function decl_native(flp, names, key){
+function decl_native(flp, names, key){ // decls
 	return { flp: flp, type: DECL_NATIVE, names: names, key: key };
 }
 
-function incl_new(flp, names, file){
+function incl_new(flp, names, file){ // incls
 	return { flp: flp, names: names, file: file };
 }
 
@@ -2812,9 +2820,9 @@ function label_refresh(lbl, ops, start){
 	for (var i = start; i < lbl.rewrites.length; i++){
 		var index = lbl.rewrites[i];
 		ops[index + 0] = lbl.pos % 256;
-		ops[index + 1] = Math.floor(lbl.pos /      256) % 256;
-		ops[index + 2] = Math.floor(lbl.pos /    65536) % 256;
-		ops[index + 3] = Math.floor(lbl.pos / 16777216) % 256;
+		ops[index + 1] = Math.floor(lbl.pos /     0x100) % 256;
+		ops[index + 2] = Math.floor(lbl.pos /   0x10000) % 256;
+		ops[index + 3] = Math.floor(lbl.pos / 0x1000000) % 256;
 	}
 }
 
@@ -3214,11 +3222,10 @@ function symtbl_addCmdOpcode(sym, name, opcode, params){
 	sym.sc.ns.names.push(nsname_cmdOpcode(name, opcode, params));
 }
 
-function SAC(sym, name, opcode, params){
-	symtbl_addCmdOpcode(sym, name, opcode, params);
-}
-
 function symtbl_loadStdlib(sym){
+	function SAC(sym, name, opcode, params){
+		symtbl_addCmdOpcode(sym, name, opcode, params);
+	}
 	SAC(sym, 'pick'          ,                -1,  3);
 	SAC(sym, 'say'           , OP_SAY           , -1);
 	SAC(sym, 'ask'           , OP_ASK           , -1);
@@ -3955,7 +3962,7 @@ function program_evalInto(prg, sym, vlc, ex){
 			return pir_ok();
 		} break;
 	}
-	throw 'failed to return value for program_evalInto ' + ex.type;
+	throw new Error('Failed to return value for program_evalInto (this shouldn\'t happen)');
 }
 
 var PER_OK    = 'PER_OK';
@@ -4898,7 +4905,6 @@ function compiler_process(cmp){
 				return cma_error(filepos_err(flp, res.msg));
 			}
 
-			//console.log(JSON.stringify(res.stmt, null, '  '));
 			if (res.stmt.type == AST_INCLUDE){
 				// cmp.file.incls is guaranteed to be empty, so just overwrite it
 				cmp.file.incls = res.stmt.incls;
