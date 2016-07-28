@@ -102,15 +102,19 @@ void rand_seed(uint32_t s){
   i = 0;
 }
 
-uint32_t rand_int(){
+uint32_t rand_uint(){
   const uint32_t m = 0x5bd1e995;
   const uint32_t k = i++ * m;
   seed = (k ^ (k >> 24) ^ (seed * m)) * m;
   return seed ^ (seed >> 13);
 }
 
+int32_t rand_int(){
+  return (int32_t)rand_uint();
+}
+
 double rand_num(){
-  return (double)rand_int() / 4294967296.0;
+  return (double)rand_uint() / 4294967296.0;
 }
 
 void rand_getstate(uint8_t *state){
