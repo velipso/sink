@@ -32,9 +32,9 @@ built-in unary and binary operators.
 | `num.NaN`           | Not-a-number value                                                        |
 | `num.isNaN a`       | Tests whether `a` is a NaN value                                          |
 | `num.isFinite a`    | Tests whether `a` is a finite value (i.e., not NaN or infinite)           |
-| `num.e`             | E  (2.718282...)                                                          |
-| `num.pi`            | Pi (3.141592...)                                                          |
-| `num.tau`           | Tau (2 * Pi = 6.283185...)                                                |
+| `num.e`             | *e*  (2.718282...)                                                        |
+| `num.pi`            | *pi* (3.141592...)                                                        |
+| `num.tau`           | *tau* (2 * *pi* = 6.283185...)                                            |
 | `num.sin a`         | Sine of `a` (radians)                                                     |
 | `num.cos a`         | Cosine of `a` (radians)                                                   |
 | `num.tan a`         | Tangent of `a` (radians)                                                  |
