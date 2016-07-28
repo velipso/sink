@@ -51,7 +51,7 @@ built-in unary and binary operators.
 | `num.lerp a, b, t`  | Linear interpolation from `a` to `b`, by amount `t`                       |
 | `num.hex a, b`      | Convert `a` to a hexadecimal string, 0-padded to length `b`               |
 | `num.oct a, b`      | Convert `a` to an octal string, 0-padded to length `b`                    |
-| `num.bin a, b       | Convert `a` to a binary string, 0-padded to length `b`                    |
+| `num.bin a, b`      | Convert `a` to a binary string, 0-padded to length `b`                    |
 
 Integer
 -------
