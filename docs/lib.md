@@ -49,9 +49,9 @@ built-in unary and binary operators.
 | `num.log10 a`       | Log base 10 of `a`                                                        |
 | `num.exp a`         | *e*<sup>`a`</sup>                                                         |
 | `num.lerp a, b, t`  | Linear interpolation from `a` to `b`, by amount `t`                       |
-| `num.hex a, b`      | Convert `a` to a sink hexadecimal string, 0-padded to length `b`          |
-| `num.oct a, b`      | Convert `a` to a sink octal string, 0-padded to length `b`                |
-| `num.bin a, b`      | Convert `a` to a sink binary string, 0-padded to length `b`               |
+| `num.hex a, b`      | Convert `a` to a sink hexadecimal string, 0-padded to `b` digits          |
+| `num.oct a, b`      | Convert `a` to a sink octal string, 0-padded to `b` digits                |
+| `num.bin a, b`      | Convert `a` to a sink binary string, 0-padded to `b` digits               |
 
 Integer
 -------
