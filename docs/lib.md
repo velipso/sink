@@ -10,6 +10,8 @@ results.
 |-------------------|-----------------------------------------------------------------------------|
 | `say a, ...`      | Output arguments to stdout (returns nil)                                    |
 | `ask a, ...`      | Prompt the user for input from stdin; returns the inputted string           |
+| `warn a, ...`     | Output arguments to stderr (returns nil)                                    |
+| `die a, ...`      | Output arguments to stderr and stop all execution                           |
 | `pick cond, a, b` | If `cond` is true, return `a`, otherwise return `b` (short-circuited)       |
 
 Number
@@ -47,6 +49,9 @@ built-in unary and binary operators.
 | `num.log10 a`       | Log base 10 of `a`                                                        |
 | `num.exp a`         | *e*<sup>`a`</sup>                                                         |
 | `num.lerp a, b, t`  | Linear interpolation from `a` to `b`, by amount `t`                       |
+| `num.hex a, b`      | Convert `a` to a hexadecimal string, 0-padded to length `b`               |
+| `num.oct a, b`      | Convert `a` to an octal string, 0-padded to length `b`                    |
+| `num.bin a, b       | Convert `a` to a binary string, 0-padded to length `b`                    |
 
 Integer
 -------
@@ -82,7 +87,7 @@ Random
 | `rand.seed a`     | Set the seed of the RNG to `a` (interpreted as a 32-bit unsigned integer)   |
 | `rand.seedauto`   | Set the seed of the RNG automatically (likely based on current time)        |
 | `rand.int`        | Random 32-bit unsigned integer ranging [0, 2<sup>32</sup> - 1]              |
-| `rand.num`        | Random number ranging [0, 1)                                                |
+| `rand.num`        | Random number ranging [0, 1) (contains 52 bits of randomness)               |
 | `rand.getstate`   | Returns an 8 byte string that is the entire RNG state                       |
 | `rand.setstate a` | Restores a previous state (`a` should be an 8 byte string)                  |
 | `rand.pick ls`    | Pick a random item out of the list `ls`                                     |
