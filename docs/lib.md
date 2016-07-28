@@ -79,7 +79,7 @@ Random
 
 | Function          | Description                                                                 |
 |-------------------|-----------------------------------------------------------------------------|
-| `rand.seed a`     | Set the seed of the RNG to `a` (interpretted as a 32-bit unsigned integer)  |
+| `rand.seed a`     | Set the seed of the RNG to `a` (interpreted as a 32-bit unsigned integer)   |
 | `rand.seedauto`   | Set the seed of the RNG automatically (likely based on current time)        |
 | `rand.int`        | Random 32-bit signed integer ranging [-2<sup>31</sup>, 2<sup>31</sup> - 1]  |
 | `rand.uint`       | Random 32-bit unsigned integer ranging [0, 2<sup>32</sup> - 1]              |
@@ -145,7 +145,7 @@ void rand_setstate(uint8_t *state){
 String
 ------
 
-Strings are 8-bit clean, and interpretted as binary data.  In cases where character meaning matters
+Strings are 8-bit clean, and interpreted as binary data.  In cases where character meaning matters
 (for example, `str.lower`), the algorithms interpret bytes 0-127 as defined by Unicode codepage 0,
 and ignore bytes 128-255.
 
