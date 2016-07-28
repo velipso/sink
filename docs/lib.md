@@ -180,8 +180,8 @@ Structured Data
 | Function             | Description                                                              |
 |----------------------|--------------------------------------------------------------------------|
 | `struct.size tpl`    | Calculate the length of string the template specifies (nil for invalid)  |
-| `struct.str tpl, ls` | Convert data in list `ls` to a string using `tpl` as the template        |
-| `struct.list tpl, s` | Convert string `s` to a list of data using `tpl` as the template         |
+| `struct.str ls, tpl` | Convert data in list `ls` to a string using `tpl` as the template        |
+| `struct.list s, tpl` | Convert string `s` to a list of data using `tpl` as the template         |
 
 ### Structure Templates
 
@@ -209,8 +209,6 @@ Template strings are case-insensitive, ignore whitespace, and can have the follo
 | `'FL64'` |    8 | N/A      | Little | `double`   |
 | `'FB32'` |    4 | N/A      | Big    | `float`    |
 | `'FB64'` |    8 | N/A      | Big    | `double`   |
-
-### Examples
 
 ```
 struct.str 'U8 U8', {0x41, 0x42}  # => 'AB'
