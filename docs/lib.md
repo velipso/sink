@@ -6,11 +6,11 @@ The standard library is available to all sink scripts, and is native to sink its
 execution.  These functions are available in all host environments, and always produce the same
 results.
 
-| Function                | Description                                                           |
-|-------------------------|-----------------------------------------------------------------------|
-| `say a, ...`            | Output arguments to stdout (returns nil)                              |
-| `ask a, ...`            | Prompt the user for input from stdin; returns the inputted string     |
-| `pick cond, a, b`       | If `cond` is true, return `a`, otherwise return `b` (short-circuited) |
+| Function          | Description                                                                 |
+|-------------------|-----------------------------------------------------------------------------|
+| `say a, ...`      | Output arguments to stdout (returns nil)                                    |
+| `ask a, ...`      | Prompt the user for input from stdin; returns the inputted string           |
+| `pick cond, a, b` | If `cond` is true, return `a`, otherwise return `b` (short-circuited)       |
 
 Number
 ------
@@ -57,22 +57,22 @@ signed 32-bit integers using the `int` namespace, with appropriate two's-complem
 Integer functions will operate on lists by performing the operation on each element, just like the
 built-in unary and binary operators.
 
-| Function          | Description                                                                 |
-|-------------------|-----------------------------------------------------------------------------|
-| `int.cast a`      | Cast `a` to an integer                                                      |
-| `int.not a`       | Bitwise NOT of `a`                                                          |
-| `int.and a, b`    | Bitwise AND between `a` and `b`                                             |
-| `int.or a, b`     | Bitwise OR between `a` and `b`                                              |
-| `int.xor a, b`    | Bitwise XOR between `a` and `b`                                             |
-| `int.shl a, b`    | Bit-shift left `a` by `b` bits                                              |
-| `int.shr a, b`    | Bit-shift right `a` by `b` bits (zero-fill shift)                           |
-| `int.sar a, b`    | Bit-shift right `a` by `b` bits (sign-extended shift)                       |
-| `int.add a, b`    | `a + b`                                                                     |
-| `int.sub a, b`    | `a - b`                                                                     |
-| `int.mul a, b`    | `a * b`                                                                     |
-| `int.div a, b`    | `a / b`                                                                     |
-| `int.mod a, b`    | `a % b`                                                                     |
-| `int.clz a`       | Count leading zeros                                                         |
+| Function       | Description                                                                    |
+|----------------|--------------------------------------------------------------------------------|
+| `int.cast a`   | Cast `a` to an integer                                                         |
+| `int.not a`    | Bitwise NOT of `a`                                                             |
+| `int.and a, b` | Bitwise AND between `a` and `b`                                                |
+| `int.or a, b`  | Bitwise OR between `a` and `b`                                                 |
+| `int.xor a, b` | Bitwise XOR between `a` and `b`                                                |
+| `int.shl a, b` | Bit-shift left `a` by `b` bits                                                 |
+| `int.shr a, b` | Bit-shift right `a` by `b` bits (zero-fill shift)                              |
+| `int.sar a, b` | Bit-shift right `a` by `b` bits (sign-extended shift)                          |
+| `int.add a, b` | `a + b`                                                                        |
+| `int.sub a, b` | `a - b`                                                                        |
+| `int.mul a, b` | `a * b`                                                                        |
+| `int.div a, b` | `a / b`                                                                        |
+| `int.mod a, b` | `a % b`                                                                        |
+| `int.clz a`    | Count leading zeros                                                            |
 
 Random
 ------
@@ -80,12 +80,12 @@ Random
 | Function          | Description                                                                 |
 |-------------------|-----------------------------------------------------------------------------|
 | `rand.seed a`     | Set the seed of the RNG to `a` (interpretted as a 32-bit unsigned integer)  |
-| `rand.seedauto`   | Set the seed of the RNG based on the current time in milliseconds           |
+| `rand.seedauto`   | Set the seed of the RNG automatically (likely based on current time)        |
 | `rand.int`        | Random 32-bit signed integer ranging [-2<sup>31</sup>, 2<sup>31</sup> - 1]  |
 | `rand.uint`       | Random 32-bit unsigned integer ranging [0, 2<sup>32</sup> - 1]              |
 | `rand.num`        | Random number ranging [0, 1)                                                |
-| `rand.getstate`   | Returns a two-item list of the current state of the RNG                     |
-| `rand.setstate a` | Restores a previous state (`a` should be a two-item list of 32-bit uints)   |
+| `rand.getstate`   | Returns an 8 byte string that is the entire RNG state                       |
+| `rand.setstate a` | Restores a previous state (`a` should be an 8 byte string)                  |
 | `rand.pick a`     | Pick a random item out of the list `a`                                      |
 | `rand.shuffle a`  | Shuffle the contents of list `a` in place                                   |
 
@@ -113,14 +113,28 @@ double rand_num(){
   return (double)rand_int() / 4294967296.0;
 }
 
-void rand_getstate(uint32_t *state){
-  state[0] = seed;
-  state[1] = i;
+void rand_getstate(uint8_t *state){
+  state[0] =  seed        % 256;
+  state[1] = (seed >>  8) % 256;
+  state[2] = (seed >> 16) % 256;
+  state[3] = (seed >> 24) % 256;
+  state[4] =  i           % 256;
+  state[5] = (i    >>  8) % 256;
+  state[6] = (i    >> 16) % 256;
+  state[7] = (i    >> 24) % 256;
 }
 
-void rand_setstate(uint32_t *state){
-  seed = state[0];
-  i = state[1];
+void rand_setstate(uint8_t *state){
+  seed =
+     state[0]        |
+    (state[1] <<  8) |
+    (state[2] << 16) |
+    (state[3] << 24);
+  i =
+     state[4]        |
+    (state[5] <<  8) |
+    (state[6] << 16) |
+    (state[7] << 24);
 }
 ```
 
@@ -131,22 +145,22 @@ Strings are 8-bit clean, and interpretted as binary data.  In cases where charac
 (for example, `str.lower`), the algorithms interpret bytes 0-127 as defined by Unicode codepage 0,
 and ignore bytes 128-255.
 
-| Function               | Description                                                            |
-|------------------------|------------------------------------------------------------------------|
-| `str.new a, b`         | Create a new string by repeating string `a` `b` times                  |
-| `str.split a, b`       | Split `a` into an array of strings based on separator `b`              |
-| `str.replace a, b, c`  | Replace all occurrences of `b` in string `a` with `c`                  |
-| `str.startsWith a, b`  | True if string `a` starts with string `b`; false otherwise             |
-| `str.endsWith a, b`    | True if string `a` ends with string `b`; false otherwise               |
-| `str.pad a, b`         | Pads string `a` with space until it is length `b` (`-b` to pad left)   |
-| `str.find a, b, c`     | Find `b` in string `a` starting at `c`; returns nil if not found       |
-| `str.findRev a, b, c`  | Find `b` in string `a` starting at `c` and searching in reverse        |
-| `str.lower a`          | Convert `a` to lowercase, ignoring bytes >= 128                        |
-| `str.upper a`          | Convert `a` to uppercase, ignoring bytes >= 128                        |
-| `str.trim a`           | Trim surrounding whitespace from `a`; bytes >= 128 considered non-white|
-| `str.rev a`            | Reverse `a`                                                            |
-| `str.list a`           | Convert a string to a list of bytes                                    |
-| `str.byte a, b`        | Unsigned byte from string `a` at index `b` (nil if out of range)       |
+| Function              | Description                                                             |
+|-----------------------|-------------------------------------------------------------------------|
+| `str.new a, b`        | Create a new string by repeating string `a` `b` times                   |
+| `str.split a, b`      | Split `a` into an array of strings based on separator `b`               |
+| `str.replace a, b, c` | Replace all occurrences of `b` in string `a` with `c`                   |
+| `str.startsWith a, b` | True if string `a` starts with string `b`; false otherwise              |
+| `str.endsWith a, b`   | True if string `a` ends with string `b`; false otherwise                |
+| `str.pad a, b`        | Pads string `a` with space until it is length `b` (`-b` to pad left)    |
+| `str.find a, b, c`    | Find `b` in string `a` starting at `c`; returns nil if not found        |
+| `str.findRev a, b, c` | Find `b` in string `a` starting at `c` and searching in reverse         |
+| `str.lower a`         | Convert `a` to lowercase, ignoring bytes >= 128                         |
+| `str.upper a`         | Convert `a` to uppercase, ignoring bytes >= 128                         |
+| `str.trim a`          | Trim surrounding whitespace from `a`; bytes >= 128 considered non-white |
+| `str.rev a`           | Reverse `a`                                                             |
+| `str.list a`          | Convert a string to a list of bytes                                     |
+| `str.byte a, b`       | Unsigned byte from string `a` at index `b` (nil if out of range)        |
 
 UTF-8
 -----
@@ -154,11 +168,57 @@ UTF-8
 The `utf8` library operates on strings (bytes), and only provides some basic functions for encoding
 and decoding.
 
-| Function               | Description                                                            |
-|------------------------|------------------------------------------------------------------------|
-| `utf8.valid a`         | Checks whether `a` is valid UTF-8 (`a` is string or list of codepoints)|
-| `utf8.list a`          | Converts string `a` (UTF-8 bytes) to a list of codepoints (integers)   |
-| `utf8.str a`           | Converts a list of codepoints (integers) `a` to a string (UTF-8 bytes) |
+| Function       | Description                                                                    |
+|----------------|--------------------------------------------------------------------------------|
+| `utf8.valid a` | Checks whether `a` is valid UTF-8 (`a` is string or list of codepoints)        |
+| `utf8.list a`  | Converts string `a` (UTF-8 bytes) to a list of codepoints (integers)           |
+| `utf8.str a`   | Converts a list of codepoints (integers) `a` to a string (UTF-8 bytes)         |
+
+Structured Data
+---------------
+
+| Function             | Description                                                              |
+|----------------------|--------------------------------------------------------------------------|
+| `struct.size tpl`    | Calculate the length of string the template specifies (nil for invalid)  |
+| `struct.str tpl, ls` | Convert data in list `ls` to a string using `tpl` as the template        |
+| `struct.list tpl, s` | Convert string `s` to a list of data using `tpl` as the template         |
+
+### Structure Templates
+
+Template strings are case-insensitive, ignore whitespace, and can have the following pieces:
+
+| Code     | Size | Signed?  | Endian | C Type     |
+|----------|------|----------|--------|------------|
+| `'U8'`   |    1 | Unsigned | N/A    | `uint8_t`  |
+| `'S8'`   |    1 | Signed   | N/A    | `int16_t`  |
+| `'U16'`  |    2 | Unsigned | Native | `uint16_t` |
+| `'S16'`  |    2 | Signed   | Native | `int16_t`  |
+| `'UL16'` |    2 | Unsigned | Little | `uint16_t` |
+| `'SL16'` |    2 | Signed   | Little | `int16_t`  |
+| `'UB16'` |    2 | Unsigned | Big    | `uint16_t` |
+| `'SB16'` |    2 | Signed   | Big    | `int16_t`  |
+| `'U32'`  |    4 | Unsigned | Native | `uint32_t` |
+| `'S32'`  |    4 | Signed   | Native | `int32_t`  |
+| `'UL32'` |    4 | Unsigned | Little | `uint32_t` |
+| `'SL32'` |    4 | Signed   | Little | `int32_t`  |
+| `'UB32'` |    4 | Unsigned | Big    | `uint32_t` |
+| `'SB32'` |    4 | Signed   | Big    | `int32_t`  |
+| `'F32'`  |    4 | N/A      | Native | `float`    |
+| `'F64'`  |    8 | N/A      | Native | `double`   |
+| `'FL32'` |    4 | N/A      | Little | `float`    |
+| `'FL64'` |    8 | N/A      | Little | `double`   |
+| `'FB32'` |    4 | N/A      | Big    | `float`    |
+| `'FB64'` |    8 | N/A      | Big    | `double`   |
+
+### Examples
+
+```
+struct.str 'U8 U8', {0x41, 0x42}  # => 'AB'
+struct.list 'UL32', 'AAAB'        # => { 0x42414141 }
+struct.list 'UB32', 'AAAB'        # => { 0x41414142 }
+struct.size 'F32 U8 S16'          # => 56
+struct.size 'hello'               # => () because template is invalid
+```
 
 List
 ----
@@ -166,6 +226,7 @@ List
 | Function                | Description                                                           |
 |-------------------------|-----------------------------------------------------------------------|
 | `list.new a, b`         | Create a new list of size `a`, with each element set to `b`           |
+| `list.empty ls`         | Empty list `ls`                                                       |
 | `list.find ls, a, b`    | Find `a` in list `ls` starting at `b`; returns nil if not found       |
 | `list.findRev ls, a, b` | Find `a` in list `ls` starting at `b` and searching in reverse        |
 | `list.join ls, a`       | Convert list `ls` to a string by joining elements with string `a`     |
@@ -202,11 +263,11 @@ The JSON library is not general purpose, and specifically works on a subset of J
 numbers, strings, null, and lists -- which means it can convert losslessly between JSON and sink
 values.
 
-| Function               | Description                                                            |
-|------------------------|------------------------------------------------------------------------|
-| `json.valid a`         | Checks whether `a` is a valid JSON string that can be converted to sink|
-| `json.str a`           | Converts any sink value `a` to a JSON string                           |
-| `json.val a`           | Converts a JSON string `a` to a sink value                             |
+| Function       | Description                                                                    |
+|----------------|--------------------------------------------------------------------------------|
+| `json.valid a` | Checks whether `a` is a valid JSON string that can be converted to sink        |
+| `json.str a`   | Converts any sink value `a` to a JSON string                                   |
+| `json.val a`   | Converts a JSON string `a` to a sink value                                     |
 
 ```
 json.str [1, ()]   # => '[1,null]'
