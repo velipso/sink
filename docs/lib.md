@@ -86,8 +86,8 @@ Random
 | `rand.num`        | Random number ranging [0, 1)                                                |
 | `rand.getstate`   | Returns an 8 byte string that is the entire RNG state                       |
 | `rand.setstate a` | Restores a previous state (`a` should be an 8 byte string)                  |
-| `rand.pick a`     | Pick a random item out of the list `a`                                      |
-| `rand.shuffle a`  | Shuffle the contents of list `a` in place                                   |
+| `rand.pick ls`    | Pick a random item out of the list `ls`                                     |
+| `rand.shuffle ls` | Shuffle the contents of list `ls` in place                                  |
 
 The random number generator is the same on all host environments, defined below.  It is fast,
 simple, and
