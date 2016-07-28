@@ -211,9 +211,9 @@ Template strings are case-insensitive, ignore whitespace, and can have the follo
 | `'FB64'` |    8 | N/A      | Big    | `double`   |
 
 ```
-struct.str 'U8 U8', {0x41, 0x42}  # => 'AB'
-struct.list 'UL32', 'AAAB'        # => { 0x42414141 }
-struct.list 'UB32', 'AAAB'        # => { 0x41414142 }
+struct.str {0x41, 0x42}, 'U8 U8'  # => 'AB'
+struct.list 'AAAB', 'UL32'        # => { 0x42414141 }
+struct.list 'AAAB', 'UB32'        # => { 0x41414142 }
 struct.size 'F32 U8 S16'          # => 56
 struct.size 'hello'               # => () because template is invalid
 ```
