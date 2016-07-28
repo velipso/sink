@@ -30,8 +30,6 @@ var OP_APPEND      = 0x10; // [TGT], [SRC1], [SRC2]
 var OP_PREPEND     = 0x11; // [TGT], [SRC1], [SRC2]
 var OP_LTE         = 0x12; // [TGT], [SRC1], [SRC2]
 var OP_LT          = 0x13; // [TGT], [SRC1], [SRC2]
-var OP_GTE         = 0x14; // [TGT], [SRC1], [SRC2]
-var OP_GT          = 0x15; // [TGT], [SRC1], [SRC2]
 var OP_NEQ         = 0x16; // [TGT], [SRC1], [SRC2]
 var OP_EQU         = 0x17; // [TGT], [SRC1], [SRC2]
 var OP_GETAT       = 0x18; // [TGT], [SRC1], [SRC2]
@@ -46,7 +44,7 @@ var OP_POP         = 0x20; // [TGT], [SRC]
 var OP_ISNUM       = 0x21; // [TGT], [SRC]
 var OP_ISSTR       = 0x22; // [TGT], [SRC]
 var OP_ISLIST      = 0x23; // [TGT], [SRC]
-var OP_LIST        = 0x24; // [TGT]
+var OP_LIST        = 0x24; // [TGT], HINT
 var OP_JUMP        = 0x25; // [[LOCATION]]
 var OP_RETURN      = 0x26; // [SRC]
 var OP_CALL        = 0x27; // [TGT], [SRC], [[LOCATION]]
@@ -137,6 +135,20 @@ function op_unop(b, opcode, tgt, src){
 }
 
 function op_binop(b, opcode, tgt, src1, src2){
+	// rewire GT to LT and GTE to LTE
+	if (opcode == 0x100){ // GT
+		opcode = OP_LT;
+		var t = src1;
+		src1 = src2;
+		src2 = t;
+	}
+	else if (opcode == 0x101){ // GTE
+		opcode = OP_LTE;
+		var t = src1;
+		src1 = src2;
+		src2 = t;
+	}
+
 	var opstr = '???';
 	if      (opcode == OP_ADD    ) opstr = 'ADD';
 	else if (opcode == OP_SUB    ) opstr = 'SUB';
@@ -145,10 +157,8 @@ function op_binop(b, opcode, tgt, src1, src2){
 	else if (opcode == OP_DIV    ) opstr = 'DIV';
 	else if (opcode == OP_POW    ) opstr = 'POW';
 	else if (opcode == OP_LT     ) opstr = 'LT';
-	else if (opcode == OP_GT     ) opstr = 'GT';
 	else if (opcode == OP_CAT    ) opstr = 'CAT';
 	else if (opcode == OP_LTE    ) opstr = 'LTE';
-	else if (opcode == OP_GTE    ) opstr = 'GTE';
 	else if (opcode == OP_NEQ    ) opstr = 'NEQ';
 	else if (opcode == OP_EQU    ) opstr = 'EQU';
 	else if (opcode == OP_PUSH   ) opstr = 'PUSH';
@@ -188,9 +198,11 @@ function op_slice(b, tgt, src1, src2, src3){
 		src3.fdiff, src3.index);
 }
 
-function op_list(b, tgt){
-	console.log('> LIST ' + tgt.fdiff + ':' + tgt.index);
-	b.push(OP_LIST, tgt.fdiff, tgt.index);
+function op_list(b, tgt, hint){
+	if (hint > 255)
+		hint = 255;
+	console.log('> LIST ' + tgt.fdiff + ':' + tgt.index + ', ' + hint);
+	b.push(OP_LIST, tgt.fdiff, tgt.index, hint);
 }
 
 function op_jump(b, index){
@@ -477,10 +489,10 @@ function ks_toBinaryOp(k){
 	else if (k == KS_SLASH  ) return OP_DIV;
 	else if (k == KS_CARET  ) return OP_POW;
 	else if (k == KS_LT     ) return OP_LT;
-	else if (k == KS_GT     ) return OP_GT;
+	else if (k == KS_GT     ) return 0x100;
 	else if (k == KS_TILDE  ) return OP_CAT;
 	else if (k == KS_LTEQU  ) return OP_LTE;
-	else if (k == KS_GTEQU  ) return OP_GTE;
+	else if (k == KS_GTEQU  ) return 0x101;
 	else if (k == KS_BANGEQU) return OP_NEQ;
 	else if (k == KS_EQU2   ) return OP_EQU;
 	return -1;
@@ -3601,9 +3613,9 @@ function program_evalInto(prg, sym, vlc, ex){
 		} break;
 
 		case EXPR_LIST: {
-			op_list(prg.ops, vlc);
 			if (ex.ex != null){
 				if (ex.ex.type == EXPR_GROUP){
+					op_list(prg.ops, vlc, ex.ex.group.length);
 					for (var i = 0; i < ex.ex.group.length; i++){
 						var pr = program_eval(prg, sym, ex.ex.group[i], false);
 						if (pr.type == PER_ERROR)
@@ -3613,6 +3625,7 @@ function program_evalInto(prg, sym, vlc, ex){
 					}
 				}
 				else{
+					op_list(prg.ops, vlc, 1);
 					var pr = program_eval(prg, sym, ex.ex, false);
 					if (pr.type == PER_ERROR)
 						return pir_error(pr.flp, pr.msg);
@@ -3620,6 +3633,8 @@ function program_evalInto(prg, sym, vlc, ex){
 					op_binop(prg.ops, OP_PUSH, vlc, vlc, pr.vlc);
 				}
 			}
+			else
+				op_list(prg.ops, vlc, 0);
 			return pir_ok();
 		} break;
 
