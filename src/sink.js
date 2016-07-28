@@ -313,6 +313,7 @@ var KS_PERCENT    = 'KS_PERCENT';
 var KS_STAR       = 'KS_STAR';
 var KS_SLASH      = 'KS_SLASH';
 var KS_CARET      = 'KS_CARET';
+var KS_AT         = 'KS_AT';
 var KS_AMP        = 'KS_AMP';
 var KS_LT         = 'KS_LT';
 var KS_GT         = 'KS_GT';
@@ -379,6 +380,7 @@ function ks_char(c){
 	else if (c == '*') return KS_STAR;
 	else if (c == '/') return KS_SLASH;
 	else if (c == '^') return KS_CARET;
+	else if (c == '@') return KS_AT;
 	else if (c == '&') return KS_AMP;
 	else if (c == '<') return KS_LT;
 	else if (c == '>') return KS_GT;
@@ -572,6 +574,7 @@ function tok_isMid(tk, allowComma, allowPipe){
 			tk.k == KS_SLASHEQU   ||
 			tk.k == KS_CARET      ||
 			tk.k == KS_CARETEQU   ||
+			tk.k == KS_AT         ||
 			tk.k == KS_LT         ||
 			tk.k == KS_LTEQU      ||
 			tk.k == KS_GT         ||
@@ -627,14 +630,15 @@ function tok_midPrecedence(tk){
 	else if (k == KS_TILDE2PLUS) return  5;
 	else if (k == KS_PLUSTILDE2) return  5;
 	else if (k == KS_TILDE     ) return  6;
-	else if (k == KS_LTEQU     ) return  7;
-	else if (k == KS_LT        ) return  7;
-	else if (k == KS_GTEQU     ) return  7;
-	else if (k == KS_GT        ) return  7;
-	else if (k == KS_BANGEQU   ) return  8;
-	else if (k == KS_EQU2      ) return  8;
-	else if (k == KS_AMP2      ) return  9;
-	else if (k == KS_PIPE2     ) return 10;
+	else if (k == KS_AT        ) return  7;
+	else if (k == KS_LTEQU     ) return  8;
+	else if (k == KS_LT        ) return  8;
+	else if (k == KS_GTEQU     ) return  8;
+	else if (k == KS_GT        ) return  8;
+	else if (k == KS_BANGEQU   ) return  9;
+	else if (k == KS_EQU2      ) return  9;
+	else if (k == KS_AMP2      ) return 10;
+	else if (k == KS_PIPE2     ) return 11;
 	else if (k == KS_EQU       ) return 20;
 	else if (k == KS_PLUSEQU   ) return 20;
 	else if (k == KS_PERCENTEQU) return 20;
@@ -3243,7 +3247,7 @@ function pce_error(flp, msg){
 	return { type: PCE_ERROR, flp: flp, msg: msg };
 }
 
-function program_callEval(prg, sym, vlc, nsn, params, flp){
+function program_callEval(prg, sym, vlc, nsn, params, atvlc, flp){
 	// params can be null to indicate emptiness
 	if (nsn.type == NSN_CMD_OPCODE && nsn.opcode == -1){ // short-circuit `pick`
 		if (params == null || params.type != EXPR_GROUP || params.group.length != 3)
@@ -3268,30 +3272,39 @@ function program_callEval(prg, sym, vlc, nsn, params, flp){
 
 	switch (nsn.type){
 		case NSN_CMD_LOCAL: {
-			var pr = program_eval(prg, sym, expr_list(flp, params), false);
-			if (pr.type == PER_ERROR)
-				return pce_error(pr.flp, pr.msg);
-			symtbl_clearTemp(sym, pr.vlc);
-			label_call(nsn.lbl, prg.ops, vlc, pr.vlc);
+			if (atvlc == null){
+				var pr = program_eval(prg, sym, expr_list(flp, params), false);
+				if (pr.type == PER_ERROR)
+					return pce_error(pr.flp, pr.msg);
+				symtbl_clearTemp(sym, pr.vlc);
+				atvlc = pr.vlc;
+			}
+			label_call(nsn.lbl, prg.ops, vlc, atvlc);
 			return pce_ok();
 		} break;
 
 		case NSN_CMD_NATIVE: {
-			var pr = program_eval(prg, sym, expr_list(flp, params), false);
-			if (pr.type == PER_ERROR)
-				return pce_error(pr.flp, pr.msg);
-			symtbl_clearTemp(sym, pr.vlc);
-			op_native(prg.ops, vlc, pr.vlc, nsn.index);
+			if (atvlc == null){
+				var pr = program_eval(prg, sym, expr_list(flp, params), false);
+				if (pr.type == PER_ERROR)
+					return pce_error(pr.flp, pr.msg);
+				symtbl_clearTemp(sym, pr.vlc);
+				atvlc = pr.vlc;
+			}
+			op_native(prg.ops, vlc, atvlc, nsn.index);
 			return pce_ok();
 		} break;
 
 		case NSN_CMD_OPCODE:
 			if (nsn.params == -1){ // variable arguments
-				var pr = program_eval(prg, sym, expr_list(flp, params), false);
-				if (pr.type == PER_ERROR)
-					return pce_error(pr.flp, pr.msg);
-				symtbl_clearTemp(sym, pr.vlc);
-				op_param1(prg.ops, nsn.opcode, vlc, pr.vlc);
+				if (atvlc == null){
+					var pr = program_eval(prg, sym, expr_list(flp, params), false);
+					if (pr.type == PER_ERROR)
+						return pce_error(pr.flp, pr.msg);
+					symtbl_clearTemp(sym, pr.vlc);
+					atvlc = pr.vlc;
+				}
+				op_param1(prg.ops, nsn.opcode, vlc, atvlc);
 				return pce_ok();
 			}
 			else if (nsn.params == 0){
@@ -3306,9 +3319,17 @@ function program_callEval(prg, sym, vlc, nsn, params, flp){
 			else if (nsn.params == 1){
 				var p1;
 				if (params == null){
-					p1 = symtbl_addTemp(sym);
-					symtbl_clearTemp(p1);
-					op_nil(prg.ops, p1);
+					if (atvlc == null){
+						p1 = symtbl_addTemp(sym);
+						symtbl_clearTemp(sym, p1);
+						op_nil(prg.ops, p1);
+					}
+					else{
+						p1 = symtbl_addTemp(sym);
+						symtbl_clearTemp(sym, p1);
+						op_num(prg.ops, p1, 0);
+						op_getat(prg.ops, p1, atvlc, p1);
+					}
 				}
 				else{
 					var pr = program_eval(prg, sym, params, false);
@@ -3323,9 +3344,19 @@ function program_callEval(prg, sym, vlc, nsn, params, flp){
 			else if (nsn.params == 2){
 				var p1, p2;
 				if (params == null){
-					p1 = symtbl_addTemp(sym);
-					op_nil(prg.ops, p1);
-					p2 = p1;
+					if (atvlc == null){
+						p1 = symtbl_addTemp(sym);
+						op_nil(prg.ops, p1);
+						p2 = p1;
+					}
+					else{
+						p1 = symtbl_addTemp(sym);
+						p2 = symtbl_addTemp(sym);
+						op_num(prg.ops, p1, 0);
+						op_getat(prg.ops, p1, atvlc, p1);
+						op_num(prg.ops, p2, 1);
+						op_getat(prg.ops, p2, atvlc, p2);
+					}
 				}
 				else if (params.type == EXPR_GROUP){
 					var pr = program_eval(prg, sym, params.group[0], false);
@@ -3358,9 +3389,22 @@ function program_callEval(prg, sym, vlc, nsn, params, flp){
 			else if (nsn.params == 3){
 				var p1, p2, p3;
 				if (params == null){
-					p1 = symtbl_addTemp(sym);
-					op_nil(prg.ops, p1);
-					p2 = p3 = p1;
+					if (atvlc == null){
+						p1 = symtbl_addTemp(sym);
+						op_nil(prg.ops, p1);
+						p2 = p3 = p1;
+					}
+					else{
+						p1 = symtbl_addTemp(sym);
+						p2 = symtbl_addTemp(sym);
+						p3 = symtbl_addTemp(sym);
+						op_num(prg.ops, p1, 0);
+						op_getat(prg.ops, p1, atvlc, p1);
+						op_num(prg.ops, p2, 1);
+						op_getat(prg.ops, p2, atvlc, p2);
+						op_num(prg.ops, p3, 2);
+						op_getat(prg.ops, p3, atvlc, p3);
+					}
 				}
 				else if (params.type == EXPR_GROUP){
 					var pr = program_eval(prg, sym, params.group[0], false);
@@ -3592,7 +3636,7 @@ function program_evalInto(prg, sym, vlc, ex){
 				case NSN_CMD_LOCAL:
 				case NSN_CMD_NATIVE:
 				case NSN_CMD_OPCODE: {
-					var pe = program_callEval(prg, sym, vlc, sl.nsn, null, ex.flp);
+					var pe = program_callEval(prg, sym, vlc, sl.nsn, null, null, ex.flp);
 					if (pe.type == PCE_ERROR)
 						return pir_error(pe.flp, pe.msg);
 					return pir_ok();
@@ -3669,6 +3713,21 @@ function program_evalInto(prg, sym, vlc, ex){
 					return program_evalLvalueInto(prg, sym, vlc, lv, mutop, pr.vlc);
 				}
 			}
+			else if (ex.k == KS_AT){
+				if (ex.left.type != EXPR_NAMES)
+					return pir_error(ex.flp, 'Invalid call');
+				var sl = symtbl_lookup(sym, ex.left.names);
+				if (sl.type == STL_ERROR)
+					return pir_error(ex.flp, sl.msg);
+				var pr = program_eval(prg, sym, ex.right, false);
+				if (pr.type == PER_ERROR)
+					return pir_error(pr.flp, pr.msg);
+				var pe = program_callEval(prg, sym, vlc, sl.nsn, null, pr.vlc, ex.flp);
+				if (pe.type == PCE_ERROR)
+					return pir_error(pe.flp, pe.msg);
+				symtbl_clearTemp(sym, pr.vlc);
+				return pir_ok();
+			}
 			else if (ex.k == KS_AMP2){
 				var pr = program_evalInto(prg, sym, vlc, ex.left);
 				if (pr.type == PIR_ERROR)
@@ -3700,7 +3759,7 @@ function program_evalInto(prg, sym, vlc, ex){
 				throw 'TODO: PIPE equal';
 			}
 
-			return pir_error('Invalid operation');
+			return pir_error(ex.flp, 'Invalid operation');
 		} break;
 
 		case EXPR_CALL: {
@@ -3709,7 +3768,7 @@ function program_evalInto(prg, sym, vlc, ex){
 			var sl = symtbl_lookup(sym, ex.cmd.names);
 			if (sl.type == STL_ERROR)
 				return pir_error(ex.flp, sl.msg);
-			var pe = program_callEval(prg, sym, vlc, sl.nsn, ex.params, ex.flp);
+			var pe = program_callEval(prg, sym, vlc, sl.nsn, ex.params, null, ex.flp);
 			if (pe.type == PCE_ERROR)
 				return pir_error(pe.flp, pe.msg);
 			return pir_ok();
@@ -4046,7 +4105,7 @@ function program_evalEmpty(prg, sym, ex){
 			case NSN_CMD_OPCODE: {
 				var t = symtbl_addTemp(sym);
 				symtbl_clearTemp(sym, t);
-				var pr = program_callEval(prg, sym, t, sl.nsn, null, ex.flp);
+				var pr = program_callEval(prg, sym, t, sl.nsn, null, null, ex.flp);
 				if (pr.type == PCE_ERROR)
 					return pem_error(pr.flp, pr.msg);
 				return pem_ok();
