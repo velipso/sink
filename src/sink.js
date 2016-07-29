@@ -3460,20 +3460,46 @@ function program_callEval(prg, sym, vlc, nsn, params, atvlc, flp){
 
 		case NSN_CMD_OPCODE:
 			if (nsn.params == -1){ // variable arguments
+				var empty = 0;
 				if (atvlc == null){
+					if (params == null || (params.type == EXPR_GROUP && params.group.length == 0))
+						empty = 1;
 					var pr = program_eval(prg, sym, expr_list(flp, params), false);
 					if (pr.type == PER_ERROR)
 						return pce_error(pr.flp, pr.msg);
 					symtbl_clearTemp(sym, pr.vlc);
 					atvlc = pr.vlc;
 				}
-				if (nsn.opcode == 0x102){ // exit
-					op_param1(prg.ops, OP_SAY, vlc, atvlc);
-					op_exitpass(prg.ops);
-				}
-				if (nsn.opcode == 0x103){ // abort
-					op_param1(prg.ops, OP_WARN, vlc, atvlc);
-					op_exitfail(prg.ops);
+				else
+					empty = 2;
+				if (nsn.opcode == 0x102 || nsn.opcode == 0x103){ // exit/abort
+					if (empty == 0){
+						// there are arguments, detected statically
+						op_param1(prg.ops, nsn.opcode == 0x102 ? OP_SAY : OP_WARN, vlc, atvlc);
+					}
+					else if (empty == 1)
+						/* do nothing, there are no arguments, detected statically */;
+					else if (empty == 2){
+						// there might be arguments... check atvlc at runtime
+						var pr = program_eval(prg, sym,
+							expr_prefix(flp, KS_AMP, expr_var(flp, atvlc)), false);
+						if (pr.type == PER_ERROR)
+							return pce_error(pr.flp, pr.msg);
+						var p2 = program_eval(prg, sym, expr_num(flp, 0), false);
+						if (p2.type == PER_ERROR)
+							return pce_error(p2.flp, p2.msg);
+						op_binop(prg.ops, OP_LT, p2.vlc, p2.vlc, pr.vlc);
+						var lbl = label_new('%skiplastout');
+						label_jumpFalse(lbl, prg.ops, p2.vlc);
+						op_param1(prg.ops, nsn.opcode == 0x102 ? OP_SAY : OP_WARN, vlc, atvlc);
+						label_declare(lbl, prg.ops);
+						symtbl_clearTemp(sym, pr.vlc);
+						symtbl_clearTemp(sym, p2.vlc);
+					}
+					if (nsn.opcode == 0x102)
+						op_exitpass(prg.ops);
+					else
+						op_exitfail(prg.ops);
 				}
 				else
 					op_param1(prg.ops, nsn.opcode, vlc, atvlc);
@@ -3733,13 +3759,7 @@ function pir_error(flp, msg){
 }
 
 function str_equ(s1, s2){
-	if (s1.length != s2.length)
-		return false;
-	for (var i = 0; i < s1.length; i++){
-		if (s1[i] != s2[i])
-			return false;
-	}
-	return true;
+	return s1 === s2;
 }
 
 function program_evalLvalueInto(prg, sym, vlc, lv, mutop, exvlc){
@@ -4897,14 +4917,22 @@ function program_gen(prg, sym, stmt){
 		} break;
 
 		case AST_LABEL: {
+			var lbl;
+			var found = false;
 			for (var i = 0; i < sym.fr.lbls.length; i++){
-				var lbl = sym.fr.lbls[i];
-				if (lbl.name == stmt.ident)
-					return pgr_error(stmt.flp, 'Cannot redclare label "' + stmt.ident + '"');
+				lbl = sym.fr.lbls[i];
+				if (lbl.name == stmt.ident){
+					if (lbl.pos >= 0)
+						return pgr_error(stmt.flp, 'Cannot redeclare label "' + stmt.ident + '"');
+					found = true;
+					break;
+				}
 			}
-			var lbl = label_new(stmt.ident);
+			if (!found){
+				lbl = label_new(stmt.ident);
+				sym.fr.lbls.push(lbl);
+			}
 			label_declare(lbl, prg.ops);
-			sym.fr.lbls.push(lbl);
 			return pgr_ok();
 		} break;
 	}
@@ -5056,6 +5084,23 @@ function oper_tri(a, b, c, func){
 		return ret;
 	}
 	return func(a, b, c);
+}
+
+function str_cmp(a, b){
+	var m = Math.min(a.length, b.length);
+	for (var i = 0; i < m; i++){
+		var c1 = a.charCodeAt(i);
+		var c2 = b.charCodeAt(i);
+		if (c1 < c2)
+			return -1;
+		else if (c2 < c1)
+			return 1;
+	}
+	if (a.length < b.length)
+		return -1;
+	else if (b.length < a.length)
+		return 1;
+	return 0;
 }
 
 function context_result(ctx, cr, val){
@@ -5337,19 +5382,83 @@ function context_run(ctx){
 			} break;
 
 			case OP_LT             : { // [TGT], [SRC1], [SRC2]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				ctx.pc++;
+				A = ops[ctx.pc++]; B = ops[ctx.pc++];
+				C = ops[ctx.pc++]; D = ops[ctx.pc++];
+				E = ops[ctx.pc++]; F = ops[ctx.pc++];
+				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
+					return crr_invalid();
+				X = var_get(ctx, C, D);
+				Y = var_get(ctx, E, F);
+				if (var_isnum(X) && var_isnum(Y))
+					var_set(ctx, A, B, X < Y ? 1 : null);
+				else if (var_isstr(X) && var_isstr(Y))
+					var_set(ctx, A, B, str_cmp(X, Y) < 0 ? 1 : null);
+				else{
+					ctx.failed = true;
+					return crr_warn(['Expecting numbers or strings']);
+				}
 			} break;
 
 			case OP_LTE            : { // [TGT], [SRC1], [SRC2]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				ctx.pc++;
+				A = ops[ctx.pc++]; B = ops[ctx.pc++];
+				C = ops[ctx.pc++]; D = ops[ctx.pc++];
+				E = ops[ctx.pc++]; F = ops[ctx.pc++];
+				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
+					return crr_invalid();
+				X = var_get(ctx, C, D);
+				Y = var_get(ctx, E, F);
+				if (var_isnum(X) && var_isnum(Y))
+					var_set(ctx, A, B, X <= Y ? 1 : null);
+				else if (var_isstr(X) && var_isstr(Y))
+					var_set(ctx, A, B, str_cmp(X, Y) <= 0 ? 1 : null);
+				else{
+					ctx.failed = true;
+					return crr_warn(['Expecting numbers or strings']);
+				}
 			} break;
 
 			case OP_NEQ            : { // [TGT], [SRC1], [SRC2]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				ctx.pc++;
+				A = ops[ctx.pc++]; B = ops[ctx.pc++];
+				C = ops[ctx.pc++]; D = ops[ctx.pc++];
+				E = ops[ctx.pc++]; F = ops[ctx.pc++];
+				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
+					return crr_invalid();
+				X = var_get(ctx, C, D);
+				Y = var_get(ctx, E, F);
+				if (X == null && Y == null)
+					var_set(ctx, A, B, null);
+				else if (var_isnum(X) && var_isnum(Y))
+					var_set(ctx, A, B, X == Y ? null : 1);
+				else if (var_isstr(X) && var_isstr(Y))
+					var_set(ctx, A, B, str_cmp(X, Y) == 0 ? null : 1);
+				else if (var_islist(X) && var_islist(Y))
+					var_set(ctx, A, B, X === Y ? null : 1);
+				else
+					var_set(ctx, A, B, 1);
 			} break;
 
 			case OP_EQU            : { // [TGT], [SRC1], [SRC2]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				ctx.pc++;
+				A = ops[ctx.pc++]; B = ops[ctx.pc++];
+				C = ops[ctx.pc++]; D = ops[ctx.pc++];
+				E = ops[ctx.pc++]; F = ops[ctx.pc++];
+				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
+					return crr_invalid();
+				X = var_get(ctx, C, D);
+				Y = var_get(ctx, E, F);
+				if (X == null && Y == null)
+					var_set(ctx, A, B, 1);
+				else if (var_isnum(X) && var_isnum(Y))
+					var_set(ctx, A, B, X == Y ? 1 : null);
+				else if (var_isstr(X) && var_isstr(Y))
+					var_set(ctx, A, B, str_cmp(X, Y) == 0 ? 1 : null);
+				else if (var_islist(X) && var_islist(Y))
+					var_set(ctx, A, B, X === Y ? 1 : null);
+				else
+					var_set(ctx, A, B, null);
 			} break;
 
 			case OP_GETAT          : { // [TGT], [SRC1], [SRC2]
@@ -5369,15 +5478,49 @@ function context_run(ctx){
 			} break;
 
 			case OP_JUMP           : { // [[LOCATION]]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				ctx.pc++;
+				A = ops[ctx.pc++]; B = ops[ctx.pc++];
+				C = ops[ctx.pc++]; D = ops[ctx.pc++];
+				A = A + (B << 8) + (C << 16) + ((D << 23) * 2);
+				if (ctx.prg.repl && A == 0xFFFFFFFF){
+					ctx.pc -= 5;
+					return crr_repl();
+				}
+				ctx.pc = A;
 			} break;
 
 			case OP_JUMPTRUE       : { // [SRC], [[LOCATION]]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				ctx.pc++;
+				A = ops[ctx.pc++]; B = ops[ctx.pc++];
+				C = ops[ctx.pc++]; D = ops[ctx.pc++];
+				E = ops[ctx.pc++]; F = ops[ctx.pc++];
+				if (A > ctx.lexIndex)
+					return crr_invalid();
+				C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
+				if (var_get(ctx, A, B) != null){
+					if (ctx.prg.repl && C == 0xFFFFFFFF){
+						ctx.pc -= 7;
+						return crr_repl();
+					}
+					ctx.pc = C;
+				}
 			} break;
 
 			case OP_JUMPFALSE      : { // [SRC], [[LOCATION]]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				ctx.pc++;
+				A = ops[ctx.pc++]; B = ops[ctx.pc++];
+				C = ops[ctx.pc++]; D = ops[ctx.pc++];
+				E = ops[ctx.pc++]; F = ops[ctx.pc++];
+				if (A > ctx.lexIndex)
+					return crr_invalid();
+				C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
+				if (var_get(ctx, A, B) == null){
+					if (ctx.prg.repl && C == 0xFFFFFFFF){
+						ctx.pc -= 7;
+						return crr_repl();
+					}
+					ctx.pc = C;
+				}
 			} break;
 
 			case OP_CALL           : { // [TGT], [SRC], [[LOCATION]]
@@ -6024,13 +6167,11 @@ module.exports = {
 						}
 						else if (cr.type == CRR_SAY){
 							// TODO: perform an actual sink_tostr or something
-							if (cr.args.length > 0)
-								console.log.apply(console, cr.args);
+							console.log.apply(console, cr.args);
 						}
 						else if (cr.type == CRR_WARN){
 							// TODO: perform an actual sink_tostr or something
-							if (cr.args.length > 0)
-								console.error.apply(console, cr.args);
+							console.error.apply(console, cr.args);
 						}
 						else{
 							console.log('cr', cr);
