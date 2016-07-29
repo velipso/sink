@@ -5019,23 +5019,28 @@ function var_islist(val){
 var var_tostr_marker = 0;
 function var_tostr(v){
 	var m = var_tostr_marker++;
-	function tos(v){
+	function tos(v, first){
 		if (v == null)
 			return 'nil';
-		else if (var_isnum(v))
+		else if (var_isnum(v)){
+			if (v == Infinity)
+				return 'inf';
+			else if (v == -Infinity)
+				return '-inf';
 			return '' + v;
+		}
 		else if (var_isstr(v))
-			return v;
+			return first ? v : '\'' + v + '\'';
 		// otherwise, list
 		if (v.tostr_marker == m)
 			return '{circular}';
 		v.tostr_marker = m;
 		var out = [];
 		for (var i = 0; i < v.length; i++)
-			out.push(tos(v[i]));
+			out.push(tos(v[i], false));
 		return '{' + out.join(', ') + '}';
 	}
-	return tos(v);
+	return tos(v, true);
 }
 
 function arget(ar, index){
@@ -5072,7 +5077,7 @@ function oper_isnilnumstr(a){
 	return a == null || var_isnum(a) || var_isstr(a);
 }
 
-function oper_una(a, func){
+function oper_un(a, func){
 	if (var_islist(a)){
 		var ret = [];
 		for (var i = 0; i < a.length; i++)
@@ -5181,6 +5186,84 @@ var polyfill = (function(){
 	};
 })();
 
+var lib_num_max_marker = 0;
+function lib_num_max(v){
+	var m = lib_num_max_marker++;
+	function mx(v){
+		if (v.lib_num_max_marker == m)
+			return null;
+		v.lib_num_max_marker = m;
+		var max = null;
+		for (var i = 0; i < v.length; i++){
+			if (var_isnum(v[i])){
+				if (max == null || v[i] > max)
+					max = v[i];
+			}
+			else if (var_islist(v[i])){
+				var lm = mx(v[i]);
+				if (lm != null && (max == null || lm > max))
+					max = lm;
+			}
+		}
+		return max;
+	}
+	return mx(v);
+}
+
+var lib_num_min_marker = 0;
+function lib_num_min(v){
+	var m = lib_num_min_marker++;
+	function mn(v){
+		if (v.lib_num_min_marker == m)
+			return null;
+		v.lib_num_min_marker = m;
+		var min = null;
+		for (var i = 0; i < v.length; i++){
+			if (var_isnum(v[i])){
+				if (min == null || v[i] < min)
+					min = v[i];
+			}
+			else if (var_islist(v[i])){
+				var lm = mn(v[i]);
+				if (lm != null && (min == null || lm < min))
+					min = lm;
+			}
+		}
+		return min;
+	}
+	return mn(v);
+}
+
+function lib_num_base(num, len, base){
+	var digits = '0123456789ABCDEF';
+	var neg = '';
+	if (num < 0){
+		neg = '-'
+		num = -num;
+	}
+	var body = '';
+	var nint = Math.floor(num);
+	var nfra = num - nint;
+	while (nint > 0){
+		body = digits.charAt(nint % base) + body;
+		nint = Math.floor(nint / base);
+	}
+	while (body.length < len)
+		body = '0' + body;
+	if (nfra != 0){
+		body += '.';
+		var i = 0;
+		while (nfra > 0.00001 && i < 16){
+			nfra *= base;
+			nint = Math.floor(nfra);
+			body += digits.charAt(nint);
+			nfra -= nint;
+			i++;
+		}
+	}
+	return neg + (base == 16 ? '0x' : (base == 8 ? '0c' : '0b')) + body;
+}
+
 function context_run(ctx){
 	if (ctx.failed)
 		return crr_exitfail();
@@ -5197,11 +5280,13 @@ function context_run(ctx){
 		if (A > ctx.lexIndex || C > ctx.lexIndex)
 			return crr_invalid();
 		X = var_get(ctx, C, D);
+		if (X == null)
+			X = 0;
 		if (!oper_isnum(X)){
 			ctx.failed = true;
 			return crr_warn(['Expecting number or list of numbers when ' + erop]);
 		}
-		var_set(ctx, A, B, oper_una(X, func));
+		var_set(ctx, A, B, oper_un(X, func));
 		return false;
 	}
 
@@ -5213,16 +5298,53 @@ function context_run(ctx){
 		if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
 			return crr_invalid();
 		X = var_get(ctx, C, D);
+		if (X == null)
+			X = 0;
 		if (!oper_isnum(X)){
 			ctx.failed = true;
 			return crr_warn(['Expecting number or list of numbers when ' + erop]);
 		}
 		Y = var_get(ctx, E, F);
+		if (Y == null)
+			Y = 0;
 		if (!oper_isnum(Y)){
 			ctx.failed = true;
 			return crr_warn(['Expecting number or list of numbers when ' + erop]);
 		}
 		var_set(ctx, A, B, oper_bin(X, Y, func));
+		return false;
+	}
+
+	function inline_triop(func, erop){
+		ctx.pc++;
+		A = ops[ctx.pc++]; B = ops[ctx.pc++];
+		C = ops[ctx.pc++]; D = ops[ctx.pc++];
+		E = ops[ctx.pc++]; F = ops[ctx.pc++];
+		G = ops[ctx.pc++]; H = ops[ctx.pc++];
+		if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
+			return crr_invalid();
+		X = var_get(ctx, C, D);
+		if (X == null)
+			X = 0;
+		if (!oper_isnum(X)){
+			ctx.failed = true;
+			return crr_warn(['Expecting number or list of numbers when ' + erop]);
+		}
+		Y = var_get(ctx, E, F);
+		if (Y == null)
+			Y = 0;
+		if (!oper_isnum(Y)){
+			ctx.failed = true;
+			return crr_warn(['Expecting number or list of numbers when ' + erop]);
+		}
+		Z = var_get(ctx, G, H);
+		if (Z == null)
+			Z = 0;
+		if (!oper_isnum(Z)){
+			ctx.failed = true;
+			return crr_warn(['Expecting number or list of numbers when ' + erop]);
+		}
+		var_set(ctx, A, B, oper_tri(X, Y, Z, func));
 		return false;
 	}
 
@@ -5363,7 +5485,7 @@ function context_run(ctx){
 					ctx.failed = true;
 					return crr_warn(['Expecting string when converting to number']);
 				}
-				var_set(ctx, A, B, oper_una(X,
+				var_set(ctx, A, B, oper_un(X,
 					function(a){
 						if (var_isnum(a))
 							return a;
@@ -5878,7 +6000,7 @@ function context_run(ctx){
 				X = var_get(ctx, C, D);
 				if (!var_islist(X)){
 					ctx.failed = true;
-					return crr_warn(['Expecting list']);
+					return crr_warn(['Expecting list when calling say']);
 				}
 				var_set(ctx, A, B, null);
 				return crr_say(X);
@@ -5893,7 +6015,7 @@ function context_run(ctx){
 				X = var_get(ctx, C, D);
 				if (!var_islist(X)){
 					ctx.failed = true;
-					return crr_warn(['Expecting list']);
+					return crr_warn(['Expecting list when calling warn']);
 				}
 				var_set(ctx, A, B, null);
 				return crr_warn(X);
@@ -5908,7 +6030,7 @@ function context_run(ctx){
 				X = var_get(ctx, C, D);
 				if (!var_islist(X)){
 					ctx.failed = true;
-					return crr_warn(['Expecting list']);
+					return crr_warn(['Expecting list when calling ask']);
 				}
 				return crr_ask(X, A, B);
 			} break;
@@ -5926,15 +6048,38 @@ function context_run(ctx){
 			} break;
 
 			case OP_NUM_MAX        : { // [TGT], [SRC...]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				ctx.pc++;
+				A = ops[ctx.pc++]; B = ops[ctx.pc++];
+				C = ops[ctx.pc++]; D = ops[ctx.pc++];
+				if (A > ctx.lexIndex || C > ctx.lexIndex)
+					return crr_invalid();
+				X = var_get(ctx, C, D);
+				if (!var_islist(X)){
+					ctx.failed = true;
+					return crr_warn(['Expecting list when calling num.max']);
+				}
+				var_set(ctx, A, B, lib_num_max(X));
 			} break;
 
 			case OP_NUM_MIN        : { // [TGT], [SRC...]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				ctx.pc++;
+				A = ops[ctx.pc++]; B = ops[ctx.pc++];
+				C = ops[ctx.pc++]; D = ops[ctx.pc++];
+				if (A > ctx.lexIndex || C > ctx.lexIndex)
+					return crr_invalid();
+				X = var_get(ctx, C, D);
+				if (!var_islist(X)){
+					ctx.failed = true;
+					return crr_warn(['Expecting list when calling num.max']);
+				}
+				var_set(ctx, A, B, lib_num_min(X));
 			} break;
 
 			case OP_NUM_CLAMP      : { // [TGT], [SRC1], [SRC2], [SRC3]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				var it = inline_triop(function(a, b, c){ return a < b ? b : (a > c ? c : a); },
+					'clamping');
+				if (it !== false)
+					return it;
 			} break;
 
 			case OP_NUM_FLOOR      : { // [TGT], [SRC]
@@ -5966,7 +6111,7 @@ function context_run(ctx){
 				A = ops[ctx.pc++]; B = ops[ctx.pc++];
 				if (A > ctx.lexIndex)
 					return crr_invalid();
-				var_set(ctx, A, B, Number.NaN);
+				var_set(ctx, A, B, NaN);
 			} break;
 
 			case OP_NUM_INF        : { // [TGT]
@@ -6098,19 +6243,30 @@ function context_run(ctx){
 			} break;
 
 			case OP_NUM_LERP       : { // [TGT], [SRC1], [SRC2], [SRC3]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				var it = inline_triop(function(a, b, c){ return a + (b - a) * t; }, 'lerping');
+				if (it !== false)
+					return it;
 			} break;
 
 			case OP_NUM_HEX        : { // [TGT], [SRC1], [SRC2]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				var ib = inline_binop(function(a, b){ return lib_num_base(a, b, 16); },
+					'converting to hex');
+				if (ib !== false)
+					return ib;
 			} break;
 
 			case OP_NUM_OCT        : { // [TGT], [SRC1], [SRC2]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				var ib = inline_binop(function(a, b){ return lib_num_base(a, b, 8); },
+					'converting to hex');
+				if (ib !== false)
+					return ib;
 			} break;
 
 			case OP_NUM_BIN        : { // [TGT], [SRC1], [SRC2]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				var ib = inline_binop(function(a, b){ return lib_num_base(a, b, 2); },
+					'converting to hex');
+				if (ib !== false)
+					return ib;
 			} break;
 
 			case OP_INT_CAST       : { // [TGT], [SRC]
