@@ -151,156 +151,6 @@ module.exports = function(bytecode, stdlib, natives, maxTicks){
 
 	var va_f, va_i, vb_f, vb_i, vc_f, vc_i, vd_f, vd_i;
 
-	function decomp(){
-		function echo(){
-			console.error.apply(console, arguments);
-		}
-		var old_pc = pc;
-		var opcode = read8();
-		var peek = [];
-		function readVar(p){
-			var f = read8();
-			var i = read8();
-			var s = '%' + f + '_' + i;
-			if (p)
-				peek.push(skstr(var_get(f, i), true));
-			return s;
-		}
-		function v_op(name){
-			echo(readVar(false) + ' = ' + name);
-		}
-		function v_op_v(name){
-			echo(readVar(false) + ' = ' + name + ' ' + readVar(true) +
-				' #' + peek.join(', '));
-		}
-		function v_op_v_v(name){
-			echo(readVar(false) + ' = ' + name + ' ' + readVar(true) + ', ' + readVar(true) +
-				' #' + peek.join(', '));
-		}
-		function v_op_v_v_v(name){
-			echo(readVar(false) + ' = ' + name + ' ' + readVar(true) + ', ' + readVar(true) +
-				', ' + readVar(true) + ' #' + peek.join(', '));
-		}
-		function v_op_c(name){
-			echo(readVar(false) + ' = ' + name + ' ' + read16());
-		}
-		function op_v(name){
-			echo(name + ' ' + readVar(true) + ' #' + peek.join(', '));
-		}
-		function op_v_v(name){
-			echo(name + ' ' + readVar(true) + ', ' + readVar(true) + ' #' + peek.join(', '));
-		}
-		function op_v_v_v(name){
-			echo(name + ' ' + readVar(true) + ', ' + readVar(true) + ', ' + readVar(true) +
-				' #' + peek.join(', '));
-		}
-		function op_v_v_v_v(name){
-			echo(name + ' ' + readVar(true) + ', ' + readVar(true) + ', ' + readVar(true) +
-				', ' + readVar(true) + ' #' + peek.join(', '));
-		}
-		switch (opcode){
-			case 0x00: v_op_v('Move'      ); break;
-			case 0x01: v_op  ('Nil'       ); break;
-			case 0x02: v_op_c('Num'       ); break;
-			case 0x03: v_op_c('Str'       ); break;
-			case 0x04: v_op_c('List'      ); break;
-			case 0x05: v_op_v('ToNum'     ); break;
-			case 0x06: v_op_v('Neg'       ); break;
-			case 0x07: v_op_v('Not'       ); break;
-			case 0x08: v_op_v('Say'       ); break;
-			case 0x09: v_op_v('Ask'       ); break;
-			case 0x0A: v_op_v('Typenum'   ); break;
-			case 0x0B: v_op_v('Typestr'   ); break;
-			case 0x0C: v_op_v('Typelist'  ); break;
-			case 0x0D: v_op_v_v('Add'     ); break;
-			case 0x0E: v_op_v_v('Sub'     ); break;
-			case 0x0F: v_op_v_v('Mod'     ); break;
-			case 0x10: v_op_v_v('Mul'     ); break;
-			case 0x11: v_op_v_v('Div'     ); break;
-			case 0x12: v_op_v_v('Pow'     ); break;
-			case 0x13: v_op_v_v('Lt'      ); break;
-			case 0x14: v_op_v_v('Lte'     ); break;
-			case 0x15: v_op_v_v('Equ'     ); break;
-			case 0x16: op_v_v('Push'      ); break;
-			case 0x17: op_v_v('Unshift'   ); break;
-			case 0x18: v_op_v('Pop'       ); break;
-			case 0x19: v_op_v('Shift'     ); break;
-			case 0x1A: v_op_v('Size'      ); break;
-			case 0x1B: v_op_v_v('GetAt'   ); break;
-			case 0x1C: op_v_v_v('SetAt'   ); break;
-			case 0x1D: v_op_v_v_v('Slice' ); break;
-			case 0x1E: op_v_v_v_v('Splice'); break;
-			case 0x1F: v_op_v_v('Cat'     ); break;
-			case 0x20: echo('CallLocal'); break;
-			case 0x21:
-				var opcode = read16();
-				var parLen = read8();
-				va_f = read8(); va_i = read8();
-				vb_f = read8(); vb_i = read8();
-				var pars = [];
-				for (var i = 0; i < parLen; i++){
-					vc_f = read8(); vc_i = read8();
-					pars.push(skval(var_get(vc_f, vc_i)));
-				}
-				echo('CallNative ' + opcode + ', ' + JSON.stringify(pars));
-				break;
-			case 0x22: op_v('Return'); break;
-			case 0x23:
-				echo('Jump ' + read32());
-				break;
-			case 0x24:
-				echo('JumpIfNil ' + read32() + ', ' + readVar(true) + ' #' + peek);
-				break;
-			default:
-				echo('Unknown op');
-		}
-		pc = old_pc;
-	}
-
-	function apply_unop(a, op){
-		if (a instanceof Array){
-			var ret = [];
-			for (var i = 0; i < a.length; i++)
-				ret.push(op(a[i]));
-			return ret;
-		}
-		else
-			return op(a);
-	}
-
-	function arget(ar, index){
-		if (ar instanceof Array)
-			return index >= ar.length ? 0 : ar[index];
-		return ar;
-	}
-
-	function arsize(ar){
-		if (ar instanceof Array)
-			return ar.length;
-		return 1;
-	}
-
-	function apply_binop(a, b, op){
-		if (a instanceof Array || b instanceof Array){
-			var ret = [];
-			var m = Math.max(arsize(a), arsize(b));
-			for (var i = 0; i < m; i++)
-				ret.push(op(arget(a, i), arget(b, i)));
-			return ret;
-		}
-		return op(a, b);
-	}
-
-	function apply_triop(a, b, c, op){
-		if (a instanceof Array || b instanceof Array || c instanceof Array){
-			var ret = [];
-			var m = Math.max(arsize(a), arsize(b), arsize(c));
-			for (var i = 0; i < m; i++)
-				ret.push(op(arget(a, i), arget(b, i), arget(c, i)));
-			return ret;
-		}
-		return op(a, b, c);
-	}
 
 	var mt = Infinity;
 	if (typeof maxTicks === 'number')
@@ -319,148 +169,13 @@ module.exports = function(bytecode, stdlib, natives, maxTicks){
 		//decomp();
 		var opcode = read8();
 		switch (opcode){
-			case 0x00: // Move va, vb
-				va_f = read8(); va_i = read8();
-				vb_f = read8(); vb_i = read8();
-				var_set(va_f, va_i, var_get(vb_f, vb_i));
-				break;
-			case 0x01: // va = Nil
-				va_f = read8(); va_i = read8();
-				var_set(va_f, va_i, void 0);
-				break;
-			case 0x02: // va = Num numberTable[cb]
-				va_f = read8(); va_i = read8();
-				var_set(va_f, va_i, nums[read16()]);
-				break;
-			case 0x03: // va = Str stringTable[cb]
-				va_f = read8(); va_i = read8();
-				var_set(va_f, va_i, strs[read16()]);
-				break;
-			case 0x04: // va = List cb
-				va_f = read8(); va_i = read8();
-				read16(); // ignore hint
-				var_set(va_f, va_i, new Array());
-				break;
+
 			case 0x05: // va = ToNum vb
 				va_f = read8(); va_i = read8();
 				vb_f = read8(); vb_i = read8();
 				var_set(va_f, va_i, parseFloat(skval(var_get(vb_f, vb_i))));
 				break;
-			case 0x06: // va = Neg vb
-				va_f = read8(); va_i = read8();
-				vb_f = read8(); vb_i = read8();
-				var_set(va_f, va_i, -var_get(vb_f, vb_i));
-				break;
-			case 0x07: // va = Not vb
-				va_f = read8(); va_i = read8();
-				vb_f = read8(); vb_i = read8();
-				var_set(va_f, va_i, typeof var_get(vb_f, vb_i) === 'undefined' ? 1 : void 0);
-				break;
-			case 0x08: // va = Say vb
-				va_f = read8(); va_i = read8();
-				vb_f = read8(); vb_i = read8();
-				// TODO: handle say returns Promise
-				stdlib.say(skstr(var_get(vb_f, vb_i)));
-				var_set(va_f, va_i, var_get(vb_f, vb_i));
-				break;
-			case 0x09: // va = Ask vb
-				va_f = read8(); va_i = read8();
-				vb_f = read8(); vb_i = read8();
-				// TODO: handle ask returns Promise
-				var_set(va_f, va_i, jsval(stdlib.ask(skval(var_get(vb_f, vb_i)))));
-				break;
-			case 0x0A: // va = Typenum vb
-				va_f = read8(); va_i = read8();
-				vb_f = read8(); vb_i = read8();
-				var_set(va_f, va_i, jsval(typeof var_get(vb_f, vb_i) === 'number'));
-				break;
-			case 0x0B: // va = Typestr vb
-				va_f = read8(); va_i = read8();
-				vb_f = read8(); vb_i = read8();
-				var_set(va_f, va_i, jsval(var_get(vb_f, vb_i) instanceof Uint8Array));
-				break;
-			case 0x0C: // va = Typelist vb
-				va_f = read8(); va_i = read8();
-				vb_f = read8(); vb_i = read8();
-				var_set(va_f, va_i, jsval(var_get(vb_f, vb_i) instanceof Array));
-				break;
-			case 0x0D: // va = Add vb, vc
-				va_f = read8(); va_i = read8();
-				vb_f = read8(); vb_i = read8();
-				vc_f = read8(); vc_i = read8();
-				var_set(va_f, va_i, apply_binop(
-					var_get(vb_f, vb_i), var_get(vc_f, vc_i),
-					function(a, b){ return a + b; }));
-				break;
-			case 0x0E: // va = Sub vb, vc
-				va_f = read8(); va_i = read8();
-				vb_f = read8(); vb_i = read8();
-				vc_f = read8(); vc_i = read8();
-				var_set(va_f, va_i, apply_binop(
-					var_get(vb_f, vb_i), var_get(vc_f, vc_i),
-					function(a, b){ return a - b; }));
-				break;
-			case 0x0F: // va = Mod vb, vc
-				va_f = read8(); va_i = read8();
-				vb_f = read8(); vb_i = read8();
-				vc_f = read8(); vc_i = read8();
-				var_set(va_f, va_i, apply_binop(
-					var_get(vb_f, vb_i), var_get(vc_f, vc_i),
-					function(a, b){ return a % b; }));
-				break;
-			case 0x10: // va = Mul vb, vc
-				va_f = read8(); va_i = read8();
-				vb_f = read8(); vb_i = read8();
-				vc_f = read8(); vc_i = read8();
-				var_set(va_f, va_i, apply_binop(
-					var_get(vb_f, vb_i), var_get(vc_f, vc_i),
-					function(a, b){ return a * b; }));
-				break;
-			case 0x11: // va = Div vb, vc
-				va_f = read8(); va_i = read8();
-				vb_f = read8(); vb_i = read8();
-				vc_f = read8(); vc_i = read8();
-				var_set(va_f, va_i, apply_binop(
-					var_get(vb_f, vb_i), var_get(vc_f, vc_i),
-					function(a, b){ return a / b; }));
-				break;
-			case 0x12: // va = Pow vb, vc
-				va_f = read8(); va_i = read8();
-				vb_f = read8(); vb_i = read8();
-				vc_f = read8(); vc_i = read8();
-				var_set(va_f, va_i, apply_binop(
-					var_get(vb_f, vb_i), var_get(vc_f, vc_i),
-					function(a, b){ return Math.pow(a, b); }));
-				break;
-			case 0x13: // va = Lt vb, vc
-				va_f = read8(); va_i = read8();
-				vb_f = read8(); vb_i = read8();
-				vc_f = read8(); vc_i = read8();
-				var_set(va_f, va_i, apply_binop(
-					var_get(vb_f, vb_i), var_get(vc_f, vc_i),
-					function(a, b){ return jsval(a < b); }));
-				break;
-			case 0x14: // va = Lte vb, vc
-				va_f = read8(); va_i = read8();
-				vb_f = read8(); vb_i = read8();
-				vc_f = read8(); vc_i = read8();
-				var_set(va_f, va_i, apply_binop(
-					var_get(vb_f, vb_i), var_get(vc_f, vc_i),
-					function(a, b){ return jsval(a <= b); }));
-				break;
-			case 0x15: // va = Equ vb, vc
-				va_f = read8(); va_i = read8();
-				vb_f = read8(); vb_i = read8();
-				vc_f = read8(); vc_i = read8();
-				var_set(va_f, va_i, apply_binop(
-					var_get(vb_f, vb_i), var_get(vc_f, vc_i),
-					function(a, b){ return jsval(equ(a, b)); }));
-				break;
-			case 0x16: // Push va, vb
-				va_f = read8(); va_i = read8();
-				vb_f = read8(); vb_i = read8();
-				var_get(va_f, va_i).push(var_get(vb_f, vb_i));
-				break;
+
 			case 0x17: // Unshift va, vb
 				va_f = read8(); va_i = read8();
 				vb_f = read8(); vb_i = read8();
@@ -476,11 +191,7 @@ module.exports = function(bytecode, stdlib, natives, maxTicks){
 				vb_f = read8(); vb_i = read8();
 				var_set(va_f, va_i, var_get(vb_f, vb_i).shift());
 				break;
-			case 0x1A: // va = Size vb
-				va_f = read8(); va_i = read8();
-				vb_f = read8(); vb_i = read8();
-				var_set(va_f, va_i, var_get(vb_f, vb_i).length);
-				break;
+
 			case 0x1B: // va = GetAt vb, vc
 				va_f = read8(); va_i = read8();
 				vb_f = read8(); vb_i = read8();
@@ -576,78 +287,7 @@ module.exports = function(bytecode, stdlib, natives, maxTicks){
 				var_set(s.va_f, s.va_i, res);
 				pc = s.pc;
 				break;
-			case 0x23: // Jump
-				pc = read32();
-				break;
-			case 0x24: // JumpIfNil
-				var jpc = read32();
-				va_f = read8(); va_i = read8();
-				if (typeof var_get(va_f, va_i) === 'undefined')
-					pc = jpc;
-				break;
-			case 0x25: // va = NumFloor vb
-				va_f = read8(); va_i = read8();
-				vb_f = read8(); vb_i = read8();
-				var_set(va_f, va_i, apply_unop(
-					var_get(vb_f, vb_i),
-					function(a){ return Math.floor(a); }));
-				break;
-			case 0x26: // va = NumCeil vb
-				va_f = read8(); va_i = read8();
-				vb_f = read8(); vb_i = read8();
-				var_set(va_f, va_i, apply_unop(
-					var_get(vb_f, vb_i),
-					function(a){ return Math.ceil(a); }));
-				break;
-			case 0x27: // va = NumRound vb
-				va_f = read8(); va_i = read8();
-				vb_f = read8(); vb_i = read8();
-				var_set(va_f, va_i, apply_unop(
-					var_get(vb_f, vb_i),
-					function(a){ return Math.round(a); }));
-				break;
-			case 0x28: // va = NumSin vb
-				va_f = read8(); va_i = read8();
-				vb_f = read8(); vb_i = read8();
-				var_set(va_f, va_i, apply_unop(
-					var_get(vb_f, vb_i),
-					function(a){ return Math.sin(a); }));
-				break;
-			case 0x29: // va = NumCos vb
-				va_f = read8(); va_i = read8();
-				vb_f = read8(); vb_i = read8();
-				var_set(va_f, va_i, apply_unop(
-					var_get(vb_f, vb_i),
-					function(a){ return Math.cos(a); }));
-				break;
-			case 0x2A: // va = NumTan vb
-				va_f = read8(); va_i = read8();
-				vb_f = read8(); vb_i = read8();
-				var_set(va_f, va_i, apply_unop(
-					var_get(vb_f, vb_i),
-					function(a){ return Math.tan(a); }));
-				break;
-			case 0x2B: // va = NumAsin vb
-				va_f = read8(); va_i = read8();
-				vb_f = read8(); vb_i = read8();
-				var_set(va_f, va_i, apply_unop(
-					var_get(vb_f, vb_i),
-					function(a){ return Math.asin(a); }));
-				break;
-			case 0x2C: // va = NumAcos vb
-				va_f = read8(); va_i = read8();
-				vb_f = read8(); vb_i = read8();
-				var_set(va_f, va_i, apply_unop(
-					var_get(vb_f, vb_i),
-					function(a){ return Math.acos(a); }));
-				break;
-			case 0x2D: // va = NumAtan vb
-				va_f = read8(); va_i = read8();
-				vb_f = read8(); vb_i = read8();
-				var_set(va_f, va_i, apply_unop(
-					var_get(vb_f, vb_i),
-					function(a){ return Math.atan(a); }));
-				break;
+
 			case 0x2E: // va = NumAtan2 vb, vc
 				va_f = read8(); va_i = read8();
 				vb_f = read8(); vb_i = read8();
@@ -656,34 +296,7 @@ module.exports = function(bytecode, stdlib, natives, maxTicks){
 					var_get(vb_f, vb_i), var_get(vc_f, vc_i),
 					function(a, b){ return Math.atan2(a, b); }));
 				break;
-			case 0x2F: // va = NumLog vb
-				va_f = read8(); va_i = read8();
-				vb_f = read8(); vb_i = read8();
-				var_set(va_f, va_i, apply_unop(
-					var_get(vb_f, vb_i),
-					function(a){ return Math.log(a); }));
-				break;
-			case 0x30: // va = NumLog2 vb
-				va_f = read8(); va_i = read8();
-				vb_f = read8(); vb_i = read8();
-				var_set(va_f, va_i, apply_unop(
-					var_get(vb_f, vb_i),
-					function(a){ return Math.log2(a); }));
-				break;
-			case 0x31: // va = NumLog10 vb
-				va_f = read8(); va_i = read8();
-				vb_f = read8(); vb_i = read8();
-				var_set(va_f, va_i, apply_unop(
-					var_get(vb_f, vb_i),
-					function(a){ return Math.log10(a); }));
-				break;
-			case 0x32: // va = NumAbs vb
-				va_f = read8(); va_i = read8();
-				vb_f = read8(); vb_i = read8();
-				var_set(va_f, va_i, apply_unop(
-					var_get(vb_f, vb_i),
-					function(a){ return Math.abs(a); }));
-				break;
+
 			case 0x33: // va = NumPi
 				va_f = read8(); va_i = read8();
 				var_set(va_f, va_i, Math.PI);
