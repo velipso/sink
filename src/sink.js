@@ -3747,6 +3747,54 @@ function program_evalLvalueSlice(prg, sym, lv, exvlc, mutop, vlc){
 	return pels_ok(lv.obj);
 }
 
+var CAE_OK    = 'CAE_OK';
+var CAE_ERROR = 'CAE_ERROR';
+
+function cae_ok(){
+	return { type: CAE_OK };
+}
+
+function cae_error(flp, msg){
+	return { type: CAE_ERROR, flp: flp, msg: msg };
+}
+
+function program_condAssignEval(prg, sym, vlc, lv, ex, isAnd){
+	switch (lv.type){
+		case LVR_VAR: {
+			var done = label_new('%condequdone');
+			var ts = symtbl_addTemp(sym);
+			if (ts.type == STA_ERROR)
+				return cae_error(lv.flp, ts.msg);
+			var t = ts.vlc;
+			op_nil(prg.ops, t);
+			op_binop(prg.ops, OP_EQU, t, t, lv.vlc);
+			if (isAnd)
+				label_jumpTrue(done, prg.ops, t);
+			else
+				label_jumpFalse(done, prg.ops, t);
+			symtbl_clearTemp(sym, t);
+			var pr = program_evalInto(prg, sym, lv.vlc, ex);
+			if (pr.type == PIR_ERROR)
+				return cae_error(pr.flp, pr.msg);
+			label_declare(done, prg.ops);
+			if (vlc != null)
+				op_move(prg.ops, vlc, lv.vlc);
+			return cae_ok();
+		} break;
+
+		case LVR_INDEX: { // TODO: clear temps
+			throw 'TODO: AMP/PIPE equal LVR_INDEX';
+		} break;
+
+		case LVR_SLICE:
+			return cae_error(lv.flp, 'Cannot conditionally splice variable');
+
+		case LVR_LIST:
+			throw 'TODO: this mess DDD-,:';
+	}
+	throw new Error('Invalid lvalue type');
+}
+
 var PIR_OK    = 'PIR_OK';
 var PIR_ERROR = 'PIR_ERROR';
 
@@ -4005,13 +4053,16 @@ function program_evalInto(prg, sym, vlc, ex){
 				label_declare(finish, prg.ops);
 				return pir_ok();
 			}
-			else if (ex.k == KS_AMP2EQU){
-				throw 'TODO: AND equal';
+			else if (ex.k == KS_AMP2EQU || ex.k == KS_PIPE2EQU){
+				var lp = lval_prepare(prg, sym, ex.left);
+				if (lp.type == LVP_ERROR)
+					return pir_error(lp.flp, lp.msg);
+				var lv = lp.lv;
+				var ce = program_condAssignEval(prg, sym, vlc, lv, ex.right, ex.k == KS_AMP2EQU);
+				if (ce.type == CAE_ERROR)
+					return pir_error(ce.flp, ce.msg);
+				return pir_ok();
 			}
-			else if (ex.k == KS_PIPE2EQU){
-				throw 'TODO: PIPE equal';
-			}
-
 			return pir_error(ex.flp, 'Invalid operation');
 		} break;
 
@@ -4322,11 +4373,22 @@ function program_eval(prg, sym, ex, autoclear){
 				} break;
 			}
 		}
-		else if (ex.k == KS_AMP2EQU){
-			throw 'TODO: program_eval AND equal';
-		}
-		else if (ex.k == KS_PIPE2EQU){
-			throw 'TODO: program_Eval PIPE equal';
+		else if (ex.k == KS_AMP2EQU || ex.k == KS_PIPE2EQU){
+			var lp = lval_prepare(prg, sym, ex.left);
+			if (lp.type == LVP_ERROR)
+				return per_error(lp.flp, lp.msg);
+			var lv = lp.lv;
+			var vlc = null;
+			if (!autoclear){
+				var ts = symtbl_addTemp(sym);
+				if (ts.type == STA_ERROR)
+					return per_error(ex.flp, ts.msg);
+				vlc = ts.vlc;
+			}
+			var ce = program_condAssignEval(prg, sym, vlc, lv, ex.right, ex.k == KS_AMP2EQU);
+			if (ce.type == CAE_ERROR)
+				return per_error(ce.flp, ce.msg);
+			return per_ok(vlc);
 		}
 	}
 	else if (ex.type == EXPR_NAMES){
