@@ -5190,7 +5190,7 @@ function context_run(ctx){
 
 	var ops = ctx.prg.ops;
 
-	function inline_unaop(func){
+	function inline_unop(func, erop){
 		ctx.pc++;
 		A = ops[ctx.pc++]; B = ops[ctx.pc++];
 		C = ops[ctx.pc++]; D = ops[ctx.pc++];
@@ -5199,13 +5199,13 @@ function context_run(ctx){
 		X = var_get(ctx, C, D);
 		if (!oper_isnum(X)){
 			ctx.failed = true;
-			return crr_warn(['Expecting number or list of numbers']);
+			return crr_warn(['Expecting number or list of numbers when ' + erop]);
 		}
 		var_set(ctx, A, B, oper_una(X, func));
 		return false;
 	}
 
-	function inline_binop(func){
+	function inline_binop(func, erop){
 		ctx.pc++;
 		A = ops[ctx.pc++]; B = ops[ctx.pc++];
 		C = ops[ctx.pc++]; D = ops[ctx.pc++];
@@ -5215,12 +5215,12 @@ function context_run(ctx){
 		X = var_get(ctx, C, D);
 		if (!oper_isnum(X)){
 			ctx.failed = true;
-			return crr_warn(['Expecting number or list of numbers']);
+			return crr_warn(['Expecting number or list of numbers when ' + erop]);
 		}
 		Y = var_get(ctx, E, F);
 		if (!oper_isnum(Y)){
 			ctx.failed = true;
-			return crr_warn(['Expecting number or list of numbers']);
+			return crr_warn(['Expecting number or list of numbers when ' + erop]);
 		}
 		var_set(ctx, A, B, oper_bin(X, Y, func));
 		return false;
@@ -5258,7 +5258,7 @@ function context_run(ctx){
 				X = var_get(ctx, A, B);
 				if (!var_isnum(X)){
 					ctx.failed = true;
-					return crr_warn(['Cannot increment non-number']);
+					return crr_warn(['Expecting number when incrementing']);
 				}
 				var_set(ctx, A, B, X + 1);
 			} break;
@@ -5323,7 +5323,7 @@ function context_run(ctx){
 			} break;
 
 			case OP_NEG            : { // [TGT], [SRC]
-				var iu = inline_unaop(function(a){ return -a; });
+				var iu = inline_unop(function(a){ return -a; }, 'negating');
 				if (iu !== false)
 					return iu;
 			} break;
@@ -5347,7 +5347,7 @@ function context_run(ctx){
 				X = var_get(ctx, C, D);
 				if (!var_islist(X) && !var_isstr(X)){
 					ctx.failed = true;
-					return crr_warn(['Expecting string or list']);
+					return crr_warn(['Expecting string or list for size']);
 				}
 				var_set(ctx, A, B, X.length);
 			} break;
@@ -5361,7 +5361,7 @@ function context_run(ctx){
 				X = var_get(ctx, C, D);
 				if (!oper_isnilnumstr(X)){
 					ctx.failed = true;
-					return crr_warn(['Expecting string or list of strings']);
+					return crr_warn(['Expecting string when converting to number']);
 				}
 				var_set(ctx, A, B, oper_una(X,
 					function(a){
@@ -5436,37 +5436,37 @@ function context_run(ctx){
 			} break;
 
 			case OP_ADD            : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return a + b; });
+				var ib = inline_binop(function(a, b){ return a + b; }, 'adding');
 				if (ib !== false)
 					return ib;
 			} break;
 
 			case OP_SUB            : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return a - b; });
+				var ib = inline_binop(function(a, b){ return a - b; }, 'subtracting');
 				if (ib !== false)
 					return ib;
 			} break;
 
 			case OP_MUL            : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return a * b; });
+				var ib = inline_binop(function(a, b){ return a * b; }, 'multiplying');
 				if (ib !== false)
 					return ib;
 			} break;
 
 			case OP_DIV            : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return a / b; });
+				var ib = inline_binop(function(a, b){ return a / b; }, 'dividing');
 				if (ib !== false)
 					return ib;
 			} break;
 
 			case OP_MOD            : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return a % b; });
+				var ib = inline_binop(function(a, b){ return a % b; }, 'taking modular');
 				if (ib !== false)
 					return ib;
 			} break;
 
 			case OP_POW            : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return Math.pow(a, b); });
+				var ib = inline_binop(function(a, b){ return Math.pow(a, b); }, 'exponentiating');
 				if (ib !== false)
 					return ib;
 			} break;
@@ -5872,13 +5872,13 @@ function context_run(ctx){
 			} break;
 
 			case OP_NUM_ABS        : { // [TGT], [SRC]
-				var iu = inline_unaop(function(a){ return Math.abs(a); });
+				var iu = inline_unop(function(a){ return Math.abs(a); }, 'taking absolute value');
 				if (iu !== false)
 					return iu;
 			} break;
 
 			case OP_NUM_SIGN       : { // [TGT], [SRC]
-				var iu = inline_unaop(function(a){ return polyfill.Math_sign(a); });
+				var iu = inline_unop(function(a){ return polyfill.Math_sign(a); }, 'taking sign');
 				if (iu !== false)
 					return iu;
 			} break;
@@ -5896,25 +5896,25 @@ function context_run(ctx){
 			} break;
 
 			case OP_NUM_FLOOR      : { // [TGT], [SRC]
-				var iu = inline_unaop(function(a){ return Math.floor(a); });
+				var iu = inline_unop(function(a){ return Math.floor(a); }, 'taking floor');
 				if (iu !== false)
 					return iu;
 			} break;
 
 			case OP_NUM_CEIL       : { // [TGT], [SRC]
-				var iu = inline_unaop(function(a){ return Math.ceil(a); });
+				var iu = inline_unop(function(a){ return Math.ceil(a); }, 'taking ceil');
 				if (iu !== false)
 					return iu;
 			} break;
 
 			case OP_NUM_ROUND      : { // [TGT], [SRC]
-				var iu = inline_unaop(function(a){ return Math.round(a); });
+				var iu = inline_unop(function(a){ return Math.round(a); }, 'rounding');
 				if (iu !== false)
 					return iu;
 			} break;
 
 			case OP_NUM_TRUNC      : { // [TGT], [SRC]
-				var iu = inline_unaop(function(a){ return polyfill.Math_trunc(a); });
+				var iu = inline_unop(function(a){ return polyfill.Math_trunc(a); }, 'truncating');
 				if (iu !== false)
 					return iu;
 			} break;
@@ -5988,67 +5988,69 @@ function context_run(ctx){
 			} break;
 
 			case OP_NUM_SIN        : { // [TGT], [SRC]
-				var iu = inline_unaop(function(a){ return Math.sin(a); });
+				var iu = inline_unop(function(a){ return Math.sin(a); }, 'taking sin');
 				if (iu !== false)
 					return iu;
 			} break;
 
 			case OP_NUM_COS        : { // [TGT], [SRC]
-				var iu = inline_unaop(function(a){ return Math.cos(a); });
+				var iu = inline_unop(function(a){ return Math.cos(a); }, 'taking cos');
 				if (iu !== false)
 					return iu;
 			} break;
 
 			case OP_NUM_TAN        : { // [TGT], [SRC]
-				var iu = inline_unaop(function(a){ return Math.tan(a); });
+				var iu = inline_unop(function(a){ return Math.tan(a); }, 'taking tan');
 				if (iu !== false)
 					return iu;
 			} break;
 
 			case OP_NUM_ASIN       : { // [TGT], [SRC]
-				var iu = inline_unaop(function(a){ return Math.asin(a); });
+				var iu = inline_unop(function(a){ return Math.asin(a); }, 'taking arc-sin');
 				if (iu !== false)
 					return iu;
 			} break;
 
 			case OP_NUM_ACOS       : { // [TGT], [SRC]
-				var iu = inline_unaop(function(a){ return Math.acos(a); });
+				var iu = inline_unop(function(a){ return Math.acos(a); }, 'taking arc-cos');
 				if (iu !== false)
 					return iu;
 			} break;
 
 			case OP_NUM_ATAN       : { // [TGT], [SRC]
-				var iu = inline_unaop(function(a){ return Math.atan(a); });
+				var iu = inline_unop(function(a){ return Math.atan(a); }, 'taking arc-tan');
 				if (iu !== false)
 					return iu;
 			} break;
 
 			case OP_NUM_ATAN2      : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return Math.atan2(a, b); });
+				var ib = inline_binop(function(a, b){ return Math.atan2(a, b); }, 'taking arc-tan');
 				if (ib !== false)
 					return ib;
 			} break;
 
 			case OP_NUM_LOG        : { // [TGT], [SRC]
-				var iu = inline_unaop(function(a){ return Math.log(a); });
+				var iu = inline_unop(function(a){ return Math.log(a); }, 'taking logarithm');
 				if (iu !== false)
 					return iu;
 			} break;
 
 			case OP_NUM_LOG2       : { // [TGT], [SRC]
-				var iu = inline_unaop(function(a){ return polyfill.Math_log2(a); });
+				var iu = inline_unop(function(a){ return polyfill.Math_log2(a); },
+					'taking logarithm');
 				if (iu !== false)
 					return iu;
 			} break;
 
 			case OP_NUM_LOG10      : { // [TGT], [SRC]
-				var iu = inline_unaop(function(a){ return polyfill.Math_log10(a); });
+				var iu = inline_unop(function(a){ return polyfill.Math_log10(a); },
+					'taking logarithm');
 				if (iu !== false)
 					return iu;
 			} break;
 
 			case OP_NUM_EXP        : { // [TGT], [SRC]
-				var iu = inline_unaop(function(a){ return Math.exp(a); });
+				var iu = inline_unop(function(a){ return Math.exp(a); }, 'exponentiating');
 				if (iu !== false)
 					return iu;
 			} break;
@@ -6070,85 +6072,88 @@ function context_run(ctx){
 			} break;
 
 			case OP_INT_CAST       : { // [TGT], [SRC]
-				var iu = inline_unaop(function(a){ return a | 0; });
+				var iu = inline_unop(function(a){ return a | 0; }, 'casting to int');
 				if (iu !== false)
 					return iu;
 			} break;
 
 			case OP_INT_NOT        : { // [TGT], [SRC]
-				var iu = inline_unaop(function(a){ return ~a; });
+				var iu = inline_unop(function(a){ return ~a; }, 'NOTing');
 				if (iu !== false)
 					return iu;
 			} break;
 
 			case OP_INT_AND        : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return a & b; });
+				var ib = inline_binop(function(a, b){ return a & b; }, 'ANDing');
 				if (ib !== false)
 					return ib;
 			} break;
 
 			case OP_INT_OR         : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return a | b; });
+				var ib = inline_binop(function(a, b){ return a | b; }, 'ORing');
 				if (ib !== false)
 					return ib;
 			} break;
 
 			case OP_INT_XOR        : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return a ^ b; });
+				var ib = inline_binop(function(a, b){ return a ^ b; }, 'XORing');
 				if (ib !== false)
 					return ib;
 			} break;
 
 			case OP_INT_SHL        : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return a << b; });
+				var ib = inline_binop(function(a, b){ return a << b; }, 'shifting left');
 				if (ib !== false)
 					return ib;
 			} break;
 
 			case OP_INT_SHR        : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return a >>> b; });
+				var ib = inline_binop(function(a, b){ return a >>> b; }, 'shifting right');
 				if (ib !== false)
 					return ib;
 			} break;
 
 			case OP_INT_SAR        : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return a >> b; });
+				var ib = inline_binop(function(a, b){ return a >> b; }, 'shifting right');
 				if (ib !== false)
 					return ib;
 			} break;
 
 			case OP_INT_ADD        : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return ((a|0) + (b|0)) | 0; });
+				var ib = inline_binop(function(a, b){ return ((a|0) + (b|0)) | 0; }, 'adding');
 				if (ib !== false)
 					return ib;
 			} break;
 
 			case OP_INT_SUB        : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return ((a|0) - (b|0)) | 0; });
+				var ib = inline_binop(function(a, b){ return ((a|0) - (b|0)) | 0; }, 'subtracting');
 				if (ib !== false)
 					return ib;
 			} break;
 
 			case OP_INT_MUL        : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return polyfill.Math_imul(a, b); });
+				var ib = inline_binop(function(a, b){ return polyfill.Math_imul(a, b); },
+					'multiplying');
 				if (ib !== false)
 					return ib;
 			} break;
 
 			case OP_INT_DIV        : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return ((a|0) / (b|0)) | 0; });
+				var ib = inline_binop(function(a, b){ return ((a|0) / (b|0)) | 0; }, 'dividing');
 				if (ib !== false)
 					return ib;
 			} break;
 
 			case OP_INT_MOD        : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return ((a|0) % (b|0)) | 0; });
+				var ib = inline_binop(function(a, b){ return ((a|0) % (b|0)) | 0; },
+					'taking modular');
 				if (ib !== false)
 					return ib;
 			} break;
 
 			case OP_INT_CLZ        : { // [TGT], [SRC]
-				var iu = inline_unaop(function(a){ return polyfill.Math_clz32(a); });
+				var iu = inline_unop(function(a){ return polyfill.Math_clz32(a); },
+					'counting leading zeros');
 				if (iu !== false)
 					return iu;
 			} break;
