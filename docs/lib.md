@@ -9,9 +9,9 @@ results.
 | Function          | Description                                                                 |
 |-------------------|-----------------------------------------------------------------------------|
 | `say a, ...`      | Output arguments to stdout (returns nil)                                    |
-| `ask a, ...`      | Prompt the user for input from stdin; returns the inputted string           |
 | `warn a, ...`     | Output arguments to stderr (returns nil)                                    |
-| `die a, ...`      | Output arguments to stderr and stop all execution                           |
+| `ask a, ...`      | Prompt the user for input from stdin; returns the inputted string           |
+| `die a, ...`      | Output arguments to stderr and abort execution in failure                   |
 | `pick cond, a, b` | If `cond` is true, return `a`, otherwise return `b` (short-circuited)       |
 
 Number
