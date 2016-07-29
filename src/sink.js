@@ -3230,7 +3230,8 @@ function symtbl_loadStdlib(sym){
 	SAC(sym, 'say'           , OP_SAY           , -1);
 	SAC(sym, 'warn'          , OP_WARN          , -1);
 	SAC(sym, 'ask'           , OP_ASK           , -1);
-	SAC(sym, 'die'           , 0x102            , -1); // mark die for special processing
+	SAC(sym, 'exit'          , 0x102            , -1); // mark for special processing
+	SAC(sym, 'abort'         , 0x103            , -1); // mark for special processing
 	symtbl_pushNamespace(sym, ['num']);
 		SAC(sym, 'abs'       , OP_NUM_ABS       ,  1);
 		SAC(sym, 'sign'      , OP_NUM_SIGN      ,  1);
@@ -3466,7 +3467,11 @@ function program_callEval(prg, sym, vlc, nsn, params, atvlc, flp){
 					symtbl_clearTemp(sym, pr.vlc);
 					atvlc = pr.vlc;
 				}
-				if (nsn.opcode == 0x102){ // die
+				if (nsn.opcode == 0x102){ // exit
+					op_param1(prg.ops, OP_SAY, vlc, atvlc);
+					op_exitpass(prg.ops);
+				}
+				if (nsn.opcode == 0x103){ // abort
 					op_param1(prg.ops, OP_WARN, vlc, atvlc);
 					op_exitfail(prg.ops);
 				}
@@ -5994,7 +5999,7 @@ function isPromise(obj){
 }
 
 module.exports = {
-	repl: function(prompt, fileResolve, fileRead){
+	repl: function(prompt, die, fileResolve, fileRead){
 		var prg = program_new(true);
 		var cmp = compiler_new(prg);
 		var ctx = context_new(prg);
@@ -6013,8 +6018,10 @@ module.exports = {
 						var cr = context_run(ctx);
 						if (cr.type == CRR_REPL)
 							break;
-						else if (cr.type == CRR_EXITPASS || cr.type == CRR_EXITFAIL)
+						else if (cr.type == CRR_EXITPASS || cr.type == CRR_EXITFAIL){
+							die(cr.type == CRR_EXITPASS);
 							return;
+						}
 						else if (cr.type == CRR_SAY){
 							// TODO: perform an actual sink_tostr or something
 							console.log.apply(console, cr.args);

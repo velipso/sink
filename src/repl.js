@@ -26,6 +26,12 @@ Sink.repl(
 			result(ans + '\n');
 		});
 	},
+	// what to execute when the REPL quits
+	function(pass){
+		rl.close();
+		process.stdin.destroy();
+		process.exit(pass ? 0 : 1);
+	},
 	// resolve `file` relative to `fromFile`, return the full file
 	function(file, fromFile){
 		return path.resolve(process.cwd(), fromFile == null ? '' : path.dirname(fromFile), file);
