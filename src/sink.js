@@ -319,7 +319,7 @@ function op_jumpFalse(b, src, index){
 }
 
 function op_call(b, ret, arg, level, index){
-	oplog('CALL', ret, arg, '0x' + index.toString(16).toUpperCase());
+	oplog('CALL', ret, arg, level, '0x' + index.toString(16).toUpperCase());
 	b.push(OP_CALL, ret.fdiff, ret.index, arg.fdiff, arg.index, level,
 		index % 256,
 		Math.floor(index /      256) % 256,
@@ -3190,11 +3190,11 @@ function symtbl_addCmdLocal(sym, names, lbl){
 		if (nsn.name == names[names.length - 1]){
 			if (!sym.repl)
 				return sta_error('Cannot redefine "' + nsn.name + '"');
-			ns.names[i] = nsname_cmdLocal(nsn.name, sym.sc.fr, lbl);
+			ns.names[i] = nsname_cmdLocal(nsn.name, sym.fr, lbl);
 			return sta_ok();
 		}
 	}
-	ns.names.push(nsname_cmdLocal(names[names.length - 1], sym.sc.fr, lbl));
+	ns.names.push(nsname_cmdLocal(names[names.length - 1], sym.fr, lbl));
 	return sta_ok();
 }
 
@@ -3442,7 +3442,7 @@ function program_callEval(prg, sym, vlc, nsn, params, atvlc, flp){
 				symtbl_clearTemp(sym, pr.vlc);
 				atvlc = pr.vlc;
 			}
-			label_call(nsn.lbl, prg.ops, vlc, atvlc, frame_diff(sym.sc.fr, nsn.fr));
+			label_call(nsn.lbl, prg.ops, vlc, atvlc, frame_diff(nsn.fr, sym.fr));
 			return pce_ok();
 		} break;
 
@@ -4498,7 +4498,7 @@ function program_gen(prg, sym, stmt){
 				switch (dc.type){
 					case DECL_LOCAL: {
 						var lbl = label_new('%def');
-						sym.sc.fr.lbls.push(lbl);
+						sym.fr.lbls.push(lbl);
 						var sr = symtbl_addCmdLocal(sym, dc.names, lbl);
 						if (sr.type == STA_ERROR)
 							return pgr_error(dc.flp, sr.msg);
@@ -4527,7 +4527,7 @@ function program_gen(prg, sym, stmt){
 		case AST_DEF: {
 			var lr = symtbl_lookup(sym, stmt.names);
 			var lbl;
-			if (lr.type == STL_OK && lr.nsn.type != NSN_CMD_LOCAL){
+			if (lr.type == STL_OK && lr.nsn.type == NSN_CMD_LOCAL){
 				lbl = lr.nsn.lbl;
 				if (!sym.repl && lbl.pos >= 0) // if already defined, error
 					return pgr_error(stmt.flp, 'Cannot redefine "' + stmt.names.join('.') + '"');
@@ -5995,7 +5995,7 @@ function context_run(ctx){
 					return crr_invalid();
 				F = F + (G << 8) + (H << 16) + ((I << 23) * 2);
 				if (ctx.prg.repl && F == 0xFFFFFFFF){
-					ctx.pc -= 9;
+					ctx.pc -= 10;
 					return crr_repl();
 				}
 				X = var_get(ctx, C, D);
@@ -6838,10 +6838,7 @@ module.exports = {
 					console.log('Error:', cm.msg);
 				else if (cm.type == CMA_INCLUDE){
 					depth++;
-					var f = '';
-					for (var i = 0; i < cm.file.length; i++)
-						f += String.fromCharCode(cm.file[i]);
-					var r = fileResolve(f, cmp.file.flp.file);
+					var r = fileResolve(cm.file, cmp.file.flp.file);
 					if (isPromise(r))
 						r.then(fileResolved).catch(incError);
 					else
@@ -6870,6 +6867,8 @@ module.exports = {
 
 		function incError(err){
 			console.log(err.toString());
+			if (err.stack)
+				console.log(err.stack);
 			compiler_pushFile(cmp, 'failure');
 			compiler_popFile(cmp);
 			process();

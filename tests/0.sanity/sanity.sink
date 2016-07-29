@@ -10,7 +10,7 @@ say 70235 ~ 12703
 say "hello, world"
 say "hello, " ~ "world"
 
-var x, y, z = 1, 2, "hello"
+var x = 1, y = 2, z = "hello"
 x = 123
 y = x + 300
 say "x: $x, y: $y, z: $z"
@@ -89,8 +89,8 @@ if typenum x
 	say 'x is num'
 end
 
-x = ()
-if x == ()
+x = nil
+if x == nil
 	say 'x is nil'
 end
 
@@ -111,7 +111,7 @@ say x
 
 def false
 	say 'false'
-	return ()
+	return nil
 end
 
 def true
@@ -160,7 +160,7 @@ y[1] = 4
 say x   # {1, 2, 3}
 say y   # {1, 4, 3}
 
-x = {1, (), 2}
+x = {1, nil, 2}
 x[0] ||= add 1, 2
 x[1] ||= add 3, 4
 say "x[0] = ", x[0], "x[1] = ", x[1]
@@ -196,7 +196,7 @@ var d
 say d
 
 do
-	var x, y = 1, 2
+	var x = 1, y = 2
 
 	def foo a
 		if a < 3
@@ -218,7 +218,7 @@ end
 
 do
 	var a = {1, 2, 3}
-	say a!
+	say &a
 	a = 'hello'
-	say a!
+	say &a
 end
