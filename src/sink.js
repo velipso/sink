@@ -3774,45 +3774,15 @@ function program_evalLvalueInto(prg, sym, vlc, lv, mutop, exvlc){
 		} break;
 
 		case LVR_INDEX: {
-			var ts = symtbl_addTemp(sym);
-			if (ts.type == STA_ERROR)
-				return pir_error(lv.flp, ts.msg);
-			var t = ts.vlc;
 			if (mutop < 0){
 				op_setat(prg.ops, lv.obj, lv.key, exvlc);
-
-				op_unop(prg.ops, OP_ISLIST, t, lv.obj);
-				var islist = label_new('%setatlist');
-				var done = label_new('%setatdone');
-				label_jumpTrue(islist, prg.ops, t);
-				op_move(prg.ops, vlc, lv.obj);
-				label_jump(done, prg.ops);
-				label_declare(islist, prg.ops);
 				op_move(prg.ops, vlc, exvlc);
-				label_declare(done, prg.ops);
 			}
 			else{
-				op_getat(prg.ops, t, lv.obj, lv.key);
-				op_binop(prg.ops, mutop, t, t, exvlc);
-				op_setat(prg.ops, lv.obj, lv.key, t);
-
-				ts = symtbl_addTemp(sym);
-				if (ts.type == STA_ERROR)
-					return pir_error(lv.flp, ts.msg);
-				var t2 = ts.vlc;
-
-				op_unop(prg.ops, OP_ISLIST, t2, lv.obj);
-				var islist = label_new('%setatlist');
-				var done = label_new('%setatdone');
-				label_jumpTrue(islist, prg.ops, t2);
-				op_move(prg.ops, vlc, lv.obj);
-				label_jump(done, prg.ops);
-				label_declare(islist, prg.ops);
-				op_move(prg.ops, vlc, t);
-				label_declare(done, prg.ops);
-				symtbl_clearTemp(sym, t2);
+				op_getat(prg.ops, vlc, lv.obj, lv.key);
+				op_binop(prg.ops, mutop, vlc, vlc, exvlc);
+				op_setat(prg.ops, lv.obj, lv.key, vlc);
 			}
-			symtbl_clearTemp(sym, t);
 			symtbl_clearTemp(sym, exvlc);
 			symtbl_clearTemp(sym, lv.obj);
 			symtbl_clearTemp(sym, lv.key);
@@ -4302,59 +4272,23 @@ function program_eval(prg, sym, ex, autoclear){
 						return pr;
 					if (ex.k == KS_EQU){
 						op_setat(prg.ops, lv.obj, lv.key, pr.vlc);
-						var out = pr.vlc;
-						if (!autoclear){
-							var islist = label_new('%setatlist');
-							var done = label_new('%done');
-
-							var ts = symtbl_addTemp(sym);
-							if (ts.type == STA_ERROR)
-								return per_error(lv.flp, ts.msg);
-							out = ts.vlc;
-
-							op_unop(prg.ops, OP_ISLIST, out, lv.obj);
-							label_jumpTrue(islist, prg.ops, out);
-							op_move(prg.ops, out, lv.obj);
-							label_jump(done, prg.ops);
-							label_declare(islist, prg.ops);
-							op_move(prg.ops, out, pr.vlc);
-							label_declare(done, prg.ops);
-							symtbl_clearTemp(sym, pr.vlc);
-						}
-						else
-							symtbl_clearTemp(sym, out);
+						if (autoclear)
+							symtbl_clearTemp(pr.vlc);
 						symtbl_clearTemp(sym, lv.obj);
 						symtbl_clearTemp(sym, lv.key);
-						return per_ok(out);
+						return per_ok(pr.vlc);
 					}
 					else{
 						var ts = symtbl_addTemp(sym);
 						if (ts.type == STA_ERROR)
 							return per_error(lv.flp, ts.msg);
 						out = ts.vlc;
-
 						op_getat(prg.ops, out, lv.obj, lv.key);
 						op_binop(prg.ops, mutop, out, out, pr.vlc);
 						op_setat(prg.ops, lv.obj, lv.key, out);
-						if (!autoclear){
-							var done = label_new('%done');
-
-							var ts = symtbl_addTemp(sym);
-							if (ts.type == STA_ERROR)
-								return per_error(lv.flp, ts.msg);
-							var t = ts.vlc;
-
-							op_unop(prg.ops, OP_ISLIST, t, lv.obj);
-							label_jumpTrue(done, prg.ops, t);
-							op_move(prg.ops, out, lv.obj);
-							label_declare(done, prg.ops);
-							symtbl_clearTemp(sym, t);
-							symtbl_clearTemp(sym, pr.vlc);
-						}
-						else{
+						if (autoclear)
 							symtbl_clearTemp(sym, out);
-							symtbl_clearTemp(sym, pr.vlc);
-						}
+						symtbl_clearTemp(sym, pr.vlc);
 						symtbl_clearTemp(sym, lv.obj);
 						symtbl_clearTemp(sym, lv.key);
 						return per_ok(out);
@@ -5082,9 +5016,26 @@ function var_islist(val){
 	return Object.prototype.toString.call(val) == '[object Array]';
 }
 
+var var_tostr_marker = 0;
 function var_tostr(v){
-	// TODO: actually write this
-	return '' + v;
+	var m = var_tostr_marker++;
+	function tos(v){
+		if (v == null)
+			return 'nil';
+		else if (var_isnum(v))
+			return '' + v;
+		else if (var_isstr(v))
+			return v;
+		// otherwise, list
+		if (v.tostr_marker == m)
+			return '{circular}';
+		v.tostr_marker = m;
+		var out = [];
+		for (var i = 0; i < v.length; i++)
+			out.push(tos(v[i]));
+		return '{' + out.join(', ') + '}';
+	}
+	return tos(v);
 }
 
 function arget(ar, index){
@@ -5421,11 +5372,37 @@ function context_run(ctx){
 			} break;
 
 			case OP_SHIFT          : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				ctx.pc++;
+				A = ops[ctx.pc++]; B = ops[ctx.pc++];
+				C = ops[ctx.pc++]; D = ops[ctx.pc++];
+				if (A > ctx.lexIndex || C > ctx.lexIndex)
+					return crr_invalid();
+				X = var_get(ctx, C, D);
+				if (!var_islist(X)){
+					ctx.failed = true;
+					return crr_warn(['Expecting list when shifting']);
+				}
+				if (X.length <= 0)
+					var_set(ctx, A, B, null)
+				else
+					var_set(ctx, A, B, X.shift());
 			} break;
 
 			case OP_POP            : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				ctx.pc++;
+				A = ops[ctx.pc++]; B = ops[ctx.pc++];
+				C = ops[ctx.pc++]; D = ops[ctx.pc++];
+				if (A > ctx.lexIndex || C > ctx.lexIndex)
+					return crr_invalid();
+				X = var_get(ctx, C, D);
+				if (!var_islist(X)){
+					ctx.failed = true;
+					return crr_warn(['Expecting list when popping']);
+				}
+				if (X.length <= 0)
+					var_set(ctx, A, B, null)
+				else
+					var_set(ctx, A, B, X.pop());
 			} break;
 
 			case OP_ISNUM          : { // [TGT], [SRC]
@@ -5495,7 +5472,18 @@ function context_run(ctx){
 			} break;
 
 			case OP_CAT            : { // [TGT], [SRC1], [SRC2]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				ctx.pc++;
+				A = ops[ctx.pc++]; B = ops[ctx.pc++];
+				C = ops[ctx.pc++]; D = ops[ctx.pc++];
+				E = ops[ctx.pc++]; F = ops[ctx.pc++];
+				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
+					return crr_invalid();
+				X = var_get(ctx, C, D);
+				Y = var_get(ctx, E, F);
+				if (var_islist(X) && var_islist(Y))
+					var_set(ctx, A, B, X.concat(Y));
+				else
+					var_set(ctx, A, B, var_tostr(X) + var_tostr(Y));
 			} break;
 
 			case OP_PUSH           : { // [TGT], [SRC1], [SRC2]
@@ -5508,7 +5496,7 @@ function context_run(ctx){
 				X = var_get(ctx, C, D);
 				if (!var_islist(X)){
 					ctx.failed = true;
-					return crr_warn(['Expecting list']);
+					return crr_warn(['Expecting list when pushing']);
 				}
 				Y = var_get(ctx, E, F);
 				X.push(Y);
@@ -5692,7 +5680,7 @@ function context_run(ctx){
 					if (X.length <= 0)
 						var_set(ctx, A, B, '');
 					else{
-						if (Y < X.length)
+						if (Y < 0)
 							Y += X.length;
 						if (Y >= X.length)
 							Y = X.length - 1;
@@ -5716,44 +5704,24 @@ function context_run(ctx){
 				E = ops[ctx.pc++]; F = ops[ctx.pc++];
 				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
 					return crr_invalid();
+
 				X = var_get(ctx, A, B);
-				if (var_islist(X)){
-					Y = var_get(ctx, C, D);
-					if (var_isnum(Y)){
-						if (Y < 0)
-							Y += X.length;
-						if (Y >= 0 && Y < X.length)
-							X[Y] = var_get(ctx, E, F);
-						else if (Y == X.length)
-							X.push(var_get(ctx, E, F));
-					}
-					else{
-						ctx.failed = true;
-						return crr_warn(['Expecting index to be number']);
-					}
-				}
-				else if (var_isstr(X)){
-					Y = var_get(ctx, C, D);
-					if (var_isnum(Y)){
-						Z = var_tostr(var_get(ctx, E, F));
-						if (Y < 0)
-							Y += X.length;
-						if (Y < 0)
-							var_set(ctx, A, B, Z + X);
-						else if (Y < X.length)
-							var_set(ctx, A, B, X.substr(0, Y) + Z + X.substr(Y));
-						else
-							var_set(ctx, A, B, X + Z);
-					}
-					else{
-						ctx.failed = true;
-						return crr_warn(['Expecting index to be number']);
-					}
-				}
-				else{
+				if (!var_islist(X)){
 					ctx.failed = true;
-					return crr_warn(['Expecting list or string when setting index']);
+					return crr_warn(['Expecting list when setting index']);
 				}
+
+				Y = var_get(ctx, C, D);
+				if (!var_isnum(Y)){
+					ctx.failed = true;
+					return crr_warn(['Expecting index to be number']);
+				}
+				if (Y < 0)
+					Y += X.length;
+				if (Y >= 0 && Y < X.length)
+					X[Y] = var_get(ctx, E, F);
+				else if (Y == X.length)
+					X.push(var_get(ctx, E, F));
 			} break;
 
 			case OP_SPLICE         : { // [SRC1], [SRC2], [SRC3], [SRC4]
@@ -5764,64 +5732,40 @@ function context_run(ctx){
 				G = ops[ctx.pc++]; H = ops[ctx.pc++];
 				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex || G > ctx.lexIndex)
 					return crr_invalid();
+
 				X = var_get(ctx, A, B);
-				if (var_islist(X)){
-					Y = var_get(ctx, C, D);
-					Z = var_get(ctx, E, F);
-					if (!var_isnum(Y) || !var_isnum(Z)){
-						ctx.failed = true;
-						return crr_warn(['Expecting splice values to be numbers']);
-					}
-					if (Y < 0)
-						Y += X.length;
-					if (Y + Z > X.length)
-						Z = X.length - Y;
-					W = var_get(ctx, G, H);
-					if (W == null){
-						if (Y >= 0 && Y < X.length)
-							X.splice(Y, Z);
-					}
-					else if (var_islist(W)){
-						if (Y >= 0 && Y < X.length){
-							var args = W.concat();
-							args.unshift(Z);
-							args.unshift(Y);
-							X.splice.apply(X, args);
-						}
-					}
-					else{
-						ctx.failed = true;
-						return crr_warn(['Expecting spliced value to be a list']);
-					}
+				if (!var_islist(X)){
+					ctx.failed = true;
+					return crr_warn(['Expecting list when splicing']);
 				}
-				else if (var_isstr(X)){
-					Y = var_get(ctx, C, D);
-					Z = var_get(ctx, E, F);
-					if (!var_isnum(Y) || !var_isnum(Z)){
-						ctx.failed = true;
-						return crr_warn(['Expecting splice values to be numbers']);
-					}
-					if (Y < 0)
-						Y += X.length;
-					if (Y + Z > X.length)
-						Z = X.length - Y;
-					W = var_get(ctx, G, H);
-					if (W == null){
-						if (Y >= 0 && Y < X.length)
-							var_set(ctx, A, B, X.substr(0, Y) + X.substr(Y + Z));
-					}
-					else if (var_isstr(W)){
-						if (Y >= 0 && Y < X.length)
-							var_set(ctx, A, B, X.substr(0, Y) + W + X.substr(Y + Z));
-					}
-					else{
-						ctx.failed = true;
-						return crr_warn(['Expecting spliced value to be a string']);
+
+				Y = var_get(ctx, C, D);
+				Z = var_get(ctx, E, F);
+				if (!var_isnum(Y) || !var_isnum(Z)){
+					ctx.failed = true;
+					return crr_warn(['Expecting splice values to be numbers']);
+				}
+				if (Y < 0)
+					Y += X.length;
+				if (Y + Z > X.length)
+					Z = X.length - Y;
+
+				W = var_get(ctx, G, H);
+				if (W == null){
+					if (Y >= 0 && Y < X.length)
+						X.splice(Y, Z);
+				}
+				else if (var_islist(W)){
+					if (Y >= 0 && Y < X.length){
+						var args = W.concat();
+						args.unshift(Z);
+						args.unshift(Y);
+						X.splice.apply(X, args);
 					}
 				}
 				else{
 					ctx.failed = true;
-					return crr_warn(['Expecting list or string when splicing']);
+					return crr_warn(['Expecting spliced value to be a list']);
 				}
 			} break;
 
@@ -6630,12 +6574,16 @@ module.exports = {
 							return;
 						}
 						else if (cr.type == CRR_SAY){
-							// TODO: perform an actual sink_tostr or something
-							console.log.apply(console, cr.args);
+							var out = [];
+							for (var i = 0; i < cr.args.length; i++)
+								out.push(var_tostr(cr.args[i]));
+							console.log(out.join(' '));
 						}
 						else if (cr.type == CRR_WARN){
-							// TODO: perform an actual sink_tostr or something
-							console.error.apply(console, cr.args);
+							var out = [];
+							for (var i = 0; i < cr.args.length; i++)
+								out.push(var_tostr(cr.args[i]));
+							console.error(out.join(' '));
 						}
 						else{
 							console.log('cr', cr);
