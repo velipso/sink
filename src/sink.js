@@ -5107,6 +5107,35 @@ function context_result(ctx, cr, val){
 	var_set(ctx, cr.fdiff, cr.index, val);
 }
 
+// shitty polyfills mostly for internet explorer
+var polyfill = (function(){
+	function Math_sign(x){
+		x = +x; // convert to a number
+		if (x === 0 || isNaN(x))
+			return x;
+		return x > 0 ? 1 : -1;
+	}
+
+	function Math_trunc(x){
+		return ~~x;
+	}
+
+	function Math_log2(x){
+		return Math.log(x) / Math.LN2;
+	}
+
+	function Math_log10(x){
+		return Math.log(x) / Math.LN10;
+	}
+
+	return {
+		Math_sign : typeof Math.sign  == 'function' ? Math.sign  : Math_sign ,
+		Math_trunc: typeof Math.trunc == 'function' ? Math.trunc : Math_trunc,
+		Math_log2 : typeof Math.log2  == 'function' ? Math.log2  : Math_log2 ,
+		Math_log10: typeof Math.log10 == 'function' ? Math.log10 : Math_log10
+	};
+})();
+
 function context_run(ctx){
 	if (ctx.failed)
 		return crr_exitfail();
@@ -5115,6 +5144,21 @@ function context_run(ctx){
 	var X, Y, Z; // values
 
 	var ops = ctx.prg.ops;
+
+	function inline_unaop(func){
+		ctx.pc++;
+		A = ops[ctx.pc++]; B = ops[ctx.pc++];
+		C = ops[ctx.pc++]; D = ops[ctx.pc++];
+		if (A > ctx.lexIndex || C > ctx.lexIndex)
+			return crr_invalid();
+		X = var_get(ctx, C, D);
+		if (!oper_isnum(X)){
+			ctx.failed = true;
+			return crr_warn(['Expecting number or list of numbers']);
+		}
+		var_set(ctx, A, B, oper_una(X, func));
+		return false;
+	}
 
 	function inline_binop(func){
 		ctx.pc++;
@@ -5234,18 +5278,9 @@ function context_run(ctx){
 			} break;
 
 			case OP_NEG            : { // [TGT], [SRC]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex)
-					return crr_invalid();
-				X = var_get(ctx, C, D);
-				if (!oper_isnum(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting number or list of numbers']);
-				}
-				var_set(ctx, A, B, oper_una(X,
-					function(a){ return -a; }));
+				var iu = inline_unaop(function(a){ return -a; });
+				if (iu !== false)
+					return iu;
 			} break;
 
 			case OP_NOT            : { // [TGT], [SRC]
@@ -5570,11 +5605,15 @@ function context_run(ctx){
 			} break;
 
 			case OP_NUM_ABS        : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				var iu = inline_unaop(function(a){ return Math.abs(a); });
+				if (iu !== false)
+					return iu;
 			} break;
 
 			case OP_NUM_SIGN       : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				var iu = inline_unaop(function(a){ return polyfill.Math_sign(a); });
+				if (iu !== false)
+					return iu;
 			} break;
 
 			case OP_NUM_MAX        : { // [TGT], [SRC...]
@@ -5590,19 +5629,27 @@ function context_run(ctx){
 			} break;
 
 			case OP_NUM_FLOOR      : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				var iu = inline_unaop(function(a){ return Math.floor(a); });
+				if (iu !== false)
+					return iu;
 			} break;
 
 			case OP_NUM_CEIL       : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				var iu = inline_unaop(function(a){ return Math.ceil(a); });
+				if (iu !== false)
+					return iu;
 			} break;
 
 			case OP_NUM_ROUND      : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				var iu = inline_unaop(function(a){ return Math.round(a); });
+				if (iu !== false)
+					return iu;
 			} break;
 
 			case OP_NUM_TRUNC      : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				var iu = inline_unaop(function(a){ return polyfill.Math_trunc(a); });
+				if (iu !== false)
+					return iu;
 			} break;
 
 			case OP_NUM_NAN        : { // [TGT]
@@ -5630,27 +5677,39 @@ function context_run(ctx){
 			} break;
 
 			case OP_NUM_SIN        : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				var iu = inline_unaop(function(a){ return Math.sin(a); });
+				if (iu !== false)
+					return iu;
 			} break;
 
 			case OP_NUM_COS        : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				var iu = inline_unaop(function(a){ return Math.cos(a); });
+				if (iu !== false)
+					return iu;
 			} break;
 
 			case OP_NUM_TAN        : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				var iu = inline_unaop(function(a){ return Math.tan(a); });
+				if (iu !== false)
+					return iu;
 			} break;
 
 			case OP_NUM_ASIN       : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				var iu = inline_unaop(function(a){ return Math.asin(a); });
+				if (iu !== false)
+					return iu;
 			} break;
 
 			case OP_NUM_ACOS       : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				var iu = inline_unaop(function(a){ return Math.acos(a); });
+				if (iu !== false)
+					return iu;
 			} break;
 
 			case OP_NUM_ATAN       : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				var iu = inline_unaop(function(a){ return Math.atan(a); });
+				if (iu !== false)
+					return iu;
 			} break;
 
 			case OP_NUM_ATAN2      : { // [TGT], [SRC1], [SRC2]
@@ -5658,19 +5717,27 @@ function context_run(ctx){
 			} break;
 
 			case OP_NUM_LOG        : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				var iu = inline_unaop(function(a){ return Math.log(a); });
+				if (iu !== false)
+					return iu;
 			} break;
 
 			case OP_NUM_LOG2       : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				var iu = inline_unaop(function(a){ return polyfill.Math_log2(a); });
+				if (iu !== false)
+					return iu;
 			} break;
 
 			case OP_NUM_LOG10      : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				var iu = inline_unaop(function(a){ return polyfill.Math_log10(a); });
+				if (iu !== false)
+					return iu;
 			} break;
 
 			case OP_NUM_EXP        : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				var iu = inline_unaop(function(a){ return Math.exp(a); });
+				if (iu !== false)
+					return iu;
 			} break;
 
 			case OP_NUM_LERP       : { // [TGT], [SRC1], [SRC2], [SRC3]
