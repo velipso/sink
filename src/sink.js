@@ -5505,15 +5505,57 @@ function context_run(ctx){
 			} break;
 
 			case OP_UNSHIFT        : { // [TGT], [SRC1], [SRC2]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				ctx.pc++;
+				A = ops[ctx.pc++]; B = ops[ctx.pc++];
+				C = ops[ctx.pc++]; D = ops[ctx.pc++];
+				E = ops[ctx.pc++]; F = ops[ctx.pc++];
+				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
+					return crr_invalid();
+				X = var_get(ctx, C, D);
+				if (!var_islist(X)){
+					ctx.failed = true;
+					return crr_warn(['Expecting list when unshifting']);
+				}
+				Y = var_get(ctx, E, F);
+				X.unshift(Y);
+				if (A != C || B != D)
+					var_set(ctx, A, B, X);
 			} break;
 
 			case OP_APPEND         : { // [TGT], [SRC1], [SRC2]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				ctx.pc++;
+				A = ops[ctx.pc++]; B = ops[ctx.pc++];
+				C = ops[ctx.pc++]; D = ops[ctx.pc++];
+				E = ops[ctx.pc++]; F = ops[ctx.pc++];
+				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
+					return crr_invalid();
+				X = var_get(ctx, C, D);
+				Y = var_get(ctx, E, F);
+				if (!var_islist(X) || !var_islist(Y)){
+					ctx.failed = true;
+					return crr_warn(['Expecting list when appending']);
+				}
+				X.push.apply(X, Y);
+				if (A != C || B != D)
+					var_set(ctx, A, B, X);
 			} break;
 
 			case OP_PREPEND        : { // [TGT], [SRC1], [SRC2]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				ctx.pc++;
+				A = ops[ctx.pc++]; B = ops[ctx.pc++];
+				C = ops[ctx.pc++]; D = ops[ctx.pc++];
+				E = ops[ctx.pc++]; F = ops[ctx.pc++];
+				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
+					return crr_invalid();
+				X = var_get(ctx, C, D);
+				Y = var_get(ctx, E, F);
+				if (!var_islist(X) || !var_islist(Y)){
+					ctx.failed = true;
+					return crr_warn(['Expecting list when prepending']);
+				}
+				X.unshift.apply(X, Y);
+				if (A != C || B != D)
+					var_set(ctx, A, B, X);
 			} break;
 
 			case OP_LT             : { // [TGT], [SRC1], [SRC2]
