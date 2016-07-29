@@ -5127,11 +5127,38 @@ var polyfill = (function(){
 		return Math.log(x) / Math.LN10;
 	}
 
+	function Math_imul(a, b){
+		var ah = (a >>> 16) & 0xFFFF;
+		var al = a & 0xFFFF;
+		var bh = (b >>> 16) & 0xFFFF;
+		var bl = b & 0xFFFF;
+		return (al * bl) + (((ah * bl + al * bh) << 16) >>> 0) | 0;
+	}
+
+	var clz32tbl = [
+		32, 31,  0, 16,  0, 30,  3,  0, 15,  0,  0,  0, 29, 10,  2,  0,
+		 0,  0, 12, 14, 21,  0, 19,  0,  0, 28,  0, 25,  0,  9,  1,  0,
+		17,  0,  4,   ,  0,  0, 11,  0, 13, 22, 20,  0, 26,  0,  0, 18,
+		 5,  0,  0, 23,  0, 27,  0,  6,  0, 24,  7,  0,  8,  0,  0,  0
+	];
+	function Math_clz32(a){
+		var v = Number(x) >>> 0;
+		v |= v >>> 1;
+		v |= v >>> 2;
+		v |= v >>> 4;
+		v |= v >>> 8;
+		v |= v >>> 16;
+		v = clz32tbl[Math_imul(v, 0x06EB14F9) >>> 26];
+		return v;
+	}
+
 	return {
 		Math_sign : typeof Math.sign  == 'function' ? Math.sign  : Math_sign ,
 		Math_trunc: typeof Math.trunc == 'function' ? Math.trunc : Math_trunc,
 		Math_log2 : typeof Math.log2  == 'function' ? Math.log2  : Math_log2 ,
-		Math_log10: typeof Math.log10 == 'function' ? Math.log10 : Math_log10
+		Math_log10: typeof Math.log10 == 'function' ? Math.log10 : Math_log10,
+		Math_imul : typeof Math.imul  == 'function' ? Math.imul  : Math_imul ,
+		Math_clz32: typeof Math.clz32 == 'function' ? Math.clz32 : Math_clz32
 	};
 })();
 
@@ -5618,7 +5645,17 @@ function context_run(ctx){
 			} break;
 
 			case OP_ASK            : { // [TGT], [SRC...]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				ctx.pc++;
+				A = ops[ctx.pc++]; B = ops[ctx.pc++];
+				C = ops[ctx.pc++]; D = ops[ctx.pc++];
+				if (A > ctx.lexIndex || C > ctx.lexIndex)
+					return crr_invalid();
+				X = var_get(ctx, C, D);
+				if (!var_islist(X)){
+					ctx.failed = true;
+					return crr_warn(['Expecting list']);
+				}
+				return crr_ask(X, A, B);
 			} break;
 
 			case OP_NUM_ABS        : { // [TGT], [SRC]
@@ -5774,7 +5811,9 @@ function context_run(ctx){
 			} break;
 
 			case OP_NUM_ATAN2      : { // [TGT], [SRC1], [SRC2]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				var ib = inline_binop(function(a, b){ return Math.atan2(a, b); });
+				if (ib !== false)
+					return ib;
 			} break;
 
 			case OP_NUM_LOG        : { // [TGT], [SRC]
@@ -5818,59 +5857,87 @@ function context_run(ctx){
 			} break;
 
 			case OP_INT_CAST       : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				var iu = inline_unaop(function(a){ return a | 0; });
+				if (iu !== false)
+					return iu;
 			} break;
 
 			case OP_INT_NOT        : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				var iu = inline_unaop(function(a){ return ~a; });
+				if (iu !== false)
+					return iu;
 			} break;
 
 			case OP_INT_AND        : { // [TGT], [SRC1], [SRC2]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				var ib = inline_binop(function(a, b){ return a & b; });
+				if (ib !== false)
+					return ib;
 			} break;
 
 			case OP_INT_OR         : { // [TGT], [SRC1], [SRC2]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				var ib = inline_binop(function(a, b){ return a | b; });
+				if (ib !== false)
+					return ib;
 			} break;
 
 			case OP_INT_XOR        : { // [TGT], [SRC1], [SRC2]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				var ib = inline_binop(function(a, b){ return a ^ b; });
+				if (ib !== false)
+					return ib;
 			} break;
 
 			case OP_INT_SHL        : { // [TGT], [SRC1], [SRC2]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				var ib = inline_binop(function(a, b){ return a << b; });
+				if (ib !== false)
+					return ib;
 			} break;
 
 			case OP_INT_SHR        : { // [TGT], [SRC1], [SRC2]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				var ib = inline_binop(function(a, b){ return a >>> b; });
+				if (ib !== false)
+					return ib;
 			} break;
 
 			case OP_INT_SAR        : { // [TGT], [SRC1], [SRC2]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				var ib = inline_binop(function(a, b){ return a >> b; });
+				if (ib !== false)
+					return ib;
 			} break;
 
 			case OP_INT_ADD        : { // [TGT], [SRC1], [SRC2]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				var ib = inline_binop(function(a, b){ return ((a|0) + (b|0)) | 0; });
+				if (ib !== false)
+					return ib;
 			} break;
 
 			case OP_INT_SUB        : { // [TGT], [SRC1], [SRC2]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				var ib = inline_binop(function(a, b){ return ((a|0) - (b|0)) | 0; });
+				if (ib !== false)
+					return ib;
 			} break;
 
 			case OP_INT_MUL        : { // [TGT], [SRC1], [SRC2]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				var ib = inline_binop(function(a, b){ return polyfill.Math_imul(a, b); });
+				if (ib !== false)
+					return ib;
 			} break;
 
 			case OP_INT_DIV        : { // [TGT], [SRC1], [SRC2]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				var ib = inline_binop(function(a, b){ return ((a|0) / (b|0)) | 0; });
+				if (ib !== false)
+					return ib;
 			} break;
 
 			case OP_INT_MOD        : { // [TGT], [SRC1], [SRC2]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				var ib = inline_binop(function(a, b){ return ((a|0) % (b|0)) | 0; });
+				if (ib !== false)
+					return ib;
 			} break;
 
 			case OP_INT_CLZ        : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				var iu = inline_unaop(function(a){ return polyfill.Math_clz32(a); });
+				if (iu !== false)
+					return iu;
 			} break;
 
 			case OP_RAND_SEED      : { // [TGT], [SRC]
