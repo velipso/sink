@@ -6024,11 +6024,13 @@ module.exports = {
 						}
 						else if (cr.type == CRR_SAY){
 							// TODO: perform an actual sink_tostr or something
-							console.log.apply(console, cr.args);
+							if (cr.args.length > 0)
+								console.log.apply(console, cr.args);
 						}
 						else if (cr.type == CRR_WARN){
 							// TODO: perform an actual sink_tostr or something
-							console.error.apply(console, cr.args);
+							if (cr.args.length > 0)
+								console.error.apply(console, cr.args);
 						}
 						else{
 							console.log('cr', cr);
