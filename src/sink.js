@@ -5235,7 +5235,7 @@ function context_run(ctx){
 		return crr_exitfail();
 
 	var A, B, C, D, E, F, G, H; // ints
-	var X, Y, Z; // values
+	var X, Y, Z, W; // values
 
 	var ops = ctx.prg.ops;
 
@@ -5671,7 +5671,7 @@ function context_run(ctx){
 					if (X.length <= 0)
 						var_set(ctx, A, B, []);
 					else{
-						if (Y < X.length)
+						if (Y < 0)
 							Y += X.length;
 						if (Y >= X.length)
 							Y = X.length - 1;
@@ -5724,6 +5724,8 @@ function context_run(ctx){
 							Y += X.length;
 						if (Y >= 0 && Y < X.length)
 							X[Y] = var_get(ctx, E, F);
+						else if (Y == X.length)
+							X.push(var_get(ctx, E, F));
 					}
 					else{
 						ctx.failed = true;
@@ -5755,7 +5757,72 @@ function context_run(ctx){
 			} break;
 
 			case OP_SPLICE         : { // [SRC1], [SRC2], [SRC3], [SRC4]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				ctx.pc++;
+				A = ops[ctx.pc++]; B = ops[ctx.pc++];
+				C = ops[ctx.pc++]; D = ops[ctx.pc++];
+				E = ops[ctx.pc++]; F = ops[ctx.pc++];
+				G = ops[ctx.pc++]; H = ops[ctx.pc++];
+				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex || G > ctx.lexIndex)
+					return crr_invalid();
+				X = var_get(ctx, A, B);
+				if (var_islist(X)){
+					Y = var_get(ctx, C, D);
+					Z = var_get(ctx, E, F);
+					if (!var_isnum(Y) || !var_isnum(Z)){
+						ctx.failed = true;
+						return crr_warn(['Expecting splice values to be numbers']);
+					}
+					if (Y < 0)
+						Y += X.length;
+					if (Y + Z > X.length)
+						Z = X.length - Y;
+					W = var_get(ctx, G, H);
+					if (W == null){
+						if (Y >= 0 && Y < X.length)
+							X.splice(Y, Z);
+					}
+					else if (var_islist(W)){
+						if (Y >= 0 && Y < X.length){
+							var args = W.concat();
+							args.unshift(Z);
+							args.unshift(Y);
+							X.splice.apply(X, args);
+						}
+					}
+					else{
+						ctx.failed = true;
+						return crr_warn(['Expecting spliced value to be a list']);
+					}
+				}
+				else if (var_isstr(X)){
+					Y = var_get(ctx, C, D);
+					Z = var_get(ctx, E, F);
+					if (!var_isnum(Y) || !var_isnum(Z)){
+						ctx.failed = true;
+						return crr_warn(['Expecting splice values to be numbers']);
+					}
+					if (Y < 0)
+						Y += X.length;
+					if (Y + Z > X.length)
+						Z = X.length - Y;
+					W = var_get(ctx, G, H);
+					if (W == null){
+						if (Y >= 0 && Y < X.length)
+							var_set(ctx, A, B, X.substr(0, Y) + X.substr(Y + Z));
+					}
+					else if (var_isstr(W)){
+						if (Y >= 0 && Y < X.length)
+							var_set(ctx, A, B, X.substr(0, Y) + W + X.substr(Y + Z));
+					}
+					else{
+						ctx.failed = true;
+						return crr_warn(['Expecting spliced value to be a string']);
+					}
+				}
+				else{
+					ctx.failed = true;
+					return crr_warn(['Expecting list or string when splicing']);
+				}
 			} break;
 
 			case OP_JUMP           : { // [[LOCATION]]
