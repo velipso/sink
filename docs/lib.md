@@ -33,6 +33,7 @@ built-in unary and binary operators.
 | `num.round a`       | Round `a` to the nearest integer, 0.5 and above rounds up                 |
 | `num.trunc a`       | Round `a` towards 0                                                       |
 | `num.NaN`           | Not-a-number value                                                        |
+| `num.inf`           | Infinity value                                                            |
 | `num.isNaN a`       | Tests whether `a` is a NaN value                                          |
 | `num.isFinite a`    | Tests whether `a` is a finite value (i.e., not NaN or infinite)           |
 | `num.e`             | *e*  (2.718282...)                                                        |
