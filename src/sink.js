@@ -52,7 +52,7 @@ var OP_SPLICE         = 0x26; // [SRC1], [SRC2], [SRC3], [SRC4]
 var OP_JUMP           = 0x27; // [[LOCATION]]
 var OP_JUMPTRUE       = 0x28; // [SRC], [[LOCATION]]
 var OP_JUMPFALSE      = 0x29; // [SRC], [[LOCATION]]
-var OP_CALL           = 0x2A; // [TGT], [SRC], [[LOCATION]]
+var OP_CALL           = 0x2A; // [TGT], [SRC], LEVEL, [[LOCATION]]
 var OP_NATIVE         = 0x2B; // [TGT], [SRC], [INDEX]
 var OP_RETURN         = 0x2C; // [SRC]
 var OP_SAY            = 0x2D; // [TGT], [SRC...]
@@ -318,9 +318,9 @@ function op_jumpFalse(b, src, index){
 		Math.floor(index / 16777216) % 256);
 }
 
-function op_call(b, ret, arg, index){
+function op_call(b, ret, arg, level, index){
 	oplog('CALL', ret, arg, '0x' + index.toString(16).toUpperCase());
-	b.push(OP_CALL, ret.fdiff, ret.index, arg.fdiff, arg.index,
+	b.push(OP_CALL, ret.fdiff, ret.index, arg.fdiff, arg.index, level,
 		index % 256,
 		Math.floor(index /      256) % 256,
 		Math.floor(index /    65536) % 256,
@@ -2841,8 +2841,8 @@ function label_jumpFalse(lbl, ops, src){
 		label_refresh(lbl, ops, lbl.rewrites.length - 1);
 }
 
-function label_call(lbl, ops, ret, arg){
-	op_call(ops, ret, arg, 0xFFFFFFFF);
+function label_call(lbl, ops, ret, arg, level){
+	op_call(ops, ret, arg, level, 0xFFFFFFFF);
 	lbl.rewrites.push(ops.length - 4);
 	if (lbl.pos >= 0)
 		label_refresh(lbl, ops, lbl.rewrites.length - 1);
@@ -2895,10 +2895,11 @@ function nsname_var(name, fr, index){
 	};
 }
 
-function nsname_cmdLocal(name, lbl){
+function nsname_cmdLocal(name, fr, lbl){
 	return {
 		name: name,
 		type: NSN_CMD_LOCAL,
+		fr: fr,
 		lbl: lbl
 	};
 }
@@ -3189,11 +3190,11 @@ function symtbl_addCmdLocal(sym, names, lbl){
 		if (nsn.name == names[names.length - 1]){
 			if (!sym.repl)
 				return sta_error('Cannot redefine "' + nsn.name + '"');
-			ns.names[i] = nsname_cmdLocal(nsn.name, lbl);
+			ns.names[i] = nsname_cmdLocal(nsn.name, sym.sc.fr, lbl);
 			return sta_ok();
 		}
 	}
-	ns.names.push(nsname_cmdLocal(names[names.length - 1], lbl));
+	ns.names.push(nsname_cmdLocal(names[names.length - 1], sym.sc.fr, lbl));
 	return sta_ok();
 }
 
@@ -3441,7 +3442,7 @@ function program_callEval(prg, sym, vlc, nsn, params, atvlc, flp){
 				symtbl_clearTemp(sym, pr.vlc);
 				atvlc = pr.vlc;
 			}
-			label_call(nsn.lbl, prg.ops, vlc, atvlc);
+			label_call(nsn.lbl, prg.ops, vlc, atvlc, frame_diff(sym.sc.fr, nsn.fr));
 			return pce_ok();
 		} break;
 
@@ -4938,9 +4939,13 @@ function program_gen(prg, sym, stmt){
 // context
 //
 
-function lxs_new(next){
-	var v = [];
-	for (var i = 0; i < 256; i++)
+function ccs_new(pc, fdiff, index, lexIndex){
+	return { pc: pc, fdiff: fdiff, index: index, lexIndex: lexIndex };
+}
+
+function lxs_new(args, next){
+	var v = [args];
+	for (var i = 1; i < 256; i++)
 		v.push(null);
 	return {
 		vals: v,
@@ -4953,7 +4958,7 @@ function context_new(prg){
 		prg: prg,
 		failed: false,
 		callStack: [],
-		lexStack: [lxs_new(null)],
+		lexStack: [lxs_new(null, null)],
 		lexIndex: 0,
 		pc: 0
 	};
@@ -5268,7 +5273,7 @@ function context_run(ctx){
 	if (ctx.failed)
 		return crr_exitfail();
 
-	var A, B, C, D, E, F, G, H; // ints
+	var A, B, C, D, E, F, G, H, I; // ints
 	var X, Y, Z, W; // values
 
 	var ops = ctx.prg.ops;
@@ -5979,8 +5984,27 @@ function context_run(ctx){
 				}
 			} break;
 
-			case OP_CALL           : { // [TGT], [SRC], [[LOCATION]]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+			case OP_CALL           : { // [TGT], [SRC], LEVEL, [[LOCATION]]
+				ctx.pc++;
+				A = ops[ctx.pc++]; B = ops[ctx.pc++];
+				C = ops[ctx.pc++]; D = ops[ctx.pc++];
+				E = ops[ctx.pc++];
+				F = ops[ctx.pc++]; G = ops[ctx.pc++];
+				H = ops[ctx.pc++]; I = ops[ctx.pc++];
+				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
+					return crr_invalid();
+				F = F + (G << 8) + (H << 16) + ((I << 23) * 2);
+				if (ctx.prg.repl && F == 0xFFFFFFFF){
+					ctx.pc -= 9;
+					return crr_repl();
+				}
+				X = var_get(ctx, C, D);
+				ctx.callStack.push(ccs_new(ctx.pc, A, B, ctx.lexIndex));
+				ctx.lexIndex = ctx.lexIndex - E + 1;
+				while (ctx.lexIndex >= ctx.lexStack.length)
+					ctx.lexStack.push(null);
+				ctx.lexStack[ctx.lexIndex] = lxs_new(X, ctx.lexStack[ctx.lexIndex]);
+				ctx.pc = F;
 			} break;
 
 			case OP_NATIVE         : { // [TGT], [SRC], [INDEX]
@@ -5988,7 +6012,18 @@ function context_run(ctx){
 			} break;
 
 			case OP_RETURN         : { // [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				if (ctx.callStack.length <= 0)
+					return crr_exitpass();
+				ctx.pc++;
+				A = ops[ctx.pc++]; B = ops[ctx.pc++];
+				if (A > ctx.lexIndex)
+					return crr_invalid();
+				X = var_get(ctx, A, B);
+				var s = ctx.callStack.pop();
+				ctx.lexStack[ctx.lexIndex] = ctx.lexStack[ctx.lexIndex].next;
+				ctx.lexIndex = s.lexIndex;
+				var_set(ctx, s.fdiff, s.index, X);
+				ctx.pc = s.pc;
 			} break;
 
 			case OP_SAY            : { // [TGT], [SRC...]
