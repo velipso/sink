@@ -439,6 +439,7 @@ var KS_GOTO       = 'KS_GOTO';
 var KS_IF         = 'KS_IF';
 var KS_INCLUDE    = 'KS_INCLUDE';
 var KS_NAMESPACE  = 'KS_NAMESPACE';
+var KS_NIL        = 'KS_NIL';
 var KS_RETURN     = 'KS_RETURN';
 var KS_TYPENUM    = 'KS_TYPENUM';
 var KS_TYPESTR    = 'KS_TYPESTR';
@@ -518,6 +519,7 @@ function ks_str(s){
 	else if (s == 'if'       ) return KS_IF;
 	else if (s == 'include'  ) return KS_INCLUDE;
 	else if (s == 'namespace') return KS_NAMESPACE;
+	else if (s == 'nil'      ) return KS_NIL;
 	else if (s == 'return'   ) return KS_RETURN;
 	else if (s == 'typenum'  ) return KS_TYPENUM;
 	else if (s == 'typestr'  ) return KS_TYPESTR;
@@ -672,7 +674,7 @@ function tok_isMid(tk, allowComma, allowPipe){
 
 function tok_isTerm(tk){
 	return false ||
-		(tk.type == TOK_KS && (tk.k == KS_LPAREN || tk.k == KS_LBRACE)) ||
+		(tk.type == TOK_KS && (tk.k == KS_NIL || tk.k == KS_LPAREN || tk.k == KS_LBRACE)) ||
 		tk.type == TOK_IDENT ||
 		tk.type == TOK_NUM   ||
 		tk.type == TOK_STR;
@@ -1726,7 +1728,6 @@ var PRS_EXPR                          = 'PRS_EXPR';
 var PRS_EXPR_TERM                     = 'PRS_EXPR_TERM';
 var PRS_EXPR_TERM_ISEMPTYLIST         = 'PRS_EXPR_TERM_ISEMPTYLIST';
 var PRS_EXPR_TERM_CLOSEBRACE          = 'PRS_EXPR_TERM_CLOSEBRACE';
-var PRS_EXPR_TERM_ISNIL               = 'PRS_EXPR_TERM_ISNIL';
 var PRS_EXPR_TERM_CLOSEPAREN          = 'PRS_EXPR_TERM_CLOSEPAREN';
 var PRS_EXPR_TERM_LOOKUP              = 'PRS_EXPR_TERM_LOOKUP';
 var PRS_EXPR_POST                     = 'PRS_EXPR_POST';
@@ -2525,6 +2526,11 @@ function parser_process(pr, flp){
 		case PRS_EXPR_TERM:
 			if (tk1.type == TOK_NEWLINE && !tk1.soft)
 				return prr_more();
+			else if (tok_isKS(tk1, KS_NIL)){
+				st.state = PRS_EXPR_POST;
+				st.exprTerm = expr_nil(flp);
+				return prr_more();
+			}
 			else if (tk1.type == TOK_NUM){
 				st.state = PRS_EXPR_POST;
 				st.exprTerm = expr_num(flp, tk1.num);
@@ -2546,7 +2552,9 @@ function parser_process(pr, flp){
 				return prr_more();
 			}
 			else if (tok_isKS(tk1, KS_LPAREN)){
-				st.state = PRS_EXPR_TERM_ISNIL;
+				st.state = PRS_EXPR_TERM_CLOSEPAREN;
+				parser_push(pr, PRS_EXPR);
+				pr.state.exprAllowTrailComma = true;
 				return prr_more();
 			}
 			return prr_error('Invalid expression');
@@ -2572,17 +2580,6 @@ function parser_process(pr, flp){
 			st.exprTerm = expr_list(flp, st.exprTerm);
 			st.state = PRS_EXPR_POST;
 			return prr_more();
-
-		case PRS_EXPR_TERM_ISNIL:
-			if (tok_isKS(tk1, KS_RPAREN)){
-				st.state = PRS_EXPR_POST;
-				st.exprTerm = expr_nil(flp);
-				return prr_more();
-			}
-			st.state = PRS_EXPR_TERM_CLOSEPAREN;
-			parser_push(pr, PRS_EXPR);
-			pr.state.exprAllowTrailComma = true;
-			return parser_process(pr, flp);
 
 		case PRS_EXPR_TERM_CLOSEPAREN:
 			if (tk1.type == TOK_NEWLINE && !tk1.soft)
@@ -5335,15 +5332,33 @@ function context_run(ctx){
 			} break;
 
 			case OP_ISNUM          : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				ctx.pc++;
+				A = ops[ctx.pc++]; B = ops[ctx.pc++];
+				C = ops[ctx.pc++]; D = ops[ctx.pc++];
+				if (A > ctx.lexIndex || C > ctx.lexIndex)
+					return crr_invalid();
+				X = var_get(ctx, C, D);
+				var_set(ctx, A, B, var_isnum(X) ? 1 : null);
 			} break;
 
 			case OP_ISSTR          : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				ctx.pc++;
+				A = ops[ctx.pc++]; B = ops[ctx.pc++];
+				C = ops[ctx.pc++]; D = ops[ctx.pc++];
+				if (A > ctx.lexIndex || C > ctx.lexIndex)
+					return crr_invalid();
+				X = var_get(ctx, C, D);
+				var_set(ctx, A, B, var_isstr(X) ? 1 : null);
 			} break;
 
 			case OP_ISLIST         : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				ctx.pc++;
+				A = ops[ctx.pc++]; B = ops[ctx.pc++];
+				C = ops[ctx.pc++]; D = ops[ctx.pc++];
+				if (A > ctx.lexIndex || C > ctx.lexIndex)
+					return crr_invalid();
+				X = var_get(ctx, C, D);
+				var_set(ctx, A, B, var_islist(X) ? 1 : null);
 			} break;
 
 			case OP_ADD            : { // [TGT], [SRC1], [SRC2]
