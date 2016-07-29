@@ -279,7 +279,7 @@ function op_slice(b, tgt, src1, src2, src3){
 
 function op_setat(b, src1, src2, src3){
 	oplog('SETAT', src1, src2, src3);
-	b.push(OP_GETAT, src1.fdiff, src1.index, src2.fdiff, src2.index, src3.fdiff, src3.index);
+	b.push(OP_SETAT, src1.fdiff, src1.index, src2.fdiff, src2.index, src3.fdiff, src3.index);
 }
 
 function op_splice(b, src1, src2, src3, src4){
@@ -3774,21 +3774,45 @@ function program_evalLvalueInto(prg, sym, vlc, lv, mutop, exvlc){
 		} break;
 
 		case LVR_INDEX: {
+			var ts = symtbl_addTemp(sym);
+			if (ts.type == STA_ERROR)
+				return pir_error(lv.flp, ts.msg);
+			var t = ts.vlc;
 			if (mutop < 0){
 				op_setat(prg.ops, lv.obj, lv.key, exvlc);
+
+				op_unop(prg.ops, OP_ISLIST, t, lv.obj);
+				var islist = label_new('%setatlist');
+				var done = label_new('%setatdone');
+				label_jumpTrue(islist, prg.ops, t);
+				op_move(prg.ops, vlc, lv.obj);
+				label_jump(done, prg.ops);
+				label_declare(islist, prg.ops);
 				op_move(prg.ops, vlc, exvlc);
+				label_declare(done, prg.ops);
 			}
 			else{
-				var ts = symtbl_addTemp(sym);
-				if (ts.type == STA_ERROR)
-					return pir_error(lv.flp, ts.msg);
-				var t = ts.vlc;
 				op_getat(prg.ops, t, lv.obj, lv.key);
 				op_binop(prg.ops, mutop, t, t, exvlc);
 				op_setat(prg.ops, lv.obj, lv.key, t);
+
+				ts = symtbl_addTemp(sym);
+				if (ts.type == STA_ERROR)
+					return pir_error(lv.flp, ts.msg);
+				var t2 = ts.vlc;
+
+				op_unop(prg.ops, OP_ISLIST, t2, lv.obj);
+				var islist = label_new('%setatlist');
+				var done = label_new('%setatdone');
+				label_jumpTrue(islist, prg.ops, t2);
+				op_move(prg.ops, vlc, lv.obj);
+				label_jump(done, prg.ops);
+				label_declare(islist, prg.ops);
 				op_move(prg.ops, vlc, t);
-				symtbl_clearTemp(sym, t);
+				label_declare(done, prg.ops);
+				symtbl_clearTemp(sym, t2);
 			}
+			symtbl_clearTemp(sym, t);
 			symtbl_clearTemp(sym, exvlc);
 			symtbl_clearTemp(sym, lv.obj);
 			symtbl_clearTemp(sym, lv.key);
@@ -4274,28 +4298,67 @@ function program_eval(prg, sym, ex, autoclear){
 
 				case LVR_INDEX: {
 					var pr = program_eval(prg, sym, ex.right, false);
-					var out;
 					if (pr.type == PER_ERROR)
 						return pr;
 					if (ex.k == KS_EQU){
 						op_setat(prg.ops, lv.obj, lv.key, pr.vlc);
-						out = pr.vlc;
+						var out = pr.vlc;
+						if (!autoclear){
+							var islist = label_new('%setatlist');
+							var done = label_new('%done');
+
+							var ts = symtbl_addTemp(sym);
+							if (ts.type == STA_ERROR)
+								return per_error(lv.flp, ts.msg);
+							out = ts.vlc;
+
+							op_unop(prg.ops, OP_ISLIST, out, lv.obj);
+							label_jumpTrue(islist, prg.ops, out);
+							op_move(prg.ops, out, lv.obj);
+							label_jump(done, prg.ops);
+							label_declare(islist, prg.ops);
+							op_move(prg.ops, out, pr.vlc);
+							label_declare(done, prg.ops);
+							symtbl_clearTemp(sym, pr.vlc);
+						}
+						else
+							symtbl_clearTemp(sym, out);
+						symtbl_clearTemp(sym, lv.obj);
+						symtbl_clearTemp(sym, lv.key);
+						return per_ok(out);
 					}
 					else{
 						var ts = symtbl_addTemp(sym);
 						if (ts.type == STA_ERROR)
 							return per_error(lv.flp, ts.msg);
 						out = ts.vlc;
+
 						op_getat(prg.ops, out, lv.obj, lv.key);
 						op_binop(prg.ops, mutop, out, out, pr.vlc);
 						op_setat(prg.ops, lv.obj, lv.key, out);
-						symtbl_clearTemp(sym, pr.vlc);
+						if (!autoclear){
+							var done = label_new('%done');
+
+							var ts = symtbl_addTemp(sym);
+							if (ts.type == STA_ERROR)
+								return per_error(lv.flp, ts.msg);
+							var t = ts.vlc;
+
+							op_unop(prg.ops, OP_ISLIST, t, lv.obj);
+							label_jumpTrue(done, prg.ops, t);
+							op_move(prg.ops, out, lv.obj);
+							label_declare(done, prg.ops);
+							symtbl_clearTemp(sym, t);
+							symtbl_clearTemp(sym, pr.vlc);
+						}
+						else{
+							symtbl_clearTemp(sym, out);
+							symtbl_clearTemp(sym, pr.vlc);
+						}
+						symtbl_clearTemp(sym, lv.obj);
+						symtbl_clearTemp(sym, lv.key);
+						return per_ok(out);
 					}
-					symtbl_clearTemp(sym, lv.obj);
-					symtbl_clearTemp(sym, lv.key);
-					if (autoclear)
-						symtbl_clearTemp(sym, out);
-					return per_ok(out);
 				} break;
 
 				case LVR_SLICE: {
@@ -5019,6 +5082,11 @@ function var_islist(val){
 	return Object.prototype.toString.call(val) == '[object Array]';
 }
 
+function var_tostr(v){
+	// TODO: actually write this
+	return '' + v;
+}
+
 function arget(ar, index){
 	if (var_islist(ar))
 		return index >= ar.length ? 0 : ar[index];
@@ -5541,15 +5609,149 @@ function context_run(ctx){
 			} break;
 
 			case OP_GETAT          : { // [TGT], [SRC1], [SRC2]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				ctx.pc++;
+				A = ops[ctx.pc++]; B = ops[ctx.pc++];
+				C = ops[ctx.pc++]; D = ops[ctx.pc++];
+				E = ops[ctx.pc++]; F = ops[ctx.pc++];
+				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
+					return crr_invalid();
+				X = var_get(ctx, C, D);
+				if (var_islist(X)){
+					Y = var_get(ctx, E, F);
+					if (var_isnum(Y)){
+						if (Y < 0)
+							Y += X.length;
+						if (Y < 0 || Y >= X.length)
+							var_set(ctx, A, B, null);
+						else
+							var_set(ctx, A, B, X[Y]);
+					}
+					else{
+						ctx.failed = true;
+						return crr_warn(['Expecting index to be number']);
+					}
+				}
+				else if (var_isstr(X)){
+					Y = var_get(ctx, E, F);
+					if (var_isnum(Y)){
+						if (Y < 0)
+							Y += X.length;
+						if (Y < 0 || Y >= X.length)
+							var_set(ctx, A, B, null);
+						else
+							var_set(ctx, A, B, X.charAt(Y));
+					}
+					else{
+						ctx.failed = true;
+						return crr_warn(['Expecting index to be number']);
+					}
+				}
+				else{
+					ctx.failed = true;
+					return crr_warn(['Expecting list or string when indexing']);
+				}
 			} break;
 
 			case OP_SLICE          : { // [TGT], [SRC1], [SRC2], [SRC3]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				ctx.pc++;
+				A = ops[ctx.pc++]; B = ops[ctx.pc++];
+				C = ops[ctx.pc++]; D = ops[ctx.pc++];
+				E = ops[ctx.pc++]; F = ops[ctx.pc++];
+				G = ops[ctx.pc++]; H = ops[ctx.pc++];
+				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex || G > ctx.lexIndex)
+					return crr_invalid();
+				X = var_get(ctx, C, D);
+				if (var_islist(X)){
+					Y = var_get(ctx, E, F);
+					Z = var_get(ctx, G, H);
+					if (!var_isnum(Y) || !var_isnum(Z)){
+						ctx.failed = true;
+						return crr_warn(['Expecting slice values to be numbers']);
+					}
+					if (X.length <= 0)
+						var_set(ctx, A, B, []);
+					else{
+						if (Y < X.length)
+							Y += X.length;
+						if (Y >= X.length)
+							Y = X.length - 1;
+						if (Y < 0)
+							Y = 0;
+						if (Y + Z > X.length)
+							Z = X.length - Y;
+						var_set(ctx, A, B, X.slice(Y, Y + Z));
+					}
+				}
+				else if (var_isstr(X)){
+					Y = var_get(ctx, E, F);
+					Z = var_get(ctx, G, H);
+					if (!var_isnum(Y) || !var_isnum(Z)){
+						ctx.failed = true;
+						return crr_warn(['Expecting slice values to be numbers']);
+					}
+					if (X.length <= 0)
+						var_set(ctx, A, B, '');
+					else{
+						if (Y < X.length)
+							Y += X.length;
+						if (Y >= X.length)
+							Y = X.length - 1;
+						if (Y < 0)
+							Y = 0;
+						if (Y + Z > X.length)
+							Z = X.length - Y;
+						var_set(ctx, A, B, X.substr(Y, Z));
+					}
+				}
+				else{
+					ctx.failed = true;
+					return crr_warn(['Expecting list or string when slicing']);
+				}
 			} break;
 
 			case OP_SETAT          : { // [SRC1], [SRC2], [SRC3]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				ctx.pc++;
+				A = ops[ctx.pc++]; B = ops[ctx.pc++];
+				C = ops[ctx.pc++]; D = ops[ctx.pc++];
+				E = ops[ctx.pc++]; F = ops[ctx.pc++];
+				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
+					return crr_invalid();
+				X = var_get(ctx, A, B);
+				if (var_islist(X)){
+					Y = var_get(ctx, C, D);
+					if (var_isnum(Y)){
+						if (Y < 0)
+							Y += X.length;
+						if (Y >= 0 && Y < X.length)
+							X[Y] = var_get(ctx, E, F);
+					}
+					else{
+						ctx.failed = true;
+						return crr_warn(['Expecting index to be number']);
+					}
+				}
+				else if (var_isstr(X)){
+					Y = var_get(ctx, C, D);
+					if (var_isnum(Y)){
+						Z = var_tostr(var_get(ctx, E, F));
+						if (Y < 0)
+							Y += X.length;
+						if (Y < 0)
+							var_set(ctx, A, B, Z + X);
+						else if (Y < X.length)
+							var_set(ctx, A, B, X.substr(0, Y) + Z + X.substr(Y));
+						else
+							var_set(ctx, A, B, X + Z);
+					}
+					else{
+						ctx.failed = true;
+						return crr_warn(['Expecting index to be number']);
+					}
+				}
+				else{
+					ctx.failed = true;
+					return crr_warn(['Expecting list or string when setting index']);
+				}
 			} break;
 
 			case OP_SPLICE         : { // [SRC1], [SRC2], [SRC3], [SRC4]
