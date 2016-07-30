@@ -6,8 +6,6 @@ pushd "$(dirname "$0")" > /dev/null
 SCRIPT_DIR="$(pwd)"
 popd > /dev/null
 SRC_DIR=$SCRIPT_DIR/src
-SRC_JS_DIR=$SRC_DIR/js
-SRC_C_DIR=$SRC_DIR/c
 TGT_DIR=$SCRIPT_DIR/tgt
 DIST_DIR=$TGT_DIR/dist
 TESTS_DIR=$SCRIPT_DIR/tests
@@ -19,9 +17,8 @@ TESTS_DIR=$SCRIPT_DIR/tests
 compile_c() { # production compile
 	# $1 : the input .c file
 	# $2 : the output .o file
-	# $3 : the value of SINK_BUILD_ID macro
 	if which clang > /dev/null; then
-		clang -c -o "$2" -fwrapv -DSINK_BUILD_ID="$3" "$1"
+		clang -c -o "$2" -fwrapv "$1"
 	else
 		echo 'ERROR:'
 		echo 'Missing "clang" which is required for building.'
@@ -35,11 +32,10 @@ compile_c() { # production compile
 	fi
 }
 
-compile_c_debug() { # debug compile
+compile_c_debug() { # debug compile (should define SINK_DEBUG)
 	# $1 : the input .c file
 	# $2 : the output .o file
-	# $3 : the value of SINK_BUILD_ID macro
-	clang -c -o "$2" -fwrapv -DSINK_BUILD_ID="$3" -g -DSINK_DEBUG "$1"
+	clang -c -o "$2" -fwrapv -g -DSINK_DEBUG "$1"
 }
 
 link_c() { # production link
@@ -58,15 +54,6 @@ link_c_debug() { # debug link
 # ---
 #
 
-# calculate build id
-pushd "$SCRIPT_DIR" > /dev/null
-BUILD_ID="$(git log -1 --format='%H' | cut -c-10)"
-if [ "$(git ls-files -o -d --exclude-standard | wc -l)" != "0" ]; then
-	# if we have any untracked files, then this is a snapshot build
-	BUILD_ID="$BUILD_ID-SNAPSHOT"
-fi
-popd >> /dev/null
-
 LINK_FILES=
 BUILD_DEBUG=0
 comp_and_link() {
@@ -74,10 +61,10 @@ comp_and_link() {
 	# $2 : the output .o file
 	if [ "$BUILD_DEBUG" = "1" ]; then
 		echo "Compiling $(basename "$1") (debug)..."
-		compile_c_debug "$1" "$2" "$BUILD_ID"
+		compile_c_debug "$1" "$2"
 	else
 		echo "Compiling $(basename "$1")..."
-		compile_c "$1" "$2" "$BUILD_ID"
+		compile_c "$1" "$2"
 	fi
 	LINK_FILES="$LINK_FILES $2"
 }
@@ -231,12 +218,12 @@ if [ "$BUILD_JS" = "1" ]; then
 
 	# build node version
 	mkdir -p $DIST_DIR/sink
-	cp -Rf $SRC_JS_DIR/* $DIST_DIR/sink
-	echo 'module.exports = "'$BUILD_ID'";' > $DIST_DIR/sink/build-id-data.js
+	cp -Rf $SRC_DIR/*.js $DIST_DIR/sink
 
 	# build browser version
 	if which browserify > /dev/null; then
-		browserify $DIST_DIR/sink/index.js -o $DIST_DIR/sink.js
+		#browserify $DIST_DIR/sink/index.js -o $DIST_DIR/sink.js
+		echo 'TODO: browserify'
 	else
 		echo 'WARNING:'
 		echo 'Missing "browserify" which is required for building.'

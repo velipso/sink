@@ -547,28 +547,28 @@ function ks_toUnaryOp(k){
 }
 
 function ks_toBinaryOp(k){
-	if      (k == KS_PLUS   ) return OP_ADD;
-	else if (k == KS_MINUS  ) return OP_SUB;
-	else if (k == KS_PERCENT) return OP_MOD;
-	else if (k == KS_STAR   ) return OP_MUL;
-	else if (k == KS_SLASH  ) return OP_DIV;
-	else if (k == KS_CARET  ) return OP_POW;
-	else if (k == KS_LT     ) return OP_LT;
-	else if (k == KS_GT     ) return 0x100; // intercepted by op_binop
-	else if (k == KS_TILDE  ) return OP_CAT;
-	else if (k == KS_LTEQU  ) return OP_LTE;
-	else if (k == KS_GTEQU  ) return 0x101; // intercepted by op_binop
-	else if (k == KS_BANGEQU) return OP_NEQ;
-	else if (k == KS_EQU2   ) return OP_EQU;
+	if      (k == KS_PLUS      ) return OP_ADD;
+	else if (k == KS_MINUS     ) return OP_SUB;
+	else if (k == KS_PERCENT   ) return OP_MOD;
+	else if (k == KS_STAR      ) return OP_MUL;
+	else if (k == KS_SLASH     ) return OP_DIV;
+	else if (k == KS_CARET     ) return OP_POW;
+	else if (k == KS_LT        ) return OP_LT;
+	else if (k == KS_GT        ) return 0x100; // intercepted by op_binop
+	else if (k == KS_TILDE     ) return OP_CAT;
+	else if (k == KS_LTEQU     ) return OP_LTE;
+	else if (k == KS_GTEQU     ) return 0x101; // intercepted by op_binop
+	else if (k == KS_BANGEQU   ) return OP_NEQ;
+	else if (k == KS_EQU2      ) return OP_EQU;
+	else if (k == KS_TILDEPLUS ) return OP_PUSH;
+	else if (k == KS_PLUSTILDE ) return OP_UNSHIFT;
+	else if (k == KS_TILDE2PLUS) return OP_APPEND;
+	else if (k == KS_PLUSTILDE2) return OP_PREPEND;
 	return -1;
 }
 
 function ks_toMutateOp(k){
-	if      (k == KS_TILDEPLUS ) return OP_PUSH;
-	else if (k == KS_PLUSTILDE ) return OP_UNSHIFT;
-	else if (k == KS_TILDE2PLUS) return OP_APPEND;
-	else if (k == KS_PLUSTILDE2) return OP_PREPEND;
-	else if (k == KS_PLUSEQU   ) return OP_ADD;
+	if      (k == KS_PLUSEQU   ) return OP_ADD;
 	else if (k == KS_PERCENTEQU) return OP_MOD;
 	else if (k == KS_MINUSEQU  ) return OP_SUB;
 	else if (k == KS_STAREQU   ) return OP_MUL;
@@ -3782,8 +3782,34 @@ function program_condAssignEval(prg, sym, vlc, lv, ex, isAnd){
 			return cae_ok();
 		} break;
 
-		case LVR_INDEX: { // TODO: clear temps
-			throw 'TODO: AMP/PIPE equal LVR_INDEX';
+		case LVR_INDEX: {
+			var done = label_new('%condequdone');
+			var ts = symtbl_addTemp(sym);
+			if (ts.type == STA_ERROR)
+				return cae_error(lv.flp, ts.msg);
+			var iv = ts.vlc;
+			ts = symtbl_addTemp(sym);
+			if (ts.type == STA_ERROR)
+				return cae_error(lv.flp, ts.msg);
+			var t = ts.vlc;
+			op_getat(prg.ops, iv, lv.obj, lv.key);
+			op_nil(prg.ops, t);
+			op_binop(prg.ops, OP_EQU, t, t, iv);
+			if (isAnd)
+				label_jumpTrue(done, prg.ops, t);
+			else
+				label_jumpFalse(done, prg.ops, t);
+			symtbl_clearTemp(sym, t);
+			var pr = program_evalInto(prg, sym, iv, ex);
+			if (pr.type == PIR_ERROR)
+				return cae_error(pr.flp, pr.msg);
+			op_setat(prg.ops, lv.obj, lv.key, iv);
+			label_declare(done, prg.ops);
+			if (vlc != null)
+				op_move(prg.ops, vlc, iv);
+			symtbl_clearTemp(sym, lv.obj);
+			symtbl_clearTemp(sym, lv.key);
+			return cae_ok();
 		} break;
 
 		case LVR_SLICE:
@@ -4217,6 +4243,7 @@ function lval_prepare(prg, sym, ex){
 		} break;
 
 		default:
+			console.error(ex);
 			throw new Error('Invalid lval_prepare type');
 	}
 	return lvp_error(ex.flp, 'Invalid assignment');
@@ -4325,7 +4352,7 @@ function program_eval(prg, sym, ex, autoclear){
 					if (ex.k == KS_EQU){
 						op_setat(prg.ops, lv.obj, lv.key, pr.vlc);
 						if (autoclear)
-							symtbl_clearTemp(pr.vlc);
+							symtbl_clearTemp(sym, pr.vlc);
 						symtbl_clearTemp(sym, lv.obj);
 						symtbl_clearTemp(sym, lv.key);
 						return per_ok(pr.vlc);
@@ -4520,7 +4547,7 @@ function lval_addVars(sym, ex){
 var PGR_OK    = 'PGR_OK';
 var PGR_ERROR = 'PGR_ERROR';
 
-function pgr_ok(){
+function pgr_ok(sym){
 	return { type: PGR_OK };
 }
 
@@ -4537,7 +4564,7 @@ function program_genBody(prg, sym, body){
 			return pr;
 	}
 	prg.repl = repl;
-	return pgr_ok();
+	return pgr_ok(sym);
 }
 
 function program_gen(prg, sym, stmt){
@@ -4546,13 +4573,13 @@ function program_gen(prg, sym, stmt){
 			if (sym.sc.lblBreak == null)
 				return pgr_error(stmt.flp, 'Invalid `break`');
 			label_jump(sym.sc.lblBreak, prg.ops);
-			return pgr_ok();
+			return pgr_ok(sym);
 
 		case AST_CONTINUE:
 			if (sym.sc.lblContinue == null)
 				return pgr_error(stmt.flp, 'Invalid `continue`');
 			label_jump(sym.sc.lblContinue, prg.ops);
-			return pgr_ok();
+			return pgr_ok(sym);
 
 		case AST_DECLARE:
 			for (var i = 0; i < stmt.decls.length; i++){
@@ -4584,7 +4611,7 @@ function program_gen(prg, sym, stmt){
 					} break;
 				}
 			}
-			return pgr_ok();
+			return pgr_ok(sym);
 
 		case AST_DEF: {
 			var lr = symtbl_lookup(sym, stmt.names);
@@ -4692,7 +4719,7 @@ function program_gen(prg, sym, stmt){
 			symtbl_popFrame(sym);
 			label_declare(skip, prg.ops);
 
-			return pgr_ok();
+			return pgr_ok(sym);
 		} break;
 
 		case AST_DO_END: {
@@ -4703,7 +4730,7 @@ function program_gen(prg, sym, stmt){
 				return pr;
 			label_declare(sym.sc.lblBreak, prg.ops);
 			symtbl_popScope(sym);
-			return pgr_ok();
+			return pgr_ok(sym);
 		} break;
 
 		case AST_DO_WHILE: {
@@ -4738,7 +4765,7 @@ function program_gen(prg, sym, stmt){
 
 			label_declare(finish, prg.ops);
 			symtbl_popScope(sym);
-			return pgr_ok();
+			return pgr_ok(sym);
 		} break;
 
 		case AST_FOR: {
@@ -4830,7 +4857,7 @@ function program_gen(prg, sym, stmt){
 			symtbl_clearTemp(sym, idx_vlc);
 			symtbl_clearTemp(sym, pe.vlc);
 			symtbl_popScope(sym);
-			return pgr_ok();
+			return pgr_ok(sym);
 		} break;
 
 		case AST_LOOP: {
@@ -4844,7 +4871,7 @@ function program_gen(prg, sym, stmt){
 			label_jump(sym.sc.lblContinue, prg.ops);
 			label_declare(sym.sc.lblBreak, prg.ops);
 			symtbl_popScope(sym);
-			return pgr_ok();
+			return pgr_ok(sym);
 		} break;
 
 		case AST_GOTO: {
@@ -4852,14 +4879,14 @@ function program_gen(prg, sym, stmt){
 				var lbl = sym.fr.lbls[i];
 				if (lbl.name == stmt.ident){
 					label_jump(lbl, prg.ops);
-					return pgr_ok();
+					return pgr_ok(sym);
 				}
 			}
 			// label doesn't exist yet, so we'll need to create it
 			var lbl = label_new(stmt.ident);
 			label_jump(lbl, prg.ops);
 			sym.fr.lbls.push(lbl);
-			return pgr_ok();
+			return pgr_ok(sym);
 		} break;
 
 		case AST_IF: {
@@ -4889,7 +4916,7 @@ function program_gen(prg, sym, stmt){
 				return pg;
 			symtbl_popScope(sym);
 			label_declare(ifdone, prg.ops);
-			return pgr_ok();
+			return pgr_ok(sym);
 		} break;
 
 		case AST_INCLUDE:
@@ -4903,7 +4930,7 @@ function program_gen(prg, sym, stmt){
 			if (pr.type == PGR_ERROR)
 				return pr;
 			symtbl_popNamespace(sym);
-			return pgr_ok();
+			return pgr_ok(sym);
 		} break;
 
 		case AST_RETURN: {
@@ -4912,7 +4939,7 @@ function program_gen(prg, sym, stmt){
 				return pgr_error(pr.flp, pr.msg);
 			symtbl_clearTemp(sym, pr.vlc);
 			op_return(prg.ops, pr.vlc);
-			return pgr_ok();
+			return pgr_ok(sym);
 		} break;
 
 		case AST_USING: {
@@ -4926,7 +4953,7 @@ function program_gen(prg, sym, stmt){
 				if (!found)
 					sym.sc.ns.usings.push(sr.ns);
 			}
-			return pgr_ok();
+			return pgr_ok(sym);
 		} break;
 
 		case AST_VAR:
@@ -4950,7 +4977,7 @@ function program_gen(prg, sym, stmt){
 					symtbl_clearTemp(sym, pr.vlc);
 				}
 			}
-			return pgr_ok();
+			return pgr_ok(sym);
 
 		case AST_EVAL: {
 			if (prg.repl){
@@ -4972,7 +4999,7 @@ function program_gen(prg, sym, stmt){
 				if (pr.type == PEM_ERROR)
 					return pgr_error(pr.flp, pr.msg);
 			}
-			return pgr_ok();
+			return pgr_ok(sym);
 		} break;
 
 		case AST_LABEL: {
@@ -4992,7 +5019,7 @@ function program_gen(prg, sym, stmt){
 				sym.fr.lbls.push(lbl);
 			}
 			label_declare(lbl, prg.ops);
-			return pgr_ok();
+			return pgr_ok(sym);
 		} break;
 	}
 }
@@ -5949,10 +5976,10 @@ function context_run(ctx){
 				}
 				if (Y < 0)
 					Y += X.length;
+				while (Y >= X.length)
+					X.push(null);
 				if (Y >= 0 && Y < X.length)
 					X[Y] = var_get(ctx, E, F);
-				else if (Y == X.length)
-					X.push(var_get(ctx, E, F));
 			} break;
 
 			case OP_SPLICE         : { // [SRC1], [SRC2], [SRC3], [SRC4]
@@ -6061,6 +6088,10 @@ function context_run(ctx){
 					return crr_repl();
 				}
 				X = var_get(ctx, C, D);
+				if (!var_islist(X)){
+					ctx.failed = true;
+					return crr_warn(['Expecting list when calling function']);
+				}
 				ctx.callStack.push(ccs_new(ctx.pc, A, B, ctx.lexIndex));
 				ctx.lexIndex = ctx.lexIndex - E + 1;
 				while (ctx.lexIndex >= ctx.lexStack.length)
@@ -6070,7 +6101,7 @@ function context_run(ctx){
 			} break;
 
 			case OP_NATIVE         : { // [TGT], [SRC], [INDEX]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				throw 'TODO: deal with OP_NATIVE';
 			} break;
 
 			case OP_RETURN         : { // [SRC]
@@ -6340,7 +6371,7 @@ function context_run(ctx){
 			} break;
 
 			case OP_NUM_LERP       : { // [TGT], [SRC1], [SRC2], [SRC3]
-				var it = inline_triop(function(a, b, c){ return a + (b - a) * t; }, 'lerping');
+				var it = inline_triop(function(a, b, c){ return a + (b - a) * c; }, 'lerping');
 				if (it !== false)
 					return it;
 			} break;
@@ -6566,7 +6597,24 @@ function context_run(ctx){
 			} break;
 
 			case OP_LIST_NEW       : { // [TGT], [SRC1], [SRC2]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				ctx.pc++;
+				A = ops[ctx.pc++]; B = ops[ctx.pc++];
+				C = ops[ctx.pc++]; D = ops[ctx.pc++];
+				E = ops[ctx.pc++]; F = ops[ctx.pc++];
+				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
+					return crr_invalid();
+				X = var_get(ctx, C, D);
+				if (X == null)
+					X = 0;
+				else if (!var_isnum(X)){
+					ctx.failed = true;
+					return crr_warn(['Expecting number for list.new']);
+				}
+				Y = var_get(ctx, E, F);
+				var r = [];
+				for (var i = 0; i < X; i++)
+					r.push(Y);
+				var_set(ctx, A, B, r);
 			} break;
 
 			case OP_LIST_EMPTY     : { // [TGT], [SRC]
@@ -6574,19 +6622,109 @@ function context_run(ctx){
 			} break;
 
 			case OP_LIST_FIND      : { // [TGT], [SRC1], [SRC2], [SRC3]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				ctx.pc++;
+				A = ops[ctx.pc++]; B = ops[ctx.pc++];
+				C = ops[ctx.pc++]; D = ops[ctx.pc++];
+				E = ops[ctx.pc++]; F = ops[ctx.pc++];
+				G = ops[ctx.pc++]; H = ops[ctx.pc++];
+				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex || G > ctx.lexIndex)
+					return crr_invalid();
+				X = var_get(ctx, C, D);
+				if (!var_islist(X)){
+					ctx.failed = true;
+					return crr_warn(['Expecting list for list.find']);
+				}
+				Y = var_get(ctx, E, F);
+				Z = var_get(ctx, G, H);
+				if (Z == null)
+					Z = 0;
+				else if (!var_isnum(Z)){
+					ctx.failed = true;
+					return crr_warn(['Expecting number for list.find']);
+				}
+				if (Z < 0 || isNaN(Z))
+					Z = 0;
+				var found = false;
+				for (var i = Z; i < X.length; i++){
+					if (X[i] == Y){
+						var_set(ctx, A, B, i);
+						found = true;
+						break;
+					}
+				}
+				if (!found)
+					var_set(ctx, A, B, null);
 			} break;
 
 			case OP_LIST_FINDREV   : { // [TGT], [SRC1], [SRC2], [SRC3]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				ctx.pc++;
+				A = ops[ctx.pc++]; B = ops[ctx.pc++];
+				C = ops[ctx.pc++]; D = ops[ctx.pc++];
+				E = ops[ctx.pc++]; F = ops[ctx.pc++];
+				G = ops[ctx.pc++]; H = ops[ctx.pc++];
+				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex || G > ctx.lexIndex)
+					return crr_invalid();
+				X = var_get(ctx, C, D);
+				if (!var_islist(X)){
+					ctx.failed = true;
+					return crr_warn(['Expecting list for list.find']);
+				}
+				Y = var_get(ctx, E, F);
+				Z = var_get(ctx, G, H);
+				if (Z == null)
+					Z = X.length - 1;
+				else if (!var_isnum(Z)){
+					ctx.failed = true;
+					return crr_warn(['Expecting number for list.find']);
+				}
+				if (Z < 0 || isNaN(Z))
+					Z = X.length - 1;
+				var found = false;
+				for (var i = Z; i >= 0; i--){
+					if (X[i] == Y){
+						var_set(ctx, A, B, i);
+						found = true;
+						break;
+					}
+				}
+				if (!found)
+					var_set(ctx, A, B, null);
 			} break;
 
 			case OP_LIST_JOIN      : { // [TGT], [SRC1], [SRC2]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				ctx.pc++;
+				A = ops[ctx.pc++]; B = ops[ctx.pc++];
+				C = ops[ctx.pc++]; D = ops[ctx.pc++];
+				E = ops[ctx.pc++]; F = ops[ctx.pc++];
+				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
+					return crr_invalid();
+				X = var_get(ctx, C, D);
+				if (!var_islist(X)){
+					ctx.failed = true;
+					return crr_warn(['Expecting list for list.find']);
+				}
+				Y = var_get(ctx, E, F);
+				if (Y == null)
+					Y = '';
+				var out = [];
+				for (var i = 0; i < X.length; i++)
+					out.push(var_tostr(X[i]));
+				var_set(ctx, A, B, out.join(var_tostr(Y)));
 			} break;
 
 			case OP_LIST_REV       : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				ctx.pc++;
+				A = ops[ctx.pc++]; B = ops[ctx.pc++];
+				C = ops[ctx.pc++]; D = ops[ctx.pc++];
+				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
+					return crr_invalid();
+				X = var_get(ctx, C, D);
+				if (!var_islist(X)){
+					ctx.failed = true;
+					return crr_warn(['Expecting list for list.find']);
+				}
+				X.reverse();
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_LIST_STR       : { // [TGT], [SRC]
@@ -6869,10 +7007,8 @@ module.exports = {
 						var cr = context_run(ctx);
 						if (cr.type == CRR_REPL)
 							break;
-						else if (cr.type == CRR_EXITPASS || cr.type == CRR_EXITFAIL){
-							die(cr.type == CRR_EXITPASS);
-							return;
-						}
+						else if (cr.type == CRR_EXITPASS || cr.type == CRR_EXITFAIL)
+							return die(cr.type == CRR_EXITPASS);
 						else if (cr.type == CRR_SAY){
 							var out = [];
 							for (var i = 0; i < cr.args.length; i++)
@@ -6937,5 +7073,84 @@ module.exports = {
 		}
 
 		process();
+	},
+	run: function(startFile, die, fileResolve, fileRead){
+		var prg = program_new(false);
+		var cmp = compiler_new(prg);
+		var depth = 0;
+
+		function processFile(file, fromFile){
+			var r = fileResolve(file, fromFile);
+			if (isPromise(r))
+				r.then(fileResolved).catch(incError);
+			else
+				fileResolved(r);
+		}
+
+		function fileResolved(file){
+			var r = fileRead(file);
+			if (isPromise(r))
+				r.then(function(data){ fileLoaded(file, data); }).catch(incError);
+			else
+				fileLoaded(file, r);
+		}
+
+		function fileLoaded(file, data){
+			var cf = compiler_pushFile(cmp, file);
+			if (cf.type == CMF_ERROR)
+				return incError(cf.msg);
+			compiler_add(cmp, data);
+			compiler_popFile(cmp);
+			while (true){
+				var cm = compiler_process(cmp);
+				if (cm.type == CMA_OK){
+					if (depth > 0){
+						depth--;
+						continue;
+					}
+
+					var ctx = context_new(prg);
+					while (true){
+						var cr = context_run(ctx);
+						if (cr.type == CRR_EXITPASS || cr.type == CRR_EXITFAIL)
+							return die(cr.type == CRR_EXITPASS);
+						else if (cr.type == CRR_SAY){
+							var out = [];
+							for (var i = 0; i < cr.args.length; i++)
+								out.push(var_tostr(cr.args[i]));
+							console.log(out.join(' '));
+						}
+						else if (cr.type == CRR_WARN){
+							var out = [];
+							for (var i = 0; i < cr.args.length; i++)
+								out.push(var_tostr(cr.args[i]));
+							console.error(out.join(' '));
+						}
+						else{
+							console.log('cr', cr);
+							throw 'TODO: deal with a different cr';
+						}
+					}
+					return die(true);
+				}
+				else if (cm.type == CMA_ERROR)
+					return incError(cm.msg);
+				else if (cm.type == CMA_INCLUDE){
+					depth++;
+					processFile(cm.file, file);
+					break;
+				}
+			}
+		}
+
+		function incError(err){
+			if (err.stack)
+				console.error(err.stack);
+			else
+				console.error(err.toString());
+			die(false);
+		}
+
+		processFile(startFile, null);
 	}
 };

@@ -1,1 +1,1 @@
-say 'say returns "' ~ (say) ~ '"'
+say 'say returns "' ~ say ~ '"'
