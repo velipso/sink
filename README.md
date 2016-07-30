@@ -6,7 +6,7 @@ Minimal programming language for embedding small scripts in larger programs.
 
 # Demo
 
-[Online Demo (REPL)](https://rawgit.com/voidqk/polybooljs/master/dist/demo.html)
+[Online Demo (REPL)](https://rawgit.com/voidqk/sink/master/src/repl.html)
 
 [Example Code](https://github.com/voidqk/sink/blob/master/tests/0.sanity/sanity.sink)
 
