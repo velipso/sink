@@ -3527,7 +3527,7 @@ function lval_gprepare(prg, sym, ex){
 		} break;
 
 		default:
-			throw new Error('Invalid lval_prepare type');
+			throw new Error('Invalid lval_gprepare type');
 	}
 	return lvp_error(ex.flp, 'Invalid assignment');
 }
@@ -3965,7 +3965,7 @@ function program_gevalCall(prg, sym, mode, intoVlc, flp, nsn, paramsAt, params){
 						if (params.group.length <= 2){
 							var ts = symtbl_addTemp(sym);
 							if (ts.type == STA_ERROR)
-								return pce_error(params.flp, ts.msg);
+								return per_error(params.flp, ts.msg);
 							p3 = ts.vlc;
 							op_nil(prg.ops, p3);
 						}
@@ -3992,7 +3992,7 @@ function program_gevalCall(prg, sym, mode, intoVlc, flp, nsn, paramsAt, params){
 					if (nsn.params > 1){
 						var ts = symtbl_addTemp(sym);
 						if (ts.type == STA_ERROR)
-							return pce_error(params.flp, ts.msg);
+							return per_error(params.flp, ts.msg);
 						p2 = p3 = ts.vlc;
 						op_nil(prg.ops, p2);
 					}
