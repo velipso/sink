@@ -48,6 +48,14 @@ function fileRead(file){
 	});
 }
 
+function say(args){
+	console.log(Sink.valToStr.apply(Sink, args));
+}
+
+function warn(args){
+	console.error(Sink.valToStr.apply(Sink, args));
+}
+
 function printVersion(){
 	console.log(
 		'Sink v1.0\n' +
@@ -118,7 +126,7 @@ for (var i = 2; i < process.argv.length; i++){
 switch (mode){
 	case 'repl':
 	case 'rest':
-		return Sink.repl(replPrompt(), sinkExit, fileResolve, fileRead);
+		return Sink.repl(replPrompt(), sinkExit, fileResolve, fileRead, say, warn);
 	case 'version':
 		return printVersion();
 	case 'compile':
