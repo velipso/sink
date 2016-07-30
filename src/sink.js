@@ -3999,6 +3999,12 @@ function program_gevalCall(prg, sym, mode, intoVlc, flp, nsn, paramsAt, params){
 				}
 			}
 
+			if (mode == PEM_EMPTY || mode == PEM_CREATE){
+				var ts = symtbl_addTemp(sym);
+				if (ts.type == STA_ERROR)
+					return per_error(flp, ts.msg);
+				intoVlc = ts.vlc;
+			}
 			if (nsn.params == 1)
 				op_param1(prg.ops, nsn.opcode, intoVlc, p1);
 			else if (nsn.params == 2)
