@@ -83,6 +83,7 @@ window.addEventListener('mousedown', function(e){
 });
 
 window.addEventListener('keydown', function(e){
+	e.preventDefault();
 	if (allowInput === false)
 		return;
 	if (e.key.length > 1){
