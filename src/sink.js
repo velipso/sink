@@ -2,6 +2,8 @@
 // MIT License
 // Project Home: https://github.com/voidqk/sink
 
+(function(){
+
 //
 // opcodes
 //
@@ -6716,7 +6718,7 @@ function context_run(ctx){
 				ctx.pc++;
 				A = ops[ctx.pc++]; B = ops[ctx.pc++];
 				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
+				if (A > ctx.lexIndex || C > ctx.lexIndex)
 					return crr_invalid();
 				X = var_get(ctx, C, D);
 				if (!var_islist(X)){
@@ -6810,7 +6812,11 @@ If doing a REPL, pass `true` into `compiler_new`, and push your first file as `n
 
 */
 
-var UTF8 = require('./utf8');
+var UTF8;
+if (typeof window === 'undefined')
+	UTF8 = require('./utf8');
+else
+	UTF8 = window.UTF8;
 
 function comppr_new(flp, tks){
 	return { flp: flp, tks: tks };
@@ -6987,8 +6993,14 @@ function isPromise(obj){
 		typeof obj.then === 'function';
 }
 
-module.exports = {
-	repl: function(prompt, die, fileResolve, fileRead){
+var Sink = {
+	valToStr: function(){
+		var out = [];
+		for (var i = 0; i < arguments.length; i++)
+			out.push(var_tostr(arguments[i]));
+		return out.join(' ');
+	},
+	repl: function(prompt, die, fileResolve, fileRead, say, warn){
 		var prg = program_new(true);
 		var cmp = compiler_new(prg);
 		var ctx = context_new(prg);
@@ -7009,18 +7021,10 @@ module.exports = {
 							break;
 						else if (cr.type == CRR_EXITPASS || cr.type == CRR_EXITFAIL)
 							return die(cr.type == CRR_EXITPASS);
-						else if (cr.type == CRR_SAY){
-							var out = [];
-							for (var i = 0; i < cr.args.length; i++)
-								out.push(var_tostr(cr.args[i]));
-							console.log(out.join(' '));
-						}
-						else if (cr.type == CRR_WARN){
-							var out = [];
-							for (var i = 0; i < cr.args.length; i++)
-								out.push(var_tostr(cr.args[i]));
-							console.error(out.join(' '));
-						}
+						else if (cr.type == CRR_SAY)
+							say(cr.args);
+						else if (cr.type == CRR_WARN)
+							warn(cr.args);
 						else{
 							console.log('cr', cr);
 							throw 'TODO: deal with a different cr';
@@ -7033,7 +7037,7 @@ module.exports = {
 					break;
 				}
 				else if (cm.type == CMA_ERROR)
-					console.log('Error:', cm.msg);
+					warn(['Error: ' + cm.msg]);
 				else if (cm.type == CMA_INCLUDE){
 					depth++;
 					var r = fileResolve(cm.file, cmp.file.flp.file);
@@ -7064,9 +7068,10 @@ module.exports = {
 		}
 
 		function incError(err){
-			console.log(err.toString());
 			if (err.stack)
-				console.log(err.stack);
+				warn(['' + err.stack ]);
+			else
+				warn(['' + err ]);
 			compiler_pushFile(cmp, 'failure');
 			compiler_popFile(cmp);
 			process();
@@ -7154,3 +7159,10 @@ module.exports = {
 		processFile(startFile, null);
 	}
 };
+
+if (typeof window === 'object')
+	window.Sink = Sink;
+else
+	module.exports = Sink;
+
+})();

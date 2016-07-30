@@ -228,7 +228,7 @@ struct.str {0x41, 0x42}, 'U8 U8'  # => 'AB'
 struct.list 'AAAB', 'UL32'        # => { 0x42414141 }
 struct.list 'AAAB', 'UB32'        # => { 0x41414142 }
 struct.size 'F32 U8 S16'          # => 56
-struct.size 'hello'               # => () because template is invalid
+struct.size 'hello'               # => nil because template is invalid
 ```
 
 List
@@ -257,14 +257,14 @@ Sorting precedence:
 4. Lists (item by item comparison; if equal, shorter lists first)
 
 ```
-list.sortCmp (), 1      # => -1
+list.sortCmp nil, 1     # => -1
 list.sortCmp 55, 5      # =>  1
 list.sortCmp 'a', 'ab'  # => -1
 list.sortCmp {}, ''     # =>  1
 list.sortCmp {1}, {1}   # =>  0
 
-list.sort {3, 2, (), 4}     # => {(), 2, 3, 4}
-list.sortRev {3, 2, (), 4}  # => {4, 3, 2, ()}
+list.sort {3, 2, nil, 4}     # => {nil, 2, 3, 4}
+list.sortRev {3, 2, nil, 4}  # => {4, 3, 2, nil}
 ```
 
 JSON
@@ -281,7 +281,7 @@ sink values.
 | `json.val a`   | Converts a JSON string `a` to a sink value                                     |
 
 ```
-json.str [1, ()]   # => '[1,null]'
+json.str {1, nil}  # => '[1,null]'
 json.valid '{}'    # => nil even though this is valid JSON -- it cannot be converted to sink
 json.valid 'null'  # => 1, it is valid JSON, and can be converted to sink
 ```

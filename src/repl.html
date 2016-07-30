@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<title>Sink REPL</title>
+	<script src="./utf8.js"></script>
+	<script src="./sink.js"></script>
+	<style>
+html, body {
+	padding: 0;
+	margin: 0;
+	width: 100%;
+	height: 100%;
+	overflow: hidden;
+}
+	</style>
+</head>
+<body>
+	<canvas id="cnv" width="1" height="1" tabindex="0"></canvas>
+	<script>
+
+var cnv = document.getElementById('cnv');
+var ctx = cnv.getContext('2d');
+var lines = [
+	'#0f0', 'Sink Demo'
+];
+var allowInput = false;
+var inLine = 1;
+var inputPrompt = ' 1: ';
+var inputLine = '';
+
+function redraw(){
+	cnv.width = window.innerWidth * 2;
+	cnv.height = window.innerHeight * 2;
+	cnv.style.width = window.innerWidth + 'px';
+	cnv.style.height = window.innerHeight + 'px';
+
+	ctx.fillStyle = '#000';
+	ctx.fillRect(0, 0, cnv.width, cnv.height);
+
+	ctx.font = '40px monospace';
+	ctx.textBaseline = 'top';
+	var i = 0;
+	var y = 10;
+	while (i < lines.length && y < cnv.height){
+		ctx.fillStyle = lines[i];
+		ctx.fillText(lines[i + 1], 10, y);
+		i += 2;
+		y += 40;
+	}
+	if (y + 40 < cnv.height){
+		ctx.fillStyle = '#fff';
+		ctx.fillText(inputPrompt + inputLine, 10, y);
+		if (allowInput !== false){
+			var wms = ctx.measureText('w');
+			var pms = ctx.measureText(inputPrompt + inputLine);
+			var gray = Math.pow(Math.cos(((new Date()).getTime() % 1000) * Math.PI * 2 / 999) * 0.5 + 0.5, 5) * 0.3 + 0.2;
+			ctx.fillStyle = 'rgb(' +
+				Math.round(gray * 255) + ', ' +
+				Math.round(gray * 255) + ', ' +
+				Math.round(gray * 255) + ')';
+			ctx.fillRect(12 + pms.width, y + 5, wms.width, 40);
+		}
+	}
+	else{
+		lines.shift();
+		lines.shift();
+	}
+}
+
+window.addEventListener('paste', function(e){
+	var clipboardData, pastedData;
+	e.stopPropagation();
+	e.preventDefault();
+	clipboardData = e.clipboardData || window.clipboardData;
+	pastedData = clipboardData.getData('Text');
+	alert(pastedData);
+});
+
+window.addEventListener('mousedown', function(e){
+	e.stopPropagation();
+	e.preventDefault();
+	cnv.focus();
+});
+
+window.addEventListener('keydown', function(e){
+	if (allowInput === false)
+		return;
+	if (e.key.length > 1){
+		if (e.key == 'Backspace'){
+			if (inputLine.length > 0)
+				inputLine = inputLine.substr(0, inputLine.length - 1);
+		}
+		else if (e.key == 'Enter'){
+			lines.push('#fff', inputPrompt + inputLine);
+			inLine++;
+			var c = allowInput;
+			allowInput = false;
+			c(inputLine + '\n');
+			inputLine = '';
+		}
+	}
+	else
+		inputLine += e.key;
+});
+
+setInterval(redraw, 0);
+cnv.focus();
+
+Sink.repl(
+	function(levels, result){
+		inputPrompt = ': ';
+		if (levels > 0)
+			inputPrompt = (new Array(levels + 1)).join('..') + '. ';
+		if (inLine < 10)
+			inputPrompt = ' ' + inLine + inputPrompt;
+		else
+			inputPrompt = inLine + inputPrompt;
+		allowInput = result;
+	},
+	function(pass){
+		lines.push(pass ? '#fff' : '#f00');
+		lines.push('Exited');
+		allowInput = false;
+		inputPrompt = '';
+		inputLine = '';
+	},
+	function(file, fromFile){
+		return new Promise(function(resolve, reject){
+			reject('Cannot include files in demo');
+		});
+	},
+	function(file){
+		return new Promise(function(resolve, reject){
+			reject('Cannot include files in demo');
+		});
+	},
+	function(args){
+		lines.push('#fff');
+		lines.push(Sink.valToStr.apply(Sink, args));
+	},
+	function(args){
+		lines.push('#f00');
+		lines.push(Sink.valToStr.apply(Sink, args));
+	}
+);
+
+	</script>
+</body>
+</html>

@@ -2,7 +2,9 @@
 // MIT License
 // Project Home: https://github.com/voidqk/sink
 
-module.exports = {
+(function(){
+
+var UTF8 = {
 	encode: function(str){ // UTF-16 JavaScript string to UTF-8 byte array
 		var bytes = [];
 		for (var i = 0; i < str.length; i++){
@@ -107,3 +109,10 @@ module.exports = {
 		throw new Error('Invalid UTF-8 string');
 	}
 };
+
+if (typeof window === 'object')
+	window.UTF8 = UTF8;
+else
+	module.exports = UTF8;
+
+})();
