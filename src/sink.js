@@ -3594,7 +3594,7 @@ function program_evalLval(prg, sym, mode, intoVlc, lv, mutop, valueVlc){
 				pe = program_lvalGet(prg, sym, PLM_CREATE, null, lv);
 				if (pe.type == PER_ERROR)
 					return pe;
-				pe = program_evalLval(prg, sym, PEM_CREATE, null,
+				pe = program_evalLval(prg, sym, PEM_EMPTY, null,
 					lvr_var(lv.flp, lv.vlc), mutop, valueVlc);
 				if (pe.type == PER_ERROR)
 					return pe;
