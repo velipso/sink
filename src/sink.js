@@ -13,8 +13,8 @@ function varloc_new(fdiff, index){
 }
 
 var OP_NOP            = 0x00; //
-var OP_EXIT           = 0x01; //
-var OP_ABORT          = 0x02; //
+var OP_EXIT           = 0x01; // [SRC...]
+var OP_ABORT          = 0x02; // [SRC...]
 var OP_MOVE           = 0x03; // [TGT], [SRC]
 var OP_INC            = 0x04; // [TGT/SRC]
 var OP_NIL            = 0x05; // [TGT]
