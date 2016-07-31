@@ -1968,9 +1968,9 @@ function parser_process(pr, flp){
 				return prr_more();
 			}
 			else if (st.lvaluesPeriods > 0 && tok_isKS(tk1, KS_PERIOD3)){
-				if (st.lvaluesPeriods == 1)
+				if (st.lvaluesPeriods == 1) // specifying end of a def
 					st.state = PRS_LVALUES_DEF_TAIL;
-				else
+				else // otherwise, specifying end of a list
 					st.state = PRS_LVALUES_TERM_LIST_TAIL;
 				return prr_more();
 			}
@@ -2103,6 +2103,7 @@ function parser_process(pr, flp){
 		case PRS_LVALUES_DEF_TAIL_DONE:
 			if (tk1.type != TOK_NEWLINE)
 				return prr_error('Missing newline or semicolon');
+			st.next.names = st.names;
 			st = st.next; // pop *twice*
 			st.lvalues.push(expr_prefix(flp, KS_PERIOD3, expr_names(flp, st.names)));
 			st.next.lvalues = st.lvalues;
@@ -4718,6 +4719,7 @@ function program_gen(prg, sym, stmt){
 				if (ts.type == STA_ERROR)
 					return pgr_error(stmt.flp, ts.msg);
 				var t = ts.vlc;
+				var args = varloc_new(0, 0);
 				for (var i = 0; i < stmt.lvalues.length; i++){
 					var ex = stmt.lvalues[i];
 					if (ex.type == EXPR_INFIX){
@@ -4747,7 +4749,7 @@ function program_gen(prg, sym, stmt){
 
 						// and grab the appropriate value from the args
 						op_num(prg.ops, t, i);
-						op_getat(prg.ops, t, varloc_new(0, 0), t); // 0:0 are passed in arguments
+						op_getat(prg.ops, t, args, t); // 0:0 are passed in arguments
 
 						var finish = null;
 						if (ex.right != null){
@@ -4773,8 +4775,29 @@ function program_gen(prg, sym, stmt){
 					}
 					else if (i == stmt.lvalues.length - 1 && ex.type == EXPR_PREFIX &&
 						ex.k == KS_PERIOD3){
-						throw 'TODO: def lvalue KS_PERIOD3';
-						// TODO: some sort of slice with 0:0
+						var lr = lval_addVars(sym, ex.ex);
+						if (lr.type == LVP_ERROR)
+							return pgr_error(lr.flp, lr.msg);
+						//assert(lr.lv.type == LVR_VAR)
+						ts = symtbl_addTemp(sym);
+						if (ts.type == STA_ERROR)
+							return pgr_error(stmt.flp, ts.msg);
+						var t2 = ts.vlc;
+
+						op_num(prg.ops, t, i);
+						op_unop(prg.ops, OP_SIZE, t2, args);
+						op_binop(prg.ops, OP_LT, t, t, t2);
+						var empty = label_new('%defemptyrest');
+						label_jumpFalse(empty, prg.ops, t);
+						op_num(prg.ops, t, i);
+						op_binop(prg.ops, OP_SUB, t2, t2, t);
+						op_slice(prg.ops, lr.lv.vlc, args, t, t2);
+						var done = label_new('%defrestdone');
+						label_jump(done, prg.ops);
+						label_declare(empty, prg.ops);
+						op_list(prg.ops, lr.lv.vlc, 0);
+						label_declare(done, prg.ops);
+						symtbl_clearTemp(sym, t2);
 					}
 					else
 						throw new Error('Unknown lvalue type in def (this shouldn\'t happen)');
