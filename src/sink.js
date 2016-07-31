@@ -14,9 +14,7 @@ function varloc_new(fdiff, index){
 
 var OP_NOP            = 0x00; //
 var OP_EXIT           = 0x01; //
-var OP_EXITPASS       = 0x01; // TODO: delete
 var OP_ABORT          = 0x02; //
-var OP_EXITFAIL       = 0x02; // TODO: delete
 var OP_MOVE           = 0x03; // [TGT], [SRC]
 var OP_INC            = 0x04; // [TGT/SRC]
 var OP_NIL            = 0x05; // [TGT]
@@ -166,21 +164,9 @@ function op_nop(b){
 	b.push(OP_NOP);
 }
 
-function op_exitpass(b){
-	// TODO: delete
-	oplog('EXITPASS');
-	b.push(OP_EXITPASS);
-}
-
 function op_exit(b, src){
 	oplog('EXIT', src);
 	b.push(OP_EXIT, src.fdiff, src.index);
-}
-
-function op_exitfail(b){
-	// TODO: delete
-	oplog('EXITFAIL');
-	b.push(OP_EXITFAIL);
 }
 
 function op_abort(b, src){
@@ -3246,8 +3232,8 @@ function symtbl_loadStdlib(sym){
 	SAC(sym, 'say'           , OP_SAY           , -1);
 	SAC(sym, 'warn'          , OP_WARN          , -1);
 	SAC(sym, 'ask'           , OP_ASK           , -1);
-	SAC(sym, 'exit'          , 0x102            , -1); // mark for special processing
-	SAC(sym, 'abort'         , 0x103            , -1); // mark for special processing
+	SAC(sym, 'exit'          , OP_EXIT          , -1);
+	SAC(sym, 'abort'         , OP_ABORT         , -1);
 	symtbl_pushNamespace(sym, ['num']);
 		SAC(sym, 'abs'       , OP_NUM_ABS       ,  1);
 		SAC(sym, 'sign'      , OP_NUM_SIGN      ,  1);
@@ -3851,6 +3837,27 @@ function program_evalCall(prg, sym, mode, intoVlc, flp, nsn, paramsAt, params){
 		return per_ok(intoVlc);
 	}
 
+	if (nsn.type == NSN_CMD_OPCODE && (nsn.opcode == OP_EXIT || nsn.opcode == OP_ABORT) &&
+		params == null){
+		// if empty exit/abort, then just call it with nil
+		if (mode == PEM_EMPTY || mode == PEM_CREATE){
+			var ts = symtbl_addTemp(sym);
+			if (ts.type == STA_ERROR)
+				return per_error(flp, ts.msg);
+			intoVlc = ts.vlc;
+		}
+		op_nil(prg.ops, intoVlc);
+		if (nsn.opcode == OP_EXIT)
+			op_exit(prg.ops, intoVlc);
+		else
+			op_abort(prg.ops, intoVlc);
+		if (mode == PEM_EMPTY){
+			symtbl_clearTemp(sym, intoVlc);
+			return per_ok(null);
+		}
+		return per_ok(intoVlc);
+	}
+
 	if (nsn.type == NSN_CMD_LOCAL || nsn.type == NSN_CMD_NATIVE ||
 		(nsn.type == NSN_CMD_OPCODE && nsn.params == -1)){
 		if (mode == PEM_EMPTY || mode == PEM_CREATE){
@@ -3872,8 +3879,14 @@ function program_evalCall(prg, sym, mode, intoVlc, flp, nsn, paramsAt, params){
 			label_call(nsn.lbl, prg.ops, intoVlc, args, frame_diff(nsn.fr, sym.fr));
 		else if (nsn.type == NSN_CMD_NATIVE)
 			op_native(prg.ops, intoVlc, args, nsn.index);
-		else // variable argument NSN_CMD_OPCODE
-			op_param1(prg.ops, nsn.opcode, intoVlc, args);
+		else{ // variable argument NSN_CMD_OPCODE
+			if (nsn.opcode == OP_EXIT)
+				op_exit(prg.ops, args);
+			else if (nsn.opcode == OP_ABORT)
+				op_abort(prg.ops, args);
+			else
+				op_param1(prg.ops, nsn.opcode, intoVlc, args);
+		}
 
 		symtbl_clearTemp(sym, args);
 	}
@@ -5113,6 +5126,7 @@ function context_new(prg){
 	return {
 		prg: prg,
 		failed: false,
+		passed: false,
 		callStack: [],
 		lexStack: [lxs_new(null, null)],
 		lexIndex: 0,
@@ -5428,6 +5442,8 @@ function lib_num_base(num, len, base){
 function context_run(ctx){
 	if (ctx.failed)
 		return crr_exitfail();
+	if (ctx.passed)
+		return crr_exitpass();
 
 	var A, B, C, D, E, F, G, H, I; // ints
 	var X, Y, Z, W; // values
@@ -5515,15 +5531,40 @@ function context_run(ctx){
 				ctx.pc++;
 			} break;
 
-			case OP_EXIT: // TODO: [SRC]
-			case OP_EXITPASS       : { //
-				return crr_exitpass();
+			case OP_EXIT           : { // [SRC...]
+				ctx.pc++;
+				A = ops[ctx.pc++]; B = ops[ctx.pc++];
+				if (A > ctx.lexIndex)
+					return crr_invalid();
+				X = var_get(ctx, A, B);
+				if (X == null){
+					ctx.passed = true;
+					return crr_exitpass();
+				}
+				if (!var_islist(X)){
+					ctx.failed = true;
+					return crr_warn(['Expecting list when calling exit']);
+				}
+				ctx.passed = true;
+				return crr_say(X);
 			} break;
 
-			case OP_ABORT: // TODO: [SRC]
-			case OP_EXITFAIL       : { //
+			case OP_ABORT          : { // [SRC...]
+				ctx.pc++;
+				A = ops[ctx.pc++]; B = ops[ctx.pc++];
+				if (A > ctx.lexIndex)
+					return crr_invalid();
+				X = var_get(ctx, A, B);
+				if (X == null){
+					ctx.failed = true;
+					return crr_exitfail();
+				}
+				if (!var_islist(X)){
+					ctx.failed = true;
+					return crr_warn(['Expecting list when calling abort']);
+				}
 				ctx.failed = true;
-				return crr_exitfail();
+				return crr_warn(X);
 			} break;
 
 			case OP_MOVE           : { // [TGT], [SRC]
