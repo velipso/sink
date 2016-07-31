@@ -158,7 +158,7 @@ function oplog(){
 			a = a.fdiff + ':' + a.index;
 		out += (i == 1 ? ' ' : ', ') + a;
 	}
-	console.log('> ' + out);
+	console.error('> ' + out);
 }
 
 function op_nop(b){
@@ -307,8 +307,8 @@ function op_splice(b, src1, src2, src3, src4){
 		src4.fdiff, src4.index);
 }
 
-function op_jump(b, index){
-	oplog('JUMP', '0x' + index.toString(16).toUpperCase());
+function op_jump(b, index, hint){
+	oplog('JUMP', hint);
 	b.push(OP_JUMP,
 		index % 256,
 		Math.floor(index /      256) % 256,
@@ -316,8 +316,8 @@ function op_jump(b, index){
 		Math.floor(index / 16777216) % 256);
 }
 
-function op_jumpTrue(b, src, index){
-	oplog('JUMPTRUE', src, '0x' + index.toString(16).toUpperCase());
+function op_jumpTrue(b, src, index, hint){
+	oplog('JUMPTRUE', src, hint);
 	b.push(OP_JUMPTRUE, src.fdiff, src.index,
 		index % 256,
 		Math.floor(index /      256) % 256,
@@ -325,8 +325,8 @@ function op_jumpTrue(b, src, index){
 		Math.floor(index / 16777216) % 256);
 }
 
-function op_jumpFalse(b, src, index){
-	oplog('JUMPFALSE', src, '0x' + index.toString(16).toUpperCase());
+function op_jumpFalse(b, src, index, hint){
+	oplog('JUMPFALSE', src, hint);
 	b.push(OP_JUMPFALSE, src.fdiff, src.index,
 		index % 256,
 		Math.floor(index /      256) % 256,
@@ -334,8 +334,8 @@ function op_jumpFalse(b, src, index){
 		Math.floor(index / 16777216) % 256);
 }
 
-function op_call(b, ret, arg, level, index){
-	oplog('CALL', ret, arg, level, '0x' + index.toString(16).toUpperCase());
+function op_call(b, ret, arg, level, index, hint){
+	oplog('CALL', ret, arg, level, hint);
 	b.push(OP_CALL, ret.fdiff, ret.index, arg.fdiff, arg.index, level,
 		index % 256,
 		Math.floor(index /      256) % 256,
@@ -2837,34 +2837,35 @@ function label_refresh(lbl, ops, start){
 }
 
 function label_jump(lbl, ops){
-	op_jump(ops, 0xFFFFFFFF);
+	op_jump(ops, 0xFFFFFFFF, lbl.name);
 	lbl.rewrites.push(ops.length - 4);
 	if (lbl.pos >= 0)
 		label_refresh(lbl, ops, lbl.rewrites.length - 1);
 }
 
 function label_jumpTrue(lbl, ops, src){
-	op_jumpTrue(ops, src, 0xFFFFFFFF);
+	op_jumpTrue(ops, src, 0xFFFFFFFF, lbl.name);
 	lbl.rewrites.push(ops.length - 4);
 	if (lbl.pos >= 0)
 		label_refresh(lbl, ops, lbl.rewrites.length - 1);
 }
 
 function label_jumpFalse(lbl, ops, src){
-	op_jumpFalse(ops, src, 0xFFFFFFFF);
+	op_jumpFalse(ops, src, 0xFFFFFFFF, lbl.name);
 	lbl.rewrites.push(ops.length - 4);
 	if (lbl.pos >= 0)
 		label_refresh(lbl, ops, lbl.rewrites.length - 1);
 }
 
 function label_call(lbl, ops, ret, arg, level){
-	op_call(ops, ret, arg, level, 0xFFFFFFFF);
+	op_call(ops, ret, arg, level, 0xFFFFFFFF, lbl.name);
 	lbl.rewrites.push(ops.length - 4);
 	if (lbl.pos >= 0)
 		label_refresh(lbl, ops, lbl.rewrites.length - 1);
 }
 
 function label_declare(lbl, ops){
+	oplog(lbl.name + ':');
 	lbl.pos = ops.length;
 	label_refresh(lbl, ops, 0);
 }
@@ -4055,19 +4056,54 @@ function program_lvalCheckNil(prg, sym, lv, jumpFalse, inverted, skip){
 		} break;
 
 		case LVR_SLICE: {
-			var pe = program_lvalGet(prg, sym, PLM_CREATE, null, lv);
+			var pe = program_lvalGet(prg, sym, PLM_CREATE, null, lv.obj);
 			if (pe.type == PER_ERROR)
 				return pe;
-			throw 'TODO: loop through each item in pe.vlc to see if we should skip';
+			var obj = pe.vlc;
+
+			var ts = symtbl_addTemp(sym);
+			if (ts.type == STA_ERROR)
+				return per_error(flp, ts.msg);
+			var idx = ts.vlc;
+
+			ts = symtbl_addTemp(sym);
+			if (ts.type == STA_ERROR)
+				return per_error(flp, ts.msg);
+			var t = ts.vlc;
+
+			op_num(prg.ops, idx, 0);
+
+			var next = label_new('%condslicenext');
+			label_declare(next, prg.ops);
+
+			op_binop(prg.ops, OP_LT, t, idx, lv.len);
+
+			var keep = label_new('%condslicekeep');
+			label_jumpFalse(inverted ? keep : skip, prg.ops, t);
+
+			op_binop(prg.ops, OP_ADD, t, idx, lv.start);
+			op_getat(prg.ops, t, obj, t);
+			if (jumpFalse)
+				label_jumpTrue(inverted ? skip : keep, prg.ops, t);
+			else
+				label_jumpFalse(inverted ? skip : keep, prg.ops, t);
+
+			op_inc(prg.ops, idx);
+			label_jump(next, prg.ops);
+			label_declare(keep, prg.ops);
+
+			symtbl_clearTemp(sym, idx);
+			symtbl_clearTemp(sym, t);
 		} break;
 
 		case LVR_LIST: {
 			var keep = label_new('%condkeep');
 			for (var i = 0; i < lv.body.length; i++)
-				program_lvalCheckNil(prg, sym, lv.body[i], jumpFalse, true, keep);
+				program_lvalCheckNil(prg, sym, lv.body[i], jumpFalse, true, inverted ? skip : keep);
 			if (lv.rest != null)
-				program_lvalCheckNil(prg, sym, lv.rest, jumpFalse, true, keep);
-			label_jump(skip, prg.ops);
+				program_lvalCheckNil(prg, sym, lv.rest, jumpFalse, true, inverted ? skip : keep);
+			if (!inverted)
+				label_jump(skip, prg.ops);
 			label_declare(keep, prg.ops);
 		} break;
 	}
@@ -4094,7 +4130,55 @@ function program_lvalCondAssignPart(prg, sym, lv, jumpFalse, valueVlc){
 		} break;
 
 		case LVR_SLICE: {
-			throw 'TODO: lvalCondAssignPart LVR_SLICE';
+			var pe = program_lvalGet(prg, sym, PLM_CREATE, null, lv.obj);
+			if (pe.type == PER_ERROR)
+				return pe;
+			var obj = pe.vlc;
+
+			var ts = symtbl_addTemp(sym);
+			if (ts.type == STA_ERROR)
+				return per_error(flp, ts.msg);
+			var idx = ts.vlc;
+
+			ts = symtbl_addTemp(sym);
+			if (ts.type == STA_ERROR)
+				return per_error(flp, ts.msg);
+			var t = ts.vlc;
+
+			ts = symtbl_addTemp(sym);
+			if (ts.type == STA_ERROR)
+				return per_error(flp, ts.msg);
+			var t2 = ts.vlc;
+
+			op_num(prg.ops, idx, 0);
+
+			var next = label_new('%condpartslicenext');
+			label_declare(next, prg.ops);
+
+			op_binop(prg.ops, OP_LT, t, idx, lv.len);
+
+			var done = label_new('%condpartslicedone');
+			label_jumpFalse(done, prg.ops, t);
+
+			var inc = label_new('%condpartsliceinc');
+			op_binop(prg.ops, OP_ADD, t, idx, lv.start);
+			op_getat(prg.ops, t2, obj, t);
+			if (jumpFalse)
+				label_jumpFalse(inc, prg.ops, t2);
+			else
+				label_jumpTrue(inc, prg.ops, t2);
+
+			op_getat(prg.ops, t2, valueVlc, idx);
+			op_setat(prg.ops, obj, t, t2);
+
+			label_declare(inc, prg.ops);
+			op_inc(prg.ops, idx);
+			label_jump(next, prg.ops);
+			label_declare(done, prg.ops);
+
+			symtbl_clearTemp(sym, idx);
+			symtbl_clearTemp(sym, t);
+			symtbl_clearTemp(sym, t2);
 		} break;
 
 		case LVR_LIST: {
@@ -4147,10 +4231,7 @@ function program_lvalCondAssign(prg, sym, lv, jumpFalse, valueVlc){
 				return pe;
 		} break;
 
-		case LVR_SLICE: {
-			throw 'TODO: lvalCondAssign LVR_SLICE';
-		} break;
-
+		case LVR_SLICE:
 		case LVR_LIST:
 			return program_lvalCondAssignPart(prg, sym, lv, jumpFalse, valueVlc);
 	}
@@ -4358,6 +4439,7 @@ function program_eval(prg, sym, mode, intoVlc, ex){
 
 					if (mode == PEM_EMPTY){
 						label_declare(skip, prg.ops);
+						lval_clearTemps(lp.lv, sym);
 						return per_ok(null);
 					}
 
@@ -4377,6 +4459,7 @@ function program_eval(prg, sym, mode, intoVlc, ex){
 						return ple;
 
 					label_declare(done, prg.ops);
+					lval_clearTemps(lp.lv, sym);
 					return per_ok(intoVlc);
 				}
 
