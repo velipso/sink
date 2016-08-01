@@ -176,8 +176,7 @@ and ignore bytes 128-255.
 | `str.byte a, b`       | Unsigned byte from string `a` at index `b` (nil if out of range)        |
 | `str.hash a, b`       | Hash string `a` with seed `b` (interpretted as 32-bit unsigned integer) |
 
-Hash Function
--------------
+### Hash Function
 
 The `str.hash` function is defined as [Murmur3_x64_128](https://github.com/aappleby/smhasher).  It
 is known as a fast and high quality non-cryptographic hash function.  The `str.hash` function
