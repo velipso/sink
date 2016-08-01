@@ -266,21 +266,22 @@ list.sort {3, 2, nil, 4}     # => {nil, 2, 3, 4}
 list.sortRev {3, 2, nil, 4}  # => {4, 3, 2, nil}
 ```
 
-JSON
-----
+Pickle
+------
 
-The `json` namespace is not general purpose, and specifically works on a subset of JSON that only
-allows numbers, strings, null, and lists -- which means it can convert losslessly between JSON and
-sink values.
+The `pickle` namespace implements serialization and deserialization functions for sink values.  The
+serialization format is a strict subset of JSON (using lists, strings, numbers, and null for nil).
 
-| Function       | Description                                                                    |
-|----------------|--------------------------------------------------------------------------------|
-| `json.valid a` | Checks whether `a` is a valid JSON string that can be converted to sink        |
-| `json.str a`   | Converts any sink value `a` to a JSON string                                   |
-| `json.val a`   | Converts a JSON string `a` to a sink value                                     |
+| Function         | Description                                                                  |
+|------------------|------------------------------------------------------------------------------|
+| `pickle.valid a` | Checks whether `a` is a valid serialized string                              |
+| `pickle.str a`   | Converts any sink value `a` to a serialized string                           |
+| `pickle.val a`   | Converts a serizlied string `a` to a sink value                              |
 
 ```
-json.str {1, nil}  # => '[1,null]'
-json.valid '{}'    # => nil even though this is valid JSON -- it cannot be converted to sink
-json.valid 'null'  # => 1, it is valid JSON, and can be converted to sink
+pickle.str {1, nil}     # => '[1,null]'
+pickle.val '[[-1],5]'   # => {{-1}, 5}
+pickle.valid '{}'       # => nil, not all of JSON can be converted to sink
+pickle.valid '"\u1000"' # => nil, only bytes in strings are supported ("\u0000" to "\u00FF")
+pickle.valid 'null'     # => 1, 'null' is nil
 ```

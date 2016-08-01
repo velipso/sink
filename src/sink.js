@@ -1,4 +1,4 @@
-// (c) Copyright 2016, Sean Connelly (@voidqk), http://syntheti.cc
+// (c) Cyright 2016, Sean Connelly (@voidqk), http://syntheti.cc
 // MIT License
 // Project Home: https://github.com/voidqk/sink
 
@@ -144,9 +144,9 @@ var OP_LIST_STR       = 0x80; // [TGT], [SRC]
 var OP_LIST_SORT      = 0x81; // [TGT], [SRC]
 var OP_LIST_SORTREV   = 0x82; // [TGT], [SRC]
 var OP_LIST_SORTCMP   = 0x83; // [TGT], [SRC1], [SRC2]
-var OP_JSON_VALID     = 0x84; // [TGT], [SRC]
-var OP_JSON_STR       = 0x85; // [TGT], [SRC]
-var OP_JSON_VAL       = 0x86; // [TGT], [SRC]
+var OP_PICKLE_VALID   = 0x84; // [TGT], [SRC]
+var OP_PICKLE_STR     = 0x85; // [TGT], [SRC]
+var OP_PICKLE_VAL     = 0x86; // [TGT], [SRC]
 
 function oplog(){
 	return;
@@ -3341,10 +3341,10 @@ function symtbl_loadStdlib(sym){
 		SAC(sym, 'sortRev'   , OP_LIST_SORTREV  ,  1);
 		SAC(sym, 'sortCmp'   , OP_LIST_SORTCMP  ,  2);
 	symtbl_popNamespace(sym);
-	symtbl_pushNamespace(sym, ['json']);
-		SAC(sym, 'valid'     , OP_JSON_VALID    ,  1);
-		SAC(sym, 'str'       , OP_JSON_STR      ,  1);
-		SAC(sym, 'val'       , OP_JSON_VAL      ,  1);
+	symtbl_pushNamespace(sym, ['pickle']);
+		SAC(sym, 'valid'     , OP_PICKLE_VALID  ,  1);
+		SAC(sym, 'str'       , OP_PICKLE_STR    ,  1);
+		SAC(sym, 'val'       , OP_PICKLE_VAL    ,  1);
 	symtbl_popNamespace(sym);
 }
 
@@ -6872,15 +6872,15 @@ function context_run(ctx){
 				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
 			} break;
 
-			case OP_JSON_VALID     : { // [TGT], [SRC]
+			case OP_PICKLE_VALID   : { // [TGT], [SRC]
 				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
 			} break;
 
-			case OP_JSON_STR       : { // [TGT], [SRC]
+			case OP_PICKLE_STR     : { // [TGT], [SRC]
 				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
 			} break;
 
-			case OP_JSON_VAL       : { // [TGT], [SRC]
+			case OP_PICKLE_VAL     : { // [TGT], [SRC]
 				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
 			} break;
 
