@@ -178,11 +178,14 @@ and ignore bytes 128-255.
 
 ### Hash Function
 
-The `str.hash` function is defined as [Murmur3_x64_128](https://github.com/aappleby/smhasher).  It
-is known as a fast and high quality non-cryptographic hash function.  The `str.hash` function
-will return a list of four numbers, each 32-bit unsigned integers.
+The `str.hash` function is defined as [Murmur3_x64_128](https://github.com/aappleby/smhasher), and
+returns the same results on all platforms, given the same input.  Murmur3 is known as a fast and
+high quality non-cryptographic hash function.
 
-The seed parameter is optional, and defaults to 0.
+The `str.hash` function will return a list of four numbers, each 32-bit unsigned integers.
+
+The seed parameter is optional, and defaults to 0.  Changing the seed is useful for generating
+different hashes for the same input.
 
 ```c
 TODO: port Murmur3_x64_128 to C cleanly
