@@ -1,95 +1,144 @@
 #!/usr/bin/env node
+// (c) Copyright 2016, Sean Connelly (@voidqk), http://syntheti.cc
+// MIT License
+// Project Home: https://github.com/voidqk/sink
 
-var sink = require('./index');
-var buildId = require('./build-id');
+var Sink = require('./sink');
 var fs = require('fs');
 var path = require('path');
+var readline = require('readline');
+
+function replPrompt(){
+	var rl = readline.createInterface({
+		input: process.stdin,
+		output: process.stdout
+	});
+	var line = 1;
+	// prompt for new line, call `result` with the data
+	return function(levels, result){
+		var p = ': ';
+		if (levels > 0)
+			p = (new Array(levels + 1)).join('..') + '. ';
+		if (line < 10)
+			p = ' ' + line + p;
+		else
+			p = line + p;
+		rl.question(p, function(ans){
+			line++;
+			result(ans + '\n');
+		});
+	};
+}
+
+function sinkExit(pass){
+	process.exit(pass ? 0 : 1);
+}
+
+function fileResolve(file, fromFile){
+	return path.resolve(process.cwd(), fromFile == null ? '' : path.dirname(fromFile), file);
+}
+
+function fileRead(file){
+	return new Promise(function(resolve, reject){
+		fs.readFile(file, 'utf8', function(err, data){
+			if (err)
+				return reject(err);
+			resolve(data);
+		});
+	});
+}
+
+function say(args){
+	console.log(Sink.valToStr.apply(Sink, args));
+}
+
+function warn(args){
+	console.error(Sink.valToStr.apply(Sink, args));
+}
+
+function printVersion(){
+	console.log(
+		'Sink v1.0\n' +
+		'Copyright (c) 2016 Sean Connelly (@voidqk), MIT License\n' +
+		'https://github.com/voidqk/sink  http://syntheti.cc');
+
+}
 
 function printHelp(){
+	printVersion();
 	console.log(
-		'Sink ' + buildId + '\n' +
-		'(c) Copyright 2016 Sean Connelly (@voidqk, web: syntheti.cc), MIT License\n\n' +
-		'./sink [options] [-e \'script\' | script.sink | script.sb] [arguments]\n\n' +
-		'Options:\n' +
-		'  -v          Print verison information                   \n' +
-		'  -e script   Script specified by command line            \n' +
-		'  -c          Compile script to bytecode                  \n' +
-		'  -j          Transpile script to JavaScript              \n' +
-		'  -o output   Output file for compilation (default stdout)\n' +
-		'\n' +
-		'If -c or -j isn\'t specified, then the script will run immediately with\n' +
-		'the specified [arguments] passed in.'
-	);
+		'\nUsage:\n' +
+		'  sink                           Read-eval-print loop\n' +
+		'  sink <file> [arguments]        Run file with arguments\n' +
+		'  sink -e \'<code>\' [arguments]   Run \'<code>\' with arguments\n' +
+		'  sink -c <file>                 Compile file to bytecode\n' +
+		'  sink -v                        Print version information');
 }
 
-var args = process.argv.slice(2);
+var mode = 'repl';
+var evalLine = false;
+var inFile = false;
+var args = [];
 
-if (args.length <= 0)
-	return printHelp();
-
-var source = false;
-var output = false;
-var mode = 'run';
-
-(function(){
-
-function readFile(fn){
-	try {
-		return fs.readFileSync(fn);
-	}
-	catch (e){
-		console.error('Failed to open file: ' + fn + '\n');
-		console.error(e);
-		process.exit(1);
-	}
-}
-
-while (args.length > 0){
-	var cmd = args.shift();
-	switch (cmd){
-		case '-v':
-			console.log(buildId);
-			process.exit(0);
-			return;
-		case '-e':
-			source = args.shift();
-			return;
-		case '-c':
-			mode = 'compile';
+for (var i = 2; i < process.argv.length; i++){
+	var ar = process.argv[i];
+	switch (mode){
+		case 'repl':
+			if (ar == '-v')
+				mode = 'version';
+			else if (ar == '-c')
+				mode = 'compile';
+			else if (ar == '-e')
+				mode = 'eval';
+			else if (ar == '--')
+				mode = 'rest';
+			else if (ar == '-h' || ar == '--help')
+				return printHelp();
+			else{
+				mode = 'run';
+				inFile = ar;
+			}
 			break;
-		case '-j':
-			mode = 'transpile';
+		case 'version':
+			return printHelp();
+		case 'compile':
+			if (inFile === false)
+				inFile = ar;
+			else
+				return printHelp();
 			break;
-		case '-o':
-			output = args.shift();
+		case 'eval':
+			if (evalLine === false)
+				evalLine = ar;
+			else
+				args.push(ar);
 			break;
-		case '--':
-			source = readFile(args.shift());
-			return;
-		default:
-			source = readFile(cmd);
-			return;
+		case 'rest':
+			mode = 'run';
+			inFile = ar;
+			break;
+		case 'run':
+			args.push(ar);
+			break;
 	}
-}
-
-})();
-
-if (source === false)
-	return printHelp();
-
-function isBytecode(){
-	// TODO: detect whether source is bytecode or not
-	return false;
 }
 
 switch (mode){
-	case 'run':
-		if (isBytecode())
-			throw 'TODO';
-		return sink.newCompiler(false, false, false).run(source.toString());
-
+	case 'repl':
+	case 'rest':
+		return Sink.repl(replPrompt(), sinkExit, fileResolve, fileRead, say, warn);
+	case 'version':
+		return printVersion();
 	case 'compile':
-		throw 'TODO';
-	case 'transpile':
-		throw 'TODO';
+		if (inFile == false)
+			return printHelp();
+		throw 'TODO: compile ' + inFile;
+	case 'eval':
+		if (evalLine === false)
+			return printHelp();
+		throw 'TODO: eval ' + evalLine;
+	case 'run':
+		if (inFile === false)
+			return printHelp();
+		return Sink.run(inFile, sinkExit, fileResolve, fileRead);
 }
