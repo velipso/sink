@@ -293,8 +293,8 @@ void str_hash(const uint8_t *str, uint64_t len, uint32_t seed, uint32_t *out){
 ```
 
 ```
-str.hash 'hello, world', 123  # => {3439238593,  804096095, 2029097957, 3684287146}
-str.hash 'demon produce isle' # => {1260707536, 4012023471,  266151570,  235482923}
+str.hash 'hello, world', 123   # => {3439238593,  804096095, 2029097957, 3684287146}
+str.hash 'demon produce aisle' # => {2133076460, 2322631415, 1728380306, 2686374473}
 ```
 
 UTF-8
