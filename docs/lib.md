@@ -276,7 +276,7 @@ serialization format is a strict subset of JSON (using lists, strings, numbers, 
 |------------------|------------------------------------------------------------------------------|
 | `pickle.valid a` | Checks whether `a` is a valid serialized string                              |
 | `pickle.str a`   | Converts any sink value `a` to a serialized string                           |
-| `pickle.val a`   | Converts a serizlied string `a` to a sink value                              |
+| `pickle.val a`   | Converts a serialized string `a` to a sink value                             |
 
 ```
 pickle.str {1, nil}     # => '[1,null]'
