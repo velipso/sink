@@ -129,24 +129,25 @@ var OP_STR_TRIM       = 0x71; // [TGT], [SRC]
 var OP_STR_REV        = 0x72; // [TGT], [SRC]
 var OP_STR_LIST       = 0x73; // [TGT], [SRC]
 var OP_STR_BYTE       = 0x74; // [TGT], [SRC1], [SRC2]
-var OP_UTF8_VALID     = 0x75; // [TGT], [SRC]
-var OP_UTF8_LIST      = 0x76; // [TGT], [SRC]
-var OP_UTF8_STR       = 0x77; // [TGT], [SRC]
-var OP_STRUCT_SIZE    = 0x78; // [TGT], [SRC]
-var OP_STRUCT_STR     = 0x79; // [TGT], [SRC1], [SRC2]
-var OP_STRUCT_LIST    = 0x7A; // [TGT], [SRC1], [SRC2]
-var OP_LIST_NEW       = 0x7B; // [TGT], [SRC1], [SRC2]
-var OP_LIST_FIND      = 0x7C; // [TGT], [SRC1], [SRC2], [SRC3]
-var OP_LIST_FINDREV   = 0x7D; // [TGT], [SRC1], [SRC2], [SRC3]
-var OP_LIST_JOIN      = 0x7E; // [TGT], [SRC1], [SRC2]
-var OP_LIST_REV       = 0x7F; // [TGT], [SRC]
-var OP_LIST_STR       = 0x80; // [TGT], [SRC]
-var OP_LIST_SORT      = 0x81; // [TGT], [SRC]
-var OP_LIST_SORTREV   = 0x82; // [TGT], [SRC]
-var OP_LIST_SORTCMP   = 0x83; // [TGT], [SRC1], [SRC2]
-var OP_PICKLE_VALID   = 0x84; // [TGT], [SRC]
-var OP_PICKLE_STR     = 0x85; // [TGT], [SRC]
-var OP_PICKLE_VAL     = 0x86; // [TGT], [SRC]
+var OP_STR_HASH       = 0x75; // [TGT], [SRC1], [SRC2]
+var OP_UTF8_VALID     = 0x76; // [TGT], [SRC]
+var OP_UTF8_LIST      = 0x77; // [TGT], [SRC]
+var OP_UTF8_STR       = 0x78; // [TGT], [SRC]
+var OP_STRUCT_SIZE    = 0x79; // [TGT], [SRC]
+var OP_STRUCT_STR     = 0x7A; // [TGT], [SRC1], [SRC2]
+var OP_STRUCT_LIST    = 0x7B; // [TGT], [SRC1], [SRC2]
+var OP_LIST_NEW       = 0x7C; // [TGT], [SRC1], [SRC2]
+var OP_LIST_FIND      = 0x7D; // [TGT], [SRC1], [SRC2], [SRC3]
+var OP_LIST_FINDREV   = 0x7E; // [TGT], [SRC1], [SRC2], [SRC3]
+var OP_LIST_JOIN      = 0x7F; // [TGT], [SRC1], [SRC2]
+var OP_LIST_REV       = 0x80; // [TGT], [SRC]
+var OP_LIST_STR       = 0x81; // [TGT], [SRC]
+var OP_LIST_SORT      = 0x82; // [TGT], [SRC]
+var OP_LIST_SORTREV   = 0x83; // [TGT], [SRC]
+var OP_LIST_SORTCMP   = 0x84; // [TGT], [SRC1], [SRC2]
+var OP_PICKLE_VALID   = 0x85; // [TGT], [SRC]
+var OP_PICKLE_STR     = 0x86; // [TGT], [SRC]
+var OP_PICKLE_VAL     = 0x87; // [TGT], [SRC]
 
 function oplog(){
 	return;
@@ -3319,6 +3320,7 @@ function symtbl_loadStdlib(sym){
 		SAC(sym, 'rev'       , OP_STR_REV       ,  1);
 		SAC(sym, 'list'      , OP_STR_LIST      ,  1);
 		SAC(sym, 'byte'      , OP_STR_BYTE      ,  2);
+		SAC(sym, 'hash'      , OP_STR_HASH      ,  2);
 	symtbl_popNamespace(sym);
 	symtbl_pushNamespace(sym, ['utf8']);
 		SAC(sym, 'valid'     , OP_UTF8_VALID    ,  1);
@@ -6702,6 +6704,10 @@ function context_run(ctx){
 			} break;
 
 			case OP_STR_BYTE       : { // [TGT], [SRC1], [SRC2]
+				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+			} break;
+
+			case OP_STR_HASH       : { // [TGT], [SRC1], [SRC2]
 				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
 			} break;
 

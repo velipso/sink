@@ -174,6 +174,20 @@ and ignore bytes 128-255.
 | `str.rev a`           | Reverse `a`                                                             |
 | `str.list a`          | Convert a string to a list of bytes                                     |
 | `str.byte a, b`       | Unsigned byte from string `a` at index `b` (nil if out of range)        |
+| `str.hash a, b`       | Hash string `a` with seed `b` (interpretted as 32-bit unsigned integer) |
+
+Hash Function
+-------------
+
+The `str.hash` function is defined as [Murmur3_x64_128](https://github.com/aappleby/smhasher).  It
+is known as a fast and high quality non-cryptographic hash function.  The `str.hash` function
+will return a list of four numbers, each 32-bit unsigned integers.
+
+The seed parameter is optional, and defaults to `0`.
+
+```c
+TODO: port Murmur3_x64_128 to C cleanly
+```
 
 UTF-8
 -----
