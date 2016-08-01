@@ -198,7 +198,7 @@ Structured Data
 
 ### Structure Templates
 
-Template strings are case-insensitive, ignore whitespace, and can have the following pieces:
+Structure templates are lists of strings, where each case-sensitive string represents one data type:
 
 | Code     | Size | Signed?  | Endian | C Type     |
 |----------|------|----------|--------|------------|
@@ -224,11 +224,11 @@ Template strings are case-insensitive, ignore whitespace, and can have the follo
 | `'FB64'` |    8 | N/A      | Big    | `double`   |
 
 ```
-struct.str {0x41, 0x42}, 'U8 U8'  # => 'AB'
-struct.list 'AAAB', 'UL32'        # => { 0x42414141 }
-struct.list 'AAAB', 'UB32'        # => { 0x41414142 }
-struct.size 'F32 U8 S16'          # => 56
-struct.size 'hello'               # => nil because template is invalid
+struct.str {0x41, 0x42}, {'U8', 'U8'}  # => 'AB'
+struct.list 'AAAB', {'UL32'}           # => { 0x42414141 }
+struct.list 'AAAB', {'UB32'}           # => { 0x41414142 }
+struct.size {'F32', 'U8', 'S16'}       # => 56
+struct.size {'hello'}                  # => nil because template is invalid
 ```
 
 List
