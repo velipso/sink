@@ -110,8 +110,8 @@ void rand_seed(uint32_t s){
 }
 
 uint32_t rand_int(){
-  const uint32_t m = 0x5bd1e995;
-  const uint32_t k = i++ * m;
+  uint32_t m = 0x5bd1e995;
+  uint32_t k = i++ * m;
   seed = (k ^ (k >> 24) ^ (seed * m)) * m;
   return seed ^ (seed >> 13);
 }
