@@ -131,7 +131,7 @@ void rand_getstate(uint32_t *state){
   state[1] = i;
 }
 
-void rand_setstate(uint32_t *state){
+void rand_setstate(const uint32_t *state){
   seed = state[0];
   i = state[1];
 }
