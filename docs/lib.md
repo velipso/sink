@@ -237,7 +237,6 @@ List
 | Function                | Description                                                           |
 |-------------------------|-----------------------------------------------------------------------|
 | `list.new a, b`         | Create a new list of size `a`, with each element set to `b`           |
-| `list.empty ls`         | Empty list `ls`                                                       |
 | `list.find ls, a, b`    | Find `a` in list `ls` starting at `b`; returns nil if not found       |
 | `list.findRev ls, a, b` | Find `a` in list `ls` starting at `b` and searching in reverse        |
 | `list.join ls, a`       | Convert list `ls` to a string by joining elements with string `a`     |
