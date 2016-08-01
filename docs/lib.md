@@ -120,7 +120,7 @@ double rand_num(){
   uint64_t M1 = rand_int();
   uint64_t M2 = rand_int();
   uint64_t M = (M1 << 20) | (M2 >> 12); // 52 bit random number
-  const union { uint64_t i; double d; } u = {
+  union { uint64_t i; double d; } u = {
     .i = UINT64_C(0x3FF) << 52 | M
   };
   return u.d - 1.0;
