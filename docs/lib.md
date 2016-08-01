@@ -90,8 +90,8 @@ Random
 | `rand.seedauto`   | Set the seed of the RNG automatically (likely based on current time)        |
 | `rand.int`        | Random 32-bit unsigned integer ranging [0, 2<sup>32</sup> - 1]              |
 | `rand.num`        | Random number ranging [0, 1) (contains 52 bits of randomness)               |
-| `rand.getstate`   | Returns an 8 byte string that is the entire RNG state                       |
-| `rand.setstate a` | Restores a previous state (`a` should be an 8 byte string)                  |
+| `rand.getstate`   | Returns a two item list, each a 32-bit unsigned integer                     |
+| `rand.setstate a` | Restores a previous state (`a` should be a two item list of integers)       |
 | `rand.pick ls`    | Pick a random item out of the list `ls`                                     |
 | `rand.shuffle ls` | Shuffle the contents of list `ls` in place                                  |
 
@@ -126,28 +126,14 @@ double rand_num(){
   return u.d - 1.0;
 }
 
-void rand_getstate(uint8_t *state){
-  state[0] =  seed        % 256;
-  state[1] = (seed >>  8) % 256;
-  state[2] = (seed >> 16) % 256;
-  state[3] = (seed >> 24) % 256;
-  state[4] =  i           % 256;
-  state[5] = (i    >>  8) % 256;
-  state[6] = (i    >> 16) % 256;
-  state[7] = (i    >> 24) % 256;
+void rand_getstate(uint32_t *state){
+  state[0] = seed;
+  state[1] = i;
 }
 
-void rand_setstate(uint8_t *state){
-  seed =
-     state[0]        |
-    (state[1] <<  8) |
-    (state[2] << 16) |
-    (state[3] << 24);
-  i =
-     state[4]        |
-    (state[5] <<  8) |
-    (state[6] << 16) |
-    (state[7] << 24);
+void rand_setstate(uint32_t *state){
+  seed = state[0];
+  i = state[1];
 }
 ```
 
