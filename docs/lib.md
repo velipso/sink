@@ -182,7 +182,7 @@ The `str.hash` function is defined as [Murmur3_x64_128](https://github.com/aappl
 is known as a fast and high quality non-cryptographic hash function.  The `str.hash` function
 will return a list of four numbers, each 32-bit unsigned integers.
 
-The seed parameter is optional, and defaults to `0`.
+The seed parameter is optional, and defaults to 0.
 
 ```c
 TODO: port Murmur3_x64_128 to C cleanly
