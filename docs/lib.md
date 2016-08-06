@@ -167,8 +167,8 @@ Due to the fact strings are interpreted as binary data, and not unicode strings,
 
 * `str.lower` will only convert bytes A-Z to a-z (values 65-90 to 97-122).
 * `str.upper` will only convert bytes a-z to A-Z (values 97-122 to 65-90).
-* `str.trim` will only remove whitespace defined as bytes 9 (tab), 10 (newline), 11 (vertical tab),
-  12 (form feed), 13 (carriage return), and 32 (space).
+* `str.trim` will only remove surrounding whitespace defined as bytes 9 (tab), 10 (newline),
+  11 (vertical tab), 12 (form feed), 13 (carriage return), and 32 (space).
 
 ### Hash Function
 
