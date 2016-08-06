@@ -140,9 +140,7 @@ void rand_setstate(const uint32_t *state){
 String
 ------
 
-Strings are 8-bit clean, and interpreted as binary data.  In cases where character meaning matters
-(for example, `str.lower`), the algorithms interpret bytes 0-127 as defined by Unicode codepage 0,
-and ignore bytes 128-255.
+Strings are 8-bit clean, and interpreted as binary data.
 
 | Function              | Description                                                             |
 |-----------------------|-------------------------------------------------------------------------|
@@ -154,13 +152,23 @@ and ignore bytes 128-255.
 | `str.pad a, b`        | Pads string `a` with space until it is length `b` (`-b` to pad left)    |
 | `str.find a, b, c`    | Find `b` in string `a` starting at `c`; returns nil if not found        |
 | `str.findRev a, b, c` | Find `b` in string `a` starting at `c` and searching in reverse         |
-| `str.lower a`         | Convert `a` to lowercase, ignoring bytes >= 128                         |
-| `str.upper a`         | Convert `a` to uppercase, ignoring bytes >= 128                         |
-| `str.trim a`          | Trim surrounding whitespace from `a`; bytes >= 128 considered non-white |
+| `str.lower a`         | Convert `a` to lowercase                                                |
+| `str.upper a`         | Convert `a` to uppercase                                                |
+| `str.trim a`          | Trim surrounding whitespace from `a`                                    |
 | `str.rev a`           | Reverse `a`                                                             |
 | `str.list a`          | Convert a string to a list of bytes                                     |
 | `str.byte a, b`       | Unsigned byte from string `a` at index `b` (nil if out of range)        |
 | `str.hash a, b`       | Hash string `a` with seed `b` (interpretted as 32-bit unsigned integer) |
+
+### Uppercase, Lowercase, Trim
+
+Due to the fact strings are interpreted as binary data, and not unicode strings, the `str.lower`,
+`str.upper`, and `str.trim` functions are explicitly specified:
+
+* `str.lower` will only convert bytes A-Z to a-z (values 65-90 to 97-122).
+* `str.upper` will only convert bytes a-z to A-Z (values 97-122 to 65-90).
+* `str.trim` will only remove whitespace defined as bytes 9 (tab), 10 (newline), 11 (vertical tab),
+  12 (form feed), 13 (carriage return), and 32 (space).
 
 ### Hash Function
 
