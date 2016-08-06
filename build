@@ -179,7 +179,8 @@ esac
 run_tests() {
 	# $1 : 'js' or 'c'
 	test_prog="$1"
-	out=$(mktemp "$TGT_DIR"/test_output.XXXXXX)
+	out=$(mktemp "$TGT_DIR"/test_output.stdout.XXXXXX)
+	err=$(mktemp "$TGT_DIR"/test_output.stderr.XXXXXX)
 	for test_dir in $TESTS_DIR/*; do
 		test_base=$(basename "$test_dir")
 		test_num=$(echo "$test_base" | cut -d . -f 1)
@@ -188,26 +189,53 @@ run_tests() {
 		printf "%3s.%-10s  " "$test_num" "$test_name"
 
 		if [ "$test_prog" = "js" ]; then
-			$DIST_DIR/sink/cmd.js "$test_dir"/"$test_name".sink "$test_name" > "$out"
+			set +e
+			$DIST_DIR/sink/cmd.js "$test_dir"/"$test_name".sink "$test_name" > "$out" 2>"$err"
+			status=$?
+			set -e
 		else
 			echo TODO
 			exit 1
 		fi
 
-		set +e
-		d=$(diff -u --label 'Expected Output' "$test_dir"/pass.txt --label 'Actual Output' "$out")
-		status=$?
-		set -e
-		if [ "$status" = "0" ]; then
-			echo PASS
+		if [ -e "$test_dir"/pass.txt ]; then
+			if [ "$status" != "0" ]; then
+				echo FAIL
+				cat "$err"
+				rm -f "$out"
+				rm -f "$err"
+				exit 1
+			else
+				set +e
+				d=$(diff -u --label 'Expected Output' "$test_dir"/pass.txt --label \
+					'Actual Output' "$out")
+				status=$?
+				set -e
+				if [ "$status" = "0" ]; then
+					echo PASS
+				else
+					echo FAIL
+					echo "$d"
+					rm -f "$out"
+					rm -f "$err"
+					exit 1
+				fi
+			fi
 		else
-			echo FAIL
-			echo "$d"
-			rm -f "$out"
-			exit 1
+			if [ "$status" = "0" ]; then
+				echo FAIL
+				echo 'Expecting test to result in error; instead it ran with the result:'
+				cat "$out"
+				rm -f "$out"
+				rm -f "$err"
+				exit 1
+			else
+				echo PASS
+			fi
 		fi
 	done
 	rm -f "$out"
+	rm -f "$err"
 }
 
 #

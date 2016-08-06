@@ -2812,6 +2812,14 @@ function parser_add(pr, tk, flp){
 	return parser_process(pr, flp);
 }
 
+function parser_close(pr){
+	if (pr.state.state != PRS_STATEMENT ||
+		pr.state.next == null ||
+		pr.state.next.state != PRS_START_STATEMENT)
+		return prr_error('Invalid end of file');
+	return prr_more();
+}
+
 //
 // labels
 //
@@ -5111,15 +5119,19 @@ function lxs_new(args, next){
 }
 
 function context_new(prg){
-	return {
+	var ctx = {
 		prg: prg,
 		failed: false,
 		passed: false,
 		callStack: [],
 		lexStack: [lxs_new(null, null)],
 		lexIndex: 0,
-		pc: 0
+		pc: 0,
+		randSeed: 0,
+		randI: 0
 	};
+	lib_rand_seedauto(ctx);
+	return ctx;
 }
 
 var CRR_EXITPASS = 'CRR_EXITPASS';
@@ -5425,6 +5437,75 @@ function lib_num_base(num, len, base){
 		}
 	}
 	return neg + (base == 16 ? '0x' : (base == 8 ? '0c' : '0b')) + body;
+}
+
+function lib_rand_seedauto(ctx){
+	ctx.randSeed = (new Date()).getTime() | 0;
+	ctx.randI = (Math.random() * 0xFFFFFFFF) | 0;
+	for (var i = 0; i < 1000; i++)
+		lib_rand_int(ctx);
+	ctx.randI = 0;
+}
+
+function lib_rand_seed(ctx, n){
+	ctx.randSeed = n | 0;
+	ctx.randI = 0;
+}
+
+function lib_rand_int(ctx){
+	var m = 0x5bd1e995;
+	var k = polyfill.Math_imul(ctx.randI,  m);
+	ctx.randI = (ctx.randI + 1) | 0;
+	ctx.randSeed = polyfill.Math_imul(k ^ (k >>> 24) ^ polyfill.Math_imul(ctx.randSeed, m), m);
+	var res = (ctx.randSeed ^ (ctx.randSeed >>> 13)) | 0;
+	if (res < 0)
+		return res + 0x100000000;
+	return res;
+}
+
+function lib_rand_num(ctx){
+	var M1 = lib_rand_int(ctx);
+	var M2 = lib_rand_int(ctx);
+	var view = new DataView(new ArrayBuffer(8));
+	view.setInt32(0, (M1 << 20) | (M2 >> 12), true);
+	view.setInt32(4, 0x3FF00000 | (M1 >>> 12), true);
+	return view.getFloat64(0, true) - 1;
+}
+
+function lib_rand_getstate(ctx){
+	// slight goofy logic to convert int32 to uint32
+	if (ctx.randI < 0){
+		if (ctx.randSeed < 0)
+			return [ctx.randSeed + 0x100000000, ctx.randI + 0x100000000];
+		return [ctx.randSeed, ctx.randI + 0x100000000];
+	}
+	else if (ctx.randSeed < 0)
+		return [ctx.randSeed + 0x100000000, ctx.randI];
+	return [ctx.randSeed, ctx.randI];
+}
+
+function lib_rand_setstate(ctx, a, b){
+	ctx.randSeed = a | 0;
+	ctx.randI = b | 0;
+}
+
+function lib_rand_pick(ctx, ls){
+	if (ls.length <= 0)
+		return null;
+	return ls[Math.floor(lib_rand_num(ctx) * ls.length)];
+}
+
+function lib_rand_shuffle(ctx, ls){
+	var m = ls.length;
+	while (m > 1){
+		var i = Math.floor(lib_rand_num(ctx) * m);
+		m--;
+		if (m != i){
+			var t = ls[m];
+			ls[m] = ls[i];
+			ls[i] = t;
+		}
+	}
 }
 
 function context_run(ctx){
@@ -6620,35 +6701,95 @@ function context_run(ctx){
 			} break;
 
 			case OP_RAND_SEED      : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				ctx.pc++;
+				A = ops[ctx.pc++]; B = ops[ctx.pc++];
+				C = ops[ctx.pc++]; D = ops[ctx.pc++];
+				if (A > ctx.lexIndex || C > ctx.lexIndex)
+					return crr_invalid();
+				X = var_get(ctx, C, D);
+				if (!var_isnum(X)){
+					ctx.failed = true;
+					return crr_warn(['Expecting number']);
+				}
+				lib_rand_seed(ctx, X);
+				var_set(ctx, A, B, null);
 			} break;
 
 			case OP_RAND_SEEDAUTO  : { // [TGT]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				ctx.pc++;
+				A = ops[ctx.pc++]; B = ops[ctx.pc++];
+				if (A > ctx.lexIndex)
+					return crr_invalid();
+				lib_rand_seedauto(ctx);
+				var_set(ctx, A, B, null);
 			} break;
 
 			case OP_RAND_INT       : { // [TGT]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				ctx.pc++;
+				A = ops[ctx.pc++]; B = ops[ctx.pc++];
+				if (A > ctx.lexIndex)
+					return crr_invalid();
+				var_set(ctx, A, B, lib_rand_int(ctx));
 			} break;
 
 			case OP_RAND_NUM       : { // [TGT]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				ctx.pc++;
+				A = ops[ctx.pc++]; B = ops[ctx.pc++];
+				if (A > ctx.lexIndex)
+					return crr_invalid();
+				var_set(ctx, A, B, lib_rand_num(ctx));
 			} break;
 
 			case OP_RAND_GETSTATE  : { // [TGT]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				ctx.pc++;
+				A = ops[ctx.pc++]; B = ops[ctx.pc++];
+				if (A > ctx.lexIndex)
+					return crr_invalid();
+				var_set(ctx, A, B, lib_rand_getstate(ctx));
 			} break;
 
 			case OP_RAND_SETSTATE  : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				ctx.pc++;
+				A = ops[ctx.pc++]; B = ops[ctx.pc++];
+				C = ops[ctx.pc++]; D = ops[ctx.pc++];
+				if (A > ctx.lexIndex || C > ctx.lexIndex)
+					return crr_invalid();
+				X = var_get(ctx, C, D);
+				if (!var_islist(X) || X.length < 2 || !var_isnum(X[0]) || !var_isnum(X[1])){
+					ctx.failed = true;
+					return crr_warn(['Expecting list of two integers']);
+				}
+				lib_rand_setstate(ctx, X[0], X[1]);
+				var_set(ctx, A, B, null);
 			} break;
 
 			case OP_RAND_PICK      : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				ctx.pc++;
+				A = ops[ctx.pc++]; B = ops[ctx.pc++];
+				C = ops[ctx.pc++]; D = ops[ctx.pc++];
+				if (A > ctx.lexIndex || C > ctx.lexIndex)
+					return crr_invalid();
+				X = var_get(ctx, C, D);
+				if (!var_islist(X)){
+					ctx.failed = true;
+					return crr_warn(['Expecting list']);
+				}
+				var_set(ctx, A, B, lib_rand_pick(ctx, X));
 			} break;
 
 			case OP_RAND_SHUFFLE   : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				ctx.pc++;
+				A = ops[ctx.pc++]; B = ops[ctx.pc++];
+				C = ops[ctx.pc++]; D = ops[ctx.pc++];
+				if (A > ctx.lexIndex || C > ctx.lexIndex)
+					return crr_invalid();
+				X = var_get(ctx, C, D);
+				if (!var_islist(X)){
+					ctx.failed = true;
+					return crr_warn(['Expecting list']);
+				}
+				lib_rand_shuffle(ctx, X)
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_STR_NEW        : { // [TGT], [SRC1], [SRC2]
@@ -6987,6 +7128,22 @@ function compiler_process(cmp){
 		return cma_include(cmp.file.incls[0].file);
 	var cmprs = cmp.file.cmprs;
 	for (var c = 0; c < cmprs.length; c++){
+		if (cmprs[c] == null){ // end of file
+			var res = parser_close(cmp.pr);
+			if (res.type == PRR_ERROR)
+				return cma_error(filepos_err(cmp.file.flp, res.msg));
+
+			// actually pop the file
+			cmp.file.cmprs = [];
+			cmp.file = cmp.file.next;
+			if (cmp.file != null && cmp.file.incls.length > 0){
+				// assume user is finished with the next included file
+				if (cmp.file.incls[0].names != null)
+					symtbl_popNamespace(cmp.sym);
+				cmp.file.incls.shift();
+			}
+			return cma_ok();
+		}
 		var flp = cmprs[c].flp;
 		var tks = cmprs[c].tks;
 		for (var i = 0; i < tks.length; i++){
@@ -7025,17 +7182,6 @@ function compiler_process(cmp){
 	}
 
 	cmp.file.cmprs = [];
-
-	if (cmp.file.popped){
-		cmp.file = cmp.file.next;
-		if (cmp.file != null && cmp.file.incls.length > 0){
-			// assume user is finished with the next included file
-			if (cmp.file.incls[0].names != null)
-				symtbl_popNamespace(cmp.sym);
-			cmp.file.incls.shift();
-		}
-	}
-
 	return cma_ok();
 }
 
@@ -7065,7 +7211,6 @@ function compiler_pushFile(cmp, file){
 		lx: lex_new(),
 		incls: [],
 		cmprs: [],
-		popped: false,
 		next: cmp.file
 	};
 	return cmf_ok();
@@ -7075,7 +7220,7 @@ function compiler_popFile(cmp){
 	var tks = [];
 	lex_close(cmp.file.lx, tks);
 	cmp.file.cmprs.push(comppr_new(cmp.file.flp, tks));
-	cmp.file.popped = true;
+	cmp.file.cmprs.push(null); // signify EOF
 }
 
 function compiler_add(cmp, str){
@@ -7247,6 +7392,7 @@ var Sink = {
 						continue;
 					}
 
+					// run the finished program
 					var ctx = context_new(prg);
 					while (true){
 						var cr = context_run(ctx);
