@@ -2185,105 +2185,317 @@ static inline expr expr_slice(filepos_st flp, expr obj, expr start, expr len){
 	return ex;
 }
 
-#if 0
-
 //
 // ast
 //
 
-var AST_BREAK     = 'AST_BREAK';
-var AST_CONTINUE  = 'AST_CONTINUE';
-var AST_DECLARE   = 'AST_DECLARE';
-var AST_DEF       = 'AST_DEF';
-var AST_DO_END    = 'AST_DO_END';
-var AST_DO_WHILE  = 'AST_DO_WHILE';
-var AST_FOR       = 'AST_FOR';
-var AST_LOOP      = 'AST_LOOP';
-var AST_GOTO      = 'AST_GOTO';
-var AST_IF        = 'AST_IF';
-var AST_INCLUDE   = 'AST_INCLUDE';
-var AST_NAMESPACE = 'AST_NAMESPACE';
-var AST_RETURN    = 'AST_RETURN';
-var AST_USING     = 'AST_USING';
-var AST_VAR       = 'AST_VAR';
-var AST_EVAL      = 'AST_EVAL';
-var AST_LABEL     = 'AST_LABEL';
+typedef enum {
+	AST_BREAK,
+	AST_CONTINUE,
+	AST_DECLARE,
+	AST_DEF,
+	AST_DO_END,
+	AST_DO_WHILE,
+	AST_FOR,
+	AST_LOOP,
+	AST_GOTO,
+	AST_IF,
+	AST_INCLUDE,
+	AST_NAMESPACE,
+	AST_RETURN,
+	AST_USING,
+	AST_VAR,
+	AST_EVAL,
+	AST_LABEL
+} ast_enum;
 
-function ast_break(flp){
-	return { flp: flp, type: AST_BREAK };
+typedef struct {
+	filepos_st flp;
+	ast_enum type;
+	union {
+		list_ptr decls;
+		struct {
+			list_ptr names;
+			list_ptr lvalues;
+			list_ptr body;
+		} def;
+		list_ptr body;
+		struct {
+			list_ptr doBody;
+			expr cond;
+			list_ptr whileBody;
+		} doWhile;
+		struct {
+			list_ptr names1;
+			list_ptr names2;
+			expr ex;
+			list_ptr body;
+			bool forVar;
+		} afor;
+		list_byte ident;
+		struct {
+			list_ptr conds;
+			list_ptr elseBody;
+		} aif;
+		list_ptr incls;
+		struct {
+			list_ptr names;
+			list_ptr body;
+		} namespace;
+		expr ex;
+		list_ptr namesList;
+		list_ptr lvalues;
+	} u;
+} ast_st, *ast;
+
+static void ast_free(ast stmt){
+	switch (stmt->type){
+		case AST_BREAK:
+		case AST_CONTINUE:
+			break;
+
+		case AST_DECLARE:
+			if (stmt->u.decls)
+				list_ptr_free(stmt->u.decls);
+			break;
+
+		case AST_DEF:
+			if (stmt->u.def.names)
+				list_ptr_free(stmt->u.def.names);
+			if (stmt->u.def.lvalues)
+				list_ptr_free(stmt->u.def.lvalues);
+			if (stmt->u.def.body)
+				list_ptr_free(stmt->u.def.body);
+			break;
+
+		case AST_DO_END:
+			if (stmt->u.body)
+				list_ptr_free(stmt->u.body);
+			break;
+
+		case AST_DO_WHILE:
+			if (stmt->u.doWhile.doBody)
+				list_ptr_free(stmt->u.doWhile.doBody);
+			if (stmt->u.doWhile.cond)
+				expr_free(stmt->u.doWhile.cond);
+			if (stmt->u.doWhile.whileBody)
+				list_ptr_free(stmt->u.doWhile.whileBody);
+			break;
+
+		case AST_FOR:
+			if (stmt->u.afor.names1)
+				list_ptr_free(stmt->u.afor.names1);
+			if (stmt->u.afor.names2)
+				list_ptr_free(stmt->u.afor.names2);
+			if (stmt->u.afor.ex)
+				expr_free(stmt->u.afor.ex);
+			if (stmt->u.afor.body)
+				list_ptr_free(stmt->u.afor.body);
+			break;
+
+		case AST_LOOP:
+			if (stmt->u.body)
+				list_ptr_free(stmt->u.body);
+			break;
+
+		case AST_GOTO:
+			if (stmt->u.ident)
+				list_byte_free(stmt->u.ident);
+			break;
+
+		case AST_IF:
+			if (stmt->u.aif.conds)
+				list_ptr_free(stmt->u.aif.conds);
+			if (stmt->u.aif.elseBody)
+				list_ptr_free(stmt->u.aif.elseBody);
+			break;
+
+		case AST_INCLUDE:
+			if (stmt->u.incls)
+				list_ptr_free(stmt->u.incls);
+			break;
+
+		case AST_NAMESPACE:
+			if (stmt->u.namespace.names)
+				list_ptr_free(stmt->u.namespace.names);
+			if (stmt->u.namespace.body)
+				list_ptr_free(stmt->u.namespace.body);
+			break;
+
+		case AST_RETURN:
+			if (stmt->u.ex)
+				expr_free(stmt->u.ex);
+			break;
+
+		case AST_USING:
+			if (stmt->u.namesList)
+				list_ptr_free(stmt->u.namesList);
+			break;
+
+		case AST_VAR:
+			if (stmt->u.lvalues)
+				list_ptr_free(stmt->u.lvalues);
+			break;
+
+		case AST_EVAL:
+			if (stmt->u.ex)
+				expr_free(stmt->u.ex);
+			break;
+
+		case AST_LABEL:
+			if (stmt->u.ident)
+				list_byte_free(stmt->u.ident);
+			break;
+	}
+	mem_free(stmt);
 }
 
-function ast_continue(flp){
-	return { flp: flp, type: AST_CONTINUE };
+static inline ast ast_break(filepos_st flp){
+	ast stmt = mem_alloc(sizeof(ast_st));
+	stmt->flp = flp;
+	stmt->type = AST_BREAK;
+	return stmt;
 }
 
-function ast_declare(flp, decls){
-	return { flp: flp, type: AST_DECLARE, decls: decls };
+static inline ast ast_continue(filepos_st flp){
+	ast stmt = mem_alloc(sizeof(ast_st));
+	stmt->flp = flp;
+	stmt->type = AST_CONTINUE;
+	return stmt;
 }
 
-function ast_def(flp, names, lvalues, body){
-	return { flp: flp, type: AST_DEF, names: names, lvalues: lvalues, body: body };
+static inline ast ast_declare(filepos_st flp, list_ptr decls){
+	ast stmt = mem_alloc(sizeof(ast_st));
+	stmt->flp = flp;
+	stmt->type = AST_DECLARE;
+	stmt->u.decls = decls;
+	return stmt;
 }
 
-function ast_doEnd(flp, body){
-	return { flp: flp, type: AST_DO_END, body: body };
+static inline ast ast_def(filepos_st flp, list_ptr names, list_ptr lvalues, list_ptr body){
+	ast stmt = mem_alloc(sizeof(ast_st));
+	stmt->flp = flp;
+	stmt->type = AST_DEF;
+	stmt->u.def.names = names;
+	stmt->u.def.lvalues = lvalues;
+	stmt->u.def.body = body;
+	return stmt;
 }
 
-function ast_doWhile(flp, doBody, cond, whileBody){
-	return { flp: flp, type: AST_DO_WHILE, doBody: doBody, cond: cond, whileBody: whileBody };
+static inline ast ast_doEnd(filepos_st flp, list_ptr body){
+	ast stmt = mem_alloc(sizeof(ast_st));
+	stmt->flp = flp;
+	stmt->type = AST_DO_END;
+	stmt->u.body = body;
+	return stmt;
 }
 
-function ast_for(flp, forVar, names1, names2, ex, body){
-	return {
-		flp: flp,
-		type: AST_FOR,
-		forVar: forVar,
-		names1: names1,
-		names2: names2,
-		ex: ex,
-		body: body
-	};
+static inline ast ast_doWhile(filepos_st flp, list_ptr doBody, expr cond, list_ptr whileBody){
+	ast stmt = mem_alloc(sizeof(ast_st));
+	stmt->flp = flp;
+	stmt->type = AST_DO_WHILE;
+	stmt->u.doWhile.doBody = doBody;
+	stmt->u.doWhile.cond = cond;
+	stmt->u.doWhile.whileBody = whileBody;
+	return stmt;
 }
 
-function ast_loop(flp, body){
-	return { flp: flp, type: AST_LOOP, body: body };
+static inline ast ast_for(filepos_st flp, bool forVar, list_ptr names1, list_ptr names2, expr ex,
+	list_ptr body){
+	ast stmt = mem_alloc(sizeof(ast_st));
+	stmt->flp = flp;
+	stmt->type = AST_FOR;
+	stmt->u.afor.forVar = forVar;
+	stmt->u.afor.names1 = names1;
+	stmt->u.afor.names2 = names2;
+	stmt->u.afor.ex = ex;
+	stmt->u.afor.body = body;
+	return stmt;
 }
 
-function ast_goto(flp, ident){
-	return { flp: flp, type: AST_GOTO, ident: ident };
+static inline ast ast_loop(filepos_st flp, list_ptr body){
+	ast stmt = mem_alloc(sizeof(ast_st));
+	stmt->flp = flp;
+	stmt->type = AST_LOOP;
+	stmt->u.body = body;
+	return stmt;
 }
 
-function ast_if(flp, conds, elseBody){
-	return { flp: flp, type: AST_IF, conds: conds, elseBody: elseBody };
+static inline ast ast_goto(filepos_st flp, list_byte ident){
+	ast stmt = mem_alloc(sizeof(ast_st));
+	stmt->flp = flp;
+	stmt->type = AST_GOTO;
+	stmt->u.ident = ident;
+	return stmt;
 }
 
-function ast_include(flp, incls){
-	return { flp: flp, type: AST_INCLUDE, incls: incls };
+static inline ast ast_if(filepos_st flp, list_ptr conds, list_ptr elseBody){
+	ast stmt = mem_alloc(sizeof(ast_st));
+	stmt->flp = flp;
+	stmt->type = AST_IF;
+	stmt->u.aif.conds = conds;
+	stmt->u.aif.elseBody = elseBody;
+	return stmt;
 }
 
-function ast_namespace(flp, names, body){
-	return { flp: flp, type: AST_NAMESPACE, names: names, body: body };
+static inline ast ast_include(filepos_st flp, list_ptr incls){
+	ast stmt = mem_alloc(sizeof(ast_st));
+	stmt->flp = flp;
+	stmt->type = AST_INCLUDE;
+	stmt->u.incls = incls;
+	return stmt;
 }
 
-function ast_return(flp, ex){
-	return { flp: flp, type: AST_RETURN, ex: ex };
+static inline ast ast_namespace(filepos_st flp, list_ptr names, list_ptr body){
+	ast stmt = mem_alloc(sizeof(ast_st));
+	stmt->flp = flp;
+	stmt->type = AST_NAMESPACE;
+	stmt->u.namespace.names = names;
+	stmt->u.namespace.body = body;
+	return stmt;
 }
 
-function ast_using(flp, namesList){
-	return { flp: flp, type: AST_USING, namesList: namesList };
+static inline ast ast_return(filepos_st flp, expr ex){
+	ast stmt = mem_alloc(sizeof(ast_st));
+	stmt->flp = flp;
+	stmt->type = AST_RETURN;
+	stmt->u.ex = ex;
+	return stmt;
 }
 
-function ast_var(flp, lvalues){
-	return { flp: flp, type: AST_VAR, lvalues: lvalues };
+static inline ast ast_using(filepos_st flp, list_ptr namesList){
+	ast stmt = mem_alloc(sizeof(ast_st));
+	stmt->flp = flp;
+	stmt->type = AST_USING;
+	stmt->u.namesList = namesList;
+	return stmt;
 }
 
-function ast_eval(flp, ex){
-	return { flp: flp, type: AST_EVAL, ex: ex };
+static inline ast ast_var(filepos_st flp, list_ptr lvalues){
+	ast stmt = mem_alloc(sizeof(ast_st));
+	stmt->flp = flp;
+	stmt->type = AST_VAR;
+	stmt->u.lvalues = lvalues;
+	return stmt;
 }
 
-function ast_label(flp, ident){
-	return { flp: flp, type: AST_LABEL, ident: ident };
+static inline ast ast_eval(filepos_st flp, expr ex){
+	ast stmt = mem_alloc(sizeof(ast_st));
+	stmt->flp = flp;
+	stmt->type = AST_EVAL;
+	stmt->u.ex = ex;
+	return stmt;
 }
+
+static inline ast ast_label(filepos_st flp, list_byte ident){
+	ast stmt = mem_alloc(sizeof(ast_st));
+	stmt->flp = flp;
+	stmt->type = AST_LABEL;
+	stmt->u.ident = ident;
+	return stmt;
+}
+
+#if 0
 
 //
 // parser state helpers
