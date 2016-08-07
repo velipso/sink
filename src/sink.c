@@ -2495,42 +2495,133 @@ static inline ast ast_label(filepos_st flp, list_byte ident){
 	return stmt;
 }
 
-#if 0
-
 //
 // parser state helpers
 //
 
-function cond_new(ex, body){ // conds
-	return { ex: ex, body: body };
+typedef struct {
+	expr ex;
+	list_ptr body;
+} cond_st;
+
+static inline cond_st cond_new(expr ex, list_ptr body){ // conds
+	return (cond_st){ .ex = ex, .body = body };
 }
 
-var DECL_LOCAL  = 'DECL_LOCAL';
-var DECL_NATIVE = 'DECL_NATIVE';
+typedef enum {
+	DECL_LOCAL,
+	DECL_NATIVE
+} decl_enum;
 
-function decl_local(flp, names){ // decls
-	return { flp: flp, type: DECL_LOCAL, names: names };
+typedef struct {
+	filepos_st flp;
+	decl_enum type;
+	list_ptr names;
+	list_byte key;
+} decl_st, *decl;
+
+static inline void decl_free(decl dc){
+	if (dc->names)
+		list_ptr_free(dc->names);
+	if (dc->type == DECL_NATIVE && dc->key)
+		list_byte_free(dc->key);
+	mem_free(dc);
 }
 
-function decl_native(flp, names, key){ // decls
-	return { flp: flp, type: DECL_NATIVE, names: names, key: key };
+static inline decl decl_local(filepos_st flp, list_ptr names){ // decls
+	decl dc = mem_alloc(sizeof(decl_st));
+	dc->flp = flp;
+	dc->type = DECL_LOCAL;
+	dc->names = names;
+	return dc;
 }
 
-function incl_new(flp, names, file){ // incls
-	return { flp: flp, names: names, file: file };
+static inline decl decl_native(filepos_st flp, list_ptr names, list_byte key){ // decls
+	decl dc = mem_alloc(sizeof(decl_st));
+	dc->flp = flp;
+	dc->type = DECL_NATIVE;
+	dc->names = names;
+	dc->key = key;
+	return dc;
 }
 
-function ets_new(tk, next){ // exprPreStack, exprMidStack
-	return { tk: tk, next: next };
+typedef struct {
+	filepos_st flp;
+	list_ptr names;
+	list_byte file;
+} incl_st, *incl;
+
+static inline void incl_free(incl ic){
+	if (ic->names)
+		list_ptr_free(ic->names);
+	if (ic->file)
+		list_byte_free(ic->file);
+	mem_free(ic);
 }
 
-function exs_new(ex, next){ // exprStack
-	return { ex: ex, next: next };
+static inline incl incl_new(filepos_st flp, list_ptr names, list_byte file){ // incls
+	incl ic = mem_alloc(sizeof(incl_st));
+	ic->flp = flp;
+	ic->names = names;
+	ic->file = file;
+	return ic;
 }
 
-function eps_new(ets, next){ // exprPreStackStack
-	return { ets: ets, next: next };
+typedef struct ets_struct ets_st, *ets;
+struct ets_struct {
+	tok_st tk;
+	ets next;
+};
+
+static inline void ets_free(ets e){
+	// TODO: should I zip down the line?
+	mem_free(e);
 }
+
+static inline ets ets_new(tok_st tk, ets next){ // exprPreStack, exprMidStack
+	ets e = mem_alloc(sizeof(ets_st));
+	e->tk = tk;
+	e->next = next;
+	return e;
+}
+
+typedef struct exs_struct exs_st, *exs;
+struct exs_struct {
+	expr ex;
+	exs next;
+};
+
+static inline void exs_free(exs e){
+	// TODO: should I zip down the line?
+	mem_free(e);
+}
+
+static inline exs exs_new(expr ex, exs next){ // exprStack
+	exs e = mem_alloc(sizeof(exs_st));
+	e->ex = ex;
+	e->next = next;
+	return e;
+}
+
+typedef struct eps_struct eps_st, *eps;
+struct eps_struct {
+	ets e;
+	eps next;
+};
+
+static inline void eps_free(eps e){
+	// TODO: what to do with e->e?
+	mem_free(e);
+}
+
+static inline eps eps_new(ets e, eps next){ // exprPreStackStack
+	eps e2 = mem_alloc(sizeof(eps_st));
+	e2->e = e;
+	e2->next = next;
+	return e2;
+}
+
+#if 0
 
 //
 // parser state
