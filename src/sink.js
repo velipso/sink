@@ -1312,7 +1312,7 @@ function lex_process(lx, tks){
 
 		case LEX_STR_INTERP_ESC_HEX:
 			if (isHex(ch1)){
-				lx.str_hexval = (str_hexval * 16) + toHex(ch1);
+				lx.str_hexval = (lx.str_hexval * 16) + toHex(ch1);
 				lx.str_hexleft--;
 				if (lx.str_hexleft <= 0){
 					lx.str += String.fromCharCode(lx.str_hexval);

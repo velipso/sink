@@ -5,6 +5,9 @@
 #include "sink.h"
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <math.h>
 
 #ifdef SINK_MACOSX
 #	include <strings.h>  // ffsll
@@ -155,6 +158,22 @@ static void mem_debug_done(){
 #endif
 
 //
+// string creation
+//
+
+static char *format(char *fmt, ...){
+	va_list args, args2;
+	va_start(args, fmt);
+	va_copy(args2, args);
+	size_t s = vsnprintf(NULL, 0, fmt, args);
+	char *buf = mem_alloc(s + 1);
+	vsprintf(buf, fmt, args2);
+	va_end(args);
+	va_end(args2);
+	return buf;
+}
+
+//
 // variable length list implementations
 //
 
@@ -277,6 +296,17 @@ static inline void list_byte_push10(list_byte b, int v1, int v2, int v3, int v4,
 static inline void list_byte_free(list_byte b){
 	mem_free(b->bytes);
 	mem_free(b);
+}
+
+static bool byteequ(list_byte b, const char *str){
+	int i;
+	for (i = 0; str[i] != 0; i++){
+		if (b->size <= i)
+			return false;
+		if (b->bytes[i] != (uint8_t)str[i])
+			return false;
+	}
+	return b->size == i;
 }
 
 // Values are jammed into NaNs, like so:
@@ -723,16 +753,9 @@ static inline filepos_st filepos_new(const char *file, int line, int chr){
 }
 
 static char *filepos_err(filepos_st flp, const char *msg){
-	if (flp.file == NULL){
-		size_t s = snprintf(NULL, 0, "%d:%d: %s", flp.line, flp.chr, msg);
-		char *buf = mem_alloc(s + 1);
-		sprintf(buf, "%d:%d: %s", flp.line, flp.chr, msg);
-		return buf;
-	}
-	size_t s = snprintf(NULL, 0, "%s:%d:%d: %s", flp.file, flp.line, flp.chr, msg);
-	char *buf = mem_alloc(s + 1);
-	sprintf(buf, "%s:%d:%d: %s", flp.file, flp.line, flp.chr, msg);
-	return buf;
+	if (flp.file == NULL)
+		return format("%d:%d: %s", flp.line, flp.chr, msg);
+	return format("%s:%d:%d: %s", flp.file, flp.line, flp.chr, msg);
 }
 
 //
@@ -868,28 +891,28 @@ static inline ks_enum ks_char3(char c1, char c2, char c3){
 	return KS_INVALID;
 }
 
-static inline ks_enum ks_str(const char *s){
-	if      (strcmp(s, "break"    ) == 0) return KS_BREAK;
-	else if (strcmp(s, "continue" ) == 0) return KS_CONTINUE;
-	else if (strcmp(s, "declare"  ) == 0) return KS_DECLARE;
-	else if (strcmp(s, "def"      ) == 0) return KS_DEF;
-	else if (strcmp(s, "do"       ) == 0) return KS_DO;
-	else if (strcmp(s, "else"     ) == 0) return KS_ELSE;
-	else if (strcmp(s, "elseif"   ) == 0) return KS_ELSEIF;
-	else if (strcmp(s, "end"      ) == 0) return KS_END;
-	else if (strcmp(s, "for"      ) == 0) return KS_FOR;
-	else if (strcmp(s, "goto"     ) == 0) return KS_GOTO;
-	else if (strcmp(s, "if"       ) == 0) return KS_IF;
-	else if (strcmp(s, "include"  ) == 0) return KS_INCLUDE;
-	else if (strcmp(s, "namespace") == 0) return KS_NAMESPACE;
-	else if (strcmp(s, "nil"      ) == 0) return KS_NIL;
-	else if (strcmp(s, "return"   ) == 0) return KS_RETURN;
-	else if (strcmp(s, "typenum"  ) == 0) return KS_TYPENUM;
-	else if (strcmp(s, "typestr"  ) == 0) return KS_TYPESTR;
-	else if (strcmp(s, "typelist" ) == 0) return KS_TYPELIST;
-	else if (strcmp(s, "using"    ) == 0) return KS_USING;
-	else if (strcmp(s, "var"      ) == 0) return KS_VAR;
-	else if (strcmp(s, "while"    ) == 0) return KS_WHILE;
+static inline ks_enum ks_str(list_byte s){
+	if      (byteequ(s, "break"    )) return KS_BREAK;
+	else if (byteequ(s, "continue" )) return KS_CONTINUE;
+	else if (byteequ(s, "declare"  )) return KS_DECLARE;
+	else if (byteequ(s, "def"      )) return KS_DEF;
+	else if (byteequ(s, "do"       )) return KS_DO;
+	else if (byteequ(s, "else"     )) return KS_ELSE;
+	else if (byteequ(s, "elseif"   )) return KS_ELSEIF;
+	else if (byteequ(s, "end"      )) return KS_END;
+	else if (byteequ(s, "for"      )) return KS_FOR;
+	else if (byteequ(s, "goto"     )) return KS_GOTO;
+	else if (byteequ(s, "if"       )) return KS_IF;
+	else if (byteequ(s, "include"  )) return KS_INCLUDE;
+	else if (byteequ(s, "namespace")) return KS_NAMESPACE;
+	else if (byteequ(s, "nil"      )) return KS_NIL;
+	else if (byteequ(s, "return"   )) return KS_RETURN;
+	else if (byteequ(s, "typenum"  )) return KS_TYPENUM;
+	else if (byteequ(s, "typestr"  )) return KS_TYPESTR;
+	else if (byteequ(s, "typelist" )) return KS_TYPELIST;
+	else if (byteequ(s, "using"    )) return KS_USING;
+	else if (byteequ(s, "var"      )) return KS_VAR;
+	else if (byteequ(s, "while"    )) return KS_WHILE;
 	return KS_INVALID;
 }
 
@@ -958,7 +981,7 @@ typedef struct {
 	union {
 		bool soft;
 		ks_enum k;
-		const char *ident;
+		list_byte ident;
 		double num;
 		list_byte str;
 		const char *msg;
@@ -973,7 +996,7 @@ static inline tok_st tok_ks(ks_enum k){
 	return (tok_st){ .type = TOK_KS, .u.k = k };
 }
 
-static inline tok_st tok_ident(const char *ident){
+static inline tok_st tok_ident(list_byte ident){
 	return (tok_st){ .type = TOK_IDENT, .u.ident = ident };
 }
 
@@ -1119,6 +1142,39 @@ static inline bool tok_isMidBeforeMid(tok_st lmid, tok_st rmid){
 }
 
 //
+// variable length list for tokens
+//
+
+typedef struct {
+	tok_st *toks;
+	int size;
+	int count;
+} list_tok_st, *list_tok;
+
+const int list_tok_grow = 200;
+
+static inline list_tok list_tok_new(){
+	list_tok tks = mem_alloc(sizeof(list_tok_st));
+	tks->size = 0;
+	tks->count = list_tok_grow;
+	tks->toks = mem_alloc(sizeof(tok_st) * tks->count);
+	return tks;
+}
+
+static void list_tok_push(list_tok tks, tok_st tk){
+	if (tks->size >= tks->count){
+		tks->count += list_tok_grow;
+		tks->toks = mem_realloc(tks->toks, sizeof(tok_st) * tks->count);
+	}
+	tks->toks[tks->size++] = tk;
+}
+
+static inline void list_tok_free(list_tok tks){
+	mem_free(tks->toks);
+	mem_free(tks);
+}
+
+//
 // lexer helper functions
 //
 
@@ -1239,295 +1295,294 @@ static void lex_rev(lex lx){
 	lx->ch4 = 0;
 }
 
-#if 0
+static void lex_process(lex lx, list_tok tks){
+	char ch1 = lx->ch1;
 
-function lex_process(lx, tks){
-	var ch1 = lx.ch1;
-
-	switch (lx.state){
+	switch (lx->state){
 		case LEX_START:
 			if (ch1 == '#'){
-				lx.state = LEX_COMMENT_LINE;
-				tks.push(tok_newline(false));
+				lx->state = LEX_COMMENT_LINE;
+				list_tok_push(tks, tok_newline(false));
 			}
 			else if (ks_char(ch1) != KS_INVALID){
-				if (ch1 == '}' && lx.str_depth > 0){
-					lx.str_depth--;
-					lx.str = '';
-					lx.state = LEX_STR_INTERP;
-					tks.push(tok_ks(KS_RPAREN));
-					tks.push(tok_ks(KS_TILDE));
+				if (ch1 == '}' && lx->str_depth > 0){
+					lx->str_depth--;
+					lx->str = list_byte_new();
+					lx->state = LEX_STR_INTERP;
+					list_tok_push(tks, tok_ks(KS_RPAREN));
+					list_tok_push(tks, tok_ks(KS_TILDE));
 				}
 				else
-					lx.state = LEX_SPECIAL1;
+					lx->state = LEX_SPECIAL1;
 			}
 			else if (isIdentStart(ch1)){
-				lx.str = ch1;
-				lx.state = LEX_IDENT;
+				lx->str = list_byte_new();
+				list_byte_push(lx->str, ch1);
+				lx->state = LEX_IDENT;
 			}
 			else if (isNum(ch1)){
-				lx.num_val = toHex(ch1);
-				lx.num_base = 10;
-				if (lx.num_val == 0)
-					lx.state = LEX_NUM_0;
+				lx->num_val = toHex(ch1);
+				lx->num_base = 10;
+				if (lx->num_val == 0)
+					lx->state = LEX_NUM_0;
 				else
-					lx.state = LEX_NUM;
+					lx->state = LEX_NUM;
 			}
 			else if (ch1 == '\''){
-				lx.str = '';
-				lx.state = LEX_STR_BASIC;
+				lx->str = list_byte_new();
+				lx->state = LEX_STR_BASIC;
 			}
 			else if (ch1 == '"'){
-				lx.str = '';
-				lx.state = LEX_STR_INTERP;
-				tks.push(tok_ks(KS_LPAREN));
+				lx->str = list_byte_new();
+				lx->state = LEX_STR_INTERP;
+				list_tok_push(tks, tok_ks(KS_LPAREN));
 			}
 			else if (ch1 == '\\')
-				lx.state = LEX_BACKSLASH;
+				lx->state = LEX_BACKSLASH;
 			else if (ch1 == '\r'){
-				lx.state = LEX_RETURN;
-				tks.push(tok_newline(false));
+				lx->state = LEX_RETURN;
+				list_tok_push(tks, tok_newline(false));
 			}
 			else if (ch1 == '\n' || ch1 == ';')
-				tks.push(tok_newline(ch1 == ';'));
+				list_tok_push(tks, tok_newline(ch1 == ';'));
 			else if (isSpace(ch1))
 				/* do nothing */;
 			else
-				tks.push(tok_error('Unexpected character: ' + ch1));
+				list_tok_push(tks, tok_error(format("Unexpected character: %c", ch1)));
 			break;
 
 		case LEX_COMMENT_LINE:
 			if (ch1 == '\r')
-				lx.state = LEX_RETURN;
+				lx->state = LEX_RETURN;
 			else if (ch1 == '\n')
-				lx.state = LEX_START;
+				lx->state = LEX_START;
 			break;
 
 		case LEX_BACKSLASH:
 			if (ch1 == '#')
-				lx.state = LEX_COMMENT_LINE;
+				lx->state = LEX_COMMENT_LINE;
 			else if (ch1 == '\r')
-				lx.state = LEX_RETURN;
+				lx->state = LEX_RETURN;
 			else if (ch1 == '\n')
-				lx.state = LEX_START;
+				lx->state = LEX_START;
 			else if (!isSpace(ch1))
-				tks.push(tok_error('Invalid character after backslash'));
+				list_tok_push(tks, tok_error(format("Invalid character after backslash")));
 			break;
 
 		case LEX_RETURN:
-			lx.state = LEX_START;
+			lx->state = LEX_START;
 			if (ch1 != '\n')
 				lex_process(lx, tks);
 			break;
 
 		case LEX_COMMENT_BLOCK:
-			if (lx.ch2 == '*' && ch1 == '/')
-				lx.state = LEX_START;
+			if (lx->ch2 == '*' && ch1 == '/')
+				lx->state = LEX_START;
 			break;
 
 		case LEX_SPECIAL1:
 			if (ks_char(ch1) != KS_INVALID){
-				if (lx.ch2 == '/' && ch1 == '*')
-					lx.state = LEX_COMMENT_BLOCK;
+				if (lx->ch2 == '/' && ch1 == '*')
+					lx->state = LEX_COMMENT_BLOCK;
 				else
-					lx.state = LEX_SPECIAL2;
+					lx->state = LEX_SPECIAL2;
 			}
 			else{
-				var ks1 = ks_char(lx.ch2);
+				ks_enum ks1 = ks_char(lx->ch2);
 				if (ks1 != KS_INVALID){
 					// hack to detect difference between binary and unary +/-
 					if (ks1 == KS_PLUS){
-						if (!isSpace(ch1) && isSpace(lx.ch3))
+						if (!isSpace(ch1) && isSpace(lx->ch3))
 							ks1 = KS_UNPLUS;
 					}
 					else if (ks1 == KS_MINUS){
-						if (!isSpace(ch1) && isSpace(lx.ch3))
+						if (!isSpace(ch1) && isSpace(lx->ch3))
 							ks1 = KS_UNMINUS;
 					}
-					tks.push(tok_ks(ks1));
-					lx.state = LEX_START;
+					list_tok_push(tks, tok_ks(ks1));
+					lx->state = LEX_START;
 					lex_process(lx, tks);
 				}
 				else
-					tks.push(tok_error('Unexpected character: ' + lx.ch2));
+					list_tok_push(tks, tok_error(format("Unexpected character: %c", lx->ch2)));
 			}
 			break;
 
 		case LEX_SPECIAL2: {
-			var ks3 = ks_char3(lx.ch3, lx.ch2, ch1);
+			ks_enum ks3 = ks_char3(lx->ch3, lx->ch2, ch1);
 			if (ks3 != KS_INVALID){
-				lx.state = LEX_START;
-				tks.push(tok_ks(ks3));
+				lx->state = LEX_START;
+				list_tok_push(tks, tok_ks(ks3));
 			}
 			else{
-				var ks2 = ks_char2(lx.ch3, lx.ch2);
+				ks_enum ks2 = ks_char2(lx->ch3, lx->ch2);
 				if (ks2 != KS_INVALID){
-					tks.push(tok_ks(ks2));
-					lx.state = LEX_START;
+					list_tok_push(tks, tok_ks(ks2));
+					lx->state = LEX_START;
 					lex_process(lx, tks);
 				}
 				else{
-					var ks1 = ks_char(lx.ch3);
+					ks_enum ks1 = ks_char(lx->ch3);
 					if (ks1 != KS_INVALID){
 						// hack to detect difference between binary and unary +/-
 						if (ks1 == KS_PLUS){
-							if (!isSpace(lx.ch2) && isSpace(lx.ch4))
+							if (!isSpace(lx->ch2) && isSpace(lx->ch4))
 								ks1 = KS_UNPLUS;
 						}
 						else if (ks1 == KS_MINUS){
-							if (!isSpace(lx.ch2) && isSpace(lx.ch4))
+							if (!isSpace(lx->ch2) && isSpace(lx->ch4))
 								ks1 = KS_UNMINUS;
 						}
-						tks.push(tok_ks(ks1));
-						lx.state = LEX_START;
+						list_tok_push(tks, tok_ks(ks1));
+						lx->state = LEX_START;
 						lex_rev(lx);
 						lex_process(lx, tks);
-						lex_fwd(lx, lx.chR);
+						lex_fwd(lx, lx->chR);
 						lex_process(lx, tks);
 					}
 					else
-						tks.push(tok_error('Unexpected character: ' + lx.ch3));
+						list_tok_push(tks, tok_error(format("Unexpected character: %c", lx->ch3)));
 				}
 			}
 		} break;
 
 		case LEX_IDENT:
 			if (!isIdentBody(ch1)){
-				var ksk = ks_str(lx.str);
+				ks_enum ksk = ks_str(lx->str);
 				if (ksk != KS_INVALID)
-					tks.push(tok_ks(ksk));
+					list_tok_push(tks, tok_ks(ksk));
 				else
-					tks.push(tok_ident(lx.str));
-				lx.state = LEX_START;
+					list_tok_push(tks, tok_ident(lx->str));
+				lx->state = LEX_START;
 				lex_process(lx, tks);
 			}
 			else{
-				lx.str += ch1;
-				if (lx.str.length > 1024)
-					tks.push(tok_error('Identifier too long'));
+				list_byte_push(lx->str, ch1);
+				if (lx->str->size > 1024)
+					list_tok_push(tks, tok_error(format("Identifier too long")));
 			}
 			break;
 
 		case LEX_NUM_0:
 			if (ch1 == 'b'){
-				lx.num_base = 2;
-				lx.state = LEX_NUM_2;
+				lx->num_base = 2;
+				lx->state = LEX_NUM_2;
 			}
 			else if (ch1 == 'c'){
-				lx.num_base = 8;
-				lx.state = LEX_NUM_2;
+				lx->num_base = 8;
+				lx->state = LEX_NUM_2;
 			}
 			else if (ch1 == 'x'){
-				lx.num_base = 16;
-				lx.state = LEX_NUM_2;
+				lx->num_base = 16;
+				lx->state = LEX_NUM_2;
 			}
 			else if (ch1 == '_')
-				lx.state = LEX_NUM;
+				lx->state = LEX_NUM;
 			else if (ch1 == '.'){
-				lx.num_frac = 0;
-				lx.num_flen = 0;
-				lx.state = LEX_NUM_FRAC;
+				lx->num_frac = 0;
+				lx->num_flen = 0;
+				lx->state = LEX_NUM_FRAC;
 			}
 			else if (ch1 == 'e' || ch1 == 'E'){
-				lx.num_frac = 0;
-				lx.num_flen = 0;
-				lx.num_esign = 0;
-				lx.num_eval = 0;
-				lx.num_elen = 0;
-				lx.state = LEX_NUM_EXP;
+				lx->num_frac = 0;
+				lx->num_flen = 0;
+				lx->num_esign = 0;
+				lx->num_eval = 0;
+				lx->num_elen = 0;
+				lx->state = LEX_NUM_EXP;
 			}
 			else if (!isIdentStart(ch1)){
-				tks.push(tok_num(0));
-				lx.state = LEX_START;
+				list_tok_push(tks, tok_num(0));
+				lx->state = LEX_START;
 				lex_process(lx, tks);
 			}
 			else
-				tks.push(tok_error('Invalid number'));
+				list_tok_push(tks, tok_error(format("Invalid number")));
 			break;
 
 		case LEX_NUM_2:
 			if (isHex(ch1)){
-				lx.num_val = toHex(ch1);
-				if (lx.num_val > lx.num_base)
-					tks.push(tok_error('Invalid number'));
+				lx->num_val = toHex(ch1);
+				if (lx->num_val > lx->num_base)
+					list_tok_push(tks, tok_error(format("Invalid number")));
 				else
-					lx.state = LEX_NUM;
+					lx->state = LEX_NUM;
 			}
 			else if (ch1 != '_')
-				tks.push(tok_error('Invalid number'));
+				list_tok_push(tks, tok_error(format("Invalid number")));
 			break;
 
 		case LEX_NUM:
 			if (ch1 == '_')
 				/* do nothing */;
 			else if (ch1 == '.'){
-				lx.num_frac = 0;
-				lx.num_flen = 0;
-				lx.state = LEX_NUM_FRAC;
+				lx->num_frac = 0;
+				lx->num_flen = 0;
+				lx->state = LEX_NUM_FRAC;
 			}
-			else if ((lx.num_base == 10 && (ch1 == 'e' || ch1 == 'E')) ||
-				(lx.num_base != 10 && (ch1 == 'p' || ch1 == 'P'))){
-				lx.num_frac = 0;
-				lx.num_flen = 0;
-				lx.num_esign = 0;
-				lx.num_eval = 0;
-				lx.num_elen = 0;
-				lx.state = LEX_NUM_EXP;
+			else if ((lx->num_base == 10 && (ch1 == 'e' || ch1 == 'E')) ||
+				(lx->num_base != 10 && (ch1 == 'p' || ch1 == 'P'))){
+				lx->num_frac = 0;
+				lx->num_flen = 0;
+				lx->num_esign = 0;
+				lx->num_eval = 0;
+				lx->num_elen = 0;
+				lx->state = LEX_NUM_EXP;
 			}
 			else if (isHex(ch1)){
-				var v = toHex(ch1);
-				if (v > lx.num_base)
-					tks.push(tok_error('Invalid number'));
+				int v = toHex(ch1);
+				if (v > lx->num_base)
+					list_tok_push(tks, tok_error(format("Invalid number")));
 				else
-					lx.num_val = lx.num_val * lx.num_base + v;
+					lx->num_val = lx->num_val * lx->num_base + v;
 			}
 			else if (!isAlpha(ch1)){
-				tks.push(tok_num(lx.num_val));
-				lx.state = LEX_START;
+				list_tok_push(tks, tok_num(lx->num_val));
+				lx->state = LEX_START;
 				lex_process(lx, tks);
 			}
 			else
-				tks.push(tok_error('Invalid number'));
+				list_tok_push(tks, tok_error(format("Invalid number")));
 			break;
 
 		case LEX_NUM_FRAC:
 			if (ch1 == '_')
 				/* do nothing */;
-			else if ((lx.num_base == 10 && (ch1 == 'e' || ch1 == 'E')) ||
-				(lx.num_base != 10 && (ch1 == 'p' || ch1 == 'P'))){
-				lx.num_esign = 0;
-				lx.num_eval = 0;
-				lx.num_elen = 0;
-				lx.state = LEX_NUM_EXP;
+			else if ((lx->num_base == 10 && (ch1 == 'e' || ch1 == 'E')) ||
+				(lx->num_base != 10 && (ch1 == 'p' || ch1 == 'P'))){
+				lx->num_esign = 0;
+				lx->num_eval = 0;
+				lx->num_elen = 0;
+				lx->state = LEX_NUM_EXP;
 			}
 			else if (isHex(ch1)){
-				var v = toHex(ch1);
-				if (v > lx.num_base)
-					tks.push(tok_error('Invalid number'));
+				int v = toHex(ch1);
+				if (v > lx->num_base)
+					list_tok_push(tks, tok_error(format("Invalid number")));
 				else{
-					lx.num_frac = lx.num_frac * lx.num_base + v;
-					lx.num_flen++;
+					lx->num_frac = lx->num_frac * lx->num_base + v;
+					lx->num_flen++;
 				}
 			}
 			else if (!isAlpha(ch1)){
-				if (lx.num_flen <= 0)
-					tks.push(tok_error('Invalid number'));
+				if (lx->num_flen <= 0)
+					list_tok_push(tks, tok_error(format("Invalid number")));
 				else{
-					var d = Math.pow(lx.num_base, lx.num_flen);
-					lx.num_val = (lx.num_val * d + lx.num_frac) / d;
-					tks.push(tok_num(lx.num_val));
-					lx.state = LEX_START;
+					double d = pow(lx->num_base, lx->num_flen);
+					lx->num_val = (lx->num_val * d + lx->num_frac) / d;
+					list_tok_push(tks, tok_num(lx->num_val));
+					lx->state = LEX_START;
 					lex_process(lx, tks);
 				}
 			}
 			else
-				tks.push(tok_error('Invalid number'));
+				list_tok_push(tks, tok_error(format("Invalid number")));
 			break;
 
 		case LEX_NUM_EXP:
 			if (ch1 != '_'){
-				lx.num_esign = ch1 == '-' ? -1 : 1;
-				lx.state = LEX_NUM_EXP_BODY;
+				lx->num_esign = ch1 == '-' ? -1 : 1;
+				lx->state = LEX_NUM_EXP_BODY;
 				if (ch1 != '+' && ch1 != '-')
 					lex_process(lx, tks);
 			}
@@ -1537,190 +1592,186 @@ function lex_process(lx, tks){
 			if (ch1 == '_')
 				/* do nothing */;
 			else if (isNum(ch1)){
-				lx.num_eval = lx.num_eval * 10 + toHex(ch1);
-				lx.num_elen++;
+				lx->num_eval = lx->num_eval * 10.0 + toHex(ch1);
+				lx->num_elen++;
 			}
 			else if (!isAlpha(ch1)){
-				if (lx.num_elen <= 0)
-					tks.push(tok_error('Invalid number'));
+				if (lx->num_elen <= 0)
+					list_tok_push(tks, tok_error(format("Invalid number")));
 				else{
-					var e = Math.pow(lx.num_base == 10 ? 10 : 2, lx.num_esign * lx.num_eval);
-					lx.num_val *= e;
-					if (lx.num_flen > 0){
-						var d = Math.pow(lx.num_base, lx.num_flen);
-						lx.num_val = (lx.num_val * d + lx.num_frac * e) / d;
+					double e = pow(lx->num_base == 10.0 ? 10.0 : 2.0, lx->num_esign * lx->num_eval);
+					lx->num_val *= e;
+					if (lx->num_flen > 0){
+						double d = pow(lx->num_base, lx->num_flen);
+						lx->num_val = (lx->num_val * d + lx->num_frac * e) / d;
 					}
-					tks.push(tok_num(lx.num_val));
-					lx.state = LEX_START;
+					list_tok_push(tks, tok_num(lx->num_val));
+					lx->state = LEX_START;
 					lex_process(lx, tks);
 				}
 			}
 			else
-				tks.push(tok_error('Invalid number'));
+				list_tok_push(tks, tok_error(format("Invalid number")));
 			break;
 
 		case LEX_STR_BASIC:
 			if (ch1 == '\r' || ch1 == '\n')
-				tks.push(tok_error('Missing end of string'));
+				list_tok_push(tks, tok_error(format("Missing end of string")));
 			else if (ch1 == '\''){
-				lx.state = LEX_START;
-				tks.push(tok_ks(KS_LPAREN));
-				tks.push(tok_str(lx.str));
-				tks.push(tok_ks(KS_RPAREN));
+				lx->state = LEX_START;
+				list_tok_push(tks, tok_ks(KS_LPAREN));
+				list_tok_push(tks, tok_str(lx->str));
+				list_tok_push(tks, tok_ks(KS_RPAREN));
 			}
 			else if (ch1 == '\\')
-				lx.state = LEX_STR_BASIC_ESC;
-			else{
-				if (ch1.charCodeAt(0) < 0 || ch1.charCodeAt(0) >= 256)
-					tks.push(tok_error('Invalid string character'));
-				else
-					lx.str += ch1;
-			}
+				lx->state = LEX_STR_BASIC_ESC;
+			else
+				list_byte_push(lx->str, ch1);
 			break;
 
 		case LEX_STR_BASIC_ESC:
 			if (ch1 == '\\' || ch1 == '\''){
-				lx.str += ch1;
-				lx.state = LEX_STR_BASIC;
+				list_byte_push(lx->str, ch1);
+				lx->state = LEX_STR_BASIC;
 			}
 			else
-				tks.push(tok_error('Invalid escape sequence: \\' + ch1));
+				list_tok_push(tks, tok_error(format("Invalid escape sequence: \\%c", ch1)));
 			break;
 
 		case LEX_STR_INTERP:
 			if (ch1 == '\r' || ch1 == '\n')
-				tks.push(tok_error('Missing end of string'));
+				list_tok_push(tks, tok_error(format("Missing end of string")));
 			else if (ch1 == '"'){
-				lx.state = LEX_START;
-				tks.push(tok_str(lx.str));
-				tks.push(tok_ks(KS_RPAREN));
+				lx->state = LEX_START;
+				list_tok_push(tks, tok_str(lx->str));
+				list_tok_push(tks, tok_ks(KS_RPAREN));
 			}
 			else if (ch1 == '$'){
-				lx.state = LEX_STR_INTERP_DLR;
-				if (lx.str.length > 0){
-					tks.push(tok_str(lx.str));
-					tks.push(tok_ks(KS_TILDE));
+				lx->state = LEX_STR_INTERP_DLR;
+				if (lx->str->size > 0){
+					list_tok_push(tks, tok_str(lx->str));
+					list_tok_push(tks, tok_ks(KS_TILDE));
 				}
 			}
 			else if (ch1 == '\\')
-				lx.state = LEX_STR_INTERP_ESC;
-			else{
-				if (ch1.charCodeAt(0) < 0 || ch1.charCodeAt(0) >= 256)
-					tks.push(tok_error('Invalid string character'));
-				else
-					lx.str += ch1;
-			}
+				lx->state = LEX_STR_INTERP_ESC;
+			else
+				list_byte_push(lx->str, ch1);
 			break;
 
 		case LEX_STR_INTERP_DLR:
 			if (ch1 == '{'){
-				lx.str_depth++;
-				lx.state = LEX_START;
-				tks.push(tok_ks(KS_LPAREN));
+				lx->str_depth++;
+				lx->state = LEX_START;
+				list_tok_push(tks, tok_ks(KS_LPAREN));
 			}
 			else if (isIdentStart(ch1)){
-				lx.str = ch1;
-				lx.state = LEX_STR_INTERP_DLR_ID;
+				lx->str = list_byte_new();
+				list_byte_push(lx->str, ch1);
+				lx->state = LEX_STR_INTERP_DLR_ID;
 			}
 			else
-				tks.push(tok_error('Invalid substitution'));
+				list_tok_push(tks, tok_error(format("Invalid substitution")));
 			break;
 
 		case LEX_STR_INTERP_DLR_ID:
 			if (!isIdentBody(ch1)){
-				if (ks_str(lx.str) != KS_INVALID)
-					tks.push(tok_error('Invalid substitution'));
+				if (ks_str(lx->str) != KS_INVALID)
+					list_tok_push(tks, tok_error(format("Invalid substitution")));
 				else{
-					tks.push(tok_ident(lx.str));
+					list_tok_push(tks, tok_ident(lx->str));
 					if (ch1 == '"'){
-						lx.state = LEX_START;
-						tks.push(tok_ks(KS_RPAREN));
+						lx->state = LEX_START;
+						list_tok_push(tks, tok_ks(KS_RPAREN));
 					}
 					else{
-						lx.str = '';
-						lx.state = LEX_STR_INTERP;
-						tks.push(tok_ks(KS_TILDE));
+						lx->str = list_byte_new();
+						lx->state = LEX_STR_INTERP;
+						list_tok_push(tks, tok_ks(KS_TILDE));
 						lex_process(lx, tks);
 					}
 				}
 			}
 			else{
-				lx.str += ch1;
-				if (lx.str.length > 1024)
-					tks.push(tok_error('Identifier too long'));
+				list_byte_push(lx->str, ch1);
+				if (lx->str->size > 1024)
+					list_tok_push(tks, tok_error(format("Identifier too long")));
 			}
 			break;
 
 		case LEX_STR_INTERP_ESC:
 			if (ch1 == '\r' || ch1 == '\n')
-				tks.push(tok_error('Missing end of string'));
+				list_tok_push(tks, tok_error(format("Missing end of string")));
 			else if (ch1 == 'x'){
-				lx.str_hexval = 0;
-				lx.str_hexleft = 2;
-				lx.state = LEX_STR_INTERP_ESC_HEX;
+				lx->str_hexval = 0;
+				lx->str_hexleft = 2;
+				lx->state = LEX_STR_INTERP_ESC_HEX;
 			}
 			else if (ch1 == '0'){
-				lx.str += '\0';
-				lx.state = LEX_STR_INTERP;
+				list_byte_push(lx->str, 0);
+				lx->state = LEX_STR_INTERP;
 			}
 			else if (ch1 == 'b'){
-				lx.str += '\b';
-				lx.state = LEX_STR_INTERP;
+				list_byte_push(lx->str, 8);
+				lx->state = LEX_STR_INTERP;
 			}
 			else if (ch1 == 't'){
-				lx.str += '\t';
-				lx.state = LEX_STR_INTERP;
+				list_byte_push(lx->str, 9);
+				lx->state = LEX_STR_INTERP;
 			}
 			else if (ch1 == 'n'){
-				lx.str += '\n';
-				lx.state = LEX_STR_INTERP;
+				list_byte_push(lx->str, 10);
+				lx->state = LEX_STR_INTERP;
 			}
 			else if (ch1 == 'v'){
-				lx.str += '\v';
-				lx.state = LEX_STR_INTERP;
+				list_byte_push(lx->str, 11);
+				lx->state = LEX_STR_INTERP;
 			}
 			else if (ch1 == 'f'){
-				lx.str += '\f';
-				lx.state = LEX_STR_INTERP;
+				list_byte_push(lx->str, 12);
+				lx->state = LEX_STR_INTERP;
 			}
 			else if (ch1 == 'r'){
-				lx.str += '\r';
-				lx.state = LEX_STR_INTERP;
+				list_byte_push(lx->str, 13);
+				lx->state = LEX_STR_INTERP;
 			}
 			else if (ch1 == '\\' || ch1 == '\'' || ch1 == '"' || ch1 == '$'){
-				lx.str += ch1;
-				lx.state = LEX_STR_INTERP;
+				list_byte_push(lx->str, ch1);
+				lx->state = LEX_STR_INTERP;
 			}
 			else
-				tks.push(tok_error('Invalid escape sequence: \\' + ch1));
+				list_tok_push(tks, tok_error(format("Invalid escape sequence: \\%c", ch1)));
 			break;
 
 		case LEX_STR_INTERP_ESC_HEX:
 			if (isHex(ch1)){
-				lx.str_hexval = (str_hexval * 16) + toHex(ch1);
-				lx.str_hexleft--;
-				if (lx.str_hexleft <= 0){
-					lx.str += String.fromCharCode(lx.str_hexval);
-					lx.state = LEX_STR_INTERP;
+				lx->str_hexval = (lx->str_hexval << 4) + toHex(ch1);
+				lx->str_hexleft--;
+				if (lx->str_hexleft <= 0){
+					list_byte_push(lx->str, lx->str_hexval);
+					lx->state = LEX_STR_INTERP;
 				}
 			}
-			else
-				tks.push(tok_error('Invalid escape sequence; expecting hex value'));
+			else{
+				list_tok_push(tks,
+					tok_error(format("Invalid escape sequence; expecting hex value")));
+			}
 			break;
 	}
 }
 
+#if 0
 function lex_add(lx, ch, tks){
 	lex_fwd(lx, ch);
 	return lex_process(lx, tks);
 }
 
 function lex_close(lx, tks){
-	if (lx.str_depth > 0){
-		tks.push(tok_error('Missing end of string'));
+	if (lx->str_depth > 0){
+		list_tok_push(tks, tok_error('Missing end of string'));
 		return;
 	}
-	switch (lx.state){
+	switch (lx->state){
 		case LEX_START:
 		case LEX_COMMENT_LINE:
 		case LEX_BACKSLASH:
@@ -1728,81 +1779,81 @@ function lex_close(lx, tks){
 			break;
 
 		case LEX_COMMENT_BLOCK:
-			tks.push(tok_error('Missing end of block comment'));
+			list_tok_push(tks, tok_error('Missing end of block comment'));
 			return;
 
 		case LEX_SPECIAL1: {
-			var ks1 = ks_char(lx.ch1);
+			var ks1 = ks_char(lx->ch1);
 			if (ks1 != KS_INVALID)
-				tks.push(tok_ks(ks1));
+				list_tok_push(tks, tok_ks(ks1));
 			else
-				tks.push(tok_error('Unexpected character: ' + lx.ch1));
+				list_tok_push(tks, tok_error('Unexpected character: ' + lx->ch1));
 		} break;
 
 		case LEX_SPECIAL2: {
-			var ks2 = ks_char2(lx.ch2, lx.ch1);
+			var ks2 = ks_char2(lx->ch2, lx->ch1);
 			if (ks2 != KS_INVALID)
-				tks.push(tok_ks(ks2))
+				list_tok_push(tks, tok_ks(ks2))
 			else{
-				var ks1 = ks_char(lx.ch2);
-				ks2 = ks_char(lx.ch1);
+				var ks1 = ks_char(lx->ch2);
+				ks2 = ks_char(lx->ch1);
 				if (ks1 != KS_INVALID){
-					tks.push(tok_ks(ks1));
+					list_tok_push(tks, tok_ks(ks1));
 					if (ks2 != KS_INVALID)
-						tks.push(tok_ks(ks2));
+						list_tok_push(tks, tok_ks(ks2));
 					else
-						tks.push(tok_error('Unexpected character: ' + lx.ch1));
+						list_tok_push(tks, tok_error('Unexpected character: ' + lx->ch1));
 				}
 				else
-					tks.push(tok_error('Unexpected character: ' + lx.ch2));
+					list_tok_push(tks, tok_error('Unexpected character: ' + lx->ch2));
 			}
 		} break;
 
 		case LEX_IDENT: {
-			var ksk = ks_str(lx.str);
+			var ksk = ks_str(lx->str);
 			if (ksk != KS_INVALID)
-				tks.push(tok_ks(ksk));
+				list_tok_push(tks, tok_ks(ksk));
 			else
-				tks.push(tok_ident(lx.str));
+				list_tok_push(tks, tok_ident(lx->str));
 		} break;
 
 		case LEX_NUM_0:
-			tks.push(tok_num(0));
+			list_tok_push(tks, tok_num(0));
 			break;
 
 		case LEX_NUM_2:
-			tks.push(tok_error('Invalid number'));
+			list_tok_push(tks, tok_error('Invalid number'));
 			break;
 
 		case LEX_NUM:
-			tks.push(tok_num(lx.num_val));
+			list_tok_push(tks, tok_num(lx->num_val));
 			break;
 
 		case LEX_NUM_FRAC:
-			if (lx.num_flen <= 0)
-				tks.push(tok_error('Invalid number'));
+			if (lx->num_flen <= 0)
+				list_tok_push(tks, tok_error('Invalid number'));
 			else{
-				var d = Math.pow(lx.num_base, lx.num_flen);
-				lx.num_val = (lx.num_val * d + lx.num_frac) / d;
-				tks.push(tok_num(lx.num_val));
+				var d = Math.pow(lx->num_base, lx->num_flen);
+				lx->num_val = (lx->num_val * d + lx->num_frac) / d;
+				list_tok_push(tks, tok_num(lx->num_val));
 			}
 			break;
 
 		case LEX_NUM_EXP:
-			tks.push(tok_error('Invalid number'));
+			list_tok_push(tks, tok_error('Invalid number'));
 			break;
 
 		case LEX_NUM_EXP_BODY:
-			if (lx.num_elen <= 0)
-				tks.push(tok_error('Invalid number'));
+			if (lx->num_elen <= 0)
+				list_tok_push(tks, tok_error('Invalid number'));
 			else{
-				var e = Math.pow(lx.num_base == 10 ? 10 : 2, lx.num_esign * lx.num_eval);
-				lx.num_val *= e;
-				if (lx.num_flen > 0){
-					var d = Math.pow(lx.num_base, lx.num_flen);
-					lx.num_val = (lx.num_val * d + lx.num_frac * e) / d;
+				var e = Math.pow(lx->num_base == 10 ? 10 : 2, lx->num_esign * lx->num_eval);
+				lx->num_val *= e;
+				if (lx->num_flen > 0){
+					var d = Math.pow(lx->num_base, lx->num_flen);
+					lx->num_val = (lx->num_val * d + lx->num_frac * e) / d;
 				}
-				tks.push(tok_num(lx.num_val));
+				list_tok_push(tks, tok_num(lx->num_val));
 			}
 			break;
 
@@ -1813,10 +1864,10 @@ function lex_close(lx, tks){
 		case LEX_STR_INTERP_DLR_ID:
 		case LEX_STR_INTERP_ESC:
 		case LEX_STR_INTERP_ESC_HEX:
-			tks.push(tok_error('Missing end of string'));
+			list_tok_push(tks, tok_error('Missing end of string'));
 			break;
 	}
-	tks.push(tok_newline(false));
+	list_tok_push(tks, tok_newline(false));
 }
 
 //
