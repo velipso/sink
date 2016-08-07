@@ -305,12 +305,9 @@ if [ "$BUILD_C" = "1" ]; then
 
 	mkdir -p $TGT_DIR
 
-	echo TODO
-	exit 1
-
-#	comp_and_link a.c a.o
+	comp_and_link src/sink.c $TGT_DIR/sink.o
 #	comp_and_link b.c b.o
-	link_finish $TGT_DIR/sink
+#	link_finish $TGT_DIR/sink
 fi
 
 if [ "$TEST_C" = "1" ]; then
