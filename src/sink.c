@@ -309,6 +309,54 @@ static bool byteequ(list_byte b, const char *str){
 	return b->size == i;
 }
 
+typedef void (*free_func)(void *p);
+
+typedef struct {
+	void **ptrs;
+	free_func f_free;
+	int size;
+	int count;
+} list_ptr_st, *list_ptr;
+
+const static int list_ptr_grow = 200;
+
+static list_ptr list_ptr_new(free_func f_free){
+	list_ptr ls = mem_alloc(sizeof(list_ptr_st));
+	ls->size = 0;
+	ls->count = list_ptr_grow;
+	ls->ptrs = mem_alloc(sizeof(void *) * ls->count);
+	ls->f_free = f_free;
+	return ls;
+}
+
+static void list_ptr_append(list_ptr ls, list_ptr data){
+	if (data->size <= 0)
+		return;
+	if (ls->size + data->size >= ls->count){
+		ls->count = ls->size + data->size + list_ptr_grow;
+		ls->ptrs = mem_realloc(ls->ptrs, sizeof(void *) * ls->count);
+	}
+	memcpy(&ls->ptrs[ls->size], data->ptrs, sizeof(void *) * data->size);
+	ls->size += data->size;
+}
+
+static void list_ptr_push(list_ptr ls, void *p){
+	if (ls->size >= ls->count){
+		ls->count += list_ptr_grow;
+		ls->ptrs = mem_realloc(ls->ptrs, sizeof(void *) * ls->count);
+	}
+	ls->ptrs[ls->size++] = p;
+}
+
+static void list_ptr_free(list_ptr ls){
+	if (ls->f_free){
+		while (ls->size > 0)
+			ls->f_free(ls->ptrs[--ls->size]);
+	}
+	mem_free(ls->ptrs);
+	mem_free(ls);
+}
+
 // Values are jammed into NaNs, like so:
 //
 // NaN (64 bit):
@@ -1881,94 +1929,263 @@ static void lex_close(lex lx, list_tok tks){
 	list_tok_push(tks, tok_newline(false));
 }
 
-#if 0
-
 //
 // expr
 //
 
-var EXPR_NIL    = 'EXPR_NIL';
-var EXPR_NUM    = 'EXPR_NUM';
-var EXPR_STR    = 'EXPR_STR';
-var EXPR_LIST   = 'EXPR_LIST';
-var EXPR_NAMES  = 'EXPR_NAMES';
-var EXPR_VAR    = 'EXPR_VAR';
-var EXPR_PAREN  = 'EXPR_PAREN';
-var EXPR_GROUP  = 'EXPR_GROUP';
-var EXPR_PREFIX = 'EXPR_PREFIX';
-var EXPR_INFIX  = 'EXPR_INFIX';
-var EXPR_CALL   = 'EXPR_CALL';
-var EXPR_INDEX  = 'EXPR_INDEX';
-var EXPR_SLICE  = 'EXPR_SLICE';
+typedef enum {
+	EXPR_NIL,
+	EXPR_NUM,
+	EXPR_STR,
+	EXPR_LIST,
+	EXPR_NAMES,
+	EXPR_VAR,
+	EXPR_PAREN,
+	EXPR_GROUP,
+	EXPR_PREFIX,
+	EXPR_INFIX,
+	EXPR_CALL,
+	EXPR_INDEX,
+	EXPR_SLICE
+} expr_enum;
 
-function expr_nil(flp){
-	return { flp: flp, type: EXPR_NIL };
-}
+typedef struct expr_struct expr_st, *expr;
 
-function expr_num(flp, num){
-	return { flp: flp, type: EXPR_NUM, num: num };
-}
+struct expr_struct {
+	filepos_st flp;
+	expr_enum type;
+	union {
+		double num;
+		list_byte str;
+		expr ex;
+		list_ptr names;
+		varloc_st vlc;
+		list_ptr group;
+		struct {
+			expr ex;
+			ks_enum k;
+		} prefix;
+		struct {
+			expr left;
+			expr right;
+			ks_enum k;
+		} infix;
+		struct {
+			expr cmd;
+			expr params;
+		} call;
+		struct {
+			expr obj;
+			expr key;
+		} index;
+		struct {
+			expr obj;
+			expr start;
+			expr len;
+		} slice;
+	} u;
+};
 
-function expr_str(flp, str){
-	return { flp: flp, type: EXPR_STR, str: str };
-}
+static void expr_free(expr ex){
+	switch (ex->type){
+		case EXPR_NIL:
+		case EXPR_NUM:
+			break;
 
-function expr_list(flp, ex){
-	return { flp: flp, type: EXPR_LIST, ex: ex };
-}
+		case EXPR_STR:
+			if (ex->u.str)
+				list_byte_free(ex->u.str);
+			break;
 
-function expr_names(flp, names){
-	return { flp: flp, type: EXPR_NAMES, names: names };
-}
+		case EXPR_LIST:
+			if (ex->u.ex)
+				expr_free(ex->u.ex);
+			break;
 
-function expr_var(flp, vlc){
-	return { flp: flp, type: EXPR_VAR, vlc: vlc };
-}
+		case EXPR_NAMES:
+			if (ex->u.names)
+				list_ptr_free(ex->u.names);
+			break;
 
-function expr_paren(flp, ex){
-	return { flp: flp, type: EXPR_PAREN, ex: ex };
-}
+		case EXPR_VAR:
+			break;
 
-function expr_group(flp, left, right){
-	var g;
-	if (left.type == EXPR_GROUP){
-		if (right.type == EXPR_GROUP)
-			g = left.group.concat(right.group);
-		else
-			g = left.group.concat([right]);
+		case EXPR_PAREN:
+			if (ex->u.ex)
+				expr_free(ex->u.ex);
+			break;
+
+		case EXPR_GROUP:
+			if (ex->u.group)
+				list_ptr_free(ex->u.group);
+			break;
+
+		case EXPR_PREFIX:
+			if (ex->u.prefix.ex)
+				expr_free(ex->u.prefix.ex);
+			break;
+
+		case EXPR_INFIX:
+			if (ex->u.infix.left)
+				expr_free(ex->u.infix.left);
+			if (ex->u.infix.right)
+				expr_free(ex->u.infix.right);
+			break;
+
+		case EXPR_CALL:
+			if (ex->u.call.cmd)
+				expr_free(ex->u.call.cmd);
+			if (ex->u.call.params)
+				expr_free(ex->u.call.params);
+			break;
+
+		case EXPR_INDEX:
+			if (ex->u.index.obj)
+				expr_free(ex->u.index.obj);
+			if (ex->u.index.key)
+				expr_free(ex->u.index.key);
+			break;
+
+		case EXPR_SLICE:
+			if (ex->u.slice.obj)
+				expr_free(ex->u.slice.obj);
+			if (ex->u.slice.start)
+				expr_free(ex->u.slice.start);
+			if (ex->u.slice.len)
+				expr_free(ex->u.slice.len);
+			break;
 	}
-	else if (right.type == EXPR_GROUP)
-		g = [left].concat(right.group);
+	mem_free(ex);
+}
+
+static inline expr expr_nil(filepos_st flp){
+	expr ex = mem_alloc(sizeof(expr_st));
+	ex->flp = flp;
+	ex->type = EXPR_NIL;
+	return ex;
+}
+
+static inline expr expr_num(filepos_st flp, double num){
+	expr ex = mem_alloc(sizeof(expr_st));
+	ex->flp = flp;
+	ex->type = EXPR_NUM;
+	ex->u.num = num;
+	return ex;
+}
+
+static inline expr expr_str(filepos_st flp, list_byte str){
+	expr ex = mem_alloc(sizeof(expr_st));
+	ex->flp = flp;
+	ex->type = EXPR_STR;
+	ex->u.str = str;
+	return ex;
+}
+
+static inline expr expr_list(filepos_st flp, expr ex){
+	expr ex2 = mem_alloc(sizeof(expr_st));
+	ex2->flp = flp;
+	ex2->type = EXPR_LIST;
+	ex2->u.ex = ex;
+	return ex2;
+}
+
+static inline expr expr_names(filepos_st flp, list_ptr names){
+	expr ex = mem_alloc(sizeof(expr_st));
+	ex->flp = flp;
+	ex->type = EXPR_NAMES;
+	ex->u.names = names;
+	return ex;
+}
+
+static inline expr expr_var(filepos_st flp, varloc_st vlc){
+	expr ex = mem_alloc(sizeof(expr_st));
+	ex->flp = flp;
+	ex->type = EXPR_VAR;
+	ex->u.vlc = vlc;
+	return ex;
+}
+
+static inline expr expr_paren(filepos_st flp, expr ex){
+	expr ex2 = mem_alloc(sizeof(expr_st));
+	ex2->flp = flp;
+	ex2->type = EXPR_PAREN;
+	ex2->u.ex = ex;
+	return ex2;
+}
+
+static inline expr expr_group(filepos_st flp, expr left, expr right){
+	list_ptr g = list_ptr_new((free_func)expr_free);
+	if (left->type == EXPR_GROUP)
+		list_ptr_append(g, left->u.group);
 	else
-		g = [left, right];
-	return { flp: flp, type: EXPR_GROUP, group: g };
+		list_ptr_push(g, left);
+	if (right->type == EXPR_GROUP)
+		list_ptr_append(g, right->u.group);
+	else
+		list_ptr_push(g, right);
+	expr ex = mem_alloc(sizeof(expr_st));
+	ex->flp = flp;
+	ex->type = EXPR_GROUP;
+	ex->u.group = g;
+	return ex;
 }
 
-function expr_prefix(flp, k, ex){
-	if ((k == KS_MINUS || k == KS_UNMINUS) && ex.type == EXPR_NUM)
-		return expr_num(flp, -ex.num);
-	else if ((k == KS_PLUS || k == KS_UNPLUS) && ex.type == EXPR_NUM)
+static inline expr expr_prefix(filepos_st flp, ks_enum k, expr ex){
+	if ((k == KS_MINUS || k == KS_UNMINUS) && ex->type == EXPR_NUM){
+		ex->u.num = -ex->u.num;
 		return ex;
-	return { flp: flp, type: EXPR_PREFIX, k: k, ex: ex };
+	}
+	else if ((k == KS_PLUS || k == KS_UNPLUS) && ex->type == EXPR_NUM)
+		return ex;
+	expr ex2 = mem_alloc(sizeof(expr_st));
+	ex2->flp = flp;
+	ex2->type = EXPR_PREFIX;
+	ex2->u.prefix.k = k;
+	ex2->u.prefix.ex = ex;
+	return ex2;
 }
 
-function expr_infix(flp, k, left, right){
+static inline expr expr_infix(filepos_st flp, ks_enum k, expr left, expr right){
 	if (k == KS_COMMA)
 		return expr_group(flp, left, right);
-	return { flp: flp, type: EXPR_INFIX, k: k, left: left, right: right };
+	expr ex = mem_alloc(sizeof(expr_st));
+	ex->flp = flp;
+	ex->type = EXPR_INFIX;
+	ex->u.infix.k = k;
+	ex->u.infix.left = left;
+	ex->u.infix.right = right;
+	return ex;
 }
 
-function expr_call(flp, cmd, params){
-	return { flp: flp, type: EXPR_CALL, cmd: cmd, params: params };
+static inline expr expr_call(filepos_st flp, expr cmd, expr params){
+	expr ex = mem_alloc(sizeof(expr_st));
+	ex->flp = flp;
+	ex->type = EXPR_CALL;
+	ex->u.call.cmd = cmd;
+	ex->u.call.params = params;
+	return ex;
 }
 
-function expr_index(flp, obj, key){
-	return { flp: flp, type: EXPR_INDEX, obj: obj, key: key };
+static inline expr expr_index(filepos_st flp, expr obj, expr key){
+	expr ex = mem_alloc(sizeof(expr_st));
+	ex->flp = flp;
+	ex->type = EXPR_INDEX;
+	ex->u.index.obj = obj;
+	ex->u.index.key = key;
+	return ex;
 }
 
-function expr_slice(flp, obj, start, len){
-	return { flp: flp, type: EXPR_SLICE, obj: obj, start: start, len: len };
+static inline expr expr_slice(filepos_st flp, expr obj, expr start, expr len){
+	expr ex = mem_alloc(sizeof(expr_st));
+	ex->flp = flp;
+	ex->type = EXPR_SLICE;
+	ex->u.slice.obj = obj;
+	ex->u.slice.start = start;
+	ex->u.slice.len = len;
+	return ex;
 }
+
+#if 0
 
 //
 // ast
