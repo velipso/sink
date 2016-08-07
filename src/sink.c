@@ -1449,10 +1449,13 @@ static void lex_process(lex lx, list_tok tks){
 		case LEX_IDENT:
 			if (!isIdentBody(ch1)){
 				ks_enum ksk = ks_str(lx->str);
-				if (ksk != KS_INVALID)
+				if (ksk != KS_INVALID){
 					list_tok_push(tks, tok_ks(ksk));
+					list_byte_free(lx->str);
+				}
 				else
 					list_tok_push(tks, tok_ident(lx->str));
+				lx->str = NULL;
 				lx->state = LEX_START;
 				lex_process(lx, tks);
 			}
@@ -1622,6 +1625,7 @@ static void lex_process(lex lx, list_tok tks){
 				list_tok_push(tks, tok_ks(KS_LPAREN));
 				list_tok_push(tks, tok_str(lx->str));
 				list_tok_push(tks, tok_ks(KS_RPAREN));
+				lx->str = NULL;
 			}
 			else if (ch1 == '\\')
 				lx->state = LEX_STR_BASIC_ESC;
@@ -1645,6 +1649,7 @@ static void lex_process(lex lx, list_tok tks){
 				lx->state = LEX_START;
 				list_tok_push(tks, tok_str(lx->str));
 				list_tok_push(tks, tok_ks(KS_RPAREN));
+				lx->str = NULL;
 			}
 			else if (ch1 == '$'){
 				lx->state = LEX_STR_INTERP_DLR;
@@ -1652,6 +1657,9 @@ static void lex_process(lex lx, list_tok tks){
 					list_tok_push(tks, tok_str(lx->str));
 					list_tok_push(tks, tok_ks(KS_TILDE));
 				}
+				else
+					list_byte_free(lx->str);
+				lx->str = NULL;
 			}
 			else if (ch1 == '\\')
 				lx->state = LEX_STR_INTERP_ESC;
@@ -1682,6 +1690,7 @@ static void lex_process(lex lx, list_tok tks){
 					list_tok_push(tks, tok_ident(lx->str));
 					if (ch1 == '"'){
 						lx->state = LEX_START;
+						lx->str = NULL;
 						list_tok_push(tks, tok_ks(KS_RPAREN));
 					}
 					else{
@@ -1760,15 +1769,14 @@ static void lex_process(lex lx, list_tok tks){
 	}
 }
 
-#if 0
-function lex_add(lx, ch, tks){
+static inline void lex_add(lex lx, char ch, list_tok tks){
 	lex_fwd(lx, ch);
-	return lex_process(lx, tks);
+	lex_process(lx, tks);
 }
 
-function lex_close(lx, tks){
+static void lex_close(lex lx, list_tok tks){
 	if (lx->str_depth > 0){
-		list_tok_push(tks, tok_error('Missing end of string'));
+		list_tok_push(tks, tok_error(format("Missing end of string")));
 		return;
 	}
 	switch (lx->state){
@@ -1779,42 +1787,45 @@ function lex_close(lx, tks){
 			break;
 
 		case LEX_COMMENT_BLOCK:
-			list_tok_push(tks, tok_error('Missing end of block comment'));
+			list_tok_push(tks, tok_error(format("Missing end of block comment")));
 			return;
 
 		case LEX_SPECIAL1: {
-			var ks1 = ks_char(lx->ch1);
+			ks_enum ks1 = ks_char(lx->ch1);
 			if (ks1 != KS_INVALID)
 				list_tok_push(tks, tok_ks(ks1));
 			else
-				list_tok_push(tks, tok_error('Unexpected character: ' + lx->ch1));
+				list_tok_push(tks, tok_error(format("Unexpected character: %c", lx->ch1)));
 		} break;
 
 		case LEX_SPECIAL2: {
-			var ks2 = ks_char2(lx->ch2, lx->ch1);
+			ks_enum ks2 = ks_char2(lx->ch2, lx->ch1);
 			if (ks2 != KS_INVALID)
-				list_tok_push(tks, tok_ks(ks2))
+				list_tok_push(tks, tok_ks(ks2));
 			else{
-				var ks1 = ks_char(lx->ch2);
+				ks_enum ks1 = ks_char(lx->ch2);
 				ks2 = ks_char(lx->ch1);
 				if (ks1 != KS_INVALID){
 					list_tok_push(tks, tok_ks(ks1));
 					if (ks2 != KS_INVALID)
 						list_tok_push(tks, tok_ks(ks2));
 					else
-						list_tok_push(tks, tok_error('Unexpected character: ' + lx->ch1));
+						list_tok_push(tks, tok_error(format("Unexpected character: %c", lx->ch1)));
 				}
 				else
-					list_tok_push(tks, tok_error('Unexpected character: ' + lx->ch2));
+					list_tok_push(tks, tok_error(format("Unexpected character: %c", lx->ch2)));
 			}
 		} break;
 
 		case LEX_IDENT: {
-			var ksk = ks_str(lx->str);
-			if (ksk != KS_INVALID)
+			ks_enum ksk = ks_str(lx->str);
+			if (ksk != KS_INVALID){
 				list_tok_push(tks, tok_ks(ksk));
+				list_byte_free(lx->str);
+			}
 			else
 				list_tok_push(tks, tok_ident(lx->str));
+			lx->str = NULL;
 		} break;
 
 		case LEX_NUM_0:
@@ -1822,7 +1833,7 @@ function lex_close(lx, tks){
 			break;
 
 		case LEX_NUM_2:
-			list_tok_push(tks, tok_error('Invalid number'));
+			list_tok_push(tks, tok_error(format("Invalid number")));
 			break;
 
 		case LEX_NUM:
@@ -1831,26 +1842,26 @@ function lex_close(lx, tks){
 
 		case LEX_NUM_FRAC:
 			if (lx->num_flen <= 0)
-				list_tok_push(tks, tok_error('Invalid number'));
+				list_tok_push(tks, tok_error(format("Invalid number")));
 			else{
-				var d = Math.pow(lx->num_base, lx->num_flen);
+				double d = pow(lx->num_base, lx->num_flen);
 				lx->num_val = (lx->num_val * d + lx->num_frac) / d;
 				list_tok_push(tks, tok_num(lx->num_val));
 			}
 			break;
 
 		case LEX_NUM_EXP:
-			list_tok_push(tks, tok_error('Invalid number'));
+			list_tok_push(tks, tok_error(format("Invalid number")));
 			break;
 
 		case LEX_NUM_EXP_BODY:
 			if (lx->num_elen <= 0)
-				list_tok_push(tks, tok_error('Invalid number'));
+				list_tok_push(tks, tok_error(format("Invalid number")));
 			else{
-				var e = Math.pow(lx->num_base == 10 ? 10 : 2, lx->num_esign * lx->num_eval);
+				double e = pow(lx->num_base == 10.0 ? 10.0 : 2.0, lx->num_esign * lx->num_eval);
 				lx->num_val *= e;
 				if (lx->num_flen > 0){
-					var d = Math.pow(lx->num_base, lx->num_flen);
+					double d = pow(lx->num_base, lx->num_flen);
 					lx->num_val = (lx->num_val * d + lx->num_frac * e) / d;
 				}
 				list_tok_push(tks, tok_num(lx->num_val));
@@ -1864,11 +1875,13 @@ function lex_close(lx, tks){
 		case LEX_STR_INTERP_DLR_ID:
 		case LEX_STR_INTERP_ESC:
 		case LEX_STR_INTERP_ESC_HEX:
-			list_tok_push(tks, tok_error('Missing end of string'));
+			list_tok_push(tks, tok_error(format("Missing end of string")));
 			break;
 	}
 	list_tok_push(tks, tok_newline(false));
 }
+
+#if 0
 
 //
 // expr

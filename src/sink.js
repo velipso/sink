@@ -1357,7 +1357,7 @@ function lex_close(lx, tks){
 		case LEX_SPECIAL2: {
 			var ks2 = ks_char2(lx.ch2, lx.ch1);
 			if (ks2 != KS_INVALID)
-				tks.push(tok_ks(ks2))
+				tks.push(tok_ks(ks2));
 			else{
 				var ks1 = ks_char(lx.ch2);
 				ks2 = ks_char(lx.ch1);
