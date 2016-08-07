@@ -1118,105 +1118,128 @@ static inline bool tok_isMidBeforeMid(tok_st lmid, tok_st rmid){
 	return true;
 }
 
-#if 0
 //
 // lexer helper functions
 //
 
-function isSpace(c){
-	return c === ' ' || c === '\n' || c === '\r' || c === '\t';
+static inline bool isSpace(char c){
+	return c == ' ' || c == '\n' || c == '\r' || c == '\t';
 }
 
-function isAlpha(c){
+static inline bool isAlpha(char c){
 	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
 }
 
-function isNum(c){
+static inline bool isNum(char c){
 	return c >= '0' && c <= '9';
 }
 
-function isIdentStart(c){
-	return isAlpha(c) || c === '_';
+static inline bool isIdentStart(char c){
+	return isAlpha(c) || c == '_';
 }
 
-function isIdentBody(c){
+static inline bool isIdentBody(char c){
 	return isIdentStart(c) || isNum(c);
 }
 
-function isHex(c){
+static inline bool isHex(char c){
 	return isNum(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
 }
 
-function toHex(c){
+static inline int toHex(char c){
 	if (isNum(c))
-		return c.charCodeAt(0) - 48;
+		return c - 48;
 	else if (c >= 'a')
-		return c.charCodeAt(0) - 87;
-	return c.charCodeAt(0) - 55;
+		return c - 87;
+	return c - 55;
 }
 
 //
 // lexer
 //
 
-var LEX_START              = 'LEX_START';
-var LEX_COMMENT_LINE       = 'LEX_COMMENT_LINE';
-var LEX_BACKSLASH          = 'LEX_BACKSLASH';
-var LEX_RETURN             = 'LEX_RETURN';
-var LEX_COMMENT_BLOCK      = 'LEX_COMMENT_BLOCK';
-var LEX_SPECIAL1           = 'LEX_SPECIAL1';
-var LEX_SPECIAL2           = 'LEX_SPECIAL2';
-var LEX_IDENT              = 'LEX_IDENT';
-var LEX_NUM_0              = 'LEX_NUM_0';
-var LEX_NUM_2              = 'LEX_NUM_2';
-var LEX_NUM                = 'LEX_NUM';
-var LEX_NUM_FRAC           = 'LEX_NUM_FRAC';
-var LEX_NUM_EXP            = 'LEX_NUM_EXP';
-var LEX_NUM_EXP_BODY       = 'LEX_NUM_EXP_BODY';
-var LEX_STR_BASIC          = 'LEX_STR_BASIC';
-var LEX_STR_BASIC_ESC      = 'LEX_STR_BASIC_ESC';
-var LEX_STR_INTERP         = 'LEX_STR_INTERP';
-var LEX_STR_INTERP_DLR     = 'LEX_STR_INTERP_DLR';
-var LEX_STR_INTERP_DLR_ID  = 'LEX_STR_INTERP_DLR_ID';
-var LEX_STR_INTERP_ESC     = 'LEX_STR_INTERP_ESC';
-var LEX_STR_INTERP_ESC_HEX = 'LEX_STR_INTERP_ESC_HEX';
+typedef enum {
+	LEX_START,
+	LEX_COMMENT_LINE,
+	LEX_BACKSLASH,
+	LEX_RETURN,
+	LEX_COMMENT_BLOCK,
+	LEX_SPECIAL1,
+	LEX_SPECIAL2,
+	LEX_IDENT,
+	LEX_NUM_0,
+	LEX_NUM_2,
+	LEX_NUM,
+	LEX_NUM_FRAC,
+	LEX_NUM_EXP,
+	LEX_NUM_EXP_BODY,
+	LEX_STR_BASIC,
+	LEX_STR_BASIC_ESC,
+	LEX_STR_INTERP,
+	LEX_STR_INTERP_DLR,
+	LEX_STR_INTERP_DLR_ID,
+	LEX_STR_INTERP_ESC,
+	LEX_STR_INTERP_ESC_HEX
+} lex_enum;
 
-function lex_new(){
-	return {
-		state: LEX_START,
-		chR: 0,
-		ch1: 0,
-		ch2: 0,
-		ch3: 0,
-		ch4: 0,
-		str: '',
-		num_val: 0,
-		num_base: 0,
-		num_frac: 0,
-		num_flen: 0,
-		num_esign: 0,
-		num_eval: 0,
-		num_elen: 0,
-		str_depth: 0,
-		str_hexval: 0,
-		str_hexleft: 0
-	};
+typedef struct {
+	lex_enum state;
+	char chR;
+	char ch1;
+	char ch2;
+	char ch3;
+	char ch4;
+	list_byte str;
+	double num_val;
+	double num_base;
+	double num_frac;
+	double num_flen;
+	double num_esign;
+	double num_eval;
+	double num_elen;
+	int str_depth;
+	int str_hexval;
+	int str_hexleft;
+} lex_st, *lex;
+
+static lex lex_new(){
+	lex lx = mem_alloc(sizeof(lex_st));
+	lx->state = LEX_START;
+	lx->chR = 0;
+	lx->ch1 = 0;
+	lx->ch2 = 0;
+	lx->ch3 = 0;
+	lx->ch4 = 0;
+	lx->str = NULL;
+	lx->num_val = 0;
+	lx->num_base = 0;
+	lx->num_frac = 0;
+	lx->num_flen = 0;
+	lx->num_esign = 0;
+	lx->num_eval = 0;
+	lx->num_elen = 0;
+	lx->str_depth = 0;
+	lx->str_hexval = 0;
+	lx->str_hexleft = 0;
+	return lx;
 }
 
-function lex_fwd(lx, ch){
-	lx.ch4 = lx.ch3;
-	lx.ch3 = lx.ch2;
-	lx.ch2 = lx.ch1;
-	lx.ch1 = ch;
+static void lex_fwd(lex lx, char ch){
+	lx->ch4 = lx->ch3;
+	lx->ch3 = lx->ch2;
+	lx->ch2 = lx->ch1;
+	lx->ch1 = ch;
 }
 
-function lex_rev(lx){
-	lx.chR = lx.ch1;
-	lx.ch1 = lx.ch2;
-	lx.ch2 = lx.ch3;
-	lx.ch3 = lx.ch4;
-	lx.ch4 = 0;
+static void lex_rev(lex lx){
+	lx->chR = lx->ch1;
+	lx->ch1 = lx->ch2;
+	lx->ch2 = lx->ch3;
+	lx->ch3 = lx->ch4;
+	lx->ch4 = 0;
 }
+
+#if 0
 
 function lex_process(lx, tks){
 	var ch1 = lx.ch1;
