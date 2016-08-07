@@ -4,6 +4,7 @@
 
 #include "sink.h"
 #include <stdlib.h>
+#include <string.h>
 
 #ifdef SINK_MACOSX
 #	include <strings.h>  // ffsll
@@ -163,17 +164,19 @@ typedef struct {
 	int count;
 } list_byte_st, *list_byte;
 
+const static int list_byte_grow = 200;
+
 static list_byte list_byte_new(){
 	list_byte b = mem_alloc(sizeof(list_byte_st));
 	b->size = 0;
-	b->count = 16;
+	b->count = list_byte_grow;
 	b->bytes = mem_alloc(sizeof(uint8_t) * b->count);
 	return b;
 }
 
 static inline void list_byte_push(list_byte b, int v){
 	if (b->size + 1 > b->count){
-		b->count += 16;
+		b->count += list_byte_grow;
 		b->bytes = mem_realloc(b->bytes, sizeof(uint8_t) * b->count);
 	}
 	b->bytes[b->size++] = (uint8_t)v;
@@ -181,7 +184,7 @@ static inline void list_byte_push(list_byte b, int v){
 
 static inline void list_byte_push2(list_byte b, int v1, int v2){
 	if (b->size + 2 > b->count){
-		b->count += 16;
+		b->count += list_byte_grow;
 		b->bytes = mem_realloc(b->bytes, sizeof(uint8_t) * b->count);
 	}
 	b->bytes[b->size++] = (uint8_t)v1;
@@ -190,7 +193,7 @@ static inline void list_byte_push2(list_byte b, int v1, int v2){
 
 static inline void list_byte_push3(list_byte b, int v1, int v2, int v3){
 	if (b->size + 3 > b->count){
-		b->count += 16;
+		b->count += list_byte_grow;
 		b->bytes = mem_realloc(b->bytes, sizeof(uint8_t) * b->count);
 	}
 	b->bytes[b->size++] = (uint8_t)v1;
@@ -200,7 +203,7 @@ static inline void list_byte_push3(list_byte b, int v1, int v2, int v3){
 
 static inline void list_byte_push4(list_byte b, int v1, int v2, int v3, int v4){
 	if (b->size + 4 > b->count){
-		b->count += 16;
+		b->count += list_byte_grow;
 		b->bytes = mem_realloc(b->bytes, sizeof(uint8_t) * b->count);
 	}
 	b->bytes[b->size++] = (uint8_t)v1;
@@ -211,7 +214,7 @@ static inline void list_byte_push4(list_byte b, int v1, int v2, int v3, int v4){
 
 static inline void list_byte_push5(list_byte b, int v1, int v2, int v3, int v4, int v5){
 	if (b->size + 5 > b->count){
-		b->count += 16;
+		b->count += list_byte_grow;
 		b->bytes = mem_realloc(b->bytes, sizeof(uint8_t) * b->count);
 	}
 	b->bytes[b->size++] = (uint8_t)v1;
@@ -224,7 +227,7 @@ static inline void list_byte_push5(list_byte b, int v1, int v2, int v3, int v4, 
 static inline void list_byte_push7(list_byte b, int v1, int v2, int v3, int v4, int v5, int v6,
 	int v7){
 	if (b->size + 7 > b->count){
-		b->count += 24;
+		b->count += list_byte_grow;
 		b->bytes = mem_realloc(b->bytes, sizeof(uint8_t) * b->count);
 	}
 	b->bytes[b->size++] = (uint8_t)v1;
@@ -239,7 +242,7 @@ static inline void list_byte_push7(list_byte b, int v1, int v2, int v3, int v4, 
 static inline void list_byte_push9(list_byte b, int v1, int v2, int v3, int v4, int v5, int v6,
 	int v7, int v8, int v9){
 	if (b->size + 9 > b->count){
-		b->count += 24;
+		b->count += list_byte_grow;
 		b->bytes = mem_realloc(b->bytes, sizeof(uint8_t) * b->count);
 	}
 	b->bytes[b->size++] = (uint8_t)v1;
@@ -256,7 +259,7 @@ static inline void list_byte_push9(list_byte b, int v1, int v2, int v3, int v4, 
 static inline void list_byte_push10(list_byte b, int v1, int v2, int v3, int v4, int v5, int v6,
 	int v7, int v8, int v9, int v10){
 	if (b->size + 10 > b->count){
-		b->count += 24;
+		b->count += list_byte_grow;
 		b->bytes = mem_realloc(b->bytes, sizeof(uint8_t) * b->count);
 	}
 	b->bytes[b->size++] = (uint8_t)v1;
@@ -469,48 +472,49 @@ typedef enum {
 
 	// fake ops
 	OP_GT             = 0x1F0,
-	OP_GTE            = 0x1F1
+	OP_GTE            = 0x1F1,
+	OP_INVALID        = 0x1F2
 } op_enum;
 
 static inline void op_nop(list_byte b){
-	debug("NOP\n");
+	debug("> NOP\n");
 	list_byte_push(b, OP_NOP);
 }
 
 static inline void op_exit(list_byte b, varloc_st src){
-	debugf("EXIT %d:%d\n", src.fdiff, src.index);
+	debugf("> EXIT %d:%d\n", src.fdiff, src.index);
 	list_byte_push3(b, OP_EXIT, src.fdiff, src.index);
 }
 
 static inline void op_abort(list_byte b, varloc_st src){
-	debugf("ABORT %d:%d\n", src.fdiff, src.index);
+	debugf("> ABORT %d:%d\n", src.fdiff, src.index);
 	list_byte_push3(b, OP_ABORT, src.fdiff, src.index);
 }
 
 static inline void op_aborterr(list_byte b, int errno){
-	debugf("ABORTERR %d\n", errno);
+	debugf("> ABORTERR %d\n", errno);
 	list_byte_push2(b, OP_ABORTERR, errno);
 }
 
 static inline void op_move(list_byte b, varloc_st tgt, varloc_st src){
 	if (tgt.fdiff == src.fdiff && tgt.index == src.index)
 		return;
-	debugf("MOVE %d:%d, %d:%d\n", tgt.fdiff, tgt.index, src.fdiff, src.index);
+	debugf("> MOVE %d:%d, %d:%d\n", tgt.fdiff, tgt.index, src.fdiff, src.index);
 	list_byte_push5(b, OP_MOVE, tgt.fdiff, tgt.index, src.fdiff, src.index);
 }
 
 static inline void op_inc(list_byte b, varloc_st src){
-	debugf("INC %d:%d\n", src.fdiff, src.index);
+	debugf("> INC %d:%d\n", src.fdiff, src.index);
 	list_byte_push3(b, OP_INC, src.fdiff, src.index);
 }
 
 static inline void op_nil(list_byte b, varloc_st tgt){
-	debugf("NIL %d:%d\n", tgt.fdiff, tgt.index);
+	debugf("> NIL %d:%d\n", tgt.fdiff, tgt.index);
 	list_byte_push3(b, OP_NIL, tgt.fdiff, tgt.index);
 }
 
 static inline void op_num(list_byte b, varloc_st tgt, int num){
-	debugf("NUM %d:%d, %d\n", tgt.fdiff, tgt.index, num);
+	debugf("> NUM %d:%d, %d\n", tgt.fdiff, tgt.index, num);
 	if (num >= 0)
 		list_byte_push5(b, OP_NUMPOS, tgt.fdiff, tgt.index, num % 256, num >> 8);
 	else{
@@ -520,24 +524,24 @@ static inline void op_num(list_byte b, varloc_st tgt, int num){
 }
 
 static inline void op_num_tbl(list_byte b, varloc_st tgt, int index){
-	debugf("NUMTBL %d:%d, %d\n", tgt.fdiff, tgt.index, index);
+	debugf("> NUMTBL %d:%d, %d\n", tgt.fdiff, tgt.index, index);
 	list_byte_push5(b, OP_NUMTBL, tgt.fdiff, tgt.index, index % 256, index >> 8);
 }
 
 static inline void op_str(list_byte b, varloc_st tgt, int index){
-	debugf("STR %d:%d, %d\n", tgt.fdiff, tgt.index, index);
+	debugf("> STR %d:%d, %d\n", tgt.fdiff, tgt.index, index);
 	list_byte_push5(b, OP_STR, tgt.fdiff, tgt.index, index % 256, index >> 8);
 }
 
 static inline void op_list(list_byte b, varloc_st tgt, int hint){
 	if (hint > 255)
 		hint = 255;
-	debugf("LIST %d:%d, %d\n", tgt.fdiff, tgt.index, hint);
+	debugf("> LIST %d:%d, %d\n", tgt.fdiff, tgt.index, hint);
 	list_byte_push4(b, OP_LIST, tgt.fdiff, tgt.index, hint);
 }
 
 static inline void op_rest(list_byte b, varloc_st tgt, varloc_st src1, varloc_st src2){
-	debugf("REST %d:%d, %d:%d, %d:%d\n", tgt.fdiff, tgt.index, src1.fdiff, src1.index,
+	debugf("> REST %d:%d, %d:%d, %d:%d\n", tgt.fdiff, tgt.index, src1.fdiff, src1.index,
 		src2.fdiff, src2.index);
 	list_byte_push7(b, OP_REST, tgt.fdiff, tgt.index, src1.fdiff, src1.index,
 		src2.fdiff, src2.index);
@@ -555,7 +559,7 @@ static inline void op_unop(list_byte b, op_enum opcode, varloc_st tgt, varloc_st
 	else if (opcode == OP_ISNUM ) opstr = "ISNUM";
 	else if (opcode == OP_ISSTR ) opstr = "ISSTR";
 	else if (opcode == OP_ISLIST) opstr = "ISLIST";
-	debugf("%s %d:%d, %d:%d\n", opstr, tgt.fdiff, tgt.index, src.fdiff, src.index);
+	debugf("> %s %d:%d, %d:%d\n", opstr, tgt.fdiff, tgt.index, src.fdiff, src.index);
 	#endif
 	list_byte_push5(b, opcode, tgt.fdiff, tgt.index, src.fdiff, src.index);
 }
@@ -593,7 +597,7 @@ static inline void op_binop(list_byte b, op_enum opcode, varloc_st tgt, varloc_s
 	else if (opcode == OP_LTE    ) opstr = "LTE";
 	else if (opcode == OP_NEQ    ) opstr = "NEQ";
 	else if (opcode == OP_EQU    ) opstr = "EQU";
-	debugf("%s %d:%d, %d:%d, %d:%d\n", opstr, tgt.fdiff, tgt.index, src1.fdiff, src1.index,
+	debugf("> %s %d:%d, %d:%d, %d:%d\n", opstr, tgt.fdiff, tgt.index, src1.fdiff, src1.index,
 		src2.fdiff, src2.index);
 	#endif
 	list_byte_push7(b, opcode, tgt.fdiff, tgt.index, src1.fdiff, src1.index,
@@ -601,7 +605,7 @@ static inline void op_binop(list_byte b, op_enum opcode, varloc_st tgt, varloc_s
 }
 
 static inline void op_getat(list_byte b, varloc_st tgt, varloc_st src1, varloc_st src2){
-	debugf("GETAT %d:%d, %d:%d, %d:%d\n", tgt.fdiff, tgt.index, src1.fdiff, src1.index,
+	debugf("> GETAT %d:%d, %d:%d, %d:%d\n", tgt.fdiff, tgt.index, src1.fdiff, src1.index,
 		src2.fdiff, src2.index);
 	list_byte_push7(b, OP_GETAT, tgt.fdiff, tgt.index, src1.fdiff, src1.index,
 		src2.fdiff, src2.index);
@@ -609,14 +613,14 @@ static inline void op_getat(list_byte b, varloc_st tgt, varloc_st src1, varloc_s
 
 static inline void op_slice(list_byte b, varloc_st tgt, varloc_st src1, varloc_st src2,
 	varloc_st src3){
-	debugf("SLICE %d:%d, %d:%d, %d:%d, %d:%d\n", tgt.fdiff, tgt.index, src1.fdiff, src1.index,
+	debugf("> SLICE %d:%d, %d:%d, %d:%d, %d:%d\n", tgt.fdiff, tgt.index, src1.fdiff, src1.index,
 		src2.fdiff, src2.index, src3.fdiff, src3.index);
 	list_byte_push9(b, OP_SLICE, tgt.fdiff, tgt.index, src1.fdiff, src1.index,
 		src2.fdiff, src2.index, src3.fdiff, src3.index);
 }
 
 static inline void op_setat(list_byte b, varloc_st src1, varloc_st src2, varloc_st src3){
-	debugf("SETAT %d:%d, %d:%d, %d:%d\n", src1.fdiff, src1.index, src2.fdiff, src2.index,
+	debugf("> SETAT %d:%d, %d:%d, %d:%d\n", src1.fdiff, src1.index, src2.fdiff, src2.index,
 		src3.fdiff, src3.index);
 	list_byte_push7(b, OP_SETAT, src1.fdiff, src1.index, src2.fdiff, src2.index,
 		src3.fdiff, src3.index);
@@ -624,14 +628,14 @@ static inline void op_setat(list_byte b, varloc_st src1, varloc_st src2, varloc_
 
 static inline void op_splice(list_byte b, varloc_st src1, varloc_st src2, varloc_st src3,
 	varloc_st src4){
-	debugf("SPLICE %d:%d, %d:%d, %d:%d, %d:%d\n", src1.fdiff, src1.index, src2.fdiff, src2.index,
+	debugf("> SPLICE %d:%d, %d:%d, %d:%d, %d:%d\n", src1.fdiff, src1.index, src2.fdiff, src2.index,
 		src3.fdiff, src3.index, src4.fdiff, src4.index);
 	list_byte_push9(b, OP_SPLICE, src1.fdiff, src1.index, src2.fdiff, src2.index,
 		src3.fdiff, src3.index, src4.fdiff, src4.index);
 }
 
 static inline void op_jump(list_byte b, uint32_t index, const char *hint){
-	debugf("JUMP %s\n", hint);
+	debugf("> JUMP %s\n", hint);
 	list_byte_push5(b, OP_JUMP,
 		index % 256,
 		(index >> 8) % 256,
@@ -640,7 +644,7 @@ static inline void op_jump(list_byte b, uint32_t index, const char *hint){
 }
 
 static inline void op_jumpTrue(list_byte b, varloc_st src, uint32_t index, const char *hint){
-	debugf("JUMPTRUE %d:%d, %s\n", src.fdiff, src.index, hint);
+	debugf("> JUMPTRUE %d:%d, %s\n", src.fdiff, src.index, hint);
 	list_byte_push7(b, OP_JUMPTRUE, src.fdiff, src.index,
 		index % 256,
 		(index >> 8) % 256,
@@ -649,7 +653,7 @@ static inline void op_jumpTrue(list_byte b, varloc_st src, uint32_t index, const
 }
 
 static inline void op_jumpFalse(list_byte b, varloc_st src, uint32_t index, const char *hint){
-	debugf("JUMPFALSE %d:%d, %s\n", src.fdiff, src.index, hint);
+	debugf("> JUMPFALSE %d:%d, %s\n", src.fdiff, src.index, hint);
 	list_byte_push7(b, OP_JUMPFALSE, src.fdiff, src.index,
 		index % 256,
 		(index >> 8) % 256,
@@ -659,7 +663,7 @@ static inline void op_jumpFalse(list_byte b, varloc_st src, uint32_t index, cons
 
 static inline void op_call(list_byte b, varloc_st ret, varloc_st arg, int level, uint32_t index,
 	const char *hint){
-	debugf("CALL %d:%d, %d:%d, %d, %s\n", ret.fdiff, ret.index, arg.fdiff, arg.index, level, hint);
+	debugf("> CALL %d:%d, %d:%d, %d, %s\n", ret.fdiff, ret.index, arg.fdiff, arg.index, level, hint);
 	list_byte_push10(b, OP_CALL, ret.fdiff, ret.index, arg.fdiff, arg.index, level,
 		index % 256,
 		(index >> 8) % 256,
@@ -668,29 +672,29 @@ static inline void op_call(list_byte b, varloc_st ret, varloc_st arg, int level,
 }
 
 static inline void op_native(list_byte b, varloc_st ret, varloc_st arg, int index){
-	debugf("NATIVE %d:%d, %d:%d, %d\n", ret.fdiff, ret.index, arg.fdiff, arg.index, index);
+	debugf("> NATIVE %d:%d, %d:%d, %d\n", ret.fdiff, ret.index, arg.fdiff, arg.index, index);
 	list_byte_push7(b, OP_NATIVE, ret.fdiff, ret.index, arg.fdiff, arg.index,
 		index % 256, index >> 8);
 }
 
 static inline void op_return(list_byte b, varloc_st src){
-	debugf("RETURN %d:%d\n", src.fdiff, src.index);
+	debugf("> RETURN %d:%d\n", src.fdiff, src.index);
 	list_byte_push3(b, OP_RETURN, src.fdiff, src.index);
 }
 
 static inline void op_param0(list_byte b, op_enum opcode, varloc_st tgt){
-	debugf("0x%02X %d:%d\n", opcode, tgt.fdiff, tgt.index);
+	debugf("> 0x%02X %d:%d\n", opcode, tgt.fdiff, tgt.index);
 	list_byte_push3(b, opcode, tgt.fdiff, tgt.index);
 }
 
 static inline void op_param1(list_byte b, op_enum opcode, varloc_st tgt, varloc_st src){
-	debugf("0x%02X %d:%d, %d:%d\n", opcode, tgt.fdiff, tgt.index, src.fdiff, src.index);
+	debugf("> 0x%02X %d:%d, %d:%d\n", opcode, tgt.fdiff, tgt.index, src.fdiff, src.index);
 	list_byte_push5(b, opcode, tgt.fdiff, tgt.index, src.fdiff, src.index);
 }
 
 static inline void op_param2(list_byte b, op_enum opcode, varloc_st tgt, varloc_st src1,
 	varloc_st src2){
-	debugf("0x%02X %d:%d, %d:%d, %d:%d\n", opcode, tgt.fdiff, tgt.index, src1.fdiff, src1.index,
+	debugf("> 0x%02X %d:%d, %d:%d, %d:%d\n", opcode, tgt.fdiff, tgt.index, src1.fdiff, src1.index,
 		src2.fdiff, src2.index);
 	list_byte_push7(b, opcode, tgt.fdiff, tgt.index, src1.fdiff, src1.index,
 		src2.fdiff, src2.index);
@@ -698,105 +702,116 @@ static inline void op_param2(list_byte b, op_enum opcode, varloc_st tgt, varloc_
 
 static inline void op_param3(list_byte b, op_enum opcode, varloc_st tgt, varloc_st src1,
 	varloc_st src2, varloc_st src3){
-	debugf("0x%02X %d:%d, %d:%d, %d:%d, %d:%d\n", opcode, tgt.fdiff, tgt.index,
+	debugf("> 0x%02X %d:%d, %d:%d, %d:%d, %d:%d\n", opcode, tgt.fdiff, tgt.index,
 		src1.fdiff, src1.index, src2.fdiff, src2.index, src3.fdiff, src3.index);
 	list_byte_push9(b, opcode, tgt.fdiff, tgt.index, src1.fdiff, src1.index,
 		src2.fdiff, src2.index, src3.fdiff, src3.index);
 }
 
-#if 0
-
 //
 // file position
 //
 
-function filepos_new(file, line, chr){
-	return { file: file, line: line, chr: chr };
+typedef struct {
+	const char *file;
+	int line;
+	int chr;
+} filepos_st;
+
+static inline filepos_st filepos_new(const char *file, int line, int chr){
+	return (filepos_st){ .file = file, .line = line, .chr = chr };
 }
 
-function filepos_newCopy(flp){
-	return filepos_new(flp.file, flp.line, flp.chr);
-}
-
-function filepos_err(flp, msg){
-	return (flp.file == null ? '' : flp.file + ':') + flp.line + ':' + flp.chr + ': ' + msg;
+static char *filepos_err(filepos_st flp, const char *msg){
+	if (flp.file == NULL){
+		size_t s = snprintf(NULL, 0, "%d:%d: %s", flp.line, flp.chr, msg);
+		char *buf = mem_alloc(s + 1);
+		sprintf(buf, "%d:%d: %s", flp.line, flp.chr, msg);
+		return buf;
+	}
+	size_t s = snprintf(NULL, 0, "%s:%d:%d: %s", flp.file, flp.line, flp.chr, msg);
+	char *buf = mem_alloc(s + 1);
+	sprintf(buf, "%s:%d:%d: %s", flp.file, flp.line, flp.chr, msg);
+	return buf;
 }
 
 //
 // keywords/specials
 //
 
-var KS_INVALID    = 'KS_INVALID';
-var KS_PLUS       = 'KS_PLUS';
-var KS_UNPLUS     = 'KS_UNPLUS';
-var KS_MINUS      = 'KS_MINUS';
-var KS_UNMINUS    = 'KS_UNMINUS';
-var KS_PERCENT    = 'KS_PERCENT';
-var KS_STAR       = 'KS_STAR';
-var KS_SLASH      = 'KS_SLASH';
-var KS_CARET      = 'KS_CARET';
-var KS_AT         = 'KS_AT';
-var KS_AMP        = 'KS_AMP';
-var KS_LT         = 'KS_LT';
-var KS_GT         = 'KS_GT';
-var KS_BANG       = 'KS_BANG';
-var KS_EQU        = 'KS_EQU';
-var KS_TILDE      = 'KS_TILDE';
-var KS_COLON      = 'KS_COLON';
-var KS_COMMA      = 'KS_COMMA';
-var KS_PERIOD     = 'KS_PERIOD';
-var KS_PIPE       = 'KS_PIPE';
-var KS_LPAREN     = 'KS_LPAREN';
-var KS_LBRACKET   = 'KS_LBRACKET';
-var KS_LBRACE     = 'KS_LBRACE';
-var KS_RPAREN     = 'KS_RPAREN';
-var KS_RBRACKET   = 'KS_RBRACKET';
-var KS_RBRACE     = 'KS_RBRACE';
-var KS_PLUSEQU    = 'KS_PLUSEQU';
-var KS_MINUSEQU   = 'KS_MINUSEQU';
-var KS_PERCENTEQU = 'KS_PERCENTEQU';
-var KS_STAREQU    = 'KS_STAREQU';
-var KS_SLASHEQU   = 'KS_SLASHEQU';
-var KS_CARETEQU   = 'KS_CARETEQU';
-var KS_LTEQU      = 'KS_LTEQU';
-var KS_GTEQU      = 'KS_GTEQU';
-var KS_BANGEQU    = 'KS_BANGEQU';
-var KS_EQU2       = 'KS_EQU2';
-var KS_TILDEEQU   = 'KS_TILDEEQU';
-var KS_TILDEPLUS  = 'KS_TILDEPLUS';
-var KS_PLUSTILDE  = 'KS_PLUSTILDE';
-var KS_TILDEMINUS = 'KS_TILDEMINUS';
-var KS_MINUSTILDE = 'KS_MINUSTILDE';
-var KS_AMP2       = 'KS_AMP2';
-var KS_PIPE2      = 'KS_PIPE2';
-var KS_PERIOD3    = 'KS_PERIOD3';
-var KS_TILDE2PLUS = 'KS_TILDE2PLUS';
-var KS_PLUSTILDE2 = 'KS_PLUSTILDE2';
-var KS_PIPE2EQU   = 'KS_PIPE2EQU';
-var KS_AMP2EQU    = 'KS_AMP2EQU';
-var KS_BREAK      = 'KS_BREAK';
-var KS_CONTINUE   = 'KS_CONTINUE';
-var KS_DECLARE    = 'KS_DECLARE';
-var KS_DEF        = 'KS_DEF';
-var KS_DO         = 'KS_DO';
-var KS_ELSE       = 'KS_ELSE';
-var KS_ELSEIF     = 'KS_ELSEIF';
-var KS_END        = 'KS_END';
-var KS_FOR        = 'KS_FOR';
-var KS_GOTO       = 'KS_GOTO';
-var KS_IF         = 'KS_IF';
-var KS_INCLUDE    = 'KS_INCLUDE';
-var KS_NAMESPACE  = 'KS_NAMESPACE';
-var KS_NIL        = 'KS_NIL';
-var KS_RETURN     = 'KS_RETURN';
-var KS_TYPENUM    = 'KS_TYPENUM';
-var KS_TYPESTR    = 'KS_TYPESTR';
-var KS_TYPELIST   = 'KS_TYPELIST';
-var KS_USING      = 'KS_USING';
-var KS_VAR        = 'KS_VAR';
-var KS_WHILE      = 'KS_WHILE';
+typedef enum {
+	KS_INVALID,
+	KS_PLUS,
+	KS_UNPLUS,
+	KS_MINUS,
+	KS_UNMINUS,
+	KS_PERCENT,
+	KS_STAR,
+	KS_SLASH,
+	KS_CARET,
+	KS_AT,
+	KS_AMP,
+	KS_LT,
+	KS_GT,
+	KS_BANG,
+	KS_EQU,
+	KS_TILDE,
+	KS_COLON,
+	KS_COMMA,
+	KS_PERIOD,
+	KS_PIPE,
+	KS_LPAREN,
+	KS_LBRACKET,
+	KS_LBRACE,
+	KS_RPAREN,
+	KS_RBRACKET,
+	KS_RBRACE,
+	KS_PLUSEQU,
+	KS_MINUSEQU,
+	KS_PERCENTEQU,
+	KS_STAREQU,
+	KS_SLASHEQU,
+	KS_CARETEQU,
+	KS_LTEQU,
+	KS_GTEQU,
+	KS_BANGEQU,
+	KS_EQU2,
+	KS_TILDEEQU,
+	KS_TILDEPLUS,
+	KS_PLUSTILDE,
+	KS_TILDEMINUS,
+	KS_MINUSTILDE,
+	KS_AMP2,
+	KS_PIPE2,
+	KS_PERIOD3,
+	KS_TILDE2PLUS,
+	KS_PLUSTILDE2,
+	KS_PIPE2EQU,
+	KS_AMP2EQU,
+	KS_BREAK,
+	KS_CONTINUE,
+	KS_DECLARE,
+	KS_DEF,
+	KS_DO,
+	KS_ELSE,
+	KS_ELSEIF,
+	KS_END,
+	KS_FOR,
+	KS_GOTO,
+	KS_IF,
+	KS_INCLUDE,
+	KS_NAMESPACE,
+	KS_NIL,
+	KS_RETURN,
+	KS_TYPENUM,
+	KS_TYPESTR,
+	KS_TYPELIST,
+	KS_USING,
+	KS_VAR,
+	KS_WHILE
+} ks_enum;
 
-function ks_char(c){
+static inline ks_enum ks_char(char c){
 	if      (c == '+') return KS_PLUS;
 	else if (c == '-') return KS_MINUS;
 	else if (c == '%') return KS_PERCENT;
@@ -823,7 +838,7 @@ function ks_char(c){
 	return KS_INVALID;
 }
 
-function ks_char2(c1, c2){
+static inline ks_enum ks_char2(char c1, char c2){
 	if      (c1 == '+' && c2 == '=') return KS_PLUSEQU;
 	else if (c1 == '-' && c2 == '=') return KS_MINUSEQU;
 	else if (c1 == '%' && c2 == '=') return KS_PERCENTEQU;
@@ -844,7 +859,7 @@ function ks_char2(c1, c2){
 	return KS_INVALID;
 }
 
-function ks_char3(c1, c2, c3){
+static inline ks_enum ks_char3(char c1, char c2, char c3){
 	if      (c1 == '.' && c2 == '.' && c3 == '.') return KS_PERIOD3;
 	else if (c1 == '~' && c2 == '~' && c3 == '+') return KS_TILDE2PLUS;
 	else if (c1 == '+' && c2 == '~' && c3 == '~') return KS_PLUSTILDE2;
@@ -853,32 +868,32 @@ function ks_char3(c1, c2, c3){
 	return KS_INVALID;
 }
 
-function ks_str(s){
-	if      (s == 'break'    ) return KS_BREAK;
-	else if (s == 'continue' ) return KS_CONTINUE;
-	else if (s == 'declare'  ) return KS_DECLARE;
-	else if (s == 'def'      ) return KS_DEF;
-	else if (s == 'do'       ) return KS_DO;
-	else if (s == 'else'     ) return KS_ELSE;
-	else if (s == 'elseif'   ) return KS_ELSEIF;
-	else if (s == 'end'      ) return KS_END;
-	else if (s == 'for'      ) return KS_FOR;
-	else if (s == 'goto'     ) return KS_GOTO;
-	else if (s == 'if'       ) return KS_IF;
-	else if (s == 'include'  ) return KS_INCLUDE;
-	else if (s == 'namespace') return KS_NAMESPACE;
-	else if (s == 'nil'      ) return KS_NIL;
-	else if (s == 'return'   ) return KS_RETURN;
-	else if (s == 'typenum'  ) return KS_TYPENUM;
-	else if (s == 'typestr'  ) return KS_TYPESTR;
-	else if (s == 'typelist' ) return KS_TYPELIST;
-	else if (s == 'using'    ) return KS_USING;
-	else if (s == 'var'      ) return KS_VAR;
-	else if (s == 'while'    ) return KS_WHILE;
+static inline ks_enum ks_str(const char *s){
+	if      (strcmp(s, "break"    ) == 0) return KS_BREAK;
+	else if (strcmp(s, "continue" ) == 0) return KS_CONTINUE;
+	else if (strcmp(s, "declare"  ) == 0) return KS_DECLARE;
+	else if (strcmp(s, "def"      ) == 0) return KS_DEF;
+	else if (strcmp(s, "do"       ) == 0) return KS_DO;
+	else if (strcmp(s, "else"     ) == 0) return KS_ELSE;
+	else if (strcmp(s, "elseif"   ) == 0) return KS_ELSEIF;
+	else if (strcmp(s, "end"      ) == 0) return KS_END;
+	else if (strcmp(s, "for"      ) == 0) return KS_FOR;
+	else if (strcmp(s, "goto"     ) == 0) return KS_GOTO;
+	else if (strcmp(s, "if"       ) == 0) return KS_IF;
+	else if (strcmp(s, "include"  ) == 0) return KS_INCLUDE;
+	else if (strcmp(s, "namespace") == 0) return KS_NAMESPACE;
+	else if (strcmp(s, "nil"      ) == 0) return KS_NIL;
+	else if (strcmp(s, "return"   ) == 0) return KS_RETURN;
+	else if (strcmp(s, "typenum"  ) == 0) return KS_TYPENUM;
+	else if (strcmp(s, "typestr"  ) == 0) return KS_TYPESTR;
+	else if (strcmp(s, "typelist" ) == 0) return KS_TYPELIST;
+	else if (strcmp(s, "using"    ) == 0) return KS_USING;
+	else if (strcmp(s, "var"      ) == 0) return KS_VAR;
+	else if (strcmp(s, "while"    ) == 0) return KS_WHILE;
 	return KS_INVALID;
 }
 
-function ks_toUnaryOp(k){
+static inline op_enum ks_toUnaryOp(ks_enum k){
 	if      (k == KS_PLUS      ) return OP_TONUM;
 	else if (k == KS_UNPLUS    ) return OP_TONUM;
 	else if (k == KS_MINUS     ) return OP_NEG;
@@ -890,10 +905,10 @@ function ks_toUnaryOp(k){
 	else if (k == KS_TYPENUM   ) return OP_ISNUM;
 	else if (k == KS_TYPESTR   ) return OP_ISSTR;
 	else if (k == KS_TYPELIST  ) return OP_ISLIST;
-	return -1;
+	return OP_INVALID;
 }
 
-function ks_toBinaryOp(k){
+static inline op_enum ks_toBinaryOp(ks_enum k){
 	if      (k == KS_PLUS      ) return OP_ADD;
 	else if (k == KS_MINUS     ) return OP_SUB;
 	else if (k == KS_PERCENT   ) return OP_MOD;
@@ -901,20 +916,20 @@ function ks_toBinaryOp(k){
 	else if (k == KS_SLASH     ) return OP_DIV;
 	else if (k == KS_CARET     ) return OP_POW;
 	else if (k == KS_LT        ) return OP_LT;
-	else if (k == KS_GT        ) return 0x100; // intercepted by op_binop
+	else if (k == KS_GT        ) return OP_GT;
 	else if (k == KS_TILDE     ) return OP_CAT;
 	else if (k == KS_LTEQU     ) return OP_LTE;
-	else if (k == KS_GTEQU     ) return 0x101; // intercepted by op_binop
+	else if (k == KS_GTEQU     ) return OP_GTE;
 	else if (k == KS_BANGEQU   ) return OP_NEQ;
 	else if (k == KS_EQU2      ) return OP_EQU;
 	else if (k == KS_TILDEPLUS ) return OP_PUSH;
 	else if (k == KS_PLUSTILDE ) return OP_UNSHIFT;
 	else if (k == KS_TILDE2PLUS) return OP_APPEND;
 	else if (k == KS_PLUSTILDE2) return OP_PREPEND;
-	return -1;
+	return OP_INVALID;
 }
 
-function ks_toMutateOp(k){
+static inline op_enum ks_toMutateOp(ks_enum k){
 	if      (k == KS_PLUSEQU   ) return OP_ADD;
 	else if (k == KS_PERCENTEQU) return OP_MOD;
 	else if (k == KS_MINUSEQU  ) return OP_SUB;
@@ -922,8 +937,10 @@ function ks_toMutateOp(k){
 	else if (k == KS_SLASHEQU  ) return OP_DIV;
 	else if (k == KS_CARETEQU  ) return OP_POW;
 	else if (k == KS_TILDEEQU  ) return OP_CAT;
-	return -1;
+	return OP_INVALID;
 }
+
+#if 0
 
 //
 // tokens
