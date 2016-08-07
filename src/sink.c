@@ -940,173 +940,185 @@ static inline op_enum ks_toMutateOp(ks_enum k){
 	return OP_INVALID;
 }
 
-#if 0
-
 //
 // tokens
 //
 
-var TOK_NEWLINE = 'TOK_NEWLINE';
-var TOK_KS      = 'TOK_KS';
-var TOK_IDENT   = 'TOK_IDENT';
-var TOK_NUM     = 'TOK_NUM';
-var TOK_STR     = 'TOK_STR';
-var TOK_ERROR   = 'TOK_ERROR';
+typedef enum {
+	TOK_NEWLINE,
+	TOK_KS,
+	TOK_IDENT,
+	TOK_NUM,
+	TOK_STR,
+	TOK_ERROR
+} tok_enum;
 
-function tok_newline(soft){
-	return { type: TOK_NEWLINE, soft: soft };
+typedef struct {
+	tok_enum type;
+	union {
+		bool soft;
+		ks_enum k;
+		const char *ident;
+		double num;
+		list_byte str;
+		const char *msg;
+	} u;
+} tok_st;
+
+static inline tok_st tok_newline(bool soft){
+	return (tok_st){ .type = TOK_NEWLINE, .u.soft = soft };
 }
 
-function tok_ks(k){
-	return { type: TOK_KS, k: k };
+static inline tok_st tok_ks(ks_enum k){
+	return (tok_st){ .type = TOK_KS, .u.k = k };
 }
 
-function tok_ident(ident){
-	return { type: TOK_IDENT, ident: ident };
+static inline tok_st tok_ident(const char *ident){
+	return (tok_st){ .type = TOK_IDENT, .u.ident = ident };
 }
 
-function tok_num(num){
-	return { type: TOK_NUM, num: num };
+static inline tok_st tok_num(double num){
+	return (tok_st){ .type = TOK_NUM, .u.num = num };
 }
 
-function tok_str(str){
-	return { type: TOK_STR, str: str };
+static inline tok_st tok_str(list_byte str){
+	return (tok_st){ .type = TOK_STR, .u.str = str };
 }
 
-function tok_error(msg){
-	return { type: TOK_ERROR, msg: msg };
+static inline tok_st tok_error(const char *msg){
+	return (tok_st){ .type = TOK_ERROR, .u.msg = msg };
 }
 
-function tok_isKS(tk, k){
-	return tk.type == TOK_KS && tk.k == k;
+static inline bool tok_isKS(tok_st tk, ks_enum k){
+	return tk.type == TOK_KS && tk.u.k == k;
 }
 
-function tok_isPre(tk){
+static inline bool tok_isPre(tok_st tk){
 	if (tk.type != TOK_KS)
 		return false;
 	return false ||
-		tk.k == KS_PLUS       ||
-		tk.k == KS_UNPLUS     ||
-		tk.k == KS_MINUS      ||
-		tk.k == KS_UNMINUS    ||
-		tk.k == KS_AMP        ||
-		tk.k == KS_BANG       ||
-		tk.k == KS_PERIOD3    ||
-		tk.k == KS_MINUSTILDE ||
-		tk.k == KS_TILDEMINUS ||
-		tk.k == KS_TYPENUM    ||
-		tk.k == KS_TYPESTR    ||
-		tk.k == KS_TYPELIST;
+		tk.u.k == KS_PLUS       ||
+		tk.u.k == KS_UNPLUS     ||
+		tk.u.k == KS_MINUS      ||
+		tk.u.k == KS_UNMINUS    ||
+		tk.u.k == KS_AMP        ||
+		tk.u.k == KS_BANG       ||
+		tk.u.k == KS_PERIOD3    ||
+		tk.u.k == KS_MINUSTILDE ||
+		tk.u.k == KS_TILDEMINUS ||
+		tk.u.k == KS_TYPENUM    ||
+		tk.u.k == KS_TYPESTR    ||
+		tk.u.k == KS_TYPELIST;
 }
 
-function tok_isMid(tk, allowComma, allowPipe){
+static inline bool tok_isMid(tok_st tk, bool allowComma, bool allowPipe){
 	if (tk.type != TOK_KS)
 		return false;
 	return false ||
-		tk.k == KS_PLUS       ||
-		tk.k == KS_PLUSEQU    ||
-		tk.k == KS_MINUS      ||
-		tk.k == KS_MINUSEQU   ||
-		tk.k == KS_PERCENT    ||
-		tk.k == KS_PERCENTEQU ||
-		tk.k == KS_STAR       ||
-		tk.k == KS_STAREQU    ||
-		tk.k == KS_SLASH      ||
-		tk.k == KS_SLASHEQU   ||
-		tk.k == KS_CARET      ||
-		tk.k == KS_CARETEQU   ||
-		tk.k == KS_AT         ||
-		tk.k == KS_LT         ||
-		tk.k == KS_LTEQU      ||
-		tk.k == KS_GT         ||
-		tk.k == KS_GTEQU      ||
-		tk.k == KS_BANGEQU    ||
-		tk.k == KS_EQU        ||
-		tk.k == KS_EQU2       ||
-		tk.k == KS_TILDE      ||
-		tk.k == KS_TILDEEQU   ||
-		tk.k == KS_TILDEPLUS  ||
-		tk.k == KS_PLUSTILDE  ||
-		tk.k == KS_TILDE2PLUS ||
-		tk.k == KS_PLUSTILDE2 ||
-		tk.k == KS_AMP2       ||
-		tk.k == KS_PIPE2      ||
-		tk.k == KS_AMP2EQU    ||
-		tk.k == KS_PIPE2EQU   ||
-		(allowComma && tk.k == KS_COMMA) ||
-		(allowPipe  && tk.k == KS_PIPE );
+		tk.u.k == KS_PLUS       ||
+		tk.u.k == KS_PLUSEQU    ||
+		tk.u.k == KS_MINUS      ||
+		tk.u.k == KS_MINUSEQU   ||
+		tk.u.k == KS_PERCENT    ||
+		tk.u.k == KS_PERCENTEQU ||
+		tk.u.k == KS_STAR       ||
+		tk.u.k == KS_STAREQU    ||
+		tk.u.k == KS_SLASH      ||
+		tk.u.k == KS_SLASHEQU   ||
+		tk.u.k == KS_CARET      ||
+		tk.u.k == KS_CARETEQU   ||
+		tk.u.k == KS_AT         ||
+		tk.u.k == KS_LT         ||
+		tk.u.k == KS_LTEQU      ||
+		tk.u.k == KS_GT         ||
+		tk.u.k == KS_GTEQU      ||
+		tk.u.k == KS_BANGEQU    ||
+		tk.u.k == KS_EQU        ||
+		tk.u.k == KS_EQU2       ||
+		tk.u.k == KS_TILDE      ||
+		tk.u.k == KS_TILDEEQU   ||
+		tk.u.k == KS_TILDEPLUS  ||
+		tk.u.k == KS_PLUSTILDE  ||
+		tk.u.k == KS_TILDE2PLUS ||
+		tk.u.k == KS_PLUSTILDE2 ||
+		tk.u.k == KS_AMP2       ||
+		tk.u.k == KS_PIPE2      ||
+		tk.u.k == KS_AMP2EQU    ||
+		tk.u.k == KS_PIPE2EQU   ||
+		(allowComma && tk.u.k == KS_COMMA) ||
+		(allowPipe  && tk.u.k == KS_PIPE );
 }
 
-function tok_isTerm(tk){
+static inline bool tok_isTerm(tok_st tk){
 	return false ||
-		(tk.type == TOK_KS && (tk.k == KS_NIL || tk.k == KS_LPAREN || tk.k == KS_LBRACE)) ||
+		(tk.type == TOK_KS && (tk.u.k == KS_NIL || tk.u.k == KS_LPAREN || tk.u.k == KS_LBRACE)) ||
 		tk.type == TOK_IDENT ||
 		tk.type == TOK_NUM   ||
 		tk.type == TOK_STR;
 }
 
-function tok_isPreBeforeMid(pre, mid){
+static inline bool tok_isPreBeforeMid(tok_st pre, tok_st mid){
 	//assert(pre.type == TOK_KS);
 	//assert(mid.type == TOK_KS);
 	// -5^2 is -25, not 25
-	if ((pre.k == KS_MINUS || pre.k == KS_UNMINUS) && mid.k == KS_CARET)
+	if ((pre.u.k == KS_MINUS || pre.u.k == KS_UNMINUS) && mid.u.k == KS_CARET)
 		return false;
 	// otherwise, apply the Pre first
 	return true;
 }
 
-function tok_midPrecedence(tk){
+static inline int tok_midPrecedence(tok_st tk){
 	//assert(tk.type == TOK_KS);
-	var k = tk.k;
-	if      (k == KS_CARET     ) return  1;
-	else if (k == KS_STAR      ) return  2;
-	else if (k == KS_SLASH     ) return  2;
-	else if (k == KS_PERCENT   ) return  2;
-	else if (k == KS_PLUS      ) return  3;
-	else if (k == KS_MINUS     ) return  3;
-	else if (k == KS_TILDEPLUS ) return  4;
-	else if (k == KS_PLUSTILDE ) return  4;
-	else if (k == KS_TILDE2PLUS) return  5;
-	else if (k == KS_PLUSTILDE2) return  5;
-	else if (k == KS_TILDE     ) return  6;
-	else if (k == KS_AT        ) return  7;
-	else if (k == KS_LTEQU     ) return  8;
-	else if (k == KS_LT        ) return  8;
-	else if (k == KS_GTEQU     ) return  8;
-	else if (k == KS_GT        ) return  8;
-	else if (k == KS_BANGEQU   ) return  9;
-	else if (k == KS_EQU2      ) return  9;
-	else if (k == KS_AMP2      ) return 10;
-	else if (k == KS_PIPE2     ) return 11;
-	else if (k == KS_EQU       ) return 20;
-	else if (k == KS_PLUSEQU   ) return 20;
-	else if (k == KS_PERCENTEQU) return 20;
-	else if (k == KS_MINUSEQU  ) return 20;
-	else if (k == KS_STAREQU   ) return 20;
-	else if (k == KS_SLASHEQU  ) return 20;
-	else if (k == KS_CARETEQU  ) return 20;
-	else if (k == KS_TILDEEQU  ) return 20;
-	else if (k == KS_COMMA     ) return 30;
-	else if (k == KS_PIPE      ) return 40;
+	if      (tk.u.k == KS_CARET     ) return  1;
+	else if (tk.u.k == KS_STAR      ) return  2;
+	else if (tk.u.k == KS_SLASH     ) return  2;
+	else if (tk.u.k == KS_PERCENT   ) return  2;
+	else if (tk.u.k == KS_PLUS      ) return  3;
+	else if (tk.u.k == KS_MINUS     ) return  3;
+	else if (tk.u.k == KS_TILDEPLUS ) return  4;
+	else if (tk.u.k == KS_PLUSTILDE ) return  4;
+	else if (tk.u.k == KS_TILDE2PLUS) return  5;
+	else if (tk.u.k == KS_PLUSTILDE2) return  5;
+	else if (tk.u.k == KS_TILDE     ) return  6;
+	else if (tk.u.k == KS_AT        ) return  7;
+	else if (tk.u.k == KS_LTEQU     ) return  8;
+	else if (tk.u.k == KS_LT        ) return  8;
+	else if (tk.u.k == KS_GTEQU     ) return  8;
+	else if (tk.u.k == KS_GT        ) return  8;
+	else if (tk.u.k == KS_BANGEQU   ) return  9;
+	else if (tk.u.k == KS_EQU2      ) return  9;
+	else if (tk.u.k == KS_AMP2      ) return 10;
+	else if (tk.u.k == KS_PIPE2     ) return 11;
+	else if (tk.u.k == KS_EQU       ) return 20;
+	else if (tk.u.k == KS_PLUSEQU   ) return 20;
+	else if (tk.u.k == KS_PERCENTEQU) return 20;
+	else if (tk.u.k == KS_MINUSEQU  ) return 20;
+	else if (tk.u.k == KS_STAREQU   ) return 20;
+	else if (tk.u.k == KS_SLASHEQU  ) return 20;
+	else if (tk.u.k == KS_CARETEQU  ) return 20;
+	else if (tk.u.k == KS_TILDEEQU  ) return 20;
+	else if (tk.u.k == KS_COMMA     ) return 30;
+	else if (tk.u.k == KS_PIPE      ) return 40;
 	//assert(false);
 	return -1;
 }
 
-function tok_isMidBeforeMid(lmid, rmid){
+static inline bool tok_isMidBeforeMid(tok_st lmid, tok_st rmid){
 	//assert(lmid.type == TOK_KS);
 	//assert(rmid.type == TOK_KS);
-	var lp = tok_midPrecedence(lmid);
-	var rp = tok_midPrecedence(rmid);
+	int lp = tok_midPrecedence(lmid);
+	int rp = tok_midPrecedence(rmid);
 	if (lp < rp)
 		return true;
 	else if (lp > rp)
 		return false;
 	// otherwise, same precedence...
-	if (lp === 20 || lp == 1) // mutation and pow are right to left
+	if (lp == 20 || lp == 1) // mutation and pow are right to left
 		return false;
 	return true;
 }
 
+#if 0
 //
 // lexer helper functions
 //
