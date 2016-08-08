@@ -1812,6 +1812,22 @@ function parser_rev(pr){
 	pr.tk2 = null;
 }
 
+var PRR_MORE      = 'PRR_MORE';
+var PRR_STATEMENT = 'PRR_STATEMENT';
+var PRR_ERROR     = 'PRR_ERROR';
+
+function prr_more(){
+	return { type: PRR_MORE };
+}
+
+function prr_statement(stmt){
+	return { type: PRR_STATEMENT, stmt: stmt };
+}
+
+function prr_error(msg){
+	return { type: PRR_ERROR, msg: msg };
+}
+
 function parser_statement(pr, stmt){
 	pr.level--;
 	pr.state = pr.state.next;
@@ -1845,22 +1861,6 @@ function parser_infix(flp, k, left, right){
 		return pri_error('Invalid pipe');
 	}
 	return pri_ok(expr_infix(flp, k, left, right));
-}
-
-var PRR_MORE      = 'PRR_MORE';
-var PRR_STATEMENT = 'PRR_STATEMENT';
-var PRR_ERROR     = 'PRR_ERROR';
-
-function prr_more(){
-	return { type: PRR_MORE };
-}
-
-function prr_statement(stmt){
-	return { type: PRR_STATEMENT, stmt: stmt };
-}
-
-function prr_error(msg){
-	return { type: PRR_ERROR, msg: msg };
 }
 
 function parser_start(pr, state){

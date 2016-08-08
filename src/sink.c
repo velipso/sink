@@ -1950,7 +1950,6 @@ typedef enum {
 } expr_enum;
 
 typedef struct expr_struct expr_st, *expr;
-
 struct expr_struct {
 	filepos_st flp;
 	expr_enum type;
@@ -2574,7 +2573,6 @@ struct ets_struct {
 };
 
 static inline void ets_free(ets e){
-	// TODO: should I zip down the line?
 	mem_free(e);
 }
 
@@ -2592,7 +2590,6 @@ struct exs_struct {
 };
 
 static inline void exs_free(exs e){
-	// TODO: should I zip down the line?
 	mem_free(e);
 }
 
@@ -2610,7 +2607,6 @@ struct eps_struct {
 };
 
 static inline void eps_free(eps e){
-	// TODO: what to do with e->e?
 	mem_free(e);
 }
 
@@ -2621,222 +2617,365 @@ static inline eps eps_new(ets e, eps next){ // exprPreStackStack
 	return e2;
 }
 
-#if 0
-
 //
 // parser state
 //
 
-var PRS_START                         = 'PRS_START';
-var PRS_START_STATEMENT               = 'PRS_START_STATEMENT';
-var PRS_STATEMENT                     = 'PRS_STATEMENT';
-var PRS_LOOKUP                        = 'PRS_LOOKUP';
-var PRS_LOOKUP_IDENT                  = 'PRS_LOOKUP_IDENT';
-var PRS_BODY                          = 'PRS_BODY';
-var PRS_BODY_STATEMENT                = 'PRS_BODY_STATEMENT';
-var PRS_LVALUES                       = 'PRS_LVALUES';
-var PRS_LVALUES_TERM                  = 'PRS_LVALUES_TERM';
-var PRS_LVALUES_TERM_LOOKUP           = 'PRS_LVALUES_TERM_LOOKUP';
-var PRS_LVALUES_TERM_LIST             = 'PRS_LVALUES_TERM_LIST';
-var PRS_LVALUES_TERM_LIST_TERM_DONE   = 'PRS_LVALUES_TERM_LIST_TERM_DONE';
-var PRS_LVALUES_TERM_LIST_TAIL        = 'PRS_LVALUES_TERM_LIST_TAIL';
-var PRS_LVALUES_TERM_LIST_TAIL_LOOKUP = 'PRS_LVALUES_TERM_LIST_TAIL_LOOKUP';
-var PRS_LVALUES_TERM_LIST_TAIL_DONE   = 'PRS_LVALUES_TERM_LIST_TAIL_DONE';
-var PRS_LVALUES_TERM_LIST_DONE        = 'PRS_LVALUES_TERM_LIST_DONE';
-var PRS_LVALUES_TERM_DONE             = 'PRS_LVALUES_TERM_DONE';
-var PRS_LVALUES_TERM_EXPR             = 'PRS_LVALUES_TERM_EXPR';
-var PRS_LVALUES_MORE                  = 'PRS_LVALUES_MORE';
-var PRS_LVALUES_DEF_TAIL              = 'PRS_LVALUES_DEF_TAIL';
-var PRS_LVALUES_DEF_TAIL_DONE         = 'PRS_LVALUES_DEF_TAIL_DONE';
-var PRS_BREAK                         = 'PRS_BREAK';
-var PRS_CONTINUE                      = 'PRS_CONTINUE';
-var PRS_DECLARE                       = 'PRS_DECLARE';
-var PRS_DECLARE2                      = 'PRS_DECLARE2';
-var PRS_DECLARE_LOOKUP                = 'PRS_DECLARE_LOOKUP';
-var PRS_DECLARE_STR                   = 'PRS_DECLARE_STR';
-var PRS_DECLARE_STR2                  = 'PRS_DECLARE_STR2';
-var PRS_DECLARE_STR3                  = 'PRS_DECLARE_STR3';
-var PRS_DEF                           = 'PRS_DEF';
-var PRS_DEF_LOOKUP                    = 'PRS_DEF_LOOKUP';
-var PRS_DEF_LVALUES                   = 'PRS_DEF_LVALUES';
-var PRS_DEF_BODY                      = 'PRS_DEF_BODY';
-var PRS_DEF_DONE                      = 'PRS_DEF_DONE';
-var PRS_DO                            = 'PRS_DO';
-var PRS_DO_BODY                       = 'PRS_DO_BODY';
-var PRS_DO_DONE                       = 'PRS_DO_DONE';
-var PRS_DO_WHILE_EXPR                 = 'PRS_DO_WHILE_EXPR';
-var PRS_DO_WHILE_BODY                 = 'PRS_DO_WHILE_BODY';
-var PRS_DO_WHILE_DONE                 = 'PRS_DO_WHILE_DONE';
-var PRS_FOR                           = 'PRS_FOR';
-var PRS_LOOP_BODY                     = 'PRS_LOOP_BODY';
-var PRS_LOOP_DONE                     = 'PRS_LOOP_DONE';
-var PRS_FOR_VARS                      = 'PRS_FOR_VARS';
-var PRS_FOR_VARS_LOOKUP               = 'PRS_FOR_VARS_LOOKUP';
-var PRS_FOR_VARS2                     = 'PRS_FOR_VARS2';
-var PRS_FOR_VARS2_LOOKUP              = 'PRS_FOR_VARS2_LOOKUP';
-var PRS_FOR_VARS_DONE                 = 'PRS_FOR_VARS_DONE';
-var PRS_FOR_EXPR                      = 'PRS_FOR_EXPR';
-var PRS_FOR_BODY                      = 'PRS_FOR_BODY';
-var PRS_FOR_DONE                      = 'PRS_FOR_DONE';
-var PRS_GOTO                          = 'PRS_GOTO';
-var PRS_GOTO_DONE                     = 'PRS_GOTO_DONE';
-var PRS_IF                            = 'PRS_IF';
-var PRS_IF_EXPR                       = 'PRS_IF_EXPR';
-var PRS_IF_BODY                       = 'PRS_IF_BODY';
-var PRS_ELSEIF                        = 'PRS_ELSEIF';
-var PRS_IF_DONE                       = 'PRS_IF_DONE';
-var PRS_ELSE_BODY                     = 'PRS_ELSE_BODY';
-var PRS_ELSE_DONE                     = 'PRS_ELSE_DONE';
-var PRS_INCLUDE                       = 'PRS_INCLUDE';
-var PRS_INCLUDE2                      = 'PRS_INCLUDE2';
-var PRS_INCLUDE_LOOKUP                = 'PRS_INCLUDE_LOOKUP';
-var PRS_INCLUDE_STR                   = 'PRS_INCLUDE_STR';
-var PRS_INCLUDE_STR2                  = 'PRS_INCLUDE_STR2';
-var PRS_INCLUDE_STR3                  = 'PRS_INCLUDE_STR3';
-var PRS_NAMESPACE                     = 'PRS_NAMESPACE';
-var PRS_NAMESPACE_LOOKUP              = 'PRS_NAMESPACE_LOOKUP';
-var PRS_NAMESPACE_BODY                = 'PRS_NAMESPACE_BODY';
-var PRS_NAMESPACE_DONE                = 'PRS_NAMESPACE_DONE';
-var PRS_RETURN                        = 'PRS_RETURN';
-var PRS_RETURN_DONE                   = 'PRS_RETURN_DONE';
-var PRS_USING                         = 'PRS_USING';
-var PRS_USING2                        = 'PRS_USING2';
-var PRS_USING_LOOKUP                  = 'PRS_USING_LOOKUP';
-var PRS_VAR                           = 'PRS_VAR';
-var PRS_VAR_LVALUES                   = 'PRS_VAR_LVALUES';
-var PRS_IDENTS                        = 'PRS_IDENTS';
-var PRS_EVAL                          = 'PRS_EVAL';
-var PRS_EVAL_EXPR                     = 'PRS_EVAL_EXPR';
-var PRS_EXPR                          = 'PRS_EXPR';
-var PRS_EXPR_TERM                     = 'PRS_EXPR_TERM';
-var PRS_EXPR_TERM_ISEMPTYLIST         = 'PRS_EXPR_TERM_ISEMPTYLIST';
-var PRS_EXPR_TERM_CLOSEBRACE          = 'PRS_EXPR_TERM_CLOSEBRACE';
-var PRS_EXPR_TERM_CLOSEPAREN          = 'PRS_EXPR_TERM_CLOSEPAREN';
-var PRS_EXPR_TERM_LOOKUP              = 'PRS_EXPR_TERM_LOOKUP';
-var PRS_EXPR_POST                     = 'PRS_EXPR_POST';
-var PRS_EXPR_POST_CALL                = 'PRS_EXPR_POST_CALL';
-var PRS_EXPR_INDEX_CHECK              = 'PRS_EXPR_INDEX_CHECK';
-var PRS_EXPR_INDEX_COLON_CHECK        = 'PRS_EXPR_INDEX_COLON_CHECK';
-var PRS_EXPR_INDEX_COLON_EXPR         = 'PRS_EXPR_INDEX_COLON_EXPR';
-var PRS_EXPR_INDEX_EXPR_CHECK         = 'PRS_EXPR_INDEX_EXPR_CHECK';
-var PRS_EXPR_INDEX_EXPR_COLON_CHECK   = 'PRS_EXPR_INDEX_EXPR_COLON_CHECK';
-var PRS_EXPR_INDEX_EXPR_COLON_EXPR    = 'PRS_EXPR_INDEX_EXPR_COLON_EXPR';
-var PRS_EXPR_COMMA                    = 'PRS_EXPR_COMMA';
-var PRS_EXPR_MID                      = 'PRS_EXPR_MID';
-var PRS_EXPR_FINISH                   = 'PRS_EXPR_FINISH';
+typedef enum {
+	PRS_START,
+	PRS_START_STATEMENT,
+	PRS_STATEMENT,
+	PRS_LOOKUP,
+	PRS_LOOKUP_IDENT,
+	PRS_BODY,
+	PRS_BODY_STATEMENT,
+	PRS_LVALUES,
+	PRS_LVALUES_TERM,
+	PRS_LVALUES_TERM_LOOKUP,
+	PRS_LVALUES_TERM_LIST,
+	PRS_LVALUES_TERM_LIST_TERM_DONE,
+	PRS_LVALUES_TERM_LIST_TAIL,
+	PRS_LVALUES_TERM_LIST_TAIL_LOOKUP,
+	PRS_LVALUES_TERM_LIST_TAIL_DONE,
+	PRS_LVALUES_TERM_LIST_DONE,
+	PRS_LVALUES_TERM_DONE,
+	PRS_LVALUES_TERM_EXPR,
+	PRS_LVALUES_MORE,
+	PRS_LVALUES_DEF_TAIL,
+	PRS_LVALUES_DEF_TAIL_DONE,
+	PRS_BREAK,
+	PRS_CONTINUE,
+	PRS_DECLARE,
+	PRS_DECLARE2,
+	PRS_DECLARE_LOOKUP,
+	PRS_DECLARE_STR,
+	PRS_DECLARE_STR2,
+	PRS_DECLARE_STR3,
+	PRS_DEF,
+	PRS_DEF_LOOKUP,
+	PRS_DEF_LVALUES,
+	PRS_DEF_BODY,
+	PRS_DEF_DONE,
+	PRS_DO,
+	PRS_DO_BODY,
+	PRS_DO_DONE,
+	PRS_DO_WHILE_EXPR,
+	PRS_DO_WHILE_BODY,
+	PRS_DO_WHILE_DONE,
+	PRS_FOR,
+	PRS_LOOP_BODY,
+	PRS_LOOP_DONE,
+	PRS_FOR_VARS,
+	PRS_FOR_VARS_LOOKUP,
+	PRS_FOR_VARS2,
+	PRS_FOR_VARS2_LOOKUP,
+	PRS_FOR_VARS_DONE,
+	PRS_FOR_EXPR,
+	PRS_FOR_BODY,
+	PRS_FOR_DONE,
+	PRS_GOTO,
+	PRS_GOTO_DONE,
+	PRS_IF,
+	PRS_IF_EXPR,
+	PRS_IF_BODY,
+	PRS_ELSEIF,
+	PRS_IF_DONE,
+	PRS_ELSE_BODY,
+	PRS_ELSE_DONE,
+	PRS_INCLUDE,
+	PRS_INCLUDE2,
+	PRS_INCLUDE_LOOKUP,
+	PRS_INCLUDE_STR,
+	PRS_INCLUDE_STR2,
+	PRS_INCLUDE_STR3,
+	PRS_NAMESPACE,
+	PRS_NAMESPACE_LOOKUP,
+	PRS_NAMESPACE_BODY,
+	PRS_NAMESPACE_DONE,
+	PRS_RETURN,
+	PRS_RETURN_DONE,
+	PRS_USING,
+	PRS_USING2,
+	PRS_USING_LOOKUP,
+	PRS_VAR,
+	PRS_VAR_LVALUES,
+	PRS_IDENTS,
+	PRS_EVAL,
+	PRS_EVAL_EXPR,
+	PRS_EXPR,
+	PRS_EXPR_TERM,
+	PRS_EXPR_TERM_ISEMPTYLIST,
+	PRS_EXPR_TERM_CLOSEBRACE,
+	PRS_EXPR_TERM_CLOSEPAREN,
+	PRS_EXPR_TERM_LOOKUP,
+	PRS_EXPR_POST,
+	PRS_EXPR_POST_CALL,
+	PRS_EXPR_INDEX_CHECK,
+	PRS_EXPR_INDEX_COLON_CHECK,
+	PRS_EXPR_INDEX_COLON_EXPR,
+	PRS_EXPR_INDEX_EXPR_CHECK,
+	PRS_EXPR_INDEX_EXPR_COLON_CHECK,
+	PRS_EXPR_INDEX_EXPR_COLON_EXPR,
+	PRS_EXPR_COMMA,
+	PRS_EXPR_MID,
+	PRS_EXPR_FINISH
+} prs_enum;
 
-function prs_new(state, next){
-	return {
-		state: state,
-		stmt: null,                 // single ast_*
-		body: null,                 // list of ast_*'s
-		body2: null,                // list of ast_*'s
-		conds: null,                // list of cond_new's
-		decls: null,                // list of decl_*'s
-		incls: null,                // list of incl_new's
-		lvalues: null,              // list of expr
-		lvaluesPeriods: 0,          // 0 off, 1 def, 2 nested list
-		forVar: false,
-		str: null,
-		exprAllowComma: true,
-		exprAllowPipe: true,
-		exprAllowTrailComma: false,
-		exprPreStackStack: null,    // linked list of eps_new's
-		exprPreStack: null,         // linked list of ets_new's
-		exprMidStack: null,         // linked list of ets_new's
-		exprStack: null,            // linked list of exs_new's
-		exprTerm: null,             // expr
-		exprTerm2: null,            // expr
-		exprTerm3: null,            // expr
-		names: null,                // list of strings
-		names2: null,               // list of strings
-		namesList: null,            // list of list of strings
-		next: next
-	};
+typedef struct prs_struct prs_st, *prs;
+struct prs_struct {
+	prs_enum state;
+	ast stmt;
+	list_ptr body;
+	list_ptr body2;
+	list_ptr conds;
+	list_ptr decls;
+	list_ptr incls;
+	list_ptr lvalues;
+	int lvaluesPeriods;
+	bool forVar;
+	list_byte str;
+	bool exprAllowComma;
+	bool exprAllowPipe;
+	bool exprAllowTrailComma;
+	eps exprPreStackStack;
+	ets exprPreStack;
+	ets exprMidStack;
+	exs exprStack;
+	expr exprTerm;
+	expr exprTerm2;
+	expr exprTerm3;
+	list_ptr names;
+	list_ptr names2;
+	list_ptr namesList;
+	prs next;
+};
+
+static void prs_free(prs pr){
+	if (pr->stmt)
+		ast_free(pr->stmt);
+	if (pr->body)
+		list_ptr_free(pr->body);
+	if (pr->body2)
+		list_ptr_free(pr->body2);
+	if (pr->conds)
+		list_ptr_free(pr->conds);
+	if (pr->decls)
+		list_ptr_free(pr->decls);
+	if (pr->incls)
+		list_ptr_free(pr->incls);
+	if (pr->lvalues)
+		list_ptr_free(pr->lvalues);
+	if (pr->str)
+		list_byte_free(pr->str);
+	if (pr->exprPreStackStack){
+		eps here = pr->exprPreStackStack;
+		while (here){
+			eps del = here;
+			ets here2 = del->e;
+			while (here2){
+				ets del2 = here2;
+				here2 = here2->next;
+				ets_free(del2);
+			}
+			here = here->next;
+			eps_free(del);
+		}
+	}
+	if (pr->exprPreStack){
+		ets here = pr->exprPreStack;
+		while (here){
+			ets del = here;
+			here = here->next;
+			ets_free(del);
+		}
+	}
+	if (pr->exprMidStack){
+		ets here = pr->exprMidStack;
+		while (here){
+			ets del = here;
+			here = here->next;
+			ets_free(del);
+		}
+	}
+	if (pr->exprStack){
+		exs here = pr->exprStack;
+		while (here){
+			exs del = here;
+			here = here->next;
+			if (del->ex)
+				expr_free(del->ex);
+			exs_free(del);
+		}
+	}
+	if (pr->exprTerm)
+		expr_free(pr->exprTerm);
+	if (pr->exprTerm2)
+		expr_free(pr->exprTerm2);
+	if (pr->exprTerm3)
+		expr_free(pr->exprTerm3);
+	if (pr->names)
+		list_ptr_free(pr->names);
+	if (pr->names2)
+		list_ptr_free(pr->names2);
+	if (pr->namesList)
+		list_ptr_free(pr->namesList);
+}
+
+static prs prs_new(prs_enum state, prs next){
+	prs pr = mem_alloc(sizeof(prs_st));
+	pr->state = state;
+	pr->stmt = NULL;                 // single ast_*
+	pr->body = NULL;                 // list of ast_*'s
+	pr->body2 = NULL;                // list of ast_*'s
+	pr->conds = NULL;                // list of cond_new's
+	pr->decls = NULL;                // list of decl_*'s
+	pr->incls = NULL;                // list of incl_new's
+	pr->lvalues = NULL;              // list of expr
+	pr->lvaluesPeriods = 0;          // 0 off, 1 def, 2 nested list
+	pr->forVar = false;
+	pr->str = NULL;
+	pr->exprAllowComma = true;
+	pr->exprAllowPipe = true;
+	pr->exprAllowTrailComma = false;
+	pr->exprPreStackStack = NULL;    // linked list of eps_new's
+	pr->exprPreStack = NULL;         // linked list of ets_new's
+	pr->exprMidStack = NULL;         // linked list of ets_new's
+	pr->exprStack = NULL;            // linked list of exs_new's
+	pr->exprTerm = NULL;             // expr
+	pr->exprTerm2 = NULL;            // expr
+	pr->exprTerm3 = NULL;            // expr
+	pr->names = NULL;                // list of strings
+	pr->names2 = NULL;               // list of strings
+	pr->namesList = NULL;            // list of list of strings
+	pr->next = next;
+	return pr;
 }
 
 //
 // parser
 //
 
-function parser_new(){
-	return {
-		state: prs_new(PRS_START, null),
-		tkR: null,
-		tk1: null,
-		tk2: null,
-		level: 0
-	};
+typedef struct {
+	prs state;
+	tok_st tkR;
+	tok_st tk1;
+	tok_st tk2;
+	int level;
+} parser_st, *parser;
+
+static inline void parser_free(parser pr){
+	prs here = pr->state;
+	while (here){
+		prs del = here;
+		here = here->next;
+		prs_free(del);
+	}
+	mem_free(pr);
 }
 
-function parser_fwd(pr, tk){
-	pr.tk2 = pr.tk1;
-	pr.tk1 = tk;
-	pr.tkR = null;
+static inline parser parser_new(){
+	parser pr = mem_alloc(sizeof(parser_st));
+	pr->state = prs_new(PRS_START, NULL);
+	pr->tkR = (tok_st){};
+	pr->tk1 = (tok_st){};
+	pr->tk2 = (tok_st){};
+	pr->level = 0;
+	return pr;
 }
 
-function parser_rev(pr){
-	pr.tkR = pr.tk1;
-	pr.tk1 = pr.tk2;
-	pr.tk2 = null;
+static inline void parser_fwd(parser pr, tok_st tk){
+	pr->tk2 = pr->tk1;
+	pr->tk1 = tk;
+	pr->tkR = (tok_st){};
 }
 
-function parser_statement(pr, stmt){
-	pr.level--;
-	pr.state = pr.state.next;
-	pr.state.stmt = stmt;
-	return parser_process(pr, stmt.flp);
+static inline void parser_rev(parser pr){
+	pr->tkR = pr->tk1;
+	pr->tk1 = pr->tk2;
+	pr->tk2 = (tok_st){};
 }
 
-function parser_push(pr, state){
-	pr.state = prs_new(state, pr.state);
+typedef enum {
+	PRR_MORE,
+	PRR_STATEMENT,
+	PRR_ERROR
+} prr_enum;
+
+typedef struct {
+	prr_enum type;
+	union {
+		ast stmt;
+		const char *msg;
+	} u;
+} prr_st;
+
+static inline prr_st prr_more(){
+	return (prr_st){ .type = PRR_MORE };
 }
 
-var PRI_OK    = 'PRI_OK';
-var PRI_ERROR = 'PRI_ERROR';
-
-function pri_ok(ex){
-	return { type: PRI_OK, ex: ex };
+static inline prr_st prr_statement(ast stmt){
+	return (prr_st){ .type = PRR_STATEMENT, .u.stmt = stmt };
 }
 
-function pri_error(msg){
-	return { type: PRI_ERROR, msg: msg };
+static inline prr_st prr_error(const char *msg){
+	return (prr_st){ .type = PRR_ERROR, .u.msg = msg };
 }
 
-function parser_infix(flp, k, left, right){
+static inline prr_st parser_process(parser pr, filepos_st flp);
+
+static inline prr_st parser_statement(parser pr, ast stmt){
+	pr->level--;
+	pr->state = pr->state->next;
+	pr->state->stmt = stmt;
+	return parser_process(pr, stmt->flp);
+}
+
+static inline void parser_push(parser pr, prs_enum state){
+	pr->state = prs_new(state, pr->state);
+}
+
+typedef enum {
+	PRI_OK,
+	PRI_ERROR
+} pri_enum;
+
+typedef struct {
+	pri_enum type;
+	union {
+		expr ex;
+		const char *msg;
+	} u;
+} pri_st;
+
+static inline pri_st pri_ok(expr ex){
+	return (pri_st){ .type = PRI_OK, .u.ex = ex };
+}
+
+static inline pri_st pri_error(const char *msg){
+	return (pri_st){ .type = PRI_ERROR, .u.msg = msg };
+}
+
+static inline pri_st parser_infix(filepos_st flp, ks_enum k, expr left, expr right){
 	if (k == KS_PIPE){
-		if (right.type == EXPR_CALL){
-			right.params = expr_infix(flp, KS_COMMA, expr_paren(flp, left), right.params);
+		if (right->type == EXPR_CALL){
+			right->u.call.params = expr_infix(flp, KS_COMMA, expr_paren(flp, left),
+				right->u.call.params);
 			return pri_ok(right);
 		}
-		else if (right.type == EXPR_NAMES)
+		else if (right->type == EXPR_NAMES)
 			return pri_ok(expr_call(flp, right, left));
-		return pri_error('Invalid pipe');
+		return pri_error(format("Invalid pipe"));
 	}
 	return pri_ok(expr_infix(flp, k, left, right));
 }
 
-var PRR_MORE      = 'PRR_MORE';
-var PRR_STATEMENT = 'PRR_STATEMENT';
-var PRR_ERROR     = 'PRR_ERROR';
-
-function prr_more(){
-	return { type: PRR_MORE };
-}
-
-function prr_statement(stmt){
-	return { type: PRR_STATEMENT, stmt: stmt };
-}
-
-function prr_error(msg){
-	return { type: PRR_ERROR, msg: msg };
-}
-
-function parser_start(pr, state){
-	pr.level++;
-	pr.state.state = state;
+static inline prr_st parser_start(parser pr, prs_enum state){
+	pr->level++;
+	pr->state->state = state;
 	return prr_more();
 }
+
+#if 0
 
 function parser_process(pr, flp){
 	var tk1 = pr.tk1;
@@ -2844,12 +2983,12 @@ function parser_process(pr, flp){
 	switch (st.state){
 		case PRS_START:
 			st.state = PRS_START_STATEMENT;
-			st.stmt = null;
+			st.stmt = NULL;
 			parser_push(pr, PRS_STATEMENT);
 			return parser_process(pr, flp);
 
 		case PRS_START_STATEMENT:
-			if (st.stmt == null)
+			if (st.stmt == NULL)
 				return prr_error('Invalid statement');
 			// all statements require a newline to terminate it... except labels
 			if (st.stmt.type != AST_LABEL && tk1.type != TOK_NEWLINE)
@@ -2885,7 +3024,7 @@ function parser_process(pr, flp){
 			}
 			else if (tok_isKS(tk1, KS_END) || tok_isKS(tk1, KS_ELSE) || tok_isKS(tk1, KS_ELSEIF) ||
 				tok_isKS(tk1, KS_WHILE)){
-				// stmt is already null, so don't touch it, so we return null
+				// stmt is already NULL, so don't touch it, so we return NULL
 				pr.state = st.next;
 				return parser_process(pr, flp);
 			}
@@ -2909,18 +3048,18 @@ function parser_process(pr, flp){
 
 		case PRS_BODY:
 			st.state = PRS_BODY_STATEMENT;
-			st.stmt = null;
+			st.stmt = NULL;
 			parser_push(pr, PRS_STATEMENT);
 			return parser_process(pr, flp);
 
 		case PRS_BODY_STATEMENT:
-			if (st.stmt == null){
+			if (st.stmt == NULL){
 				st.next.body = st.body;
 				pr.state = st.next;
 				return parser_process(pr, flp);
 			}
 			st.body.push(st.stmt);
-			st.stmt = null;
+			st.stmt = NULL;
 			parser_push(pr, PRS_STATEMENT);
 			return prr_more();
 
@@ -2977,13 +3116,13 @@ function parser_process(pr, flp){
 		case PRS_LVALUES_TERM_LIST_TERM_DONE:
 			if (tk1.type == TOK_NEWLINE && !tk1.soft)
 				return prr_more();
-			if (st.exprTerm2 == null){
+			if (st.exprTerm2 == NULL){
 				st.exprTerm2 = st.exprTerm;
-				st.exprTerm = null;
+				st.exprTerm = NULL;
 			}
 			else{
 				st.exprTerm2 = expr_infix(flp, KS_COMMA, st.exprTerm2, st.exprTerm);
-				st.exprTerm = null;
+				st.exprTerm = NULL;
 			}
 			if (tok_isKS(tk1, KS_RBRACE)){
 				st.next.exprTerm = st.exprTerm2;
@@ -3027,23 +3166,23 @@ function parser_process(pr, flp){
 
 		case PRS_LVALUES_TERM_DONE:
 			if (tk1.type == TOK_NEWLINE){
-				st.lvalues.push(expr_infix(flp, KS_EQU, st.exprTerm, null));
-				st.exprTerm = null;
+				st.lvalues.push(expr_infix(flp, KS_EQU, st.exprTerm, NULL));
+				st.exprTerm = NULL;
 				st.next.lvalues = st.lvalues;
 				pr.state = st.next;
 				return parser_process(pr, flp);
 			}
 			else if (tok_isKS(tk1, KS_EQU)){
 				st.exprTerm2 = st.exprTerm;
-				st.exprTerm = null;
+				st.exprTerm = NULL;
 				st.state = PRS_LVALUES_TERM_EXPR;
 				parser_push(pr, PRS_EXPR);
 				pr.state.exprAllowComma = false;
 				return prr_more();
 			}
 			else if (tok_isKS(tk1, KS_COMMA)){
-				st.lvalues.push(expr_infix(flp, KS_EQU, st.exprTerm, null));
-				st.exprTerm = null;
+				st.lvalues.push(expr_infix(flp, KS_EQU, st.exprTerm, NULL));
+				st.exprTerm = NULL;
 				st.state = PRS_LVALUES_MORE;
 				return prr_more();
 			}
@@ -3051,8 +3190,8 @@ function parser_process(pr, flp){
 
 		case PRS_LVALUES_TERM_EXPR:
 			st.lvalues.push(expr_infix(flp, KS_EQU, st.exprTerm2, st.exprTerm));
-			st.exprTerm2 = null;
-			st.exprTerm = null;
+			st.exprTerm2 = NULL;
+			st.exprTerm = NULL;
 			if (tk1.type == TOK_NEWLINE){
 				st.next.lvalues = st.lvalues;
 				pr.state = st.next;
@@ -3183,7 +3322,7 @@ function parser_process(pr, flp){
 		case PRS_DO_BODY:
 			if (tok_isKS(tk1, KS_WHILE)){
 				st.body2 = st.body;
-				st.body = null;
+				st.body = NULL;
 				st.state = PRS_DO_WHILE_EXPR;
 				parser_push(pr, PRS_EXPR);
 				return prr_more();
@@ -3247,7 +3386,7 @@ function parser_process(pr, flp){
 
 		case PRS_FOR_VARS_LOOKUP:
 			st.names2 = st.names;
-			st.names = null;
+			st.names = NULL;
 			if (tok_isKS(tk1, KS_COMMA)){
 				st.state = PRS_FOR_VARS2;
 				return prr_more();
@@ -3324,8 +3463,8 @@ function parser_process(pr, flp){
 
 		case PRS_IF_BODY:
 			st.conds.push(cond_new(st.exprTerm, st.body));
-			st.exprTerm = null;
-			st.body = null;
+			st.exprTerm = NULL;
+			st.body = NULL;
 			if (tok_isKS(tk1, KS_ELSEIF)){
 				st.state = PRS_ELSEIF;
 				return prr_more();
@@ -3462,7 +3601,7 @@ function parser_process(pr, flp){
 
 		case PRS_USING_LOOKUP:
 			st.namesList.push(st.names);
-			st.names = null;
+			st.names = NULL;
 			if (tok_isKS(tk1, KS_COMMA)){
 				st.state = PRS_USING2;
 				return prr_more();
@@ -3548,7 +3687,7 @@ function parser_process(pr, flp){
 				return prr_more();
 			else if (tok_isKS(tk1, KS_RBRACE)){
 				st.state = PRS_EXPR_POST;
-				st.exprTerm = expr_list(flp, null);
+				st.exprTerm = expr_list(flp, NULL);
 				return prr_more();
 			}
 			st.state = PRS_EXPR_TERM_CLOSEBRACE;
@@ -3604,7 +3743,7 @@ function parser_process(pr, flp){
 			}
 			// otherwise, this should be a call
 			st.exprTerm2 = st.exprTerm;
-			st.exprTerm = null;
+			st.exprTerm = NULL;
 			st.state = PRS_EXPR_POST_CALL;
 			parser_push(pr, PRS_EXPR);
 			pr.state.exprAllowPipe = false;
@@ -3612,7 +3751,7 @@ function parser_process(pr, flp){
 
 		case PRS_EXPR_POST_CALL:
 			st.exprTerm = expr_call(flp, st.exprTerm2, st.exprTerm);
-			st.exprTerm2 = null;
+			st.exprTerm2 = NULL;
 			st.state = PRS_EXPR_POST;
 			return parser_process(pr, flp);
 
@@ -3624,7 +3763,7 @@ function parser_process(pr, flp){
 				return prr_more();
 			}
 			st.exprTerm2 = st.exprTerm;
-			st.exprTerm = null;
+			st.exprTerm = NULL;
 			st.state = PRS_EXPR_INDEX_EXPR_CHECK;
 			parser_push(pr, PRS_EXPR);
 			return parser_process(pr, flp);
@@ -3633,12 +3772,12 @@ function parser_process(pr, flp){
 			if (tk1.type == TOK_NEWLINE && !tk1.soft)
 				return prr_more();
 			if (tok_isKS(tk1, KS_RBRACKET)){
-				st.exprTerm = expr_slice(flp, st.exprTerm, null, null);
+				st.exprTerm = expr_slice(flp, st.exprTerm, NULL, NULL);
 				st.state = PRS_EXPR_POST;
 				return prr_more();
 			}
 			st.exprTerm2 = st.exprTerm;
-			st.exprTerm = null;
+			st.exprTerm = NULL;
 			st.state = PRS_EXPR_INDEX_COLON_EXPR;
 			parser_push(pr, PRS_EXPR);
 			return parser_process(pr, flp);
@@ -3648,7 +3787,7 @@ function parser_process(pr, flp){
 				return prr_more();
 			if (!tok_isKS(tk1, KS_RBRACKET))
 				return prr_error('Missing close bracket');
-			st.exprTerm = expr_slice(flp, st.exprTerm2, null, st.exprTerm);
+			st.exprTerm = expr_slice(flp, st.exprTerm2, NULL, st.exprTerm);
 			st.state = PRS_EXPR_POST;
 			return prr_more();
 
@@ -3662,7 +3801,7 @@ function parser_process(pr, flp){
 			if (!tok_isKS(tk1, KS_RBRACKET))
 				return prr_error('Missing close bracket');
 			st.exprTerm = expr_index(flp, st.exprTerm2, st.exprTerm);
-			st.exprTerm2 = null;
+			st.exprTerm2 = NULL;
 			st.state = PRS_EXPR_POST;
 			return prr_more();
 
@@ -3670,12 +3809,12 @@ function parser_process(pr, flp){
 			if (tk1.type == TOK_NEWLINE && !tk1.soft)
 				return prr_more();
 			if (tok_isKS(tk1, KS_RBRACKET)){
-				st.exprTerm = expr_slice(flp, st.exprTerm2, st.exprTerm, null);
+				st.exprTerm = expr_slice(flp, st.exprTerm2, st.exprTerm, NULL);
 				st.state = PRS_EXPR_POST;
 				return prr_more();
 			}
 			st.exprTerm3 = st.exprTerm;
-			st.exprTerm = null;
+			st.exprTerm = NULL;
 			st.state = PRS_EXPR_INDEX_EXPR_COLON_EXPR;
 			parser_push(pr, PRS_EXPR);
 			return parser_process(pr, flp);
@@ -3686,8 +3825,8 @@ function parser_process(pr, flp){
 			if (!tok_isKS(tk1, KS_RBRACKET))
 				return prr_error('Missing close bracket');
 			st.exprTerm = expr_slice(flp, st.exprTerm2, st.exprTerm3, st.exprTerm);
-			st.exprTerm2 = null;
-			st.exprTerm3 = null;
+			st.exprTerm2 = NULL;
+			st.exprTerm3 = NULL;
 			st.state = PRS_EXPR_POST;
 			return prr_more();
 
@@ -3714,14 +3853,14 @@ function parser_process(pr, flp){
 			}
 			while (true){
 				// fight between the Pre and the Mid
-				while (st.exprPreStack != null && tok_isPreBeforeMid(st.exprPreStack.tk, tk1)){
+				while (st.exprPreStack != NULL && tok_isPreBeforeMid(st.exprPreStack.tk, tk1)){
 					// apply the Pre
 					st.exprTerm = expr_prefix(flp, st.exprPreStack.tk.k, st.exprTerm);
 					st.exprPreStack = st.exprPreStack.next;
 				}
 
 				// if we've exhaused the exprPreStack, then check against the exprMidStack
-				if (st.exprPreStack == null && st.exprMidStack != null &&
+				if (st.exprPreStack == NULL && st.exprMidStack != NULL &&
 					tok_isMidBeforeMid(st.exprMidStack.tk, tk1)){
 					// apply the previous mMid
 					var pri = parser_infix(flp, st.exprMidStack.tk.k, st.exprStack.ex, st.exprTerm)
@@ -3739,7 +3878,7 @@ function parser_process(pr, flp){
 			// except instead of applying it, we need to schedule to apply it, in case another
 			// operator takes precedence over this one
 			st.exprPreStackStack = eps_new(st.exprPreStack, st.exprPreStackStack);
-			st.exprPreStack = null;
+			st.exprPreStack = NULL;
 			st.exprStack = exs_new(st.exprTerm, st.exprStack);
 			st.exprMidStack = ets_new(tk1, st.exprMidStack);
 			st.state = PRS_EXPR;
@@ -3748,15 +3887,15 @@ function parser_process(pr, flp){
 		case PRS_EXPR_FINISH:
 			while (true){
 				// fight between the Pre and the Mid
-				while (st.exprPreStack != null &&
-					(st.exprMidStack == null ||
+				while (st.exprPreStack != NULL &&
+					(st.exprMidStack == NULL ||
 						tok_isPreBeforeMid(st.exprPreStack.tk, st.exprMidStack.tk))){
 					// apply the Pre
 					st.exprTerm = expr_prefix(flp, st.exprPreStack.tk.k, st.exprTerm);
 					st.exprPreStack = st.exprPreStack.next;
 				}
 
-				if (st.exprMidStack == null)
+				if (st.exprMidStack == NULL)
 					break;
 
 				// apply the Mid
@@ -3783,7 +3922,7 @@ function parser_add(pr, tk, flp){
 
 function parser_close(pr){
 	if (pr.state.state != PRS_STATEMENT ||
-		pr.state.next == null ||
+		pr.state.next == NULL ||
 		pr.state.next.state != PRS_START_STATEMENT)
 		return prr_error('Invalid end of file');
 	return prr_more();
@@ -3863,11 +4002,11 @@ function frame_new(parent){
 
 function frame_diff(parent, child){
 	var fdiff = 0;
-	while (child != parent && child != null){
+	while (child != parent && child != NULL){
 		child = child.parent;
 		fdiff++;
 	}
-	if (child == null)
+	if (child == NULL)
 		return -1;
 	return fdiff;
 }
@@ -3941,8 +4080,8 @@ function scope_new(fr, lblBreak, lblContinue, parent){
 }
 
 function symtbl_new(repl){
-	var fr = frame_new(null);
-	var sc = scope_new(fr, null, null, null);
+	var fr = frame_new(NULL);
+	var sc = scope_new(fr, NULL, NULL, NULL);
 	return {
 		repl: repl,
 		fr: fr,
@@ -4023,7 +4162,7 @@ function symtbl_popScope(sym){
 
 function symtbl_pushFrame(sym){
 	sym.fr = frame_new(sym.fr);
-	sym.sc = scope_new(sym.fr, null, null, sym.sc);
+	sym.sc = scope_new(sym.fr, NULL, NULL, sym.sc);
 }
 
 function symtbl_frameOpenLabels(sym){
@@ -4102,7 +4241,7 @@ function symtbl_lookupNs(sym, ns, names, tried){
 function symtbl_lookup(sym, names){
 	var tried = [];
 	var trysc = sym.sc;
-	while (trysc != null){
+	while (trysc != NULL){
 		for (var trynsi = trysc.nsStack.length - 1; trynsi >= 0; trynsi--){
 			var tryns = trysc.nsStack[trynsi];
 			var st = symtbl_lookupNs(sym, tryns, names, tried);
@@ -4352,15 +4491,15 @@ function lvr_var(flp, vlc){
 }
 
 function lvr_index(flp, obj, key){
-	return { flp: flp, vlc: null, type: LVR_INDEX, obj: obj, key: key };
+	return { flp: flp, vlc: NULL, type: LVR_INDEX, obj: obj, key: key };
 }
 
 function lvr_slice(flp, obj, start, len){
-	return { flp: flp, vlc: null, type: LVR_SLICE, obj: obj, start: start, len: len };
+	return { flp: flp, vlc: NULL, type: LVR_SLICE, obj: obj, start: start, len: len };
 }
 
 function lvr_list(flp, body, rest){
-	return { flp: flp, vlc: null, type: LVR_LIST, body: body, rest: rest };
+	return { flp: flp, vlc: NULL, type: LVR_LIST, body: body, rest: rest };
 }
 
 var LVP_OK    = 'LVP_OK';
@@ -4382,10 +4521,10 @@ function lval_addVars(sym, ex){
 		return lvp_ok(lvr_var(ex.flp, sr.vlc));
 	}
 	else if (ex.type == EXPR_LIST){
-		if (ex.ex == null)
+		if (ex.ex == NULL)
 			return lvp_error(ex.flp, 'Invalid assignment');
 		var body = [];
-		var rest = null;
+		var rest = NULL;
 		if (ex.ex.type == EXPR_GROUP){
 			for (var i = 0; i < ex.ex.group.length; i++){
 				var gex = ex.ex.group[i];
@@ -4438,7 +4577,7 @@ function lval_prepare(prg, sym, ex){
 			var le = lval_prepare(prg, sym, ex.obj);
 			if (le.type == LVP_ERROR)
 				return le;
-			var pe = program_eval(prg, sym, PEM_CREATE, null, ex.key);
+			var pe = program_eval(prg, sym, PEM_CREATE, NULL, ex.key);
 			if (pe.type == PER_ERROR)
 				return lvp_error(pe.flp, pe.msg);
 			return lvp_ok(lvr_index(ex.flp, le.lv, pe.vlc));
@@ -4449,7 +4588,7 @@ function lval_prepare(prg, sym, ex){
 			if (le.type == LVP_ERROR)
 				return le;
 
-			var pe = program_lvalGet(prg, sym, PLM_CREATE, null, le.lv);
+			var pe = program_lvalGet(prg, sym, PLM_CREATE, NULL, le.lv);
 			if (pe.type == PER_ERROR)
 				return lvp_error(pe.flp, pe.msg);
 
@@ -4462,8 +4601,8 @@ function lval_prepare(prg, sym, ex){
 
 		case EXPR_LIST: {
 			var body = [];
-			var rest = null;
-			if (ex === null)
+			var rest = NULL;
+			if (ex === NULL)
 				/* do nothing */;
 			else if (ex.ex.type == EXPR_GROUP){
 				for (var i = 0; i < ex.ex.group.length; i++){
@@ -4507,9 +4646,9 @@ function lval_prepare(prg, sym, ex){
 }
 
 function lval_clearTemps(lv, sym){
-	if (lv.type != LVR_VAR && lv.vlc != null){
+	if (lv.type != LVR_VAR && lv.vlc != NULL){
 		symtbl_clearTemp(sym, lv.vlc);
-		lv.vlc = null;
+		lv.vlc = NULL;
 	}
 	switch (lv.type){
 		case LVR_VAR:
@@ -4526,7 +4665,7 @@ function lval_clearTemps(lv, sym){
 		case LVR_LIST:
 			for (var i = 0; i < lv.body.length; i++)
 				lval_clearTemps(lv.body[i], sym);
-			if (lv.rest != null)
+			if (lv.rest != NULL)
 				lval_clearTemps(lv.rest, sym);
 			return;
 	}
@@ -4544,13 +4683,13 @@ function program_evalLval(prg, sym, mode, intoVlc, lv, mutop, valueVlc){
 			break;
 
 		case LVR_INDEX: {
-			var pe = program_lvalGet(prg, sym, PLM_CREATE, null, lv.obj);
+			var pe = program_lvalGet(prg, sym, PLM_CREATE, NULL, lv.obj);
 			if (pe.type == PER_ERROR)
 				return pe;
 			if (mutop < 0)
 				op_setat(prg.ops, pe.vlc, lv.key, valueVlc);
 			else{
-				pe = program_lvalGet(prg, sym, PLM_CREATE, null, lv);
+				pe = program_lvalGet(prg, sym, PLM_CREATE, NULL, lv);
 				if (pe.type == PER_ERROR)
 					return pe;
 				op_binop(prg.ops, mutop, pe.vlc, pe.vlc, valueVlc);
@@ -4559,16 +4698,16 @@ function program_evalLval(prg, sym, mode, intoVlc, lv, mutop, valueVlc){
 		} break;
 
 		case LVR_SLICE: {
-			var pe = program_lvalGet(prg, sym, PLM_CREATE, null, lv.obj);
+			var pe = program_lvalGet(prg, sym, PLM_CREATE, NULL, lv.obj);
 			if (pe.type == PER_ERROR)
 				return pe;
 			if (mutop < 0)
 				op_splice(prg.ops, pe.vlc, lv.start, lv.len, valueVlc);
 			else{
-				pe = program_lvalGet(prg, sym, PLM_CREATE, null, lv);
+				pe = program_lvalGet(prg, sym, PLM_CREATE, NULL, lv);
 				if (pe.type == PER_ERROR)
 					return pe;
-				pe = program_evalLval(prg, sym, PEM_EMPTY, null,
+				pe = program_evalLval(prg, sym, PEM_EMPTY, NULL,
 					lvr_var(lv.flp, lv.vlc), mutop, valueVlc);
 				if (pe.type == PER_ERROR)
 					return pe;
@@ -4585,12 +4724,12 @@ function program_evalLval(prg, sym, mode, intoVlc, lv, mutop, valueVlc){
 			for (var i = 0; i < lv.body.length; i++){
 				op_num(prg.ops, t, i);
 				op_getat(prg.ops, t, valueVlc, t);
-				var pe = program_evalLval(prg, sym, PEM_EMPTY, null, lv.body[i], mutop, t);
+				var pe = program_evalLval(prg, sym, PEM_EMPTY, NULL, lv.body[i], mutop, t);
 				if (pe.type == PER_ERROR)
 					return pe;
 			}
 
-			if (lv.rest != null){
+			if (lv.rest != NULL){
 				var ts = symtbl_addTemp(sym);
 				if (ts.type == STA_ERROR)
 					return per_error(lv.flp, ts.msg);
@@ -4600,7 +4739,7 @@ function program_evalLval(prg, sym, mode, intoVlc, lv, mutop, valueVlc){
 				op_rest(prg.ops, t2, valueVlc, t);
 				op_slice(prg.ops, t, valueVlc, t, t2);
 				symtbl_clearTemp(sym, t2);
-				pe = program_evalLval(prg, sym, PEM_EMPTY, null, lv.rest, mutop, t);
+				pe = program_evalLval(prg, sym, PEM_EMPTY, NULL, lv.rest, mutop, t);
 				if (pe.type == PER_ERROR)
 					return pe;
 			}
@@ -4611,7 +4750,7 @@ function program_evalLval(prg, sym, mode, intoVlc, lv, mutop, valueVlc){
 	// now, see if we need to put the result into anything
 	if (mode == PEM_EMPTY){
 		lval_clearTemps(lv, sym);
-		return per_ok(null);
+		return per_ok(NULL);
 	}
 	else if (mode == PEM_CREATE){
 		var ts = symtbl_addTemp(sym);
@@ -4640,7 +4779,7 @@ function psr_error(flp, msg){
 
 function program_slice(prg, sym, obj, ex){
 	var start;
-	if (ex.start == null){
+	if (ex.start == NULL){
 		var ts = symtbl_addTemp(sym);
 		if (ts.type == STA_ERROR)
 			return psr_error(ex.flp, ts.msg);
@@ -4648,14 +4787,14 @@ function program_slice(prg, sym, obj, ex){
 		op_num(prg.ops, start, 0);
 	}
 	else{
-		pe = program_eval(prg, sym, PEM_CREATE, null, ex.start);
+		pe = program_eval(prg, sym, PEM_CREATE, NULL, ex.start);
 		if (pe.type == PER_ERROR)
 			return psr_error(pe.flp, pe.msg);
 		start = pe.vlc;
 	}
 
 	var len;
-	if (ex.len == null){
+	if (ex.len == NULL){
 		var ts = symtbl_addTemp(sym);
 		if (ts.type == STA_ERROR)
 			return psr_error(ex.flp, ts.msg);
@@ -4663,7 +4802,7 @@ function program_slice(prg, sym, obj, ex){
 		op_rest(prg.ops, len, obj, start);
 	}
 	else{
-		pe = program_eval(prg, sym, PEM_CREATE, null, ex.len);
+		pe = program_eval(prg, sym, PEM_CREATE, NULL, ex.len);
 		if (pe.type == PER_ERROR)
 			return psr_error(pe.flp, pe.msg);
 		len = pe.vlc;
@@ -4687,7 +4826,7 @@ var PLM_CREATE = 'PLM_CREATE';
 var PLM_INTO   = 'PLM_INTO';
 
 function program_lvalGet(prg, sym, mode, intoVlc, lv){
-	if (lv.vlc != null){
+	if (lv.vlc != NULL){
 		if (mode == PLM_CREATE)
 			return per_ok(lv.vlc);
 		op_move(prg.ops, intoVlc, lv.vlc);
@@ -4706,14 +4845,14 @@ function program_lvalGet(prg, sym, mode, intoVlc, lv){
 			throw new Error('LVR_VAR doesn\'t have vlc set');
 
 		case LVR_INDEX: {
-			var pe = program_lvalGet(prg, sym, PLM_CREATE, null, lv.obj);
+			var pe = program_lvalGet(prg, sym, PLM_CREATE, NULL, lv.obj);
 			if (pe.type == PER_ERROR)
 				return pe;
 			op_getat(prg.ops, intoVlc, pe.vlc, lv.key);
 		} break;
 
 		case LVR_SLICE: {
-			var pe = program_lvalGet(prg, sym, PLM_CREATE, null, lv.obj);
+			var pe = program_lvalGet(prg, sym, PLM_CREATE, NULL, lv.obj);
 			if (pe.type == PER_ERROR)
 				return pe;
 			op_slice(prg.ops, intoVlc, pe.vlc, lv.start, lv.len);
@@ -4723,14 +4862,14 @@ function program_lvalGet(prg, sym, mode, intoVlc, lv){
 			op_list(prg.ops, intoVlc, lv.body.length);
 
 			for (var i = 0; i < lv.body.length; i++){
-				var pe = program_lvalGet(prg, sym, PLM_CREATE, null, lv.body[i]);
+				var pe = program_lvalGet(prg, sym, PLM_CREATE, NULL, lv.body[i]);
 				if (pe.type == PER_ERROR)
 					return pe;
 				op_binop(prg.ops, OP_PUSH, intoVlc, intoVlc, pe.vlc);
 			}
 
-			if (lv.rest != null){
-				var pe = program_lvalGet(prg, sym, PLM_CREATE, null, lv.rest);
+			if (lv.rest != NULL){
+				var pe = program_lvalGet(prg, sym, PLM_CREATE, NULL, lv.rest);
 				if (pe.type == PER_ERROR)
 					return pe;
 				op_binop(prg.ops, OP_APPEND, intoVlc, intoVlc, pe.vlc);
@@ -4756,16 +4895,16 @@ function program_evalCall_checkList(prg, sym, flp, vlc){
 	op_aborterr(prg.ops, 0x01);
 	label_declare(skip, prg.ops);
 	symtbl_clearTemp(sym, t);
-	return per_ok(null);
+	return per_ok(NULL);
 }
 
 function program_evalCall(prg, sym, mode, intoVlc, flp, nsn, paramsAt, params){
-	// params can be null to indicate emptiness
+	// params can be NULL to indicate emptiness
 	if (nsn.type == NSN_CMD_OPCODE && nsn.opcode == -1){ // short-circuit `pick`
-		if (paramsAt || params == null || params.type != EXPR_GROUP || params.group.length != 3)
+		if (paramsAt || params == NULL || params.type != EXPR_GROUP || params.group.length != 3)
 			return per_error(flp, 'Using `pick` requires exactly three arguments');
 
-		var pe = program_eval(prg, sym, PEM_CREATE, null, params.group[0]);
+		var pe = program_eval(prg, sym, PEM_CREATE, NULL, params.group[0]);
 		if (pe.type == PER_ERROR)
 			return pe;
 		if (mode == PEM_CREATE){
@@ -4802,7 +4941,7 @@ function program_evalCall(prg, sym, mode, intoVlc, flp, nsn, paramsAt, params){
 	}
 
 	if (nsn.type == NSN_CMD_OPCODE && (nsn.opcode == OP_EXIT || nsn.opcode == OP_ABORT) &&
-		params == null){
+		params == NULL){
 		// if empty exit/abort, then just call it with nil
 		if (mode == PEM_EMPTY || mode == PEM_CREATE){
 			var ts = symtbl_addTemp(sym);
@@ -4817,7 +4956,7 @@ function program_evalCall(prg, sym, mode, intoVlc, flp, nsn, paramsAt, params){
 			op_abort(prg.ops, intoVlc);
 		if (mode == PEM_EMPTY){
 			symtbl_clearTemp(sym, intoVlc);
-			return per_ok(null);
+			return per_ok(NULL);
 		}
 		return per_ok(intoVlc);
 	}
@@ -4834,7 +4973,7 @@ function program_evalCall(prg, sym, mode, intoVlc, flp, nsn, paramsAt, params){
 		var args;
 		if (!paramsAt)
 			params = expr_list(flp, params);
-		var pe = program_eval(prg, sym, PEM_CREATE, null, params);
+		var pe = program_eval(prg, sym, PEM_CREATE, NULL, params);
 		if (pe.type == PER_ERROR)
 			return pe;
 		args = pe.vlc;
@@ -4856,11 +4995,11 @@ function program_evalCall(prg, sym, mode, intoVlc, flp, nsn, paramsAt, params){
 	}
 	else if (nsn.type == NSN_CMD_OPCODE){
 		if (nsn.params == 0){
-			if (params != null){
+			if (params != NULL){
 				if (paramsAt){
 					// this needs to fail: `var x = 1; num.tau @ x;`
 					// even though `num.tau` takes zero parameters
-					var pe = program_eval(prg, sym, PEM_CREATE, null, params);
+					var pe = program_eval(prg, sym, PEM_CREATE, NULL, params);
 					if (pe.type == PER_ERROR)
 						return pe;
 					var args = pe.vlc;
@@ -4870,7 +5009,7 @@ function program_evalCall(prg, sym, mode, intoVlc, flp, nsn, paramsAt, params){
 					symtbl_clearTemp(sym, args);
 				}
 				else{
-					var pe = program_eval(prg, sym, PEM_EMPTY, null, params);
+					var pe = program_eval(prg, sym, PEM_EMPTY, NULL, params);
 					if (pe.type == PER_ERROR)
 						return pe;
 				}
@@ -4888,7 +5027,7 @@ function program_evalCall(prg, sym, mode, intoVlc, flp, nsn, paramsAt, params){
 			var p1, p2, p3;
 
 			if (paramsAt){
-				var pe = program_eval(prg, sym, PEM_CREATE, null, params);
+				var pe = program_eval(prg, sym, PEM_CREATE, NULL, params);
 				if (pe.type == PER_ERROR)
 					return pe;
 				var args = pe.vlc;
@@ -4923,7 +5062,7 @@ function program_evalCall(prg, sym, mode, intoVlc, flp, nsn, paramsAt, params){
 
 				symtbl_clearTemp(sym, args);
 			}
-			else if (params == null){
+			else if (params == NULL){
 				var ts = symtbl_addTemp(sym);
 				if (ts.type == STA_ERROR)
 					return per_error(flp, ts.msg);
@@ -4932,15 +5071,15 @@ function program_evalCall(prg, sym, mode, intoVlc, flp, nsn, paramsAt, params){
 			}
 			else{
 				if (params.type == EXPR_GROUP){
-					var pe = program_eval(prg, sym, PEM_CREATE, null, params.group[0]);
+					var pe = program_eval(prg, sym, PEM_CREATE, NULL, params.group[0]);
 					if (pe.type == PER_ERROR)
 						return pe;
 					p1 = pe.vlc;
 
 					if (nsn.params > 1)
-						pe = program_eval(prg, sym, PEM_CREATE, null, params.group[1]);
+						pe = program_eval(prg, sym, PEM_CREATE, NULL, params.group[1]);
 					else
-						pe = program_eval(prg, sym, PEM_EMPTY, null, params.group[1]);
+						pe = program_eval(prg, sym, PEM_EMPTY, NULL, params.group[1]);
 					if (pe.type == PER_ERROR)
 						return pe;
 					if (nsn.params > 1)
@@ -4957,7 +5096,7 @@ function program_evalCall(prg, sym, mode, intoVlc, flp, nsn, paramsAt, params){
 						}
 						else{
 							rest = 3;
-							pe = program_eval(prg, sym, PEM_CREATE, null, params.group[2]);
+							pe = program_eval(prg, sym, PEM_CREATE, NULL, params.group[2]);
 							if (pe.type == PER_ERROR)
 								return pe;
 							p3 = pe.vlc;
@@ -4965,13 +5104,13 @@ function program_evalCall(prg, sym, mode, intoVlc, flp, nsn, paramsAt, params){
 					}
 
 					for (var i = rest; i < params.group.length; i++){
-						pe = program_eval(prg, sym, PEM_EMPTY, null, params.group[i]);
+						pe = program_eval(prg, sym, PEM_EMPTY, NULL, params.group[i]);
 						if (pe.type == PER_ERROR)
 							return pe;
 					}
 				}
 				else{
-					var pe = program_eval(prg, sym, PEM_CREATE, null, params);
+					var pe = program_eval(prg, sym, PEM_CREATE, NULL, params);
 					if (pe.type == PER_ERROR)
 						return pe;
 					p1 = pe.vlc;
@@ -5013,7 +5152,7 @@ function program_evalCall(prg, sym, mode, intoVlc, flp, nsn, paramsAt, params){
 
 	if (mode == PEM_EMPTY){
 		symtbl_clearTemp(sym, intoVlc);
-		return per_ok(null);
+		return per_ok(NULL);
 	}
 	return per_ok(intoVlc);
 }
@@ -5022,7 +5161,7 @@ function program_lvalCheckNil(prg, sym, lv, jumpFalse, inverted, skip){
 	switch (lv.type){
 		case LVR_VAR:
 		case LVR_INDEX: {
-			var pe = program_lvalGet(prg, sym, PLM_CREATE, null, lv);
+			var pe = program_lvalGet(prg, sym, PLM_CREATE, NULL, lv);
 			if (pe.type == PER_ERROR)
 				return pe;
 			if (jumpFalse == !inverted)
@@ -5033,7 +5172,7 @@ function program_lvalCheckNil(prg, sym, lv, jumpFalse, inverted, skip){
 		} break;
 
 		case LVR_SLICE: {
-			var pe = program_lvalGet(prg, sym, PLM_CREATE, null, lv.obj);
+			var pe = program_lvalGet(prg, sym, PLM_CREATE, NULL, lv.obj);
 			if (pe.type == PER_ERROR)
 				return pe;
 			var obj = pe.vlc;
@@ -5077,21 +5216,21 @@ function program_lvalCheckNil(prg, sym, lv, jumpFalse, inverted, skip){
 			var keep = label_new('%condkeep');
 			for (var i = 0; i < lv.body.length; i++)
 				program_lvalCheckNil(prg, sym, lv.body[i], jumpFalse, true, inverted ? skip : keep);
-			if (lv.rest != null)
+			if (lv.rest != NULL)
 				program_lvalCheckNil(prg, sym, lv.rest, jumpFalse, true, inverted ? skip : keep);
 			if (!inverted)
 				label_jump(skip, prg.ops);
 			label_declare(keep, prg.ops);
 		} break;
 	}
-	return per_ok(null);
+	return per_ok(NULL);
 }
 
 function program_lvalCondAssignPart(prg, sym, lv, jumpFalse, valueVlc){
 	switch (lv.type){
 		case LVR_VAR:
 		case LVR_INDEX: {
-			var pe = program_lvalGet(prg, sym, PLM_CREATE, null, lv);
+			var pe = program_lvalGet(prg, sym, PLM_CREATE, NULL, lv);
 			if (pe.type == PER_ERROR)
 				return pe;
 			var skip = label_new('%condskippart');
@@ -5100,14 +5239,14 @@ function program_lvalCondAssignPart(prg, sym, lv, jumpFalse, valueVlc){
 			else
 				label_jumpTrue(skip, prg.ops, pe.vlc);
 			symtbl_clearTemp(sym, pe.vlc);
-			pe = program_evalLval(prg, sym, PEM_EMPTY, null, lv, -1, valueVlc);
+			pe = program_evalLval(prg, sym, PEM_EMPTY, NULL, lv, -1, valueVlc);
 			if (pe.type == PER_ERROR)
 				return pe;
 			label_declare(skip, prg.ops);
 		} break;
 
 		case LVR_SLICE: {
-			var pe = program_lvalGet(prg, sym, PLM_CREATE, null, lv.obj);
+			var pe = program_lvalGet(prg, sym, PLM_CREATE, NULL, lv.obj);
 			if (pe.type == PER_ERROR)
 				return pe;
 			var obj = pe.vlc;
@@ -5170,7 +5309,7 @@ function program_lvalCondAssignPart(prg, sym, lv, jumpFalse, valueVlc){
 				if (pe.type == PER_ERROR)
 					return pe;
 			}
-			if (lv.rest != null){
+			if (lv.rest != NULL){
 				var ts = symtbl_addTemp(sym);
 				if (ts.type == STA_ERROR)
 					return per_error(ex.flp, ts.msg);
@@ -5186,14 +5325,14 @@ function program_lvalCondAssignPart(prg, sym, lv, jumpFalse, valueVlc){
 			symtbl_clearTemp(sym, t);
 		} break;
 	}
-	return per_ok(null);
+	return per_ok(NULL);
 }
 
 function program_lvalCondAssign(prg, sym, lv, jumpFalse, valueVlc){
 	switch (lv.type){
 		case LVR_VAR:
 		case LVR_INDEX: {
-			var pe = program_evalLval(prg, sym, PEM_EMPTY, null, lv, -1, valueVlc);
+			var pe = program_evalLval(prg, sym, PEM_EMPTY, NULL, lv, -1, valueVlc);
 			if (pe.type == PER_ERROR)
 				return pe;
 		} break;
@@ -5203,14 +5342,14 @@ function program_lvalCondAssign(prg, sym, lv, jumpFalse, valueVlc){
 			return program_lvalCondAssignPart(prg, sym, lv, jumpFalse, valueVlc);
 	}
 	symtbl_clearTemp(sym, valueVlc);
-	return per_ok(null);
+	return per_ok(NULL);
 }
 
 function program_eval(prg, sym, mode, intoVlc, ex){
 	switch (ex.type){
 		case EXPR_NIL: {
 			if (mode == PEM_EMPTY)
-				return per_ok(null);
+				return per_ok(NULL);
 			else if (mode == PEM_CREATE){
 				var ts = symtbl_addTemp(sym);
 				if (ts.type == STA_ERROR)
@@ -5223,7 +5362,7 @@ function program_eval(prg, sym, mode, intoVlc, ex){
 
 		case EXPR_NUM: {
 			if (mode == PEM_EMPTY)
-				return per_ok(null);
+				return per_ok(NULL);
 			else if (mode == PEM_CREATE){
 				var ts = symtbl_addTemp(sym);
 				if (ts.type == STA_ERROR)
@@ -5252,7 +5391,7 @@ function program_eval(prg, sym, mode, intoVlc, ex){
 
 		case EXPR_STR: {
 			if (mode == PEM_EMPTY)
-				return per_ok(null);
+				return per_ok(NULL);
 			else if (mode == PEM_CREATE){
 				var ts = symtbl_addTemp(sym);
 				if (ts.type == STA_ERROR)
@@ -5277,9 +5416,9 @@ function program_eval(prg, sym, mode, intoVlc, ex){
 
 		case EXPR_LIST: {
 			if (mode == PEM_EMPTY){
-				if (ex.ex != null)
-					return program_eval(prg, sym, PEM_EMPTY, null, ex.ex);
-				return per_ok(null);
+				if (ex.ex != NULL)
+					return program_eval(prg, sym, PEM_EMPTY, NULL, ex.ex);
+				return per_ok(NULL);
 			}
 			else if (mode == PEM_CREATE){
 				var ts = symtbl_addTemp(sym);
@@ -5287,11 +5426,11 @@ function program_eval(prg, sym, mode, intoVlc, ex){
 					return per_error(ex.flp, ts.msg);
 				intoVlc = ts.vlc;
 			}
-			if (ex.ex != null){
+			if (ex.ex != NULL){
 				if (ex.ex.type == EXPR_GROUP){
 					op_list(prg.ops, intoVlc, ex.ex.group.length);
 					for (var i = 0; i < ex.ex.group.length; i++){
-						var pe = program_eval(prg, sym, PEM_CREATE, null, ex.ex.group[i]);
+						var pe = program_eval(prg, sym, PEM_CREATE, NULL, ex.ex.group[i]);
 						if (pe.type == PER_ERROR)
 							return pe;
 						symtbl_clearTemp(sym, pe.vlc);
@@ -5300,7 +5439,7 @@ function program_eval(prg, sym, mode, intoVlc, ex){
 				}
 				else{
 					op_list(prg.ops, intoVlc, 1);
-					var pe = program_eval(prg, sym, PEM_CREATE, null, ex.ex);
+					var pe = program_eval(prg, sym, PEM_CREATE, NULL, ex.ex);
 					if (pe.type == PER_ERROR)
 						return pe;
 					symtbl_clearTemp(sym, pe.vlc);
@@ -5319,7 +5458,7 @@ function program_eval(prg, sym, mode, intoVlc, ex){
 			switch (sl.nsn.type){
 				case NSN_VAR: {
 					if (mode == PEM_EMPTY)
-						return per_ok(null);
+						return per_ok(NULL);
 					var varVlc = varloc_new(frame_diff(sl.nsn.fr, sym.fr), sl.nsn.index);
 					if (mode == PEM_CREATE)
 						return per_ok(varVlc);
@@ -5330,7 +5469,7 @@ function program_eval(prg, sym, mode, intoVlc, ex){
 				case NSN_CMD_LOCAL:
 				case NSN_CMD_NATIVE:
 				case NSN_CMD_OPCODE:
-					return program_evalCall(prg, sym, mode, intoVlc, ex.flp, sl.nsn, false, null);
+					return program_evalCall(prg, sym, mode, intoVlc, ex.flp, sl.nsn, false, NULL);
 
 				case NSN_NAMESPACE:
 					return per_error(ex.flp, 'Invalid expression');
@@ -5340,7 +5479,7 @@ function program_eval(prg, sym, mode, intoVlc, ex){
 
 		case EXPR_VAR: {
 			if (mode == PEM_EMPTY)
-				return per_ok(null);
+				return per_ok(NULL);
 			else if (mode == PEM_CREATE)
 				return per_ok(ex.vlc);
 			op_move(prg.ops, intoVlc, ex.vlc);
@@ -5354,7 +5493,7 @@ function program_eval(prg, sym, mode, intoVlc, ex){
 			for (var i = 0; i < ex.group.length; i++){
 				if (i == ex.group.length - 1)
 					return program_eval(prg, sym, mode, intoVlc, ex.group[i]);
-				var pe = program_eval(prg, sym, PEM_EMPTY, null, ex.group[i]);
+				var pe = program_eval(prg, sym, PEM_EMPTY, NULL, ex.group[i]);
 				if (pe.type == PER_ERROR)
 					return pe;
 			}
@@ -5364,7 +5503,7 @@ function program_eval(prg, sym, mode, intoVlc, ex){
 			var unop = ks_toUnaryOp(ex.k);
 			if (unop < 0)
 				return per_error(ex.flp, 'Invalid unary operator');
-			var pe = program_eval(prg, sym, PEM_CREATE, null, ex.ex);
+			var pe = program_eval(prg, sym, PEM_CREATE, NULL, ex.ex);
 			if (pe.type == PER_ERROR)
 				return pe;
 			if (mode == PEM_EMPTY || mode == PEM_CREATE){
@@ -5377,7 +5516,7 @@ function program_eval(prg, sym, mode, intoVlc, ex){
 			symtbl_clearTemp(sym, pe.vlc);
 			if (mode == PEM_EMPTY){
 				symtbl_clearTemp(sym, intoVlc);
-				return per_ok(null);
+				return per_ok(NULL);
 			}
 			return per_ok(intoVlc);
 		} break;
@@ -5396,7 +5535,7 @@ function program_eval(prg, sym, mode, intoVlc, ex){
 					if (pe.type == PER_ERROR)
 						return pe;
 
-					pe = program_eval(prg, sym, PEM_CREATE, null, ex.right);
+					pe = program_eval(prg, sym, PEM_CREATE, NULL, ex.right);
 					if (pe.type == PER_ERROR)
 						return pe;
 
@@ -5407,7 +5546,7 @@ function program_eval(prg, sym, mode, intoVlc, ex){
 					if (mode == PEM_EMPTY){
 						label_declare(skip, prg.ops);
 						lval_clearTemps(lp.lv, sym);
-						return per_ok(null);
+						return per_ok(NULL);
 					}
 
 					var done = label_new('%condsetdone');
@@ -5436,7 +5575,7 @@ function program_eval(prg, sym, mode, intoVlc, ex){
 					if (pe.type == PER_ERROR)
 						return pe;
 					if (mode == PEM_EMPTY)
-						return per_ok(null);
+						return per_ok(NULL);
 					else if (mode == PEM_CREATE){
 						var ts = symtbl_addTemp(sym);
 						if (ts.type == STA_ERROR)
@@ -5447,7 +5586,7 @@ function program_eval(prg, sym, mode, intoVlc, ex){
 					return per_ok(intoVlc);
 				}
 
-				var pe = program_eval(prg, sym, PEM_CREATE, null, ex.right);
+				var pe = program_eval(prg, sym, PEM_CREATE, NULL, ex.right);
 				if (pe.type == PER_ERROR)
 					return pe;
 				return program_evalLval(prg, sym, mode, intoVlc, lp.lv, mutop, pe.vlc);
@@ -5465,7 +5604,7 @@ function program_eval(prg, sym, mode, intoVlc, ex){
 				var pe = program_eval(prg, sym, PEM_INTO, intoVlc, ex.left);
 				if (pe.type == PER_ERROR)
 					return pe;
-				pe = program_eval(prg, sym, PEM_CREATE, null, ex.right);
+				pe = program_eval(prg, sym, PEM_CREATE, NULL, ex.right);
 				if (pe.type == PER_ERROR)
 					return pe;
 				op_binop(prg.ops, binop, intoVlc, intoVlc, pe.vlc);
@@ -5500,7 +5639,7 @@ function program_eval(prg, sym, mode, intoVlc, ex){
 
 			if (mode == PEM_EMPTY){
 				symtbl_clearTemp(sym, intoVlc);
-				return per_ok(null);
+				return per_ok(NULL);
 			}
 			return per_ok(intoVlc);
 		} break;
@@ -5516,13 +5655,13 @@ function program_eval(prg, sym, mode, intoVlc, ex){
 
 		case EXPR_INDEX: {
 			if (mode == PEM_EMPTY){
-				var pe = program_eval(prg, sym, PEM_EMPTY, null, ex.obj);
+				var pe = program_eval(prg, sym, PEM_EMPTY, NULL, ex.obj);
 				if (pe.type == PER_ERROR)
 					return pe;
-				pe = program_eval(prg, sym, PEM_EMPTY, null, ex.key);
+				pe = program_eval(prg, sym, PEM_EMPTY, NULL, ex.key);
 				if (pe.type == PER_ERROR)
 					return pe;
-				return per_ok(null);
+				return per_ok(NULL);
 			}
 			else if (mode == PEM_CREATE){
 				var ts = symtbl_addTemp(sym);
@@ -5531,12 +5670,12 @@ function program_eval(prg, sym, mode, intoVlc, ex){
 				intoVlc = ts.vlc;
 			}
 
-			var pe = program_eval(prg, sym, PEM_CREATE, null, ex.obj);
+			var pe = program_eval(prg, sym, PEM_CREATE, NULL, ex.obj);
 			if (pe.type == PER_ERROR)
 				return pe;
 			var obj = pe.vlc;
 
-			pe = program_eval(prg, sym, PEM_CREATE, null, ex.key);
+			pe = program_eval(prg, sym, PEM_CREATE, NULL, ex.key);
 			if (pe.type == PER_ERROR)
 				return pe;
 			var key = pe.vlc;
@@ -5555,7 +5694,7 @@ function program_eval(prg, sym, mode, intoVlc, ex){
 				intoVlc = ts.vlc;
 			}
 
-			var pe = program_eval(prg, sym, PEM_CREATE, null, ex.obj);
+			var pe = program_eval(prg, sym, PEM_CREATE, NULL, ex.obj);
 			if (pe.type == PER_ERROR)
 				return pe;
 			var obj = pe.vlc;
@@ -5570,7 +5709,7 @@ function program_eval(prg, sym, mode, intoVlc, ex){
 			symtbl_clearTemp(sym, sr.len);
 			if (mode == PEM_EMPTY){
 				symtbl_clearTemp(sym, intoVlc);
-				return per_ok(null);
+				return per_ok(NULL);
 			}
 			return per_ok(intoVlc);
 		} break;
@@ -5603,13 +5742,13 @@ function program_genBody(prg, sym, body){
 function program_gen(prg, sym, stmt){
 	switch (stmt.type){
 		case AST_BREAK:
-			if (sym.sc.lblBreak == null)
+			if (sym.sc.lblBreak == NULL)
 				return pgr_error(stmt.flp, 'Invalid `break`');
 			label_jump(sym.sc.lblBreak, prg.ops);
 			return pgr_ok(sym);
 
 		case AST_CONTINUE:
-			if (sym.sc.lblContinue == null)
+			if (sym.sc.lblContinue == NULL)
 				return pgr_error(stmt.flp, 'Invalid `continue`');
 			label_jump(sym.sc.lblContinue, prg.ops);
 			return pgr_ok(sym);
@@ -5679,16 +5818,16 @@ function program_gen(prg, sym, stmt){
 						// init code has to happen first, because we want name resolution to be
 						// as though these variables haven't been defined yet... so a bit of goofy
 						// jumping, but not bad
-						var pr = null;
-						var perfinit = null;
-						var doneinit = null;
-						if (ex.right != null){
+						var pr = NULL;
+						var perfinit = NULL;
+						var doneinit = NULL;
+						if (ex.right != NULL){
 							perfinit = label_new('%perfinit');
 							doneinit = label_new('%doneinit');
 							var skipinit = label_new('%skipinit');
 							label_jump(skipinit, prg.ops);
 							label_declare(perfinit, prg.ops);
-							pr = program_eval(prg, sym, PEM_CREATE, null, ex.right);
+							pr = program_eval(prg, sym, PEM_CREATE, NULL, ex.right);
 							if (pr.type == PER_ERROR)
 								return pgr_error(pr.flp, pr.msg);
 							label_jump(doneinit, prg.ops);
@@ -5704,14 +5843,14 @@ function program_gen(prg, sym, stmt){
 						op_num(prg.ops, t, i);
 						op_getat(prg.ops, t, args, t); // 0:0 are passed in arguments
 
-						var finish = null;
-						if (ex.right != null){
+						var finish = NULL;
+						if (ex.right != NULL){
 							finish = label_new('%finish');
 							var passinit = label_new('%passinit');
 							label_jumpFalse(perfinit, prg.ops, t);
 							label_jump(passinit, prg.ops);
 							label_declare(doneinit, prg.ops);
-							var pe = program_evalLval(prg, sym, PEM_EMPTY, null, lr.lv, -1,
+							var pe = program_evalLval(prg, sym, PEM_EMPTY, NULL, lr.lv, -1,
 								pr.vlc);
 							if (pe.type == PER_ERROR)
 								return pgr_error(pe.flp, pe.msg);
@@ -5719,11 +5858,11 @@ function program_gen(prg, sym, stmt){
 							label_declare(passinit, prg.ops);
 						}
 
-						var pe = program_evalLval(prg, sym, PEM_EMPTY, null, lr.lv, -1, t)
+						var pe = program_evalLval(prg, sym, PEM_EMPTY, NULL, lr.lv, -1, t)
 						if (pe.type == PER_ERROR)
 							return pgr_error(pe.flp, pe.msg);
 
-						if (ex.right != null)
+						if (ex.right != NULL)
 							label_declare(finish, prg.ops);
 					}
 					else if (i == stmt.lvalues.length - 1 && ex.type == EXPR_PREFIX &&
@@ -5794,7 +5933,7 @@ function program_gen(prg, sym, stmt){
 				return pr;
 
 			label_declare(cond, prg.ops);
-			var pe = program_eval(prg, sym, PEM_CREATE, null, stmt.cond);
+			var pe = program_eval(prg, sym, PEM_CREATE, NULL, stmt.cond);
 			if (pe.type == PER_ERROR)
 				return pgr_error(pe.flp, pe.msg);
 			label_jumpFalse(finish, prg.ops, pe.vlc);
@@ -5814,7 +5953,7 @@ function program_gen(prg, sym, stmt){
 		} break;
 
 		case AST_FOR: {
-			var pe = program_eval(prg, sym, PEM_CREATE, null, stmt.ex);
+			var pe = program_eval(prg, sym, PEM_CREATE, NULL, stmt.ex);
 			if (pe.type == PER_ERROR)
 				return pgr_error(pe.flp, pe.msg);
 
@@ -5830,7 +5969,7 @@ function program_gen(prg, sym, stmt){
 					return pgr_error(stmt.flp, sr.msg);
 				val_vlc = sr.vlc;
 
-				if (stmt.names2 == null){
+				if (stmt.names2 == NULL){
 					var ts = symtbl_addTemp(sym);
 					if (ts.type == STA_ERROR)
 						return pgr_error(stmt.flp, ts.msg);
@@ -5851,7 +5990,7 @@ function program_gen(prg, sym, stmt){
 					return pgr_error(stmt.flp, 'Cannot use non-variable in for loop');
 				val_vlc = varloc_new(frame_diff(sl.nsn.fr, sym.fr), sl.nsn.index);
 
-				if (stmt.names2 == null){
+				if (stmt.names2 == NULL){
 					var ts = symtbl_addTemp(sym);
 					if (ts.type == STA_ERROR)
 						return pgr_error(stmt.flp, ts.msg);
@@ -5935,13 +6074,13 @@ function program_gen(prg, sym, stmt){
 		} break;
 
 		case AST_IF: {
-			var nextcond = null;
+			var nextcond = NULL;
 			var ifdone = label_new('%ifdone');
 			for (var i = 0; i < stmt.conds.length; i++){
 				if (i > 0)
 					label_declare(nextcond, prg.ops);
 				nextcond = label_new('%nextcond');
-				var pr = program_eval(prg, sym, PEM_CREATE, null, stmt.conds[i].ex);
+				var pr = program_eval(prg, sym, PEM_CREATE, NULL, stmt.conds[i].ex);
 				if (pr.type == PER_ERROR)
 					return pgr_error(pr.flp, pr.msg);
 				label_jumpFalse(nextcond, prg.ops, pr.vlc);
@@ -5979,7 +6118,7 @@ function program_gen(prg, sym, stmt){
 		} break;
 
 		case AST_RETURN: {
-			var pr = program_eval(prg, sym, PEM_CREATE, null, stmt.ex);
+			var pr = program_eval(prg, sym, PEM_CREATE, NULL, stmt.ex);
 			if (pr.type == PER_ERROR)
 				return pgr_error(pr.flp, pr.msg);
 			symtbl_clearTemp(sym, pr.vlc);
@@ -6006,17 +6145,17 @@ function program_gen(prg, sym, stmt){
 				var ex = stmt.lvalues[i];
 				if (ex.type != EXPR_INFIX)
 					throw new Error('Var expression should be EXPR_INFIX (this shouldn\'t happen)');
-				var pr = null;
-				if (ex.right != null){
-					pr = program_eval(prg, sym, PEM_CREATE, null, ex.right);
+				var pr = NULL;
+				if (ex.right != NULL){
+					pr = program_eval(prg, sym, PEM_CREATE, NULL, ex.right);
 					if (pr.type == PER_ERROR)
 						return pgr_error(pr.flp, pr.msg);
 				}
 				var lr = lval_addVars(sym, ex.left);
 				if (lr.type == LVP_ERROR)
 					return pgr_error(lr.flp, lr.msg);
-				if (ex.right != null){
-					var pe = program_evalLval(prg, sym, PEM_EMPTY, null, lr.lv, -1, pr.vlc);
+				if (ex.right != NULL){
+					var pe = program_evalLval(prg, sym, PEM_EMPTY, NULL, lr.lv, -1, pr.vlc);
 					if (pe.type == PER_ERROR)
 						return pgr_error(pe.flp, pe.msg);
 					symtbl_clearTemp(sym, pr.vlc);
@@ -6026,7 +6165,7 @@ function program_gen(prg, sym, stmt){
 
 		case AST_EVAL: {
 			if (prg.repl){
-				var pr = program_eval(prg, sym, PEM_CREATE, null, stmt.ex);
+				var pr = program_eval(prg, sym, PEM_CREATE, NULL, stmt.ex);
 				if (pr.type == PER_ERROR)
 					return pgr_error(pr.flp, pr.msg);
 				var ts = symtbl_addTemp(sym);
@@ -6040,7 +6179,7 @@ function program_gen(prg, sym, stmt){
 				symtbl_clearTemp(sym, pr.vlc);
 			}
 			else{
-				var pr = program_eval(prg, sym, PEM_EMPTY, null, stmt.ex);
+				var pr = program_eval(prg, sym, PEM_EMPTY, NULL, stmt.ex);
 				if (pr.type == PER_ERROR)
 					return pgr_error(pr.flp, pr.msg);
 			}
@@ -6080,7 +6219,7 @@ function ccs_new(pc, fdiff, index, lexIndex){
 function lxs_new(args, next){
 	var v = [args];
 	for (var i = 1; i < 256; i++)
-		v.push(null);
+		v.push(NULL);
 	return {
 		vals: v,
 		next: next
@@ -6093,7 +6232,7 @@ function context_new(prg){
 		failed: false,
 		passed: false,
 		callStack: [],
-		lexStack: [lxs_new(null, null)],
+		lexStack: [lxs_new(NULL, NULL)],
 		lexIndex: 0,
 		pc: 0,
 		randSeed: 0,
@@ -6164,7 +6303,7 @@ var var_tostr_marker = 0;
 function var_tostr(v){
 	var m = var_tostr_marker++;
 	function tos(v, first){
-		if (v == null)
+		if (v == NULL)
 			return 'nil';
 		else if (var_isnum(v)){
 			if (v == Infinity)
@@ -6213,12 +6352,12 @@ function oper_isnum(a){
 function oper_isnilnumstr(a){
 	if (var_islist(a)){
 		for (var i = 0; i < a.length; i++){
-			if (a[i] != null && !var_isnum(a[i]) && !var_isstr(a[i]))
+			if (a[i] != NULL && !var_isnum(a[i]) && !var_isstr(a[i]))
 				return false;
 		}
 		return true;
 	}
-	return a == null || var_isnum(a) || var_isstr(a);
+	return a == NULL || var_isnum(a) || var_isstr(a);
 }
 
 function oper_un(a, func){
@@ -6335,17 +6474,17 @@ function lib_num_max(v){
 	var m = lib_num_max_marker++;
 	function mx(v){
 		if (v.lib_num_max_marker == m)
-			return null;
+			return NULL;
 		v.lib_num_max_marker = m;
-		var max = null;
+		var max = NULL;
 		for (var i = 0; i < v.length; i++){
 			if (var_isnum(v[i])){
-				if (max == null || v[i] > max)
+				if (max == NULL || v[i] > max)
 					max = v[i];
 			}
 			else if (var_islist(v[i])){
 				var lm = mx(v[i]);
-				if (lm != null && (max == null || lm > max))
+				if (lm != NULL && (max == NULL || lm > max))
 					max = lm;
 			}
 		}
@@ -6359,17 +6498,17 @@ function lib_num_min(v){
 	var m = lib_num_min_marker++;
 	function mn(v){
 		if (v.lib_num_min_marker == m)
-			return null;
+			return NULL;
 		v.lib_num_min_marker = m;
-		var min = null;
+		var min = NULL;
 		for (var i = 0; i < v.length; i++){
 			if (var_isnum(v[i])){
-				if (min == null || v[i] < min)
+				if (min == NULL || v[i] < min)
 					min = v[i];
 			}
 			else if (var_islist(v[i])){
 				var lm = mn(v[i]);
-				if (lm != null && (min == null || lm < min))
+				if (lm != NULL && (min == NULL || lm < min))
 					min = lm;
 			}
 		}
@@ -6460,7 +6599,7 @@ function lib_rand_setstate(ctx, a, b){
 
 function lib_rand_pick(ctx, ls){
 	if (ls.length <= 0)
-		return null;
+		return NULL;
 	return ls[Math.floor(lib_rand_num(ctx) * ls.length)];
 }
 
@@ -6495,7 +6634,7 @@ function context_run(ctx){
 		if (A > ctx.lexIndex || C > ctx.lexIndex)
 			return crr_invalid();
 		X = var_get(ctx, C, D);
-		if (X == null)
+		if (X == NULL)
 			X = 0;
 		if (!oper_isnum(X)){
 			ctx.failed = true;
@@ -6513,14 +6652,14 @@ function context_run(ctx){
 		if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
 			return crr_invalid();
 		X = var_get(ctx, C, D);
-		if (X == null)
+		if (X == NULL)
 			X = 0;
 		if (!oper_isnum(X)){
 			ctx.failed = true;
 			return crr_warn(['Expecting number or list of numbers when ' + erop]);
 		}
 		Y = var_get(ctx, E, F);
-		if (Y == null)
+		if (Y == NULL)
 			Y = 0;
 		if (!oper_isnum(Y)){
 			ctx.failed = true;
@@ -6539,21 +6678,21 @@ function context_run(ctx){
 		if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
 			return crr_invalid();
 		X = var_get(ctx, C, D);
-		if (X == null)
+		if (X == NULL)
 			X = 0;
 		if (!oper_isnum(X)){
 			ctx.failed = true;
 			return crr_warn(['Expecting number or list of numbers when ' + erop]);
 		}
 		Y = var_get(ctx, E, F);
-		if (Y == null)
+		if (Y == NULL)
 			Y = 0;
 		if (!oper_isnum(Y)){
 			ctx.failed = true;
 			return crr_warn(['Expecting number or list of numbers when ' + erop]);
 		}
 		Z = var_get(ctx, G, H);
-		if (Z == null)
+		if (Z == NULL)
 			Z = 0;
 		if (!oper_isnum(Z)){
 			ctx.failed = true;
@@ -6575,7 +6714,7 @@ function context_run(ctx){
 				if (A > ctx.lexIndex)
 					return crr_invalid();
 				X = var_get(ctx, A, B);
-				if (X == null){
+				if (X == NULL){
 					ctx.passed = true;
 					return crr_exitpass();
 				}
@@ -6593,7 +6732,7 @@ function context_run(ctx){
 				if (A > ctx.lexIndex)
 					return crr_invalid();
 				X = var_get(ctx, A, B);
-				if (X == null){
+				if (X == NULL){
 					ctx.failed = true;
 					return crr_exitfail();
 				}
@@ -6642,7 +6781,7 @@ function context_run(ctx){
 				A = ops[ctx.pc++]; B = ops[ctx.pc++];
 				if (A > ctx.lexIndex)
 					return crr_invalid();
-				var_set(ctx, A, B, null);
+				var_set(ctx, A, B, NULL);
 			} break;
 
 			case OP_NUMPOS         : { // [TGT], [VALUE]
@@ -6736,7 +6875,7 @@ function context_run(ctx){
 				if (A > ctx.lexIndex || C > ctx.lexIndex)
 					return crr_invalid();
 				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, X == null ? 1 : null);
+				var_set(ctx, A, B, X == NULL ? 1 : NULL);
 			} break;
 
 			case OP_SIZE           : { // [TGT], [SRC]
@@ -6784,7 +6923,7 @@ function context_run(ctx){
 					return crr_warn(['Expecting list when shifting']);
 				}
 				if (X.length <= 0)
-					var_set(ctx, A, B, null)
+					var_set(ctx, A, B, NULL)
 				else
 					var_set(ctx, A, B, X.shift());
 			} break;
@@ -6801,7 +6940,7 @@ function context_run(ctx){
 					return crr_warn(['Expecting list when popping']);
 				}
 				if (X.length <= 0)
-					var_set(ctx, A, B, null)
+					var_set(ctx, A, B, NULL)
 				else
 					var_set(ctx, A, B, X.pop());
 			} break;
@@ -6813,7 +6952,7 @@ function context_run(ctx){
 				if (A > ctx.lexIndex || C > ctx.lexIndex)
 					return crr_invalid();
 				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, var_isnum(X) ? 1 : null);
+				var_set(ctx, A, B, var_isnum(X) ? 1 : NULL);
 			} break;
 
 			case OP_ISSTR          : { // [TGT], [SRC]
@@ -6823,7 +6962,7 @@ function context_run(ctx){
 				if (A > ctx.lexIndex || C > ctx.lexIndex)
 					return crr_invalid();
 				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, var_isstr(X) ? 1 : null);
+				var_set(ctx, A, B, var_isstr(X) ? 1 : NULL);
 			} break;
 
 			case OP_ISLIST         : { // [TGT], [SRC]
@@ -6833,7 +6972,7 @@ function context_run(ctx){
 				if (A > ctx.lexIndex || C > ctx.lexIndex)
 					return crr_invalid();
 				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, var_islist(X) ? 1 : null);
+				var_set(ctx, A, B, var_islist(X) ? 1 : NULL);
 			} break;
 
 			case OP_ADD            : { // [TGT], [SRC1], [SRC2]
@@ -6969,9 +7108,9 @@ function context_run(ctx){
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				if (var_isnum(X) && var_isnum(Y))
-					var_set(ctx, A, B, X < Y ? 1 : null);
+					var_set(ctx, A, B, X < Y ? 1 : NULL);
 				else if (var_isstr(X) && var_isstr(Y))
-					var_set(ctx, A, B, str_cmp(X, Y) < 0 ? 1 : null);
+					var_set(ctx, A, B, str_cmp(X, Y) < 0 ? 1 : NULL);
 				else{
 					ctx.failed = true;
 					return crr_warn(['Expecting numbers or strings']);
@@ -6988,9 +7127,9 @@ function context_run(ctx){
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				if (var_isnum(X) && var_isnum(Y))
-					var_set(ctx, A, B, X <= Y ? 1 : null);
+					var_set(ctx, A, B, X <= Y ? 1 : NULL);
 				else if (var_isstr(X) && var_isstr(Y))
-					var_set(ctx, A, B, str_cmp(X, Y) <= 0 ? 1 : null);
+					var_set(ctx, A, B, str_cmp(X, Y) <= 0 ? 1 : NULL);
 				else{
 					ctx.failed = true;
 					return crr_warn(['Expecting numbers or strings']);
@@ -7006,14 +7145,14 @@ function context_run(ctx){
 					return crr_invalid();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				if (X == null && Y == null)
-					var_set(ctx, A, B, null);
+				if (X == NULL && Y == NULL)
+					var_set(ctx, A, B, NULL);
 				else if (var_isnum(X) && var_isnum(Y))
-					var_set(ctx, A, B, X == Y ? null : 1);
+					var_set(ctx, A, B, X == Y ? NULL : 1);
 				else if (var_isstr(X) && var_isstr(Y))
-					var_set(ctx, A, B, str_cmp(X, Y) == 0 ? null : 1);
+					var_set(ctx, A, B, str_cmp(X, Y) == 0 ? NULL : 1);
 				else if (var_islist(X) && var_islist(Y))
-					var_set(ctx, A, B, X === Y ? null : 1);
+					var_set(ctx, A, B, X === Y ? NULL : 1);
 				else
 					var_set(ctx, A, B, 1);
 			} break;
@@ -7027,16 +7166,16 @@ function context_run(ctx){
 					return crr_invalid();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				if (X == null && Y == null)
+				if (X == NULL && Y == NULL)
 					var_set(ctx, A, B, 1);
 				else if (var_isnum(X) && var_isnum(Y))
-					var_set(ctx, A, B, X == Y ? 1 : null);
+					var_set(ctx, A, B, X == Y ? 1 : NULL);
 				else if (var_isstr(X) && var_isstr(Y))
-					var_set(ctx, A, B, str_cmp(X, Y) == 0 ? 1 : null);
+					var_set(ctx, A, B, str_cmp(X, Y) == 0 ? 1 : NULL);
 				else if (var_islist(X) && var_islist(Y))
-					var_set(ctx, A, B, X === Y ? 1 : null);
+					var_set(ctx, A, B, X === Y ? 1 : NULL);
 				else
-					var_set(ctx, A, B, null);
+					var_set(ctx, A, B, NULL);
 			} break;
 
 			case OP_GETAT          : { // [TGT], [SRC1], [SRC2]
@@ -7053,7 +7192,7 @@ function context_run(ctx){
 						if (Y < 0)
 							Y += X.length;
 						if (Y < 0 || Y >= X.length)
-							var_set(ctx, A, B, null);
+							var_set(ctx, A, B, NULL);
 						else
 							var_set(ctx, A, B, X[Y]);
 					}
@@ -7068,7 +7207,7 @@ function context_run(ctx){
 						if (Y < 0)
 							Y += X.length;
 						if (Y < 0 || Y >= X.length)
-							var_set(ctx, A, B, null);
+							var_set(ctx, A, B, NULL);
 						else
 							var_set(ctx, A, B, X.charAt(Y));
 					}
@@ -7162,7 +7301,7 @@ function context_run(ctx){
 				if (Y < 0)
 					Y += X.length;
 				while (Y >= X.length)
-					X.push(null);
+					X.push(NULL);
 				if (Y >= 0 && Y < X.length)
 					X[Y] = var_get(ctx, E, F);
 			} break;
@@ -7194,7 +7333,7 @@ function context_run(ctx){
 					Z = X.length - Y;
 
 				W = var_get(ctx, G, H);
-				if (W == null){
+				if (W == NULL){
 					if (Y >= 0 && Y < X.length)
 						X.splice(Y, Z);
 				}
@@ -7232,7 +7371,7 @@ function context_run(ctx){
 				if (A > ctx.lexIndex)
 					return crr_invalid();
 				C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
-				if (var_get(ctx, A, B) != null){
+				if (var_get(ctx, A, B) != NULL){
 					if (ctx.prg.repl && C == 0xFFFFFFFF){
 						ctx.pc -= 7;
 						return crr_repl();
@@ -7249,7 +7388,7 @@ function context_run(ctx){
 				if (A > ctx.lexIndex)
 					return crr_invalid();
 				C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
-				if (var_get(ctx, A, B) == null){
+				if (var_get(ctx, A, B) == NULL){
 					if (ctx.prg.repl && C == 0xFFFFFFFF){
 						ctx.pc -= 7;
 						return crr_repl();
@@ -7280,7 +7419,7 @@ function context_run(ctx){
 				ctx.callStack.push(ccs_new(ctx.pc, A, B, ctx.lexIndex));
 				ctx.lexIndex = ctx.lexIndex - E + 1;
 				while (ctx.lexIndex >= ctx.lexStack.length)
-					ctx.lexStack.push(null);
+					ctx.lexStack.push(NULL);
 				ctx.lexStack[ctx.lexIndex] = lxs_new(X, ctx.lexStack[ctx.lexIndex]);
 				ctx.pc = F;
 			} break;
@@ -7315,7 +7454,7 @@ function context_run(ctx){
 					ctx.failed = true;
 					return crr_warn(['Expecting list when calling say']);
 				}
-				var_set(ctx, A, B, null);
+				var_set(ctx, A, B, NULL);
 				return crr_say(X);
 			} break;
 
@@ -7330,7 +7469,7 @@ function context_run(ctx){
 					ctx.failed = true;
 					return crr_warn(['Expecting list when calling warn']);
 				}
-				var_set(ctx, A, B, null);
+				var_set(ctx, A, B, NULL);
 				return crr_warn(X);
 			} break;
 
@@ -7446,7 +7585,7 @@ function context_run(ctx){
 					ctx.failed = true;
 					return crr_warn(['Expecting number']);
 				}
-				var_set(ctx, A, B, isNaN(X) ? 1 : null);
+				var_set(ctx, A, B, isNaN(X) ? 1 : NULL);
 			} break;
 
 			case OP_NUM_ISFINITE   : { // [TGT], [SRC]
@@ -7460,7 +7599,7 @@ function context_run(ctx){
 					ctx.failed = true;
 					return crr_warn(['Expecting number']);
 				}
-				var_set(ctx, A, B, isFinite(X) ? 1 : null);
+				var_set(ctx, A, B, isFinite(X) ? 1 : NULL);
 			} break;
 
 			case OP_NUM_E          : { // [TGT]
@@ -7681,7 +7820,7 @@ function context_run(ctx){
 					return crr_warn(['Expecting number']);
 				}
 				lib_rand_seed(ctx, X);
-				var_set(ctx, A, B, null);
+				var_set(ctx, A, B, NULL);
 			} break;
 
 			case OP_RAND_SEEDAUTO  : { // [TGT]
@@ -7690,7 +7829,7 @@ function context_run(ctx){
 				if (A > ctx.lexIndex)
 					return crr_invalid();
 				lib_rand_seedauto(ctx);
-				var_set(ctx, A, B, null);
+				var_set(ctx, A, B, NULL);
 			} break;
 
 			case OP_RAND_INT       : { // [TGT]
@@ -7729,7 +7868,7 @@ function context_run(ctx){
 					return crr_warn(['Expecting list of two integers']);
 				}
 				lib_rand_setstate(ctx, X[0], X[1]);
-				var_set(ctx, A, B, null);
+				var_set(ctx, A, B, NULL);
 			} break;
 
 			case OP_RAND_PICK      : { // [TGT], [SRC]
@@ -7853,7 +7992,7 @@ function context_run(ctx){
 				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
 					return crr_invalid();
 				X = var_get(ctx, C, D);
-				if (X == null)
+				if (X == NULL)
 					X = 0;
 				else if (!var_isnum(X)){
 					ctx.failed = true;
@@ -7881,7 +8020,7 @@ function context_run(ctx){
 				}
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
-				if (Z == null)
+				if (Z == NULL)
 					Z = 0;
 				else if (!var_isnum(Z)){
 					ctx.failed = true;
@@ -7898,7 +8037,7 @@ function context_run(ctx){
 					}
 				}
 				if (!found)
-					var_set(ctx, A, B, null);
+					var_set(ctx, A, B, NULL);
 			} break;
 
 			case OP_LIST_FINDREV   : { // [TGT], [SRC1], [SRC2], [SRC3]
@@ -7916,7 +8055,7 @@ function context_run(ctx){
 				}
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
-				if (Z == null)
+				if (Z == NULL)
 					Z = X.length - 1;
 				else if (!var_isnum(Z)){
 					ctx.failed = true;
@@ -7933,7 +8072,7 @@ function context_run(ctx){
 					}
 				}
 				if (!found)
-					var_set(ctx, A, B, null);
+					var_set(ctx, A, B, NULL);
 			} break;
 
 			case OP_LIST_JOIN      : { // [TGT], [SRC1], [SRC2]
@@ -7949,7 +8088,7 @@ function context_run(ctx){
 					return crr_warn(['Expecting list for list.find']);
 				}
 				Y = var_get(ctx, E, F);
-				if (Y == null)
+				if (Y == NULL)
 					Y = '';
 				var out = [];
 				for (var i = 0; i < X.length; i++)
@@ -8051,7 +8190,7 @@ Example Usage:
 
 	processFile('./start-file');
 
-If doing a REPL, pass `true` into `compiler_new`, and push your first file as `null` for the name
+If doing a REPL, pass `true` into `compiler_new`, and push your first file as `NULL` for the name
 
 */
 
@@ -8070,7 +8209,7 @@ function compiler_new(prg){
 	symtbl_loadStdlib(sym);
 	return {
 		pr: parser_new(),
-		file: null,
+		file: NULL,
 		prg: prg,
 		sym: sym
 	};
@@ -8097,7 +8236,7 @@ function compiler_process(cmp){
 		return cma_include(cmp.file.incls[0].file);
 	var cmprs = cmp.file.cmprs;
 	for (var c = 0; c < cmprs.length; c++){
-		if (cmprs[c] == null){ // end of file
+		if (cmprs[c] == NULL){ // end of file
 			var res = parser_close(cmp.pr);
 			if (res.type == PRR_ERROR)
 				return cma_error(filepos_err(cmp.file.flp, res.msg));
@@ -8105,9 +8244,9 @@ function compiler_process(cmp){
 			// actually pop the file
 			cmp.file.cmprs = [];
 			cmp.file = cmp.file.next;
-			if (cmp.file != null && cmp.file.incls.length > 0){
+			if (cmp.file != NULL && cmp.file.incls.length > 0){
 				// assume user is finished with the next included file
-				if (cmp.file.incls[0].names != null)
+				if (cmp.file.incls[0].names != NULL)
 					symtbl_popNamespace(cmp.sym);
 				cmp.file.incls.shift();
 			}
@@ -8166,9 +8305,9 @@ function cmf_error(msg){
 }
 
 function compiler_pushFile(cmp, file){
-	if (cmp.file != null && cmp.file.incls.length > 0){
+	if (cmp.file != NULL && cmp.file.incls.length > 0){
 		// assume user is pushing the next included file
-		if (cmp.file.incls[0].names != null){
+		if (cmp.file.incls[0].names != NULL){
 			var sr = symtbl_pushNamespace(cmp.sym, cmp.file.incls[0].names);
 			if (sr.type == SPN_ERROR)
 				return cmf_error(filepos_err(cmp.file.incls[0].flp, sr.msg));
@@ -8189,7 +8328,7 @@ function compiler_popFile(cmp){
 	var tks = [];
 	lex_close(cmp.file.lx, tks);
 	cmp.file.cmprs.push(comppr_new(cmp.file.flp, tks));
-	cmp.file.cmprs.push(null); // signify EOF
+	cmp.file.cmprs.push(NULL); // signify EOF
 }
 
 function compiler_add(cmp, str){
@@ -8251,7 +8390,7 @@ var Sink = {
 		var prg = program_new(true);
 		var cmp = compiler_new(prg);
 		var ctx = context_new(prg);
-		compiler_pushFile(cmp, null);
+		compiler_pushFile(cmp, NULL);
 		var depth = 0;
 
 		function process(){
@@ -8404,7 +8543,7 @@ var Sink = {
 			die(false);
 		}
 
-		processFile(startFile, null);
+		processFile(startFile, NULL);
 	}
 };
 
