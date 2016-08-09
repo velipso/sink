@@ -3038,6 +3038,7 @@ static prr_st parser_process(parser pr, filepos_st flp){
 				parser_push(pr, PRS_LOOKUP);
 				pr->state->names = list_ptr_new(mem_free_func);
 				list_ptr_push(pr->state->names, tk1->u.ident);
+				tk1->u.ident = NULL;
 				return prr_more();
 			}
 			else if (tok_isPre(tk1) || tok_isTerm(tk1)){
@@ -3069,6 +3070,7 @@ static prr_st parser_process(parser pr, filepos_st flp){
 			if (tk1->type != TOK_IDENT)
 				return prr_error(format("Expecting identifier"));
 			list_ptr_push(st->names, tk1->u.ident);
+			tk1->u.ident = NULL;
 			st->state = PRS_LOOKUP;
 			return prr_more();
 
@@ -3110,6 +3112,7 @@ static prr_st parser_process(parser pr, filepos_st flp){
 				parser_push(pr, PRS_LOOKUP);
 				pr->state->names = list_ptr_new(mem_free_func);
 				list_ptr_push(pr->state->names, tk1->u.ident);
+				tk1->u.ident = NULL;
 				return prr_more();
 			}
 			else if (tok_isKS(tk1, KS_LBRACE)){
@@ -3125,101 +3128,115 @@ static prr_st parser_process(parser pr, filepos_st flp){
 				return prr_more();
 			}
 			return prr_error(format("Expecting variable"));
-}}
-#if 0
 
 		case PRS_LVALUES_TERM_LOOKUP:
-			st.next.exprTerm = expr_names(flp, st.names);
-			pr.state = st.next;
+			st->next->exprTerm = expr_names(flp, st->names);
+			st->names = NULL;
+			pr->state = st->next;
+			prs_free(st);
 			return parser_process(pr, flp);
 
 		case PRS_LVALUES_TERM_LIST:
-			if (tk1->type == TOK_NEWLINE && !tk1->soft)
+			if (tk1->type == TOK_NEWLINE && !tk1->u.soft)
 				return prr_more();
 			else if (tok_isKS(tk1, KS_RBRACE)){
-				st.next.exprTerm = st.exprTerm;
-				pr.state = st.next;
+				st->next->exprTerm = st->exprTerm;
+				st->exprTerm = NULL;
+				pr->state = st->next;
+				prs_free(st);
 				return prr_more();
 			}
-			st.state = PRS_LVALUES_TERM_LIST_TERM_DONE;
+			st->state = PRS_LVALUES_TERM_LIST_TERM_DONE;
 			parser_push(pr, PRS_LVALUES_TERM);
-			pr.state.lvaluesPeriods = 2;
+			pr->state->lvaluesPeriods = 2;
 			return parser_process(pr, flp);
 
 		case PRS_LVALUES_TERM_LIST_TERM_DONE:
-			if (tk1->type == TOK_NEWLINE && !tk1->soft)
+			if (tk1->type == TOK_NEWLINE && !tk1->u.soft)
 				return prr_more();
-			if (st.exprTerm2 == NULL){
-				st.exprTerm2 = st.exprTerm;
-				st.exprTerm = NULL;
+			if (st->exprTerm2 == NULL){
+				st->exprTerm2 = st->exprTerm;
+				st->exprTerm = NULL;
 			}
 			else{
-				st.exprTerm2 = expr_infix(flp, KS_COMMA, st.exprTerm2, st.exprTerm);
-				st.exprTerm = NULL;
+				st->exprTerm2 = expr_infix(flp, KS_COMMA, st->exprTerm2, st->exprTerm);
+				st->exprTerm = NULL;
 			}
 			if (tok_isKS(tk1, KS_RBRACE)){
-				st.next.exprTerm = st.exprTerm2;
-				pr.state = st.next;
+				st->next->exprTerm = st->exprTerm2;
+				st->exprTerm2 = NULL;
+				pr->state = st->next;
+				prs_free(st);
 				return prr_more();
 			}
 			else if (tok_isKS(tk1, KS_COMMA)){
 				parser_push(pr, PRS_LVALUES_TERM);
-				pr.state.lvaluesPeriods = 2;
+				pr->state->lvaluesPeriods = 2;
 				return prr_more();
 			}
-			return prr_error('Invalid list');
+			return prr_error(format("Invalid list"));
 
 		case PRS_LVALUES_TERM_LIST_TAIL:
 			if (tk1->type != TOK_IDENT)
-				return prr_error('Expecting identifier');
-			st.state = PRS_LVALUES_TERM_LIST_TAIL_LOOKUP;
+				return prr_error(format("Expecting identifier"));
+			st->state = PRS_LVALUES_TERM_LIST_TAIL_LOOKUP;
 			parser_push(pr, PRS_LOOKUP);
-			pr.state.names = [tk1->ident];
+			pr->state->names = list_ptr_new(mem_free_func);
+			list_ptr_push(pr->state->names, tk1->u.ident);
+			tk1->u.ident = NULL;
 			return prr_more();
 
 		case PRS_LVALUES_TERM_LIST_TAIL_LOOKUP:
-			if (tk1->type == TOK_NEWLINE && !tk1->soft)
+			if (tk1->type == TOK_NEWLINE && !tk1->u.soft)
 				return prr_more();
-			st.state = PRS_LVALUES_TERM_LIST_TAIL_DONE;
+			st->state = PRS_LVALUES_TERM_LIST_TAIL_DONE;
 			if (tok_isKS(tk1, KS_COMMA))
 				return prr_more();
 			return parser_process(pr, flp);
 
 		case PRS_LVALUES_TERM_LIST_TAIL_DONE:
 			if (!tok_isKS(tk1, KS_RBRACE))
-				return prr_error('Missing end of list');
-			st.next.exprTerm = expr_prefix(flp, KS_PERIOD3, expr_names(flp, st.names));
-			pr.state = st.next;
+				return prr_error(format("Missing end of list"));
+			st->next->exprTerm = expr_prefix(flp, KS_PERIOD3, expr_names(flp, st->names));
+			st->names = NULL;
+			pr->state = st->next;
+			prs_free(st);
 			return parser_process(pr, flp);
 
 		case PRS_LVALUES_TERM_LIST_DONE:
-			st.next.exprTerm = expr_list(flp, st.exprTerm);
-			pr.state = st.next;
+			st->next->exprTerm = expr_list(flp, st->exprTerm);
+			st->exprTerm = NULL;
+			pr->state = st->next;
+			prs_free(st);
 			return parser_process(pr, flp);
 
 		case PRS_LVALUES_TERM_DONE:
 			if (tk1->type == TOK_NEWLINE){
-				st.lvalues.push(expr_infix(flp, KS_EQU, st.exprTerm, NULL));
-				st.exprTerm = NULL;
-				st.next.lvalues = st.lvalues;
-				pr.state = st.next;
+				list_ptr_push(st->lvalues, expr_infix(flp, KS_EQU, st->exprTerm, NULL));
+				st->exprTerm = NULL;
+				st->next->lvalues = st->lvalues;
+				st->lvalues = NULL;
+				pr->state = st->next;
+				prs_free(st);
 				return parser_process(pr, flp);
 			}
 			else if (tok_isKS(tk1, KS_EQU)){
-				st.exprTerm2 = st.exprTerm;
-				st.exprTerm = NULL;
-				st.state = PRS_LVALUES_TERM_EXPR;
+				st->exprTerm2 = st->exprTerm;
+				st->exprTerm = NULL;
+				st->state = PRS_LVALUES_TERM_EXPR;
 				parser_push(pr, PRS_EXPR);
-				pr.state.exprAllowComma = false;
+				pr->state->exprAllowComma = false;
 				return prr_more();
 			}
 			else if (tok_isKS(tk1, KS_COMMA)){
-				st.lvalues.push(expr_infix(flp, KS_EQU, st.exprTerm, NULL));
-				st.exprTerm = NULL;
-				st.state = PRS_LVALUES_MORE;
+				list_ptr_push(st->lvalues, expr_infix(flp, KS_EQU, st->exprTerm, NULL));
+				st->exprTerm = NULL;
+				st->state = PRS_LVALUES_MORE;
 				return prr_more();
 			}
-			return prr_error('Invalid declaration');
+			return prr_error(format("Invalid declaration"));
+}}
+#if 0
 
 		case PRS_LVALUES_TERM_EXPR:
 			st.lvalues.push(expr_infix(flp, KS_EQU, st.exprTerm2, st.exprTerm));
