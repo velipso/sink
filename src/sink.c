@@ -146,6 +146,10 @@ static void mem_debug_done(){
 		debug("No memory leaks! :-)\n");
 }
 
+static void mem_free_func(void *p){
+	mem_debug_free(p, "<indirect>", 0);
+}
+
 #	define mem_alloc(s)       mem_debug_alloc(s, __FILE__, __LINE__)
 #	define mem_realloc(p, s)  mem_debug_realloc(p, s, __FILE__, __LINE__)
 #	define mem_free(p)        mem_debug_free(p, __FILE__, __LINE__)
@@ -154,6 +158,7 @@ static void mem_debug_done(){
 #	define mem_alloc(s)       mem_prod_alloc(s)
 #	define mem_realloc(p, s)  mem_prod_realloc(p, s)
 #	define mem_free(p)        mem_prod_free(p)
+#	define mem_free_func      mem_prod_free
 #	define mem_done()
 #endif
 
@@ -800,7 +805,7 @@ static inline filepos_st filepos_new(const char *file, int line, int chr){
 	return (filepos_st){ .file = file, .line = line, .chr = chr };
 }
 
-static char *filepos_err(filepos_st flp, const char *msg){
+static char *filepos_err(filepos_st flp, char *msg){
 	if (flp.file == NULL)
 		return format("%d:%d: %s", flp.line, flp.chr, msg);
 	return format("%s:%d:%d: %s", flp.file, flp.line, flp.chr, msg);
@@ -1032,149 +1037,194 @@ typedef struct {
 		list_byte ident;
 		double num;
 		list_byte str;
-		const char *msg;
+		char *msg;
 	} u;
-} tok_st;
+} tok_st, *tok;
 
-static inline tok_st tok_newline(bool soft){
-	return (tok_st){ .type = TOK_NEWLINE, .u.soft = soft };
+static void tok_free(tok tk){
+	switch (tk->type){
+		case TOK_NEWLINE:
+		case TOK_KS:
+			break;
+		case TOK_IDENT:
+			if (tk->u.ident)
+				list_byte_free(tk->u.ident);
+			break;
+		case TOK_NUM:
+			break;
+		case TOK_STR:
+			if (tk->u.str)
+				list_byte_free(tk->u.str);
+			break;
+		case TOK_ERROR:
+			if (tk->u.msg)
+				mem_free(tk->u.msg);
+			break;
+	}
+	mem_free(tk);
 }
 
-static inline tok_st tok_ks(ks_enum k){
-	return (tok_st){ .type = TOK_KS, .u.k = k };
+static inline tok tok_newline(bool soft){
+	tok tk = mem_alloc(sizeof(tok_st));
+	tk->type = TOK_NEWLINE;
+	tk->u.soft = soft;
+	return tk;
 }
 
-static inline tok_st tok_ident(list_byte ident){
-	return (tok_st){ .type = TOK_IDENT, .u.ident = ident };
+static inline tok tok_ks(ks_enum k){
+	tok tk = mem_alloc(sizeof(tok_st));
+	tk->type = TOK_KS;
+	tk->u.k = k;
+	return tk;
 }
 
-static inline tok_st tok_num(double num){
-	return (tok_st){ .type = TOK_NUM, .u.num = num };
+static inline tok tok_ident(list_byte ident){
+	tok tk = mem_alloc(sizeof(tok_st));
+	tk->type = TOK_IDENT;
+	tk->u.ident = ident;
+	return tk;
 }
 
-static inline tok_st tok_str(list_byte str){
-	return (tok_st){ .type = TOK_STR, .u.str = str };
+static inline tok tok_num(double num){
+	tok tk = mem_alloc(sizeof(tok_st));
+	tk->type = TOK_NUM;
+	tk->u.num = num;
+	return tk;
 }
 
-static inline tok_st tok_error(const char *msg){
-	return (tok_st){ .type = TOK_ERROR, .u.msg = msg };
+static inline tok tok_str(list_byte str){
+	tok tk = mem_alloc(sizeof(tok_st));
+	tk->type = TOK_STR;
+	tk->u.str = str;
+	return tk;
 }
 
-static inline bool tok_isKS(tok_st tk, ks_enum k){
-	return tk.type == TOK_KS && tk.u.k == k;
+static inline tok tok_error(char *msg){
+	tok tk = mem_alloc(sizeof(tok_st));
+	tk->type = TOK_ERROR;
+	tk->u.msg = msg;
+	return tk;
 }
 
-static inline bool tok_isPre(tok_st tk){
-	if (tk.type != TOK_KS)
+static inline bool tok_isKS(tok tk, ks_enum k){
+	return tk->type == TOK_KS && tk->u.k == k;
+}
+
+static inline bool tok_isPre(tok tk){
+	if (tk->type != TOK_KS)
 		return false;
+	ks_enum k = tk->u.k;
 	return false ||
-		tk.u.k == KS_PLUS       ||
-		tk.u.k == KS_UNPLUS     ||
-		tk.u.k == KS_MINUS      ||
-		tk.u.k == KS_UNMINUS    ||
-		tk.u.k == KS_AMP        ||
-		tk.u.k == KS_BANG       ||
-		tk.u.k == KS_PERIOD3    ||
-		tk.u.k == KS_MINUSTILDE ||
-		tk.u.k == KS_TILDEMINUS ||
-		tk.u.k == KS_TYPENUM    ||
-		tk.u.k == KS_TYPESTR    ||
-		tk.u.k == KS_TYPELIST;
+		k == KS_PLUS       ||
+		k == KS_UNPLUS     ||
+		k == KS_MINUS      ||
+		k == KS_UNMINUS    ||
+		k == KS_AMP        ||
+		k == KS_BANG       ||
+		k == KS_PERIOD3    ||
+		k == KS_MINUSTILDE ||
+		k == KS_TILDEMINUS ||
+		k == KS_TYPENUM    ||
+		k == KS_TYPESTR    ||
+		k == KS_TYPELIST;
 }
 
-static inline bool tok_isMid(tok_st tk, bool allowComma, bool allowPipe){
-	if (tk.type != TOK_KS)
+static inline bool tok_isMid(tok tk, bool allowComma, bool allowPipe){
+	if (tk->type != TOK_KS)
 		return false;
+	ks_enum k = tk->u.k;
 	return false ||
-		tk.u.k == KS_PLUS       ||
-		tk.u.k == KS_PLUSEQU    ||
-		tk.u.k == KS_MINUS      ||
-		tk.u.k == KS_MINUSEQU   ||
-		tk.u.k == KS_PERCENT    ||
-		tk.u.k == KS_PERCENTEQU ||
-		tk.u.k == KS_STAR       ||
-		tk.u.k == KS_STAREQU    ||
-		tk.u.k == KS_SLASH      ||
-		tk.u.k == KS_SLASHEQU   ||
-		tk.u.k == KS_CARET      ||
-		tk.u.k == KS_CARETEQU   ||
-		tk.u.k == KS_AT         ||
-		tk.u.k == KS_LT         ||
-		tk.u.k == KS_LTEQU      ||
-		tk.u.k == KS_GT         ||
-		tk.u.k == KS_GTEQU      ||
-		tk.u.k == KS_BANGEQU    ||
-		tk.u.k == KS_EQU        ||
-		tk.u.k == KS_EQU2       ||
-		tk.u.k == KS_TILDE      ||
-		tk.u.k == KS_TILDEEQU   ||
-		tk.u.k == KS_TILDEPLUS  ||
-		tk.u.k == KS_PLUSTILDE  ||
-		tk.u.k == KS_TILDE2PLUS ||
-		tk.u.k == KS_PLUSTILDE2 ||
-		tk.u.k == KS_AMP2       ||
-		tk.u.k == KS_PIPE2      ||
-		tk.u.k == KS_AMP2EQU    ||
-		tk.u.k == KS_PIPE2EQU   ||
-		(allowComma && tk.u.k == KS_COMMA) ||
-		(allowPipe  && tk.u.k == KS_PIPE );
+		k == KS_PLUS       ||
+		k == KS_PLUSEQU    ||
+		k == KS_MINUS      ||
+		k == KS_MINUSEQU   ||
+		k == KS_PERCENT    ||
+		k == KS_PERCENTEQU ||
+		k == KS_STAR       ||
+		k == KS_STAREQU    ||
+		k == KS_SLASH      ||
+		k == KS_SLASHEQU   ||
+		k == KS_CARET      ||
+		k == KS_CARETEQU   ||
+		k == KS_AT         ||
+		k == KS_LT         ||
+		k == KS_LTEQU      ||
+		k == KS_GT         ||
+		k == KS_GTEQU      ||
+		k == KS_BANGEQU    ||
+		k == KS_EQU        ||
+		k == KS_EQU2       ||
+		k == KS_TILDE      ||
+		k == KS_TILDEEQU   ||
+		k == KS_TILDEPLUS  ||
+		k == KS_PLUSTILDE  ||
+		k == KS_TILDE2PLUS ||
+		k == KS_PLUSTILDE2 ||
+		k == KS_AMP2       ||
+		k == KS_PIPE2      ||
+		k == KS_AMP2EQU    ||
+		k == KS_PIPE2EQU   ||
+		(allowComma && k == KS_COMMA) ||
+		(allowPipe  && k == KS_PIPE );
 }
 
-static inline bool tok_isTerm(tok_st tk){
+static inline bool tok_isTerm(tok tk){
 	return false ||
-		(tk.type == TOK_KS && (tk.u.k == KS_NIL || tk.u.k == KS_LPAREN || tk.u.k == KS_LBRACE)) ||
-		tk.type == TOK_IDENT ||
-		tk.type == TOK_NUM   ||
-		tk.type == TOK_STR;
+		(tk->type == TOK_KS &&
+			(tk->u.k == KS_NIL || tk->u.k == KS_LPAREN || tk->u.k == KS_LBRACE)) ||
+		tk->type == TOK_IDENT ||
+		tk->type == TOK_NUM   ||
+		tk->type == TOK_STR;
 }
 
-static inline bool tok_isPreBeforeMid(tok_st pre, tok_st mid){
+static inline bool tok_isPreBeforeMid(tok pre, tok mid){
 	//assert(pre.type == TOK_KS);
 	//assert(mid.type == TOK_KS);
 	// -5^2 is -25, not 25
-	if ((pre.u.k == KS_MINUS || pre.u.k == KS_UNMINUS) && mid.u.k == KS_CARET)
+	if ((pre->u.k == KS_MINUS || pre->u.k == KS_UNMINUS) && mid->u.k == KS_CARET)
 		return false;
 	// otherwise, apply the Pre first
 	return true;
 }
 
-static inline int tok_midPrecedence(tok_st tk){
+static inline int tok_midPrecedence(tok tk){
 	//assert(tk.type == TOK_KS);
-	if      (tk.u.k == KS_CARET     ) return  1;
-	else if (tk.u.k == KS_STAR      ) return  2;
-	else if (tk.u.k == KS_SLASH     ) return  2;
-	else if (tk.u.k == KS_PERCENT   ) return  2;
-	else if (tk.u.k == KS_PLUS      ) return  3;
-	else if (tk.u.k == KS_MINUS     ) return  3;
-	else if (tk.u.k == KS_TILDEPLUS ) return  4;
-	else if (tk.u.k == KS_PLUSTILDE ) return  4;
-	else if (tk.u.k == KS_TILDE2PLUS) return  5;
-	else if (tk.u.k == KS_PLUSTILDE2) return  5;
-	else if (tk.u.k == KS_TILDE     ) return  6;
-	else if (tk.u.k == KS_AT        ) return  7;
-	else if (tk.u.k == KS_LTEQU     ) return  8;
-	else if (tk.u.k == KS_LT        ) return  8;
-	else if (tk.u.k == KS_GTEQU     ) return  8;
-	else if (tk.u.k == KS_GT        ) return  8;
-	else if (tk.u.k == KS_BANGEQU   ) return  9;
-	else if (tk.u.k == KS_EQU2      ) return  9;
-	else if (tk.u.k == KS_AMP2      ) return 10;
-	else if (tk.u.k == KS_PIPE2     ) return 11;
-	else if (tk.u.k == KS_EQU       ) return 20;
-	else if (tk.u.k == KS_PLUSEQU   ) return 20;
-	else if (tk.u.k == KS_PERCENTEQU) return 20;
-	else if (tk.u.k == KS_MINUSEQU  ) return 20;
-	else if (tk.u.k == KS_STAREQU   ) return 20;
-	else if (tk.u.k == KS_SLASHEQU  ) return 20;
-	else if (tk.u.k == KS_CARETEQU  ) return 20;
-	else if (tk.u.k == KS_TILDEEQU  ) return 20;
-	else if (tk.u.k == KS_COMMA     ) return 30;
-	else if (tk.u.k == KS_PIPE      ) return 40;
+	ks_enum k = tk->u.k;
+	if      (k == KS_CARET     ) return  1;
+	else if (k == KS_STAR      ) return  2;
+	else if (k == KS_SLASH     ) return  2;
+	else if (k == KS_PERCENT   ) return  2;
+	else if (k == KS_PLUS      ) return  3;
+	else if (k == KS_MINUS     ) return  3;
+	else if (k == KS_TILDEPLUS ) return  4;
+	else if (k == KS_PLUSTILDE ) return  4;
+	else if (k == KS_TILDE2PLUS) return  5;
+	else if (k == KS_PLUSTILDE2) return  5;
+	else if (k == KS_TILDE     ) return  6;
+	else if (k == KS_AT        ) return  7;
+	else if (k == KS_LTEQU     ) return  8;
+	else if (k == KS_LT        ) return  8;
+	else if (k == KS_GTEQU     ) return  8;
+	else if (k == KS_GT        ) return  8;
+	else if (k == KS_BANGEQU   ) return  9;
+	else if (k == KS_EQU2      ) return  9;
+	else if (k == KS_AMP2      ) return 10;
+	else if (k == KS_PIPE2     ) return 11;
+	else if (k == KS_EQU       ) return 20;
+	else if (k == KS_PLUSEQU   ) return 20;
+	else if (k == KS_PERCENTEQU) return 20;
+	else if (k == KS_MINUSEQU  ) return 20;
+	else if (k == KS_STAREQU   ) return 20;
+	else if (k == KS_SLASHEQU  ) return 20;
+	else if (k == KS_CARETEQU  ) return 20;
+	else if (k == KS_TILDEEQU  ) return 20;
+	else if (k == KS_COMMA     ) return 30;
+	else if (k == KS_PIPE      ) return 40;
 	//assert(false);
 	return -1;
 }
 
-static inline bool tok_isMidBeforeMid(tok_st lmid, tok_st rmid){
+static inline bool tok_isMidBeforeMid(tok lmid, tok rmid){
 	//assert(lmid.type == TOK_KS);
 	//assert(rmid.type == TOK_KS);
 	int lp = tok_midPrecedence(lmid);
@@ -1187,39 +1237,6 @@ static inline bool tok_isMidBeforeMid(tok_st lmid, tok_st rmid){
 	if (lp == 20 || lp == 1) // mutation and pow are right to left
 		return false;
 	return true;
-}
-
-//
-// variable length list for tokens
-//
-
-typedef struct {
-	tok_st *toks;
-	int size;
-	int count;
-} list_tok_st, *list_tok;
-
-const int list_tok_grow = 200;
-
-static inline list_tok list_tok_new(){
-	list_tok tks = mem_alloc(sizeof(list_tok_st));
-	tks->size = 0;
-	tks->count = list_tok_grow;
-	tks->toks = mem_alloc(sizeof(tok_st) * tks->count);
-	return tks;
-}
-
-static void list_tok_push(list_tok tks, tok_st tk){
-	if (tks->size >= tks->count){
-		tks->count += list_tok_grow;
-		tks->toks = mem_realloc(tks->toks, sizeof(tok_st) * tks->count);
-	}
-	tks->toks[tks->size++] = tk;
-}
-
-static inline void list_tok_free(list_tok tks){
-	mem_free(tks->toks);
-	mem_free(tks);
 }
 
 //
@@ -1343,22 +1360,22 @@ static void lex_rev(lex lx){
 	lx->ch4 = 0;
 }
 
-static void lex_process(lex lx, list_tok tks){
+static void lex_process(lex lx, list_ptr tks){
 	char ch1 = lx->ch1;
 
 	switch (lx->state){
 		case LEX_START:
 			if (ch1 == '#'){
 				lx->state = LEX_COMMENT_LINE;
-				list_tok_push(tks, tok_newline(false));
+				list_ptr_push(tks, tok_newline(false));
 			}
 			else if (ks_char(ch1) != KS_INVALID){
 				if (ch1 == '}' && lx->str_depth > 0){
 					lx->str_depth--;
 					lx->str = list_byte_new();
 					lx->state = LEX_STR_INTERP;
-					list_tok_push(tks, tok_ks(KS_RPAREN));
-					list_tok_push(tks, tok_ks(KS_TILDE));
+					list_ptr_push(tks, tok_ks(KS_RPAREN));
+					list_ptr_push(tks, tok_ks(KS_TILDE));
 				}
 				else
 					lx->state = LEX_SPECIAL1;
@@ -1383,20 +1400,20 @@ static void lex_process(lex lx, list_tok tks){
 			else if (ch1 == '"'){
 				lx->str = list_byte_new();
 				lx->state = LEX_STR_INTERP;
-				list_tok_push(tks, tok_ks(KS_LPAREN));
+				list_ptr_push(tks, tok_ks(KS_LPAREN));
 			}
 			else if (ch1 == '\\')
 				lx->state = LEX_BACKSLASH;
 			else if (ch1 == '\r'){
 				lx->state = LEX_RETURN;
-				list_tok_push(tks, tok_newline(false));
+				list_ptr_push(tks, tok_newline(false));
 			}
 			else if (ch1 == '\n' || ch1 == ';')
-				list_tok_push(tks, tok_newline(ch1 == ';'));
+				list_ptr_push(tks, tok_newline(ch1 == ';'));
 			else if (isSpace(ch1))
 				/* do nothing */;
 			else
-				list_tok_push(tks, tok_error(format("Unexpected character: %c", ch1)));
+				list_ptr_push(tks, tok_error(format("Unexpected character: %c", ch1)));
 			break;
 
 		case LEX_COMMENT_LINE:
@@ -1414,7 +1431,7 @@ static void lex_process(lex lx, list_tok tks){
 			else if (ch1 == '\n')
 				lx->state = LEX_START;
 			else if (!isSpace(ch1))
-				list_tok_push(tks, tok_error(format("Invalid character after backslash")));
+				list_ptr_push(tks, tok_error(format("Invalid character after backslash")));
 			break;
 
 		case LEX_RETURN:
@@ -1447,12 +1464,12 @@ static void lex_process(lex lx, list_tok tks){
 						if (!isSpace(ch1) && isSpace(lx->ch3))
 							ks1 = KS_UNMINUS;
 					}
-					list_tok_push(tks, tok_ks(ks1));
+					list_ptr_push(tks, tok_ks(ks1));
 					lx->state = LEX_START;
 					lex_process(lx, tks);
 				}
 				else
-					list_tok_push(tks, tok_error(format("Unexpected character: %c", lx->ch2)));
+					list_ptr_push(tks, tok_error(format("Unexpected character: %c", lx->ch2)));
 			}
 			break;
 
@@ -1460,12 +1477,12 @@ static void lex_process(lex lx, list_tok tks){
 			ks_enum ks3 = ks_char3(lx->ch3, lx->ch2, ch1);
 			if (ks3 != KS_INVALID){
 				lx->state = LEX_START;
-				list_tok_push(tks, tok_ks(ks3));
+				list_ptr_push(tks, tok_ks(ks3));
 			}
 			else{
 				ks_enum ks2 = ks_char2(lx->ch3, lx->ch2);
 				if (ks2 != KS_INVALID){
-					list_tok_push(tks, tok_ks(ks2));
+					list_ptr_push(tks, tok_ks(ks2));
 					lx->state = LEX_START;
 					lex_process(lx, tks);
 				}
@@ -1481,7 +1498,7 @@ static void lex_process(lex lx, list_tok tks){
 							if (!isSpace(lx->ch2) && isSpace(lx->ch4))
 								ks1 = KS_UNMINUS;
 						}
-						list_tok_push(tks, tok_ks(ks1));
+						list_ptr_push(tks, tok_ks(ks1));
 						lx->state = LEX_START;
 						lex_rev(lx);
 						lex_process(lx, tks);
@@ -1489,7 +1506,7 @@ static void lex_process(lex lx, list_tok tks){
 						lex_process(lx, tks);
 					}
 					else
-						list_tok_push(tks, tok_error(format("Unexpected character: %c", lx->ch3)));
+						list_ptr_push(tks, tok_error(format("Unexpected character: %c", lx->ch3)));
 				}
 			}
 		} break;
@@ -1498,11 +1515,11 @@ static void lex_process(lex lx, list_tok tks){
 			if (!isIdentBody(ch1)){
 				ks_enum ksk = ks_str(lx->str);
 				if (ksk != KS_INVALID){
-					list_tok_push(tks, tok_ks(ksk));
+					list_ptr_push(tks, tok_ks(ksk));
 					list_byte_free(lx->str);
 				}
 				else
-					list_tok_push(tks, tok_ident(lx->str));
+					list_ptr_push(tks, tok_ident(lx->str));
 				lx->str = NULL;
 				lx->state = LEX_START;
 				lex_process(lx, tks);
@@ -1510,7 +1527,7 @@ static void lex_process(lex lx, list_tok tks){
 			else{
 				list_byte_push(lx->str, ch1);
 				if (lx->str->size > 1024)
-					list_tok_push(tks, tok_error(format("Identifier too long")));
+					list_ptr_push(tks, tok_error(format("Identifier too long")));
 			}
 			break;
 
@@ -1543,24 +1560,24 @@ static void lex_process(lex lx, list_tok tks){
 				lx->state = LEX_NUM_EXP;
 			}
 			else if (!isIdentStart(ch1)){
-				list_tok_push(tks, tok_num(0));
+				list_ptr_push(tks, tok_num(0));
 				lx->state = LEX_START;
 				lex_process(lx, tks);
 			}
 			else
-				list_tok_push(tks, tok_error(format("Invalid number")));
+				list_ptr_push(tks, tok_error(format("Invalid number")));
 			break;
 
 		case LEX_NUM_2:
 			if (isHex(ch1)){
 				lx->num_val = toHex(ch1);
 				if (lx->num_val > lx->num_base)
-					list_tok_push(tks, tok_error(format("Invalid number")));
+					list_ptr_push(tks, tok_error(format("Invalid number")));
 				else
 					lx->state = LEX_NUM;
 			}
 			else if (ch1 != '_')
-				list_tok_push(tks, tok_error(format("Invalid number")));
+				list_ptr_push(tks, tok_error(format("Invalid number")));
 			break;
 
 		case LEX_NUM:
@@ -1583,17 +1600,17 @@ static void lex_process(lex lx, list_tok tks){
 			else if (isHex(ch1)){
 				int v = toHex(ch1);
 				if (v > lx->num_base)
-					list_tok_push(tks, tok_error(format("Invalid number")));
+					list_ptr_push(tks, tok_error(format("Invalid number")));
 				else
 					lx->num_val = lx->num_val * lx->num_base + v;
 			}
 			else if (!isAlpha(ch1)){
-				list_tok_push(tks, tok_num(lx->num_val));
+				list_ptr_push(tks, tok_num(lx->num_val));
 				lx->state = LEX_START;
 				lex_process(lx, tks);
 			}
 			else
-				list_tok_push(tks, tok_error(format("Invalid number")));
+				list_ptr_push(tks, tok_error(format("Invalid number")));
 			break;
 
 		case LEX_NUM_FRAC:
@@ -1609,7 +1626,7 @@ static void lex_process(lex lx, list_tok tks){
 			else if (isHex(ch1)){
 				int v = toHex(ch1);
 				if (v > lx->num_base)
-					list_tok_push(tks, tok_error(format("Invalid number")));
+					list_ptr_push(tks, tok_error(format("Invalid number")));
 				else{
 					lx->num_frac = lx->num_frac * lx->num_base + v;
 					lx->num_flen++;
@@ -1617,17 +1634,17 @@ static void lex_process(lex lx, list_tok tks){
 			}
 			else if (!isAlpha(ch1)){
 				if (lx->num_flen <= 0)
-					list_tok_push(tks, tok_error(format("Invalid number")));
+					list_ptr_push(tks, tok_error(format("Invalid number")));
 				else{
 					double d = pow(lx->num_base, lx->num_flen);
 					lx->num_val = (lx->num_val * d + lx->num_frac) / d;
-					list_tok_push(tks, tok_num(lx->num_val));
+					list_ptr_push(tks, tok_num(lx->num_val));
 					lx->state = LEX_START;
 					lex_process(lx, tks);
 				}
 			}
 			else
-				list_tok_push(tks, tok_error(format("Invalid number")));
+				list_ptr_push(tks, tok_error(format("Invalid number")));
 			break;
 
 		case LEX_NUM_EXP:
@@ -1648,7 +1665,7 @@ static void lex_process(lex lx, list_tok tks){
 			}
 			else if (!isAlpha(ch1)){
 				if (lx->num_elen <= 0)
-					list_tok_push(tks, tok_error(format("Invalid number")));
+					list_ptr_push(tks, tok_error(format("Invalid number")));
 				else{
 					double e = pow(lx->num_base == 10.0 ? 10.0 : 2.0, lx->num_esign * lx->num_eval);
 					lx->num_val *= e;
@@ -1656,23 +1673,23 @@ static void lex_process(lex lx, list_tok tks){
 						double d = pow(lx->num_base, lx->num_flen);
 						lx->num_val = (lx->num_val * d + lx->num_frac * e) / d;
 					}
-					list_tok_push(tks, tok_num(lx->num_val));
+					list_ptr_push(tks, tok_num(lx->num_val));
 					lx->state = LEX_START;
 					lex_process(lx, tks);
 				}
 			}
 			else
-				list_tok_push(tks, tok_error(format("Invalid number")));
+				list_ptr_push(tks, tok_error(format("Invalid number")));
 			break;
 
 		case LEX_STR_BASIC:
 			if (ch1 == '\r' || ch1 == '\n')
-				list_tok_push(tks, tok_error(format("Missing end of string")));
+				list_ptr_push(tks, tok_error(format("Missing end of string")));
 			else if (ch1 == '\''){
 				lx->state = LEX_START;
-				list_tok_push(tks, tok_ks(KS_LPAREN));
-				list_tok_push(tks, tok_str(lx->str));
-				list_tok_push(tks, tok_ks(KS_RPAREN));
+				list_ptr_push(tks, tok_ks(KS_LPAREN));
+				list_ptr_push(tks, tok_str(lx->str));
+				list_ptr_push(tks, tok_ks(KS_RPAREN));
 				lx->str = NULL;
 			}
 			else if (ch1 == '\\')
@@ -1687,23 +1704,23 @@ static void lex_process(lex lx, list_tok tks){
 				lx->state = LEX_STR_BASIC;
 			}
 			else
-				list_tok_push(tks, tok_error(format("Invalid escape sequence: \\%c", ch1)));
+				list_ptr_push(tks, tok_error(format("Invalid escape sequence: \\%c", ch1)));
 			break;
 
 		case LEX_STR_INTERP:
 			if (ch1 == '\r' || ch1 == '\n')
-				list_tok_push(tks, tok_error(format("Missing end of string")));
+				list_ptr_push(tks, tok_error(format("Missing end of string")));
 			else if (ch1 == '"'){
 				lx->state = LEX_START;
-				list_tok_push(tks, tok_str(lx->str));
-				list_tok_push(tks, tok_ks(KS_RPAREN));
+				list_ptr_push(tks, tok_str(lx->str));
+				list_ptr_push(tks, tok_ks(KS_RPAREN));
 				lx->str = NULL;
 			}
 			else if (ch1 == '$'){
 				lx->state = LEX_STR_INTERP_DLR;
 				if (lx->str->size > 0){
-					list_tok_push(tks, tok_str(lx->str));
-					list_tok_push(tks, tok_ks(KS_TILDE));
+					list_ptr_push(tks, tok_str(lx->str));
+					list_ptr_push(tks, tok_ks(KS_TILDE));
 				}
 				else
 					list_byte_free(lx->str);
@@ -1719,7 +1736,7 @@ static void lex_process(lex lx, list_tok tks){
 			if (ch1 == '{'){
 				lx->str_depth++;
 				lx->state = LEX_START;
-				list_tok_push(tks, tok_ks(KS_LPAREN));
+				list_ptr_push(tks, tok_ks(KS_LPAREN));
 			}
 			else if (isIdentStart(ch1)){
 				lx->str = list_byte_new();
@@ -1727,24 +1744,24 @@ static void lex_process(lex lx, list_tok tks){
 				lx->state = LEX_STR_INTERP_DLR_ID;
 			}
 			else
-				list_tok_push(tks, tok_error(format("Invalid substitution")));
+				list_ptr_push(tks, tok_error(format("Invalid substitution")));
 			break;
 
 		case LEX_STR_INTERP_DLR_ID:
 			if (!isIdentBody(ch1)){
 				if (ks_str(lx->str) != KS_INVALID)
-					list_tok_push(tks, tok_error(format("Invalid substitution")));
+					list_ptr_push(tks, tok_error(format("Invalid substitution")));
 				else{
-					list_tok_push(tks, tok_ident(lx->str));
+					list_ptr_push(tks, tok_ident(lx->str));
 					if (ch1 == '"'){
 						lx->state = LEX_START;
 						lx->str = NULL;
-						list_tok_push(tks, tok_ks(KS_RPAREN));
+						list_ptr_push(tks, tok_ks(KS_RPAREN));
 					}
 					else{
 						lx->str = list_byte_new();
 						lx->state = LEX_STR_INTERP;
-						list_tok_push(tks, tok_ks(KS_TILDE));
+						list_ptr_push(tks, tok_ks(KS_TILDE));
 						lex_process(lx, tks);
 					}
 				}
@@ -1752,13 +1769,13 @@ static void lex_process(lex lx, list_tok tks){
 			else{
 				list_byte_push(lx->str, ch1);
 				if (lx->str->size > 1024)
-					list_tok_push(tks, tok_error(format("Identifier too long")));
+					list_ptr_push(tks, tok_error(format("Identifier too long")));
 			}
 			break;
 
 		case LEX_STR_INTERP_ESC:
 			if (ch1 == '\r' || ch1 == '\n')
-				list_tok_push(tks, tok_error(format("Missing end of string")));
+				list_ptr_push(tks, tok_error(format("Missing end of string")));
 			else if (ch1 == 'x'){
 				lx->str_hexval = 0;
 				lx->str_hexleft = 2;
@@ -1797,7 +1814,7 @@ static void lex_process(lex lx, list_tok tks){
 				lx->state = LEX_STR_INTERP;
 			}
 			else
-				list_tok_push(tks, tok_error(format("Invalid escape sequence: \\%c", ch1)));
+				list_ptr_push(tks, tok_error(format("Invalid escape sequence: \\%c", ch1)));
 			break;
 
 		case LEX_STR_INTERP_ESC_HEX:
@@ -1810,21 +1827,21 @@ static void lex_process(lex lx, list_tok tks){
 				}
 			}
 			else{
-				list_tok_push(tks,
+				list_ptr_push(tks,
 					tok_error(format("Invalid escape sequence; expecting hex value")));
 			}
 			break;
 	}
 }
 
-static inline void lex_add(lex lx, char ch, list_tok tks){
+static inline void lex_add(lex lx, char ch, list_ptr tks){
 	lex_fwd(lx, ch);
 	lex_process(lx, tks);
 }
 
-static void lex_close(lex lx, list_tok tks){
+static void lex_close(lex lx, list_ptr tks){
 	if (lx->str_depth > 0){
-		list_tok_push(tks, tok_error(format("Missing end of string")));
+		list_ptr_push(tks, tok_error(format("Missing end of string")));
 		return;
 	}
 	switch (lx->state){
@@ -1835,76 +1852,76 @@ static void lex_close(lex lx, list_tok tks){
 			break;
 
 		case LEX_COMMENT_BLOCK:
-			list_tok_push(tks, tok_error(format("Missing end of block comment")));
+			list_ptr_push(tks, tok_error(format("Missing end of block comment")));
 			return;
 
 		case LEX_SPECIAL1: {
 			ks_enum ks1 = ks_char(lx->ch1);
 			if (ks1 != KS_INVALID)
-				list_tok_push(tks, tok_ks(ks1));
+				list_ptr_push(tks, tok_ks(ks1));
 			else
-				list_tok_push(tks, tok_error(format("Unexpected character: %c", lx->ch1)));
+				list_ptr_push(tks, tok_error(format("Unexpected character: %c", lx->ch1)));
 		} break;
 
 		case LEX_SPECIAL2: {
 			ks_enum ks2 = ks_char2(lx->ch2, lx->ch1);
 			if (ks2 != KS_INVALID)
-				list_tok_push(tks, tok_ks(ks2));
+				list_ptr_push(tks, tok_ks(ks2));
 			else{
 				ks_enum ks1 = ks_char(lx->ch2);
 				ks2 = ks_char(lx->ch1);
 				if (ks1 != KS_INVALID){
-					list_tok_push(tks, tok_ks(ks1));
+					list_ptr_push(tks, tok_ks(ks1));
 					if (ks2 != KS_INVALID)
-						list_tok_push(tks, tok_ks(ks2));
+						list_ptr_push(tks, tok_ks(ks2));
 					else
-						list_tok_push(tks, tok_error(format("Unexpected character: %c", lx->ch1)));
+						list_ptr_push(tks, tok_error(format("Unexpected character: %c", lx->ch1)));
 				}
 				else
-					list_tok_push(tks, tok_error(format("Unexpected character: %c", lx->ch2)));
+					list_ptr_push(tks, tok_error(format("Unexpected character: %c", lx->ch2)));
 			}
 		} break;
 
 		case LEX_IDENT: {
 			ks_enum ksk = ks_str(lx->str);
 			if (ksk != KS_INVALID){
-				list_tok_push(tks, tok_ks(ksk));
+				list_ptr_push(tks, tok_ks(ksk));
 				list_byte_free(lx->str);
 			}
 			else
-				list_tok_push(tks, tok_ident(lx->str));
+				list_ptr_push(tks, tok_ident(lx->str));
 			lx->str = NULL;
 		} break;
 
 		case LEX_NUM_0:
-			list_tok_push(tks, tok_num(0));
+			list_ptr_push(tks, tok_num(0));
 			break;
 
 		case LEX_NUM_2:
-			list_tok_push(tks, tok_error(format("Invalid number")));
+			list_ptr_push(tks, tok_error(format("Invalid number")));
 			break;
 
 		case LEX_NUM:
-			list_tok_push(tks, tok_num(lx->num_val));
+			list_ptr_push(tks, tok_num(lx->num_val));
 			break;
 
 		case LEX_NUM_FRAC:
 			if (lx->num_flen <= 0)
-				list_tok_push(tks, tok_error(format("Invalid number")));
+				list_ptr_push(tks, tok_error(format("Invalid number")));
 			else{
 				double d = pow(lx->num_base, lx->num_flen);
 				lx->num_val = (lx->num_val * d + lx->num_frac) / d;
-				list_tok_push(tks, tok_num(lx->num_val));
+				list_ptr_push(tks, tok_num(lx->num_val));
 			}
 			break;
 
 		case LEX_NUM_EXP:
-			list_tok_push(tks, tok_error(format("Invalid number")));
+			list_ptr_push(tks, tok_error(format("Invalid number")));
 			break;
 
 		case LEX_NUM_EXP_BODY:
 			if (lx->num_elen <= 0)
-				list_tok_push(tks, tok_error(format("Invalid number")));
+				list_ptr_push(tks, tok_error(format("Invalid number")));
 			else{
 				double e = pow(lx->num_base == 10.0 ? 10.0 : 2.0, lx->num_esign * lx->num_eval);
 				lx->num_val *= e;
@@ -1912,7 +1929,7 @@ static void lex_close(lex lx, list_tok tks){
 					double d = pow(lx->num_base, lx->num_flen);
 					lx->num_val = (lx->num_val * d + lx->num_frac * e) / d;
 				}
-				list_tok_push(tks, tok_num(lx->num_val));
+				list_ptr_push(tks, tok_num(lx->num_val));
 			}
 			break;
 
@@ -1923,10 +1940,10 @@ static void lex_close(lex lx, list_tok tks){
 		case LEX_STR_INTERP_DLR_ID:
 		case LEX_STR_INTERP_ESC:
 		case LEX_STR_INTERP_ESC_HEX:
-			list_tok_push(tks, tok_error(format("Missing end of string")));
+			list_ptr_push(tks, tok_error(format("Missing end of string")));
 			break;
 	}
-	list_tok_push(tks, tok_newline(false));
+	list_ptr_push(tks, tok_newline(false));
 }
 
 //
@@ -2568,7 +2585,7 @@ static inline incl incl_new(filepos_st flp, list_ptr names, list_byte file){ // 
 
 typedef struct ets_struct ets_st, *ets;
 struct ets_struct {
-	tok_st tk;
+	tok tk;
 	ets next;
 };
 
@@ -2576,7 +2593,7 @@ static inline void ets_free(ets e){
 	mem_free(e);
 }
 
-static inline ets ets_new(tok_st tk, ets next){ // exprPreStack, exprMidStack
+static inline ets ets_new(tok tk, ets next){ // exprPreStack, exprMidStack
 	ets e = mem_alloc(sizeof(ets_st));
 	e->tk = tk;
 	e->next = next;
@@ -2857,9 +2874,9 @@ static prs prs_new(prs_enum state, prs next){
 
 typedef struct {
 	prs state;
-	tok_st tkR;
-	tok_st tk1;
-	tok_st tk2;
+	tok tkR;
+	tok tk1;
+	tok tk2;
 	int level;
 } parser_st, *parser;
 
@@ -2870,29 +2887,36 @@ static inline void parser_free(parser pr){
 		here = here->next;
 		prs_free(del);
 	}
+	tok_free(pr->tk1);
+	tok_free(pr->tk2);
+	tok_free(pr->tkR);
 	mem_free(pr);
 }
 
 static inline parser parser_new(){
 	parser pr = mem_alloc(sizeof(parser_st));
 	pr->state = prs_new(PRS_START, NULL);
-	pr->tkR = (tok_st){};
-	pr->tk1 = (tok_st){};
-	pr->tk2 = (tok_st){};
+	pr->tkR = NULL;
+	pr->tk1 = NULL;
+	pr->tk2 = NULL;
 	pr->level = 0;
 	return pr;
 }
 
-static inline void parser_fwd(parser pr, tok_st tk){
+static inline void parser_fwd(parser pr, tok tk){
+	if (pr->tk2)
+		tok_free(pr->tk2);
 	pr->tk2 = pr->tk1;
 	pr->tk1 = tk;
-	pr->tkR = (tok_st){};
+	pr->tkR = NULL;
 }
 
 static inline void parser_rev(parser pr){
+	if (pr->tkR)
+		tok_free(pr->tkR);
 	pr->tkR = pr->tk1;
 	pr->tk1 = pr->tk2;
-	pr->tk2 = (tok_st){};
+	pr->tk2 = NULL;
 }
 
 typedef enum {
@@ -2905,7 +2929,7 @@ typedef struct {
 	prr_enum type;
 	union {
 		ast stmt;
-		const char *msg;
+		char *msg;
 	} u;
 } prr_st;
 
@@ -2917,7 +2941,7 @@ static inline prr_st prr_statement(ast stmt){
 	return (prr_st){ .type = PRR_STATEMENT, .u.stmt = stmt };
 }
 
-static inline prr_st prr_error(const char *msg){
+static inline prr_st prr_error(char *msg){
 	return (prr_st){ .type = PRR_ERROR, .u.msg = msg };
 }
 
@@ -2943,7 +2967,7 @@ typedef struct {
 	pri_enum type;
 	union {
 		expr ex;
-		const char *msg;
+		char *msg;
 	} u;
 } pri_st;
 
@@ -2951,7 +2975,7 @@ static inline pri_st pri_ok(expr ex){
 	return (pri_st){ .type = PRI_OK, .u.ex = ex };
 }
 
-static inline pri_st pri_error(const char *msg){
+static inline pri_st pri_error(char *msg){
 	return (pri_st){ .type = PRI_ERROR, .u.msg = msg };
 }
 
@@ -2975,29 +2999,27 @@ static inline prr_st parser_start(parser pr, prs_enum state){
 	return prr_more();
 }
 
-#if 0
-
-function parser_process(pr, flp){
-	var tk1 = pr.tk1;
-	var st = pr.state;
-	switch (st.state){
+static prr_st parser_process(parser pr, filepos_st flp){
+	tok tk1 = pr->tk1;
+	prs st = pr->state;
+	switch (st->state){
 		case PRS_START:
-			st.state = PRS_START_STATEMENT;
-			st.stmt = NULL;
+			st->state = PRS_START_STATEMENT;
+			st->stmt = NULL;
 			parser_push(pr, PRS_STATEMENT);
 			return parser_process(pr, flp);
 
 		case PRS_START_STATEMENT:
-			if (st.stmt == NULL)
-				return prr_error('Invalid statement');
+			if (st->stmt == NULL)
+				return prr_error(format("Invalid statement"));
 			// all statements require a newline to terminate it... except labels
-			if (st.stmt.type != AST_LABEL && tk1.type != TOK_NEWLINE)
-				return prr_error('Missing newline or semicolon');
-			st.state = PRS_START;
-			return prr_statement(st.stmt);
+			if (st->stmt->type != AST_LABEL && tk1->type != TOK_NEWLINE)
+				return prr_error(format("Missing newline or semicolon"));
+			st->state = PRS_START;
+			return prr_statement(st->stmt);
 
 		case PRS_STATEMENT:
-			if      (tk1.type == TOK_NEWLINE    ) return prr_more();
+			if      (tk1->type == TOK_NEWLINE   ) return prr_more();
 			else if (tok_isKS(tk1, KS_BREAK    )) return parser_start(pr, PRS_BREAK    );
 			else if (tok_isKS(tk1, KS_CONTINUE )) return parser_start(pr, PRS_CONTINUE );
 			else if (tok_isKS(tk1, KS_DECLARE  )) return parser_start(pr, PRS_DECLARE  );
@@ -3011,89 +3033,100 @@ function parser_process(pr, flp){
 			else if (tok_isKS(tk1, KS_RETURN   )) return parser_start(pr, PRS_RETURN   );
 			else if (tok_isKS(tk1, KS_USING    )) return parser_start(pr, PRS_USING    );
 			else if (tok_isKS(tk1, KS_VAR      )) return parser_start(pr, PRS_VAR      );
-			else if (tk1.type == TOK_IDENT){
-				st.state = PRS_IDENTS;
+			else if (tk1->type == TOK_IDENT){
+				st->state = PRS_IDENTS;
 				parser_push(pr, PRS_LOOKUP);
-				pr.state.names = [tk1.ident];
+				pr->state->names = list_ptr_new(mem_free_func);
+				list_ptr_push(pr->state->names, tk1->u.ident);
 				return prr_more();
 			}
 			else if (tok_isPre(tk1) || tok_isTerm(tk1)){
-				pr.level++;
-				st.state = PRS_EVAL;
+				pr->level++;
+				st->state = PRS_EVAL;
 				return parser_process(pr, flp);
 			}
 			else if (tok_isKS(tk1, KS_END) || tok_isKS(tk1, KS_ELSE) || tok_isKS(tk1, KS_ELSEIF) ||
 				tok_isKS(tk1, KS_WHILE)){
 				// stmt is already NULL, so don't touch it, so we return NULL
-				pr.state = st.next;
+				pr->state = st->next;
+				prs_free(st);
 				return parser_process(pr, flp);
 			}
-			return prr_error('Invalid statement');
+			return prr_error(format("Invalid statement"));
 
 		case PRS_LOOKUP:
 			if (!tok_isKS(tk1, KS_PERIOD)){
-				st.next.names = st.names;
-				pr.state = st.next;
+				st->next->names = st->names;
+				st->names = NULL;
+				pr->state = st->next;
+				prs_free(st);
 				return parser_process(pr, flp);
 			}
-			st.state = PRS_LOOKUP_IDENT;
+			st->state = PRS_LOOKUP_IDENT;
 			return prr_more();
 
 		case PRS_LOOKUP_IDENT:
-			if (tk1.type != TOK_IDENT)
-				return prr_error('Expecting identifier');
-			st.names.push(tk1.ident);
-			st.state = PRS_LOOKUP;
+			if (tk1->type != TOK_IDENT)
+				return prr_error(format("Expecting identifier"));
+			list_ptr_push(st->names, tk1->u.ident);
+			st->state = PRS_LOOKUP;
 			return prr_more();
 
 		case PRS_BODY:
-			st.state = PRS_BODY_STATEMENT;
-			st.stmt = NULL;
+			st->state = PRS_BODY_STATEMENT;
+			st->stmt = NULL;
 			parser_push(pr, PRS_STATEMENT);
 			return parser_process(pr, flp);
 
 		case PRS_BODY_STATEMENT:
-			if (st.stmt == NULL){
-				st.next.body = st.body;
-				pr.state = st.next;
+			if (st->stmt == NULL){
+				st->next->body = st->body;
+				st->body = NULL;
+				pr->state = st->next;
+				prs_free(st);
 				return parser_process(pr, flp);
 			}
-			st.body.push(st.stmt);
-			st.stmt = NULL;
+			list_ptr_push(st->body, st->stmt);
+			st->stmt = NULL;
 			parser_push(pr, PRS_STATEMENT);
 			return prr_more();
 
 		case PRS_LVALUES:
-			if (tk1.type == TOK_NEWLINE && !tk1.soft){
-				st.next.lvalues = st.lvalues;
-				pr.state = st.next;
+			if (tk1->type == TOK_NEWLINE && !tk1->u.soft){
+				st->next->lvalues = st->lvalues;
+				st->lvalues = NULL;
+				pr->state = st->next;
+				prs_free(st);
 				return parser_process(pr, flp);
 			}
-			st.state = PRS_LVALUES_TERM_DONE;
+			st->state = PRS_LVALUES_TERM_DONE;
 			parser_push(pr, PRS_LVALUES_TERM);
-			pr.state.lvaluesPeriods = st.lvaluesPeriods;
+			pr->state->lvaluesPeriods = st->lvaluesPeriods;
 			return parser_process(pr, flp);
 
 		case PRS_LVALUES_TERM:
-			if (tk1.type == TOK_IDENT){
-				st.state = PRS_LVALUES_TERM_LOOKUP;
+			if (tk1->type == TOK_IDENT){
+				st->state = PRS_LVALUES_TERM_LOOKUP;
 				parser_push(pr, PRS_LOOKUP);
-				pr.state.names = [tk1.ident];
+				pr->state->names = list_ptr_new(mem_free_func);
+				list_ptr_push(pr->state->names, tk1->u.ident);
 				return prr_more();
 			}
 			else if (tok_isKS(tk1, KS_LBRACE)){
-				st.state = PRS_LVALUES_TERM_LIST_DONE;
+				st->state = PRS_LVALUES_TERM_LIST_DONE;
 				parser_push(pr, PRS_LVALUES_TERM_LIST);
 				return prr_more();
 			}
-			else if (st.lvaluesPeriods > 0 && tok_isKS(tk1, KS_PERIOD3)){
-				if (st.lvaluesPeriods == 1) // specifying end of a def
-					st.state = PRS_LVALUES_DEF_TAIL;
+			else if (st->lvaluesPeriods > 0 && tok_isKS(tk1, KS_PERIOD3)){
+				if (st->lvaluesPeriods == 1) // specifying end of a def
+					st->state = PRS_LVALUES_DEF_TAIL;
 				else // otherwise, specifying end of a list
-					st.state = PRS_LVALUES_TERM_LIST_TAIL;
+					st->state = PRS_LVALUES_TERM_LIST_TAIL;
 				return prr_more();
 			}
-			return prr_error('Expecting variable');
+			return prr_error(format("Expecting variable"));
+}}
+#if 0
 
 		case PRS_LVALUES_TERM_LOOKUP:
 			st.next.exprTerm = expr_names(flp, st.names);
@@ -3101,7 +3134,7 @@ function parser_process(pr, flp){
 			return parser_process(pr, flp);
 
 		case PRS_LVALUES_TERM_LIST:
-			if (tk1.type == TOK_NEWLINE && !tk1.soft)
+			if (tk1->type == TOK_NEWLINE && !tk1->soft)
 				return prr_more();
 			else if (tok_isKS(tk1, KS_RBRACE)){
 				st.next.exprTerm = st.exprTerm;
@@ -3114,7 +3147,7 @@ function parser_process(pr, flp){
 			return parser_process(pr, flp);
 
 		case PRS_LVALUES_TERM_LIST_TERM_DONE:
-			if (tk1.type == TOK_NEWLINE && !tk1.soft)
+			if (tk1->type == TOK_NEWLINE && !tk1->soft)
 				return prr_more();
 			if (st.exprTerm2 == NULL){
 				st.exprTerm2 = st.exprTerm;
@@ -3137,15 +3170,15 @@ function parser_process(pr, flp){
 			return prr_error('Invalid list');
 
 		case PRS_LVALUES_TERM_LIST_TAIL:
-			if (tk1.type != TOK_IDENT)
+			if (tk1->type != TOK_IDENT)
 				return prr_error('Expecting identifier');
 			st.state = PRS_LVALUES_TERM_LIST_TAIL_LOOKUP;
 			parser_push(pr, PRS_LOOKUP);
-			pr.state.names = [tk1.ident];
+			pr.state.names = [tk1->ident];
 			return prr_more();
 
 		case PRS_LVALUES_TERM_LIST_TAIL_LOOKUP:
-			if (tk1.type == TOK_NEWLINE && !tk1.soft)
+			if (tk1->type == TOK_NEWLINE && !tk1->soft)
 				return prr_more();
 			st.state = PRS_LVALUES_TERM_LIST_TAIL_DONE;
 			if (tok_isKS(tk1, KS_COMMA))
@@ -3165,7 +3198,7 @@ function parser_process(pr, flp){
 			return parser_process(pr, flp);
 
 		case PRS_LVALUES_TERM_DONE:
-			if (tk1.type == TOK_NEWLINE){
+			if (tk1->type == TOK_NEWLINE){
 				st.lvalues.push(expr_infix(flp, KS_EQU, st.exprTerm, NULL));
 				st.exprTerm = NULL;
 				st.next.lvalues = st.lvalues;
@@ -3192,7 +3225,7 @@ function parser_process(pr, flp){
 			st.lvalues.push(expr_infix(flp, KS_EQU, st.exprTerm2, st.exprTerm));
 			st.exprTerm2 = NULL;
 			st.exprTerm = NULL;
-			if (tk1.type == TOK_NEWLINE){
+			if (tk1->type == TOK_NEWLINE){
 				st.next.lvalues = st.lvalues;
 				pr.state = st.next;
 				return parser_process(pr, flp);
@@ -3204,7 +3237,7 @@ function parser_process(pr, flp){
 			return prr_error('Invalid declaration');
 
 		case PRS_LVALUES_MORE:
-			if (tk1.type == TOK_NEWLINE && !tk1.soft)
+			if (tk1->type == TOK_NEWLINE && !tk1->soft)
 				return prr_more();
 			st.state = PRS_LVALUES_TERM_DONE;
 			parser_push(pr, PRS_LVALUES_TERM);
@@ -3212,15 +3245,15 @@ function parser_process(pr, flp){
 			return parser_process(pr, flp);
 
 		case PRS_LVALUES_DEF_TAIL:
-			if (tk1.type != TOK_IDENT)
+			if (tk1->type != TOK_IDENT)
 				return prr_error('Expecting identifier');
 			st.state = PRS_LVALUES_DEF_TAIL_DONE;
 			parser_push(pr, PRS_LOOKUP);
-			pr.state.names = [tk1.ident];
+			pr.state.names = [tk1->ident];
 			return prr_more();
 
 		case PRS_LVALUES_DEF_TAIL_DONE:
-			if (tk1.type != TOK_NEWLINE)
+			if (tk1->type != TOK_NEWLINE)
 				return prr_error('Missing newline or semicolon');
 			st.next.names = st.names;
 			st = st.next; // pop *twice*
@@ -3241,13 +3274,13 @@ function parser_process(pr, flp){
 			return parser_process(pr, flp);
 
 		case PRS_DECLARE2:
-			if (tk1.type == TOK_NEWLINE && !tk1.soft)
+			if (tk1->type == TOK_NEWLINE && !tk1->soft)
 				return prr_more();
-			if (tk1.type != TOK_IDENT)
+			if (tk1->type != TOK_IDENT)
 				return prr_error('Expecting identifier');
 			st.state = PRS_DECLARE_LOOKUP;
 			parser_push(pr, PRS_LOOKUP);
-			pr.state.names = [tk1.ident];
+			pr.state.names = [tk1->ident];
 			return prr_more();
 
 		case PRS_DECLARE_LOOKUP:
@@ -3264,9 +3297,9 @@ function parser_process(pr, flp){
 			return parser_statement(pr, ast_declare(flp, st.decls));
 
 		case PRS_DECLARE_STR:
-			if (tk1.type != TOK_STR)
+			if (tk1->type != TOK_STR)
 				return prr_error('Expecting string constant');
-			st.decls.push(decl_native(flp, st.names, tk1.str));
+			st.decls.push(decl_native(flp, st.names, tk1->str));
 			st.state = PRS_DECLARE_STR2;
 			return prr_more();
 
@@ -3284,11 +3317,11 @@ function parser_process(pr, flp){
 			return parser_statement(pr, ast_declare(flp, st.decls));
 
 		case PRS_DEF:
-			if (tk1.type != TOK_IDENT)
+			if (tk1->type != TOK_IDENT)
 				return prr_error('Expecting identifier');
 			st.state = PRS_DEF_LOOKUP;
 			parser_push(pr, PRS_LOOKUP);
-			pr.state.names = [tk1.ident];
+			pr.state.names = [tk1->ident];
 			return prr_more();
 
 		case PRS_DEF_LOOKUP:
@@ -3337,7 +3370,7 @@ function parser_process(pr, flp){
 			return parser_statement(pr, ast_doEnd(flp, st.body));
 
 		case PRS_DO_WHILE_EXPR:
-			if (tk1.type != TOK_NEWLINE)
+			if (tk1->type != TOK_NEWLINE)
 				return prr_error('Missing newline or semicolon');
 			st.state = PRS_DO_WHILE_BODY;
 			parser_push(pr, PRS_BODY);
@@ -3354,7 +3387,7 @@ function parser_process(pr, flp){
 			return parser_statement(pr, ast_doWhile(flp, st.body2, st.exprTerm, st.body));
 
 		case PRS_FOR:
-			if (tk1.type == TOK_NEWLINE){
+			if (tk1->type == TOK_NEWLINE){
 				st.state = PRS_LOOP_BODY;
 				parser_push(pr, PRS_BODY);
 				pr.state.body = [];
@@ -3377,11 +3410,11 @@ function parser_process(pr, flp){
 			return parser_statement(pr, ast_loop(flp, st.body));
 
 		case PRS_FOR_VARS:
-			if (tk1.type != TOK_IDENT)
+			if (tk1->type != TOK_IDENT)
 				return prr_error('Expecting identifier');
 			st.state = PRS_FOR_VARS_LOOKUP;
 			parser_push(pr, PRS_LOOKUP);
-			pr.state.names = [tk1.ident];
+			pr.state.names = [tk1->ident];
 			return prr_more();
 
 		case PRS_FOR_VARS_LOOKUP:
@@ -3398,11 +3431,11 @@ function parser_process(pr, flp){
 			return prr_error('Invalid for loop');
 
 		case PRS_FOR_VARS2:
-			if (tk1.type != TOK_IDENT)
+			if (tk1->type != TOK_IDENT)
 				return prr_error('Expecting identifier');
 			st.state = PRS_FOR_VARS2_LOOKUP;
 			parser_push(pr, PRS_LOOKUP);
-			pr.state.names = [tk1.ident];
+			pr.state.names = [tk1->ident];
 			return prr_more();
 
 		case PRS_FOR_VARS2_LOOKUP:
@@ -3412,14 +3445,14 @@ function parser_process(pr, flp){
 			return prr_more();
 
 		case PRS_FOR_VARS_DONE:
-			if (tk1.type == TOK_NEWLINE)
+			if (tk1->type == TOK_NEWLINE)
 				return prr_error('Expecting expression in for statement');
 			st.state = PRS_FOR_EXPR;
 			parser_push(pr, PRS_EXPR);
 			return parser_process(pr, flp);
 
 		case PRS_FOR_EXPR:
-			if (tk1.type != TOK_NEWLINE)
+			if (tk1->type != TOK_NEWLINE)
 				return prr_error('Missing newline or semicolon');
 			st.state = PRS_FOR_BODY;
 			parser_push(pr, PRS_BODY);
@@ -3437,7 +3470,7 @@ function parser_process(pr, flp){
 				ast_for(flp, st.forVar, st.names2, st.names, st.exprTerm, st.body));
 
 		case PRS_GOTO:
-			if (tk1.type != TOK_IDENT)
+			if (tk1->type != TOK_IDENT)
 				return prr_error('Expecting identifier');
 			st.state = PRS_GOTO_DONE;
 			return prr_more();
@@ -3446,7 +3479,7 @@ function parser_process(pr, flp){
 			return parser_statement(pr, ast_goto(flp, pr.tk2.ident));
 
 		case PRS_IF:
-			if (tk1.type == TOK_NEWLINE)
+			if (tk1->type == TOK_NEWLINE)
 				return prr_error('Missing conditional expression');
 			st.state = PRS_IF_EXPR;
 			st.conds = [];
@@ -3454,7 +3487,7 @@ function parser_process(pr, flp){
 			return parser_process(pr, flp);
 
 		case PRS_IF_EXPR:
-			if (tk1.type != TOK_NEWLINE)
+			if (tk1->type != TOK_NEWLINE)
 				return prr_error('Missing newline or semicolon');
 			st.state = PRS_IF_BODY;
 			parser_push(pr, PRS_BODY);
@@ -3482,7 +3515,7 @@ function parser_process(pr, flp){
 			return prr_error('Missing `elseif`, `else`, or `end` of if block');
 
 		case PRS_ELSEIF:
-			if (tk1.type == TOK_NEWLINE)
+			if (tk1->type == TOK_NEWLINE)
 				return prr_error('Missing conditional expression');
 			st.state = PRS_IF_EXPR;
 			parser_push(pr, PRS_EXPR);
@@ -3506,12 +3539,12 @@ function parser_process(pr, flp){
 			return parser_process(pr, flp);
 
 		case PRS_INCLUDE2:
-			if (tk1.type == TOK_NEWLINE && !tk1.soft)
+			if (tk1->type == TOK_NEWLINE && !tk1->soft)
 				return prr_more();
-			else if (tk1.type == TOK_IDENT){
+			else if (tk1->type == TOK_IDENT){
 				st.state = PRS_INCLUDE_LOOKUP;
 				parser_push(pr, PRS_LOOKUP);
-				pr.state.names = [tk1.ident];
+				pr.state.names = [tk1->ident];
 				return prr_more();
 			}
 			else if (tok_isKS(tk1, KS_LPAREN)){
@@ -3527,9 +3560,9 @@ function parser_process(pr, flp){
 			return prr_more();
 
 		case PRS_INCLUDE_STR:
-			if (tk1.type != TOK_STR)
+			if (tk1->type != TOK_STR)
 				return prr_error('Expecting file as constant string literal');
-			st.str = tk1.str;
+			st.str = tk1->str;
 			st.state = PRS_INCLUDE_STR2;
 			return prr_more();
 
@@ -3548,15 +3581,15 @@ function parser_process(pr, flp){
 			return parser_statement(pr, ast_include(flp, st.incls));
 
 		case PRS_NAMESPACE:
-			if (tk1.type != TOK_IDENT)
+			if (tk1->type != TOK_IDENT)
 				return prr_error('Expecting identifier');
 			st.state = PRS_NAMESPACE_LOOKUP;
 			parser_push(pr, PRS_LOOKUP);
-			pr.state.names = [tk1.ident];
+			pr.state.names = [tk1->ident];
 			return prr_more();
 
 		case PRS_NAMESPACE_LOOKUP:
-			if (tk1.type != TOK_NEWLINE)
+			if (tk1->type != TOK_NEWLINE)
 				return prr_error('Missing newline or semicolon');
 			st.state = PRS_NAMESPACE_BODY;
 			parser_push(pr, PRS_BODY);
@@ -3573,7 +3606,7 @@ function parser_process(pr, flp){
 			return parser_statement(pr, ast_namespace(flp, st.names, st.body));
 
 		case PRS_RETURN:
-			if (tk1.type == TOK_NEWLINE)
+			if (tk1->type == TOK_NEWLINE)
 				return parser_statement(pr, ast_return(flp, expr_nil(flp)));
 			st.state = PRS_RETURN_DONE;
 			parser_push(pr, PRS_EXPR);
@@ -3583,20 +3616,20 @@ function parser_process(pr, flp){
 			return parser_statement(pr, ast_return(flp, st.exprTerm));
 
 		case PRS_USING:
-			if (tk1.type == TOK_NEWLINE)
+			if (tk1->type == TOK_NEWLINE)
 				return prr_error('Expecting identifier');
 			st.namesList = [];
 			st.state = PRS_USING2;
 			return parser_process(pr, flp);
 
 		case PRS_USING2:
-			if (tk1.type == TOK_NEWLINE && !tk1.soft)
+			if (tk1->type == TOK_NEWLINE && !tk1->soft)
 				return prr_more();
-			if (tk1.type != TOK_IDENT)
+			if (tk1->type != TOK_IDENT)
 				return prr_error('Expecting identifier');
 			st.state = PRS_USING_LOOKUP;
 			parser_push(pr, PRS_LOOKUP);
-			pr.state.names = [tk1.ident];
+			pr.state.names = [tk1->ident];
 			return prr_more();
 
 		case PRS_USING_LOOKUP:
@@ -3609,7 +3642,7 @@ function parser_process(pr, flp){
 			return parser_statement(pr, ast_using(flp, st.namesList));
 
 		case PRS_VAR:
-			if (tk1.type == TOK_NEWLINE && !tk1.soft)
+			if (tk1->type == TOK_NEWLINE && !tk1->soft)
 				return prr_more();
 			st.state = PRS_VAR_LVALUES;
 			parser_push(pr, PRS_LVALUES);
@@ -3647,27 +3680,27 @@ function parser_process(pr, flp){
 			return parser_process(pr, flp);
 
 		case PRS_EXPR_TERM:
-			if (tk1.type == TOK_NEWLINE && !tk1.soft)
+			if (tk1->type == TOK_NEWLINE && !tk1->soft)
 				return prr_more();
 			else if (tok_isKS(tk1, KS_NIL)){
 				st.state = PRS_EXPR_POST;
 				st.exprTerm = expr_nil(flp);
 				return prr_more();
 			}
-			else if (tk1.type == TOK_NUM){
+			else if (tk1->type == TOK_NUM){
 				st.state = PRS_EXPR_POST;
-				st.exprTerm = expr_num(flp, tk1.num);
+				st.exprTerm = expr_num(flp, tk1->num);
 				return prr_more();
 			}
-			else if (tk1.type == TOK_STR){
+			else if (tk1->type == TOK_STR){
 				st.state = PRS_EXPR_POST;
-				st.exprTerm = expr_str(flp, tk1.str);
+				st.exprTerm = expr_str(flp, tk1->str);
 				return prr_more();
 			}
-			else if (tk1.type == TOK_IDENT){
+			else if (tk1->type == TOK_IDENT){
 				st.state = PRS_EXPR_TERM_LOOKUP;
 				parser_push(pr, PRS_LOOKUP);
-				pr.state.names = [tk1.ident];
+				pr.state.names = [tk1->ident];
 				return prr_more();
 			}
 			else if (tok_isKS(tk1, KS_LBRACE)){
@@ -3683,7 +3716,7 @@ function parser_process(pr, flp){
 			return prr_error('Invalid expression');
 
 		case PRS_EXPR_TERM_ISEMPTYLIST:
-			if (tk1.type == TOK_NEWLINE && !tk1.soft)
+			if (tk1->type == TOK_NEWLINE && !tk1->soft)
 				return prr_more();
 			else if (tok_isKS(tk1, KS_RBRACE)){
 				st.state = PRS_EXPR_POST;
@@ -3696,7 +3729,7 @@ function parser_process(pr, flp){
 			return parser_process(pr, flp);
 
 		case PRS_EXPR_TERM_CLOSEBRACE:
-			if (tk1.type == TOK_NEWLINE && !tk1.soft)
+			if (tk1->type == TOK_NEWLINE && !tk1->soft)
 				return prr_more();
 			if (!tok_isKS(tk1, KS_RBRACE))
 				return prr_error('Expecting close brace');
@@ -3705,7 +3738,7 @@ function parser_process(pr, flp){
 			return prr_more();
 
 		case PRS_EXPR_TERM_CLOSEPAREN:
-			if (tk1.type == TOK_NEWLINE && !tk1.soft)
+			if (tk1->type == TOK_NEWLINE && !tk1->soft)
 				return prr_more();
 			if (!tok_isKS(tk1, KS_RPAREN))
 				return prr_error('Expecting close parenthesis');
@@ -3719,7 +3752,7 @@ function parser_process(pr, flp){
 			return parser_process(pr, flp);
 
 		case PRS_EXPR_POST:
-			if (tk1.type == TOK_NEWLINE){
+			if (tk1->type == TOK_NEWLINE){
 				st.state = PRS_EXPR_FINISH;
 				return parser_process(pr, flp);
 			}
@@ -3756,7 +3789,7 @@ function parser_process(pr, flp){
 			return parser_process(pr, flp);
 
 		case PRS_EXPR_INDEX_CHECK:
-			if (tk1.type == TOK_NEWLINE && !tk1.soft)
+			if (tk1->type == TOK_NEWLINE && !tk1->soft)
 				return prr_more();
 			if (tok_isKS(tk1, KS_COLON)){
 				st.state = PRS_EXPR_INDEX_COLON_CHECK;
@@ -3769,7 +3802,7 @@ function parser_process(pr, flp){
 			return parser_process(pr, flp);
 
 		case PRS_EXPR_INDEX_COLON_CHECK:
-			if (tk1.type == TOK_NEWLINE && !tk1.soft)
+			if (tk1->type == TOK_NEWLINE && !tk1->soft)
 				return prr_more();
 			if (tok_isKS(tk1, KS_RBRACKET)){
 				st.exprTerm = expr_slice(flp, st.exprTerm, NULL, NULL);
@@ -3783,7 +3816,7 @@ function parser_process(pr, flp){
 			return parser_process(pr, flp);
 
 		case PRS_EXPR_INDEX_COLON_EXPR:
-			if (tk1.type == TOK_NEWLINE && !tk1.soft)
+			if (tk1->type == TOK_NEWLINE && !tk1->soft)
 				return prr_more();
 			if (!tok_isKS(tk1, KS_RBRACKET))
 				return prr_error('Missing close bracket');
@@ -3792,7 +3825,7 @@ function parser_process(pr, flp){
 			return prr_more();
 
 		case PRS_EXPR_INDEX_EXPR_CHECK:
-			if (tk1.type == TOK_NEWLINE && !tk1.soft)
+			if (tk1->type == TOK_NEWLINE && !tk1->soft)
 				return prr_more();
 			if (tok_isKS(tk1, KS_COLON)){
 				st.state = PRS_EXPR_INDEX_EXPR_COLON_CHECK;
@@ -3806,7 +3839,7 @@ function parser_process(pr, flp){
 			return prr_more();
 
 		case PRS_EXPR_INDEX_EXPR_COLON_CHECK:
-			if (tk1.type == TOK_NEWLINE && !tk1.soft)
+			if (tk1->type == TOK_NEWLINE && !tk1->soft)
 				return prr_more();
 			if (tok_isKS(tk1, KS_RBRACKET)){
 				st.exprTerm = expr_slice(flp, st.exprTerm2, st.exprTerm, NULL);
@@ -3820,7 +3853,7 @@ function parser_process(pr, flp){
 			return parser_process(pr, flp);
 
 		case PRS_EXPR_INDEX_EXPR_COLON_EXPR:
-			if (tk1.type == TOK_NEWLINE && !tk1.soft)
+			if (tk1->type == TOK_NEWLINE && !tk1->soft)
 				return prr_more();
 			if (!tok_isKS(tk1, KS_RBRACKET))
 				return prr_error('Missing close bracket');
@@ -3831,7 +3864,7 @@ function parser_process(pr, flp){
 			return prr_more();
 
 		case PRS_EXPR_COMMA:
-			if (tk1.type == TOK_NEWLINE && !tk1.soft){
+			if (tk1->type == TOK_NEWLINE && !tk1->soft){
 				parser_rev(pr); // keep the comma in tk1
 				return prr_more();
 			}
