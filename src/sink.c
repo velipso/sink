@@ -190,7 +190,12 @@ typedef struct {
 
 const static int list_byte_grow = 200;
 
-static list_byte list_byte_new(){
+static inline void list_byte_free(list_byte b){
+	mem_free(b->bytes);
+	mem_free(b);
+}
+
+static inline list_byte list_byte_new(){
 	list_byte b = mem_alloc(sizeof(list_byte_st));
 	b->size = 0;
 	b->count = list_byte_grow;
@@ -298,11 +303,6 @@ static inline void list_byte_push10(list_byte b, int v1, int v2, int v3, int v4,
 	b->bytes[b->size++] = (uint8_t)v10;
 }
 
-static inline void list_byte_free(list_byte b){
-	mem_free(b->bytes);
-	mem_free(b);
-}
-
 static bool byteequ(list_byte b, const char *str){
 	int i;
 	for (i = 0; str[i] != 0; i++){
@@ -312,6 +312,35 @@ static bool byteequ(list_byte b, const char *str){
 			return false;
 	}
 	return b->size == i;
+}
+
+typedef struct {
+	int_fast32_t *vals;
+	int size;
+	int count;
+} list_int_st, *list_int;
+
+const int list_int_grow = 200;
+
+static inline void list_int_free(list_int ls){
+	mem_free(ls->vals);
+	mem_free(ls);
+}
+
+static inline list_int list_int_new(){
+	list_int ls = mem_alloc(sizeof(list_int_st));
+	ls->size = 0;
+	ls->count = list_int_grow;
+	ls->vals = mem_alloc(sizeof(int_fast32_t) * ls->count);
+	return ls;
+}
+
+static inline void list_int_push(list_int ls, int_fast32_t v){
+	if (ls->size >= ls->count){
+		ls->count += list_int_grow;
+		ls->vals = mem_realloc(ls->vals, sizeof(int_fast32_t) * ls->count);
+	}
+	ls->vals[ls->size++] = v;
 }
 
 typedef void (*free_func)(void *p);
@@ -721,8 +750,8 @@ static inline void op_splice(list_byte b, varloc_st src1, varloc_st src2, varloc
 		src3.fdiff, src3.index, src4.fdiff, src4.index);
 }
 
-static inline void op_jump(list_byte b, uint32_t index, const char *hint){
-	debugf("> JUMP %s\n", hint);
+static inline void op_jump(list_byte b, uint32_t index, list_byte hint){
+	debugf("> JUMP %.*s\n", hint->size, hint->bytes);
 	list_byte_push5(b, OP_JUMP,
 		index % 256,
 		(index >> 8) % 256,
@@ -730,8 +759,8 @@ static inline void op_jump(list_byte b, uint32_t index, const char *hint){
 		(index >> 24) % 256);
 }
 
-static inline void op_jumpTrue(list_byte b, varloc_st src, uint32_t index, const char *hint){
-	debugf("> JUMPTRUE %d:%d, %s\n", src.fdiff, src.index, hint);
+static inline void op_jumpTrue(list_byte b, varloc_st src, uint32_t index, list_byte hint){
+	debugf("> JUMPTRUE %d:%d, %.*s\n", src.fdiff, src.index, hint->size, hint->bytes);
 	list_byte_push7(b, OP_JUMPTRUE, src.fdiff, src.index,
 		index % 256,
 		(index >> 8) % 256,
@@ -739,8 +768,8 @@ static inline void op_jumpTrue(list_byte b, varloc_st src, uint32_t index, const
 		(index >> 24) % 256);
 }
 
-static inline void op_jumpFalse(list_byte b, varloc_st src, uint32_t index, const char *hint){
-	debugf("> JUMPFALSE %d:%d, %s\n", src.fdiff, src.index, hint);
+static inline void op_jumpFalse(list_byte b, varloc_st src, uint32_t index, list_byte hint){
+	debugf("> JUMPFALSE %d:%d, %.*s\n", src.fdiff, src.index, hint->size, hint->bytes);
 	list_byte_push7(b, OP_JUMPFALSE, src.fdiff, src.index,
 		index % 256,
 		(index >> 8) % 256,
@@ -749,8 +778,9 @@ static inline void op_jumpFalse(list_byte b, varloc_st src, uint32_t index, cons
 }
 
 static inline void op_call(list_byte b, varloc_st ret, varloc_st arg, int level, uint32_t index,
-	const char *hint){
-	debugf("> CALL %d:%d, %d:%d, %d, %s\n", ret.fdiff, ret.index, arg.fdiff, arg.index, level, hint);
+	list_byte hint){
+	debugf("> CALL %d:%d, %d:%d, %d, %.*s\n", ret.fdiff, ret.index, arg.fdiff, arg.index, level,
+		hint->size, hint->bytes);
 	list_byte_push10(b, OP_CALL, ret.fdiff, ret.index, arg.fdiff, arg.index, level,
 		index % 256,
 		(index >> 8) % 256,
@@ -4087,18 +4117,16 @@ static prr_st parser_process(parser pr, filepos_st flp){
 	}
 }
 
-#if 0
-
-function parser_add(pr, tk, flp){
+static inline prr_st parser_add(parser pr, tok tk, filepos_st flp){
 	parser_fwd(pr, tk);
 	return parser_process(pr, flp);
 }
 
-function parser_close(pr){
-	if (pr.state.state != PRS_STATEMENT ||
-		pr.state.next == NULL ||
-		pr.state.next.state != PRS_START_STATEMENT)
-		return prr_error('Invalid end of file');
+static inline prr_st parser_close(parser pr){
+	if (pr->state->state != PRS_STATEMENT ||
+		pr->state->next == NULL ||
+		pr->state->next->state != PRS_START_STATEMENT)
+		return prr_error(format("Invalid end of file"));
 	return prr_more();
 }
 
@@ -4106,57 +4134,71 @@ function parser_close(pr){
 // labels
 //
 
-function label_new(name){
-	return {
-		name: name,
-		pos: -1,
-		rewrites: []
-	};
+typedef struct {
+	list_byte name;
+	int_fast32_t pos;
+	list_int rewrites;
+} label_st, *label;
+
+static inline void label_free(label lbl){
+	list_byte_free(lbl->name);
+	list_int_free(lbl->rewrites);
+	mem_free(lbl);
 }
 
-function label_refresh(lbl, ops, start){
-	for (var i = start; i < lbl.rewrites.length; i++){
-		var index = lbl.rewrites[i];
-		ops[index + 0] = lbl.pos % 256;
-		ops[index + 1] = Math.floor(lbl.pos /     0x100) % 256;
-		ops[index + 2] = Math.floor(lbl.pos /   0x10000) % 256;
-		ops[index + 3] = Math.floor(lbl.pos / 0x1000000) % 256;
+static inline label label_new(list_byte name){
+	label lbl = mem_alloc(sizeof(label_st));
+	lbl->name = name;
+	lbl->pos = -1;
+	lbl->rewrites = list_int_new();
+	return lbl;
+}
+
+static void label_refresh(label lbl, list_byte ops, int start){
+	for (int i = start; i < lbl->rewrites->size; i++){
+		int_fast32_t index = lbl->rewrites->vals[i];
+		ops->bytes[index + 0] = lbl->pos % 256;
+		ops->bytes[index + 1] = (lbl->pos >> 8) % 256;
+		ops->bytes[index + 2] = (lbl->pos >> 16) % 256;
+		ops->bytes[index + 3] = (lbl->pos >> 24) % 256;
 	}
 }
 
-function label_jump(lbl, ops){
-	op_jump(ops, 0xFFFFFFFF, lbl.name);
-	lbl.rewrites.push(ops.length - 4);
-	if (lbl.pos >= 0)
-		label_refresh(lbl, ops, lbl.rewrites.length - 1);
+static inline void label_jump(label lbl, list_byte ops){
+	op_jump(ops, 0xFFFFFFFF, lbl->name);
+	list_int_push(lbl->rewrites, ops->size - 4);
+	if (lbl->pos >= 0)
+		label_refresh(lbl, ops, lbl->rewrites->size - 1);
 }
 
-function label_jumpTrue(lbl, ops, src){
-	op_jumpTrue(ops, src, 0xFFFFFFFF, lbl.name);
-	lbl.rewrites.push(ops.length - 4);
-	if (lbl.pos >= 0)
-		label_refresh(lbl, ops, lbl.rewrites.length - 1);
+static inline void label_jumpTrue(label lbl, list_byte ops, varloc_st src){
+	op_jumpTrue(ops, src, 0xFFFFFFFF, lbl->name);
+	list_int_push(lbl->rewrites, ops->size - 4);
+	if (lbl->pos >= 0)
+		label_refresh(lbl, ops, lbl->rewrites->size - 1);
 }
 
-function label_jumpFalse(lbl, ops, src){
-	op_jumpFalse(ops, src, 0xFFFFFFFF, lbl.name);
-	lbl.rewrites.push(ops.length - 4);
-	if (lbl.pos >= 0)
-		label_refresh(lbl, ops, lbl.rewrites.length - 1);
+static inline void label_jumpFalse(label lbl, list_byte ops, varloc_st src){
+	op_jumpFalse(ops, src, 0xFFFFFFFF, lbl->name);
+	list_int_push(lbl->rewrites, ops->size - 4);
+	if (lbl->pos >= 0)
+		label_refresh(lbl, ops, lbl->rewrites->size - 1);
 }
 
-function label_call(lbl, ops, ret, arg, level){
-	op_call(ops, ret, arg, level, 0xFFFFFFFF, lbl.name);
-	lbl.rewrites.push(ops.length - 4);
-	if (lbl.pos >= 0)
-		label_refresh(lbl, ops, lbl.rewrites.length - 1);
+static inline void label_call(label lbl, list_byte ops, varloc_st ret, varloc_st arg, int level){
+	op_call(ops, ret, arg, level, 0xFFFFFFFF, lbl->name);
+	list_int_push(lbl->rewrites, ops->size - 4);
+	if (lbl->pos >= 0)
+		label_refresh(lbl, ops, lbl->rewrites->size - 1);
 }
 
-function label_declare(lbl, ops){
-	oplog(lbl.name + ':');
-	lbl.pos = ops.length;
+static inline void label_declare(label lbl, list_byte ops){
+	debugf("%.*s:\n", lbl->name->size, lbl->name->bytes);
+	lbl->pos = ops->size;
 	label_refresh(lbl, ops, 0);
 }
+
+#if 0
 
 //
 // symbol table

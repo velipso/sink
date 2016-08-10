@@ -2763,6 +2763,7 @@ function parser_process(pr, flp){
 					st.exprPreStackStack = st.exprPreStackStack.next;
 					st.exprMidStack = st.exprMidStack.next;
 					// TODO: shouldn't I do st.exprStack = st.exprStack.next?
+					// BUGFIX
 				}
 				else // otherwise, the current Mid wins
 					break;
