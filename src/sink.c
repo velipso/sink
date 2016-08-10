@@ -4198,28 +4198,42 @@ static inline void label_declare(label lbl, list_byte ops){
 	label_refresh(lbl, ops, 0);
 }
 
-#if 0
-
 //
 // symbol table
 //
 
-var FVR_VAR        = 'FVR_VAR';
-var FVR_TEMP_INUSE = 'FVR_TEMP_INUSE';
-var FVR_TEMP_AVAIL = 'FVR_TEMP_AVAIL';
+typedef enum {
+	FVR_VAR,
+	FVR_TEMP_INUSE,
+	FVR_TEMP_AVAIL
+} frame_enum;
 
-function frame_new(parent){
-	return {
-		vars: [FVR_VAR], // first frame variable reserved for arguments
-		lbls: [],
-		parent: parent
-	};
+typedef struct frame_struct frame_st, *frame;
+struct frame_struct {
+	list_int vars;
+	list_ptr lbls;
+	frame parent;
+};
+
+static inline void frame_free(frame fr){
+	list_int_free(fr->vars);
+	list_ptr_free(fr->lbls);
+	mem_free(fr);
 }
 
-function frame_diff(parent, child){
-	var fdiff = 0;
+static inline frame frame_new(frame parent){
+	frame fr = mem_alloc(sizeof(frame_st));
+	fr->vars = list_int_new();
+	list_int_push(fr->vars, FVR_VAR);
+	fr->lbls = list_ptr_new((free_func)label_free);
+	fr->parent = parent;
+	return fr;
+}
+
+static inline int frame_diff(frame parent, frame child){
+	int fdiff = 0;
 	while (child != parent && child != NULL){
-		child = child.parent;
+		child = child->parent;
 		fdiff++;
 	}
 	if (child == NULL)
@@ -4227,73 +4241,152 @@ function frame_diff(parent, child){
 	return fdiff;
 }
 
-var NSN_VAR        = 'NSN_VAR';
-var NSN_CMD_LOCAL  = 'NSN_CMD_LOCAL';
-var NSN_CMD_NATIVE = 'NSN_CMD_NATIVE';
-var NSN_CMD_OPCODE = 'NSN_CMD_OPCODE';
-var NSN_NAMESPACE  = 'NSN_NAMESPACE';
+typedef struct namespace_struct namespace_st, *namespace;
+static inline void namespace_free(namespace ns);
 
-function nsname_var(name, fr, index){
-	return {
-		name: name,
-		type: NSN_VAR,
-		fr: fr,
-		index: index
-	};
+typedef enum {
+	NSN_VAR,
+	NSN_CMD_LOCAL,
+	NSN_CMD_NATIVE,
+	NSN_CMD_OPCODE,
+	NSN_NAMESPACE
+} nsname_enum;
+
+typedef struct {
+	list_byte name;
+	nsname_enum type;
+	union {
+		struct {
+			frame fr;
+			int index;
+		} var;
+		struct {
+			frame fr;
+			label lbl;
+		} cmdLocal;
+		int index;
+		struct {
+			op_enum opcode;
+			int params;
+		} cmdOpcode;
+		namespace ns;
+	} u;
+} nsname_st, *nsname;
+
+static void nsname_free(nsname nsn){
+	switch (nsn->type){
+		case NSN_VAR:
+			if (nsn->u.var.fr)
+				frame_free(nsn->u.var.fr);
+			break;
+		case NSN_CMD_LOCAL:
+			if (nsn->u.cmdLocal.fr)
+				frame_free(nsn->u.cmdLocal.fr);
+			if (nsn->u.cmdLocal.lbl)
+				label_free(nsn->u.cmdLocal.lbl);
+			break;
+		case NSN_CMD_NATIVE:
+			break;
+		case NSN_CMD_OPCODE:
+			break;
+		case NSN_NAMESPACE:
+			if (nsn->u.ns)
+				namespace_free(nsn->u.ns);
+			break;
+	}
+	mem_free(nsn);
 }
 
-function nsname_cmdLocal(name, fr, lbl){
-	return {
-		name: name,
-		type: NSN_CMD_LOCAL,
-		fr: fr,
-		lbl: lbl
-	};
+static inline nsname nsname_var(list_byte name, frame fr, int index){
+	nsname nsn = mem_alloc(sizeof(nsname_st));
+	nsn->name = name;
+	nsn->type = NSN_VAR;
+	nsn->u.var.fr = fr;
+	nsn->u.var.index = index;
+	return nsn;
 }
 
-function nsname_cmdNative(name, index){
-	return {
-		name: name,
-		type: NSN_CMD_NATIVE,
-		index: index
-	};
+static inline nsname nsname_cmdLocal(list_byte name, frame fr, label lbl){
+	nsname nsn = mem_alloc(sizeof(nsname_st));
+	nsn->name = name;
+	nsn->type = NSN_CMD_LOCAL;
+	nsn->u.cmdLocal.fr = fr;
+	nsn->u.cmdLocal.lbl = lbl;
+	return nsn;
 }
 
-function nsname_cmdOpcode(name, opcode, params){
-	return {
-		name: name,
-		type: NSN_CMD_OPCODE,
-		opcode: opcode,
-		params: params
-	};
+static inline nsname nsname_cmdNative(list_byte name, int index){
+	nsname nsn = mem_alloc(sizeof(nsname_st));
+	nsn->name = name;
+	nsn->type = NSN_CMD_NATIVE;
+	nsn->u.index = index;
+	return nsn;
 }
 
-function nsname_namespace(name, ns){
-	return {
-		name: name,
-		type: NSN_NAMESPACE,
-		ns: ns
-	};
+static inline nsname nsname_cmdOpcode(list_byte name, op_enum opcode, int params){
+	nsname nsn = mem_alloc(sizeof(nsname_st));
+	nsn->name = name;
+	nsn->type = NSN_CMD_OPCODE;
+	nsn->u.cmdOpcode.opcode = opcode;
+	nsn->u.cmdOpcode.params = params;
+	return nsn;
 }
 
-function namespace_new(fr){
-	return {
-		fr: fr,
-		usings: [],
-		names: []
-	};
+static inline nsname nsname_namespace(list_byte name, namespace ns){
+	nsname nsn = mem_alloc(sizeof(nsname_st));
+	nsn->name = name;
+	nsn->type = NSN_NAMESPACE;
+	nsn->u.ns = ns;
+	return nsn;
 }
 
-function scope_new(fr, lblBreak, lblContinue, parent){
-	var ns = namespace_new(fr);
-	return {
-		ns: ns,
-		nsStack: [ns],
-		lblBreak: lblBreak,
-		lblContinue: lblContinue,
-		parent: parent
-	};
+struct namespace_struct {
+	frame fr; // not freed by namespace_free
+	list_ptr usings;
+	list_ptr names;
+};
+
+static inline void namespace_free(namespace ns){
+	list_ptr_free(ns->usings);
+	list_ptr_free(ns->names);
+	mem_free(ns);
 }
+
+static inline namespace namespace_new(frame fr){
+	namespace ns = mem_alloc(sizeof(namespace_st));
+	ns->fr = fr;
+	ns->usings = list_ptr_new((free_func)namespace_free);
+	ns->names = list_ptr_new((free_func)nsname_free);
+	return ns;
+}
+
+typedef struct scope_struct scope_st, *scope;
+struct scope_struct {
+	namespace ns;
+	list_ptr nsStack;
+	label lblBreak; // not freed by scope_free
+	label lblContinue; // not freed by scope_free
+	scope parent;
+};
+
+static inline void scope_free(scope sc){
+	namespace_free(sc->ns);
+	list_ptr_free(sc->nsStack);
+	mem_free(sc);
+}
+
+static inline scope scope_new(frame fr, label lblBreak, label lblContinue, scope parent){
+	scope sc = mem_alloc(sizeof(scope_st));
+	sc->ns = namespace_new(fr);
+	sc->nsStack = list_ptr_new((free_func)namespace_free);
+	list_ptr_push(sc->nsStack, sc->ns);
+	sc->lblBreak = lblBreak;
+	sc->lblContinue = lblContinue;
+	sc->parent = parent;
+	return sc;
+}
+
+#if 0
 
 function symtbl_new(repl){
 	var fr = frame_new(NULL);
