@@ -2620,7 +2620,7 @@ function parser_process(pr, flp){
 				return prr_more();
 			}
 			else if (tok_isMid(tk1, st.exprAllowComma, st.exprAllowPipe)){
-				if (st.exprAllowTrailComma && tok_isKS(pr, KS_COMMA)){
+				if (st.exprAllowTrailComma && tok_isKS(tk1, KS_COMMA)){
 					st.state = PRS_EXPR_COMMA;
 					return prr_more();
 				}
@@ -2754,7 +2754,7 @@ function parser_process(pr, flp){
 				// if we've exhaused the exprPreStack, then check against the exprMidStack
 				if (st.exprPreStack == null && st.exprMidStack != null &&
 					tok_isMidBeforeMid(st.exprMidStack.tk, tk1)){
-					// apply the previous mMid
+					// apply the previous Mid
 					var pri = parser_infix(flp, st.exprMidStack.tk.k, st.exprStack.ex, st.exprTerm)
 					if (pri.type == PRI_ERROR)
 						return prr_error(pri.msg);
@@ -2762,6 +2762,7 @@ function parser_process(pr, flp){
 					st.exprPreStack = st.exprPreStackStack.ets;
 					st.exprPreStackStack = st.exprPreStackStack.next;
 					st.exprMidStack = st.exprMidStack.next;
+					// TODO: shouldn't I do st.exprStack = st.exprStack.next?
 				}
 				else // otherwise, the current Mid wins
 					break;
