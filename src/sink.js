@@ -3367,12 +3367,37 @@ function symtbl_loadStdlib(sym){
 function program_new(repl){
 	return {
 		repl: repl,
-		initFrameSize: 0,
 		strTable: [],
 		numTable: [],
 		keyTable: [],
 		ops: []
 	};
+}
+
+var PER_OK    = 'PER_OK';
+var PER_ERROR = 'PER_ERROR';
+
+function per_ok(vlc){
+	return { type: PER_OK, vlc: vlc };
+}
+
+function per_error(flp, msg){
+	return { type: PER_ERROR, flp: flp, msg: msg };
+}
+
+var PEM_EMPTY  = 'PEM_EMPTY';
+var PEM_CREATE = 'PEM_CREATE';
+var PEM_INTO   = 'PEM_INTO';
+
+var PSR_OK    = 'PSR_OK';
+var PSR_ERROR = 'PSR_ERROR';
+
+function psr_ok(start, len){
+	return { type: PSR_OK, start: start, len: len };
+}
+
+function psr_error(flp, msg){
+	return { type: PSR_ERROR, flp: flp, msg: msg };
 }
 
 var LVR_VAR    = 'LVR_VAR';
@@ -3395,6 +3420,9 @@ function lvr_slice(flp, obj, start, len){
 function lvr_list(flp, body, rest){
 	return { flp: flp, vlc: null, type: LVR_LIST, body: body, rest: rest };
 }
+
+var PLM_CREATE = 'PLM_CREATE';
+var PLM_INTO   = 'PLM_INTO';
 
 var LVP_OK    = 'LVP_OK';
 var LVP_ERROR = 'LVP_ERROR';
@@ -3457,84 +3485,76 @@ function lval_addVars(sym, ex){
 }
 
 function lval_prepare(prg, sym, ex){
-	switch (ex.type){
-		case EXPR_NAMES: {
-			var sl = symtbl_lookup(sym, ex.names);
-			if (sl.type == STL_ERROR)
-				return lvp_error(ex.flp, sl.msg);
-			if (sl.nsn.type != NSN_VAR)
-				return lvp_error(ex.flp, 'Invalid assignment');
-			return lvp_ok(lvr_var(ex.flp, varloc_new(frame_diff(sl.nsn.fr, sym.fr), sl.nsn.index)));
-		} break;
+	if (ex.type == EXPR_NAMES){
+		var sl = symtbl_lookup(sym, ex.names);
+		if (sl.type == STL_ERROR)
+			return lvp_error(ex.flp, sl.msg);
+		if (sl.nsn.type != NSN_VAR)
+			return lvp_error(ex.flp, 'Invalid assignment');
+		return lvp_ok(lvr_var(ex.flp, varloc_new(frame_diff(sl.nsn.fr, sym.fr), sl.nsn.index)));
+	}
+	else if (ex.type == EXPR_INDEX){
+		var le = lval_prepare(prg, sym, ex.obj);
+		if (le.type == LVP_ERROR)
+			return le;
+		var pe = program_eval(prg, sym, PEM_CREATE, null, ex.key);
+		if (pe.type == PER_ERROR)
+			return lvp_error(pe.flp, pe.msg);
+		return lvp_ok(lvr_index(ex.flp, le.lv, pe.vlc));
+	}
+	else if (ex.type == EXPR_SLICE){
+		var le = lval_prepare(prg, sym, ex.obj);
+		if (le.type == LVP_ERROR)
+			return le;
 
-		case EXPR_INDEX: {
-			var le = lval_prepare(prg, sym, ex.obj);
-			if (le.type == LVP_ERROR)
-				return le;
-			var pe = program_eval(prg, sym, PEM_CREATE, null, ex.key);
-			if (pe.type == PER_ERROR)
-				return lvp_error(pe.flp, pe.msg);
-			return lvp_ok(lvr_index(ex.flp, le.lv, pe.vlc));
-		} break;
+		var pe = program_lvalGet(prg, sym, PLM_CREATE, null, le.lv);
+		if (pe.type == PER_ERROR)
+			return lvp_error(pe.flp, pe.msg);
 
-		case EXPR_SLICE: {
-			var le = lval_prepare(prg, sym, ex.obj);
-			if (le.type == LVP_ERROR)
-				return le;
+		var sr = program_slice(prg, sym, pe.vlc, ex);
+		if (sr.type == PSR_ERROR)
+			return lvp_error(sr.flp, sr.msg);
 
-			var pe = program_lvalGet(prg, sym, PLM_CREATE, null, le.lv);
-			if (pe.type == PER_ERROR)
-				return lvp_error(pe.flp, pe.msg);
-
-			var sr = program_slice(prg, sym, pe.vlc, ex);
-			if (sr.type == PSR_ERROR)
-				return lvp_error(sr.flp, sr.msg);
-
-			return lvp_ok(lvr_slice(ex.flp, le.lv, sr.start, sr.len));
-		} break;
-
-		case EXPR_LIST: {
-			var body = [];
-			var rest = null;
-			if (ex === null)
-				/* do nothing */;
-			else if (ex.ex.type == EXPR_GROUP){
-				for (var i = 0; i < ex.ex.group.length; i++){
-					var gex = ex.ex.group[i];
-					if (i == ex.ex.group.length - 1 && gex.type == EXPR_PREFIX &&
-						gex.k == KS_PERIOD3){
-						var lp = lval_prepare(prg, sym, gex.ex);
-						if (lp.type == LVP_ERROR)
-							return lp;
-						rest = lp.lv;
-					}
-					else{
-						var lp = lval_prepare(prg, sym, gex);
-						if (lp.type == LVP_ERROR)
-							return lp;
-						body.push(lp.lv);
-					}
-				}
-			}
-			else{
-				if (ex.ex.type == EXPR_PREFIX && ex.ex.k == KS_PERIOD3){
-					var lp = lval_prepare(prg, sym, ex.ex.ex);
+		return lvp_ok(lvr_slice(ex.flp, le.lv, sr.start, sr.len));
+	}
+	else if (ex.type == EXPR_LIST){
+		var body = [];
+		var rest = null;
+		if (ex.ex === null)
+			/* do nothing */;
+		else if (ex.ex.type == EXPR_GROUP){
+			for (var i = 0; i < ex.ex.group.length; i++){
+				var gex = ex.ex.group[i];
+				if (i == ex.ex.group.length - 1 && gex.type == EXPR_PREFIX &&
+					gex.k == KS_PERIOD3){
+					var lp = lval_prepare(prg, sym, gex.ex);
 					if (lp.type == LVP_ERROR)
 						return lp;
 					rest = lp.lv;
 				}
 				else{
-					var lp = lval_prepare(prg, sym, ex.ex);
+					var lp = lval_prepare(prg, sym, gex);
 					if (lp.type == LVP_ERROR)
 						return lp;
 					body.push(lp.lv);
 				}
 			}
-			return lvp_ok(lvr_list(ex.flp, body, rest));
-		} break;
-
-		default:
-			throw new Error('Invalid lval_prepare type');
+		}
+		else{
+			if (ex.ex.type == EXPR_PREFIX && ex.ex.k == KS_PERIOD3){
+				var lp = lval_prepare(prg, sym, ex.ex.ex);
+				if (lp.type == LVP_ERROR)
+					return lp;
+				rest = lp.lv;
+			}
+			else{
+				var lp = lval_prepare(prg, sym, ex.ex);
+				if (lp.type == LVP_ERROR)
+					return lp;
+				body.push(lp.lv);
+			}
+		}
+		return lvp_ok(lvr_list(ex.flp, body, rest));
 	}
 	return lvp_error(ex.flp, 'Invalid assignment');
 }
@@ -3624,7 +3644,7 @@ function program_evalLval(prg, sym, mode, intoVlc, lv, mutop, valueVlc){
 			}
 
 			if (lv.rest != null){
-				var ts = symtbl_addTemp(sym);
+				ts = symtbl_addTemp(sym);
 				if (ts.type == STA_ERROR)
 					return per_error(lv.flp, ts.msg);
 				var t2 = ts.vlc;
@@ -3633,7 +3653,7 @@ function program_evalLval(prg, sym, mode, intoVlc, lv, mutop, valueVlc){
 				op_rest(prg.ops, t2, valueVlc, t);
 				op_slice(prg.ops, t, valueVlc, t, t2);
 				symtbl_clearTemp(sym, t2);
-				pe = program_evalLval(prg, sym, PEM_EMPTY, null, lv.rest, mutop, t);
+				var pe = program_evalLval(prg, sym, PEM_EMPTY, null, lv.rest, mutop, t);
 				if (pe.type == PER_ERROR)
 					return pe;
 			}
@@ -3658,17 +3678,6 @@ function program_evalLval(prg, sym, mode, intoVlc, lv, mutop, valueVlc){
 		return pe;
 	lval_clearTemps(lv, sym);
 	return per_ok(intoVlc);
-}
-
-var PSR_OK    = 'PSR_OK';
-var PSR_ERROR = 'PSR_ERROR';
-
-function psr_ok(start, len){
-	return { type: PSR_OK, start: start, len: len };
-}
-
-function psr_error(flp, msg){
-	return { type: PSR_ERROR, flp: flp, msg: msg };
 }
 
 function program_slice(prg, sym, obj, ex){
@@ -3704,20 +3713,6 @@ function program_slice(prg, sym, obj, ex){
 
 	return psr_ok(start, len);
 }
-
-var PER_OK    = 'PER_OK';
-var PER_ERROR = 'PER_ERROR';
-
-function per_ok(vlc){
-	return { type: PER_OK, vlc: vlc };
-}
-
-function per_error(flp, msg){
-	return { type: PER_ERROR, flp: flp, msg: msg };
-}
-
-var PLM_CREATE = 'PLM_CREATE';
-var PLM_INTO   = 'PLM_INTO';
 
 function program_lvalGet(prg, sym, mode, intoVlc, lv){
 	if (lv.vlc != null){
@@ -3773,10 +3768,6 @@ function program_lvalGet(prg, sym, mode, intoVlc, lv){
 
 	return per_ok(intoVlc);
 }
-
-var PEM_EMPTY  = 'PEM_EMPTY';
-var PEM_CREATE = 'PEM_CREATE';
-var PEM_INTO   = 'PEM_INTO';
 
 function program_evalCall_checkList(prg, sym, flp, vlc){
 	var ts = symtbl_addTemp(sym);

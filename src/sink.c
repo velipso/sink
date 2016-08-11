@@ -428,6 +428,35 @@ static void list_ptr_free(list_ptr ls){
 	mem_free(ls);
 }
 
+typedef struct {
+	double *vals;
+	int size;
+	int count;
+} list_double_st, *list_double;
+
+static const int list_double_grow = 200;
+
+static inline void list_double_free(list_double ls){
+	mem_free(ls->vals);
+	mem_free(ls);
+}
+
+static inline list_double list_double_new(){
+	list_double ls = mem_alloc(sizeof(list_double_st));
+	ls->size = 0;
+	ls->count = list_double_grow;
+	ls->vals = mem_alloc(sizeof(double) * ls->count);
+	return ls;
+}
+
+static inline void list_double_push(list_double ls, double v){
+	if (ls->size >= ls->count){
+		ls->count += list_double_grow;
+		ls->vals = mem_realloc(ls->vals, sizeof(double) * ls->count);
+	}
+	ls->vals[ls->size++] = v;
+}
+
 // Values are jammed into NaNs, like so:
 //
 // NaN (64 bit):
@@ -476,6 +505,8 @@ typedef struct {
 static inline varloc_st varloc_new(int fdiff, int index){
 	return (varloc_st){ .fdiff = fdiff, .index = index };
 }
+
+static const varloc_st VARLOC_NULL = (varloc_st){ .fdiff = -1 };
 
 //
 // opcodes
@@ -4904,281 +4935,438 @@ static inline void symtbl_loadStdlib(symtbl sym){
 		SAC(sym, "val"       , OP_PICKLE_VAL    ,  1);
 	symtbl_popNamespace(sym);
 }
-#if 0
+
 //
 // program
 //
 
-function program_new(repl){
-	return {
-		repl: repl,
-		initFrameSize: 0,
-		strTable: [],
-		numTable: [],
-		keyTable: [],
-		ops: []
-	};
+typedef struct {
+	list_ptr strTable;
+	list_double numTable;
+	list_ptr keyTable;
+	list_byte ops;
+	bool repl;
+} program_st, *program;
+
+static inline void program_free(program prg){
+	list_ptr_free(prg->strTable);
+	list_double_free(prg->numTable);
+	list_ptr_free(prg->keyTable);
+	list_byte_free(prg->ops);
+	mem_free(prg);
 }
 
-var LVR_VAR    = 'LVR_VAR';
-var LVR_INDEX  = 'LVR_INDEX';
-var LVR_SLICE  = 'LVR_SLICE';
-var LVR_LIST   = 'LVR_LIST';
-
-function lvr_var(flp, vlc){
-	return { flp: flp, vlc: vlc, type: LVR_VAR };
+static inline program program_new(bool repl){
+	program prg = mem_alloc(sizeof(program_st));
+	prg->strTable = list_ptr_new(mem_free_func);
+	prg->numTable = list_double_new();
+	prg->keyTable = list_ptr_new(mem_free_func);
+	prg->ops = list_byte_new();
+	prg->repl = repl;
+	return prg;
 }
 
-function lvr_index(flp, obj, key){
-	return { flp: flp, vlc: NULL, type: LVR_INDEX, obj: obj, key: key };
+typedef enum {
+	PER_OK,
+	PER_ERROR
+} per_enum;
+
+typedef struct {
+	per_enum type;
+	union {
+		varloc_st vlc;
+		struct {
+			filepos_st flp;
+			char *msg;
+		} error;
+	} u;
+} per_st;
+
+static inline per_st per_ok(varloc_st vlc){
+	return (per_st){ .type = PER_OK, .u.vlc = vlc };
 }
 
-function lvr_slice(flp, obj, start, len){
-	return { flp: flp, vlc: NULL, type: LVR_SLICE, obj: obj, start: start, len: len };
+static inline per_st per_error(filepos_st flp, char *msg){
+	return (per_st){ .type = PER_ERROR, .u.error.flp = flp, .u.error.msg = msg };
 }
 
-function lvr_list(flp, body, rest){
-	return { flp: flp, vlc: NULL, type: LVR_LIST, body: body, rest: rest };
+typedef enum {
+	PEM_EMPTY,
+	PEM_CREATE,
+	PEM_INTO
+} pem_enum;
+
+static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st intoVlc, expr ex);
+
+typedef enum {
+	PSR_OK,
+	PSR_ERROR
+} psr_enum;
+
+typedef struct {
+	psr_enum type;
+	union {
+		struct {
+			varloc_st start;
+			varloc_st len;
+		} ok;
+		struct {
+			filepos_st flp;
+			char *msg;
+		} error;
+	} u;
+} psr_st;
+
+static inline psr_st psr_ok(varloc_st start, varloc_st len){
+	return (psr_st){ .type = PSR_OK, .u.ok.start = start, .u.ok.len = len };
 }
 
-var LVP_OK    = 'LVP_OK';
-var LVP_ERROR = 'LVP_ERROR';
-
-function lvp_ok(lv){
-	return { type: LVP_OK, lv: lv };
+static inline psr_st psr_error(filepos_st flp, char *msg){
+	return (psr_st){ .type = PSR_ERROR, .u.error.flp = flp, .u.error.msg = msg };
 }
 
-function lvp_error(flp, msg){
-	return { type: LVP_ERROR, flp: flp, msg: msg };
-}
+static psr_st program_slice(program prg, symtbl sym, varloc_st obj, expr ex);
 
-function lval_addVars(sym, ex){
-	if (ex.type == EXPR_NAMES){
-		var sr = symtbl_addVar(sym, ex.names);
-		if (sr.type == STA_ERROR)
-			return lvp_error(ex.flp, sr.msg);
-		return lvp_ok(lvr_var(ex.flp, sr.vlc));
+typedef enum {
+	LVR_VAR,
+	LVR_INDEX,
+	LVR_SLICE,
+	LVR_LIST
+} lvr_enum;
+
+typedef struct lvr_struct lvr_st, *lvr;
+struct lvr_struct {
+	filepos_st flp;
+	varloc_st vlc;
+	lvr_enum type;
+	union {
+		struct {
+			lvr obj;
+			varloc_st key;
+		} index;
+		struct {
+			lvr obj;
+			varloc_st start;
+			varloc_st len;
+		} slice;
+		struct {
+			list_ptr body;
+			lvr rest;
+		} list;
+	} u;
+};
+
+static inline void lvr_free(lvr lv){
+	switch (lv->type){
+		case LVR_VAR:
+			break;
+		case LVR_INDEX:
+			lvr_free(lv->u.index.obj);
+			break;
+		case LVR_SLICE:
+			lvr_free(lv->u.slice.obj);
+			break;
+		case LVR_LIST:
+			list_ptr_free(lv->u.list.body);
+			lvr_free(lv->u.list.rest);
+			break;
 	}
-	else if (ex.type == EXPR_LIST){
-		if (ex.ex == NULL)
-			return lvp_error(ex.flp, 'Invalid assignment');
-		var body = [];
-		var rest = NULL;
-		if (ex.ex.type == EXPR_GROUP){
-			for (var i = 0; i < ex.ex.group.length; i++){
-				var gex = ex.ex.group[i];
-				if (i == ex.ex.group.length - 1 && gex.type == EXPR_PREFIX &&
-					gex.k == KS_PERIOD3){
-					var lp = lval_addVars(sym, gex.ex);
+	mem_free(lv);
+}
+
+static inline lvr lvr_var(filepos_st flp, varloc_st vlc){
+	lvr lv = mem_alloc(sizeof(lvr_st));
+	lv->flp = flp;
+	lv->vlc = vlc;
+	lv->type = LVR_VAR;
+	return lv;
+}
+
+static inline lvr lvr_index(filepos_st flp, lvr obj, varloc_st key){
+	lvr lv = mem_alloc(sizeof(lvr_st));
+	lv->flp = flp;
+	lv->vlc = VARLOC_NULL;
+	lv->type = LVR_INDEX;
+	lv->u.index.obj = obj;
+	lv->u.index.key = key;
+	return lv;
+}
+
+static inline lvr lvr_slice(filepos_st flp, lvr obj, varloc_st start, varloc_st len){
+	lvr lv = mem_alloc(sizeof(lvr_st));
+	lv->flp = flp;
+	lv->vlc = VARLOC_NULL;
+	lv->type = LVR_SLICE;
+	lv->u.slice.obj = obj;
+	lv->u.slice.start = start;
+	lv->u.slice.len = len;
+	return lv;
+}
+
+static inline lvr lvr_list(filepos_st flp, list_ptr body, lvr rest){
+	lvr lv = mem_alloc(sizeof(lvr_st));
+	lv->flp = flp;
+	lv->vlc = VARLOC_NULL;
+	lv->type = LVR_LIST;
+	lv->u.list.body = body;
+	lv->u.list.rest = rest;
+	return lv;
+}
+
+typedef enum {
+	PLM_CREATE,
+	PLM_INTO
+} plm_enum;
+
+static per_st program_lvalGet(program prg, symtbl sym, plm_enum mode, varloc_st intoVlc, lvr lv);
+
+typedef enum {
+	LVP_OK,
+	LVP_ERROR
+} lvp_enum;
+
+typedef struct {
+	lvp_enum type;
+	union {
+		lvr lv;
+		struct {
+			filepos_st flp;
+			char *msg;
+		} error;
+	} u;
+} lvp_st;
+
+static inline lvp_st lvp_ok(lvr lv){
+	return (lvp_st){ .type = LVP_OK, .u.lv = lv };
+}
+
+static inline lvp_st lvp_error(filepos_st flp, char *msg){
+	return (lvp_st){ .type = LVP_ERROR, .u.error.flp = flp, .u.error.msg = msg };
+}
+
+static lvp_st lval_addVars(symtbl sym, expr ex){
+	if (ex->type == EXPR_NAMES){
+		sta_st sr = symtbl_addVar(sym, ex->u.names);
+		if (sr.type == STA_ERROR)
+			return lvp_error(ex->flp, sr.u.msg);
+		return lvp_ok(lvr_var(ex->flp, sr.u.vlc));
+	}
+	else if (ex->type == EXPR_LIST){
+		if (ex->u.ex == NULL)
+			return lvp_error(ex->flp, format("Invalid assignment"));
+		list_ptr body = list_ptr_new((free_func)lvr_free);
+		lvr rest = NULL;
+		if (ex->u.ex->type == EXPR_GROUP){
+			for (int i = 0; i < ex->u.ex->u.group->size; i++){
+				expr gex = ex->u.ex->u.group->ptrs[i];
+				if (i == ex->u.ex->u.group->size - 1 && gex->type == EXPR_PREFIX &&
+					gex->u.prefix.k == KS_PERIOD3){
+					lvp_st lp = lval_addVars(sym, gex->u.prefix.ex);
 					if (lp.type == LVP_ERROR)
 						return lp;
-					rest = lp.lv;
+					rest = lp.u.lv;
 				}
 				else{
-					var lp = lval_addVars(sym, gex);
+					lvp_st lp = lval_addVars(sym, gex);
 					if (lp.type == LVP_ERROR)
 						return lp;
-					body.push(lp.lv);
+					list_ptr_push(body, lp.u.lv);
 				}
 			}
 		}
 		else{
-			if (ex.ex.type == EXPR_PREFIX && ex.ex.k == KS_PERIOD3){
-				var lp = lval_addVars(sym, ex.ex.ex);
+			if (ex->u.ex->type == EXPR_PREFIX && ex->u.ex->u.prefix.k == KS_PERIOD3){
+				lvp_st lp = lval_addVars(sym, ex->u.ex->u.ex);
 				if (lp.type == LVP_ERROR)
 					return lp;
-				rest = lp.lv;
+				rest = lp.u.lv;
 			}
 			else{
-				var lp = lval_addVars(sym, ex.ex);
+				lvp_st lp = lval_addVars(sym, ex->u.ex);
 				if (lp.type == LVP_ERROR)
 					return lp;
-				body.push(lp.lv);
+				list_ptr_push(body, lp.u.lv);
 			}
 		}
-		return lvp_ok(lvr_list(ex.flp, body, rest));
+		return lvp_ok(lvr_list(ex->flp, body, rest));
 	}
-	return lvp_error(ex.flp, 'Invalid assignment');
+	return lvp_error(ex->flp, format("Invalid assignment"));
 }
 
-function lval_prepare(prg, sym, ex){
-	switch (ex.type){
-		case EXPR_NAMES: {
-			var sl = symtbl_lookup(sym, ex.names);
-			if (sl.type == STL_ERROR)
-				return lvp_error(ex.flp, sl.msg);
-			if (sl.nsn.type != NSN_VAR)
-				return lvp_error(ex.flp, 'Invalid assignment');
-			return lvp_ok(lvr_var(ex.flp, varloc_new(frame_diff(sl.nsn.fr, sym.fr), sl.nsn.index)));
-		} break;
+static lvp_st lval_prepare(program prg, symtbl sym, expr ex){
+	if (ex->type == EXPR_NAMES){
+		stl_st sl = symtbl_lookup(sym, ex->u.names);
+		if (sl.type == STL_ERROR)
+			return lvp_error(ex->flp, sl.u.msg);
+		if (sl.u.nsn->type != NSN_VAR)
+			return lvp_error(ex->flp, format("Invalid assignment"));
+		return lvp_ok(lvr_var(ex->flp,
+			varloc_new(frame_diff(sl.u.nsn->u.var.fr, sym->fr), sl.u.nsn->u.var.index)));
+	}
+	else if (ex->type == EXPR_INDEX){
+		lvp_st le = lval_prepare(prg, sym, ex->u.index.obj);
+		if (le.type == LVP_ERROR)
+			return le;
+		per_st pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, ex->u.index.key);
+		if (pe.type == PER_ERROR)
+			return lvp_error(pe.u.error.flp, pe.u.error.msg);
+		return lvp_ok(lvr_index(ex->flp, le.u.lv, pe.u.vlc));
+	}
+	else if (ex->type == EXPR_SLICE){
+		lvp_st le = lval_prepare(prg, sym, ex->u.slice.obj);
+		if (le.type == LVP_ERROR)
+			return le;
 
-		case EXPR_INDEX: {
-			var le = lval_prepare(prg, sym, ex.obj);
-			if (le.type == LVP_ERROR)
-				return le;
-			var pe = program_eval(prg, sym, PEM_CREATE, NULL, ex.key);
-			if (pe.type == PER_ERROR)
-				return lvp_error(pe.flp, pe.msg);
-			return lvp_ok(lvr_index(ex.flp, le.lv, pe.vlc));
-		} break;
+		per_st pe = program_lvalGet(prg, sym, PLM_CREATE, VARLOC_NULL, le.u.lv);
+		if (pe.type == PER_ERROR)
+			return lvp_error(pe.u.error.flp, pe.u.error.msg);
 
-		case EXPR_SLICE: {
-			var le = lval_prepare(prg, sym, ex.obj);
-			if (le.type == LVP_ERROR)
-				return le;
+		psr_st sr = program_slice(prg, sym, pe.u.vlc, ex);
+		if (sr.type == PSR_ERROR)
+			return lvp_error(sr.u.error.flp, sr.u.error.msg);
 
-			var pe = program_lvalGet(prg, sym, PLM_CREATE, NULL, le.lv);
-			if (pe.type == PER_ERROR)
-				return lvp_error(pe.flp, pe.msg);
-
-			var sr = program_slice(prg, sym, pe.vlc, ex);
-			if (sr.type == PSR_ERROR)
-				return lvp_error(sr.flp, sr.msg);
-
-			return lvp_ok(lvr_slice(ex.flp, le.lv, sr.start, sr.len));
-		} break;
-
-		case EXPR_LIST: {
-			var body = [];
-			var rest = NULL;
-			if (ex === NULL)
-				/* do nothing */;
-			else if (ex.ex.type == EXPR_GROUP){
-				for (var i = 0; i < ex.ex.group.length; i++){
-					var gex = ex.ex.group[i];
-					if (i == ex.ex.group.length - 1 && gex.type == EXPR_PREFIX &&
-						gex.k == KS_PERIOD3){
-						var lp = lval_prepare(prg, sym, gex.ex);
-						if (lp.type == LVP_ERROR)
-							return lp;
-						rest = lp.lv;
-					}
-					else{
-						var lp = lval_prepare(prg, sym, gex);
-						if (lp.type == LVP_ERROR)
-							return lp;
-						body.push(lp.lv);
-					}
-				}
-			}
-			else{
-				if (ex.ex.type == EXPR_PREFIX && ex.ex.k == KS_PERIOD3){
-					var lp = lval_prepare(prg, sym, ex.ex.ex);
+		return lvp_ok(lvr_slice(ex->flp, le.u.lv, sr.u.ok.start, sr.u.ok.len));
+	}
+	else if (ex->type == EXPR_LIST){
+		list_ptr body = list_ptr_new((free_func)lvr_free);
+		lvr rest = NULL;
+		if (ex->u.ex == NULL)
+			/* do nothing */;
+		else if (ex->u.ex->type == EXPR_GROUP){
+			for (int i = 0; i < ex->u.ex->u.group->size; i++){
+				expr gex = ex->u.ex->u.group->ptrs[i];
+				if (i == ex->u.ex->u.group->size - 1 && gex->type == EXPR_PREFIX &&
+					gex->u.prefix.k == KS_PERIOD3){
+					lvp_st lp = lval_prepare(prg, sym, gex->u.ex);
 					if (lp.type == LVP_ERROR)
 						return lp;
-					rest = lp.lv;
+					rest = lp.u.lv;
 				}
 				else{
-					var lp = lval_prepare(prg, sym, ex.ex);
+					lvp_st lp = lval_prepare(prg, sym, gex);
 					if (lp.type == LVP_ERROR)
 						return lp;
-					body.push(lp.lv);
+					list_ptr_push(body, lp.u.lv);
 				}
 			}
-			return lvp_ok(lvr_list(ex.flp, body, rest));
-		} break;
-
-		default:
-			throw new Error('Invalid lval_prepare type');
+		}
+		else{
+			if (ex->u.ex->type == EXPR_PREFIX && ex->u.ex->u.prefix.k == KS_PERIOD3){
+				lvp_st lp = lval_prepare(prg, sym, ex->u.ex->u.ex);
+				if (lp.type == LVP_ERROR)
+					return lp;
+				rest = lp.u.lv;
+			}
+			else{
+				lvp_st lp = lval_prepare(prg, sym, ex->u.ex);
+				if (lp.type == LVP_ERROR)
+					return lp;
+				list_ptr_push(body, lp.u.lv);
+			}
+		}
+		return lvp_ok(lvr_list(ex->flp, body, rest));
 	}
-	return lvp_error(ex.flp, 'Invalid assignment');
+	return lvp_error(ex->flp, format("Invalid assignment"));
 }
 
-function lval_clearTemps(lv, sym){
-	if (lv.type != LVR_VAR && lv.vlc != NULL){
-		symtbl_clearTemp(sym, lv.vlc);
-		lv.vlc = NULL;
+static void lval_clearTemps(lvr lv, symtbl sym){
+	if (lv->type != LVR_VAR && lv->vlc.fdiff >= 0){
+		symtbl_clearTemp(sym, lv->vlc);
+		lv->vlc = VARLOC_NULL;
 	}
-	switch (lv.type){
+	switch (lv->type){
 		case LVR_VAR:
 			return;
 		case LVR_INDEX:
-			lval_clearTemps(lv.obj, sym);
-			symtbl_clearTemp(sym, lv.key);
+			lval_clearTemps(lv->u.index.obj, sym);
+			symtbl_clearTemp(sym, lv->u.index.key);
 			return;
 		case LVR_SLICE:
-			lval_clearTemps(lv.obj, sym);
-			symtbl_clearTemp(sym, lv.start);
-			symtbl_clearTemp(sym, lv.len);
+			lval_clearTemps(lv->u.slice.obj, sym);
+			symtbl_clearTemp(sym, lv->u.slice.start);
+			symtbl_clearTemp(sym, lv->u.slice.len);
 			return;
 		case LVR_LIST:
-			for (var i = 0; i < lv.body.length; i++)
-				lval_clearTemps(lv.body[i], sym);
-			if (lv.rest != NULL)
-				lval_clearTemps(lv.rest, sym);
+			for (int i = 0; i < lv->u.list.body->size; i++)
+				lval_clearTemps(lv->u.list.body->ptrs[i], sym);
+			if (lv->u.list.rest != NULL)
+				lval_clearTemps(lv->u.list.rest, sym);
 			return;
 	}
-	throw new Error('Invalid LVR in lval_clearTemps');
 }
 
-function program_evalLval(prg, sym, mode, intoVlc, lv, mutop, valueVlc){
+static per_st program_evalLval(program prg, symtbl sym, pem_enum mode, varloc_st intoVlc, lvr lv,
+	op_enum mutop, varloc_st valueVlc){
 	// first, perform the assignment of valueVlc into lv
-	switch (lv.type){
+	switch (lv->type){
 		case LVR_VAR:
-			if (mutop < 0)
-				op_move(prg.ops, lv.vlc, valueVlc);
+			if (mutop == OP_INVALID)
+				op_move(prg->ops, lv->vlc, valueVlc);
 			else
-				op_binop(prg.ops, mutop, lv.vlc, lv.vlc, valueVlc);
+				op_binop(prg->ops, mutop, lv->vlc, lv->vlc, valueVlc);
 			break;
 
 		case LVR_INDEX: {
-			var pe = program_lvalGet(prg, sym, PLM_CREATE, NULL, lv.obj);
+			per_st pe = program_lvalGet(prg, sym, PLM_CREATE, VARLOC_NULL, lv->u.index.obj);
 			if (pe.type == PER_ERROR)
 				return pe;
-			if (mutop < 0)
-				op_setat(prg.ops, pe.vlc, lv.key, valueVlc);
+			if (mutop == OP_INVALID)
+				op_setat(prg->ops, pe.u.vlc, lv->u.index.key, valueVlc);
 			else{
-				pe = program_lvalGet(prg, sym, PLM_CREATE, NULL, lv);
+				pe = program_lvalGet(prg, sym, PLM_CREATE, VARLOC_NULL, lv);
 				if (pe.type == PER_ERROR)
 					return pe;
-				op_binop(prg.ops, mutop, pe.vlc, pe.vlc, valueVlc);
-				op_setat(prg.ops, lv.obj.vlc, lv.key, pe.vlc);
+				op_binop(prg->ops, mutop, pe.u.vlc, pe.u.vlc, valueVlc);
+				op_setat(prg->ops, lv->u.index.obj->vlc, lv->u.index.key, pe.u.vlc);
 			}
 		} break;
 
 		case LVR_SLICE: {
-			var pe = program_lvalGet(prg, sym, PLM_CREATE, NULL, lv.obj);
+			per_st pe = program_lvalGet(prg, sym, PLM_CREATE, VARLOC_NULL, lv->u.slice.obj);
 			if (pe.type == PER_ERROR)
 				return pe;
-			if (mutop < 0)
-				op_splice(prg.ops, pe.vlc, lv.start, lv.len, valueVlc);
+			if (mutop == OP_INVALID)
+				op_splice(prg->ops, pe.u.vlc, lv->u.slice.start, lv->u.slice.len, valueVlc);
 			else{
-				pe = program_lvalGet(prg, sym, PLM_CREATE, NULL, lv);
+				pe = program_lvalGet(prg, sym, PLM_CREATE, VARLOC_NULL, lv);
 				if (pe.type == PER_ERROR)
 					return pe;
-				pe = program_evalLval(prg, sym, PEM_EMPTY, NULL,
-					lvr_var(lv.flp, lv.vlc), mutop, valueVlc);
+				pe = program_evalLval(prg, sym, PEM_EMPTY, VARLOC_NULL,
+					lvr_var(lv->flp, lv->vlc), mutop, valueVlc);
 				if (pe.type == PER_ERROR)
 					return pe;
-				op_splice(prg.ops, lv.obj.vlc, lv.start, lv.len, lv.vlc);
+				op_splice(prg->ops, lv->u.slice.obj->vlc, lv->u.slice.start, lv->u.slice.len,
+					lv->vlc);
 			}
 		} break;
 
 		case LVR_LIST: {
-			var ts = symtbl_addTemp(sym);
+			sta_st ts = symtbl_addTemp(sym);
 			if (ts.type == STA_ERROR)
-				return per_error(lv.flp, ts.msg);
-			var t = ts.vlc;
+				return per_error(lv->flp, ts.u.msg);
+			varloc_st t = ts.u.vlc;
 
-			for (var i = 0; i < lv.body.length; i++){
-				op_num(prg.ops, t, i);
-				op_getat(prg.ops, t, valueVlc, t);
-				var pe = program_evalLval(prg, sym, PEM_EMPTY, NULL, lv.body[i], mutop, t);
+			for (int i = 0; i < lv->u.list.body->size; i++){
+				op_num(prg->ops, t, i);
+				op_getat(prg->ops, t, valueVlc, t);
+				per_st pe = program_evalLval(prg, sym, PEM_EMPTY, VARLOC_NULL,
+					lv->u.list.body->ptrs[i], mutop, t);
 				if (pe.type == PER_ERROR)
 					return pe;
 			}
 
-			if (lv.rest != NULL){
-				var ts = symtbl_addTemp(sym);
+			if (lv->u.list.rest != NULL){
+				ts = symtbl_addTemp(sym);
 				if (ts.type == STA_ERROR)
-					return per_error(lv.flp, ts.msg);
-				var t2 = ts.vlc;
+					return per_error(lv->flp, ts.u.msg);
+				varloc_st t2 = ts.u.vlc;
 
-				op_num(prg.ops, t, lv.body.length);
-				op_rest(prg.ops, t2, valueVlc, t);
-				op_slice(prg.ops, t, valueVlc, t, t2);
+				op_num(prg->ops, t, lv->u.list.body->size);
+				op_rest(prg->ops, t2, valueVlc, t);
+				op_slice(prg->ops, t, valueVlc, t, t2);
 				symtbl_clearTemp(sym, t2);
-				pe = program_evalLval(prg, sym, PEM_EMPTY, NULL, lv.rest, mutop, t);
+				per_st pe = program_evalLval(prg, sym, PEM_EMPTY, VARLOC_NULL, lv->u.list.rest,
+					mutop, t);
 				if (pe.type == PER_ERROR)
 					return pe;
 			}
@@ -5189,32 +5377,23 @@ function program_evalLval(prg, sym, mode, intoVlc, lv, mutop, valueVlc){
 	// now, see if we need to put the result into anything
 	if (mode == PEM_EMPTY){
 		lval_clearTemps(lv, sym);
-		return per_ok(NULL);
+		return per_ok(VARLOC_NULL);
 	}
 	else if (mode == PEM_CREATE){
-		var ts = symtbl_addTemp(sym);
+		sta_st ts = symtbl_addTemp(sym);
 		if (ts.type == STA_ERROR)
-			return per_error(lv.flp, ts.msg);
-		intoVlc = ts.vlc;
+			return per_error(lv->flp, ts.u.msg);
+		intoVlc = ts.u.vlc;
 	}
 
-	var pe = program_lvalGet(prg, sym, PLM_INTO, intoVlc, lv);
+	per_st pe = program_lvalGet(prg, sym, PLM_INTO, intoVlc, lv);
 	if (pe.type == PER_ERROR)
 		return pe;
 	lval_clearTemps(lv, sym);
 	return per_ok(intoVlc);
 }
 
-var PSR_OK    = 'PSR_OK';
-var PSR_ERROR = 'PSR_ERROR';
-
-function psr_ok(start, len){
-	return { type: PSR_OK, start: start, len: len };
-}
-
-function psr_error(flp, msg){
-	return { type: PSR_ERROR, flp: flp, msg: msg };
-}
+#if 0
 
 function program_slice(prg, sym, obj, ex){
 	var start;
@@ -5249,20 +5428,6 @@ function program_slice(prg, sym, obj, ex){
 
 	return psr_ok(start, len);
 }
-
-var PER_OK    = 'PER_OK';
-var PER_ERROR = 'PER_ERROR';
-
-function per_ok(vlc){
-	return { type: PER_OK, vlc: vlc };
-}
-
-function per_error(flp, msg){
-	return { type: PER_ERROR, flp: flp, msg: msg };
-}
-
-var PLM_CREATE = 'PLM_CREATE';
-var PLM_INTO   = 'PLM_INTO';
 
 function program_lvalGet(prg, sym, mode, intoVlc, lv){
 	if (lv.vlc != NULL){
@@ -5318,10 +5483,6 @@ function program_lvalGet(prg, sym, mode, intoVlc, lv){
 
 	return per_ok(intoVlc);
 }
-
-var PEM_EMPTY  = 'PEM_EMPTY';
-var PEM_CREATE = 'PEM_CREATE';
-var PEM_INTO   = 'PEM_INTO';
 
 function program_evalCall_checkList(prg, sym, flp, vlc){
 	var ts = symtbl_addTemp(sym);
