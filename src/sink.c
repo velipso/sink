@@ -5959,12 +5959,14 @@ static per_st program_lvalCondAssignPart(program prg, symtbl sym, lvr lv, bool j
 	}
 	return per_ok(VARLOC_NULL);
 }
-#if 0
-function program_lvalCondAssign(prg, sym, lv, jumpFalse, valueVlc){
-	switch (lv.type){
+
+static per_st program_lvalCondAssign(program prg, symtbl sym, lvr lv, bool jumpFalse,
+	varloc_st valueVlc){
+	switch (lv->type){
 		case LVR_VAR:
 		case LVR_INDEX: {
-			var pe = program_evalLval(prg, sym, PEM_EMPTY, NULL, lv, -1, valueVlc);
+			per_st pe = program_evalLval(prg, sym, PEM_EMPTY, VARLOC_NULL, lv, OP_INVALID,
+				valueVlc);
 			if (pe.type == PER_ERROR)
 				return pe;
 		} break;
@@ -5974,18 +5976,18 @@ function program_lvalCondAssign(prg, sym, lv, jumpFalse, valueVlc){
 			return program_lvalCondAssignPart(prg, sym, lv, jumpFalse, valueVlc);
 	}
 	symtbl_clearTemp(sym, valueVlc);
-	return per_ok(NULL);
+	return per_ok(VARLOC_NULL);
 }
 
-function program_eval(prg, sym, mode, intoVlc, ex){
-	switch (ex.type){
+static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st intoVlc, expr ex){
+	switch (ex->type){
 		case EXPR_NIL: {
 			if (mode == PEM_EMPTY)
-				return per_ok(NULL);
+				return per_ok(VARLOC_NULL);
 			else if (mode == PEM_CREATE){
 				sta_st ts = symtbl_addTemp(sym);
 				if (ts.type == STA_ERROR)
-					return per_error(ex.flp, ts.u.msg);
+					return per_error(ex->flp, ts.u.msg);
 				intoVlc = ts.u.vlc;
 			}
 			op_nil(prg->ops, intoVlc);
@@ -5994,28 +5996,28 @@ function program_eval(prg, sym, mode, intoVlc, ex){
 
 		case EXPR_NUM: {
 			if (mode == PEM_EMPTY)
-				return per_ok(NULL);
+				return per_ok(VARLOC_NULL);
 			else if (mode == PEM_CREATE){
 				sta_st ts = symtbl_addTemp(sym);
 				if (ts.type == STA_ERROR)
-					return per_error(ex.flp, ts.u.msg);
+					return per_error(ex->flp, ts.u.msg);
 				intoVlc = ts.u.vlc;
 			}
-			if (Math.floor(ex.num) == ex.num && ex.num >= -65536 && ex.num < 65536){
-				op_num(prg->ops, intoVlc, ex.num);
+			if (floorf(ex->u.num) == ex->u.num && ex->u.num >= -65536 && ex->u.num < 65536){
+				op_num(prg->ops, intoVlc, ex->u.num);
 				return per_ok(intoVlc);
 			}
-			var found = false;
-			var index;
-			for (index = 0; index < prg.numTable.length; index++){
-				found = prg.numTable[index] == ex.num;
+			bool found = false;
+			int index;
+			for (index = 0; index < prg->numTable->size; index++){
+				found = prg->numTable->vals[index] == ex->u.num;
 				if (found)
 					break;
 			}
 			if (!found){
 				if (index >= 65536)
-					return per_error(ex.flp, 'Too many number constants');
-				prg.numTable.push(ex.num);
+					return per_error(ex->flp, format("Too many number constants"));
+				list_double_push(prg->numTable, ex->u.num);
 			}
 			op_num_tbl(prg->ops, intoVlc, index);
 			return per_ok(intoVlc);
@@ -6023,24 +6025,25 @@ function program_eval(prg, sym, mode, intoVlc, ex){
 
 		case EXPR_STR: {
 			if (mode == PEM_EMPTY)
-				return per_ok(NULL);
+				return per_ok(VARLOC_NULL);
 			else if (mode == PEM_CREATE){
 				sta_st ts = symtbl_addTemp(sym);
 				if (ts.type == STA_ERROR)
-					return per_error(ex.flp, ts.u.msg);
+					return per_error(ex->flp, ts.u.msg);
 				intoVlc = ts.u.vlc;
 			}
-			var found = false;
-			var index;
-			for (index = 0; index < prg.strTable.length; index++){
-				found = ex.str == prg.strTable[index];
+			bool found = false;
+			int index;
+			for (index = 0; index < prg->strTable->size; index++){
+				found = list_byte_equ(ex->u.str, prg->strTable->ptrs[index]);
 				if (found)
 					break;
 			}
 			if (!found){
 				if (index >= 65536)
-					return per_error(ex.flp, 'Too many string constants');
-				prg.strTable.push(ex.str);
+					return per_error(ex->flp, format("Too many string constants"));
+				list_ptr_push(prg->strTable, ex->u.str);
+				ex->u.str = NULL;
 			}
 			op_str(prg->ops, intoVlc, index);
 			return per_ok(intoVlc);
@@ -6048,34 +6051,35 @@ function program_eval(prg, sym, mode, intoVlc, ex){
 
 		case EXPR_LIST: {
 			if (mode == PEM_EMPTY){
-				if (ex.ex != NULL)
-					return program_eval(prg, sym, PEM_EMPTY, NULL, ex.ex);
-				return per_ok(NULL);
+				if (ex->u.ex != NULL)
+					return program_eval(prg, sym, PEM_EMPTY, VARLOC_NULL, ex->u.ex);
+				return per_ok(VARLOC_NULL);
 			}
 			else if (mode == PEM_CREATE){
 				sta_st ts = symtbl_addTemp(sym);
 				if (ts.type == STA_ERROR)
-					return per_error(ex.flp, ts.u.msg);
+					return per_error(ex->flp, ts.u.msg);
 				intoVlc = ts.u.vlc;
 			}
-			if (ex.ex != NULL){
-				if (ex.ex.type == EXPR_GROUP){
-					op_list(prg->ops, intoVlc, ex.ex.group.length);
-					for (var i = 0; i < ex.ex.group.length; i++){
-						var pe = program_eval(prg, sym, PEM_CREATE, NULL, ex.ex.group[i]);
+			if (ex->u.ex != NULL){
+				if (ex->u.ex->type == EXPR_GROUP){
+					op_list(prg->ops, intoVlc, ex->u.ex->u.group->size);
+					for (int i = 0; i < ex->u.ex->u.group->size; i++){
+						per_st pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL,
+							ex->u.ex->u.group->ptrs[i]);
 						if (pe.type == PER_ERROR)
 							return pe;
-						symtbl_clearTemp(sym, pe.vlc);
-						op_binop(prg->ops, OP_PUSH, intoVlc, intoVlc, pe.vlc);
+						symtbl_clearTemp(sym, pe.u.vlc);
+						op_binop(prg->ops, OP_PUSH, intoVlc, intoVlc, pe.u.vlc);
 					}
 				}
 				else{
 					op_list(prg->ops, intoVlc, 1);
-					var pe = program_eval(prg, sym, PEM_CREATE, NULL, ex.ex);
+					per_st pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, ex->u.ex);
 					if (pe.type == PER_ERROR)
 						return pe;
-					symtbl_clearTemp(sym, pe.vlc);
-					op_binop(prg->ops, OP_PUSH, intoVlc, intoVlc, pe.vlc);
+					symtbl_clearTemp(sym, pe.u.vlc);
+					op_binop(prg->ops, OP_PUSH, intoVlc, intoVlc, pe.u.vlc);
 				}
 			}
 			else
@@ -6084,14 +6088,15 @@ function program_eval(prg, sym, mode, intoVlc, ex){
 		} break;
 
 		case EXPR_NAMES: {
-			var sl = symtbl_lookup(sym, ex.names);
+			stl_st sl = symtbl_lookup(sym, ex->u.names);
 			if (sl.type == STL_ERROR)
-				return per_error(ex.flp, sl.msg);
-			switch (sl.nsn.type){
+				return per_error(ex->flp, sl.u.msg);
+			switch (sl.u.nsn->type){
 				case NSN_VAR: {
 					if (mode == PEM_EMPTY)
-						return per_ok(NULL);
-					var varVlc = varloc_new(frame_diff(sl.nsn.fr, sym.fr), sl.nsn.index);
+						return per_ok(VARLOC_NULL);
+					varloc_st varVlc = varloc_new(frame_diff(sl.u.nsn->u.var.fr, sym->fr),
+						sl.u.nsn->u.var.index);
 					if (mode == PEM_CREATE)
 						return per_ok(varVlc);
 					op_move(prg->ops, intoVlc, varVlc);
@@ -6101,188 +6106,194 @@ function program_eval(prg, sym, mode, intoVlc, ex){
 				case NSN_CMD_LOCAL:
 				case NSN_CMD_NATIVE:
 				case NSN_CMD_OPCODE:
-					return program_evalCall(prg, sym, mode, intoVlc, ex.flp, sl.nsn, false, NULL);
+					return program_evalCall(prg, sym, mode, intoVlc, ex->flp, sl.u.nsn, false,
+						NULL);
 
 				case NSN_NAMESPACE:
-					return per_error(ex.flp, 'Invalid expression');
+					return per_error(ex->flp, format("Invalid expression"));
 			}
-			throw new Error('Unknown NSN type');
+			assert(false);
 		} break;
 
 		case EXPR_VAR: {
 			if (mode == PEM_EMPTY)
-				return per_ok(NULL);
+				return per_ok(VARLOC_NULL);
 			else if (mode == PEM_CREATE)
-				return per_ok(ex.vlc);
-			op_move(prg->ops, intoVlc, ex.vlc);
+				return per_ok(ex->u.vlc);
+			op_move(prg->ops, intoVlc, ex->u.vlc);
 			return per_ok(intoVlc);
 		} break;
 
 		case EXPR_PAREN:
-			return program_eval(prg, sym, mode, intoVlc, ex.ex);
+			return program_eval(prg, sym, mode, intoVlc, ex->u.ex);
 
 		case EXPR_GROUP:
-			for (var i = 0; i < ex.group.length; i++){
-				if (i == ex.group.length - 1)
-					return program_eval(prg, sym, mode, intoVlc, ex.group[i]);
-				var pe = program_eval(prg, sym, PEM_EMPTY, NULL, ex.group[i]);
+			for (int i = 0; i < ex->u.group->size; i++){
+				if (i == ex->u.group->size - 1)
+					return program_eval(prg, sym, mode, intoVlc, ex->u.group->ptrs[i]);
+				per_st pe = program_eval(prg, sym, PEM_EMPTY, VARLOC_NULL, ex->u.group->ptrs[i]);
 				if (pe.type == PER_ERROR)
 					return pe;
 			}
 			break;
 
 		case EXPR_PREFIX: {
-			var unop = ks_toUnaryOp(ex.k);
-			if (unop < 0)
-				return per_error(ex.flp, 'Invalid unary operator');
-			var pe = program_eval(prg, sym, PEM_CREATE, NULL, ex.ex);
+			op_enum unop = ks_toUnaryOp(ex->u.prefix.k);
+			if (unop == OP_INVALID)
+				return per_error(ex->flp, format("Invalid unary operator"));
+			per_st pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, ex->u.prefix.ex);
 			if (pe.type == PER_ERROR)
 				return pe;
 			if (mode == PEM_EMPTY || mode == PEM_CREATE){
 				sta_st ts = symtbl_addTemp(sym);
 				if (ts.type == STA_ERROR)
-					return per_error(ex.flp, ts.u.msg);
+					return per_error(ex->flp, ts.u.msg);
 				intoVlc = ts.u.vlc;
 			}
-			op_unop(prg->ops, unop, intoVlc, pe.vlc);
-			symtbl_clearTemp(sym, pe.vlc);
+			op_unop(prg->ops, unop, intoVlc, pe.u.vlc);
+			symtbl_clearTemp(sym, pe.u.vlc);
 			if (mode == PEM_EMPTY){
 				symtbl_clearTemp(sym, intoVlc);
-				return per_ok(NULL);
+				return per_ok(VARLOC_NULL);
 			}
 			return per_ok(intoVlc);
 		} break;
 
 		case EXPR_INFIX: {
-			var mutop = ks_toMutateOp(ex.k);
-			if (ex.k == KS_EQU || ex.k == KS_AMP2EQU || ex.k == KS_PIPE2EQU || mutop >= 0){
-				var lp = lval_prepare(prg, sym, ex.left);
+			op_enum mutop = ks_toMutateOp(ex->u.infix.k);
+			if (ex->u.infix.k == KS_EQU || ex->u.infix.k == KS_AMP2EQU ||
+				ex->u.infix.k == KS_PIPE2EQU || mutop != OP_INVALID){
+				lvp_st lp = lval_prepare(prg, sym, ex->u.infix.left);
 				if (lp.type == LVP_ERROR)
-					return per_error(lp.flp, lp.msg);
+					return per_error(lp.u.error.flp, lp.u.error.msg);
 
-				if (ex.k == KS_AMP2EQU || ex.k == KS_PIPE2EQU){
-					var skip = label_newStr("^condsetskip");
+				if (ex->u.infix.k == KS_AMP2EQU || ex->u.infix.k == KS_PIPE2EQU){
+					label skip = label_newStr("^condsetskip");
 
-					var pe = program_lvalCheckNil(prg, sym, lp.lv, ex.k == KS_AMP2EQU, false, skip);
+					per_st pe = program_lvalCheckNil(prg, sym, lp.u.lv, ex->u.infix.k == KS_AMP2EQU,
+						false, skip);
 					if (pe.type == PER_ERROR)
 						return pe;
 
-					pe = program_eval(prg, sym, PEM_CREATE, NULL, ex.right);
+					pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, ex->u.infix.right);
 					if (pe.type == PER_ERROR)
 						return pe;
 
-					pe = program_lvalCondAssign(prg, sym, lp.lv, ex.k == KS_AMP2EQU, pe.vlc);
+					pe = program_lvalCondAssign(prg, sym, lp.u.lv, ex->u.infix.k == KS_AMP2EQU,
+						pe.u.vlc);
 					if (pe.type == PER_ERROR)
 						return pe;
 
 					if (mode == PEM_EMPTY){
 						label_declare(skip, prg->ops);
-						lval_clearTemps(lp.lv, sym);
-						return per_ok(NULL);
+						lval_clearTemps(lp.u.lv, sym);
+						return per_ok(VARLOC_NULL);
 					}
 
-					var done = label_newStr("^condsetdone");
+					label done = label_newStr("^condsetdone");
 					label_jump(done, prg->ops);
 					label_declare(skip, prg->ops);
 
 					if (mode == PEM_CREATE){
 						sta_st ts = symtbl_addTemp(sym);
 						if (ts.type == STA_ERROR)
-							return per_error(ex.flp, ts.u.msg);
+							return per_error(ex->flp, ts.u.msg);
 						intoVlc = ts.u.vlc;
 					}
 
-					var ple = program_lvalGet(prg, sym, PLM_INTO, intoVlc, lp.lv);
+					per_st ple = program_lvalGet(prg, sym, PLM_INTO, intoVlc, lp.u.lv);
 					if (ple.type == PER_ERROR)
 						return ple;
 
 					label_declare(done, prg->ops);
-					lval_clearTemps(lp.lv, sym);
+					lval_clearTemps(lp.u.lv, sym);
 					return per_ok(intoVlc);
 				}
 
 				// special handling for basic variable assignment to avoid a temporary
-				if (ex.k == KS_EQU && lp.lv.type == LVR_VAR){
-					var pe = program_eval(prg, sym, PEM_INTO, lp.lv.vlc, ex.right);
+				if (ex->u.infix.k == KS_EQU && lp.u.lv->type == LVR_VAR){
+					per_st pe = program_eval(prg, sym, PEM_INTO, lp.u.lv->vlc, ex->u.infix.right);
 					if (pe.type == PER_ERROR)
 						return pe;
 					if (mode == PEM_EMPTY)
-						return per_ok(NULL);
+						return per_ok(VARLOC_NULL);
 					else if (mode == PEM_CREATE){
 						sta_st ts = symtbl_addTemp(sym);
 						if (ts.type == STA_ERROR)
-							return per_error(ex.flp, ts.u.msg);
+							return per_error(ex->flp, ts.u.msg);
 						intoVlc = ts.u.vlc;
 					}
-					op_move(prg->ops, intoVlc, lp.lv.vlc);
+					op_move(prg->ops, intoVlc, lp.u.lv->vlc);
 					return per_ok(intoVlc);
 				}
 
-				var pe = program_eval(prg, sym, PEM_CREATE, NULL, ex.right);
+				per_st pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, ex->u.infix.right);
 				if (pe.type == PER_ERROR)
 					return pe;
-				return program_evalLval(prg, sym, mode, intoVlc, lp.lv, mutop, pe.vlc);
+				return program_evalLval(prg, sym, mode, intoVlc, lp.u.lv, mutop, pe.u.vlc);
 			}
 
 			if (mode == PEM_EMPTY || mode == PEM_CREATE){
 				sta_st ts = symtbl_addTemp(sym);
 				if (ts.type == STA_ERROR)
-					return per_error(ex.flp, ts.u.msg);
+					return per_error(ex->flp, ts.u.msg);
 				intoVlc = ts.u.vlc;
 			}
 
-			var binop = ks_toBinaryOp(ex.k);
-			if (binop >= 0){
-				var pe = program_eval(prg, sym, PEM_INTO, intoVlc, ex.left);
+			op_enum binop = ks_toBinaryOp(ex->u.infix.k);
+			if (binop != OP_INVALID){
+				per_st pe = program_eval(prg, sym, PEM_INTO, intoVlc, ex->u.infix.left);
 				if (pe.type == PER_ERROR)
 					return pe;
-				pe = program_eval(prg, sym, PEM_CREATE, NULL, ex.right);
+				pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, ex->u.infix.right);
 				if (pe.type == PER_ERROR)
 					return pe;
-				op_binop(prg->ops, binop, intoVlc, intoVlc, pe.vlc);
-				symtbl_clearTemp(sym, pe.vlc);
+				op_binop(prg->ops, binop, intoVlc, intoVlc, pe.u.vlc);
+				symtbl_clearTemp(sym, pe.u.vlc);
 			}
-			else if (ex.k == KS_AT){
-				if (ex.left.type != EXPR_NAMES)
-					return per_error(ex.flp, 'Invalid call');
-				var sl = symtbl_lookup(sym, ex.left.names);
+			else if (ex->u.infix.k == KS_AT){
+				if (ex->u.infix.left->type != EXPR_NAMES)
+					return per_error(ex->flp, format("Invalid call"));
+				stl_st sl = symtbl_lookup(sym, ex->u.infix.left->u.names);
 				if (sl.type == STL_ERROR)
-					return per_error(ex.flp, sl.msg);
-				pe = program_evalCall(prg, sym, mode, intoVlc, ex.flp, sl.nsn, true, ex.right);
+					return per_error(ex->flp, sl.u.msg);
+				per_st pe = program_evalCall(prg, sym, mode, intoVlc, ex->flp, sl.u.nsn, true,
+					ex->u.infix.right);
 				if (pe.type == PER_ERROR)
 					return pe;
 			}
-			else if (ex.k == KS_AMP2 || ex.k == KS_PIPE2){
-				var pe = program_eval(prg, sym, PEM_INTO, intoVlc, ex.left);
+			else if (ex->u.infix.k == KS_AMP2 || ex->u.infix.k == KS_PIPE2){
+				per_st pe = program_eval(prg, sym, PEM_INTO, intoVlc, ex->u.infix.left);
 				if (pe.type == PER_ERROR)
 					return pe;
-				var finish = label_newStr("^finish");
-				if (ex.k == KS_AMP2)
+				label finish = label_newStr("^finish");
+				if (ex->u.infix.k == KS_AMP2)
 					label_jumpFalse(finish, prg->ops, intoVlc);
 				else
 					label_jumpTrue(finish, prg->ops, intoVlc);
-				pe = program_eval(prg, sym, PEM_INTO, intoVlc, ex.right);
+				pe = program_eval(prg, sym, PEM_INTO, intoVlc, ex->u.infix.right);
 				if (pe.type == PER_ERROR)
 					return pe;
 				label_declare(finish, prg->ops);
 			}
 			else
-				return per_error(ex.flp, 'Invalid operation');
+				return per_error(ex->flp, format("Invalid operation"));
 
 			if (mode == PEM_EMPTY){
 				symtbl_clearTemp(sym, intoVlc);
-				return per_ok(NULL);
+				return per_ok(VARLOC_NULL);
 			}
 			return per_ok(intoVlc);
 		} break;
-
+}}
+#if 0
 		case EXPR_CALL: {
 			if (ex.cmd.type != EXPR_NAMES)
-				return per_error(ex.flp, 'Invalid call');
+				return per_error(ex->flp, 'Invalid call');
 			var sl = symtbl_lookup(sym, ex.cmd.names);
 			if (sl.type == STL_ERROR)
-				return per_error(ex.flp, sl.msg);
-			return program_evalCall(prg, sym, mode, intoVlc, ex.flp, sl.nsn, false, ex.params);
+				return per_error(ex->flp, sl.msg);
+			return program_evalCall(prg, sym, mode, intoVlc, ex->flp, sl.nsn, false, ex.params);
 		} break;
 
 		case EXPR_INDEX: {
@@ -6293,12 +6304,12 @@ function program_eval(prg, sym, mode, intoVlc, ex){
 				pe = program_eval(prg, sym, PEM_EMPTY, NULL, ex.key);
 				if (pe.type == PER_ERROR)
 					return pe;
-				return per_ok(NULL);
+				return per_ok(VARLOC_NULL);
 			}
 			else if (mode == PEM_CREATE){
 				sta_st ts = symtbl_addTemp(sym);
 				if (ts.type == STA_ERROR)
-					return per_error(ex.flp, ts.u.msg);
+					return per_error(ex->flp, ts.u.msg);
 				intoVlc = ts.u.vlc;
 			}
 
@@ -6322,7 +6333,7 @@ function program_eval(prg, sym, mode, intoVlc, ex){
 			if (mode == PEM_EMPTY || mode == PEM_CREATE){
 				sta_st ts = symtbl_addTemp(sym);
 				if (ts.type == STA_ERROR)
-					return per_error(ex.flp, ts.u.msg);
+					return per_error(ex->flp, ts.u.msg);
 				intoVlc = ts.u.vlc;
 			}
 
@@ -6341,7 +6352,7 @@ function program_eval(prg, sym, mode, intoVlc, ex){
 			symtbl_clearTemp(sym, sr.len);
 			if (mode == PEM_EMPTY){
 				symtbl_clearTemp(sym, intoVlc);
-				return per_ok(NULL);
+				return per_ok(VARLOC_NULL);
 			}
 			return per_ok(intoVlc);
 		} break;
