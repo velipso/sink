@@ -4066,12 +4066,12 @@ function program_lvalCheckNil(prg, sym, lv, jumpFalse, inverted, skip){
 
 			var ts = symtbl_addTemp(sym);
 			if (ts.type == STA_ERROR)
-				return per_error(flp, ts.msg);
+				return per_error(lv.flp, ts.msg);
 			var idx = ts.vlc;
 
 			ts = symtbl_addTemp(sym);
 			if (ts.type == STA_ERROR)
-				return per_error(flp, ts.msg);
+				return per_error(lv.flp, ts.msg);
 			var t = ts.vlc;
 
 			op_num(prg.ops, idx, 0);
@@ -4140,17 +4140,17 @@ function program_lvalCondAssignPart(prg, sym, lv, jumpFalse, valueVlc){
 
 			var ts = symtbl_addTemp(sym);
 			if (ts.type == STA_ERROR)
-				return per_error(flp, ts.msg);
+				return per_error(lv.flp, ts.msg);
 			var idx = ts.vlc;
 
 			ts = symtbl_addTemp(sym);
 			if (ts.type == STA_ERROR)
-				return per_error(flp, ts.msg);
+				return per_error(lv.flp, ts.msg);
 			var t = ts.vlc;
 
 			ts = symtbl_addTemp(sym);
 			if (ts.type == STA_ERROR)
-				return per_error(flp, ts.msg);
+				return per_error(lv.flp, ts.msg);
 			var t2 = ts.vlc;
 
 			op_num(prg.ops, idx, 0);
@@ -4187,7 +4187,7 @@ function program_lvalCondAssignPart(prg, sym, lv, jumpFalse, valueVlc){
 		case LVR_LIST: {
 			var ts = symtbl_addTemp(sym);
 			if (ts.type == STA_ERROR)
-				return per_error(ex.flp, ts.msg);
+				return per_error(lv.flp, ts.msg);
 			var t = ts.vlc;
 			for (var i = 0; i < lv.body.length; i++){
 				op_num(prg.ops, t, i);
@@ -4199,7 +4199,7 @@ function program_lvalCondAssignPart(prg, sym, lv, jumpFalse, valueVlc){
 			if (lv.rest != null){
 				var ts = symtbl_addTemp(sym);
 				if (ts.type == STA_ERROR)
-					return per_error(ex.flp, ts.msg);
+					return per_error(lv.flp, ts.msg);
 				var t2 = ts.vlc;
 				op_num(prg.ops, t, lv.body.length);
 				op_rest(prg.ops, t2, valueVlc, t);
