@@ -6285,23 +6285,23 @@ static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st int
 			}
 			return per_ok(intoVlc);
 		} break;
-}}
-#if 0
+
 		case EXPR_CALL: {
-			if (ex.cmd.type != EXPR_NAMES)
-				return per_error(ex->flp, 'Invalid call');
-			var sl = symtbl_lookup(sym, ex.cmd.names);
+			if (ex->u.call.cmd->type != EXPR_NAMES)
+				return per_error(ex->flp, format("Invalid call"));
+			stl_st sl = symtbl_lookup(sym, ex->u.call.cmd->u.names);
 			if (sl.type == STL_ERROR)
-				return per_error(ex->flp, sl.msg);
-			return program_evalCall(prg, sym, mode, intoVlc, ex->flp, sl.nsn, false, ex.params);
+				return per_error(ex->flp, sl.u.msg);
+			return program_evalCall(prg, sym, mode, intoVlc, ex->flp, sl.u.nsn, false,
+				ex->u.call.params);
 		} break;
 
 		case EXPR_INDEX: {
 			if (mode == PEM_EMPTY){
-				var pe = program_eval(prg, sym, PEM_EMPTY, NULL, ex.obj);
+				per_st pe = program_eval(prg, sym, PEM_EMPTY, VARLOC_NULL, ex->u.index.obj);
 				if (pe.type == PER_ERROR)
 					return pe;
-				pe = program_eval(prg, sym, PEM_EMPTY, NULL, ex.key);
+				pe = program_eval(prg, sym, PEM_EMPTY, VARLOC_NULL, ex->u.index.key);
 				if (pe.type == PER_ERROR)
 					return pe;
 				return per_ok(VARLOC_NULL);
@@ -6313,15 +6313,15 @@ static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st int
 				intoVlc = ts.u.vlc;
 			}
 
-			var pe = program_eval(prg, sym, PEM_CREATE, NULL, ex.obj);
+			per_st pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, ex->u.index.obj);
 			if (pe.type == PER_ERROR)
 				return pe;
-			var obj = pe.vlc;
+			varloc_st obj = pe.u.vlc;
 
-			pe = program_eval(prg, sym, PEM_CREATE, NULL, ex.key);
+			pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, ex->u.index.key);
 			if (pe.type == PER_ERROR)
 				return pe;
-			var key = pe.vlc;
+			varloc_st key = pe.u.vlc;
 
 			op_getat(prg->ops, intoVlc, obj, key);
 			symtbl_clearTemp(sym, obj);
@@ -6337,19 +6337,19 @@ static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st int
 				intoVlc = ts.u.vlc;
 			}
 
-			var pe = program_eval(prg, sym, PEM_CREATE, NULL, ex.obj);
+			per_st pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, ex->u.slice.obj);
 			if (pe.type == PER_ERROR)
 				return pe;
-			var obj = pe.vlc;
+			varloc_st obj = pe.u.vlc;
 
-			var sr = program_slice(prg, sym, obj, ex);
+			psr_st sr = program_slice(prg, sym, obj, ex);
 			if (sr.type == PSR_ERROR)
-				return per_error(sr.flp, sr.msg);
+				return per_error(sr.u.error.flp, sr.u.error.msg);
 
-			op_slice(prg->ops, intoVlc, obj, sr.start, sr.len);
+			op_slice(prg->ops, intoVlc, obj, sr.u.ok.start, sr.u.ok.len);
 			symtbl_clearTemp(sym, obj);
-			symtbl_clearTemp(sym, sr.start);
-			symtbl_clearTemp(sym, sr.len);
+			symtbl_clearTemp(sym, sr.u.ok.start);
+			symtbl_clearTemp(sym, sr.u.ok.len);
 			if (mode == PEM_EMPTY){
 				symtbl_clearTemp(sym, intoVlc);
 				return per_ok(VARLOC_NULL);
@@ -6357,187 +6357,210 @@ static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st int
 			return per_ok(intoVlc);
 		} break;
 	}
+	assert(false);
+	return per_ok(VARLOC_NULL);
 }
 
-var PGR_OK    = 'PGR_OK';
-var PGR_ERROR = 'PGR_ERROR';
+typedef enum {
+	PGR_OK,
+	PGR_ERROR
+} pgr_enum;
 
-function pgr_ok(sym){
-	return { type: PGR_OK };
+typedef struct {
+	pgr_enum type;
+	filepos_st flp;
+	char *msg;
+} pgr_st;
+
+static inline pgr_st pgr_ok(){
+	return (pgr_st){ .type = PGR_OK };
 }
 
-function pgr_error(flp, msg){
-	return { type: PGR_ERROR, flp: flp, msg: msg };
+static inline pgr_st pgr_error(filepos_st flp, char *msg){
+	return (pgr_st){ .type = PGR_ERROR, .flp = flp, .msg = msg };
 }
 
-function program_genBody(prg, sym, body){
-	var repl = prg.repl;
-	prg.repl = false;
-	for (var i = 0; i < body.length; i++){
-		var pr = program_gen(prg, sym, body[i]);
+static pgr_st program_gen(program prg, symtbl sym, ast stmt);
+
+static inline pgr_st program_genBody(program prg, symtbl sym, list_ptr body){
+	bool repl = prg->repl;
+	prg->repl = false;
+	for (int i = 0; i < body->size; i++){
+		pgr_st pr = program_gen(prg, sym, body->ptrs[i]);
 		if (pr.type == PGR_ERROR)
 			return pr;
 	}
-	prg.repl = repl;
-	return pgr_ok(sym);
+	prg->repl = repl;
+	return pgr_ok();
 }
 
-function program_gen(prg, sym, stmt){
-	switch (stmt.type){
+static pgr_st program_gen(program prg, symtbl sym, ast stmt){
+	switch (stmt->type){
 		case AST_BREAK:
-			if (sym.sc.lblBreak == NULL)
-				return pgr_error(stmt.flp, 'Invalid `break`');
-			label_jump(sym.sc.lblBreak, prg->ops);
-			return pgr_ok(sym);
+			if (sym->sc->lblBreak == NULL)
+				return pgr_error(stmt->flp, format("Invalid `break`"));
+			label_jump(sym->sc->lblBreak, prg->ops);
+			return pgr_ok();
 
 		case AST_CONTINUE:
-			if (sym.sc.lblContinue == NULL)
-				return pgr_error(stmt.flp, 'Invalid `continue`');
-			label_jump(sym.sc.lblContinue, prg->ops);
-			return pgr_ok(sym);
+			if (sym->sc->lblContinue == NULL)
+				return pgr_error(stmt->flp, format("Invalid `continue`"));
+			label_jump(sym->sc->lblContinue, prg->ops);
+			return pgr_ok();
 
 		case AST_DECLARE:
-			for (var i = 0; i < stmt.decls.length; i++){
-				var dc = stmt.decls[i];
-				switch (dc.type){
+			for (int i = 0; i < stmt->u.decls->size; i++){
+				decl dc = stmt->u.decls->ptrs[i];
+				switch (dc->type){
 					case DECL_LOCAL: {
-						var lbl = label_newStr("^def");
-						sym.fr.lbls.push(lbl);
-						var sr = symtbl_addCmdLocal(sym, dc.names, lbl);
+						label lbl = label_newStr("^def");
+						list_ptr_push(sym->fr->lbls, lbl);
+						sta_st sr = symtbl_addCmdLocal(sym, dc->names, lbl);
 						if (sr.type == STA_ERROR)
-							return pgr_error(dc.flp, sr.msg);
+							return pgr_error(dc->flp, sr.u.msg);
 					} break;
 					case DECL_NATIVE: {
-						var found = false;
-						var index;
-						for (index = 0; index < prg.keyTable.length; index++){
-							found = prg.keyTable[index] == dc.key;
+						bool found = false;
+						int index;
+						for (index = 0; index < prg->keyTable->size; index++){
+							found = list_byte_equ(prg->keyTable->ptrs[index], dc->key);
 							if (found)
 								break;
 						}
 						if (!found){
 							if (index >= 65536)
-								return pgr_error(dc.flp, 'Too many native functions');
-							prg.keyTable.push(dc.key);
+								return pgr_error(dc->flp, format("Too many native functions"));
+							list_ptr_push(prg->keyTable, dc->key);
 						}
-						var sr = symtbl_addCmdNative(sym, dc.names, index);
+						sta_st sr = symtbl_addCmdNative(sym, dc->names, index);
 						if (sr.type == STA_ERROR)
-							return pgr_error(dc.flp, sr.msg);
+							return pgr_error(dc->flp, sr.u.msg);
 					} break;
 				}
 			}
-			return pgr_ok(sym);
+			return pgr_ok();
 
 		case AST_DEF: {
-			var lr = symtbl_lookup(sym, stmt.names);
-			var lbl;
-			if (lr.type == STL_OK && lr.nsn.type == NSN_CMD_LOCAL){
-				lbl = lr.nsn.lbl;
-				if (!sym.repl && lbl.pos >= 0) // if already defined, error
-					return pgr_error(stmt.flp, 'Cannot redefine "' + stmt.names.join('.') + '"');
+			stl_st lr = symtbl_lookup(sym, stmt->u.def.names);
+			label lbl;
+			if (lr.type == STL_OK && lr.u.nsn->type == NSN_CMD_LOCAL){
+				lbl = lr.u.nsn->u.cmdLocal.lbl;
+				if (!sym->repl && lbl->pos >= 0){ // if already defined, error
+					list_byte b = stmt->u.def.names->ptrs[0];
+					char *join = format("Cannot redefine: %.*s", b->size, b->bytes);
+					for (int i = 1; i < stmt->u.def.names->size; i++){
+						b = stmt->u.def.names->ptrs[i];
+						char *join2 = format("%s.%.*s", join, b->size, b->bytes);
+						mem_free(join);
+						join = join2;
+					}
+					return pgr_error(stmt->flp, join);
+				}
 			}
 			else{
 				lbl = label_newStr("^def");
-				var sr = symtbl_addCmdLocal(sym, stmt.names, lbl);
+				sta_st sr = symtbl_addCmdLocal(sym, stmt->u.def.names, lbl);
 				if (sr.type == STA_ERROR)
-					return pgr_error(stmt.flp, sr.msg);
+					return pgr_error(stmt->flp, sr.u.msg);
 			}
 
-			var skip = label_newStr("^after_def");
+			label skip = label_newStr("^after_def");
 			label_jump(skip, prg->ops);
 
 			label_declare(lbl, prg->ops);
 			symtbl_pushFrame(sym);
 
-			if (stmt.lvalues.length > 0){
+			if (stmt->u.def.lvalues->size > 0){
 				sta_st ts = symtbl_addTemp(sym);
 				if (ts.type == STA_ERROR)
-					return pgr_error(stmt.flp, ts.u.msg);
-				var t = ts.u.vlc;
-				var args = varloc_new(0, 0);
-				for (var i = 0; i < stmt.lvalues.length; i++){
-					var ex = stmt.lvalues[i];
-					if (ex.type == EXPR_INFIX){
+					return pgr_error(stmt->flp, ts.u.msg);
+				varloc_st t = ts.u.vlc;
+				varloc_st args = varloc_new(0, 0);
+				for (int i = 0; i < stmt->u.def.lvalues->size; i++){
+					expr ex = stmt->u.def.lvalues->ptrs[i];
+					if (ex->type == EXPR_INFIX){
 						// init code has to happen first, because we want name resolution to be
 						// as though these variables haven't been defined yet... so a bit of goofy
 						// jumping, but not bad
-						var pr = NULL;
-						var perfinit = NULL;
-						var doneinit = NULL;
-						if (ex.right != NULL){
+						per_st pr;
+						label perfinit = NULL;
+						label doneinit = NULL;
+						if (ex->u.infix.right != NULL){
 							perfinit = label_newStr("^perfinit");
 							doneinit = label_newStr("^doneinit");
-							var skipinit = label_newStr("^skipinit");
+							label skipinit = label_newStr("^skipinit");
 							label_jump(skipinit, prg->ops);
 							label_declare(perfinit, prg->ops);
-							pr = program_eval(prg, sym, PEM_CREATE, NULL, ex.right);
+							pr = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, ex->u.infix.right);
 							if (pr.type == PER_ERROR)
-								return pgr_error(pr.flp, pr.msg);
+								return pgr_error(pr.u.error.flp, pr.u.error.msg);
 							label_jump(doneinit, prg->ops);
 							label_declare(skipinit, prg->ops);
 						}
 
 						// now we can add the param symbols
-						var lr = lval_addVars(sym, ex.left);
+						lvp_st lr = lval_addVars(sym, ex->u.infix.left);
 						if (lr.type == LVP_ERROR)
-							return pgr_error(lr.flp, lr.msg);
+							return pgr_error(lr.u.error.flp, lr.u.error.msg);
 
 						// and grab the appropriate value from the args
 						op_num(prg->ops, t, i);
 						op_getat(prg->ops, t, args, t); // 0:0 are passed in arguments
 
-						var finish = NULL;
-						if (ex.right != NULL){
+						label finish = NULL;
+						if (ex->u.infix.right != NULL){
 							finish = label_newStr("^finish");
-							var passinit = label_newStr("^passinit");
+							label passinit = label_newStr("^passinit");
 							label_jumpFalse(perfinit, prg->ops, t);
 							label_jump(passinit, prg->ops);
 							label_declare(doneinit, prg->ops);
-							var pe = program_evalLval(prg, sym, PEM_EMPTY, NULL, lr.lv, -1,
-								pr.vlc);
+							per_st pe = program_evalLval(prg, sym, PEM_EMPTY, VARLOC_NULL, lr.u.lv,
+								OP_INVALID, pr.u.vlc);
 							if (pe.type == PER_ERROR)
-								return pgr_error(pe.flp, pe.msg);
+								return pgr_error(pe.u.error.flp, pe.u.error.msg);
 							label_jump(finish, prg->ops);
 							label_declare(passinit, prg->ops);
 						}
 
-						var pe = program_evalLval(prg, sym, PEM_EMPTY, NULL, lr.lv, -1, t)
+						per_st pe = program_evalLval(prg, sym, PEM_EMPTY, VARLOC_NULL, lr.u.lv,
+							OP_INVALID, t);
 						if (pe.type == PER_ERROR)
-							return pgr_error(pe.flp, pe.msg);
+							return pgr_error(pe.u.error.flp, pe.u.error.msg);
 
-						if (ex.right != NULL)
+						if (ex->u.infix.right != NULL)
 							label_declare(finish, prg->ops);
 					}
-					else if (i == stmt.lvalues.length - 1 && ex.type == EXPR_PREFIX &&
-						ex.k == KS_PERIOD3){
-						var lr = lval_addVars(sym, ex.ex);
+					else if (i == stmt->u.def.lvalues->size - 1 && ex->type == EXPR_PREFIX &&
+						ex->u.prefix.k == KS_PERIOD3){
+						lvp_st lr = lval_addVars(sym, ex->u.ex);
 						if (lr.type == LVP_ERROR)
-							return pgr_error(lr.flp, lr.msg);
-						//assert(lr.lv.type == LVR_VAR)
+							return pgr_error(lr.u.error.flp, lr.u.error.msg);
+						assert(lr.u.lv->type == LVR_VAR);
 						ts = symtbl_addTemp(sym);
 						if (ts.type == STA_ERROR)
-							return pgr_error(stmt.flp, ts.u.msg);
-						var t2 = ts.u.vlc;
+							return pgr_error(stmt->flp, ts.u.msg);
+						varloc_st t2 = ts.u.vlc;
 						op_num(prg->ops, t, i);
 						op_rest(prg->ops, t2, args, t);
-						op_slice(prg->ops, lr.lv.vlc, args, t, t2);
+						op_slice(prg->ops, lr.u.lv->vlc, args, t, t2);
 						symtbl_clearTemp(sym, t2);
 					}
 					else
-						throw new Error('Unknown lvalue type in def (this shouldn\'t happen)');
+						assert(false);
 				}
 				symtbl_clearTemp(sym, t);
 			}
 
-			var pr = program_genBody(prg, sym, stmt.body);
+			pgr_st pr = program_genBody(prg, sym, stmt->u.def.body);
 			if (pr.type == PGR_ERROR)
 				return pr;
 
-			if (stmt.body.length <= 0 || stmt.body[stmt.body.length - 1].type != AST_RETURN){
+			if (stmt->u.def.body->size <= 0 ||
+				((ast)stmt->u.def.body->ptrs[stmt->u.def.body->size - 1])->type != AST_RETURN){
 				sta_st ts = symtbl_addTemp(sym);
 				if (ts.type == STA_ERROR)
-					return pgr_error(stmt.flp, ts.u.msg);
-				var nil = ts.u.vlc;
+					return pgr_error(stmt->flp, ts.u.msg);
+				varloc_st nil = ts.u.vlc;
 				op_nil(prg->ops, nil);
 				op_return(prg->ops, nil);
 				symtbl_clearTemp(sym, nil);
@@ -6546,45 +6569,45 @@ function program_gen(prg, sym, stmt){
 			symtbl_popFrame(sym);
 			label_declare(skip, prg->ops);
 
-			return pgr_ok(sym);
+			return pgr_ok();
 		} break;
 
 		case AST_DO_END: {
 			symtbl_pushScope(sym);
-			sym.sc.lblBreak = label_newStr("^do_break");
-			var pr = program_genBody(prg, sym, stmt.body);
+			sym->sc->lblBreak = label_newStr("^do_break");
+			pgr_st pr = program_genBody(prg, sym, stmt->u.body);
 			if (pr.type == PGR_ERROR)
 				return pr;
-			label_declare(sym.sc.lblBreak, prg->ops);
+			label_declare(sym->sc->lblBreak, prg->ops);
 			symtbl_popScope(sym);
-			return pgr_ok(sym);
+			return pgr_ok();
 		} break;
 
 		case AST_DO_WHILE: {
-			var top    = label_newStr("^dowhile_top");
-			var cond   = label_newStr("^dowhile_cond");
-			var finish = label_newStr("^dowhile_finish");
+			label top    = label_newStr("^dowhile_top");
+			label cond   = label_newStr("^dowhile_cond");
+			label finish = label_newStr("^dowhile_finish");
 
 			symtbl_pushScope(sym);
-			sym.sc.lblBreak = finish;
-			sym.sc.lblContinue = cond;
+			sym->sc->lblBreak = finish;
+			sym->sc->lblContinue = cond;
 
 			label_declare(top, prg->ops);
 
-			var pr = program_genBody(prg, sym, stmt.doBody);
+			pgr_st pr = program_genBody(prg, sym, stmt->u.doWhile.doBody);
 			if (pr.type == PGR_ERROR)
 				return pr;
 
 			label_declare(cond, prg->ops);
-			var pe = program_eval(prg, sym, PEM_CREATE, NULL, stmt.cond);
+			per_st pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, stmt->u.doWhile.cond);
 			if (pe.type == PER_ERROR)
-				return pgr_error(pe.flp, pe.msg);
-			label_jumpFalse(finish, prg->ops, pe.vlc);
-			symtbl_clearTemp(sym, pe.vlc);
+				return pgr_error(pe.u.error.flp, pe.u.error.msg);
+			label_jumpFalse(finish, prg->ops, pe.u.vlc);
+			symtbl_clearTemp(sym, pe.u.vlc);
 
-			sym.sc.lblContinue = top;
+			sym->sc->lblContinue = top;
 
-			pr = program_genBody(prg, sym, stmt.whileBody);
+			pr = program_genBody(prg, sym, stmt->u.doWhile.whileBody);
 			if (pr.type == PGR_ERROR)
 				return pr;
 
@@ -6592,86 +6615,88 @@ function program_gen(prg, sym, stmt){
 
 			label_declare(finish, prg->ops);
 			symtbl_popScope(sym);
-			return pgr_ok(sym);
+			return pgr_ok();
 		} break;
 
 		case AST_FOR: {
-			var pe = program_eval(prg, sym, PEM_CREATE, NULL, stmt.ex);
+			per_st pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, stmt->u.afor.ex);
 			if (pe.type == PER_ERROR)
-				return pgr_error(pe.flp, pe.msg);
+				return pgr_error(pe.u.error.flp, pe.u.error.msg);
 
 			symtbl_pushScope(sym);
 
-			var val_vlc;
-			var idx_vlc;
+			varloc_st val_vlc;
+			varloc_st idx_vlc;
 
 			// load VLC's for the value and index
-			if (stmt.forVar){
-				var sr = symtbl_addVar(sym, stmt.names1);
+			if (stmt->u.afor.forVar){
+				sta_st sr = symtbl_addVar(sym, stmt->u.afor.names1);
 				if (sr.type == STA_ERROR)
-					return pgr_error(stmt.flp, sr.msg);
-				val_vlc = sr.vlc;
+					return pgr_error(stmt->flp, sr.u.msg);
+				val_vlc = sr.u.vlc;
 
-				if (stmt.names2 == NULL){
+				if (stmt->u.afor.names2 == NULL){
 					sta_st ts = symtbl_addTemp(sym);
 					if (ts.type == STA_ERROR)
-						return pgr_error(stmt.flp, ts.u.msg);
+						return pgr_error(stmt->flp, ts.u.msg);
 					idx_vlc = ts.u.vlc;
 				}
 				else{
-					sr = symtbl_addVar(sym, stmt.names2);
+					sr = symtbl_addVar(sym, stmt->u.afor.names2);
 					if (sr.type == STA_ERROR)
-						return pgr_error(stmt.flp, sr.msg);
-					idx_vlc = sr.vlc;
+						return pgr_error(stmt->flp, sr.u.msg);
+					idx_vlc = sr.u.vlc;
 				}
 			}
 			else{
-				var sl = symtbl_lookup(sym, stmt.names1);
+				stl_st sl = symtbl_lookup(sym, stmt->u.afor.names1);
 				if (sl.type == STL_ERROR)
-					return pgr_error(stmt.flp, sl.msg);
-				if (sl.nsn.type != NSN_VAR)
-					return pgr_error(stmt.flp, 'Cannot use non-variable in for loop');
-				val_vlc = varloc_new(frame_diff(sl.nsn.fr, sym.fr), sl.nsn.index);
+					return pgr_error(stmt->flp, sl.u.msg);
+				if (sl.u.nsn->type != NSN_VAR)
+					return pgr_error(stmt->flp, format("Cannot use non-variable in for loop"));
+				val_vlc = varloc_new(frame_diff(sl.u.nsn->u.var.fr, sym->fr),
+					sl.u.nsn->u.var.index);
 
-				if (stmt.names2 == NULL){
+				if (stmt->u.afor.names2 == NULL){
 					sta_st ts = symtbl_addTemp(sym);
 					if (ts.type == STA_ERROR)
-						return pgr_error(stmt.flp, ts.u.msg);
+						return pgr_error(stmt->flp, ts.u.msg);
 					idx_vlc = ts.u.vlc;
 				}
 				else{
-					sl = symtbl_lookup(sym, stmt.names2);
+					sl = symtbl_lookup(sym, stmt->u.afor.names2);
 					if (sl.type == STL_ERROR)
-						return pgr_error(stmt.flp, sl.msg);
-					if (sl.nsn.type != NSN_VAR)
-						return pgr_error(stmt.flp, 'Cannot use non-variable in for loop');
-					idx_vlc = varloc_new(frame_diff(sl.nsn.fr, sym.fr), sl.nsn.index);
+						return pgr_error(stmt->flp, sl.u.msg);
+					if (sl.u.nsn->type != NSN_VAR)
+						return pgr_error(stmt->flp, format("Cannot use non-variable in for loop"));
+					idx_vlc = varloc_new(frame_diff(sl.u.nsn->u.var.fr, sym->fr),
+						sl.u.nsn->u.var.index);
 				}
 			}
 
 			// clear the index
 			op_num(prg->ops, idx_vlc, 0);
 
-			var top    = label_newStr("^for_top");
-			var inc    = label_newStr("^for_inc");
-			var finish = label_newStr("^for_finish");
+			label top    = label_newStr("^for_top");
+			label inc    = label_newStr("^for_inc");
+			label finish = label_newStr("^for_finish");
 
 			sta_st ts = symtbl_addTemp(sym);
 			if (ts.type == STA_ERROR)
-				return pgr_error(stmt.flp, ts.u.msg);
-			var t = ts.u.vlc;
+				return pgr_error(stmt->flp, ts.u.msg);
+			varloc_st t = ts.u.vlc;
 
 			label_declare(top, prg->ops);
 
-			op_unop(prg->ops, OP_SIZE, t, pe.vlc);
+			op_unop(prg->ops, OP_SIZE, t, pe.u.vlc);
 			op_binop(prg->ops, OP_LT, t, idx_vlc, t);
 			label_jumpFalse(finish, prg->ops, t);
 
-			op_getat(prg->ops, val_vlc, pe.vlc, idx_vlc);
-			sym.sc.lblBreak = finish;
-			sym.sc.lblContinue = inc;
+			op_getat(prg->ops, val_vlc, pe.u.vlc, idx_vlc);
+			sym->sc->lblBreak = finish;
+			sym->sc->lblContinue = inc;
 
-			var pr = program_genBody(prg, sym, stmt.body);
+			pgr_st pr = program_genBody(prg, sym, stmt->u.afor.body);
 			if (pr.type == PGR_ERROR)
 				return pr;
 
@@ -6682,55 +6707,57 @@ function program_gen(prg, sym, stmt){
 			label_declare(finish, prg->ops);
 			symtbl_clearTemp(sym, t);
 			symtbl_clearTemp(sym, idx_vlc);
-			symtbl_clearTemp(sym, pe.vlc);
+			symtbl_clearTemp(sym, pe.u.vlc);
 			symtbl_popScope(sym);
-			return pgr_ok(sym);
+			return pgr_ok();
 		} break;
 
 		case AST_LOOP: {
 			symtbl_pushScope(sym);
-			sym.sc.lblContinue = label_newStr("^loop_continue");
-			sym.sc.lblBreak = label_newStr("^loop_break");
-			label_declare(sym.sc.lblContinue, prg->ops);
-			var pr = program_genBody(prg, sym, stmt.body);
+			sym->sc->lblContinue = label_newStr("^loop_continue");
+			sym->sc->lblBreak = label_newStr("^loop_break");
+			label_declare(sym->sc->lblContinue, prg->ops);
+			pgr_st pr = program_genBody(prg, sym, stmt->u.body);
 			if (pr.type == PGR_ERROR)
 				return pr;
-			label_jump(sym.sc.lblContinue, prg->ops);
-			label_declare(sym.sc.lblBreak, prg->ops);
+			label_jump(sym->sc->lblContinue, prg->ops);
+			label_declare(sym->sc->lblBreak, prg->ops);
 			symtbl_popScope(sym);
-			return pgr_ok(sym);
+			return pgr_ok();
 		} break;
 
 		case AST_GOTO: {
-			for (var i = 0; i < sym.fr.lbls.length; i++){
-				var lbl = sym.fr.lbls[i];
-				if (lbl.name == stmt.ident){
+			for (int i = 0; i < sym->fr->lbls->size; i++){
+				label lbl = sym->fr->lbls->ptrs[i];
+				if (list_byte_equ(lbl->name, stmt->u.ident)){
 					label_jump(lbl, prg->ops);
-					return pgr_ok(sym);
+					return pgr_ok();
 				}
 			}
 			// label doesn't exist yet, so we'll need to create it
-			var lbl = label_new(stmt.ident);
+			label lbl = label_new(stmt->u.ident);
+			stmt->u.ident = NULL;
 			label_jump(lbl, prg->ops);
-			sym.fr.lbls.push(lbl);
-			return pgr_ok(sym);
+			list_ptr_push(sym->fr->lbls, lbl);
+			return pgr_ok();
 		} break;
 
 		case AST_IF: {
-			var nextcond = NULL;
-			var ifdone = label_newStr("^ifdone");
-			for (var i = 0; i < stmt.conds.length; i++){
+			label nextcond = NULL;
+			label ifdone = label_newStr("^ifdone");
+			for (int i = 0; i < stmt->u.aif.conds->size; i++){
 				if (i > 0)
 					label_declare(nextcond, prg->ops);
 				nextcond = label_newStr("^nextcond");
-				var pr = program_eval(prg, sym, PEM_CREATE, NULL, stmt.conds[i].ex);
+				per_st pr = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL,
+					((cond)stmt->u.aif.conds->ptrs[i])->ex);
 				if (pr.type == PER_ERROR)
-					return pgr_error(pr.flp, pr.msg);
-				label_jumpFalse(nextcond, prg->ops, pr.vlc);
-				symtbl_clearTemp(sym, pr.vlc);
+					return pgr_error(pr.u.error.flp, pr.u.error.msg);
+				label_jumpFalse(nextcond, prg->ops, pr.u.vlc);
+				symtbl_clearTemp(sym, pr.u.vlc);
 
 				symtbl_pushScope(sym);
-				var pg = program_genBody(prg, sym, stmt.conds[i].body);
+				pgr_st pg = program_genBody(prg, sym, ((cond)stmt->u.aif.conds->ptrs[i])->body);
 				if (pg.type == PGR_ERROR)
 					return pg;
 				symtbl_popScope(sym);
@@ -6738,119 +6765,124 @@ function program_gen(prg, sym, stmt){
 			}
 			label_declare(nextcond, prg->ops);
 			symtbl_pushScope(sym);
-			var pg = program_genBody(prg, sym, stmt.elseBody);
+			pgr_st pg = program_genBody(prg, sym, stmt->u.aif.elseBody);
 			if (pg.type == PGR_ERROR)
 				return pg;
 			symtbl_popScope(sym);
 			label_declare(ifdone, prg->ops);
-			return pgr_ok(sym);
+			return pgr_ok();
 		} break;
 
 		case AST_INCLUDE:
-			throw new Error('Cannot generate code for include (this shouldn\'t happen)');
+			assert(false);
+			break;
 
 		case AST_NAMESPACE: {
-			var sr = symtbl_pushNamespace(sym, stmt.names);
+			spn_st sr = symtbl_pushNamespace(sym, stmt->u.namespace.names);
 			if (sr.type == SPN_ERROR)
-				return pgr_error(stmt.flp, sr.msg);
-			var pr = program_genBody(prg, sym, stmt.body);
+				return pgr_error(stmt->flp, sr.msg);
+			pgr_st pr = program_genBody(prg, sym, stmt->u.namespace.body);
 			if (pr.type == PGR_ERROR)
 				return pr;
 			symtbl_popNamespace(sym);
-			return pgr_ok(sym);
+			return pgr_ok();
 		} break;
 
 		case AST_RETURN: {
-			var pr = program_eval(prg, sym, PEM_CREATE, NULL, stmt.ex);
+			per_st pr = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, stmt->u.ex);
 			if (pr.type == PER_ERROR)
-				return pgr_error(pr.flp, pr.msg);
-			symtbl_clearTemp(sym, pr.vlc);
-			op_return(prg->ops, pr.vlc);
-			return pgr_ok(sym);
+				return pgr_error(pr.u.error.flp, pr.u.error.msg);
+			symtbl_clearTemp(sym, pr.u.vlc);
+			op_return(prg->ops, pr.u.vlc);
+			return pgr_ok();
 		} break;
 
 		case AST_USING: {
-			for (var i = 0; i < stmt.namesList.length; i++){
-				var sr = symtbl_findNamespace(sym, stmt.namesList[i], stmt.namesList[i].length);
+			for (int i = 0; i < stmt->u.namesList->size; i++){
+				sfn_st sr = symtbl_findNamespace(sym, stmt->u.namesList->ptrs[i],
+					((list_byte)stmt->u.namesList->ptrs[i])->size);
 				if (sr.type == SFN_ERROR)
-					return pgr_error(stmt.flp, sr.msg);
-				var found = false;
-				for (var j = 0; j < sym.sc.ns.usings.length && !found; j++);
-					found = sym.sc.ns.usings[j] == sr.ns;
+					return pgr_error(stmt->flp, sr.u.msg);
+				bool found = false;
+				for (int j = 0; j < sym->sc->ns->usings->size && !found; j++)
+					found = sym->sc->ns->usings->ptrs[j] == sr.u.ns;
 				if (!found)
-					sym.sc.ns.usings.push(sr.ns);
+					list_ptr_push(sym->sc->ns->usings, sr.u.ns);
 			}
-			return pgr_ok(sym);
+			return pgr_ok();
 		} break;
 
 		case AST_VAR:
-			for (var i = 0; i < stmt.lvalues.length; i++){
-				var ex = stmt.lvalues[i];
-				if (ex.type != EXPR_INFIX)
-					throw new Error('Var expression should be EXPR_INFIX (this shouldn\'t happen)');
-				var pr = NULL;
-				if (ex.right != NULL){
-					pr = program_eval(prg, sym, PEM_CREATE, NULL, ex.right);
+			for (int i = 0; i < stmt->u.lvalues->size; i++){
+				expr ex = stmt->u.lvalues->ptrs[i];
+				assert(ex->type == EXPR_INFIX);
+				per_st pr;
+				if (ex->u.infix.right != NULL){
+					pr = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, ex->u.infix.right);
 					if (pr.type == PER_ERROR)
-						return pgr_error(pr.flp, pr.msg);
+						return pgr_error(pr.u.error.flp, pr.u.error.msg);
 				}
-				var lr = lval_addVars(sym, ex.left);
+				lvp_st lr = lval_addVars(sym, ex->u.infix.left);
 				if (lr.type == LVP_ERROR)
-					return pgr_error(lr.flp, lr.msg);
-				if (ex.right != NULL){
-					var pe = program_evalLval(prg, sym, PEM_EMPTY, NULL, lr.lv, -1, pr.vlc);
+					return pgr_error(lr.u.error.flp, lr.u.error.msg);
+				if (ex->u.infix.right != NULL){
+					per_st pe = program_evalLval(prg, sym, PEM_EMPTY, VARLOC_NULL, lr.u.lv,
+						OP_INVALID, pr.u.vlc);
 					if (pe.type == PER_ERROR)
-						return pgr_error(pe.flp, pe.msg);
-					symtbl_clearTemp(sym, pr.vlc);
+						return pgr_error(pe.u.error.flp, pe.u.error.msg);
+					symtbl_clearTemp(sym, pr.u.vlc);
 				}
 			}
-			return pgr_ok(sym);
+			return pgr_ok();
 
 		case AST_EVAL: {
-			if (prg.repl){
-				var pr = program_eval(prg, sym, PEM_CREATE, NULL, stmt.ex);
+			if (prg->repl){
+				per_st pr = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, stmt->u.ex);
 				if (pr.type == PER_ERROR)
-					return pgr_error(pr.flp, pr.msg);
+					return pgr_error(pr.u.error.flp, pr.u.error.msg);
 				sta_st ts = symtbl_addTemp(sym);
 				if (ts.type == STA_ERROR)
-					return pgr_error(stmt.flp, ts.u.msg);
-				var t = ts.u.vlc;
+					return pgr_error(stmt->flp, ts.u.msg);
+				varloc_st t = ts.u.vlc;
 				op_list(prg->ops, t, 1);
-				op_binop(prg->ops, OP_PUSH, t, t, pr.vlc);
+				op_binop(prg->ops, OP_PUSH, t, t, pr.u.vlc);
 				op_param1(prg->ops, OP_SAY, t, t);
 				symtbl_clearTemp(sym, t);
-				symtbl_clearTemp(sym, pr.vlc);
+				symtbl_clearTemp(sym, pr.u.vlc);
 			}
 			else{
-				var pr = program_eval(prg, sym, PEM_EMPTY, NULL, stmt.ex);
+				per_st pr = program_eval(prg, sym, PEM_EMPTY, VARLOC_NULL, stmt->u.ex);
 				if (pr.type == PER_ERROR)
-					return pgr_error(pr.flp, pr.msg);
+					return pgr_error(pr.u.error.flp, pr.u.error.msg);
 			}
-			return pgr_ok(sym);
+			return pgr_ok();
 		} break;
 
 		case AST_LABEL: {
-			var lbl;
-			var found = false;
-			for (var i = 0; i < sym.fr.lbls.length; i++){
-				lbl = sym.fr.lbls[i];
-				if (lbl.name == stmt.ident){
-					if (lbl.pos >= 0)
-						return pgr_error(stmt.flp, 'Cannot redeclare label "' + stmt.ident + '"');
+			label lbl;
+			bool found = false;
+			for (int i = 0; i < sym->fr->lbls->size; i++){
+				lbl = sym->fr->lbls->ptrs[i];
+				if (list_byte_equ(lbl->name, stmt->u.ident)){
+					if (lbl->pos >= 0){
+						return pgr_error(stmt->flp, format("Cannot redeclare label \"%.*s\"",
+							stmt->u.ident->size, stmt->u.ident->bytes));
+					}
 					found = true;
 					break;
 				}
 			}
 			if (!found){
-				lbl = label_new(stmt.ident);
-				sym.fr.lbls.push(lbl);
+				lbl = label_new(stmt->u.ident);
+				stmt->u.ident = NULL;
+				list_ptr_push(sym->fr->lbls, lbl);
 			}
 			label_declare(lbl, prg->ops);
-			return pgr_ok(sym);
+			return pgr_ok();
 		} break;
 	}
 }
-
+#if 0
 //
 // context
 //

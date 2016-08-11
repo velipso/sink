@@ -4606,7 +4606,7 @@ function program_eval(prg, sym, mode, intoVlc, ex){
 var PGR_OK    = 'PGR_OK';
 var PGR_ERROR = 'PGR_ERROR';
 
-function pgr_ok(sym){
+function pgr_ok(){
 	return { type: PGR_OK };
 }
 
@@ -4623,7 +4623,7 @@ function program_genBody(prg, sym, body){
 			return pr;
 	}
 	prg.repl = repl;
-	return pgr_ok(sym);
+	return pgr_ok();
 }
 
 function program_gen(prg, sym, stmt){
@@ -4632,13 +4632,13 @@ function program_gen(prg, sym, stmt){
 			if (sym.sc.lblBreak == null)
 				return pgr_error(stmt.flp, 'Invalid `break`');
 			label_jump(sym.sc.lblBreak, prg.ops);
-			return pgr_ok(sym);
+			return pgr_ok();
 
 		case AST_CONTINUE:
 			if (sym.sc.lblContinue == null)
 				return pgr_error(stmt.flp, 'Invalid `continue`');
 			label_jump(sym.sc.lblContinue, prg.ops);
-			return pgr_ok(sym);
+			return pgr_ok();
 
 		case AST_DECLARE:
 			for (var i = 0; i < stmt.decls.length; i++){
@@ -4670,7 +4670,7 @@ function program_gen(prg, sym, stmt){
 					} break;
 				}
 			}
-			return pgr_ok(sym);
+			return pgr_ok();
 
 		case AST_DEF: {
 			var lr = symtbl_lookup(sym, stmt.names);
@@ -4745,7 +4745,7 @@ function program_gen(prg, sym, stmt){
 							label_declare(passinit, prg.ops);
 						}
 
-						var pe = program_evalLval(prg, sym, PEM_EMPTY, null, lr.lv, -1, t)
+						var pe = program_evalLval(prg, sym, PEM_EMPTY, null, lr.lv, -1, t);
 						if (pe.type == PER_ERROR)
 							return pgr_error(pe.flp, pe.msg);
 
@@ -4790,7 +4790,7 @@ function program_gen(prg, sym, stmt){
 			symtbl_popFrame(sym);
 			label_declare(skip, prg.ops);
 
-			return pgr_ok(sym);
+			return pgr_ok();
 		} break;
 
 		case AST_DO_END: {
@@ -4801,7 +4801,7 @@ function program_gen(prg, sym, stmt){
 				return pr;
 			label_declare(sym.sc.lblBreak, prg.ops);
 			symtbl_popScope(sym);
-			return pgr_ok(sym);
+			return pgr_ok();
 		} break;
 
 		case AST_DO_WHILE: {
@@ -4836,7 +4836,7 @@ function program_gen(prg, sym, stmt){
 
 			label_declare(finish, prg.ops);
 			symtbl_popScope(sym);
-			return pgr_ok(sym);
+			return pgr_ok();
 		} break;
 
 		case AST_FOR: {
@@ -4928,7 +4928,7 @@ function program_gen(prg, sym, stmt){
 			symtbl_clearTemp(sym, idx_vlc);
 			symtbl_clearTemp(sym, pe.vlc);
 			symtbl_popScope(sym);
-			return pgr_ok(sym);
+			return pgr_ok();
 		} break;
 
 		case AST_LOOP: {
@@ -4942,7 +4942,7 @@ function program_gen(prg, sym, stmt){
 			label_jump(sym.sc.lblContinue, prg.ops);
 			label_declare(sym.sc.lblBreak, prg.ops);
 			symtbl_popScope(sym);
-			return pgr_ok(sym);
+			return pgr_ok();
 		} break;
 
 		case AST_GOTO: {
@@ -4950,14 +4950,14 @@ function program_gen(prg, sym, stmt){
 				var lbl = sym.fr.lbls[i];
 				if (lbl.name == stmt.ident){
 					label_jump(lbl, prg.ops);
-					return pgr_ok(sym);
+					return pgr_ok();
 				}
 			}
 			// label doesn't exist yet, so we'll need to create it
 			var lbl = label_new(stmt.ident);
 			label_jump(lbl, prg.ops);
 			sym.fr.lbls.push(lbl);
-			return pgr_ok(sym);
+			return pgr_ok();
 		} break;
 
 		case AST_IF: {
@@ -4987,7 +4987,7 @@ function program_gen(prg, sym, stmt){
 				return pg;
 			symtbl_popScope(sym);
 			label_declare(ifdone, prg.ops);
-			return pgr_ok(sym);
+			return pgr_ok();
 		} break;
 
 		case AST_INCLUDE:
@@ -5001,7 +5001,7 @@ function program_gen(prg, sym, stmt){
 			if (pr.type == PGR_ERROR)
 				return pr;
 			symtbl_popNamespace(sym);
-			return pgr_ok(sym);
+			return pgr_ok();
 		} break;
 
 		case AST_RETURN: {
@@ -5010,7 +5010,7 @@ function program_gen(prg, sym, stmt){
 				return pgr_error(pr.flp, pr.msg);
 			symtbl_clearTemp(sym, pr.vlc);
 			op_return(prg.ops, pr.vlc);
-			return pgr_ok(sym);
+			return pgr_ok();
 		} break;
 
 		case AST_USING: {
@@ -5019,12 +5019,12 @@ function program_gen(prg, sym, stmt){
 				if (sr.type == SFN_ERROR)
 					return pgr_error(stmt.flp, sr.msg);
 				var found = false;
-				for (var j = 0; j < sym.sc.ns.usings.length && !found; j++);
+				for (var j = 0; j < sym.sc.ns.usings.length && !found; j++)
 					found = sym.sc.ns.usings[j] == sr.ns;
 				if (!found)
 					sym.sc.ns.usings.push(sr.ns);
 			}
-			return pgr_ok(sym);
+			return pgr_ok();
 		} break;
 
 		case AST_VAR:
@@ -5048,7 +5048,7 @@ function program_gen(prg, sym, stmt){
 					symtbl_clearTemp(sym, pr.vlc);
 				}
 			}
-			return pgr_ok(sym);
+			return pgr_ok();
 
 		case AST_EVAL: {
 			if (prg.repl){
@@ -5070,7 +5070,7 @@ function program_gen(prg, sym, stmt){
 				if (pr.type == PER_ERROR)
 					return pgr_error(pr.flp, pr.msg);
 			}
-			return pgr_ok(sym);
+			return pgr_ok();
 		} break;
 
 		case AST_LABEL: {
@@ -5090,7 +5090,7 @@ function program_gen(prg, sym, stmt){
 				sym.fr.lbls.push(lbl);
 			}
 			label_declare(lbl, prg.ops);
-			return pgr_ok(sym);
+			return pgr_ok();
 		} break;
 	}
 }
