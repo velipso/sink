@@ -149,6 +149,8 @@ var OP_PICKLE_VALID   = 0x85; // [TGT], [SRC]
 var OP_PICKLE_STR     = 0x86; // [TGT], [SRC]
 var OP_PICKLE_VAL     = 0x87; // [TGT], [SRC]
 
+var ABORT_LISTFUNC    = 0x01;
+
 function oplog(){
 	return;
 	var out = arguments[0];
@@ -3690,7 +3692,7 @@ function program_slice(prg, sym, obj, ex){
 		op_num(prg.ops, start, 0);
 	}
 	else{
-		pe = program_eval(prg, sym, PEM_CREATE, null, ex.start);
+		var pe = program_eval(prg, sym, PEM_CREATE, null, ex.start);
 		if (pe.type == PER_ERROR)
 			return psr_error(pe.flp, pe.msg);
 		start = pe.vlc;
@@ -3705,7 +3707,7 @@ function program_slice(prg, sym, obj, ex){
 		op_rest(prg.ops, len, obj, start);
 	}
 	else{
-		pe = program_eval(prg, sym, PEM_CREATE, null, ex.len);
+		var pe = program_eval(prg, sym, PEM_CREATE, null, ex.len);
 		if (pe.type == PER_ERROR)
 			return psr_error(pe.flp, pe.msg);
 		len = pe.vlc;
@@ -3725,7 +3727,7 @@ function program_lvalGet(prg, sym, mode, intoVlc, lv){
 	if (mode == PLM_CREATE){
 		var ts = symtbl_addTemp(sym);
 		if (ts.type == STA_ERROR)
-			return lvp_error(lv.flp, ts.msg);
+			return per_error(lv.flp, ts.msg);
 		intoVlc = lv.vlc = ts.vlc;
 	}
 
@@ -3774,10 +3776,10 @@ function program_evalCall_checkList(prg, sym, flp, vlc){
 	if (ts.type == STA_ERROR)
 		return per_error(flp, ts.msg);
 	var t = ts.vlc;
-	var skip = label_new('%skip');
+	var skip = label_new('^skip');
 	op_unop(prg.ops, OP_ISLIST, t, vlc);
 	label_jumpTrue(skip, prg.ops, t);
-	op_aborterr(prg.ops, 0x01);
+	op_aborterr(prg.ops, ABORT_LISTFUNC);
 	label_declare(skip, prg.ops);
 	symtbl_clearTemp(sym, t);
 	return per_ok(null);
@@ -3799,8 +3801,8 @@ function program_evalCall(prg, sym, mode, intoVlc, flp, nsn, paramsAt, params){
 			intoVlc = ts.vlc;
 		}
 
-		var pickfalse = label_new('%pickfalse');
-		var finish = label_new('%pickfinish');
+		var pickfalse = label_new('^pickfalse');
+		var finish = label_new('^pickfinish');
 
 		label_jumpFalse(pickfalse, prg.ops, pe.vlc);
 		symtbl_clearTemp(sym, pe.vlc);
@@ -4074,12 +4076,12 @@ function program_lvalCheckNil(prg, sym, lv, jumpFalse, inverted, skip){
 
 			op_num(prg.ops, idx, 0);
 
-			var next = label_new('%condslicenext');
+			var next = label_new('^condslicenext');
 			label_declare(next, prg.ops);
 
 			op_binop(prg.ops, OP_LT, t, idx, lv.len);
 
-			var keep = label_new('%condslicekeep');
+			var keep = label_new('^condslicekeep');
 			label_jumpFalse(inverted ? keep : skip, prg.ops, t);
 
 			op_binop(prg.ops, OP_ADD, t, idx, lv.start);
@@ -4098,7 +4100,7 @@ function program_lvalCheckNil(prg, sym, lv, jumpFalse, inverted, skip){
 		} break;
 
 		case LVR_LIST: {
-			var keep = label_new('%condkeep');
+			var keep = label_new('^condkeep');
 			for (var i = 0; i < lv.body.length; i++)
 				program_lvalCheckNil(prg, sym, lv.body[i], jumpFalse, true, inverted ? skip : keep);
 			if (lv.rest != null)
@@ -4118,7 +4120,7 @@ function program_lvalCondAssignPart(prg, sym, lv, jumpFalse, valueVlc){
 			var pe = program_lvalGet(prg, sym, PLM_CREATE, null, lv);
 			if (pe.type == PER_ERROR)
 				return pe;
-			var skip = label_new('%condskippart');
+			var skip = label_new('^condskippart');
 			if (jumpFalse)
 				label_jumpFalse(skip, prg.ops, pe.vlc);
 			else
@@ -4153,15 +4155,15 @@ function program_lvalCondAssignPart(prg, sym, lv, jumpFalse, valueVlc){
 
 			op_num(prg.ops, idx, 0);
 
-			var next = label_new('%condpartslicenext');
+			var next = label_new('^condpartslicenext');
 			label_declare(next, prg.ops);
 
 			op_binop(prg.ops, OP_LT, t, idx, lv.len);
 
-			var done = label_new('%condpartslicedone');
+			var done = label_new('^condpartslicedone');
 			label_jumpFalse(done, prg.ops, t);
 
-			var inc = label_new('%condpartsliceinc');
+			var inc = label_new('^condpartsliceinc');
 			op_binop(prg.ops, OP_ADD, t, idx, lv.start);
 			op_getat(prg.ops, t2, obj, t);
 			if (jumpFalse)
@@ -4414,7 +4416,7 @@ function program_eval(prg, sym, mode, intoVlc, ex){
 					return per_error(lp.flp, lp.msg);
 
 				if (ex.k == KS_AMP2EQU || ex.k == KS_PIPE2EQU){
-					var skip = label_new('%condsetskip');
+					var skip = label_new('^condsetskip');
 
 					var pe = program_lvalCheckNil(prg, sym, lp.lv, ex.k == KS_AMP2EQU, false, skip);
 					if (pe.type == PER_ERROR)
@@ -4434,7 +4436,7 @@ function program_eval(prg, sym, mode, intoVlc, ex){
 						return per_ok(null);
 					}
 
-					var done = label_new('%condsetdone');
+					var done = label_new('^condsetdone');
 					label_jump(done, prg.ops);
 					label_declare(skip, prg.ops);
 
@@ -4509,7 +4511,7 @@ function program_eval(prg, sym, mode, intoVlc, ex){
 				var pe = program_eval(prg, sym, PEM_INTO, intoVlc, ex.left);
 				if (pe.type == PER_ERROR)
 					return pe;
-				var finish = label_new('%finish');
+				var finish = label_new('^finish');
 				if (ex.k == KS_AMP2)
 					label_jumpFalse(finish, prg.ops, intoVlc);
 				else
@@ -4643,7 +4645,7 @@ function program_gen(prg, sym, stmt){
 				var dc = stmt.decls[i];
 				switch (dc.type){
 					case DECL_LOCAL: {
-						var lbl = label_new('%def');
+						var lbl = label_new('^def');
 						sym.fr.lbls.push(lbl);
 						var sr = symtbl_addCmdLocal(sym, dc.names, lbl);
 						if (sr.type == STA_ERROR)
@@ -4679,13 +4681,13 @@ function program_gen(prg, sym, stmt){
 					return pgr_error(stmt.flp, 'Cannot redefine "' + stmt.names.join('.') + '"');
 			}
 			else{
-				lbl = label_new('%def');
+				lbl = label_new('^def');
 				var sr = symtbl_addCmdLocal(sym, stmt.names, lbl);
 				if (sr.type == STA_ERROR)
 					return pgr_error(stmt.flp, sr.msg);
 			}
 
-			var skip = label_new('%after_def');
+			var skip = label_new('^after_def');
 			label_jump(skip, prg.ops);
 
 			label_declare(lbl, prg.ops);
@@ -4707,9 +4709,9 @@ function program_gen(prg, sym, stmt){
 						var perfinit = null;
 						var doneinit = null;
 						if (ex.right != null){
-							perfinit = label_new('%perfinit');
-							doneinit = label_new('%doneinit');
-							var skipinit = label_new('%skipinit');
+							perfinit = label_new('^perfinit');
+							doneinit = label_new('^doneinit');
+							var skipinit = label_new('^skipinit');
 							label_jump(skipinit, prg.ops);
 							label_declare(perfinit, prg.ops);
 							pr = program_eval(prg, sym, PEM_CREATE, null, ex.right);
@@ -4730,8 +4732,8 @@ function program_gen(prg, sym, stmt){
 
 						var finish = null;
 						if (ex.right != null){
-							finish = label_new('%finish');
-							var passinit = label_new('%passinit');
+							finish = label_new('^finish');
+							var passinit = label_new('^passinit');
 							label_jumpFalse(perfinit, prg.ops, t);
 							label_jump(passinit, prg.ops);
 							label_declare(doneinit, prg.ops);
@@ -4793,7 +4795,7 @@ function program_gen(prg, sym, stmt){
 
 		case AST_DO_END: {
 			symtbl_pushScope(sym);
-			sym.sc.lblBreak = label_new('%do_break');
+			sym.sc.lblBreak = label_new('^do_break');
 			var pr = program_genBody(prg, sym, stmt.body);
 			if (pr.type == PGR_ERROR)
 				return pr;
@@ -4803,9 +4805,9 @@ function program_gen(prg, sym, stmt){
 		} break;
 
 		case AST_DO_WHILE: {
-			var top    = label_new('%dowhile_top');
-			var cond   = label_new('%dowhile_cond');
-			var finish = label_new('%dowhile_finish');
+			var top    = label_new('^dowhile_top');
+			var cond   = label_new('^dowhile_cond');
+			var finish = label_new('^dowhile_finish');
 
 			symtbl_pushScope(sym);
 			sym.sc.lblBreak = finish;
@@ -4894,9 +4896,9 @@ function program_gen(prg, sym, stmt){
 			// clear the index
 			op_num(prg.ops, idx_vlc, 0);
 
-			var top    = label_new('%for_top');
-			var inc    = label_new('%for_inc');
-			var finish = label_new('%for_finish');
+			var top    = label_new('^for_top');
+			var inc    = label_new('^for_inc');
+			var finish = label_new('^for_finish');
 
 			var ts = symtbl_addTemp(sym);
 			if (ts.type == STA_ERROR)
@@ -4931,8 +4933,8 @@ function program_gen(prg, sym, stmt){
 
 		case AST_LOOP: {
 			symtbl_pushScope(sym);
-			sym.sc.lblContinue = label_new('%loop_continue');
-			sym.sc.lblBreak = label_new('%loop_break');
+			sym.sc.lblContinue = label_new('^loop_continue');
+			sym.sc.lblBreak = label_new('^loop_break');
 			label_declare(sym.sc.lblContinue, prg.ops);
 			var pr = program_genBody(prg, sym, stmt.body);
 			if (pr.type == PGR_ERROR)
@@ -4960,11 +4962,11 @@ function program_gen(prg, sym, stmt){
 
 		case AST_IF: {
 			var nextcond = null;
-			var ifdone = label_new('%ifdone');
+			var ifdone = label_new('^ifdone');
 			for (var i = 0; i < stmt.conds.length; i++){
 				if (i > 0)
 					label_declare(nextcond, prg.ops);
-				nextcond = label_new('%nextcond');
+				nextcond = label_new('^nextcond');
 				var pr = program_eval(prg, sym, PEM_CREATE, null, stmt.conds[i].ex);
 				if (pr.type == PER_ERROR)
 					return pgr_error(pr.flp, pr.msg);
@@ -5634,7 +5636,7 @@ function context_run(ctx){
 				A = ops[ctx.pc++];
 				ctx.failed = true;
 				var errmsg = 'Unknown error';
-				if (A == 1)
+				if (A == ABORT_LISTFUNC)
 					errmsg = 'Expecting list when calling function';
 				return crr_warn([errmsg]);
 			} break;
