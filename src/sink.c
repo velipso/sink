@@ -203,6 +203,15 @@ static inline list_byte list_byte_new(){
 	return b;
 }
 
+static inline list_byte list_byte_newStr(const char *data){
+	list_byte b = mem_alloc(sizeof(list_byte_st));
+	b->size = strlen(data);
+	b->count = b->size;
+	b->bytes = mem_alloc(sizeof(uint8_t) * b->count);
+	memcpy(b->bytes, data, sizeof(uint8_t) * b->count);
+	return b;
+}
+
 static inline void list_byte_push(list_byte b, int v){
 	if (b->size + 1 > b->count){
 		b->count += list_byte_grow;
@@ -314,6 +323,12 @@ static bool byteequ(list_byte b, const char *str){
 	return b->size == i;
 }
 
+static bool list_byte_equ(list_byte b1, list_byte b2){
+	if (b1->size != b2->size)
+		return false;
+	return memcmp(b1->bytes, b2->bytes, sizeof(uint8_t) * b1->size) == 0;
+}
+
 typedef struct {
 	int_fast32_t *vals;
 	int size;
@@ -363,6 +378,16 @@ static list_ptr list_ptr_new(free_func f_free){
 	return ls;
 }
 
+static inline list_ptr list_ptr_newSingle(free_func f_free, void *p){
+	list_ptr ls = mem_alloc(sizeof(list_ptr_st));
+	ls->size = 1;
+	ls->count = 1;
+	ls->ptrs = mem_alloc(sizeof(void *) * ls->count);
+	ls->f_free = f_free;
+	ls->ptrs[0] = p;
+	return ls;
+}
+
 static void list_ptr_append(list_ptr ls, list_ptr data){
 	if (data->size <= 0)
 		return;
@@ -384,6 +409,14 @@ static void list_ptr_push(list_ptr ls, void *p){
 
 static inline void *list_ptr_pop(list_ptr ls){
 	return ls->ptrs[--ls->size];
+}
+
+static inline bool list_ptr_has(list_ptr ls, void *p){
+	for (int i = 0; i < ls->size; i++){
+		if (ls->ptrs[i] == p)
+			return true;
+	}
+	return false;
 }
 
 static void list_ptr_free(list_ptr ls){
@@ -589,7 +622,8 @@ typedef enum {
 	// fake ops
 	OP_GT             = 0x1F0,
 	OP_GTE            = 0x1F1,
-	OP_INVALID        = 0x1F2
+	OP_PICK           = 0x1F2,
+	OP_INVALID        = 0x1F3
 } op_enum;
 
 static inline void op_nop(list_byte b){
@@ -4386,141 +4420,203 @@ static inline scope scope_new(frame fr, label lblBreak, label lblContinue, scope
 	return sc;
 }
 
-#if 0
+typedef struct {
+	frame fr;
+	scope sc;
+	bool repl;
+} symtbl_st, *symtbl;
 
-function symtbl_new(repl){
-	var fr = frame_new(NULL);
-	var sc = scope_new(fr, NULL, NULL, NULL);
-	return {
-		repl: repl,
-		fr: fr,
-		sc: sc
-	};
+static inline void symtbl_free(symtbl sym){
+	frame here = sym->fr;
+	while (here){
+		frame del = here;
+		here = here->parent;
+		frame_free(del);
+	}
+	scope here2 = sym->sc;
+	while (here2){
+		scope del = here2;
+		here2 = here2->parent;
+		scope_free(del);
+	}
+	mem_free(sym);
 }
 
-var SFN_OK    = 'SFN_OK';
-var SFN_ERROR = 'SFN_ERROR';
-
-function sfn_ok(ns){
-	return { type: SFN_OK, ns: ns };
+static inline symtbl symtbl_new(bool repl){
+	symtbl sym = mem_alloc(sizeof(symtbl_st));
+	sym->fr = frame_new(NULL);
+	sym->sc = scope_new(sym->fr, NULL, NULL, NULL);
+	sym->repl = repl;
+	return sym;
 }
 
-function sfn_error(msg){
-	return { type: SFN_ERROR, msg: msg };
+typedef enum {
+	SFN_OK,
+	SFN_ERROR
+} sfn_enum;
+
+typedef struct {
+	sfn_enum type;
+	union {
+		namespace ns;
+		char *msg;
+	} u;
+} sfn_st;
+
+static inline sfn_st sfn_ok(namespace ns){
+	return (sfn_st){ .type = SFN_OK, .u.ns = ns };
 }
 
-function symtbl_findNamespace(sym, names, max){
-	var ns = sym.sc.ns;
-	for (var ni = 0; ni < max; ni++){
-		var name = names[ni];
-		var found = false;
-		for (var i = 0; i < ns.names.length; i++){
-			var nsn = ns.names[i];
-			if (nsn.name == name){
-				if (nsn.type != NSN_NAMESPACE){
-					if (!sym.repl)
-						return sfn_error('Not a namespace: "' + nsn.name + '"');
-					nsn = ns.names[i] = nsname_namespace(nsn.name, namespace_new(ns.fr));
+static inline sfn_st sfn_error(char *msg){
+	return (sfn_st){ .type = SFN_ERROR, .u.msg = msg };
+}
+
+static sfn_st symtbl_findNamespace(symtbl sym, list_ptr names, int max){
+	namespace ns = sym->sc->ns;
+	for (int ni = 0; ni < max; ni++){
+		list_byte name = names->ptrs[ni];
+		bool found = false;
+		for (int i = 0; i < ns->names->size; i++){
+			nsname nsn = ns->names->ptrs[i];
+			if (list_byte_equ(nsn->name, name)){
+				if (nsn->type != NSN_NAMESPACE){
+					if (!sym->repl){
+						return sfn_error(
+							format("Not a namespace: \"%.*s\"", nsn->name->size, nsn->name->bytes));
+					}
+					nsname_free(ns->names->ptrs[i]);
+					nsn = ns->names->ptrs[i] = nsname_namespace(nsn->name, namespace_new(ns->fr));
 				}
-				ns = nsn.ns;
+				ns = nsn->u.ns;
 				found = true;
 				break;
 			}
 		}
 		if (!found){
-			var nns = namespace_new(ns.fr);
-			ns.names.push(nsname_namespace(name, nns));
+			namespace nns = namespace_new(ns->fr);
+			list_ptr_push(ns->names, nsname_namespace(name, nns));
 			ns = nns;
 		}
 	}
 	return sfn_ok(ns);
 }
 
-var SPN_OK    = 'SPN_OK';
-var SPN_ERROR = 'SPN_ERROR';
+typedef enum {
+	SPN_OK,
+	SPN_ERROR
+} spn_enum;
 
-function spn_ok(){
-	return { type: SPN_OK };
+typedef struct {
+	spn_enum type;
+	char *msg;
+} spn_st;
+
+static inline spn_st spn_ok(){
+	return (spn_st){ .type = SPN_OK };
 }
 
-function spn_error(msg){
-	return { type: SPN_ERROR, msg: msg };
+static inline spn_st spn_error(char *msg){
+	return (spn_st){ .type = SPN_ERROR, .msg = msg };
 }
 
-function symtbl_pushNamespace(sym, names){
-	var nsr = symtbl_findNamespace(sym, names, names.length);
+static inline spn_st symtbl_pushNamespace(symtbl sym, list_ptr names){
+	sfn_st nsr = symtbl_findNamespace(sym, names, names->size);
 	if (nsr.type == SFN_ERROR)
-		return spn_error(nsr.msg);
-	sym.sc.nsStack.push(nsr.ns);
-	sym.sc.ns = nsr.ns;
+		return spn_error(nsr.u.msg);
+	list_ptr_push(sym->sc->nsStack, nsr.u.ns);
+	sym->sc->ns = nsr.u.ns;
 	return spn_ok();
 }
 
-function symtbl_popNamespace(sym){
-	sym.sc.nsStack.pop();
-	sym.sc.ns = sym.sc.nsStack[sym.sc.nsStack.length - 1];
+static inline void symtbl_popNamespace(symtbl sym){
+	sym->sc->nsStack->size--;
+	sym->sc->ns = sym->sc->nsStack->ptrs[sym->sc->nsStack->size - 1];
 }
 
-function symtbl_pushScope(sym){
-	sym.sc = scope_new(sym.fr, sym.sc.lblBreak, sym.sc.lblContinue, sym.sc);
+static inline void symtbl_pushScope(symtbl sym){
+	sym->sc = scope_new(sym->fr, sym->sc->lblBreak, sym->sc->lblContinue, sym->sc);
 }
 
-function symtbl_popScope(sym){
-	sym.sc = sym.sc.parent;
+static inline void symtbl_popScope(symtbl sym){
+	scope del = sym->sc;
+	sym->sc = sym->sc->parent;
+	scope_free(del);
 }
 
-function symtbl_pushFrame(sym){
-	sym.fr = frame_new(sym.fr);
-	sym.sc = scope_new(sym.fr, NULL, NULL, sym.sc);
+static inline void symtbl_pushFrame(symtbl sym){
+	sym->fr = frame_new(sym->fr);
+	sym->sc = scope_new(sym->fr, NULL, NULL, sym->sc);
 }
 
-function symtbl_frameOpenLabels(sym){
-	for (var i = 0; i < sym.fr.lbls.length; i++){
-		if (sym.fr.lbls[i].pos < 0)
+static inline bool symtbl_frameOpenLabels(symtbl sym){
+	for (int i = 0; i < sym->fr->lbls->size; i++){
+		label lbl = sym->fr->lbls->ptrs[i];
+		if (lbl->pos < 0)
 			return true;
 	}
 	return false;
 }
 
-function symtbl_popFrame(sym){
-	sym.sc = sym.sc.parent;
-	sym.fr = sym.fr.parent;
+static inline void symtbl_popFrame(symtbl sym){
+	scope del = sym->sc;
+	frame del2 = sym->fr;
+	sym->sc = sym->sc->parent;
+	sym->fr = sym->fr->parent;
+	scope_free(del);
+	frame_free(del2);
 }
 
-var STL_OK    = 'STL_OK';
-var STL_ERROR = 'STL_ERROR';
+typedef enum {
+	STL_OK,
+	STL_ERROR
+} stl_enum;
 
-function stl_ok(nsn){
-	return { type: STL_OK, nsn: nsn };
+typedef struct {
+	stl_enum type;
+	union {
+		nsname nsn;
+		char *msg;
+	} u;
+} stl_st;
+
+static inline stl_st stl_ok(nsname nsn){
+	return (stl_st){ .type = STL_OK, .u.nsn = nsn };
 }
 
-function stl_error(msg){
-	return { type: STL_ERROR, msg: msg };
+static inline stl_st stl_error(char *msg){
+	return (stl_st){ .type = STL_ERROR, .u.msg = msg };
 }
 
-var STLN_FOUND    = 'STLN_FOUND';
-var STLN_NOTFOUND = 'STLN_NOTFOUND';
+typedef enum {
+	STLN_FOUND,
+	STLN_NOTFOUND
+} stln_enum;
 
-function stln_found(nsn){
-	return { type: STLN_FOUND, nsn: nsn };
+typedef struct {
+	stln_enum type;
+	nsname nsn;
+} stln_st;
+
+static inline stln_st stln_found(nsname nsn){
+	return (stln_st){ .type = STLN_FOUND, .nsn = nsn };
 }
 
-function stln_notfound(){
-	return { type: STLN_NOTFOUND };
+static inline stln_st stln_notfound(){
+	return (stln_st){ .type = STLN_NOTFOUND };
 }
 
-function symtbl_lookupNsSingle(sym, ns, names){
-	for (var ni = 0; ni < names.length; ni++){
-		var found = false;
-		for (var nsni = 0; nsni < ns.names.length; nsni++){
-			var nsn = ns.names[nsni];
-			if (nsn.name == names[ni]){
-				if (nsn.type == NSN_NAMESPACE){
-					ns = nsn.ns;
+static inline stln_st symtbl_lookupNsSingle(symtbl sym, namespace ns, list_ptr names){
+	for (int ni = 0; ni < names->size; ni++){
+		bool found = false;
+		for (int nsni = 0; nsni < ns->names->size; nsni++){
+			nsname nsn = ns->names->ptrs[nsni];
+			if (list_byte_equ(nsn->name, names->ptrs[ni])){
+				if (nsn->type == NSN_NAMESPACE){
+					ns = nsn->u.ns;
 					found = true;
 					break;
 				}
-				else if (ni == names.length - 1)
+				else if (ni == names->size - 1)
 					return stln_found(nsn);
 				else
 					break;
@@ -4532,249 +4628,283 @@ function symtbl_lookupNsSingle(sym, ns, names){
 	return stln_notfound();
 }
 
-function symtbl_lookupNs(sym, ns, names, tried){
-	if (tried.indexOf(ns) >= 0)
+static stln_st symtbl_lookupNs(symtbl sym, namespace ns, list_ptr names, list_ptr tried){
+	if (list_ptr_has(tried, ns))
 		return stln_notfound();
-	tried.push(ns);
-	var st = symtbl_lookupNsSingle(sym, ns, names);
+	list_ptr_push(tried, ns);
+	stln_st st = symtbl_lookupNsSingle(sym, ns, names);
 	if (st.type == STLN_FOUND)
 		return st;
-	for (var i = 0; i < ns.usings.length; i++){
-		st = symtbl_lookupNs(sym, ns.usings[i], names, tried);
+	for (int i = 0; i < ns->usings->size; i++){
+		st = symtbl_lookupNs(sym, ns->usings->ptrs[i], names, tried);
 		if (st.type == STLN_FOUND)
 			return st;
 	}
 	return stln_notfound();
 }
 
-function symtbl_lookup(sym, names){
-	var tried = [];
-	var trysc = sym.sc;
+static stl_st symtbl_lookup(symtbl sym, list_ptr names){
+	list_ptr tried = list_ptr_new(NULL);
+	scope trysc = sym->sc;
 	while (trysc != NULL){
-		for (var trynsi = trysc.nsStack.length - 1; trynsi >= 0; trynsi--){
-			var tryns = trysc.nsStack[trynsi];
-			var st = symtbl_lookupNs(sym, tryns, names, tried);
-			if (st.type == STLN_FOUND)
+		for (int trynsi = trysc->nsStack->size - 1; trynsi >= 0; trynsi--){
+			namespace tryns = trysc->nsStack->ptrs[trynsi];
+			stln_st st = symtbl_lookupNs(sym, tryns, names, tried);
+			if (st.type == STLN_FOUND){
+				list_ptr_free(tried);
 				return stl_ok(st.nsn);
+			}
 		}
-		trysc = trysc.parent;
+		trysc = trysc->parent;
 	}
-	return stl_error('Not found: ' + names.join('.'));
+	list_ptr_free(tried);
+	list_byte lb = names->ptrs[0];
+	char *join = format("Not found: %.*s", lb->size, lb->bytes);
+	for (int i = 1; i < names->size; i++){
+		lb = names->ptrs[i];
+		char *join2 = format("%s.%.*s", join, lb->size, lb->bytes);
+		mem_free(join);
+		join = join2;
+	}
+	return stl_error(join);
 }
 
-var STA_OK    = 'STA_OK';
-var STA_VAR   = 'STA_VAR';
-var STA_ERROR = 'STA_ERROR';
+typedef enum {
+	STA_OK,
+	STA_VAR,
+	STA_ERROR
+} sta_enum;
 
-function sta_ok(){
-	return { type: STA_OK };
+typedef struct {
+	sta_enum type;
+	union {
+		varloc_st vlc;
+		char *msg;
+	} u;
+} sta_st;
+
+static inline sta_st sta_ok(){
+	return (sta_st){ .type = STA_OK };
 }
 
-function sta_var(vlc){
-	return { type: STA_VAR, vlc: vlc };
+static inline sta_st sta_var(varloc_st vlc){
+	return (sta_st){ .type = STA_VAR, .u.vlc = vlc };
 }
 
-function sta_error(msg){
-	return { type: STA_ERROR, msg: msg };
+static inline sta_st sta_error(char *msg){
+	return (sta_st){ .type = STA_ERROR, .u.msg = msg };
 }
 
-function symtbl_addTemp(sym){
-	for (var i = 0; i < sym.fr.vars.length; i++){
-		if (sym.fr.vars[i] == FVR_TEMP_AVAIL){
-			sym.fr.vars[i] = FVR_TEMP_INUSE;
+static sta_st symtbl_addTemp(symtbl sym){
+	for (int i = 0; i < sym->fr->vars->size; i++){
+		if (sym->fr->vars->vals[i] == FVR_TEMP_AVAIL){
+			sym->fr->vars->vals[i] = FVR_TEMP_INUSE;
 			return sta_var(varloc_new(0, i));
 		}
 	}
-	if (sym.fr.vars.length >= 256)
-		return sta_error('Too many variables in frame');
-	sym.fr.vars.push(FVR_TEMP_INUSE);
-	return sta_var(varloc_new(0, sym.fr.vars.length - 1));
+	if (sym->fr->vars->size >= 256)
+		return sta_error(format("Too many variables in frame"));
+	list_int_push(sym->fr->vars, FVR_TEMP_INUSE);
+	return sta_var(varloc_new(0, sym->fr->vars->size - 1));
 }
 
-function symtbl_clearTemp(sym, vlc){
-	if (vlc.fdiff == 0 && sym.fr.vars[vlc.index] == FVR_TEMP_INUSE)
-		sym.fr.vars[vlc.index] = FVR_TEMP_AVAIL;
+static inline void symtbl_clearTemp(symtbl sym, varloc_st vlc){
+	if (vlc.fdiff == 0 && sym->fr->vars->vals[vlc.index] == FVR_TEMP_INUSE)
+		sym->fr->vars->vals[vlc.index] = FVR_TEMP_AVAIL;
 }
 
-function symtbl_addVar(sym, names){
-	var nsr = symtbl_findNamespace(sym, names, names.length - 1);
+static sta_st symtbl_addVar(symtbl sym, list_ptr names){
+	sfn_st nsr = symtbl_findNamespace(sym, names, names->size - 1);
 	if (nsr.type == SFN_ERROR)
-		return sta_error(nsr.msg);
-	var ns = nsr.ns;
-	for (var i = 0; i < ns.names.length; i++){
-		var nsn = ns.names[i];
-		if (nsn.name == names[names.length - 1]){
-			if (!sym.repl)
-				return sta_error('Cannot redefine "' + nsn.name + '"');
-			if (nsn.type == NSN_VAR)
-				return sta_var(varloc_new(frame_diff(nsn.fr, sym.fr), nsn.index));
-			sym.fr.vars.push(FVR_VAR);
-			ns.names[i] = nsname_var(nsn.name, sym.fr, sym.fr.vars.length - 1);
-			return sta_var(varloc_new(0, sym.fr.vars.length - 1));
+		return sta_error(nsr.u.msg);
+	namespace ns = nsr.u.ns;
+	for (int i = 0; i < ns->names->size; i++){
+		nsname nsn = ns->names->ptrs[i];
+		if (list_byte_equ(nsn->name, names->ptrs[names->size - 1])){
+			if (!sym->repl){
+				return sta_error(
+					format("Cannot redefine \"%.*s\"", nsn->name->size, nsn->name->bytes));
+			}
+			if (nsn->type == NSN_VAR)
+				return sta_var(varloc_new(frame_diff(nsn->u.var.fr, sym->fr), nsn->u.var.index));
+			list_int_push(sym->fr->vars, FVR_VAR);
+			nsname_free(ns->names->ptrs[i]);
+			ns->names->ptrs[i] =
+				nsname_var(names->ptrs[names->size - 1], sym->fr, sym->fr->vars->size - 1);
+			return sta_var(varloc_new(0, sym->fr->vars->size - 1));
 		}
 	}
-	if (sym.fr.vars.length >= 256)
-		return sta_error('Too many variables in frame');
-	sym.fr.vars.push(FVR_VAR);
-	ns.names.push(nsname_var(names[names.length - 1], sym.fr, sym.fr.vars.length - 1));
-	return sta_var(varloc_new(0, sym.fr.vars.length - 1));
+	if (sym->fr->vars->size >= 256)
+		return sta_error(format("Too many variables in frame"));
+	list_int_push(sym->fr->vars, FVR_VAR);
+	list_ptr_push(ns->names,
+		nsname_var(names->ptrs[names->size - 1], sym->fr, sym->fr->vars->size - 1));
+	return sta_var(varloc_new(0, sym->fr->vars->size - 1));
 }
 
-function symtbl_addCmdLocal(sym, names, lbl){
-	var nsr = symtbl_findNamespace(sym, names, names.length - 1);
+static sta_st symtbl_addCmdLocal(symtbl sym, list_ptr names, label lbl){
+	sfn_st nsr = symtbl_findNamespace(sym, names, names->size - 1);
 	if (nsr.type == SFN_ERROR)
-		return sta_error(nsr.msg);
-	var ns = nsr.ns;
-	for (var i = 0; i < ns.names.length; i++){
-		var nsn = ns.names[i];
-		if (nsn.name == names[names.length - 1]){
-			if (!sym.repl)
-				return sta_error('Cannot redefine "' + nsn.name + '"');
-			ns.names[i] = nsname_cmdLocal(nsn.name, sym.fr, lbl);
+		return sta_error(nsr.u.msg);
+	namespace ns = nsr.u.ns;
+	for (int i = 0; i < ns->names->size; i++){
+		nsname nsn = ns->names->ptrs[i];
+		if (list_byte_equ(nsn->name, names->ptrs[names->size - 1])){
+			if (!sym->repl){
+				return sta_error(
+					format("Cannot redefine \"%.*s\"", nsn->name->size, nsn->name->bytes));
+			}
+			nsname_free(ns->names->ptrs[i]);
+			ns->names->ptrs[i] = nsname_cmdLocal(names->ptrs[names->size - 1], sym->fr, lbl);
 			return sta_ok();
 		}
 	}
-	ns.names.push(nsname_cmdLocal(names[names.length - 1], sym.fr, lbl));
+	list_ptr_push(ns->names, nsname_cmdLocal(names->ptrs[names->size - 1], sym->fr, lbl));
 	return sta_ok();
 }
 
-function symtbl_addCmdNative(sym, names, index){
-	var nsr = symtbl_findNamespace(sym, names, names.length - 1);
+static sta_st symtbl_addCmdNative(symtbl sym, list_ptr names, int index){
+	sfn_st nsr = symtbl_findNamespace(sym, names, names->size - 1);
 	if (nsr.type == SFN_ERROR)
-		return sta_error(nsr.msg);
-	var ns = nsr.ns;
-	for (var i = 0; i < ns.names.length; i++){
-		var nsn = ns.names[i];
-		if (nsn.name == names[names.length - 1]){
-			if (!sym.repl)
-				return sta_error('Cannot redefine "' + nsn.name + '"');
-			ns.names[i] = nsname_cmdNative(nsn.name, index);
+		return sta_error(nsr.u.msg);
+	namespace ns = nsr.u.ns;
+	for (int i = 0; i < ns->names->size; i++){
+		nsname nsn = ns->names->ptrs[i];
+		if (list_byte_equ(nsn->name, names->ptrs[names->size - 1])){
+			if (!sym->repl){
+				return sta_error(
+					format("Cannot redefine \"%.*s\"", nsn->name->size, nsn->name->bytes));
+			}
+			nsname_free(ns->names->ptrs[i]);
+			ns->names->ptrs[i] = nsname_cmdNative(names->ptrs[names->size - 1], index);
 			return sta_ok();
 		}
 	}
-	ns.names.push(nsname_cmdNative(names[names.length - 1], index));
+	list_ptr_push(ns->names, nsname_cmdNative(names->ptrs[names->size - 1], index));
 	return sta_ok();
 }
 
-function symtbl_addCmdOpcode(sym, name, opcode, params){
-	// can simplify this function because it is only called internally
-	sym.sc.ns.names.push(nsname_cmdOpcode(name, opcode, params));
+// symtbl_addCmdOpcode
+// can simplify this function because it is only called internally
+static inline void SAC(symtbl sym, const char *name, op_enum opcode, int params){
+	list_ptr_push(sym->sc->ns->names, nsname_cmdOpcode(list_byte_newStr(name), opcode, params));
 }
 
-function symtbl_loadStdlib(sym){
-	function SAC(sym, name, opcode, params){
-		symtbl_addCmdOpcode(sym, name, opcode, params);
-	}
-	SAC(sym, 'pick'          ,                -1,  3);
-	SAC(sym, 'say'           , OP_SAY           , -1);
-	SAC(sym, 'warn'          , OP_WARN          , -1);
-	SAC(sym, 'ask'           , OP_ASK           , -1);
-	SAC(sym, 'exit'          , OP_EXIT          , -1);
-	SAC(sym, 'abort'         , OP_ABORT         , -1);
-	symtbl_pushNamespace(sym, ['num']);
-		SAC(sym, 'abs'       , OP_NUM_ABS       ,  1);
-		SAC(sym, 'sign'      , OP_NUM_SIGN      ,  1);
-		SAC(sym, 'max'       , OP_NUM_MAX       , -1);
-		SAC(sym, 'min'       , OP_NUM_MIN       , -1);
-		SAC(sym, 'clamp'     , OP_NUM_CLAMP     ,  3);
-		SAC(sym, 'floor'     , OP_NUM_FLOOR     ,  1);
-		SAC(sym, 'ceil'      , OP_NUM_CEIL      ,  1);
-		SAC(sym, 'round'     , OP_NUM_ROUND     ,  1);
-		SAC(sym, 'trunc'     , OP_NUM_TRUNC     ,  1);
-		SAC(sym, 'NaN'       , OP_NUM_NAN       ,  0);
-		SAC(sym, 'inf'       , OP_NUM_INF       ,  0);
-		SAC(sym, 'isNaN'     , OP_NUM_ISNAN     ,  1);
-		SAC(sym, 'isFinite'  , OP_NUM_ISFINITE  ,  1);
-		SAC(sym, 'e'         , OP_NUM_E         ,  0);
-		SAC(sym, 'pi'        , OP_NUM_PI        ,  0);
-		SAC(sym, 'tau'       , OP_NUM_TAU       ,  0);
-		SAC(sym, 'sin'       , OP_NUM_SIN       ,  1);
-		SAC(sym, 'cos'       , OP_NUM_COS       ,  1);
-		SAC(sym, 'tan'       , OP_NUM_TAN       ,  1);
-		SAC(sym, 'asin'      , OP_NUM_ASIN      ,  1);
-		SAC(sym, 'acos'      , OP_NUM_ACOS      ,  1);
-		SAC(sym, 'atan'      , OP_NUM_ATAN      ,  1);
-		SAC(sym, 'atan2'     , OP_NUM_ATAN2     ,  2);
-		SAC(sym, 'log'       , OP_NUM_LOG       ,  1);
-		SAC(sym, 'log2'      , OP_NUM_LOG2      ,  1);
-		SAC(sym, 'log10'     , OP_NUM_LOG10     ,  1);
-		SAC(sym, 'exp'       , OP_NUM_EXP       ,  1);
-		SAC(sym, 'lerp'      , OP_NUM_LERP      ,  3);
-		SAC(sym, 'hex'       , OP_NUM_HEX       ,  2);
-		SAC(sym, 'oct'       , OP_NUM_OCT       ,  2);
-		SAC(sym, 'bin'       , OP_NUM_BIN       ,  2);
-	symtbl_popNamespace(sym);
-	symtbl_pushNamespace(sym, ['int']);
-		SAC(sym, 'cast'      , OP_INT_CAST      ,  1);
-		SAC(sym, 'not'       , OP_INT_NOT       ,  1);
-		SAC(sym, 'and'       , OP_INT_AND       ,  2);
-		SAC(sym, 'or'        , OP_INT_OR        ,  2);
-		SAC(sym, 'xor'       , OP_INT_XOR       ,  2);
-		SAC(sym, 'shl'       , OP_INT_SHL       ,  2);
-		SAC(sym, 'shr'       , OP_INT_SHR       ,  2);
-		SAC(sym, 'sar'       , OP_INT_SAR       ,  2);
-		SAC(sym, 'add'       , OP_INT_ADD       ,  2);
-		SAC(sym, 'sub'       , OP_INT_SUB       ,  2);
-		SAC(sym, 'mul'       , OP_INT_MUL       ,  2);
-		SAC(sym, 'div'       , OP_INT_DIV       ,  2);
-		SAC(sym, 'mod'       , OP_INT_MOD       ,  2);
-		SAC(sym, 'clz'       , OP_INT_CLZ       ,  1);
-	symtbl_popNamespace(sym);
-	symtbl_pushNamespace(sym, ['rand']);
-		SAC(sym, 'seed'      , OP_RAND_SEED     ,  1);
-		SAC(sym, 'seedauto'  , OP_RAND_SEEDAUTO ,  0);
-		SAC(sym, 'int'       , OP_RAND_INT      ,  0);
-		SAC(sym, 'num'       , OP_RAND_NUM      ,  0);
-		SAC(sym, 'getstate'  , OP_RAND_GETSTATE ,  0);
-		SAC(sym, 'setstate'  , OP_RAND_SETSTATE ,  1);
-		SAC(sym, 'pick'      , OP_RAND_PICK     ,  1);
-		SAC(sym, 'shuffle'   , OP_RAND_SHUFFLE  ,  1);
-	symtbl_popNamespace(sym);
-	symtbl_pushNamespace(sym, ['str']);
-		SAC(sym, 'new'       , OP_STR_NEW       ,  2);
-		SAC(sym, 'split'     , OP_STR_SPLIT     ,  2);
-		SAC(sym, 'replace'   , OP_STR_REPLACE   ,  3);
-		SAC(sym, 'startsWith', OP_STR_STARTSWITH,  2);
-		SAC(sym, 'endsWith'  , OP_STR_ENDSWITH  ,  2);
-		SAC(sym, 'pad'       , OP_STR_PAD       ,  2);
-		SAC(sym, 'find'      , OP_STR_FIND      ,  3);
-		SAC(sym, 'findRev'   , OP_STR_FINDREV   ,  3);
-		SAC(sym, 'lower'     , OP_STR_LOWER     ,  1);
-		SAC(sym, 'upper'     , OP_STR_UPPER     ,  1);
-		SAC(sym, 'trim'      , OP_STR_TRIM      ,  1);
-		SAC(sym, 'rev'       , OP_STR_REV       ,  1);
-		SAC(sym, 'list'      , OP_STR_LIST      ,  1);
-		SAC(sym, 'byte'      , OP_STR_BYTE      ,  2);
-		SAC(sym, 'hash'      , OP_STR_HASH      ,  2);
-	symtbl_popNamespace(sym);
-	symtbl_pushNamespace(sym, ['utf8']);
-		SAC(sym, 'valid'     , OP_UTF8_VALID    ,  1);
-		SAC(sym, 'list'      , OP_UTF8_LIST     ,  1);
-		SAC(sym, 'str'       , OP_UTF8_STR      ,  1);
-	symtbl_popNamespace(sym);
-	symtbl_pushNamespace(sym, ['struct']);
-		SAC(sym, 'size'      , OP_STRUCT_SIZE   ,  1);
-		SAC(sym, 'str'       , OP_STRUCT_STR    ,  2);
-		SAC(sym, 'list'      , OP_STRUCT_LIST   ,  2);
-	symtbl_popNamespace(sym);
-	symtbl_pushNamespace(sym, ['list']);
-		SAC(sym, 'new'       , OP_LIST_NEW      ,  2);
-		SAC(sym, 'find'      , OP_LIST_FIND     ,  3);
-		SAC(sym, 'findRev'   , OP_LIST_FINDREV  ,  3);
-		SAC(sym, 'join'      , OP_LIST_JOIN     ,  2);
-		SAC(sym, 'rev'       , OP_LIST_REV      ,  1);
-		SAC(sym, 'str'       , OP_LIST_STR      ,  1);
-		SAC(sym, 'sort'      , OP_LIST_SORT     ,  1);
-		SAC(sym, 'sortRev'   , OP_LIST_SORTREV  ,  1);
-		SAC(sym, 'sortCmp'   , OP_LIST_SORTCMP  ,  2);
-	symtbl_popNamespace(sym);
-	symtbl_pushNamespace(sym, ['pickle']);
-		SAC(sym, 'valid'     , OP_PICKLE_VALID  ,  1);
-		SAC(sym, 'str'       , OP_PICKLE_STR    ,  1);
-		SAC(sym, 'val'       , OP_PICKLE_VAL    ,  1);
-	symtbl_popNamespace(sym);
+static inline list_ptr NSS(const char *str){
+	return list_ptr_newSingle((free_func)list_byte_free, list_byte_newStr(str));
 }
 
+static inline void symtbl_loadStdlib(symtbl sym){
+	SAC(sym, "pick"          , OP_PICK          ,  3);
+	SAC(sym, "say"           , OP_SAY           , -1);
+	SAC(sym, "warn"          , OP_WARN          , -1);
+	SAC(sym, "ask"           , OP_ASK           , -1);
+	SAC(sym, "exit"          , OP_EXIT          , -1);
+	SAC(sym, "abort"         , OP_ABORT         , -1);
+	symtbl_pushNamespace(sym, NSS("num"));
+		SAC(sym, "abs"       , OP_NUM_ABS       ,  1);
+		SAC(sym, "sign"      , OP_NUM_SIGN      ,  1);
+		SAC(sym, "max"       , OP_NUM_MAX       , -1);
+		SAC(sym, "min"       , OP_NUM_MIN       , -1);
+		SAC(sym, "clamp"     , OP_NUM_CLAMP     ,  3);
+		SAC(sym, "floor"     , OP_NUM_FLOOR     ,  1);
+		SAC(sym, "ceil"      , OP_NUM_CEIL      ,  1);
+		SAC(sym, "round"     , OP_NUM_ROUND     ,  1);
+		SAC(sym, "trunc"     , OP_NUM_TRUNC     ,  1);
+		SAC(sym, "NaN"       , OP_NUM_NAN       ,  0);
+		SAC(sym, "inf"       , OP_NUM_INF       ,  0);
+		SAC(sym, "isNaN"     , OP_NUM_ISNAN     ,  1);
+		SAC(sym, "isFinite"  , OP_NUM_ISFINITE  ,  1);
+		SAC(sym, "e"         , OP_NUM_E         ,  0);
+		SAC(sym, "pi"        , OP_NUM_PI        ,  0);
+		SAC(sym, "tau"       , OP_NUM_TAU       ,  0);
+		SAC(sym, "sin"       , OP_NUM_SIN       ,  1);
+		SAC(sym, "cos"       , OP_NUM_COS       ,  1);
+		SAC(sym, "tan"       , OP_NUM_TAN       ,  1);
+		SAC(sym, "asin"      , OP_NUM_ASIN      ,  1);
+		SAC(sym, "acos"      , OP_NUM_ACOS      ,  1);
+		SAC(sym, "atan"      , OP_NUM_ATAN      ,  1);
+		SAC(sym, "atan2"     , OP_NUM_ATAN2     ,  2);
+		SAC(sym, "log"       , OP_NUM_LOG       ,  1);
+		SAC(sym, "log2"      , OP_NUM_LOG2      ,  1);
+		SAC(sym, "log10"     , OP_NUM_LOG10     ,  1);
+		SAC(sym, "exp"       , OP_NUM_EXP       ,  1);
+		SAC(sym, "lerp"      , OP_NUM_LERP      ,  3);
+		SAC(sym, "hex"       , OP_NUM_HEX       ,  2);
+		SAC(sym, "oct"       , OP_NUM_OCT       ,  2);
+		SAC(sym, "bin"       , OP_NUM_BIN       ,  2);
+	symtbl_popNamespace(sym);
+	symtbl_pushNamespace(sym, NSS("int"));
+		SAC(sym, "cast"      , OP_INT_CAST      ,  1);
+		SAC(sym, "not"       , OP_INT_NOT       ,  1);
+		SAC(sym, "and"       , OP_INT_AND       ,  2);
+		SAC(sym, "or"        , OP_INT_OR        ,  2);
+		SAC(sym, "xor"       , OP_INT_XOR       ,  2);
+		SAC(sym, "shl"       , OP_INT_SHL       ,  2);
+		SAC(sym, "shr"       , OP_INT_SHR       ,  2);
+		SAC(sym, "sar"       , OP_INT_SAR       ,  2);
+		SAC(sym, "add"       , OP_INT_ADD       ,  2);
+		SAC(sym, "sub"       , OP_INT_SUB       ,  2);
+		SAC(sym, "mul"       , OP_INT_MUL       ,  2);
+		SAC(sym, "div"       , OP_INT_DIV       ,  2);
+		SAC(sym, "mod"       , OP_INT_MOD       ,  2);
+		SAC(sym, "clz"       , OP_INT_CLZ       ,  1);
+	symtbl_popNamespace(sym);
+	symtbl_pushNamespace(sym, NSS("rand"));
+		SAC(sym, "seed"      , OP_RAND_SEED     ,  1);
+		SAC(sym, "seedauto"  , OP_RAND_SEEDAUTO ,  0);
+		SAC(sym, "int"       , OP_RAND_INT      ,  0);
+		SAC(sym, "num"       , OP_RAND_NUM      ,  0);
+		SAC(sym, "getstate"  , OP_RAND_GETSTATE ,  0);
+		SAC(sym, "setstate"  , OP_RAND_SETSTATE ,  1);
+		SAC(sym, "pick"      , OP_RAND_PICK     ,  1);
+		SAC(sym, "shuffle"   , OP_RAND_SHUFFLE  ,  1);
+	symtbl_popNamespace(sym);
+	symtbl_pushNamespace(sym, NSS("str"));
+		SAC(sym, "new"       , OP_STR_NEW       ,  2);
+		SAC(sym, "split"     , OP_STR_SPLIT     ,  2);
+		SAC(sym, "replace"   , OP_STR_REPLACE   ,  3);
+		SAC(sym, "startsWith", OP_STR_STARTSWITH,  2);
+		SAC(sym, "endsWith"  , OP_STR_ENDSWITH  ,  2);
+		SAC(sym, "pad"       , OP_STR_PAD       ,  2);
+		SAC(sym, "find"      , OP_STR_FIND      ,  3);
+		SAC(sym, "findRev"   , OP_STR_FINDREV   ,  3);
+		SAC(sym, "lower"     , OP_STR_LOWER     ,  1);
+		SAC(sym, "upper"     , OP_STR_UPPER     ,  1);
+		SAC(sym, "trim"      , OP_STR_TRIM      ,  1);
+		SAC(sym, "rev"       , OP_STR_REV       ,  1);
+		SAC(sym, "list"      , OP_STR_LIST      ,  1);
+		SAC(sym, "byte"      , OP_STR_BYTE      ,  2);
+		SAC(sym, "hash"      , OP_STR_HASH      ,  2);
+	symtbl_popNamespace(sym);
+	symtbl_pushNamespace(sym, NSS("utf8"));
+		SAC(sym, "valid"     , OP_UTF8_VALID    ,  1);
+		SAC(sym, "list"      , OP_UTF8_LIST     ,  1);
+		SAC(sym, "str"       , OP_UTF8_STR      ,  1);
+	symtbl_popNamespace(sym);
+	symtbl_pushNamespace(sym, NSS("struct"));
+		SAC(sym, "size"      , OP_STRUCT_SIZE   ,  1);
+		SAC(sym, "str"       , OP_STRUCT_STR    ,  2);
+		SAC(sym, "list"      , OP_STRUCT_LIST   ,  2);
+	symtbl_popNamespace(sym);
+	symtbl_pushNamespace(sym, NSS("list"));
+		SAC(sym, "new"       , OP_LIST_NEW      ,  2);
+		SAC(sym, "find"      , OP_LIST_FIND     ,  3);
+		SAC(sym, "findRev"   , OP_LIST_FINDREV  ,  3);
+		SAC(sym, "join"      , OP_LIST_JOIN     ,  2);
+		SAC(sym, "rev"       , OP_LIST_REV      ,  1);
+		SAC(sym, "str"       , OP_LIST_STR      ,  1);
+		SAC(sym, "sort"      , OP_LIST_SORT     ,  1);
+		SAC(sym, "sortRev"   , OP_LIST_SORTREV  ,  1);
+		SAC(sym, "sortCmp"   , OP_LIST_SORTCMP  ,  2);
+	symtbl_popNamespace(sym);
+	symtbl_pushNamespace(sym, NSS("pickle"));
+		SAC(sym, "valid"     , OP_PICKLE_VALID  ,  1);
+		SAC(sym, "str"       , OP_PICKLE_STR    ,  1);
+		SAC(sym, "val"       , OP_PICKLE_VAL    ,  1);
+	symtbl_popNamespace(sym);
+}
+#if 0
 //
 // program
 //
