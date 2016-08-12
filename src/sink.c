@@ -457,46 +457,6 @@ static inline void list_double_push(list_double ls, double v){
 	ls->vals[ls->size++] = v;
 }
 
-// Values are jammed into NaNs, like so:
-//
-// NaN (64 bit):
-// 01111111 11111000 00000000 TTTTTTTT  0FFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF
-//
-// QNAN:  T = 0, F = 0
-// NIL :  T = 1, F = 0
-// STR :  T = 2, F = table index
-// LIST:  T = 3, F = table index
-
-const sink_val SINK_QNAN       = { .u = UINT64_C(0x7FF8000000000000) };
-const sink_val SINK_NIL        = { .u = UINT64_C(0x7FF8000100000000) };
-static const uint64_t TAG_STR  = UINT64_C(0x7FF8000200000000);
-static const uint64_t TAG_LIST = UINT64_C(0x7FF8000300000000);
-static const uint64_t TAG_MASK = UINT64_C(0xFFFFFFFF00000000);
-
-static inline bool is_nil(sink_val v){
-	return v.u != SINK_NIL.u;
-}
-
-static inline bool is_str(sink_val v){
-	return (v.u & TAG_MASK) == TAG_STR;
-}
-
-static inline bool is_list(sink_val v){
-	return (v.u & TAG_MASK) == TAG_LIST;
-}
-
-static inline bool is_num(sink_val v){
-	return !is_nil(v) && !is_list(v) && !is_str(v);
-}
-
-static inline int_least32_t val_index(sink_val v){
-	return (int_least32_t)(v.u & UINT64_C(0x000000007FFFFFFF));
-}
-
-static inline sink_val val_bool(bool x){
-	return x ? (sink_val){ .f = 1 } : SINK_NIL;
-}
-
 typedef struct {
 	int fdiff;
 	int index;
@@ -6881,126 +6841,385 @@ static pgr_st program_gen(program prg, symtbl sym, ast stmt){
 			return pgr_ok();
 		} break;
 	}
+	assert(false);
+	return pgr_ok();
 }
-#if 0
+
+//
+// values
+//
+
+// Values are jammed into NaNs, like so:
+//
+// NaN (64 bit):
+// 01111111 11111000 00000000 TTTTTTTT  0FFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF
+//
+// QNAN:  T = 0, F = 0
+// NIL :  T = 1, F = 0
+// STR :  T = 2, F = table index
+// LIST:  T = 3, F = table index
+
+const sink_val SINK_QNAN       = { .u = UINT64_C(0x7FF8000000000000) };
+const sink_val SINK_NIL        = { .u = UINT64_C(0x7FF8000100000000) };
+static const uint64_t TAG_STR  = UINT64_C(0x7FF8000200000000);
+static const uint64_t TAG_LIST = UINT64_C(0x7FF8000300000000);
+static const uint64_t TAG_MASK = UINT64_C(0xFFFFFFFF00000000);
+
+static inline void bmp_setbit(uint64_t *bmp, int index){
+	((bmp)[(index) / 64] |= (UINT64_C(1) << ((index) % 64)));
+}
+
+static inline bool bmp_hasbit(uint64_t *bmp, int index){
+	return ((bmp)[(index) / 64] & (UINT64_C(1) << ((index) % 64)));
+}
+
+static inline int bmp_alloc(uint64_t *bmp, int_fast64_t count){
+	// search for the first 0 bit, flip it to 1, then return the position
+	// return -1 if nothing found
+	int loop = 0;
+	while (count > 0){
+		if (*bmp == UINT64_C(0xFFFFFFFFFFFFFFFF)){
+			loop++;
+			count -= 64;
+			bmp++;
+			continue;
+		}
+
+#ifdef BITSCAN_FFSLL
+		int pos = ffsll(~*bmp) - 1;
+		*bmp |= 1LL << pos;
+		return loop * 64 + pos;
+#else
+#	error Don't know how to implement bmp_alloc
+#endif
+
+	}
+	return -1;
+}
+
+static int bmp_reserve(void **tbl, uint64_t **aloc, uint64_t **ref, uint64_t **tick, int *size,
+	size_t st_size){
+	int index = bmp_alloc(*aloc, *size);
+	if (index >= 0){
+		bmp_setbit(*ref, index);
+		return index;
+	}
+	if (*size >= 0x3FFFFFFF){
+		SINK_PANIC("Out of memory");
+		return -1;
+	}
+	int new_count = *size * 2;
+	*tbl = mem_realloc(*tbl, st_size * new_count);
+	*aloc = mem_realloc(*aloc, sizeof(uint64_t) * (new_count / 64));
+	memset(&(*aloc)[*size / 64], 0, sizeof(uint64_t) * (*size / 64));
+	*ref = mem_realloc(*ref, sizeof(uint64_t) * (new_count / 64));
+	memset(&(*ref)[*size / 64], 0, sizeof(uint64_t) * *size / 64);
+	*tick = mem_realloc(*tick, sizeof(uint64_t) * (new_count / 64));
+	memset(&(*tick)[*size / 64], 0, sizeof(uint64_t) * (*size / 64));
+	*size = new_count;
+	(*aloc)[new_count / 128] |= 1;
+	bmp_setbit(*ref, new_count / 2);
+	return new_count / 2;
+}
+
 //
 // context
 //
 
-function ccs_new(pc, fdiff, index, lexIndex){
-	return { pc: pc, fdiff: fdiff, index: index, lexIndex: lexIndex };
+typedef struct {
+	int pc;
+	int fdiff;
+	int index;
+	int lexIndex;
+} ccs_st, *ccs;
+
+static inline void ccs_free(ccs c){
+	mem_free(c);
 }
 
-function lxs_new(args, next){
-	var v = [args];
-	for (var i = 1; i < 256; i++)
-		v.push(NULL);
-	return {
-		vals: v,
-		next: next
-	};
+static inline ccs ccs_new(int pc, int fdiff, int index, int lexIndex){
+	ccs c = mem_alloc(sizeof(ccs_st));
+	c->pc = pc;
+	c->fdiff = fdiff;
+	c->index = index;
+	c->lexIndex = lexIndex;
+	return c;
 }
 
-function context_new(prg){
-	var ctx = {
-		prg: prg,
-		failed: false,
-		passed: false,
-		callStack: [],
-		lexStack: [lxs_new(NULL, NULL)],
-		lexIndex: 0,
-		pc: 0,
-		randSeed: 0,
-		randI: 0
-	};
+typedef struct lxs_struct lxs_st, *lxs;
+struct lxs_struct {
+	sink_val vals[256];
+	lxs next;
+};
+
+static inline void lxs_free(lxs ls){
+	mem_free(ls);
+}
+
+static inline lxs lxs_new(sink_val args, lxs next){
+	lxs ls = mem_alloc(sizeof(lxs_st));
+	ls->vals[0] = args;
+	for (int i = 1; i < 256; i++)
+		ls->vals[i] = SINK_NIL;
+	ls->next = next;
+	return ls;
+}
+
+typedef struct {
+	program prg;
+	list_ptr call_stk;
+	list_ptr lex_stk;
+
+	sink_list_st *list_tbl;
+	sink_str_st *str_tbl;
+
+	uint64_t *list_aloc;
+	uint64_t *str_aloc;
+
+	uint64_t *list_ref;
+	uint64_t *str_ref;
+
+	uint64_t *list_tick;
+
+	int list_size;
+	int str_size;
+
+	int lexIndex;
+	int pc;
+	uint32_t rand_seed;
+	uint32_t rand_i;
+	bool failed;
+	bool passed;
+} context_st, *context;
+
+static inline void context_free(context ctx){
+	if (ctx->prg)
+		program_free(ctx->prg);
+	list_ptr_free(ctx->call_stk);
+	list_ptr_free(ctx->lex_stk);
+	for (int i = 0; i < ctx->list_size; i++)
+		mem_free(ctx->list_tbl[i].vals);
+	for (int i = 0; i < ctx->str_size; i++)
+		mem_free(ctx->str_tbl[i].bytes);
+	mem_free(ctx->list_tbl);
+	mem_free(ctx->str_tbl);
+	mem_free(ctx->list_aloc);
+	mem_free(ctx->str_aloc);
+	mem_free(ctx->list_ref);
+	mem_free(ctx->str_ref);
+	mem_free(ctx->list_tick);
+	mem_free(ctx);
+}
+
+static void lib_rand_seedauto(context ctx);
+
+static inline context context_new(program prg){
+	context ctx = mem_alloc(sizeof(context_st));
+	ctx->prg = prg;
+	ctx->failed = false;
+	ctx->passed = false;
+	ctx->call_stk = list_ptr_new((free_func)ccs_free);
+	ctx->lex_stk = list_ptr_new((free_func)lxs_free);
+	list_ptr_push(ctx->lex_stk, lxs_new(SINK_NIL, NULL));
+	ctx->pc = 0;
+	ctx->rand_seed = 0;
+	ctx->rand_i = 0;
+
+	ctx->list_size = 64;
+	ctx->str_size = 64;
+
+	ctx->list_tbl = mem_alloc(sizeof(sink_list_st) * ctx->list_size);
+	ctx->str_tbl = mem_alloc(sizeof(sink_str_st) * ctx->str_size);
+
+	ctx->list_aloc = mem_alloc(sizeof(uint64_t) * (ctx->list_size / 64));
+	memset(ctx->list_aloc, 0, sizeof(uint64_t) * (ctx->list_size / 64));
+	ctx->str_aloc = mem_alloc(sizeof(uint64_t) * (ctx->str_size / 64));
+	memset(ctx->str_aloc, 0, sizeof(uint64_t) * (ctx->str_size / 64));
+
+	ctx->list_ref = mem_alloc(sizeof(uint64_t) * (ctx->list_size / 64));
+	ctx->str_ref = mem_alloc(sizeof(uint64_t) * (ctx->str_size / 64));
+
+	ctx->list_tick = mem_alloc(sizeof(uint64_t) * (ctx->list_size / 64));
+
 	lib_rand_seedauto(ctx);
 	return ctx;
 }
 
-var CRR_EXITPASS = 'CRR_EXITPASS';
-var CRR_EXITFAIL = 'CRR_EXITFAIL';
-var CRR_SAY      = 'CRR_SAY';
-var CRR_WARN     = 'CRR_WARN';
-var CRR_ASK      = 'CRR_ASK';
-var CRR_REPL     = 'CRR_REPL';
-var CRR_INVALID  = 'CRR_INVALID';
+typedef enum {
+	CRR_EXITPASS,
+	CRR_EXITFAIL,
+	CRR_SAY,
+	CRR_WARN,
+	CRR_ASK,
+	CRR_REPL,
+	CRR_INVALID
+} crr_enum;
 
-function crr_exitpass(){
-	return { type: CRR_EXITPASS };
+typedef struct {
+	crr_enum type;
+	sink_val args;
+	int fdiff;
+	int index;
+} crr_st;
+
+static inline crr_st crr_exitpass(){
+	return (crr_st){ .type = CRR_EXITPASS };
 }
 
-function crr_exitfail(){
-	return { type: CRR_EXITFAIL };
+static inline crr_st crr_exitfail(){
+	return (crr_st){ .type = CRR_EXITFAIL };
 }
 
-function crr_say(args){
-	return { type: CRR_SAY, args: args };
+static inline crr_st crr_say(sink_val args){
+	return (crr_st){ .type = CRR_SAY, .args = args };
 }
 
-function crr_warn(args){
-	return { type: CRR_WARN, args: args };
+static inline crr_st crr_warn(sink_val args){
+	return (crr_st){ .type = CRR_WARN, .args = args };
 }
 
-function crr_ask(args, fdiff, index){
-	return { type: CRR_ASK, args: args, fdiff: fdiff, index: index };
+static inline crr_st crr_ask(sink_val args, int fdiff, int index){
+	return (crr_st){ .type = CRR_ASK, .args = args, .fdiff = fdiff, .index = index };
 }
 
-function crr_repl(){
-	return { type: CRR_REPL };
+static inline crr_st crr_repl(){
+	return (crr_st){ .type = CRR_REPL };
 }
 
-function crr_invalid(){
-	throw new Error('invalid!?'); // TODO: remove
-	return { type: CRR_INVALID };
+static inline crr_st crr_invalid(){
+	return (crr_st){ .type = CRR_INVALID };
 }
 
-function var_get(ctx, fdiff, index){
-	return ctx.lexStack[ctx.lexIndex - fdiff].vals[index];
+static inline void list_cleartick(context ctx){
+	memset(ctx->list_tick, 0, sizeof(uint64_t) * (ctx->list_size / 64));
 }
 
-function var_set(ctx, fdiff, index, val){
-	ctx.lexStack[ctx.lexIndex - fdiff].vals[index] = val;
+static inline bool list_hastick(context ctx, int index){
+	if (bmp_hasbit(ctx->list_tick, index))
+		return true;
+	bmp_setbit(ctx->list_tick, index);
+	return false;
 }
 
-function var_isnum(val){
-	return typeof val == 'number';
+static inline sink_val var_get(context ctx, int fdiff, int index){
+	return ((lxs)ctx->lex_stk->ptrs[ctx->lexIndex - fdiff])->vals[index];
 }
 
-function var_isstr(val){
-	return typeof val == 'string';
+static inline void var_set(context ctx, int fdiff, int index, sink_val val){
+	((lxs)ctx->lex_stk->ptrs[ctx->lexIndex - fdiff])->vals[index] = val;
 }
 
-function var_islist(val){
-	return Object.prototype.toString.call(val) == '[object Array]';
+static inline bool var_isnil(sink_val v){
+	return v.u == SINK_NIL.u;
 }
 
-var var_tostr_marker = 0;
-function var_tostr(v){
-	var m = var_tostr_marker++;
-	function tos(v, first){
-		if (v == NULL)
-			return 'nil';
-		else if (var_isnum(v)){
-			if (v == Infinity)
-				return 'inf';
-			else if (v == -Infinity)
-				return '-inf';
-			return '' + v;
+static inline bool var_isstr(sink_val v){
+	return (v.u & TAG_MASK) == TAG_STR;
+}
+
+static inline bool var_islist(sink_val v){
+	return (v.u & TAG_MASK) == TAG_LIST;
+}
+
+static inline bool var_isnum(sink_val v){
+	return !var_isnil(v) && !var_islist(v) && !var_isstr(v);
+}
+
+static inline int var_index(sink_val v){
+	return (int)(v.u & UINT64_C(0x000000007FFFFFFF));
+}
+
+static inline sink_val var_bool(bool x){
+	return x ? (sink_val){ .f = 1 } : SINK_NIL;
+}
+
+static inline sink_list var_castlist(context ctx, sink_val v){
+	return &ctx->list_tbl[var_index(v)];
+}
+
+static inline sink_str var_caststr(context ctx, sink_val v){
+	return &ctx->str_tbl[var_index(v)];
+}
+
+static sink_val var_tostr(context ctx, sink_val v, bool first){
+	if (var_isstr(v)){
+		if (first)
+			return v;
+		int tot = 2;
+		sink_str s = var_caststr(ctx, v);
+		for (int i = 0; i < s->size; i++){
+			if (s->bytes[i] == '\'' || s->bytes[i] == '\\')
+				tot++;
+			tot++;
 		}
-		else if (var_isstr(v))
-			return first ? v : '\'' + v + '\'';
-		// otherwise, list
-		if (v.tostr_marker == m)
-			return '{circular}';
-		v.tostr_marker = m;
-		var out = [];
-		for (var i = 0; i < v.length; i++)
-			out.push(tos(v[i], false));
-		return '{' + out.join(', ') + '}';
+		uint8_t *bytes = mem_alloc(sizeof(uint8_t) * tot);
+		bytes[0] = '\'';
+		int p = 1;
+		for (int i = 0; i < s->size; i++){
+			if (s->bytes[i] == '\'' || s->bytes[i] == '\\')
+				bytes[p++] = '\\';
+			bytes[p++] = s->bytes[i];
+		}
+		return sink_strNewBlobGive((sink_ctx)ctx, bytes, tot);
 	}
-	return tos(v, true);
+	else if (var_isnil(v)){
+		uint8_t *bytes = mem_alloc(sizeof(uint8_t) * 3);
+		bytes[0] = 'n'; bytes[1] = 'i'; bytes[2] = 'l';
+		return sink_strNewBlobGive((sink_ctx)ctx, bytes, 3);
+	}
+	else if (var_islist(v)){
+		if (list_hastick(ctx, var_index(v))){
+			uint8_t *bytes = mem_alloc(sizeof(uint8_t) * 10);
+			bytes[0] = '{'; bytes[1] = 'c'; bytes[2] = 'i'; bytes[3] = 'r'; bytes[4] = 'c';
+			bytes[5] = 'u'; bytes[6] = 'l'; bytes[7] = 'a'; bytes[8] = 'r'; bytes[9] = '}';
+			return sink_strNewBlobGive((sink_ctx)ctx, bytes, 10);
+		}
+		sink_list ls = var_castlist(ctx, v);
+		int tot = 2;
+		list_double db = list_double_new();
+		for (int i = 0; i < ls->size; i++){
+			sink_val v = var_tostr(ctx, ls->vals[i], false);
+			sink_str s = var_caststr(ctx, v);
+			tot += (i == 0 ? 0 : 2) + s->size;
+			list_double_push(db, v.f);
+		}
+		uint8_t *bytes = mem_alloc(sizeof(uint8_t) * tot);
+		bytes[0] = '{';
+		int p = 1;
+		for (int i = 0; i < ls->size; i++){
+			sink_str s = var_caststr(ctx, (sink_val){ .f = db->vals[i] });
+			if (i > 0){
+				bytes[p++] = ',';
+				bytes[p++] = ' ';
+			}
+			memcpy(&bytes[p], s->bytes, sizeof(uint8_t) * s->size);
+			p += s->size;
+		}
+		bytes[p] = '}';
+		list_double_free(db);
+		return sink_strNewBlobGive((sink_ctx)ctx, bytes, tot);
+	}
+	// otherwise, num
+	if (isinf(v.f)){
+		if (v.f < 0){
+			uint8_t *bytes = mem_alloc(sizeof(uint8_t) * 4);
+			bytes[0] = '-'; bytes[1] = 'i'; bytes[2] = 'n'; bytes[3] = 'f';
+			return sink_strNewBlobGive((sink_ctx)ctx, bytes, 4);
+		}
+		uint8_t *bytes = mem_alloc(sizeof(uint8_t) * 3);
+		bytes[0] = 'i'; bytes[1] = 'n'; bytes[2] = 'f';
+		return sink_strNewBlobGive((sink_ctx)ctx, bytes, 3);
+	}
+	char *fmt = format("%.15g", v.f);
+	return sink_strNewBlobGive((sink_ctx)ctx, (uint8_t *)fmt, strlen(fmt));
 }
 
+sink_val sink_valToStr(sink_ctx ctx, sink_val v){
+	if (var_islist(v))
+		list_cleartick((context)ctx);
+	return var_tostr((context)ctx, v, true);
+}
+#if 0
 function arget(ar, index){
 	if (var_islist(ar))
 		return index >= ar.length ? 0 : ar[index];
@@ -7225,24 +7444,24 @@ function lib_num_base(num, len, base){
 }
 
 function lib_rand_seedauto(ctx){
-	ctx.randSeed = (new Date()).getTime() | 0;
-	ctx.randI = (Math.random() * 0xFFFFFFFF) | 0;
+	ctx.rand_seed = (new Date()).getTime() | 0;
+	ctx.rand_i = (Math.random() * 0xFFFFFFFF) | 0;
 	for (var i = 0; i < 1000; i++)
 		lib_rand_int(ctx);
-	ctx.randI = 0;
+	ctx.rand_i = 0;
 }
 
 function lib_rand_seed(ctx, n){
-	ctx.randSeed = n | 0;
-	ctx.randI = 0;
+	ctx.rand_seed = n | 0;
+	ctx.rand_i = 0;
 }
 
 function lib_rand_int(ctx){
 	var m = 0x5bd1e995;
-	var k = polyfill.Math_imul(ctx.randI,  m);
-	ctx.randI = (ctx.randI + 1) | 0;
-	ctx.randSeed = polyfill.Math_imul(k ^ (k >>> 24) ^ polyfill.Math_imul(ctx.randSeed, m), m);
-	var res = (ctx.randSeed ^ (ctx.randSeed >>> 13)) | 0;
+	var k = polyfill.Math_imul(ctx.rand_i,  m);
+	ctx.rand_i = (ctx.rand_i + 1) | 0;
+	ctx.rand_seed = polyfill.Math_imul(k ^ (k >>> 24) ^ polyfill.Math_imul(ctx.rand_seed, m), m);
+	var res = (ctx.rand_seed ^ (ctx.rand_seed >>> 13)) | 0;
 	if (res < 0)
 		return res + 0x100000000;
 	return res;
@@ -7259,19 +7478,19 @@ function lib_rand_num(ctx){
 
 function lib_rand_getstate(ctx){
 	// slight goofy logic to convert int32 to uint32
-	if (ctx.randI < 0){
-		if (ctx.randSeed < 0)
-			return [ctx.randSeed + 0x100000000, ctx.randI + 0x100000000];
-		return [ctx.randSeed, ctx.randI + 0x100000000];
+	if (ctx.rand_i < 0){
+		if (ctx.rand_seed < 0)
+			return [ctx.rand_seed + 0x100000000, ctx.rand_i + 0x100000000];
+		return [ctx.rand_seed, ctx.rand_i + 0x100000000];
 	}
-	else if (ctx.randSeed < 0)
-		return [ctx.randSeed + 0x100000000, ctx.randI];
-	return [ctx.randSeed, ctx.randI];
+	else if (ctx.rand_seed < 0)
+		return [ctx.rand_seed + 0x100000000, ctx.rand_i];
+	return [ctx.rand_seed, ctx.rand_i];
 }
 
 function lib_rand_setstate(ctx, a, b){
-	ctx.randSeed = a | 0;
-	ctx.randI = b | 0;
+	ctx.rand_seed = a | 0;
+	ctx.rand_i = b | 0;
 }
 
 function lib_rand_pick(ctx, ls){
@@ -8093,11 +8312,11 @@ function context_run(ctx){
 					ctx.failed = true;
 					return crr_warn(['Expecting list when calling function']);
 				}
-				ctx.callStack.push(ccs_new(ctx.pc, A, B, ctx.lexIndex));
+				ctx.call_stk.push(ccs_new(ctx.pc, A, B, ctx.lexIndex));
 				ctx.lexIndex = ctx.lexIndex - E + 1;
-				while (ctx.lexIndex >= ctx.lexStack.length)
-					ctx.lexStack.push(NULL);
-				ctx.lexStack[ctx.lexIndex] = lxs_new(X, ctx.lexStack[ctx.lexIndex]);
+				while (ctx.lexIndex >= ctx.lex_stk.length)
+					ctx.lex_stk.push(NULL);
+				ctx.lex_stk[ctx.lexIndex] = lxs_new(X, ctx.lex_stk[ctx.lexIndex]);
 				ctx.pc = F;
 			} break;
 
@@ -8106,15 +8325,15 @@ function context_run(ctx){
 			} break;
 
 			case OP_RETURN         : { // [SRC]
-				if (ctx.callStack.length <= 0)
+				if (ctx.call_stk.length <= 0)
 					return crr_exitpass();
 				ctx.pc++;
 				A = ops[ctx.pc++]; B = ops[ctx.pc++];
 				if (A > ctx.lexIndex)
 					return crr_invalid();
 				X = var_get(ctx, A, B);
-				var s = ctx.callStack.pop();
-				ctx.lexStack[ctx.lexIndex] = ctx.lexStack[ctx.lexIndex].next;
+				var s = ctx.call_stk.pop();
+				ctx.lex_stk[ctx.lexIndex] = ctx.lex_stk[ctx.lexIndex].next;
 				ctx.lexIndex = s.lexIndex;
 				var_set(ctx, s.fdiff, s.index, X);
 				ctx.pc = s.pc;

@@ -67,9 +67,12 @@ typedef struct {
 	int size;
 } sink_str_st, *sink_str;
 
+typedef uintptr_t sink_ctx;
+
 extern const sink_val SINK_QNAN;
 extern const sink_val SINK_NIL;
 
-
+sink_val sink_valToStr(sink_ctx ctx, sink_val v);
+sink_val sink_strNewBlobGive(sink_ctx ctx, uint8_t *bytes, int size);
 
 #endif // SINK__H
