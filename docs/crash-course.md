@@ -180,6 +180,16 @@ Numbers can also be treated as 32-bit signed or unsigned integers in the standar
 on the library call.  This is no problem because a 64-bit floating point number can store a 52-bit
 integer losslessly.
 
+Testing for a number is done via `typenum`:
+
+```
+if typenum x
+  say 'x is a number'
+else
+  say 'x isn\'t a number'
+end
+```
+
 Strings
 -------
 
