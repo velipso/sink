@@ -7211,6 +7211,10 @@ static sink_val var_tostr(context ctx, sink_val v, bool first){
 		return sink_strNewBlobGive((sink_ctx)ctx, bytes, 3);
 	}
 	char *fmt = format("%.15g", v.f);
+	if (fmt[0] == '-' && fmt[1] == '0' && fmt[2] == 0){ // fix negative zero silliness
+		fmt[0] = '0';
+		fmt[1] = 0;
+	}
 	return sink_strNewBlobGive((sink_ctx)ctx, (uint8_t *)fmt, strlen(fmt));
 }
 
@@ -7219,23 +7223,28 @@ sink_val sink_valToStr(sink_ctx ctx, sink_val v){
 		list_cleartick((context)ctx);
 	return var_tostr((context)ctx, v, true);
 }
-#if 0
-function arget(ar, index){
-	if (var_islist(ar))
-		return index >= ar.length ? 0 : ar[index];
+
+static inline sink_val arget(context ctx, sink_val ar, int index){
+	if (var_islist(ar)){
+		sink_list ls = var_castlist(ctx, ar);
+		return index >= ls->size ? (sink_val){ .f = 0 } : ls->vals[index];
+	}
 	return ar;
 }
 
-function arsize(ar){
-	if (var_islist(ar))
-		return ar.length;
+static inline int arsize(context ctx, sink_val ar){
+	if (var_islist(ar)){
+		sink_list ls = var_castlist(ctx, ar);
+		return ls->size;
+	}
 	return 1;
 }
 
-function oper_isnum(a){
+static inline bool oper_isnum(context ctx, sink_val a){
 	if (var_islist(a)){
-		for (var i = 0; i < a.length; i++){
-			if (!var_isnum(a[i]))
+		sink_list ls = var_castlist(ctx, a);
+		for (int i = 0; i < ls->size; i++){
+			if (!var_isnum(ls->vals[i]))
 				return false;
 		}
 		return true;
@@ -7243,126 +7252,82 @@ function oper_isnum(a){
 	return var_isnum(a);
 }
 
-function oper_isnilnumstr(a){
+static inline bool oper_isnilnumstr(context ctx, sink_val a){
 	if (var_islist(a)){
-		for (var i = 0; i < a.length; i++){
-			if (a[i] != NULL && !var_isnum(a[i]) && !var_isstr(a[i]))
+		sink_list ls = var_castlist(ctx, a);
+		for (int i = 0; i < ls->size; i++){
+			if (var_islist(ls->vals[i]))
 				return false;
 		}
-		return true;
 	}
-	return a == NULL || var_isnum(a) || var_isstr(a);
+	return true;
 }
 
-function oper_un(a, func){
+typedef sink_val (*unary_func)(context ctx, sink_val v);
+
+static sink_val oper_un(context ctx, sink_val a, unary_func f_unary){
 	if (var_islist(a)){
-		var ret = [];
-		for (var i = 0; i < a.length; i++)
-			ret.push(func(a[i]));
-		return ret;
+		sink_list ls = var_castlist(ctx, a);
+		sink_val *ret = mem_alloc(sizeof(sink_val) * ls->size);
+		for (int i = 0; i < ls->size; i++)
+			ret[i] = f_unary(ctx, ls->vals[i]);
+		return sink_listNewGive((sink_ctx)ctx, ret, ls->size, ls->size);
 	}
-	return func(a);
+	return f_unary(ctx, a);
 }
 
-function oper_bin(a, b, func){
+typedef sink_val (*binary_func)(context ctx, sink_val a, sink_val b);
+
+static sink_val oper_bin(context ctx, sink_val a, sink_val b, binary_func f_binary){
 	if (var_islist(a) || var_islist(b)){
-		var ret = [];
-		var m = Math.max(arsize(a), arsize(b));
-		for (var i = 0; i < m; i++)
-			ret.push(func(arget(a, i), arget(b, i)));
-		return ret;
+		int ma = arsize(ctx, a);
+		int mb = arsize(ctx, b);
+		int m = ma > mb ? ma : mb;
+		sink_val *ret = mem_alloc(sizeof(sink_val) * m);
+		for (int i = 0; i < m; i++)
+			ret[i] = f_binary(ctx, arget(ctx, a, i), arget(ctx, b, i));
+		return sink_listNewGive((sink_ctx)ctx, ret, m, m);
 	}
-	return func(a, b);
+	return f_binary(ctx, a, b);
 }
 
-function oper_tri(a, b, c, func){
+typedef sink_val (*trinary_func)(context ctx, sink_val a, sink_val b, sink_val c);
+
+static sink_val oper_tri(context ctx, sink_val a, sink_val b, sink_val c, trinary_func f_trinary){
 	if (var_islist(a) || var_islist(b) || var_islist(c)){
-		var ret = [];
-		var m = Math.max(arsize(a), arsize(b), arsize(c));
-		for (var i = 0; i < m; i++)
-			ret.push(func(arget(a, i), arget(b, i), arget(c, i)));
-		return ret;
+		int ma = arsize(ctx, a);
+		int mb = arsize(ctx, b);
+		int mc = arsize(ctx, c);
+		int m = ma > mb ? (ma > mc ? ma : mc) : (mb > mc ? mb : mc);
+		sink_val *ret = mem_alloc(sizeof(sink_val) * m);
+		for (int i = 0; i < m; i++)
+			ret[i] = f_trinary(ctx, arget(ctx, a, i), arget(ctx, b, i), arget(ctx, c, i));
+		return sink_listNewGive((sink_ctx)ctx, ret, m, m);
 	}
-	return func(a, b, c);
+	return f_trinary(ctx, a, b, c);
 }
 
-function str_cmp(a, b){
-	var m = Math.min(a.length, b.length);
-	for (var i = 0; i < m; i++){
-		var c1 = a.charCodeAt(i);
-		var c2 = b.charCodeAt(i);
+static int str_cmp(sink_str a, sink_str b){
+	int m = a->size > b->size ? b->size : a->size;
+	for (int i = 0; i < m; i++){
+		uint8_t c1 = a->bytes[i];
+		uint8_t c2 = b->bytes[i];
 		if (c1 < c2)
 			return -1;
 		else if (c2 < c1)
 			return 1;
 	}
-	if (a.length < b.length)
+	if (a->size < b->size)
 		return -1;
-	else if (b.length < a.length)
+	else if (b->size < a->size)
 		return 1;
 	return 0;
 }
 
-function context_result(ctx, cr, val){
+static inline void context_result(context ctx, crr_st cr, sink_val val){
 	var_set(ctx, cr.fdiff, cr.index, val);
 }
-
-// shitty polyfills mostly for internet explorer
-var polyfill = (function(){
-	function Math_sign(x){
-		x = +x; // convert to a number
-		if (x === 0 || isNaN(x))
-			return x;
-		return x > 0 ? 1 : -1;
-	}
-
-	function Math_trunc(x){
-		return ~~x;
-	}
-
-	function Math_log2(x){
-		return Math.log(x) / Math.LN2;
-	}
-
-	function Math_log10(x){
-		return Math.log(x) / Math.LN10;
-	}
-
-	function Math_imul(a, b){
-		var ah = (a >>> 16) & 0xFFFF;
-		var al = a & 0xFFFF;
-		var bh = (b >>> 16) & 0xFFFF;
-		var bl = b & 0xFFFF;
-		return (al * bl) + (((ah * bl + al * bh) << 16) >>> 0) | 0;
-	}
-
-	var clz32tbl = [
-		32, 31,  0, 16,  0, 30,  3,  0, 15,  0,  0,  0, 29, 10,  2,  0,
-		 0,  0, 12, 14, 21,  0, 19,  0,  0, 28,  0, 25,  0,  9,  1,  0,
-		17,  0,  4,   ,  0,  0, 11,  0, 13, 22, 20,  0, 26,  0,  0, 18,
-		 5,  0,  0, 23,  0, 27,  0,  6,  0, 24,  7,  0,  8,  0,  0,  0
-	];
-	function Math_clz32(a){
-		var v = Number(x) >>> 0;
-		v |= v >>> 1;
-		v |= v >>> 2;
-		v |= v >>> 4;
-		v |= v >>> 8;
-		v |= v >>> 16;
-		v = clz32tbl[Math_imul(v, 0x06EB14F9) >>> 26];
-		return v;
-	}
-
-	return {
-		Math_sign : typeof Math.sign  == 'function' ? Math.sign  : Math_sign ,
-		Math_trunc: typeof Math.trunc == 'function' ? Math.trunc : Math_trunc,
-		Math_log2 : typeof Math.log2  == 'function' ? Math.log2  : Math_log2 ,
-		Math_log10: typeof Math.log10 == 'function' ? Math.log10 : Math_log10,
-		Math_imul : typeof Math.imul  == 'function' ? Math.imul  : Math_imul ,
-		Math_clz32: typeof Math.clz32 == 'function' ? Math.clz32 : Math_clz32
-	};
-})();
-
+#if 0
 var lib_num_max_marker = 0;
 function lib_num_max(v){
 	var m = lib_num_max_marker++;
