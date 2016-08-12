@@ -106,7 +106,7 @@ Sink is dynamically typed (which means any variable can contain any type) and ha
 types:
 
 | Type   | Description                    | Example(s)                            |
-+--------+--------------------------------+---------------------------------------+
+|--------|--------------------------------|---------------------------------------|
 | Nil    | Nothingness, false             | `nil`                                 |
 | Number | 64-bit floating point          | `5`, `0xFF`, `0b1011`, `6.28e+10`     |
 | String | Binary-safe array of bytes     | `'hello'`, `"world"`                  |
