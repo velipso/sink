@@ -253,10 +253,74 @@ say "a" ~ 'b'  # ab
 say 1 ~ 2      # 12
 ```
 
+Strings are detected via `typestr`, in the same vein as `typenum` described above.
+
 Lists
 -----
 
-Lists are the only compound data structure in Sink.  They are created via `{ <contents> }`.
+Lists are the only compound data structure in Sink.  They are created with curly braces
+`{ <contents> }`.  Elements are accessed using `ls[0]`, `ls[1]`, etc.  Negative indicies will wrap
+around the end.  Indicies outside the range will return `nil`.
 
-TODO: more
+Most operations on numbers also work on lists, by performing the operation across all elements
+(defaulting values to `0` if outside the range):
 
+```
+say {1, 2, 3} * 2         # {2, 4, 6}
+say {1, 2, 3} + {4, 5, 6} # {5, 7, 9}
+say {1} + {2, 5}          # {3, 5}
+say {1} * {2, 5}          # {2, 0}
+say num.abs {-1, -2}      # {1, 2}
+```
+
+Lists are modified using the operators:
+
+| Operator        | Description                                            |
+|-----------------|--------------------------------------------------------|
+| `ls ~+ 5`       | Push `5` at end of list                                |
+| `ls +~ 5`       | Unshift `5` at beginning of list                       |
+| `~-ls`          | Pop the last element off the end of the list           |
+| `-~ls`          | Shift the first element off the start of the list      |
+| `ls ~~+ {1, 2}` | Append the second list on the end of the first list    |
+| `ls +~~ {1, 2}` | Prepend the second list at the start of the first list |
+
+These might look goofy at first, but if you think of `+`/`-` as adding/removing, and `~` as the list
+itself, then `~+` means "add to the right side", etc.
+
+Concatenation also works, but this *creates a new list*:
+
+```
+var x = {1}, y = {2}
+say x ~ y  # {1, 2}
+say x      # {1}
+say y      # {2}
+```
+
+Slicing
+-------
+
+Lists support slicing, in the format of `ls[start:length]`:
+
+```
+var x = {1, 2, 3, 4}
+say x[1:2] # {2, 3}
+```
+
+Slicing can also be used for assignment:
+
+```
+x[1:2] = {5, 6, 7}
+say x  # {1, 5, 6, 7, 4}
+```
+
+TODO:
+
+```
+x[1:2] = {5, 6, 7} returns the wrong value
+```
+
+```
+x = 'hello'
+x[1:2] = 'yoyo'
+this should work
+```
