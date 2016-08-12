@@ -7,8 +7,8 @@ similar in spirit to Lua (but more simple).
 It has JavaScript and C99 implementations, which compile and execute the same source code with
 exactly the same results.  Sink can also be compiled to bytecode.
 
-The API includes support for a REPL, which is great for embedding debug consoles, and defining
-native functions, for talking between Sink and the host enviroment.
+The API allows the host environment to define native functions, and includes support for a REPL,
+which is great for embedding debug consoles.
 
 Examples
 --------
@@ -27,6 +27,7 @@ say 25^0.5 # 5
 
 # commands are defined via `def`
 def add a, b
+  # string substitution on double-quoted strings using dollar sign
   say "adding $a + $b is ${a + b}"
   return a + b
 end
@@ -128,7 +129,8 @@ Missing arguments to commands default to `nil`, and accessing a list outside of 
 Since only `nil` is false, you can do things like this:
 
 ```
-x ||= 5  # set x to 5 only if x is nil
+x = x || 5  # set x to 5 only if x is nil
+x ||= 5     # or, more compactly
 ```
 
 Checking if a value is `nil` is done via `x == nil`.
@@ -196,7 +198,7 @@ Note that `typenum` is a unary operator, not a command.  Therefore:
 say typenum x, y
 ```
 
-Is processed:
+is processed:
 
 ```
 say (typenum x), y
@@ -211,6 +213,50 @@ say (typenum x, y)
 Strings
 -------
 
-TODO: write more
+Strings are binary-safe arrays of bytes, that can be any length, and include any value from 0x00 to
+0xFF.  Strings have no concept of unicode (though there are basic helper functions in the standard
+library for dealing specifically with UTF-8 strings).
 
+Strings can be specified with single quotes `'` or double quotes `"`.  Single quoted strings do not
+perform any substitution, and only have `'\\'` and `'\''` escape sequences.
+
+Double quoted strings perform substitution via `$`, and have the escape sequences:
+
+| Escape   | Description                           |
+|----------|---------------------------------------|
+| `"\xFF"` | Any byte specified by two hex numbers |
+| `"\0"`   | Byte 0                                |
+| `"\b"`   | Bell (byte 8)                         |
+| `"\t"`   | Tab (byte 9)                          |
+| `"\n"`   | Newline (byte 10)                     |
+| `"\v"`   | Vertical tab (byte 11)                |
+| `"\f"`   | Form feed (byte 12)                   |
+| `"\r"`   | Carriage return (byte 13)             |
+| `"\\"`   | Backslash                             |
+| `"\'"`   | Single quote                          |
+| `"\""`   | Double quote                          |
+| `"\$"`   | Dollar sign                           |
+
+Subtitution is either a single identifier, or an expression:
+
+```
+say "a is $a"                # simple substitution
+say "foo.bar is ${foo.bar}"  # expression subtitution
+say "a + b is ${a + b}"      # expression subtitution
+say "hi: ${str.lower "HI"}"  # nested strings are valid
+```
+
+Concatenation is via `~` (not `+`):
+
+```
+say "a" ~ 'b'  # ab
+say 1 ~ 2      # 12
+```
+
+Lists
+-----
+
+Lists are the only compound data structure in Sink.  They are created via `{ <contents> }`.
+
+TODO: more
 
