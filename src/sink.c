@@ -7208,6 +7208,8 @@ function lib_num_base(num, len, base){
 	}
 	while (body.length < len)
 		body = '0' + body;
+	if (body == '')
+		body = '0';
 	if (nfra != 0){
 		body += '.';
 		var i = 0;
