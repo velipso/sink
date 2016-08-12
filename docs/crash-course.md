@@ -190,6 +190,24 @@ else
 end
 ```
 
+Note that `typenum` is a unary operator, not a command.  Therefore:
+
+```
+say typenum x, y
+```
+
+Is processed:
+
+```
+say (typenum x), y
+```
+
+Not like a command would be:
+
+```
+say (typenum x, y)
+```
+
 Strings
 -------
 
