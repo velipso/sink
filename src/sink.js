@@ -5405,6 +5405,8 @@ function lib_num_min(v){
 }
 
 function lib_num_base(num, len, base){
+	if (len > 256)
+		len = 256;
 	var digits = '0123456789ABCDEF';
 	var neg = '';
 	if (num < 0){

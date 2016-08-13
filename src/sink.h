@@ -73,7 +73,9 @@ extern const sink_val SINK_QNAN;
 extern const sink_val SINK_NIL;
 
 sink_val sink_valToStr(sink_ctx ctx, sink_val v);
+sink_val sink_listNew(sink_ctx ctx, sink_val *vals, int size, int count);
 sink_val sink_listNewGive(sink_ctx ctx, sink_val *vals, int size, int count);
+sink_val sink_strNewCstr(sink_ctx ctx, const char *str);
 sink_val sink_strNewBlobGive(sink_ctx ctx, uint8_t *bytes, int size);
 
 #endif // SINK__H

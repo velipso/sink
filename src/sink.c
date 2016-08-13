@@ -30,6 +30,32 @@
 #	define debugf(msg, ...)
 #endif
 
+//
+// cross-platform function for getting the current time in milliseconds
+//
+
+#ifdef SINK_MACOSX
+#	include <sys/time.h>
+
+static uint64_t current_ms(){
+	struct timeval now;
+	int rv = gettimeofday(&now, NULL);
+	if (rv){
+		SINK_PANIC("Failed to query Mac OSX for time of day");
+	}
+	uint64_t ret = now.tv_sec;
+	ret *= 1000;
+	ret += now.tv_usec / 1000;
+	return ret;
+}
+
+#else
+#	error Unknown platform
+	// POSIX you'll want clock_gettime(CLOCK_REALTIME, ts)
+	// windows you'll want GetSystemTime(&st)
+	// others, who knows
+#endif
+
 static inline void *mem_prod_alloc(size_t s){
 	void *p = SINK_ALLOC(s);
 	if (p == NULL){
@@ -5963,7 +5989,7 @@ static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st int
 					return per_error(ex->flp, ts.u.msg);
 				intoVlc = ts.u.vlc;
 			}
-			if (floorf(ex->u.num) == ex->u.num && ex->u.num >= -65536 && ex->u.num < 65536){
+			if (floor(ex->u.num) == ex->u.num && ex->u.num >= -65536 && ex->u.num < 65536){
 				op_num(prg->ops, intoVlc, ex->u.num);
 				return per_ok(intoVlc);
 			}
@@ -6905,7 +6931,7 @@ static int bmp_reserve(void **tbl, uint64_t **aloc, uint64_t **ref, uint64_t **t
 		return index;
 	}
 	if (*size >= 0x3FFFFFFF){
-		SINK_PANIC("Out of memory");
+		SINK_PANIC("Out of memory!");
 		return -1;
 	}
 	int new_count = *size * 2;
@@ -7327,137 +7353,156 @@ static int str_cmp(sink_str a, sink_str b){
 static inline void context_result(context ctx, crr_st cr, sink_val val){
 	var_set(ctx, cr.fdiff, cr.index, val);
 }
-#if 0
-var lib_num_max_marker = 0;
-function lib_num_max(v){
-	var m = lib_num_max_marker++;
-	function mx(v){
-		if (v.lib_num_max_marker == m)
-			return NULL;
-		v.lib_num_max_marker = m;
-		var max = NULL;
-		for (var i = 0; i < v.length; i++){
-			if (var_isnum(v[i])){
-				if (max == NULL || v[i] > max)
-					max = v[i];
-			}
-			else if (var_islist(v[i])){
-				var lm = mx(v[i]);
-				if (lm != NULL && (max == NULL || lm > max))
-					max = lm;
-			}
+
+static sink_val lib_num_max2(context ctx, sink_val v){
+	if (list_hastick(ctx, var_index(v)))
+		return SINK_NIL;
+	sink_list ls = var_castlist(ctx, v);
+	sink_val max = SINK_NIL;
+	for (int i = 0; i < ls->size; i++){
+		if (var_isnum(ls->vals[i])){
+			if (var_isnil(max) || ls->vals[i].f > max.f)
+				max = ls->vals[i];
 		}
-		return max;
+		else if (var_islist(ls->vals[i])){
+			sink_val lm = lib_num_max2(ctx, ls->vals[i]);
+			if (!var_isnil(lm) && (var_isnil(max) || lm.f > max.f))
+				max = lm;
+		}
 	}
-	return mx(v);
+	return max;
 }
 
-var lib_num_min_marker = 0;
-function lib_num_min(v){
-	var m = lib_num_min_marker++;
-	function mn(v){
-		if (v.lib_num_min_marker == m)
-			return NULL;
-		v.lib_num_min_marker = m;
-		var min = NULL;
-		for (var i = 0; i < v.length; i++){
-			if (var_isnum(v[i])){
-				if (min == NULL || v[i] < min)
-					min = v[i];
-			}
-			else if (var_islist(v[i])){
-				var lm = mn(v[i]);
-				if (lm != NULL && (min == NULL || lm < min))
-					min = lm;
-			}
-		}
-		return min;
-	}
-	return mn(v);
+static inline sink_val lib_num_max(context ctx, sink_val v){
+	list_cleartick(ctx);
+	return lib_num_max2(ctx, v);
 }
 
-function lib_num_base(num, len, base){
-	var digits = '0123456789ABCDEF';
-	var neg = '';
+static sink_val lib_num_min2(context ctx, sink_val v){
+	if (list_hastick(ctx, var_index(v)))
+		return SINK_NIL;
+	sink_list ls = var_castlist(ctx, v);
+	sink_val min = SINK_NIL;
+	for (int i = 0; i < ls->size; i++){
+		if (var_isnum(ls->vals[i])){
+			if (var_isnil(min) || ls->vals[i].f < min.f)
+				min = ls->vals[i];
+		}
+		else if (var_islist(ls->vals[i])){
+			sink_val lm = lib_num_min2(ctx, ls->vals[i]);
+			if (!var_isnil(lm) && (var_isnil(min) || lm.f < min.f))
+				min = lm;
+		}
+	}
+	return min;
+}
+
+static inline sink_val lib_num_min(context ctx, sink_val v){
+	list_cleartick(ctx);
+	return lib_num_min2(ctx, v);
+}
+
+static sink_val lib_num_base(context ctx, double num, int len, int base){
+	if (len > 256)
+		len = 256;
+	const char *digits = "0123456789ABCDEF";
+	char buf[500];
+	int p = 0;
+
 	if (num < 0){
-		neg = '-'
+		buf[p++] = '-';
 		num = -num;
 	}
-	var body = '';
-	var nint = Math.floor(num);
-	var nfra = num - nint;
-	while (nint > 0){
-		body = digits.charAt(nint % base) + body;
-		nint = Math.floor(nint / base);
+
+	if (base == 16){
+		buf[p++] = '0';
+		buf[p++] = 'x';
 	}
-	while (body.length < len)
-		body = '0' + body;
-	if (body == '')
-		body = '0';
+	else if (base == 8){
+		buf[p++] = '0';
+		buf[p++] = 'c';
+	}
+	else if (base == 2){
+		buf[p++] = '0';
+		buf[p++] = 'b';
+	}
+
+	char buf2[500];
+	int bodysize = 0;
+	int nint = floor(num);
+	double nfra = num - (double)nint;
+	while (nint > 0 && bodysize < 400){
+		buf2[bodysize++] = digits[nint % base];
+		nint = nint / base;
+	}
+	while (bodysize < len && p < 400)
+		buf[p++] = '0';
+	if (bodysize > 0){
+		memcpy(&buf[p], buf2, sizeof(char) * bodysize);
+		p += bodysize;
+	}
+	else if (len <= 0)
+		buf[p++] = '0';
+
 	if (nfra != 0){
-		body += '.';
-		var i = 0;
+		buf[p++] = '.';
+		int i = 0;
 		while (nfra > 0.00001 && i < 16){
 			nfra *= base;
-			nint = Math.floor(nfra);
-			body += digits.charAt(nint);
+			nint = floor(nfra);
+			buf[p++] = digits[nint];
 			nfra -= nint;
 			i++;
 		}
 	}
-	return neg + (base == 16 ? '0x' : (base == 8 ? '0c' : '0b')) + body;
+
+	buf[p++] = 0;
+	return sink_strNewCstr((sink_ctx)ctx, buf);
 }
 
-function lib_rand_seedauto(ctx){
-	ctx.rand_seed = (new Date()).getTime() | 0;
-	ctx.rand_i = (Math.random() * 0xFFFFFFFF) | 0;
-	for (var i = 0; i < 1000; i++)
+static inline uint32_t lib_rand_int(context ctx);
+
+static inline void lib_rand_seedauto(context ctx){
+	ctx->rand_seed = (uint32_t)current_ms();
+	ctx->rand_i = (uint32_t)current_ms();
+	for (int i = 0; i < 1000; i++)
 		lib_rand_int(ctx);
-	ctx.rand_i = 0;
+	ctx->rand_i = 0;
 }
 
-function lib_rand_seed(ctx, n){
-	ctx.rand_seed = n | 0;
-	ctx.rand_i = 0;
+static inline void lib_rand_seed(context ctx, uint32_t n){
+	ctx->rand_seed = n;
+	ctx->rand_i = 0;
 }
 
-function lib_rand_int(ctx){
-	var m = 0x5bd1e995;
-	var k = polyfill.Math_imul(ctx.rand_i,  m);
-	ctx.rand_i = (ctx.rand_i + 1) | 0;
-	ctx.rand_seed = polyfill.Math_imul(k ^ (k >>> 24) ^ polyfill.Math_imul(ctx.rand_seed, m), m);
-	var res = (ctx.rand_seed ^ (ctx.rand_seed >>> 13)) | 0;
-	if (res < 0)
-		return res + 0x100000000;
-	return res;
+static inline uint32_t lib_rand_int(context ctx){
+	uint32_t m = 0x5bd1e995;
+	uint32_t k = ctx->rand_i++ * m;
+	ctx->rand_seed = (k ^ (k >> 24) ^ (ctx->rand_seed * m)) * m;
+	return ctx->rand_seed ^ (ctx->rand_seed >> 13);
 }
 
-function lib_rand_num(ctx){
-	var M1 = lib_rand_int(ctx);
-	var M2 = lib_rand_int(ctx);
-	var view = new DataView(new ArrayBuffer(8));
-	view.setInt32(0, (M1 << 20) | (M2 >> 12), true);
-	view.setInt32(4, 0x3FF00000 | (M1 >>> 12), true);
-	return view.getFloat64(0, true) - 1;
+static inline double lib_rand_num(context ctx){
+	uint64_t M1 = rand_int();
+	uint64_t M2 = rand_int();
+	uint64_t M = (M1 << 20) | (M2 >> 12); // 52 bit random number
+	union { uint64_t i; double d; } u = {
+		.i = UINT64_C(0x3FF) << 52 | M
+	};
+	return u.d - 1.0;
 }
 
-function lib_rand_getstate(ctx){
-	// slight goofy logic to convert int32 to uint32
-	if (ctx.rand_i < 0){
-		if (ctx.rand_seed < 0)
-			return [ctx.rand_seed + 0x100000000, ctx.rand_i + 0x100000000];
-		return [ctx.rand_seed, ctx.rand_i + 0x100000000];
-	}
-	else if (ctx.rand_seed < 0)
-		return [ctx.rand_seed + 0x100000000, ctx.rand_i];
-	return [ctx.rand_seed, ctx.rand_i];
+static inline sink_val lib_rand_getstate(context ctx){
+	double vals[2] = { ctx->rand_seed, ctx->rand_i };
+	return sink_listNew(ctx, (sink_val *)vals, 2, 2);
 }
 
-function lib_rand_setstate(ctx, a, b){
-	ctx.rand_seed = a | 0;
-	ctx.rand_i = b | 0;
+static inline void lib_rand_setstate(context ctx, double a, double b){
+	ctx->rand_seed = (uint32_t)a;
+	ctx->rand_i = (uint32_t)b;
 }
 
+#if 0
 function lib_rand_pick(ctx, ls){
 	if (ls.length <= 0)
 		return NULL;

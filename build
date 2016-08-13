@@ -66,7 +66,11 @@ comp_and_link() {
 		echo "Compiling $(basename "$1")..."
 		compile_c "$1" "$2"
 	fi
-	LINK_FILES="$LINK_FILES $2"
+	if [ "$LINK_FILES" = "" ]; then
+		LINK_FILES="$2"
+	else
+		LINK_FILES="$LINK_FILES $2"
+	fi
 }
 
 link_finish() {
@@ -307,7 +311,7 @@ if [ "$BUILD_C" = "1" ]; then
 
 	comp_and_link src/sink.c $TGT_DIR/sink.o
 #	comp_and_link b.c b.o
-#	link_finish $TGT_DIR/sink
+	link_finish $TGT_DIR/sink
 fi
 
 if [ "$TEST_C" = "1" ]; then
