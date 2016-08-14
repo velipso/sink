@@ -192,7 +192,7 @@ static void mem_free_func(void *p){
 // string creation
 //
 
-static char *format(char *fmt, ...){
+static char *format(const char *fmt, ...){
 	va_list args, args2;
 	va_start(args, fmt);
 	va_copy(args2, args);
@@ -4956,9 +4956,9 @@ static inline void program_free(program prg){
 
 static inline program program_new(bool repl){
 	program prg = mem_alloc(sizeof(program_st));
-	prg->strTable = list_ptr_new(mem_free_func);
+	prg->strTable = list_ptr_new((free_func)list_byte_free);
 	prg->numTable = list_double_new();
-	prg->keyTable = list_ptr_new(mem_free_func);
+	prg->keyTable = list_ptr_new((free_func)list_byte_free);
 	prg->ops = list_byte_new();
 	prg->repl = repl;
 	return prg;
@@ -7104,6 +7104,11 @@ static inline crr_st crr_warn(sink_val args){
 	return (crr_st){ .type = CRR_WARN, .args = args };
 }
 
+static inline crr_st crr_warnStr(context ctx, char *msg){
+	sink_val s = sink_strNewBlobGive((sink_ctx)ctx, (uint8_t *)msg, strlen(msg));
+	return crr_warn(sink_listNew((sink_ctx)ctx, &s, 1));
+}
+
 static inline crr_st crr_ask(sink_val args, int fdiff, int index){
 	return (crr_st){ .type = CRR_ASK, .args = args, .fdiff = fdiff, .index = index };
 }
@@ -7483,8 +7488,8 @@ static inline uint32_t lib_rand_int(context ctx){
 }
 
 static inline double lib_rand_num(context ctx){
-	uint64_t M1 = rand_int();
-	uint64_t M2 = rand_int();
+	uint64_t M1 = lib_rand_int(ctx);
+	uint64_t M2 = lib_rand_int(ctx);
 	uint64_t M = (M1 << 20) | (M2 >> 12); // 52 bit random number
 	union { uint64_t i; double d; } u = {
 		.i = UINT64_C(0x3FF) << 52 | M
@@ -7494,7 +7499,7 @@ static inline double lib_rand_num(context ctx){
 
 static inline sink_val lib_rand_getstate(context ctx){
 	double vals[2] = { ctx->rand_seed, ctx->rand_i };
-	return sink_listNew(ctx, (sink_val *)vals, 2, 2);
+	return sink_listNew((sink_ctx)ctx, (sink_val *)vals, 2);
 }
 
 static inline void lib_rand_setstate(context ctx, double a, double b){
@@ -7502,447 +7507,512 @@ static inline void lib_rand_setstate(context ctx, double a, double b){
 	ctx->rand_i = (uint32_t)b;
 }
 
-#if 0
-function lib_rand_pick(ctx, ls){
-	if (ls.length <= 0)
-		return NULL;
-	return ls[Math.floor(lib_rand_num(ctx) * ls.length)];
+static inline sink_val lib_rand_pick(context ctx, sink_list ls){
+	if (ls->size <= 0)
+		return SINK_NIL;
+	return ls->vals[(int)(lib_rand_num(ctx) * ls->size)];
 }
 
-function lib_rand_shuffle(ctx, ls){
-	var m = ls.length;
+static inline void lib_rand_shuffle(context ctx, sink_list ls){
+	int m = ls->size;
 	while (m > 1){
-		var i = Math.floor(lib_rand_num(ctx) * m);
+		int i = (int)(lib_rand_num(ctx) * m);
 		m--;
 		if (m != i){
-			var t = ls[m];
-			ls[m] = ls[i];
-			ls[i] = t;
+			sink_val t = ls->vals[m];
+			ls->vals[m] = ls->vals[i];
+			ls->vals[i] = t;
 		}
 	}
 }
 
-function context_run(ctx){
-	if (ctx.failed)
+// operators
+static sink_val unop_neg(context ctx, sink_val a){
+	return sink_num(-a.f);
+}
+
+static sink_val unop_tonum(context ctx, sink_val a){
+	if (var_isnum(a))
+		return a;
+	// TODO: actually parse `a` into a number
+	assert(false);
+	return SINK_NIL;
+}
+
+static sink_val binop_add(context ctx, sink_val a, sink_val b){
+	return sink_num(a.f + b.f);
+}
+
+static sink_val binop_sub(context ctx, sink_val a, sink_val b){
+	return sink_num(a.f - b.f);
+}
+
+static sink_val binop_mul(context ctx, sink_val a, sink_val b){
+	return sink_num(a.f * b.f);
+}
+
+static sink_val binop_div(context ctx, sink_val a, sink_val b){
+	return sink_num(a.f / b.f);
+}
+
+static sink_val binop_mod(context ctx, sink_val a, sink_val b){
+	return sink_num(fmod(a.f, b.f));
+}
+
+static sink_val binop_pow(context ctx, sink_val a, sink_val b){
+	return sink_num(pow(a.f, b.f));
+}
+
+static crr_st context_run(context ctx){
+	if (ctx->failed)
 		return crr_exitfail();
-	if (ctx.passed)
+	if (ctx->passed)
 		return crr_exitpass();
 
-	var A, B, C, D, E, F, G, H, I; // ints
-	var X, Y, Z, W; // values
+	int A, B, C, D, E, F, G, H, I;
+	sink_val X, Y, Z, W;
+	sink_list ls, ls2;
+	sink_str str, str2;
 
-	var ops = ctx.prg->ops;
+	list_byte ops = ctx->prg->ops;
 
-	function inline_unop(func, erop){
-		ctx.pc++;
-		A = ops[ctx.pc++]; B = ops[ctx.pc++];
-		C = ops[ctx.pc++]; D = ops[ctx.pc++];
-		if (A > ctx.lexIndex || C > ctx.lexIndex)
-			return crr_invalid();
-		X = var_get(ctx, C, D);
-		if (X == NULL)
-			X = 0;
-		if (!oper_isnum(X)){
-			ctx.failed = true;
-			return crr_warn(['Expecting number or list of numbers when ' + erop]);
-		}
-		var_set(ctx, A, B, oper_un(X, func));
-		return false;
-	}
+	#define INLINE_UNOP(func, erop)                                                        \
+		ctx->pc++;                                                                         \
+		A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];                              \
+		C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];                              \
+		if (A > ctx->lexIndex || C > ctx->lexIndex)                                        \
+			return crr_invalid();                                                          \
+		X = var_get(ctx, C, D);                                                            \
+		if (var_isnil(X))                                                                  \
+			X.f = 0;                                                                       \
+		if (!oper_isnum(ctx, X)){                                                          \
+			ctx->failed = true;                                                            \
+			return crr_warnStr(ctx,                                                        \
+				format("Expecting number or list of numbers when " erop));                 \
+		}                                                                                  \
+		var_set(ctx, A, B, oper_un(ctx, X, func));
 
-	function inline_binop(func, erop){
-		ctx.pc++;
-		A = ops[ctx.pc++]; B = ops[ctx.pc++];
-		C = ops[ctx.pc++]; D = ops[ctx.pc++];
-		E = ops[ctx.pc++]; F = ops[ctx.pc++];
-		if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
-			return crr_invalid();
-		X = var_get(ctx, C, D);
-		if (X == NULL)
-			X = 0;
-		if (!oper_isnum(X)){
-			ctx.failed = true;
-			return crr_warn(['Expecting number or list of numbers when ' + erop]);
-		}
-		Y = var_get(ctx, E, F);
-		if (Y == NULL)
-			Y = 0;
-		if (!oper_isnum(Y)){
-			ctx.failed = true;
-			return crr_warn(['Expecting number or list of numbers when ' + erop]);
-		}
-		var_set(ctx, A, B, oper_bin(X, Y, func));
-		return false;
-	}
+	#define INLINE_BINOP(func, erop)                                                       \
+		ctx->pc++;                                                                         \
+		A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];                              \
+		C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];                              \
+		E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];                              \
+		if (A > ctx->lexIndex || C > ctx->lexIndex || E > ctx->lexIndex)                   \
+			return crr_invalid();                                                          \
+		X = var_get(ctx, C, D);                                                            \
+		if (var_isnil(X))                                                                  \
+			X.f = 0;                                                                       \
+		if (!oper_isnum(ctx, X)){                                                          \
+			ctx->failed = true;                                                            \
+			return crr_warnStr(ctx,                                                        \
+				format("Expecting number or list of numbers when " erop));                 \
+		}                                                                                  \
+		Y = var_get(ctx, E, F);                                                            \
+		if (var_isnil(Y))                                                                  \
+			Y.f = 0;                                                                       \
+		if (!oper_isnum(ctx, Y)){                                                          \
+			ctx->failed = true;                                                            \
+			return crr_warnStr(ctx,                                                        \
+				format("Expecting number or list of numbers when " erop));                 \
+		}                                                                                  \
+		var_set(ctx, A, B, oper_bin(ctx, X, Y, func));
 
-	function inline_triop(func, erop){
-		ctx.pc++;
-		A = ops[ctx.pc++]; B = ops[ctx.pc++];
-		C = ops[ctx.pc++]; D = ops[ctx.pc++];
-		E = ops[ctx.pc++]; F = ops[ctx.pc++];
-		G = ops[ctx.pc++]; H = ops[ctx.pc++];
-		if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
-			return crr_invalid();
-		X = var_get(ctx, C, D);
-		if (X == NULL)
-			X = 0;
-		if (!oper_isnum(X)){
-			ctx.failed = true;
-			return crr_warn(['Expecting number or list of numbers when ' + erop]);
-		}
-		Y = var_get(ctx, E, F);
-		if (Y == NULL)
-			Y = 0;
-		if (!oper_isnum(Y)){
-			ctx.failed = true;
-			return crr_warn(['Expecting number or list of numbers when ' + erop]);
-		}
-		Z = var_get(ctx, G, H);
-		if (Z == NULL)
-			Z = 0;
-		if (!oper_isnum(Z)){
-			ctx.failed = true;
-			return crr_warn(['Expecting number or list of numbers when ' + erop]);
-		}
-		var_set(ctx, A, B, oper_tri(X, Y, Z, func));
-		return false;
-	}
+	#define INLINE_TRIOP(func, erop)                                                       \
+		ctx->pc++;                                                                         \
+		A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];                              \
+		C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];                              \
+		E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];                              \
+		G = ops->bytes[ctx->pc++]; H = ops->bytes[ctx->pc++];                              \
+		if (A > ctx->lexIndex || C > ctx->lexIndex || E > ctx->lexIndex)                   \
+			return crr_invalid();                                                          \
+		X = var_get(ctx, C, D);                                                            \
+		if (X == NULL)                                                                     \
+			X.f = 0;                                                                       \
+		if (!oper_isnum(ctx, X)){                                                          \
+			ctx->failed = true;                                                            \
+			return crr_warnStr(ctx,                                                        \
+				format("Expecting number or list of numbers when " erop]);                 \
+		}                                                                                  \
+		Y = var_get(ctx, E, F);                                                            \
+		if (Y == NULL)                                                                     \
+			Y.f = 0;                                                                       \
+		if (!oper_isnum(ctx, Y)){                                                          \
+			ctx->failed = true;                                                            \
+			return crr_warnStr(ctx,                                                        \
+				format("Expecting number or list of numbers when " erop]);                 \
+		}                                                                                  \
+		Z = var_get(ctx, G, H);                                                            \
+		if (Z == NULL)                                                                     \
+			Z.f = 0;                                                                       \
+		if (!oper_isnum(ctx, Z)){                                                          \
+			ctx->failed = true;                                                            \
+			return crr_warnStr(ctx,                                                        \
+				format("Expecting number or list of numbers when " erop]);                 \
+		}                                                                                  \
+		var_set(ctx, A, B, oper_tri(ctx, X, Y, Z, func));
 
-	while (ctx.pc < ops.length){
-		switch (ops[ctx.pc]){
+	while (ctx->pc < ops->size){
+		switch ((op_enum)ops->bytes[ctx->pc]){
 			case OP_NOP            : { //
-				ctx.pc++;
+				ctx->pc++;
 			} break;
 
 			case OP_EXIT           : { // [SRC...]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				if (A > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex)
 					return crr_invalid();
 				X = var_get(ctx, A, B);
-				if (X == NULL){
-					ctx.passed = true;
+				if (var_isnil(X)){
+					ctx->passed = true;
 					return crr_exitpass();
 				}
 				if (!var_islist(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting list when calling exit']);
+					ctx->failed = true;
+					return crr_warnStr(ctx, format("Expecting list when calling exit"));
 				}
-				ctx.passed = true;
+				ctx->passed = true;
 				return crr_say(X);
 			} break;
 
 			case OP_ABORT          : { // [SRC...]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				if (A > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex)
 					return crr_invalid();
 				X = var_get(ctx, A, B);
-				if (X == NULL){
-					ctx.failed = true;
+				if (var_isnil(X)){
+					ctx->failed = true;
 					return crr_exitfail();
 				}
 				if (!var_islist(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting list when calling abort']);
+					ctx->failed = true;
+					return crr_warnStr(ctx, format("Expecting list when calling abort"));
 				}
-				ctx.failed = true;
+				ctx->failed = true;
 				return crr_warn(X);
 			} break;
 
 			case OP_ABORTERR       : { // ERRNO
-				ctx.pc++;
-				A = ops[ctx.pc++];
-				ctx.failed = true;
-				var errmsg = 'Unknown error';
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++];
+				ctx->failed = true;
+				const char *errmsg = "Unknown error";
 				if (A == 1)
-					errmsg = 'Expecting list when calling function';
-				return crr_warn([errmsg]);
+					errmsg = "Expecting list when calling function";
+				return crr_warnStr(ctx, format(errmsg));
 			} break;
 
 			case OP_MOVE           : { // [TGT], [SRC]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex || C > ctx->lexIndex)
 					return crr_invalid();
 				var_set(ctx, A, B, var_get(ctx, C, D));
 			} break;
 
 			case OP_INC            : { // [TGT/SRC]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				if (A > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex)
 					return crr_invalid();
 				X = var_get(ctx, A, B);
 				if (!var_isnum(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting number when incrementing']);
+					ctx->failed = true;
+					return crr_warnStr(ctx, format("Expecting number when incrementing"));
 				}
-				var_set(ctx, A, B, X + 1);
+				var_set(ctx, A, B, sink_num(X.f + 1));
 			} break;
 
 			case OP_NIL            : { // [TGT]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				if (A > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex)
 					return crr_invalid();
-				var_set(ctx, A, B, NULL);
+				var_set(ctx, A, B, SINK_NIL);
 			} break;
 
 			case OP_NUMPOS         : { // [TGT], [VALUE]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex)
 					return crr_invalid();
-				var_set(ctx, A, B, C | (D << 8));
+				var_set(ctx, A, B, sink_num(C | (D << 8)));
 			} break;
 
 			case OP_NUMNEG         : { // [TGT], [VALUE]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex)
 					return crr_invalid();
-				var_set(ctx, A, B, (C | (D << 8)) - 65536);
+				var_set(ctx, A, B, sink_num((C | (D << 8)) - 65536));
 			} break;
 
 			case OP_NUMTBL         : { // [TGT], [INDEX]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex)
 					return crr_invalid();
 				C = C | (D << 8);
-				if (C >= ctx.prg.numTable.length)
+				if (C >= ctx->prg->numTable->size)
 					return crr_invalid();
-				var_set(ctx, A, B, ctx.prg.numTable[C]);
+				var_set(ctx, A, B, sink_num(ctx->prg->numTable->vals[C]));
 			} break;
 
 			case OP_STR            : { // [TGT], [INDEX]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex)
 					return crr_invalid();
 				C = C | (D << 8);
-				if (C >= ctx.prg.strTable.length)
+				if (C >= ctx->prg->strTable->size)
 					return crr_invalid();
-				var_set(ctx, A, B, ctx.prg.strTable[C]);
+				list_byte s = ctx->prg->strTable->ptrs[C];
+				var_set(ctx, A, B, sink_strNewBlob((sink_ctx)ctx, s->bytes, s->size));
 			} break;
 
 			case OP_LIST           : { // [TGT], HINT
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++];
-				if (A > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				C = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex)
 					return crr_invalid();
-				var_set(ctx, A, B, []);
+				sink_val *vals = NULL;
+				if (C > 0)
+					vals = mem_alloc(sizeof(sink_val) * C);
+				var_set(ctx, A, B, sink_listNewGive((sink_ctx)ctx, vals, 0, C));
 			} break;
 
 			case OP_REST           : { // [TGT], [SRC1], [SRC2]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				E = ops[ctx.pc++]; F = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
+				E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex || C > ctx->lexIndex || E > ctx->lexIndex)
 					return crr_invalid();
 				X = var_get(ctx, C, D);
 				if (!var_islist(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting list when calculating rest']);
+					ctx->failed = true;
+					return crr_warnStr(ctx, format("Expecting list when calculating rest"));
 				}
 				Y = var_get(ctx, E, F);
 				if (!var_isnum(Y)){
-					ctx.failed = true;
-					return crr_warn(['Expecting number when calculating rest']);
+					ctx->failed = true;
+					return crr_warnStr(ctx, format("Expecting number when calculating rest"));
 				}
-				if (Y < 0)
-					Y += X.length;
-				if (Y <= 0)
-					var_set(ctx, A, B, X.length);
-				else if (Y >= X.length)
-					var_set(ctx, A, B, 0);
+				ls = var_castlist(ctx, X);
+				if (Y.f < 0)
+					Y.f += ls->size;
+				if (Y.f <= 0)
+					var_set(ctx, A, B, sink_num(ls->size));
+				else if (Y.f >= ls->size)
+					var_set(ctx, A, B, sink_num(0));
 				else
-					var_set(ctx, A, B, X.length - Y);
+					var_set(ctx, A, B, sink_num(ls->size - Y.f));
 			} break;
 
 			case OP_NEG            : { // [TGT], [SRC]
-				var iu = inline_unop(function(a){ return -a; }, 'negating');
-				if (iu !== false)
-					return iu;
+				INLINE_UNOP(unop_neg, "negating")
 			} break;
 
 			case OP_NOT            : { // [TGT], [SRC]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex || C > ctx->lexIndex)
 					return crr_invalid();
 				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, X == NULL ? 1 : NULL);
+				var_set(ctx, A, B, var_isnil(X) ? sink_num(1) : SINK_NIL);
 			} break;
 
 			case OP_SIZE           : { // [TGT], [SRC]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex || C > ctx->lexIndex)
 					return crr_invalid();
 				X = var_get(ctx, C, D);
 				if (!var_islist(X) && !var_isstr(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting string or list for size']);
+					ctx->failed = true;
+					return crr_warnStr(ctx, format("Expecting string or list for size"));
 				}
-				var_set(ctx, A, B, X.length);
+				ls = var_castlist(ctx, X);
+				var_set(ctx, A, B, sink_num(ls->size));
 			} break;
 
 			case OP_TONUM          : { // [TGT], [SRC]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex || C > ctx->lexIndex)
 					return crr_invalid();
 				X = var_get(ctx, C, D);
-				if (!oper_isnilnumstr(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting string when converting to number']);
+				if (!oper_isnilnumstr(ctx, X)){
+					ctx->failed = true;
+					return crr_warnStr(ctx, format("Expecting string when converting to number"));
 				}
-				var_set(ctx, A, B, oper_un(X,
-					function(a){
-						if (var_isnum(a))
-							return a;
-						throw 'TODO: parse string `a` according to sink number rules';
-					}));
+				var_set(ctx, A, B, oper_un(ctx, X, unop_tonum));
 			} break;
 
 			case OP_SHIFT          : { // [TGT], [SRC]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex || C > ctx->lexIndex)
 					return crr_invalid();
 				X = var_get(ctx, C, D);
 				if (!var_islist(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting list when shifting']);
+					ctx->failed = true;
+					return crr_warnStr(ctx, format("Expecting list when shifting"));
 				}
-				if (X.length <= 0)
-					var_set(ctx, A, B, NULL)
-				else
-					var_set(ctx, A, B, X.shift());
+				ls = var_castlist(ctx, X);
+				if (ls->size <= 0)
+					var_set(ctx, A, B, SINK_NIL);
+				else{
+					var_set(ctx, A, B, ls->vals[0]);
+					if (ls->size <= 1)
+						ls->size = 0;
+					else{
+						ls->size--;
+						memcpy(&ls->vals[0], &ls->vals[1], sizeof(sink_val) * ls->size);
+					}
+				}
 			} break;
 
 			case OP_POP            : { // [TGT], [SRC]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex || C > ctx->lexIndex)
 					return crr_invalid();
 				X = var_get(ctx, C, D);
 				if (!var_islist(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting list when popping']);
+					ctx->failed = true;
+					return crr_warnStr(ctx, format("Expecting list when popping"));
 				}
-				if (X.length <= 0)
-					var_set(ctx, A, B, NULL)
-				else
-					var_set(ctx, A, B, X.pop());
+				ls = var_castlist(ctx, X);
+				if (ls->size <= 0)
+					var_set(ctx, A, B, SINK_NIL);
+				else{
+					ls->size--;
+					var_set(ctx, A, B, ls->vals[ls->size]);
+				}
 			} break;
 
 			case OP_ISNUM          : { // [TGT], [SRC]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex || C > ctx->lexIndex)
 					return crr_invalid();
 				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, var_isnum(X) ? 1 : NULL);
+				var_set(ctx, A, B, var_isnum(X) ? sink_num(1) : SINK_NIL);
 			} break;
 
 			case OP_ISSTR          : { // [TGT], [SRC]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex || C > ctx->lexIndex)
 					return crr_invalid();
 				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, var_isstr(X) ? 1 : NULL);
+				var_set(ctx, A, B, var_isstr(X) ? sink_num(1) : SINK_NIL);
 			} break;
 
 			case OP_ISLIST         : { // [TGT], [SRC]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex || C > ctx->lexIndex)
 					return crr_invalid();
 				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, var_islist(X) ? 1 : NULL);
+				var_set(ctx, A, B, var_islist(X) ? sink_num(1) : SINK_NIL);
 			} break;
 
 			case OP_ADD            : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return a + b; }, 'adding');
-				if (ib !== false)
-					return ib;
+				INLINE_BINOP(binop_add, "adding")
 			} break;
 
 			case OP_SUB            : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return a - b; }, 'subtracting');
-				if (ib !== false)
-					return ib;
+				INLINE_BINOP(binop_sub, "subtracting")
 			} break;
 
 			case OP_MUL            : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return a * b; }, 'multiplying');
-				if (ib !== false)
-					return ib;
+				INLINE_BINOP(binop_mul, "multiplying")
 			} break;
 
 			case OP_DIV            : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return a / b; }, 'dividing');
-				if (ib !== false)
-					return ib;
+				INLINE_BINOP(binop_div, "dividing")
 			} break;
 
 			case OP_MOD            : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return a % b; }, 'taking modular');
-				if (ib !== false)
-					return ib;
+				INLINE_BINOP(binop_mod, "taking modular")
 			} break;
 
 			case OP_POW            : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return Math.pow(a, b); }, 'exponentiating');
-				if (ib !== false)
-					return ib;
+				INLINE_BINOP(binop_pow, "exponentiating")
 			} break;
 
 			case OP_CAT            : { // [TGT], [SRC1], [SRC2]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				E = ops[ctx.pc++]; F = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
+				E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex || C > ctx->lexIndex || E > ctx->lexIndex)
 					return crr_invalid();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				if (var_islist(X) && var_islist(Y))
-					var_set(ctx, A, B, X.concat(Y));
-				else
-					var_set(ctx, A, B, var_tostr(X) + var_tostr(Y));
+				if (var_islist(X) && var_islist(Y)){
+					ls = var_castlist(ctx, X);
+					ls2 = var_castlist(ctx, Y);
+					int ns = ls->size + ls2->size;
+					if (ns <= 0)
+						var_set(ctx, A, B, sink_listNew((sink_ctx)ctx, NULL, 0));
+					else{
+						sink_val *vals = mem_alloc(sizeof(sink_val) * ns);
+						if (ls->size > 0)
+							memcpy(&vals[0], ls->vals, sizeof(sink_val) * ls->size);
+						if (ls2->size > 0)
+							memcpy(&vals[ls->size], ls2->vals, sizeof(sink_val) * ls2->size);
+						var_set(ctx, A, B, sink_listNewGive((sink_ctx)ctx, vals, ns, ns));
+					}
+				}
+				else{
+					X = sink_valToStr((sink_ctx)ctx, X);
+					Y = sink_valToStr((sink_ctx)ctx, Y);
+					str = var_caststr(ctx, X);
+					str2 = var_caststr(ctx, Y);
+					int ns = str->size + str2->size;
+					if (ns <= 0)
+						var_set(ctx, A, B, sink_strNewBlob((sink_ctx)ctx, NULL, 0));
+					else{
+						uint8_t *bytes = mem_alloc(sizeof(uint8_t) * ns);
+						if (str->size > 0)
+							memcpy(&bytes[0], str->bytes, sizeof(uint8_t) * str->size);
+						if (str2->size > 0)
+							memcpy(&bytes[str->size], str2->bytes, sizeof(uint8_t) * str2->size);
+						var_set(ctx, A, B, sink_strNewBlobGive((sink_ctx)ctx, bytes, ns));
+					}
+				}
 			} break;
-
+}}}
+#if 0
 			case OP_PUSH           : { // [TGT], [SRC1], [SRC2]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				E = ops[ctx.pc++]; F = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
+				E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex || C > ctx->lexIndex || E > ctx->lexIndex)
 					return crr_invalid();
 				X = var_get(ctx, C, D);
 				if (!var_islist(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting list when pushing']);
+					ctx->failed = true;
+					return crr_warnStr(ctx, format("Expecting list when pushing"));
 				}
 				Y = var_get(ctx, E, F);
 				X.push(Y);
@@ -7951,16 +8021,16 @@ function context_run(ctx){
 			} break;
 
 			case OP_UNSHIFT        : { // [TGT], [SRC1], [SRC2]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				E = ops[ctx.pc++]; F = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
+				E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex || C > ctx->lexIndex || E > ctx->lexIndex)
 					return crr_invalid();
 				X = var_get(ctx, C, D);
 				if (!var_islist(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting list when unshifting']);
+					ctx->failed = true;
+					return crr_warnStr(ctx, format("Expecting list when unshifting"));
 				}
 				Y = var_get(ctx, E, F);
 				X.unshift(Y);
@@ -7969,17 +8039,17 @@ function context_run(ctx){
 			} break;
 
 			case OP_APPEND         : { // [TGT], [SRC1], [SRC2]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				E = ops[ctx.pc++]; F = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
+				E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex || C > ctx->lexIndex || E > ctx->lexIndex)
 					return crr_invalid();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				if (!var_islist(X) || !var_islist(Y)){
-					ctx.failed = true;
-					return crr_warn(['Expecting list when appending']);
+					ctx->failed = true;
+					return crr_warnStr(ctx, format("Expecting list when appending"));
 				}
 				X.push.apply(X, Y);
 				if (A != C || B != D)
@@ -7987,17 +8057,17 @@ function context_run(ctx){
 			} break;
 
 			case OP_PREPEND        : { // [TGT], [SRC1], [SRC2]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				E = ops[ctx.pc++]; F = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
+				E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex || C > ctx->lexIndex || E > ctx->lexIndex)
 					return crr_invalid();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				if (!var_islist(X) || !var_islist(Y)){
-					ctx.failed = true;
-					return crr_warn(['Expecting list when prepending']);
+					ctx->failed = true;
+					return crr_warnStr(ctx, format("Expecting list when prepending"));
 				}
 				X.unshift.apply(X, Y);
 				if (A != C || B != D)
@@ -8005,11 +8075,11 @@ function context_run(ctx){
 			} break;
 
 			case OP_LT             : { // [TGT], [SRC1], [SRC2]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				E = ops[ctx.pc++]; F = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
+				E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex || C > ctx->lexIndex || E > ctx->lexIndex)
 					return crr_invalid();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
@@ -8018,17 +8088,17 @@ function context_run(ctx){
 				else if (var_isstr(X) && var_isstr(Y))
 					var_set(ctx, A, B, str_cmp(X, Y) < 0 ? 1 : NULL);
 				else{
-					ctx.failed = true;
-					return crr_warn(['Expecting numbers or strings']);
+					ctx->failed = true;
+					return crr_warnStr(ctx, format("Expecting numbers or strings"));
 				}
 			} break;
 
 			case OP_LTE            : { // [TGT], [SRC1], [SRC2]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				E = ops[ctx.pc++]; F = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
+				E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex || C > ctx->lexIndex || E > ctx->lexIndex)
 					return crr_invalid();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
@@ -8037,17 +8107,17 @@ function context_run(ctx){
 				else if (var_isstr(X) && var_isstr(Y))
 					var_set(ctx, A, B, str_cmp(X, Y) <= 0 ? 1 : NULL);
 				else{
-					ctx.failed = true;
-					return crr_warn(['Expecting numbers or strings']);
+					ctx->failed = true;
+					return crr_warnStr(ctx, format("Expecting numbers or strings"));
 				}
 			} break;
 
 			case OP_NEQ            : { // [TGT], [SRC1], [SRC2]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				E = ops[ctx.pc++]; F = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
+				E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex || C > ctx->lexIndex || E > ctx->lexIndex)
 					return crr_invalid();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
@@ -8064,11 +8134,11 @@ function context_run(ctx){
 			} break;
 
 			case OP_EQU            : { // [TGT], [SRC1], [SRC2]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				E = ops[ctx.pc++]; F = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
+				E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex || C > ctx->lexIndex || E > ctx->lexIndex)
 					return crr_invalid();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
@@ -8085,11 +8155,11 @@ function context_run(ctx){
 			} break;
 
 			case OP_GETAT          : { // [TGT], [SRC1], [SRC2]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				E = ops[ctx.pc++]; F = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
+				E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex || C > ctx->lexIndex || E > ctx->lexIndex)
 					return crr_invalid();
 				X = var_get(ctx, C, D);
 				if (var_islist(X)){
@@ -8103,8 +8173,8 @@ function context_run(ctx){
 							var_set(ctx, A, B, X[Y]);
 					}
 					else{
-						ctx.failed = true;
-						return crr_warn(['Expecting index to be number']);
+						ctx->failed = true;
+						return crr_warnStr(ctx, format("Expecting index to be number"));
 					}
 				}
 				else if (var_isstr(X)){
@@ -8118,31 +8188,31 @@ function context_run(ctx){
 							var_set(ctx, A, B, X.charAt(Y));
 					}
 					else{
-						ctx.failed = true;
-						return crr_warn(['Expecting index to be number']);
+						ctx->failed = true;
+						return crr_warnStr(ctx, format("Expecting index to be number"));
 					}
 				}
 				else{
-					ctx.failed = true;
-					return crr_warn(['Expecting list or string when indexing']);
+					ctx->failed = true;
+					return crr_warnStr(format('Expecting list or string when indexing']);
 				}
 			} break;
 
 			case OP_SLICE          : { // [TGT], [SRC1], [SRC2], [SRC3]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				E = ops[ctx.pc++]; F = ops[ctx.pc++];
-				G = ops[ctx.pc++]; H = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex || G > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
+				E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
+				G = ops->bytes[ctx->pc++]; H = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex || C > ctx->lexIndex || E > ctx->lexIndex || G > ctx->lexIndex)
 					return crr_invalid();
 				X = var_get(ctx, C, D);
 				if (var_islist(X)){
 					Y = var_get(ctx, E, F);
 					Z = var_get(ctx, G, H);
 					if (!var_isnum(Y) || !var_isnum(Z)){
-						ctx.failed = true;
-						return crr_warn(['Expecting slice values to be numbers']);
+						ctx->failed = true;
+						return crr_warnStr(ctx, format("Expecting slice values to be numbers"));
 					}
 					if (X.length <= 0)
 						var_set(ctx, A, B, []);
@@ -8162,8 +8232,8 @@ function context_run(ctx){
 					Y = var_get(ctx, E, F);
 					Z = var_get(ctx, G, H);
 					if (!var_isnum(Y) || !var_isnum(Z)){
-						ctx.failed = true;
-						return crr_warn(['Expecting slice values to be numbers']);
+						ctx->failed = true;
+						return crr_warnStr(ctx, format("Expecting slice values to be numbers"));
 					}
 					if (X.length <= 0)
 						var_set(ctx, A, B, '');
@@ -8180,29 +8250,29 @@ function context_run(ctx){
 					}
 				}
 				else{
-					ctx.failed = true;
-					return crr_warn(['Expecting list or string when slicing']);
+					ctx->failed = true;
+					return crr_warnStr(ctx, format("Expecting list or string when slicing"));
 				}
 			} break;
 
 			case OP_SETAT          : { // [SRC1], [SRC2], [SRC3]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				E = ops[ctx.pc++]; F = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
+				E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex || C > ctx->lexIndex || E > ctx->lexIndex)
 					return crr_invalid();
 
 				X = var_get(ctx, A, B);
 				if (!var_islist(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting list when setting index']);
+					ctx->failed = true;
+					return crr_warnStr(ctx, format("Expecting list when setting index"));
 				}
 
 				Y = var_get(ctx, C, D);
 				if (!var_isnum(Y)){
-					ctx.failed = true;
-					return crr_warn(['Expecting index to be number']);
+					ctx->failed = true;
+					return crr_warnStr(ctx, format("Expecting index to be number"));
 				}
 				if (Y < 0)
 					Y += X.length;
@@ -8213,25 +8283,25 @@ function context_run(ctx){
 			} break;
 
 			case OP_SPLICE         : { // [SRC1], [SRC2], [SRC3], [SRC4]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				E = ops[ctx.pc++]; F = ops[ctx.pc++];
-				G = ops[ctx.pc++]; H = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex || G > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
+				E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
+				G = ops->bytes[ctx->pc++]; H = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex || C > ctx->lexIndex || E > ctx->lexIndex || G > ctx->lexIndex)
 					return crr_invalid();
 
 				X = var_get(ctx, A, B);
 				if (!var_islist(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting list when splicing']);
+					ctx->failed = true;
+					return crr_warnStr(ctx, format("Expecting list when splicing"));
 				}
 
 				Y = var_get(ctx, C, D);
 				Z = var_get(ctx, E, F);
 				if (!var_isnum(Y) || !var_isnum(Z)){
-					ctx.failed = true;
-					return crr_warn(['Expecting splice values to be numbers']);
+					ctx->failed = true;
+					return crr_warnStr(ctx, format("Expecting splice values to be numbers"));
 				}
 				if (Y < 0)
 					Y += X.length;
@@ -8252,15 +8322,15 @@ function context_run(ctx){
 					}
 				}
 				else{
-					ctx.failed = true;
-					return crr_warn(['Expecting spliced value to be a list']);
+					ctx->failed = true;
+					return crr_warnStr(ctx, format("Expecting spliced value to be a list"));
 				}
 			} break;
 
 			case OP_JUMP           : { // [[LOCATION]]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
 				A = A + (B << 8) + (C << 16) + ((D << 23) * 2);
 				if (ctx.prg.repl && A == 0xFFFFFFFF){
 					ctx.pc -= 5;
@@ -8270,11 +8340,11 @@ function context_run(ctx){
 			} break;
 
 			case OP_JUMPTRUE       : { // [SRC], [[LOCATION]]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				E = ops[ctx.pc++]; F = ops[ctx.pc++];
-				if (A > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
+				E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex)
 					return crr_invalid();
 				C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
 				if (var_get(ctx, A, B) != NULL){
@@ -8287,11 +8357,11 @@ function context_run(ctx){
 			} break;
 
 			case OP_JUMPFALSE      : { // [SRC], [[LOCATION]]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				E = ops[ctx.pc++]; F = ops[ctx.pc++];
-				if (A > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
+				E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex)
 					return crr_invalid();
 				C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
 				if (var_get(ctx, A, B) == NULL){
@@ -8304,13 +8374,13 @@ function context_run(ctx){
 			} break;
 
 			case OP_CALL           : { // [TGT], [SRC], LEVEL, [[LOCATION]]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				E = ops[ctx.pc++];
-				F = ops[ctx.pc++]; G = ops[ctx.pc++];
-				H = ops[ctx.pc++]; I = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
+				E = ops->bytes[ctx->pc++];
+				F = ops->bytes[ctx->pc++]; G = ops->bytes[ctx->pc++];
+				H = ops->bytes[ctx->pc++]; I = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex || C > ctx->lexIndex || E > ctx->lexIndex)
 					return crr_invalid();
 				F = F + (G << 8) + (H << 16) + ((I << 23) * 2);
 				if (ctx.prg.repl && F == 0xFFFFFFFF){
@@ -8319,14 +8389,14 @@ function context_run(ctx){
 				}
 				X = var_get(ctx, C, D);
 				if (!var_islist(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting list when calling function']);
+					ctx->failed = true;
+					return crr_warnStr(ctx, format("Expecting list when calling function"));
 				}
-				ctx.call_stk.push(ccs_new(ctx.pc, A, B, ctx.lexIndex));
-				ctx.lexIndex = ctx.lexIndex - E + 1;
-				while (ctx.lexIndex >= ctx.lex_stk.length)
+				ctx.call_stk.push(ccs_new(ctx.pc, A, B, ctx->lexIndex));
+				ctx->lexIndex = ctx->lexIndex - E + 1;
+				while (ctx->lexIndex >= ctx.lex_stk.length)
 					ctx.lex_stk.push(NULL);
-				ctx.lex_stk[ctx.lexIndex] = lxs_new(X, ctx.lex_stk[ctx.lexIndex]);
+				ctx.lex_stk[ctx->lexIndex] = lxs_new(X, ctx.lex_stk[ctx->lexIndex]);
 				ctx.pc = F;
 			} break;
 
@@ -8337,58 +8407,58 @@ function context_run(ctx){
 			case OP_RETURN         : { // [SRC]
 				if (ctx.call_stk.length <= 0)
 					return crr_exitpass();
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				if (A > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex)
 					return crr_invalid();
 				X = var_get(ctx, A, B);
 				var s = ctx.call_stk.pop();
-				ctx.lex_stk[ctx.lexIndex] = ctx.lex_stk[ctx.lexIndex].next;
-				ctx.lexIndex = s.lexIndex;
+				ctx.lex_stk[ctx->lexIndex] = ctx.lex_stk[ctx->lexIndex].next;
+				ctx->lexIndex = s.lexIndex;
 				var_set(ctx, s.fdiff, s.index, X);
 				ctx.pc = s.pc;
 			} break;
 
 			case OP_SAY            : { // [TGT], [SRC...]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex || C > ctx->lexIndex)
 					return crr_invalid();
 				X = var_get(ctx, C, D);
 				if (!var_islist(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting list when calling say']);
+					ctx->failed = true;
+					return crr_warnStr(ctx, format("Expecting list when calling say"));
 				}
 				var_set(ctx, A, B, NULL);
 				return crr_say(X);
 			} break;
 
 			case OP_WARN           : { // [TGT], [SRC...]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex || C > ctx->lexIndex)
 					return crr_invalid();
 				X = var_get(ctx, C, D);
 				if (!var_islist(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting list when calling warn']);
+					ctx->failed = true;
+					return crr_warnStr(ctx, format("Expecting list when calling warn"));
 				}
 				var_set(ctx, A, B, NULL);
 				return crr_warn(X);
 			} break;
 
 			case OP_ASK            : { // [TGT], [SRC...]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex || C > ctx->lexIndex)
 					return crr_invalid();
 				X = var_get(ctx, C, D);
 				if (!var_islist(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting list when calling ask']);
+					ctx->failed = true;
+					return crr_warnStr(ctx, format("Expecting list when calling ask"));
 				}
 				return crr_ask(X, A, B);
 			} break;
@@ -8406,29 +8476,29 @@ function context_run(ctx){
 			} break;
 
 			case OP_NUM_MAX        : { // [TGT], [SRC...]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex || C > ctx->lexIndex)
 					return crr_invalid();
 				X = var_get(ctx, C, D);
 				if (!var_islist(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting list when calling num.max']);
+					ctx->failed = true;
+					return crr_warnStr(ctx, format("Expecting list when calling num.max"));
 				}
 				var_set(ctx, A, B, lib_num_max(X));
 			} break;
 
 			case OP_NUM_MIN        : { // [TGT], [SRC...]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex || C > ctx->lexIndex)
 					return crr_invalid();
 				X = var_get(ctx, C, D);
 				if (!var_islist(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting list when calling num.max']);
+					ctx->failed = true;
+					return crr_warnStr(ctx, format("Expecting list when calling num.max"));
 				}
 				var_set(ctx, A, B, lib_num_min(X));
 			} break;
@@ -8465,69 +8535,69 @@ function context_run(ctx){
 			} break;
 
 			case OP_NUM_NAN        : { // [TGT]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				if (A > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex)
 					return crr_invalid();
 				var_set(ctx, A, B, NaN);
 			} break;
 
 			case OP_NUM_INF        : { // [TGT]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				if (A > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex)
 					return crr_invalid();
 				var_set(ctx, A, B, Infinity);
 			} break;
 
 			case OP_NUM_ISNAN      : { // [TGT], [SRC]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex || C > ctx->lexIndex)
 					return crr_invalid();
 				X = var_get(ctx, C, D);
 				if (!var_isnum(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting number']);
+					ctx->failed = true;
+					return crr_warnStr(ctx, format("Expecting number"));
 				}
 				var_set(ctx, A, B, isNaN(X) ? 1 : NULL);
 			} break;
 
 			case OP_NUM_ISFINITE   : { // [TGT], [SRC]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex || C > ctx->lexIndex)
 					return crr_invalid();
 				X = var_get(ctx, C, D);
 				if (!var_isnum(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting number']);
+					ctx->failed = true;
+					return crr_warnStr(ctx, format("Expecting number"));
 				}
 				var_set(ctx, A, B, isFinite(X) ? 1 : NULL);
 			} break;
 
 			case OP_NUM_E          : { // [TGT]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				if (A > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex)
 					return crr_invalid();
 				var_set(ctx, A, B, Math.E);
 			} break;
 
 			case OP_NUM_PI         : { // [TGT]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				if (A > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex)
 					return crr_invalid();
 				var_set(ctx, A, B, Math.PI);
 			} break;
 
 			case OP_NUM_TAU        : { // [TGT]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				if (A > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex)
 					return crr_invalid();
 				var_set(ctx, A, B, Math.PI * 2);
 			} break;
@@ -8715,194 +8785,194 @@ function context_run(ctx){
 			} break;
 
 			case OP_RAND_SEED      : { // [TGT], [SRC]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex || C > ctx->lexIndex)
 					return crr_invalid();
 				X = var_get(ctx, C, D);
 				if (!var_isnum(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting number']);
+					ctx->failed = true;
+					return crr_warnStr(format('Expecting number']);
 				}
 				lib_rand_seed(ctx, X);
 				var_set(ctx, A, B, NULL);
 			} break;
 
 			case OP_RAND_SEEDAUTO  : { // [TGT]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				if (A > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex)
 					return crr_invalid();
 				lib_rand_seedauto(ctx);
 				var_set(ctx, A, B, NULL);
 			} break;
 
 			case OP_RAND_INT       : { // [TGT]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				if (A > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex)
 					return crr_invalid();
 				var_set(ctx, A, B, lib_rand_int(ctx));
 			} break;
 
 			case OP_RAND_NUM       : { // [TGT]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				if (A > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex)
 					return crr_invalid();
 				var_set(ctx, A, B, lib_rand_num(ctx));
 			} break;
 
 			case OP_RAND_GETSTATE  : { // [TGT]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				if (A > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex)
 					return crr_invalid();
 				var_set(ctx, A, B, lib_rand_getstate(ctx));
 			} break;
 
 			case OP_RAND_SETSTATE  : { // [TGT], [SRC]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex || C > ctx->lexIndex)
 					return crr_invalid();
 				X = var_get(ctx, C, D);
 				if (!var_islist(X) || X.length < 2 || !var_isnum(X[0]) || !var_isnum(X[1])){
-					ctx.failed = true;
-					return crr_warn(['Expecting list of two integers']);
+					ctx->failed = true;
+					return crr_warnStr(ctx, format("Expecting list of two integers"));
 				}
 				lib_rand_setstate(ctx, X[0], X[1]);
 				var_set(ctx, A, B, NULL);
 			} break;
 
 			case OP_RAND_PICK      : { // [TGT], [SRC]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex || C > ctx->lexIndex)
 					return crr_invalid();
 				X = var_get(ctx, C, D);
 				if (!var_islist(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting list']);
+					ctx->failed = true;
+					return crr_warnStr(ctx, format("Expecting list"));
 				}
 				var_set(ctx, A, B, lib_rand_pick(ctx, X));
 			} break;
 
 			case OP_RAND_SHUFFLE   : { // [TGT], [SRC]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex || C > ctx->lexIndex)
 					return crr_invalid();
 				X = var_get(ctx, C, D);
 				if (!var_islist(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting list']);
+					ctx->failed = true;
+					return crr_warnStr(ctx, format("Expecting list"));
 				}
 				lib_rand_shuffle(ctx, X)
 				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_STR_NEW        : { // [TGT], [SRC1], [SRC2]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				throw 'TODO: context_run op ' + ops->bytes[ctx.pc].toString(16);
 			} break;
 
 			case OP_STR_SPLIT      : { // [TGT], [SRC1], [SRC2]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				throw 'TODO: context_run op ' + ops->bytes[ctx.pc].toString(16);
 			} break;
 
 			case OP_STR_REPLACE    : { // [TGT], [SRC1], [SRC2], [SRC3]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				throw 'TODO: context_run op ' + ops->bytes[ctx.pc].toString(16);
 			} break;
 
 			case OP_STR_STARTSWITH : { // [TGT], [SRC1], [SRC2]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				throw 'TODO: context_run op ' + ops->bytes[ctx.pc].toString(16);
 			} break;
 
 			case OP_STR_ENDSWITH   : { // [TGT], [SRC1], [SRC2]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				throw 'TODO: context_run op ' + ops->bytes[ctx.pc].toString(16);
 			} break;
 
 			case OP_STR_PAD        : { // [TGT], [SRC1], [SRC2]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				throw 'TODO: context_run op ' + ops->bytes[ctx.pc].toString(16);
 			} break;
 
 			case OP_STR_FIND       : { // [TGT], [SRC1], [SRC2], [SRC3]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				throw 'TODO: context_run op ' + ops->bytes[ctx.pc].toString(16);
 			} break;
 
 			case OP_STR_FINDREV    : { // [TGT], [SRC1], [SRC2], [SRC3]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				throw 'TODO: context_run op ' + ops->bytes[ctx.pc].toString(16);
 			} break;
 
 			case OP_STR_LOWER      : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				throw 'TODO: context_run op ' + ops->bytes[ctx.pc].toString(16);
 			} break;
 
 			case OP_STR_UPPER      : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				throw 'TODO: context_run op ' + ops->bytes[ctx.pc].toString(16);
 			} break;
 
 			case OP_STR_TRIM       : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				throw 'TODO: context_run op ' + ops->bytes[ctx.pc].toString(16);
 			} break;
 
 			case OP_STR_REV        : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				throw 'TODO: context_run op ' + ops->bytes[ctx.pc].toString(16);
 			} break;
 
 			case OP_STR_LIST       : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				throw 'TODO: context_run op ' + ops->bytes[ctx.pc].toString(16);
 			} break;
 
 			case OP_STR_BYTE       : { // [TGT], [SRC1], [SRC2]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				throw 'TODO: context_run op ' + ops->bytes[ctx.pc].toString(16);
 			} break;
 
 			case OP_STR_HASH       : { // [TGT], [SRC1], [SRC2]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				throw 'TODO: context_run op ' + ops->bytes[ctx.pc].toString(16);
 			} break;
 
 			case OP_UTF8_VALID     : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				throw 'TODO: context_run op ' + ops->bytes[ctx.pc].toString(16);
 			} break;
 
 			case OP_UTF8_LIST      : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				throw 'TODO: context_run op ' + ops->bytes[ctx.pc].toString(16);
 			} break;
 
 			case OP_UTF8_STR       : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				throw 'TODO: context_run op ' + ops->bytes[ctx.pc].toString(16);
 			} break;
 
 			case OP_STRUCT_SIZE    : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				throw 'TODO: context_run op ' + ops->bytes[ctx.pc].toString(16);
 			} break;
 
 			case OP_STRUCT_STR     : { // [TGT], [SRC1], [SRC2]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				throw 'TODO: context_run op ' + ops->bytes[ctx.pc].toString(16);
 			} break;
 
 			case OP_STRUCT_LIST    : { // [TGT], [SRC1], [SRC2]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				throw 'TODO: context_run op ' + ops->bytes[ctx.pc].toString(16);
 			} break;
 
 			case OP_LIST_NEW       : { // [TGT], [SRC1], [SRC2]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				E = ops[ctx.pc++]; F = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
+				E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex || C > ctx->lexIndex || E > ctx->lexIndex)
 					return crr_invalid();
 				X = var_get(ctx, C, D);
 				if (X == NULL)
 					X = 0;
 				else if (!var_isnum(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting number for list.new']);
+					ctx->failed = true;
+					return crr_warnStr(format('Expecting number for list.new']);
 				}
 				Y = var_get(ctx, E, F);
 				var r = [];
@@ -8912,25 +8982,25 @@ function context_run(ctx){
 			} break;
 
 			case OP_LIST_FIND      : { // [TGT], [SRC1], [SRC2], [SRC3]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				E = ops[ctx.pc++]; F = ops[ctx.pc++];
-				G = ops[ctx.pc++]; H = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex || G > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
+				E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
+				G = ops->bytes[ctx->pc++]; H = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex || C > ctx->lexIndex || E > ctx->lexIndex || G > ctx->lexIndex)
 					return crr_invalid();
 				X = var_get(ctx, C, D);
 				if (!var_islist(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting list for list.find']);
+					ctx->failed = true;
+					return crr_warnStr(ctx, format("Expecting list for list.find"));
 				}
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
 				if (Z == NULL)
 					Z = 0;
 				else if (!var_isnum(Z)){
-					ctx.failed = true;
-					return crr_warn(['Expecting number for list.find']);
+					ctx->failed = true;
+					return crr_warnStr(ctx, format("Expecting number for list.find"));
 				}
 				if (Z < 0 || isNaN(Z))
 					Z = 0;
@@ -8947,25 +9017,25 @@ function context_run(ctx){
 			} break;
 
 			case OP_LIST_FINDREV   : { // [TGT], [SRC1], [SRC2], [SRC3]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				E = ops[ctx.pc++]; F = ops[ctx.pc++];
-				G = ops[ctx.pc++]; H = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex || G > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
+				E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
+				G = ops->bytes[ctx->pc++]; H = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex || C > ctx->lexIndex || E > ctx->lexIndex || G > ctx->lexIndex)
 					return crr_invalid();
 				X = var_get(ctx, C, D);
 				if (!var_islist(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting list for list.find']);
+					ctx->failed = true;
+					return crr_warnStr(ctx, format("Expecting list for list.find"));
 				}
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
 				if (Z == NULL)
 					Z = X.length - 1;
 				else if (!var_isnum(Z)){
-					ctx.failed = true;
-					return crr_warn(['Expecting number for list.find']);
+					ctx->failed = true;
+					return crr_warnStr(ctx, format("Expecting number for list.find"));
 				}
 				if (Z < 0 || isNaN(Z))
 					Z = X.length - 1;
@@ -8982,16 +9052,16 @@ function context_run(ctx){
 			} break;
 
 			case OP_LIST_JOIN      : { // [TGT], [SRC1], [SRC2]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				E = ops[ctx.pc++]; F = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
+				E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex || C > ctx->lexIndex || E > ctx->lexIndex)
 					return crr_invalid();
 				X = var_get(ctx, C, D);
 				if (!var_islist(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting list for list.find']);
+					ctx->failed = true;
+					return crr_warnStr(ctx, format("Expecting list for list.find"));
 				}
 				Y = var_get(ctx, E, F);
 				if (Y == NULL)
@@ -9003,57 +9073,57 @@ function context_run(ctx){
 			} break;
 
 			case OP_LIST_REV       : { // [TGT], [SRC]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex)
+				ctx->pc++;
+				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
+				if (A > ctx->lexIndex || C > ctx->lexIndex)
 					return crr_invalid();
 				X = var_get(ctx, C, D);
 				if (!var_islist(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting list for list.find']);
+					ctx->failed = true;
+					return crr_warnStr(ctx, format("Expecting list for list.find"));
 				}
 				X.reverse();
 				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_LIST_STR       : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				throw 'TODO: context_run op ' + ops->bytes[ctx.pc].toString(16);
 			} break;
 
 			case OP_LIST_SORT      : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				throw 'TODO: context_run op ' + ops->bytes[ctx.pc].toString(16);
 			} break;
 
 			case OP_LIST_SORTREV   : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				throw 'TODO: context_run op ' + ops->bytes[ctx.pc].toString(16);
 			} break;
 
 			case OP_LIST_SORTCMP   : { // [TGT], [SRC1], [SRC2]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				throw 'TODO: context_run op ' + ops->bytes[ctx.pc].toString(16);
 			} break;
 
 			case OP_PICKLE_VALID   : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				throw 'TODO: context_run op ' + ops->bytes[ctx.pc].toString(16);
 			} break;
 
 			case OP_PICKLE_STR     : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				throw 'TODO: context_run op ' + ops->bytes[ctx.pc].toString(16);
 			} break;
 
 			case OP_PICKLE_VAL     : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				throw 'TODO: context_run op ' + ops->bytes[ctx.pc].toString(16);
 			} break;
 
 			default:
 				return crr_invalid();
 		}
 	}
-	if (ctx.prg.repl)
+	if (ctx->prg->repl)
 		return crr_repl();
 	return crr_exitpass();
 }
-
+#if 0
 //
 // compiler
 //

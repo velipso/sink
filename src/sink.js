@@ -5814,7 +5814,7 @@ function context_run(ctx){
 					return crr_warn(['Expecting list when shifting']);
 				}
 				if (X.length <= 0)
-					var_set(ctx, A, B, null)
+					var_set(ctx, A, B, null);
 				else
 					var_set(ctx, A, B, X.shift());
 			} break;
@@ -5831,7 +5831,7 @@ function context_run(ctx){
 					return crr_warn(['Expecting list when popping']);
 				}
 				if (X.length <= 0)
-					var_set(ctx, A, B, null)
+					var_set(ctx, A, B, null);
 				else
 					var_set(ctx, A, B, X.pop());
 			} break;
