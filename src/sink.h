@@ -45,11 +45,19 @@
 
 #ifndef SINK_PANIC
 #	include <stdlib.h>
-#	define SINK_PANIC(msg)    do{ fprintf(stderr, "Panic: %s\n", msg); abort(); }while(false)
+#	define SINK_PANIC(msg)    do{ fprintf(stderr, "Panic: " msg "\n"); abort(); }while(false)
 #endif
 
 #if defined(SINK_INTDBG) && !defined(SINK_DEBUG)
 #	define SINK_DEBUG
+#endif
+
+#ifndef SINK_OUTPUT_PREFIX
+#	define SINK_OUTPUT_PREFIX ""
+#endif
+
+#ifndef SINK_INPUT_PREFIX
+#	define SINK_INPUT_PREFIX ""
 #endif
 
 typedef int sink_user;
@@ -61,10 +69,10 @@ typedef union {
 
 typedef struct {
 	sink_val *vals;
+	void *user;
 	int size;
 	int count;
 	sink_user usertype;
-	void *user;
 } sink_list_st, *sink_list;
 
 typedef struct {
@@ -77,22 +85,29 @@ typedef struct {
 	int size;
 } sink_bin_st, *sink_bin;
 
-typedef uintptr_t sink_lib;
-typedef uintptr_t sink_repl;
-typedef uintptr_t sink_cmp;
-typedef uintptr_t sink_prg;
-typedef uintptr_t sink_ctx;
+typedef void *sink_lib;
+typedef void *sink_repl;
+typedef void *sink_cmp;
+typedef void *sink_prg;
+typedef void *sink_ctx;
 
 typedef void (*sink_output_func)(sink_ctx ctx, sink_str str);
 typedef sink_val (*sink_input_func)(sink_ctx ctx, sink_str str);
 typedef void (*sink_finalize_func)(void *user);
 typedef sink_val (*sink_native_func)(sink_ctx ctx, sink_val args);
+typedef char *(*sink_resolve_func)(const char *file, const char *fromfile);
+typedef void (*sink_include_func)(sink_cmp cmp, const char *file);
 
 typedef struct {
 	sink_output_func f_say;
 	sink_output_func f_warn;
 	sink_input_func f_ask;
 } sink_io_st;
+
+typedef struct {
+	sink_resolve_func f_resolve;
+	sink_include_func f_include;
+} sink_inc_st;
 
 // Values are jammed into NaNs, like so:
 //
@@ -118,28 +133,29 @@ void      sink_lib_addlib(sink_lib lib, sink_lib src);
 void      sink_lib_free(sink_lib lib);
 
 // repl
-sink_repl sink_repl_new(sink_lib lib, sink_io_st io);
+sink_repl sink_repl_new(sink_lib lib, sink_io_st io, sink_inc_st inc);
 char *    sink_repl_write(sink_repl repl, uint8_t *bytes, int size);
 void      sink_repl_free(sink_repl repl);
 
 // compiler
-sink_cmp  sink_cmp_new(sink_lib lib);
+sink_cmp  sink_cmp_new(const char *file, sink_inc_st inc);
 char *    sink_cmp_write(sink_cmp cmp, uint8_t *bytes, int size);
 char *    sink_cmp_close(sink_cmp cmp);
+sink_bin  sink_cmp_getbin(sink_cmp cmp);
 sink_prg  sink_cmp_getprg(sink_cmp cmp);
 void      sink_cmp_free(sink_cmp cmp);
 
 // program
-sink_prg  sink_prg_load(sink_lib lib, uint8_t *bytes, int size);
-sink_bin  sink_prg_getbin(sink_prg prg);
+sink_prg  sink_prg_load(uint8_t *bytes, int size);
 void      sink_prg_free(sink_prg prg);
 
 // binary
 void      sink_bin_free(sink_bin bin);
 
 // context
-sink_ctx  sink_ctx_new(sink_prg prg, sink_io_st io);
+sink_ctx  sink_ctx_new(sink_lib lib, sink_prg prg, sink_io_st io);
 sink_user sink_ctx_usertype(sink_ctx ctx, sink_finalize_func f_finalize);
+bool      sink_ctx_run(sink_ctx ctx);
 void      sink_ctx_gc(sink_ctx ctx);
 void      sink_ctx_say(sink_ctx ctx, sink_val *vals, int size);
 void      sink_ctx_warn(sink_ctx ctx, sink_val *vals, int size);
@@ -252,7 +268,7 @@ sink_val  sink_str_rev(sink_ctx ctx, sink_val a);
 sink_val  sink_str_list(sink_ctx ctx, sink_val a);
 sink_val  sink_str_byte(sink_ctx ctx, sink_val a, sink_val b);
 sink_val  sink_str_hash(sink_ctx ctx, sink_val a, sink_val b);
-void      sink_str_hashplain(uint8_t *bytes, int size, uint32_t seed, uint32_t *out);
+void      sink_str_hashplain(const uint8_t *bytes, int size, uint32_t seed, uint32_t *out);
 
 // utf8
 bool      sink_utf8_valid(sink_ctx ctx, sink_val a);
@@ -291,16 +307,19 @@ bool      sink_pickle_valid(sink_ctx ctx, sink_val a);
 sink_val  sink_pickle_str(sink_ctx ctx, sink_val a);
 sink_val  sink_pickle_val(sink_ctx ctx, sink_val a);
 
-// helpful defaults
+// helpers
+char *sink_format(const char *fmt, ...);
+
 static void sink_stdio_say(sink_ctx ctx, sink_str str){
-	printf("%.*s\n", str->size, str->bytes);
+	printf("%s%.*s\n", SINK_OUTPUT_PREFIX, str->size, str->bytes);
 }
 
 static void sink_stdio_warn(sink_ctx ctx, sink_str str){
-	fprintf(stderr, "%.*s\n", str->size, str->bytes);
+	fprintf(stderr, "%s%.*s\n", SINK_OUTPUT_PREFIX, str->size, str->bytes);
 }
 
 static sink_val sink_stdio_ask(sink_ctx ctx, sink_str str){
+	printf("%s%.*s", SINK_INPUT_PREFIX, str->size, str->bytes);
 	// TODO: implement default ask
 	abort();
 	return SINK_NIL;
