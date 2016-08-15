@@ -23,6 +23,13 @@ built-in unary and binary operators.
 
 | Function            | Description                                                               |
 |---------------------|---------------------------------------------------------------------------|
+| `num.neg a`         | `-a`                                                                      |
+| `num.add a, b`      | `a + b`                                                                   |
+| `num.sub a, b`      | `a - b`                                                                   |
+| `num.mul a, b`      | `a * b`                                                                   |
+| `num.div a, b`      | `a / b`                                                                   |
+| `num.mod a, b`      | `a % b`                                                                   |
+| `num.pow a, b`      | `a^b`                                                                     |
 | `num.abs a`         | Absolute value of `a`                                                     |
 | `num.sign a`        | Sign of `a` (-1, 0, or 1)                                                 |
 | `num.max a, b, ...` | Returns the maximum number from all arguments                             |
@@ -32,10 +39,10 @@ built-in unary and binary operators.
 | `num.ceil a`        | Round `a` up to the nearest integer                                       |
 | `num.round a`       | Round `a` to the nearest integer, 0.5 and above rounds up                 |
 | `num.trunc a`       | Round `a` towards 0                                                       |
-| `num.NaN`           | Not-a-number value                                                        |
+| `num.nan`           | Not-a-number value                                                        |
 | `num.inf`           | Infinity value                                                            |
-| `num.isNaN a`       | Tests whether `a` is a NaN value                                          |
-| `num.isFinite a`    | Tests whether `a` is a finite value (i.e., not NaN or infinite)           |
+| `num.isnan a`       | Tests whether `a` is a NaN value                                          |
+| `num.isfinite a`    | Tests whether `a` is a finite value (i.e., not NaN or infinite)           |
 | `num.e`             | *e*  (2.718282...)                                                        |
 | `num.pi`            | *pi* (3.141592...)                                                        |
 | `num.tau`           | *tau* (2 * *pi* = 6.283185...)                                            |
@@ -54,6 +61,8 @@ built-in unary and binary operators.
 | `num.hex a, b`      | Convert `a` to a sink hexadecimal string, 0-padded to `b` digits          |
 | `num.oct a, b`      | Convert `a` to a sink octal string, 0-padded to `b` digits                |
 | `num.bin a, b`      | Convert `a` to a sink binary string, 0-padded to `b` digits               |
+
+Note: `num.neg`, `num.add`, etc, are the *exact* same as the built-in unary/binary operators.
 
 Integer
 -------
@@ -145,13 +154,15 @@ Strings are 8-bit clean, and interpreted as binary data.
 | Function              | Description                                                             |
 |-----------------------|-------------------------------------------------------------------------|
 | `str.new a, b`        | Create a new string by repeating string `a` `b` times                   |
+| `str.cat a, b`        | `a ~ b`                                                                 |
+| `str.tonum a`         | `+a` (convert string `a` to a number)                                   |
 | `str.split a, b`      | Split `a` into an array of strings based on separator `b`               |
 | `str.replace a, b, c` | Replace all occurrences of `b` in string `a` with `c`                   |
-| `str.startsWith a, b` | True if string `a` starts with string `b`; false otherwise              |
-| `str.endsWith a, b`   | True if string `a` ends with string `b`; false otherwise                |
+| `str.begins a, b`     | True if string `a` begins with string `b`; false otherwise              |
+| `str.ends a, b`       | True if string `a` ends with string `b`; false otherwise                |
 | `str.pad a, b`        | Pads string `a` with space until it is length `b` (`-b` to pad left)    |
 | `str.find a, b, c`    | Find `b` in string `a` starting at `c`; returns nil if not found        |
-| `str.findRev a, b, c` | Find `b` in string `a` starting at `c` and searching in reverse         |
+| `str.rfind a, b, c`   | Find `b` in string `a` starting at `c` and searching in reverse         |
 | `str.lower a`         | Convert `a` to lowercase                                                |
 | `str.upper a`         | Convert `a` to uppercase                                                |
 | `str.trim a`          | Trim surrounding whitespace from `a`                                    |
@@ -353,14 +364,21 @@ List
 | Function                | Description                                                           |
 |-------------------------|-----------------------------------------------------------------------|
 | `list.new a, b`         | Create a new list of size `a`, with each element set to `b`           |
+| `list.cat ls1, ls2`     | `ls1 ~ ls2` (returns a new list)                                      |
+| `list.shift ls`         | Remova nd return the value at the start of `ls`                       |
+| `list.pop ls`           | Remove and return the value at the end of `ls`                        |
+| `list.push ls, b`       | Push `b` at end of list `ls` (returns `ls`)                           |
+| `list.unshift ls, b`    | Unshift `b` at the start of list `ls` (returns `ls`)                  |
+| `list.append ls, ls2`   | Append `ls2` at the end of list `ls` (returns `ls`)                   |
+| `list.prepend ls, ls2`  | Prepend `ls2` at the start of list `ls` (returns `ls`)                |
 | `list.find ls, a, b`    | Find `a` in list `ls` starting at `b`; returns nil if not found       |
-| `list.findRev ls, a, b` | Find `a` in list `ls` starting at `b` and searching in reverse        |
+| `list.rfind ls, a, b`   | Find `a` in list `ls` starting at `b` and searching in reverse        |
 | `list.join ls, a`       | Convert list `ls` to a string by joining elements with string `a`     |
-| `list.rev ls`           | Reverse list `ls`; returns `ls`                                       |
+| `list.rev ls`           | Reverse list `ls` (returns `ls`)                                      |
 | `list.str ls`           | Convert a list of bytes to a string                                   |
-| `list.sort ls`          | Sorts the list `ls` in place, and returns the list                    |
-| `list.sortRev ls`       | Reverse sorts the list `ls` in place, and returns the list            |
-| `list.sortCmp a, b`     | Compare `a` with `b` according to the sorting precedence (-1, 0, 1)   |
+| `list.sort ls`          | Sorts the list `ls` in place (returns `ls`)                           |
+| `list.rsort ls`         | Reverse sorts the list `ls` in place (returns `ls`)                   |
+| `list.sortcmp a, b`     | Compare `a` with `b` according to the sorting precedence (-1, 0, 1)   |
 
 ### Sorting
 
