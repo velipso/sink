@@ -980,6 +980,84 @@ typedef enum {
 	KS_WHILE
 } ks_enum;
 
+static const char *ks_name(ks_enum k){
+	#ifdef SINK_DEBUG
+	switch (k){
+		case KS_INVALID:    return "KS_INVALID";
+		case KS_PLUS:       return "KS_PLUS";
+		case KS_UNPLUS:     return "KS_UNPLUS";
+		case KS_MINUS:      return "KS_MINUS";
+		case KS_UNMINUS:    return "KS_UNMINUS";
+		case KS_PERCENT:    return "KS_PERCENT";
+		case KS_STAR:       return "KS_STAR";
+		case KS_SLASH:      return "KS_SLASH";
+		case KS_CARET:      return "KS_CARET";
+		case KS_AT:         return "KS_AT";
+		case KS_AMP:        return "KS_AMP";
+		case KS_LT:         return "KS_LT";
+		case KS_GT:         return "KS_GT";
+		case KS_BANG:       return "KS_BANG";
+		case KS_EQU:        return "KS_EQU";
+		case KS_TILDE:      return "KS_TILDE";
+		case KS_COLON:      return "KS_COLON";
+		case KS_COMMA:      return "KS_COMMA";
+		case KS_PERIOD:     return "KS_PERIOD";
+		case KS_PIPE:       return "KS_PIPE";
+		case KS_LPAREN:     return "KS_LPAREN";
+		case KS_LBRACKET:   return "KS_LBRACKET";
+		case KS_LBRACE:     return "KS_LBRACE";
+		case KS_RPAREN:     return "KS_RPAREN";
+		case KS_RBRACKET:   return "KS_RBRACKET";
+		case KS_RBRACE:     return "KS_RBRACE";
+		case KS_PLUSEQU:    return "KS_PLUSEQU";
+		case KS_MINUSEQU:   return "KS_MINUSEQU";
+		case KS_PERCENTEQU: return "KS_PERCENTEQU";
+		case KS_STAREQU:    return "KS_STAREQU";
+		case KS_SLASHEQU:   return "KS_SLASHEQU";
+		case KS_CARETEQU:   return "KS_CARETEQU";
+		case KS_LTEQU:      return "KS_LTEQU";
+		case KS_GTEQU:      return "KS_GTEQU";
+		case KS_BANGEQU:    return "KS_BANGEQU";
+		case KS_EQU2:       return "KS_EQU2";
+		case KS_TILDEEQU:   return "KS_TILDEEQU";
+		case KS_TILDEPLUS:  return "KS_TILDEPLUS";
+		case KS_PLUSTILDE:  return "KS_PLUSTILDE";
+		case KS_TILDEMINUS: return "KS_TILDEMINUS";
+		case KS_MINUSTILDE: return "KS_MINUSTILDE";
+		case KS_AMP2:       return "KS_AMP2";
+		case KS_PIPE2:      return "KS_PIPE2";
+		case KS_PERIOD3:    return "KS_PERIOD3";
+		case KS_TILDE2PLUS: return "KS_TILDE2PLUS";
+		case KS_PLUSTILDE2: return "KS_PLUSTILDE2";
+		case KS_PIPE2EQU:   return "KS_PIPE2EQU";
+		case KS_AMP2EQU:    return "KS_AMP2EQU";
+		case KS_BREAK:      return "KS_BREAK";
+		case KS_CONTINUE:   return "KS_CONTINUE";
+		case KS_DECLARE:    return "KS_DECLARE";
+		case KS_DEF:        return "KS_DEF";
+		case KS_DO:         return "KS_DO";
+		case KS_ELSE:       return "KS_ELSE";
+		case KS_ELSEIF:     return "KS_ELSEIF";
+		case KS_END:        return "KS_END";
+		case KS_FOR:        return "KS_FOR";
+		case KS_GOTO:       return "KS_GOTO";
+		case KS_IF:         return "KS_IF";
+		case KS_INCLUDE:    return "KS_INCLUDE";
+		case KS_NAMESPACE:  return "KS_NAMESPACE";
+		case KS_NIL:        return "KS_NIL";
+		case KS_RETURN:     return "KS_RETURN";
+		case KS_TYPENUM:    return "KS_TYPENUM";
+		case KS_TYPESTR:    return "KS_TYPESTR";
+		case KS_TYPELIST:   return "KS_TYPELIST";
+		case KS_USING:      return "KS_USING";
+		case KS_VAR:        return "KS_VAR";
+		case KS_WHILE:      return "KS_WHILE";
+	}
+	#else
+	return "";
+	#endif
+}
+
 static inline ks_enum ks_char(char c){
 	if      (c == '+') return KS_PLUS;
 	else if (c == '-') return KS_MINUS;
@@ -1155,6 +1233,40 @@ static void tok_free(tok tk){
 			break;
 	}
 	mem_free(tk);
+}
+
+static void tok_print(tok tk){
+	#ifdef SINK_DEBUG
+	switch (tk->type){
+		case TOK_NEWLINE:
+			printf("TOK_NEWLINE\n");
+			break;
+		case TOK_KS:
+			printf("TOK_KS %s\n", ks_name(tk->u.k));
+			break;
+		case TOK_IDENT:
+			if (tk->u.ident)
+				printf("TOK_IDENT \"%.*s\"\n", tk->u.ident->size, tk->u.ident->bytes);
+			else
+				printf("TOK_IDENT NULL\n");
+			break;
+		case TOK_NUM:
+			printf("TOK_NUM %g\n", tk->u.num);
+			break;
+		case TOK_STR:
+			if (tk->u.str)
+				printf("TOK_STR \"%.*s\"\n", tk->u.str->size, tk->u.str->bytes);
+			else
+				printf("TOK_STR NULL\n");
+			break;
+		case TOK_ERROR:
+			if (tk->u.msg)
+				printf("TOK_ERROR \"%s\"\n", tk->u.msg);
+			else
+				printf("TOK_ERROR NULL\n");
+			break;
+	}
+	#endif
 }
 
 static inline tok tok_newline(bool soft){
@@ -3006,9 +3118,12 @@ static inline void parser_free(parser pr){
 		here = here->next;
 		prs_free(del);
 	}
-	tok_free(pr->tk1);
-	tok_free(pr->tk2);
-	tok_free(pr->tkR);
+	if (pr->tk1)
+		tok_free(pr->tk1);
+	if (pr->tk2)
+		tok_free(pr->tk2);
+	if (pr->tkR)
+		tok_free(pr->tkR);
 	mem_free(pr);
 }
 
@@ -6928,21 +7043,54 @@ void sink_lib_free(sink_lib lib){
 // repl API
 //
 
+typedef struct {
+	list_ptr tks;
+	lex lx;
+	parser pr;
+} repl_st, *repl;
+
 sink_repl sink_repl_new(sink_lib lib, sink_io_st io, sink_inc_st inc){
-	// TODO: this
-	abort();
-	return 0;
+	repl r = mem_alloc(sizeof(repl_st));
+	r->tks = list_ptr_new((free_func)tok_free);
+	r->lx = lex_new();
+	r->pr = parser_new();
+	return r;
 }
 
-char *sink_repl_write(sink_repl repl, uint8_t *bytes, int size){
-	// TODO: this
-	abort();
-	return NULL;
+char *sink_repl_write(sink_repl rp, uint8_t *bytes, int size){
+	repl r = (repl)rp;
+	for (int i = 0; i < size; i++)
+		lex_add(r->lx, bytes[i], r->tks);
+	bool err = false;
+	for (int i = 0; i < r->tks->size; i++){
+		tok tk = r->tks->ptrs[i];
+		tok_print(tk);
+		if (tk->type == TOK_ERROR)
+			err = true;
+	}
+	list_ptr_free(r->tks);
+	r->tks = list_ptr_new((free_func)tok_free);
+	const char *errm = "(error)";
+	return err ? (char *)errm : NULL;
 }
 
-void sink_repl_free(sink_repl repl){
-	// TODO: this
-	abort();
+void sink_repl_reset(sink_repl rp){
+	repl r = (repl)rp;
+	list_ptr_free(r->tks);
+	r->tks = list_ptr_new((free_func)tok_free);
+	lex_free(r->lx);
+	r->lx = lex_new();
+	parser_free(r->pr);
+	r->pr = parser_new();
+}
+
+void sink_repl_free(sink_repl rp){
+	repl r = (repl)rp;
+	list_ptr_free(r->tks);
+	lex_free(r->lx);
+	parser_free(r->pr);
+	mem_free(r);
+	mem_done();
 }
 
 //
