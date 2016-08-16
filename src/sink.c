@@ -2366,14 +2366,25 @@ static void expr_print(expr ex, int depth){
 			break;
 
 		case EXPR_PREFIX:
-			//if (ex->u.prefix.ex)
-			printf("%sEXPR_PREFIX\n", tab);
+			if (ex->u.prefix.ex){
+				printf("%sEXPR_PREFIX %s:\n", tab, ks_name(ex->u.prefix.k));
+				expr_print(ex->u.prefix.ex, depth + 1);
+			}
+			else
+				printf("%sEXPR_PREFIX %s NULL\n", tab, ks_name(ex->u.prefix.k));
 			break;
 
 		case EXPR_INFIX:
-			//if (ex->u.infix.left)
-			//if (ex->u.infix.right)
-			printf("%sEXPR_INFIX\n", tab);
+			printf("%sEXPR_INFIX:\n", tab);
+			if (ex->u.infix.left)
+				expr_print(ex->u.infix.left, depth + 1);
+			else
+				printf("%s  NULL\n", tab);
+			printf("%s->%s\n", tab, ks_name(ex->u.infix.k));
+			if (ex->u.infix.right)
+				expr_print(ex->u.infix.right, depth + 1);
+			else
+				printf("%s  NULL\n", tab);
 			break;
 
 		case EXPR_CALL:
@@ -4215,6 +4226,7 @@ static prr_st parser_process(parser pr, filepos_st flp){
 		case PRS_EXPR:
 			if (tok_isPre(tk1)){
 				st->exprPreStack = ets_new(tk1, st->exprPreStack);
+				pr->tk1 = NULL;
 				return prr_more();
 			}
 			st->state = PRS_EXPR_TERM;
@@ -4449,14 +4461,18 @@ static prr_st parser_process(parser pr, filepos_st flp){
 					if (pri.type == PRI_ERROR)
 						return prr_error(pri.u.msg);
 					st->exprTerm = pri.u.ex;
+					st->exprStack->ex = NULL;
+					exs next = st->exprStack->next;
+					exs_free(st->exprStack);
+					st->exprStack = next;
 					st->exprPreStack = st->exprPreStackStack->e;
 					st->exprPreStackStack->e = NULL;
-					eps next = st->exprPreStackStack->next;
+					eps next2 = st->exprPreStackStack->next;
 					eps_free(st->exprPreStackStack);
-					st->exprPreStackStack = next;
-					ets next2 = st->exprMidStack->next;
+					st->exprPreStackStack = next2;
+					ets next3 = st->exprMidStack->next;
 					ets_free(st->exprMidStack);
-					st->exprMidStack = next2;
+					st->exprMidStack = next3;
 				}
 				else // otherwise, the current Mid wins
 					break;
