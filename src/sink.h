@@ -9,6 +9,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <math.h>
+#include <stdlib.h>
+#include <string.h>
 
 // platform detection
 #if !defined(SINK_WIN32) && !defined(SINK_IOS) && !defined(SINK_MACOSX) && !defined(SINK_POSIX)
@@ -36,28 +38,29 @@
 #	endif
 #endif
 
+#ifdef SINK_WIN32
+#	define SINK_FILESEP      '\\'
+#	define SINK_ISFILESEP(x) ((x) == '\\' || (x) == '/')
+#	include <direct.h> // _getcwd
+#	define getcwd _getcwd
+#else
+#	define SINK_FILESEP      '/'
+#	define SINK_ISFILESEP(x) ((x) == '/')
+#	include <unistd.h> // getcwd
+#endif
+
 #ifndef SINK_ALLOC
-#	include <stdlib.h>
 #	define SINK_ALLOC(s)      malloc(s)
 #   define SINK_REALLOC(p, s) realloc(p, s)
 #	define SINK_FREE(s)       free(s)
 #endif
 
 #ifndef SINK_PANIC
-#	include <stdlib.h>
 #	define SINK_PANIC(msg)    do{ fprintf(stderr, "Panic: " msg "\n"); abort(); }while(false)
 #endif
 
 #if defined(SINK_INTDBG) && !defined(SINK_DEBUG)
 #	define SINK_DEBUG
-#endif
-
-#ifndef SINK_OUTPUT_PREFIX
-#	define SINK_OUTPUT_PREFIX ""
-#endif
-
-#ifndef SINK_INPUT_PREFIX
-#	define SINK_INPUT_PREFIX ""
 #endif
 
 typedef int sink_user;
@@ -96,7 +99,7 @@ typedef sink_val (*sink_input_func)(sink_ctx ctx, sink_str str);
 typedef void (*sink_finalize_func)(void *user);
 typedef sink_val (*sink_native_func)(sink_ctx ctx, sink_val args);
 typedef char *(*sink_resolve_func)(const char *file, const char *fromfile);
-typedef void (*sink_include_func)(sink_cmp cmp, const char *file);
+typedef void (*sink_include_func)(sink_cmp cmp, const char *fullfile);
 
 typedef struct {
 	sink_output_func f_say;
@@ -311,15 +314,15 @@ sink_val  sink_pickle_val(sink_ctx ctx, sink_val a);
 char *sink_format(const char *fmt, ...);
 
 static void sink_stdio_say(sink_ctx ctx, sink_str str){
-	printf("%s%.*s\n", SINK_OUTPUT_PREFIX, str->size, str->bytes);
+	printf("%.*s\n", str->size, str->bytes);
 }
 
 static void sink_stdio_warn(sink_ctx ctx, sink_str str){
-	fprintf(stderr, "%s%.*s\n", SINK_OUTPUT_PREFIX, str->size, str->bytes);
+	fprintf(stderr, "%.*s\n", str->size, str->bytes);
 }
 
 static sink_val sink_stdio_ask(sink_ctx ctx, sink_str str){
-	printf("%s%.*s", SINK_INPUT_PREFIX, str->size, str->bytes);
+	printf("%.*s", str->size, str->bytes);
 	// TODO: implement default ask
 	abort();
 	return SINK_NIL;
@@ -329,6 +332,119 @@ static sink_io_st sink_stdio = (sink_io_st){
 	.f_say = sink_stdio_say,
 	.f_warn = sink_stdio_warn,
 	.f_ask = sink_stdio_ask
+};
+
+static char *sink_stdinc_resolve(const char *file, const char *fromfile){
+	// check for an absolute path
+	#ifdef SINK_WIN32
+		if (file[0] != 0 && (file[0] == '\\' || file[0] == '/' || file[1] == ':'))
+			return sink_format("%s", file);
+	#else
+		if (file[0] == '/')
+			return sink_format("%s", file);
+	#endif
+
+	char *cwd;
+	int cwdlen;
+	if (fromfile == NULL){
+		char *cwd2 = getcwd(NULL, 0);
+		if (cwd2 == NULL)
+			return NULL;
+		// make sure last character is a slash
+		cwdlen = strlen(cwd2);
+		if (cwdlen > 0 && SINK_ISFILESEP(cwd2[cwdlen - 1]))
+			cwd = cwd2;
+		else{
+			cwd = malloc(sizeof(char) * (cwdlen + 2));
+			if (cwd == NULL){
+				free(cwd2);
+				return NULL;
+			}
+			memcpy(cwd, cwd2, sizeof(char) * (cwdlen + 1));
+			cwd[cwdlen++] = SINK_FILESEP;
+			cwd[cwdlen] = 0;
+			free(cwd2);
+		}
+	}
+	else{
+		cwdlen = strlen(fromfile);
+		cwd = malloc(sizeof(char) * (cwdlen + 1));
+		if (cwd == NULL)
+			return NULL;
+		memcpy(cwd, fromfile, sizeof(char) * (cwdlen + 1));
+		// trim trailinig filename, making sure last character is a slash
+		for (int i = cwdlen - 1; i >= 0; i--){
+			if (SINK_ISFILESEP(cwd[i])){
+				cwd[i + 1] = 0;
+				cwdlen = i + 1;
+				break;
+			}
+		}
+	}
+
+	int flen = strlen(file);
+	int tot = cwdlen + flen;
+	char *out = malloc(sizeof(char) * (tot + 1));
+	memcpy(out, cwd, sizeof(char) * (cwdlen + 1));
+	free(cwd);
+
+	for (int i = 0; i < flen; i++){
+		// check for './' and '../'
+		if (file[i] == '.'){
+			if (i < flen - 1){
+				if (SINK_ISFILESEP(file[i + 1])){
+					// './'
+					i++;
+					continue;
+				}
+				else if (file[i + 1] == '.' && i < flen - 2 && SINK_ISFILESEP(file[i + 2])){
+					// '../'
+					int j;
+					for (j = cwdlen - 1; j >= 0; j--){
+						if (!SINK_ISFILESEP(out[j]))
+							break;
+					}
+					if (j < 0){
+						i += 2;
+						continue;
+					}
+					int prej = j;
+					for (; j >= 0; j--){
+						if (SINK_ISFILESEP(out[j]))
+							break;
+					}
+					if (j < 0)
+						cwdlen = prej + 2;
+					else
+						cwdlen = j + 1;
+					i += 2;
+					continue;
+				}
+			}
+		}
+		// otherwise, copy until we hit a slash
+		while (!SINK_ISFILESEP(file[i])){
+			out[cwdlen] = file[i];
+			cwdlen++;
+			i++;
+		}
+		out[cwdlen++] = SINK_FILESEP;
+	}
+
+	out[cwdlen] = 0;
+	char *ret = sink_format("%s", out); // `f_resolve` must return a string created via sink_format
+	free(out);
+	return ret;
+}
+
+static void sink_stdinc_include(sink_cmp cmp, const char *fullfile){
+	abort();
+	// TODO: this
+}
+
+static sink_inc_st sink_stdinc = (sink_inc_st){
+	.f_resolve = sink_stdinc_resolve,
+	.f_include = sink_stdinc_include
 };
 
 #endif // SINK__H

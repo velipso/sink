@@ -106,7 +106,7 @@ static void *mem_debug_realloc(void *p, size_t s, const char *file, int line){
 	void *new_p;
 	if (p == NULL){
 		m_debug_memlist m = mem_prod_alloc(sizeof(m_debug_memlist_st));
-		m->p = new_p = mem_prod_realloc(p, size);
+		m->p = new_p = mem_prod_realloc(p, s);
 		m->file = file;
 		m->line = line;
 		m->next = memlist;
@@ -118,7 +118,7 @@ static void *mem_debug_realloc(void *p, size_t s, const char *file, int line){
 		while (m){
 			if (m->p == p){
 				found = true;
-				m->p = new_p = mem_prod_realloc(p, size);
+				m->p = new_p = mem_prod_realloc(p, s);
 				m->file = file;
 				m->line = line;
 				break;
@@ -161,7 +161,7 @@ static void mem_debug_done(){
 		debug("Failed to free memory allocated on:\n");
 		while (m){
 			debugf("%s:%d\n", m->file, m->line);
-			void *f = m;
+			m_debug_memlist f = m;
 			m = m->next;
 			mem_prod_free(f->p);
 			mem_prod_free(f);
