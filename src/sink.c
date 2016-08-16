@@ -2492,12 +2492,18 @@ static inline expr expr_paren(filepos_st flp, expr ex){
 
 static inline expr expr_group(filepos_st flp, expr left, expr right){
 	list_ptr g = list_ptr_new((free_func)expr_free);
-	if (left->type == EXPR_GROUP)
+	if (left->type == EXPR_GROUP){
 		list_ptr_append(g, left->u.group);
+		left->u.group->size = 0;
+		expr_free(left);
+	}
 	else
 		list_ptr_push(g, left);
-	if (right->type == EXPR_GROUP)
+	if (right->type == EXPR_GROUP){
 		list_ptr_append(g, right->u.group);
+		right->u.group->size = 0;
+		expr_free(right);
+	}
 	else
 		list_ptr_push(g, right);
 	expr ex = mem_alloc(sizeof(expr_st));
@@ -3813,6 +3819,7 @@ static prr_st parser_process(parser pr, filepos_st flp){
 				return prr_more();
 			}
 			list_ptr_push(st->decls, decl_local(flp, st->names));
+			st->names = NULL;
 			stmt = ast_declare(flp, st->decls);
 			st->decls = NULL;
 			return parser_statement(pr, stmt);
