@@ -151,16 +151,16 @@ static void mem_debug_free(void *p, const char *file, int line){
 	}
 	if (!found){
 		debugf("Freeing a pointer that wasn't originally allocated\n"
-			"File: %s\nLine: %d\n", file, line);
+			"File: %s\nLine: %d", file, line);
 	}
 }
 
 static void mem_debug_done(){
 	m_debug_memlist m = memlist;
 	if (m){
-		debug("Failed to free memory allocated on:\n");
+		debug("Failed to free memory allocated on:");
 		while (m){
-			debugf("%s:%d\n", m->file, m->line);
+			debugf("%s:%d", m->file, m->line);
 			m_debug_memlist f = m;
 			m = m->next;
 			mem_prod_free(f->p);
@@ -169,7 +169,7 @@ static void mem_debug_done(){
 		memlist = NULL;
 	}
 	else
-		debug("No memory leaks! :-)\n");
+		debug("No memory leaks! :-)");
 }
 
 static void mem_free_func(void *p){
@@ -660,44 +660,44 @@ typedef enum {
 } abort_enum;
 
 static inline void op_nop(list_byte b){
-	debug("> NOP\n");
+	debug("> NOP");
 	list_byte_push(b, OP_NOP);
 }
 
 static inline void op_exit(list_byte b, varloc_st src){
-	debugf("> EXIT %d:%d\n", src.fdiff, src.index);
+	debugf("> EXIT %d:%d", src.fdiff, src.index);
 	list_byte_push3(b, OP_EXIT, src.fdiff, src.index);
 }
 
 static inline void op_abort(list_byte b, varloc_st src){
-	debugf("> ABORT %d:%d\n", src.fdiff, src.index);
+	debugf("> ABORT %d:%d", src.fdiff, src.index);
 	list_byte_push3(b, OP_ABORT, src.fdiff, src.index);
 }
 
 static inline void op_aborterr(list_byte b, int errno){
-	debugf("> ABORTERR %d\n", errno);
+	debugf("> ABORTERR %d", errno);
 	list_byte_push2(b, OP_ABORTERR, errno);
 }
 
 static inline void op_move(list_byte b, varloc_st tgt, varloc_st src){
 	if (tgt.fdiff == src.fdiff && tgt.index == src.index)
 		return;
-	debugf("> MOVE %d:%d, %d:%d\n", tgt.fdiff, tgt.index, src.fdiff, src.index);
+	debugf("> MOVE %d:%d, %d:%d", tgt.fdiff, tgt.index, src.fdiff, src.index);
 	list_byte_push5(b, OP_MOVE, tgt.fdiff, tgt.index, src.fdiff, src.index);
 }
 
 static inline void op_inc(list_byte b, varloc_st src){
-	debugf("> INC %d:%d\n", src.fdiff, src.index);
+	debugf("> INC %d:%d", src.fdiff, src.index);
 	list_byte_push3(b, OP_INC, src.fdiff, src.index);
 }
 
 static inline void op_nil(list_byte b, varloc_st tgt){
-	debugf("> NIL %d:%d\n", tgt.fdiff, tgt.index);
+	debugf("> NIL %d:%d", tgt.fdiff, tgt.index);
 	list_byte_push3(b, OP_NIL, tgt.fdiff, tgt.index);
 }
 
 static inline void op_num(list_byte b, varloc_st tgt, int num){
-	debugf("> NUM %d:%d, %d\n", tgt.fdiff, tgt.index, num);
+	debugf("> NUM %d:%d, %d", tgt.fdiff, tgt.index, num);
 	if (num >= 0)
 		list_byte_push5(b, OP_NUMPOS, tgt.fdiff, tgt.index, num % 256, num >> 8);
 	else{
@@ -707,24 +707,24 @@ static inline void op_num(list_byte b, varloc_st tgt, int num){
 }
 
 static inline void op_num_tbl(list_byte b, varloc_st tgt, int index){
-	debugf("> NUMTBL %d:%d, %d\n", tgt.fdiff, tgt.index, index);
+	debugf("> NUMTBL %d:%d, %d", tgt.fdiff, tgt.index, index);
 	list_byte_push5(b, OP_NUMTBL, tgt.fdiff, tgt.index, index % 256, index >> 8);
 }
 
 static inline void op_str(list_byte b, varloc_st tgt, int index){
-	debugf("> STR %d:%d, %d\n", tgt.fdiff, tgt.index, index);
+	debugf("> STR %d:%d, %d", tgt.fdiff, tgt.index, index);
 	list_byte_push5(b, OP_STR, tgt.fdiff, tgt.index, index % 256, index >> 8);
 }
 
 static inline void op_list(list_byte b, varloc_st tgt, int hint){
 	if (hint > 255)
 		hint = 255;
-	debugf("> LIST %d:%d, %d\n", tgt.fdiff, tgt.index, hint);
+	debugf("> LIST %d:%d, %d", tgt.fdiff, tgt.index, hint);
 	list_byte_push4(b, OP_LIST, tgt.fdiff, tgt.index, hint);
 }
 
 static inline void op_rest(list_byte b, varloc_st tgt, varloc_st src1, varloc_st src2){
-	debugf("> REST %d:%d, %d:%d, %d:%d\n", tgt.fdiff, tgt.index, src1.fdiff, src1.index,
+	debugf("> REST %d:%d, %d:%d, %d:%d", tgt.fdiff, tgt.index, src1.fdiff, src1.index,
 		src2.fdiff, src2.index);
 	list_byte_push7(b, OP_REST, tgt.fdiff, tgt.index, src1.fdiff, src1.index,
 		src2.fdiff, src2.index);
@@ -742,7 +742,7 @@ static inline void op_unop(list_byte b, op_enum opcode, varloc_st tgt, varloc_st
 	else if (opcode == OP_ISNUM ) opstr = "ISNUM";
 	else if (opcode == OP_ISSTR ) opstr = "ISSTR";
 	else if (opcode == OP_ISLIST) opstr = "ISLIST";
-	debugf("> %s %d:%d, %d:%d\n", opstr, tgt.fdiff, tgt.index, src.fdiff, src.index);
+	debugf("> %s %d:%d, %d:%d", opstr, tgt.fdiff, tgt.index, src.fdiff, src.index);
 	#endif
 	list_byte_push5(b, opcode, tgt.fdiff, tgt.index, src.fdiff, src.index);
 }
@@ -780,7 +780,7 @@ static inline void op_binop(list_byte b, op_enum opcode, varloc_st tgt, varloc_s
 	else if (opcode == OP_LTE    ) opstr = "LTE";
 	else if (opcode == OP_NEQ    ) opstr = "NEQ";
 	else if (opcode == OP_EQU    ) opstr = "EQU";
-	debugf("> %s %d:%d, %d:%d, %d:%d\n", opstr, tgt.fdiff, tgt.index, src1.fdiff, src1.index,
+	debugf("> %s %d:%d, %d:%d, %d:%d", opstr, tgt.fdiff, tgt.index, src1.fdiff, src1.index,
 		src2.fdiff, src2.index);
 	#endif
 	list_byte_push7(b, opcode, tgt.fdiff, tgt.index, src1.fdiff, src1.index,
@@ -788,7 +788,7 @@ static inline void op_binop(list_byte b, op_enum opcode, varloc_st tgt, varloc_s
 }
 
 static inline void op_getat(list_byte b, varloc_st tgt, varloc_st src1, varloc_st src2){
-	debugf("> GETAT %d:%d, %d:%d, %d:%d\n", tgt.fdiff, tgt.index, src1.fdiff, src1.index,
+	debugf("> GETAT %d:%d, %d:%d, %d:%d", tgt.fdiff, tgt.index, src1.fdiff, src1.index,
 		src2.fdiff, src2.index);
 	list_byte_push7(b, OP_GETAT, tgt.fdiff, tgt.index, src1.fdiff, src1.index,
 		src2.fdiff, src2.index);
@@ -796,14 +796,14 @@ static inline void op_getat(list_byte b, varloc_st tgt, varloc_st src1, varloc_s
 
 static inline void op_slice(list_byte b, varloc_st tgt, varloc_st src1, varloc_st src2,
 	varloc_st src3){
-	debugf("> SLICE %d:%d, %d:%d, %d:%d, %d:%d\n", tgt.fdiff, tgt.index, src1.fdiff, src1.index,
+	debugf("> SLICE %d:%d, %d:%d, %d:%d, %d:%d", tgt.fdiff, tgt.index, src1.fdiff, src1.index,
 		src2.fdiff, src2.index, src3.fdiff, src3.index);
 	list_byte_push9(b, OP_SLICE, tgt.fdiff, tgt.index, src1.fdiff, src1.index,
 		src2.fdiff, src2.index, src3.fdiff, src3.index);
 }
 
 static inline void op_setat(list_byte b, varloc_st src1, varloc_st src2, varloc_st src3){
-	debugf("> SETAT %d:%d, %d:%d, %d:%d\n", src1.fdiff, src1.index, src2.fdiff, src2.index,
+	debugf("> SETAT %d:%d, %d:%d, %d:%d", src1.fdiff, src1.index, src2.fdiff, src2.index,
 		src3.fdiff, src3.index);
 	list_byte_push7(b, OP_SETAT, src1.fdiff, src1.index, src2.fdiff, src2.index,
 		src3.fdiff, src3.index);
@@ -811,14 +811,14 @@ static inline void op_setat(list_byte b, varloc_st src1, varloc_st src2, varloc_
 
 static inline void op_splice(list_byte b, varloc_st src1, varloc_st src2, varloc_st src3,
 	varloc_st src4){
-	debugf("> SPLICE %d:%d, %d:%d, %d:%d, %d:%d\n", src1.fdiff, src1.index, src2.fdiff, src2.index,
+	debugf("> SPLICE %d:%d, %d:%d, %d:%d, %d:%d", src1.fdiff, src1.index, src2.fdiff, src2.index,
 		src3.fdiff, src3.index, src4.fdiff, src4.index);
 	list_byte_push9(b, OP_SPLICE, src1.fdiff, src1.index, src2.fdiff, src2.index,
 		src3.fdiff, src3.index, src4.fdiff, src4.index);
 }
 
 static inline void op_jump(list_byte b, uint32_t index, list_byte hint){
-	debugf("> JUMP %.*s\n", hint->size, hint->bytes);
+	debugf("> JUMP %.*s", hint->size, hint->bytes);
 	list_byte_push5(b, OP_JUMP,
 		index % 256,
 		(index >> 8) % 256,
@@ -827,7 +827,7 @@ static inline void op_jump(list_byte b, uint32_t index, list_byte hint){
 }
 
 static inline void op_jumpTrue(list_byte b, varloc_st src, uint32_t index, list_byte hint){
-	debugf("> JUMPTRUE %d:%d, %.*s\n", src.fdiff, src.index, hint->size, hint->bytes);
+	debugf("> JUMPTRUE %d:%d, %.*s", src.fdiff, src.index, hint->size, hint->bytes);
 	list_byte_push7(b, OP_JUMPTRUE, src.fdiff, src.index,
 		index % 256,
 		(index >> 8) % 256,
@@ -836,7 +836,7 @@ static inline void op_jumpTrue(list_byte b, varloc_st src, uint32_t index, list_
 }
 
 static inline void op_jumpFalse(list_byte b, varloc_st src, uint32_t index, list_byte hint){
-	debugf("> JUMPFALSE %d:%d, %.*s\n", src.fdiff, src.index, hint->size, hint->bytes);
+	debugf("> JUMPFALSE %d:%d, %.*s", src.fdiff, src.index, hint->size, hint->bytes);
 	list_byte_push7(b, OP_JUMPFALSE, src.fdiff, src.index,
 		index % 256,
 		(index >> 8) % 256,
@@ -846,7 +846,7 @@ static inline void op_jumpFalse(list_byte b, varloc_st src, uint32_t index, list
 
 static inline void op_call(list_byte b, varloc_st ret, varloc_st arg, int level, uint32_t index,
 	list_byte hint){
-	debugf("> CALL %d:%d, %d:%d, %d, %.*s\n", ret.fdiff, ret.index, arg.fdiff, arg.index, level,
+	debugf("> CALL %d:%d, %d:%d, %d, %.*s", ret.fdiff, ret.index, arg.fdiff, arg.index, level,
 		hint->size, hint->bytes);
 	list_byte_push10(b, OP_CALL, ret.fdiff, ret.index, arg.fdiff, arg.index, level,
 		index % 256,
@@ -856,29 +856,29 @@ static inline void op_call(list_byte b, varloc_st ret, varloc_st arg, int level,
 }
 
 static inline void op_native(list_byte b, varloc_st ret, varloc_st arg, int index){
-	debugf("> NATIVE %d:%d, %d:%d, %d\n", ret.fdiff, ret.index, arg.fdiff, arg.index, index);
+	debugf("> NATIVE %d:%d, %d:%d, %d", ret.fdiff, ret.index, arg.fdiff, arg.index, index);
 	list_byte_push7(b, OP_NATIVE, ret.fdiff, ret.index, arg.fdiff, arg.index,
 		index % 256, index >> 8);
 }
 
 static inline void op_return(list_byte b, varloc_st src){
-	debugf("> RETURN %d:%d\n", src.fdiff, src.index);
+	debugf("> RETURN %d:%d", src.fdiff, src.index);
 	list_byte_push3(b, OP_RETURN, src.fdiff, src.index);
 }
 
 static inline void op_param0(list_byte b, op_enum opcode, varloc_st tgt){
-	debugf("> 0x%02X %d:%d\n", opcode, tgt.fdiff, tgt.index);
+	debugf("> 0x%02X %d:%d", opcode, tgt.fdiff, tgt.index);
 	list_byte_push3(b, opcode, tgt.fdiff, tgt.index);
 }
 
 static inline void op_param1(list_byte b, op_enum opcode, varloc_st tgt, varloc_st src){
-	debugf("> 0x%02X %d:%d, %d:%d\n", opcode, tgt.fdiff, tgt.index, src.fdiff, src.index);
+	debugf("> 0x%02X %d:%d, %d:%d", opcode, tgt.fdiff, tgt.index, src.fdiff, src.index);
 	list_byte_push5(b, opcode, tgt.fdiff, tgt.index, src.fdiff, src.index);
 }
 
 static inline void op_param2(list_byte b, op_enum opcode, varloc_st tgt, varloc_st src1,
 	varloc_st src2){
-	debugf("> 0x%02X %d:%d, %d:%d, %d:%d\n", opcode, tgt.fdiff, tgt.index, src1.fdiff, src1.index,
+	debugf("> 0x%02X %d:%d, %d:%d, %d:%d", opcode, tgt.fdiff, tgt.index, src1.fdiff, src1.index,
 		src2.fdiff, src2.index);
 	list_byte_push7(b, opcode, tgt.fdiff, tgt.index, src1.fdiff, src1.index,
 		src2.fdiff, src2.index);
@@ -886,7 +886,7 @@ static inline void op_param2(list_byte b, op_enum opcode, varloc_st tgt, varloc_
 
 static inline void op_param3(list_byte b, op_enum opcode, varloc_st tgt, varloc_st src1,
 	varloc_st src2, varloc_st src3){
-	debugf("> 0x%02X %d:%d, %d:%d, %d:%d, %d:%d\n", opcode, tgt.fdiff, tgt.index,
+	debugf("> 0x%02X %d:%d, %d:%d, %d:%d, %d:%d", opcode, tgt.fdiff, tgt.index,
 		src1.fdiff, src1.index, src2.fdiff, src2.index, src3.fdiff, src3.index);
 	list_byte_push9(b, opcode, tgt.fdiff, tgt.index, src1.fdiff, src1.index,
 		src2.fdiff, src2.index, src3.fdiff, src3.index);
@@ -1247,31 +1247,31 @@ static void tok_print(tok tk){
 	#ifdef SINK_DEBUG
 	switch (tk->type){
 		case TOK_NEWLINE:
-			printf("TOK_NEWLINE\n");
+			debug("TOK_NEWLINE");
 			break;
 		case TOK_KS:
-			printf("TOK_KS %s\n", ks_name(tk->u.k));
+			debugf("TOK_KS %s", ks_name(tk->u.k));
 			break;
 		case TOK_IDENT:
 			if (tk->u.ident)
-				printf("TOK_IDENT \"%.*s\"\n", tk->u.ident->size, tk->u.ident->bytes);
+				debugf("TOK_IDENT \"%.*s\"", tk->u.ident->size, tk->u.ident->bytes);
 			else
-				printf("TOK_IDENT NULL\n");
+				debug("TOK_IDENT NULL");
 			break;
 		case TOK_NUM:
-			printf("TOK_NUM %g\n", tk->u.num);
+			debugf("TOK_NUM %g", tk->u.num);
 			break;
 		case TOK_STR:
 			if (tk->u.str)
-				printf("TOK_STR \"%.*s\"\n", tk->u.str->size, tk->u.str->bytes);
+				debugf("TOK_STR \"%.*s\"", tk->u.str->size, tk->u.str->bytes);
 			else
-				printf("TOK_STR NULL\n");
+				debug("TOK_STR NULL");
 			break;
 		case TOK_ERROR:
 			if (tk->u.msg)
-				printf("TOK_ERROR \"%s\"\n", tk->u.msg);
+				debugf("TOK_ERROR \"%s\"", tk->u.msg);
 			else
-				printf("TOK_ERROR NULL\n");
+				debug("TOK_ERROR NULL");
 			break;
 	}
 	#endif
@@ -2307,103 +2307,128 @@ static void expr_print(expr ex, int depth){
 	tab[depth * 2] = 0;
 	switch (ex->type){
 		case EXPR_NIL:
-			printf("%sEXPR_NIL\n", tab);
+			debugf("%sEXPR_NIL", tab);
 			break;
 
 		case EXPR_NUM:
-			printf("%sEXPR_NUM %g\n", tab, ex->u.num);
+			debugf("%sEXPR_NUM %g", tab, ex->u.num);
 			break;
 
 		case EXPR_STR:
 			if (ex->u.str)
-				printf("%sEXPR_STR \"%.*s\"\n", tab, ex->u.str->size, ex->u.str->bytes);
+				debugf("%sEXPR_STR \"%.*s\"", tab, ex->u.str->size, ex->u.str->bytes);
 			else
-				printf("%sEXPR_STR NULL\n", tab);
+				debugf("%sEXPR_STR NULL", tab);
 			break;
 
 		case EXPR_LIST:
 			if (ex->u.ex){
-				printf("%sEXPR_LIST:\n", tab);
+				debugf("%sEXPR_LIST:", tab);
 				expr_print(ex->u.ex, depth + 1);
 			}
 			else
-				printf("%sEXPR_LIST NULL\n", tab);
+				debugf("%sEXPR_LIST NULL", tab);
 			break;
 
 		case EXPR_NAMES:
 			if (ex->u.names){
-				printf("%sEXPR_NAMES:\n", tab);
+				debugf("%sEXPR_NAMES:", tab);
 				for (int i = 0; i < ex->u.names->size; i++){
 					list_byte b = ex->u.names->ptrs[i];
-					printf("%s  \"%.*s\"\n", tab, b->size, b->bytes);
+					debugf("%s  \"%.*s\"", tab, b->size, b->bytes);
 				}
 			}
 			else
-				printf("%sEXPR_NAMES NULL\n", tab);
+				debugf("%sEXPR_NAMES NULL", tab);
 			break;
 
 		case EXPR_VAR:
-			printf("%sEXPR_VAR\n", tab);
+			debugf("%sEXPR_VAR", tab);
 			break;
 
 		case EXPR_PAREN:
 			if (ex->u.ex){
-				printf("%sEXPR_PAREN:\n", tab);
+				debugf("%sEXPR_PAREN:", tab);
 				expr_print(ex->u.ex, depth + 1);
 			}
 			else
-				printf("%sEXPR_PAREN NULL\n", tab);
+				debugf("%sEXPR_PAREN NULL", tab);
 			break;
 
 		case EXPR_GROUP:
 			if (ex->u.group){
-				printf("%sEXPR_GROUP:\n", tab);
+				debugf("%sEXPR_GROUP:", tab);
 				for (int i = 0; i < ex->u.group->size; i++)
 					expr_print(ex->u.group->ptrs[i], depth + 1);
 			}
 			else
-				printf("%sEXPR_GROUP NULL\n", tab);
+				debugf("%sEXPR_GROUP NULL", tab);
 			break;
 
 		case EXPR_PREFIX:
 			if (ex->u.prefix.ex){
-				printf("%sEXPR_PREFIX %s:\n", tab, ks_name(ex->u.prefix.k));
+				debugf("%sEXPR_PREFIX %s:", tab, ks_name(ex->u.prefix.k));
 				expr_print(ex->u.prefix.ex, depth + 1);
 			}
 			else
-				printf("%sEXPR_PREFIX %s NULL\n", tab, ks_name(ex->u.prefix.k));
+				debugf("%sEXPR_PREFIX %s NULL", tab, ks_name(ex->u.prefix.k));
 			break;
 
 		case EXPR_INFIX:
-			printf("%sEXPR_INFIX:\n", tab);
+			debugf("%sEXPR_INFIX:", tab);
 			if (ex->u.infix.left)
 				expr_print(ex->u.infix.left, depth + 1);
 			else
-				printf("%s  NULL\n", tab);
-			printf("%s->%s\n", tab, ks_name(ex->u.infix.k));
+				debugf("%s  NULL", tab);
+			debugf("%s->%s", tab, ks_name(ex->u.infix.k));
 			if (ex->u.infix.right)
 				expr_print(ex->u.infix.right, depth + 1);
 			else
-				printf("%s  NULL\n", tab);
+				debugf("%s  NULL", tab);
 			break;
 
 		case EXPR_CALL:
-			//if (ex->u.call.cmd)
-			//if (ex->u.call.params)
-			printf("%sEXPR_CALL\n", tab);
+			debugf("%sEXPR_CALL:", tab);
+			if (ex->u.call.cmd)
+				expr_print(ex->u.call.cmd, depth + 1);
+			else
+				debugf("%s  NULL", tab);
+			debugf("%s->", tab);
+			if (ex->u.call.params)
+				expr_print(ex->u.call.params, depth + 1);
+			else
+				debugf("%s  NULL", tab);
 			break;
 
 		case EXPR_INDEX:
-			//if (ex->u.index.obj)
-			//if (ex->u.index.key)
-			printf("%sEXPR_INDEX\n", tab);
+			debugf("%sEXPR_INDEX:", tab);
+			if (ex->u.index.obj)
+				expr_print(ex->u.index.obj, depth + 1);
+			else
+				debugf("%s  NULL", tab);
+			debugf("%s->", tab);
+			if (ex->u.index.key)
+				expr_print(ex->u.index.key, depth + 1);
+			else
+				debugf("%s  NULL", tab);
 			break;
 
 		case EXPR_SLICE:
-			//if (ex->u.slice.obj)
-			//if (ex->u.slice.start)
-			//if (ex->u.slice.len)
-			printf("%sEXPR_SLICE\n", tab);
+			debugf("%sEXPR_SLICE:", tab);
+			if (ex->u.slice.obj)
+				expr_print(ex->u.slice.obj, depth + 1);
+			else
+				debugf("%s  NULL", tab);
+			debugf("%s->", tab);
+			if (ex->u.slice.start)
+				expr_print(ex->u.slice.start, depth + 1);
+			else
+				debugf("%s  NULL", tab);
+			debugf("%s->", tab);
+			if (ex->u.slice.len)
+				expr_print(ex->u.slice.len, depth + 1);
+			else
+				debugf("%s  NULL", tab);
 			break;
 	}
 	mem_free(tab);
@@ -2710,35 +2735,35 @@ static void ast_print(ast stmt, int depth){
 	tab[depth * 2] = 0;
 	switch (stmt->type){
 		case AST_BREAK:
-			printf("%sAST_BREAK\n", tab);
+			debugf("%sAST_BREAK", tab);
 			break;
 
 		case AST_CONTINUE:
-			printf("%sAST_CONTINUE\n", tab);
+			debugf("%sAST_CONTINUE", tab);
 			break;
 
 		case AST_DECLARE:
 			//if (stmt->u.decls)
-			printf("%sAST_DECLARE\n", tab);
+			debugf("%sAST_DECLARE", tab);
 			break;
 
 		case AST_DEF:
 			//if (stmt->u.def.names)
 			//if (stmt->u.def.lvalues)
 			//if (stmt->u.def.body)
-			printf("%sAST_DEF\n", tab);
+			debugf("%sAST_DEF", tab);
 			break;
 
 		case AST_DO_END:
 			//if (stmt->u.body)
-			printf("%sAST_DO_END\n", tab);
+			debugf("%sAST_DO_END", tab);
 			break;
 
 		case AST_DO_WHILE:
 			//if (stmt->u.doWhile.doBody)
 			//if (stmt->u.doWhile.cond)
 			//if (stmt->u.doWhile.whileBody)
-			printf("%sAST_DO_WHILE\n", tab);
+			debugf("%sAST_DO_WHILE", tab);
 			break;
 
 		case AST_FOR:
@@ -2746,67 +2771,67 @@ static void ast_print(ast stmt, int depth){
 			//if (stmt->u.afor.names2)
 			//if (stmt->u.afor.ex)
 			//if (stmt->u.afor.body)
-			printf("%sAST_FOR\n", tab);
+			debugf("%sAST_FOR", tab);
 			break;
 
 		case AST_LOOP:
 			//if (stmt->u.body)
-			printf("%sAST_LOOP\n", tab);
+			debugf("%sAST_LOOP", tab);
 			break;
 
 		case AST_GOTO:
 			if (stmt->u.ident)
-				printf("%sAST_GOTO \"%.*s\"\n", tab, stmt->u.ident->size, stmt->u.ident->bytes);
+				debugf("%sAST_GOTO \"%.*s\"", tab, stmt->u.ident->size, stmt->u.ident->bytes);
 			else
-				printf("%sAST_GOTO NULL\n", tab);
+				debugf("%sAST_GOTO NULL", tab);
 			break;
 
 		case AST_IF:
 			//if (stmt->u.aif.conds)
 			//if (stmt->u.aif.elseBody)
-			printf("%sAST_IF\n", tab);
+			debugf("%sAST_IF", tab);
 			break;
 
 		case AST_INCLUDE:
 			//if (stmt->u.incls)
-			printf("%sAST_INCLUDE\n", tab);
+			debugf("%sAST_INCLUDE", tab);
 			break;
 
 		case AST_NAMESPACE:
 			//if (stmt->u.namespace.names)
 			//if (stmt->u.namespace.body)
-			printf("%sAST_NAMESPACE\n", tab);
+			debugf("%sAST_NAMESPACE", tab);
 			break;
 
 		case AST_RETURN:
 			//if (stmt->u.ex)
-			printf("%sAST_RETURN\n", tab);
+			debugf("%sAST_RETURN", tab);
 			break;
 
 		case AST_USING:
 			//if (stmt->u.namesList)
-			printf("%sAST_USING\n", tab);
+			debugf("%sAST_USING", tab);
 			break;
 
 		case AST_VAR:
 			//if (stmt->u.lvalues)
-			printf("%sAST_VAR\n", tab);
+			debugf("%sAST_VAR", tab);
 			break;
 
 		case AST_EVAL:
 			if (stmt->u.ex){
-				printf("%sAST_EVAL:\n", tab);
+				debugf("%sAST_EVAL:", tab);
 				expr_print(stmt->u.ex, depth + 1);
 			}
 			else
-				printf("%sAST_EVAL NULL\n", tab);
+				debugf("%sAST_EVAL NULL", tab);
 			break;
 
 		case AST_LABEL:
 			if (stmt->u.ident)
-				printf("%sAST_LABEL \"%.*s\"\n", tab, stmt->u.ident->size, stmt->u.ident->bytes);
+				debugf("%sAST_LABEL \"%.*s\"", tab, stmt->u.ident->size, stmt->u.ident->bytes);
 			else
-				printf("%sAST_LABEL NULL\n", tab);
+				debugf("%sAST_LABEL NULL", tab);
 			break;
 	}
 	mem_free(tab);
@@ -4614,7 +4639,7 @@ static inline void label_call(label lbl, list_byte ops, varloc_st ret, varloc_st
 }
 
 static inline void label_declare(label lbl, list_byte ops){
-	debugf("%.*s:\n", lbl->name->size, lbl->name->bytes);
+	debugf("%.*s:", lbl->name->size, lbl->name->bytes);
 	lbl->pos = ops->size;
 	label_refresh(lbl, ops, 0);
 }
