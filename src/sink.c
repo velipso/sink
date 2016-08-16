@@ -2739,6 +2739,15 @@ static void ast_print(ast stmt, int depth){
 	for (int i = 0; i < depth * 2; i++)
 		tab[i] = ' ';
 	tab[depth * 2] = 0;
+
+	#define AST_PRINT_BODY(b)                      \
+		if (b){                                    \
+			for (int i = 0; i < b->size; i++)      \
+				ast_print(b->ptrs[i], depth + 1);  \
+		}                                          \
+		else                                       \
+			debugf("%s  NULL", tab);
+
 	switch (stmt->type){
 		case AST_BREAK:
 			debugf("%sAST_BREAK", tab);
@@ -2756,33 +2765,42 @@ static void ast_print(ast stmt, int depth){
 		case AST_DEF:
 			//if (stmt->u.def.names)
 			//if (stmt->u.def.lvalues)
-			//if (stmt->u.def.body)
-			debugf("%sAST_DEF", tab);
+			debugf("%sAST_DEF:", tab);
+			AST_PRINT_BODY(stmt->u.def.body);
 			break;
 
 		case AST_DO_END:
-			//if (stmt->u.body)
-			debugf("%sAST_DO_END", tab);
+			debugf("%sAST_DO_END:", tab);
+			AST_PRINT_BODY(stmt->u.body);
 			break;
 
 		case AST_DO_WHILE:
-			//if (stmt->u.doWhile.doBody)
-			//if (stmt->u.doWhile.cond)
-			//if (stmt->u.doWhile.whileBody)
-			debugf("%sAST_DO_WHILE", tab);
+			debugf("%sAST_DO_WHILE:", tab);
+			AST_PRINT_BODY(stmt->u.doWhile.doBody);
+			debugf("%s->", tab);
+			if (stmt->u.doWhile.cond)
+				expr_print(stmt->u.doWhile.cond, depth + 1);
+			else
+				debugf("%s  NULL", tab);
+			debugf("%s->", tab);
+			AST_PRINT_BODY(stmt->u.doWhile.whileBody);
 			break;
 
 		case AST_FOR:
 			//if (stmt->u.afor.names1)
 			//if (stmt->u.afor.names2)
-			//if (stmt->u.afor.ex)
-			//if (stmt->u.afor.body)
-			debugf("%sAST_FOR", tab);
+			debugf("%sAST_FOR:", tab);
+			if (stmt->u.afor.ex)
+				expr_print(stmt->u.afor.ex, depth + 1);
+			else
+				debugf("%s  NULL", tab);
+			debugf("%s->", tab);
+			AST_PRINT_BODY(stmt->u.afor.body);
 			break;
 
 		case AST_LOOP:
-			//if (stmt->u.body)
-			debugf("%sAST_LOOP", tab);
+			debugf("%sAST_LOOP:", tab);
+			AST_PRINT_BODY(stmt->u.body);
 			break;
 
 		case AST_GOTO:
@@ -2794,8 +2812,8 @@ static void ast_print(ast stmt, int depth){
 
 		case AST_IF:
 			//if (stmt->u.aif.conds)
-			//if (stmt->u.aif.elseBody)
-			debugf("%sAST_IF", tab);
+			debugf("%sAST_IF:", tab);
+			AST_PRINT_BODY(stmt->u.aif.elseBody);
 			break;
 
 		case AST_INCLUDE:
@@ -2805,13 +2823,16 @@ static void ast_print(ast stmt, int depth){
 
 		case AST_NAMESPACE:
 			//if (stmt->u.namespace.names)
-			//if (stmt->u.namespace.body)
-			debugf("%sAST_NAMESPACE", tab);
+			debugf("%sAST_NAMESPACE:", tab);
+			AST_PRINT_BODY(stmt->u.namespace.body);
 			break;
 
 		case AST_RETURN:
-			//if (stmt->u.ex)
-			debugf("%sAST_RETURN", tab);
+			debugf("%sAST_RETURN:", tab);
+			if (stmt->u.ex)
+				expr_print(stmt->u.ex, depth + 1);
+			else
+				debugf("%s  NULL", tab);
 			break;
 
 		case AST_USING:
@@ -2825,12 +2846,11 @@ static void ast_print(ast stmt, int depth){
 			break;
 
 		case AST_EVAL:
-			if (stmt->u.ex){
-				debugf("%sAST_EVAL:", tab);
+			debugf("%sAST_EVAL:", tab);
+			if (stmt->u.ex)
 				expr_print(stmt->u.ex, depth + 1);
-			}
 			else
-				debugf("%sAST_EVAL NULL", tab);
+				debugf("%s  NULL", tab);
 			break;
 
 		case AST_LABEL:
@@ -2841,6 +2861,7 @@ static void ast_print(ast stmt, int depth){
 			break;
 	}
 	mem_free(tab);
+	#undef AST_PRINT_BODY
 	#endif
 }
 
