@@ -21,8 +21,8 @@
 #ifdef SINK_DEBUG
 #	undef NDEBUG
 #	include <assert.h>
-#	define debug(msg)       printf("> %s: %s\n", __func__, msg)
-#	define debugf(msg, ...) printf("> %s: " msg "\n", __func__, __VA_ARGS__)
+#	define debug(msg)       printf("> %-10s: %s\n", __func__, msg)
+#	define debugf(msg, ...) printf("> %-10s: " msg "\n", __func__, __VA_ARGS__)
 #else
 #	define NDEBUG
 #	include <assert.h>
@@ -4848,7 +4848,7 @@ static inline nsname nsname_cmdNative(list_byte name, int index){
 
 static inline nsname nsname_cmdOpcode(list_byte name, op_enum opcode, int params){
 	nsname nsn = mem_alloc(sizeof(nsname_st));
-	nsn->name = list_byte_newCopy(name);
+	nsn->name = name; // don't copy because the only caller gives `name` to nsn
 	nsn->type = NSN_CMD_OPCODE;
 	nsn->u.cmdOpcode.opcode = opcode;
 	nsn->u.cmdOpcode.params = params;
@@ -5305,13 +5305,14 @@ static inline list_ptr NSS(const char *str){
 }
 
 static inline void symtbl_loadStdlib(symtbl sym){
+	list_ptr nss;
 	SAC(sym, "pick"          , OP_PICK          ,  3);
 	SAC(sym, "say"           , OP_SAY           , -1);
 	SAC(sym, "warn"          , OP_WARN          , -1);
 	SAC(sym, "ask"           , OP_ASK           , -1);
 	SAC(sym, "exit"          , OP_EXIT          , -1);
 	SAC(sym, "abort"         , OP_ABORT         , -1);
-	symtbl_pushNamespace(sym, NSS("num"));
+	nss = NSS("num"); symtbl_pushNamespace(sym, nss); list_ptr_free(nss);
 		SAC(sym, "abs"       , OP_NUM_ABS       ,  1);
 		SAC(sym, "sign"      , OP_NUM_SIGN      ,  1);
 		SAC(sym, "max"       , OP_NUM_MAX       , -1);
@@ -5344,7 +5345,7 @@ static inline void symtbl_loadStdlib(symtbl sym){
 		SAC(sym, "oct"       , OP_NUM_OCT       ,  2);
 		SAC(sym, "bin"       , OP_NUM_BIN       ,  2);
 	symtbl_popNamespace(sym);
-	symtbl_pushNamespace(sym, NSS("int"));
+	nss = NSS("int"); symtbl_pushNamespace(sym, nss); list_ptr_free(nss);
 		SAC(sym, "cast"      , OP_INT_CAST      ,  1);
 		SAC(sym, "not"       , OP_INT_NOT       ,  1);
 		SAC(sym, "and"       , OP_INT_AND       ,  2);
@@ -5360,7 +5361,7 @@ static inline void symtbl_loadStdlib(symtbl sym){
 		SAC(sym, "mod"       , OP_INT_MOD       ,  2);
 		SAC(sym, "clz"       , OP_INT_CLZ       ,  1);
 	symtbl_popNamespace(sym);
-	symtbl_pushNamespace(sym, NSS("rand"));
+	nss = NSS("rand"); symtbl_pushNamespace(sym, nss); list_ptr_free(nss);
 		SAC(sym, "seed"      , OP_RAND_SEED     ,  1);
 		SAC(sym, "seedauto"  , OP_RAND_SEEDAUTO ,  0);
 		SAC(sym, "int"       , OP_RAND_INT      ,  0);
@@ -5370,7 +5371,7 @@ static inline void symtbl_loadStdlib(symtbl sym){
 		SAC(sym, "pick"      , OP_RAND_PICK     ,  1);
 		SAC(sym, "shuffle"   , OP_RAND_SHUFFLE  ,  1);
 	symtbl_popNamespace(sym);
-	symtbl_pushNamespace(sym, NSS("str"));
+	nss = NSS("str"); symtbl_pushNamespace(sym, nss); list_ptr_free(nss);
 		SAC(sym, "new"       , OP_STR_NEW       ,  2);
 		SAC(sym, "split"     , OP_STR_SPLIT     ,  2);
 		SAC(sym, "replace"   , OP_STR_REPLACE   ,  3);
@@ -5387,17 +5388,17 @@ static inline void symtbl_loadStdlib(symtbl sym){
 		SAC(sym, "byte"      , OP_STR_BYTE      ,  2);
 		SAC(sym, "hash"      , OP_STR_HASH      ,  2);
 	symtbl_popNamespace(sym);
-	symtbl_pushNamespace(sym, NSS("utf8"));
+	nss = NSS("utf8"); symtbl_pushNamespace(sym, nss); list_ptr_free(nss);
 		SAC(sym, "valid"     , OP_UTF8_VALID    ,  1);
 		SAC(sym, "list"      , OP_UTF8_LIST     ,  1);
 		SAC(sym, "str"       , OP_UTF8_STR      ,  1);
 	symtbl_popNamespace(sym);
-	symtbl_pushNamespace(sym, NSS("struct"));
+	nss = NSS("struct"); symtbl_pushNamespace(sym, nss); list_ptr_free(nss);
 		SAC(sym, "size"      , OP_STRUCT_SIZE   ,  1);
 		SAC(sym, "str"       , OP_STRUCT_STR    ,  2);
 		SAC(sym, "list"      , OP_STRUCT_LIST   ,  2);
 	symtbl_popNamespace(sym);
-	symtbl_pushNamespace(sym, NSS("list"));
+	nss = NSS("list"); symtbl_pushNamespace(sym, nss); list_ptr_free(nss);
 		SAC(sym, "new"       , OP_LIST_NEW      ,  2);
 		SAC(sym, "find"      , OP_LIST_FIND     ,  3);
 		SAC(sym, "findRev"   , OP_LIST_FINDREV  ,  3);
@@ -5408,7 +5409,7 @@ static inline void symtbl_loadStdlib(symtbl sym){
 		SAC(sym, "sortRev"   , OP_LIST_SORTREV  ,  1);
 		SAC(sym, "sortCmp"   , OP_LIST_SORTCMP  ,  2);
 	symtbl_popNamespace(sym);
-	symtbl_pushNamespace(sym, NSS("pickle"));
+	nss = NSS("pickle"); symtbl_pushNamespace(sym, nss); list_ptr_free(nss);
 		SAC(sym, "valid"     , OP_PICKLE_VALID  ,  1);
 		SAC(sym, "str"       , OP_PICKLE_STR    ,  1);
 		SAC(sym, "val"       , OP_PICKLE_VAL    ,  1);
@@ -7586,6 +7587,7 @@ sink_repl sink_repl_new(sink_lib lib, sink_io_st io, sink_inc_st inc){
 	r->pr = parser_new();
 	r->prg = program_new(true);
 	r->sym = symtbl_new(true);
+	symtbl_loadStdlib(r->sym);
 	r->tkflps = list_ptr_new((free_func)tkflp_free);
 	r->flpn = mem_alloc(sizeof(filepos_node_st));
 	r->flpn->flp.file = NULL;
