@@ -2841,8 +2841,13 @@ static void ast_print(ast stmt, int depth){
 			break;
 
 		case AST_VAR:
-			//if (stmt->u.lvalues)
-			debugf("%sAST_VAR", tab);
+			debugf("%sAST_VAR:", tab);
+			if (stmt->u.lvalues){
+				for (int i = 0 ;i < stmt->u.lvalues->size; i++)
+					expr_print(stmt->u.lvalues->ptrs[i], depth + 1);
+			}
+			else
+				debugf("%s  NULL", tab);
 			break;
 
 		case AST_EVAL:
@@ -4731,11 +4736,11 @@ typedef struct {
 	nsname_enum type;
 	union {
 		struct {
-			frame fr;
+			frame fr; // not freed by nsname_free
 			int index;
 		} var;
 		struct {
-			frame fr;
+			frame fr; // not freed by nsname_free
 			label lbl;
 		} cmdLocal;
 		int index;
@@ -4750,12 +4755,8 @@ typedef struct {
 static void nsname_free(nsname nsn){
 	switch (nsn->type){
 		case NSN_VAR:
-			if (nsn->u.var.fr)
-				frame_free(nsn->u.var.fr);
 			break;
 		case NSN_CMD_LOCAL:
-			if (nsn->u.cmdLocal.fr)
-				frame_free(nsn->u.cmdLocal.fr);
 			if (nsn->u.cmdLocal.lbl)
 				label_free(nsn->u.cmdLocal.lbl);
 			break;
@@ -4816,7 +4817,7 @@ static inline nsname nsname_namespace(list_byte name, namespace ns){
 
 struct namespace_struct {
 	frame fr; // not freed by namespace_free
-	list_ptr usings;
+	list_ptr usings; // namespace entries not feed by namespace_free
 	list_ptr names;
 };
 
@@ -4829,7 +4830,7 @@ static inline void namespace_free(namespace ns){
 static inline namespace namespace_new(frame fr){
 	namespace ns = mem_alloc(sizeof(namespace_st));
 	ns->fr = fr;
-	ns->usings = list_ptr_new((free_func)namespace_free);
+	ns->usings = list_ptr_new(NULL);
 	ns->names = list_ptr_new((free_func)nsname_free);
 	return ns;
 }
@@ -4844,7 +4845,6 @@ struct scope_struct {
 };
 
 static inline void scope_free(scope sc){
-	namespace_free(sc->ns);
 	list_ptr_free(sc->nsStack);
 	mem_free(sc);
 }
@@ -6913,14 +6913,17 @@ static pgr_st program_gen(program prg, symtbl sym, ast stmt){
 							label_declare(doneinit, prg->ops);
 							per_st pe = program_evalLval(prg, sym, PEM_EMPTY, VARLOC_NULL, lr.u.lv,
 								OP_INVALID, pr.u.vlc);
-							if (pe.type == PER_ERROR)
+							if (pe.type == PER_ERROR){
+								lvr_free(lr.u.lv);
 								return pgr_error(pe.u.error.flp, pe.u.error.msg);
+							}
 							label_jump(finish, prg->ops);
 							label_declare(passinit, prg->ops);
 						}
 
 						per_st pe = program_evalLval(prg, sym, PEM_EMPTY, VARLOC_NULL, lr.u.lv,
 							OP_INVALID, t);
+						lvr_free(lr.u.lv);
 						if (pe.type == PER_ERROR)
 							return pgr_error(pe.u.error.flp, pe.u.error.msg);
 
@@ -6940,6 +6943,7 @@ static pgr_st program_gen(program prg, symtbl sym, ast stmt){
 						op_num(prg->ops, t, i);
 						op_rest(prg->ops, t2, args, t);
 						op_slice(prg->ops, lr.u.lv->vlc, args, t, t2);
+						lvr_free(lr.u.lv);
 						symtbl_clearTemp(sym, t2);
 					}
 					else
@@ -7227,10 +7231,13 @@ static pgr_st program_gen(program prg, symtbl sym, ast stmt){
 				if (ex->u.infix.right != NULL){
 					per_st pe = program_evalLval(prg, sym, PEM_EMPTY, VARLOC_NULL, lr.u.lv,
 						OP_INVALID, pr.u.vlc);
+					lvr_free(lr.u.lv);
 					if (pe.type == PER_ERROR)
 						return pgr_error(pe.u.error.flp, pe.u.error.msg);
 					symtbl_clearTemp(sym, pr.u.vlc);
 				}
+				else
+					lvr_free(lr.u.lv);
 			}
 			return pgr_ok();
 
@@ -7342,6 +7349,8 @@ struct filepos_node_struct {
 typedef struct {
 	lex lx;
 	parser pr;
+	program prg;
+	symtbl sym;
 	list_ptr tkflps;
 	filepos_node flpn;
 	char *msg;
@@ -7369,6 +7378,8 @@ sink_repl sink_repl_new(sink_lib lib, sink_io_st io, sink_inc_st inc){
 	repl r = mem_alloc(sizeof(repl_st));
 	r->lx = lex_new();
 	r->pr = parser_new();
+	r->prg = program_new(true);
+	r->sym = symtbl_new(true);
 	r->tkflps = list_ptr_new((free_func)tkflp_free);
 	r->flpn = mem_alloc(sizeof(filepos_node_st));
 	r->flpn->flp.file = NULL;
@@ -7417,6 +7428,7 @@ char *sink_repl_write(sink_repl rp, uint8_t *bytes, int size){
 			tok tk = list_ptr_shift(tf->tks);
 			tok_print(tk);
 			if (tk->type == TOK_ERROR){
+				// TODO: flp?
 				r->msg = tk->u.msg;
 				tk->u.msg = NULL;
 				tok_free(tk);
@@ -7427,12 +7439,20 @@ char *sink_repl_write(sink_repl rp, uint8_t *bytes, int size){
 			switch (pp.type){
 				case PRR_MORE:
 					break;
-				case PRR_STATEMENT:
+				case PRR_STATEMENT: {
 					ast_print(pp.u.stmt, 0);
+					pgr_st pr = program_gen(r->prg, r->sym, pp.u.stmt);
 					ast_free(pp.u.stmt);
-					break;
+					if (pr.type == PGR_ERROR){
+						tkflp_free(tf);
+						// TODO: use pr.flp
+						r->msg = pr.msg;
+						return r->msg;
+					}
+				} break;
 				case PRR_ERROR:
 					tkflp_free(tf);
+					// TODO: flp?
 					r->msg = pp.u.msg;
 					return r->msg;
 			}
@@ -7462,6 +7482,8 @@ void sink_repl_free(sink_repl rp){
 		mem_free(r->msg);
 	lex_free(r->lx);
 	parser_free(r->pr);
+	program_free(r->prg);
+	symtbl_free(r->sym);
 	list_ptr_free(r->tkflps);
 	filepos_node flpn = r->flpn;
 	while (flpn){
