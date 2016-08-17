@@ -138,6 +138,7 @@ void      sink_lib_free(sink_lib lib);
 // repl
 sink_repl sink_repl_new(sink_lib lib, sink_io_st io, sink_inc_st inc);
 char *    sink_repl_write(sink_repl repl, uint8_t *bytes, int size);
+int       sink_repl_level(sink_repl repl);
 void      sink_repl_reset(sink_repl repl);
 void      sink_repl_free(sink_repl repl);
 

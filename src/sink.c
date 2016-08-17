@@ -4767,7 +4767,7 @@ typedef struct {
 		} var;
 		struct {
 			frame fr; // not freed by nsname_free
-			label lbl;
+			label lbl; // not feed by nsname_free
 		} cmdLocal;
 		int index;
 		struct {
@@ -4784,8 +4784,6 @@ static void nsname_free(nsname nsn){
 		case NSN_VAR:
 			break;
 		case NSN_CMD_LOCAL:
-			if (nsn->u.cmdLocal.lbl)
-				label_free(nsn->u.cmdLocal.lbl);
 			break;
 		case NSN_CMD_NATIVE:
 			break;
@@ -5975,6 +5973,7 @@ static per_st program_evalCall_checkList(program prg, symtbl sym, filepos_st flp
 	label_jumpTrue(skip, prg->ops, t);
 	op_aborterr(prg->ops, ABORT_LISTFUNC);
 	label_declare(skip, prg->ops);
+	label_free(skip);
 	symtbl_clearTemp(sym, t);
 	return per_ok(VARLOC_NULL);
 }
@@ -6007,8 +6006,11 @@ static per_st program_evalCall(program prg, symtbl sym, pem_enum mode, varloc_st
 			pe = program_eval(prg, sym, PEM_EMPTY, intoVlc, params->u.group->ptrs[1]);
 		else
 			pe = program_eval(prg, sym, PEM_INTO, intoVlc, params->u.group->ptrs[1]);
-		if (pe.type == PER_ERROR)
+		if (pe.type == PER_ERROR){
+			label_free(pickfalse);
+			label_free(finish);
 			return pe;
+		}
 		label_jump(finish, prg->ops);
 
 		label_declare(pickfalse, prg->ops);
@@ -6016,10 +6018,15 @@ static per_st program_evalCall(program prg, symtbl sym, pem_enum mode, varloc_st
 			pe = program_eval(prg, sym, PEM_EMPTY, intoVlc, params->u.group->ptrs[2]);
 		else
 			pe = program_eval(prg, sym, PEM_INTO, intoVlc, params->u.group->ptrs[2]);
-		if (pe.type == PER_ERROR)
+		if (pe.type == PER_ERROR){
+			label_free(pickfalse);
+			label_free(finish);
 			return pe;
+		}
 
 		label_declare(finish, prg->ops);
+		label_free(pickfalse);
+		label_free(finish);
 		return per_ok(intoVlc);
 	}
 
@@ -6305,6 +6312,8 @@ static per_st program_lvalCheckNil(program prg, symtbl sym, lvr lv, bool jumpFal
 
 			symtbl_clearTemp(sym, idx);
 			symtbl_clearTemp(sym, t);
+			label_free(next);
+			label_free(keep);
 		} break;
 
 		case LVR_LIST: {
@@ -6320,6 +6329,7 @@ static per_st program_lvalCheckNil(program prg, symtbl sym, lvr lv, bool jumpFal
 			if (!inverted)
 				label_jump(skip, prg->ops);
 			label_declare(keep, prg->ops);
+			label_free(keep);
 		} break;
 	}
 	return per_ok(VARLOC_NULL);
@@ -6340,9 +6350,12 @@ static per_st program_lvalCondAssignPart(program prg, symtbl sym, lvr lv, bool j
 				label_jumpTrue(skip, prg->ops, pe.u.vlc);
 			symtbl_clearTemp(sym, pe.u.vlc);
 			pe = program_evalLval(prg, sym, PEM_EMPTY, VARLOC_NULL, lv, OP_INVALID, valueVlc);
-			if (pe.type == PER_ERROR)
+			if (pe.type == PER_ERROR){
+				label_free(skip);
 				return pe;
+			}
 			label_declare(skip, prg->ops);
+			label_free(skip);
 		} break;
 
 		case LVR_SLICE: {
@@ -6395,6 +6408,9 @@ static per_st program_lvalCondAssignPart(program prg, symtbl sym, lvr lv, bool j
 			symtbl_clearTemp(sym, idx);
 			symtbl_clearTemp(sym, t);
 			symtbl_clearTemp(sym, t2);
+			label_free(next);
+			label_free(done);
+			label_free(inc);
 		} break;
 
 		case LVR_LIST: {
@@ -6643,12 +6659,14 @@ static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st int
 						false, skip);
 					if (pe.type == PER_ERROR){
 						lvr_free(lp.u.lv);
+						label_free(skip);
 						return pe;
 					}
 
 					pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, ex->u.infix.right);
 					if (pe.type == PER_ERROR){
 						lvr_free(lp.u.lv);
+						label_free(skip);
 						return pe;
 					}
 
@@ -6656,6 +6674,7 @@ static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st int
 						pe.u.vlc);
 					if (pe.type == PER_ERROR){
 						lvr_free(lp.u.lv);
+						label_free(skip);
 						return pe;
 					}
 
@@ -6663,6 +6682,7 @@ static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st int
 						label_declare(skip, prg->ops);
 						lval_clearTemps(lp.u.lv, sym);
 						lvr_free(lp.u.lv);
+						label_free(skip);
 						return per_ok(VARLOC_NULL);
 					}
 
@@ -6674,6 +6694,8 @@ static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st int
 						sta_st ts = symtbl_addTemp(sym);
 						if (ts.type == STA_ERROR){
 							lvr_free(lp.u.lv);
+							label_free(skip);
+							label_free(done);
 							return per_error(ex->flp, ts.u.msg);
 						}
 						intoVlc = ts.u.vlc;
@@ -6682,12 +6704,16 @@ static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st int
 					per_st ple = program_lvalGet(prg, sym, PLM_INTO, intoVlc, lp.u.lv);
 					if (ple.type == PER_ERROR){
 						lvr_free(lp.u.lv);
+						label_free(skip);
+						label_free(done);
 						return ple;
 					}
 
 					label_declare(done, prg->ops);
 					lval_clearTemps(lp.u.lv, sym);
 					lvr_free(lp.u.lv);
+					label_free(skip);
+					label_free(done);
 					return per_ok(intoVlc);
 				}
 
@@ -6764,9 +6790,12 @@ static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st int
 				else
 					label_jumpTrue(finish, prg->ops, intoVlc);
 				pe = program_eval(prg, sym, PEM_INTO, intoVlc, ex->u.infix.right);
-				if (pe.type == PER_ERROR)
+				if (pe.type == PER_ERROR){
+					label_free(finish);
 					return pe;
+				}
 				label_declare(finish, prg->ops);
+				label_free(finish);
 			}
 			else
 				return per_error(ex->flp, sink_format("Invalid operation"));
@@ -6951,6 +6980,7 @@ static pgr_st program_gen(program prg, symtbl sym, ast stmt){
 			}
 			else{
 				lbl = label_newStr("^def");
+				list_ptr_push(sym->fr->lbls, lbl);
 				sta_st sr = symtbl_addCmdLocal(sym, stmt->u.def.names, lbl);
 				if (sr.type == STA_ERROR)
 					return pgr_error(stmt->flp, sr.u.msg);
@@ -6964,8 +6994,10 @@ static pgr_st program_gen(program prg, symtbl sym, ast stmt){
 
 			if (stmt->u.def.lvalues->size > 0){
 				sta_st ts = symtbl_addTemp(sym);
-				if (ts.type == STA_ERROR)
+				if (ts.type == STA_ERROR){
+					label_free(skip);
 					return pgr_error(stmt->flp, ts.u.msg);
+				}
 				varloc_st t = ts.u.vlc;
 				varloc_st args = varloc_new(0, 0);
 				for (int i = 0; i < stmt->u.def.lvalues->size; i++){
@@ -6984,16 +7016,28 @@ static pgr_st program_gen(program prg, symtbl sym, ast stmt){
 							label_jump(skipinit, prg->ops);
 							label_declare(perfinit, prg->ops);
 							pr = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, ex->u.infix.right);
-							if (pr.type == PER_ERROR)
+							if (pr.type == PER_ERROR){
+								label_free(skip);
+								label_free(perfinit);
+								label_free(doneinit);
+								label_free(skipinit);
 								return pgr_error(pr.u.error.flp, pr.u.error.msg);
+							}
 							label_jump(doneinit, prg->ops);
 							label_declare(skipinit, prg->ops);
+							label_free(skipinit);
 						}
 
 						// now we can add the param symbols
 						lvp_st lr = lval_addVars(sym, ex->u.infix.left);
-						if (lr.type == LVP_ERROR)
+						if (lr.type == LVP_ERROR){
+							label_free(skip);
+							if (perfinit)
+								label_free(perfinit);
+							if (doneinit)
+								label_free(doneinit);
 							return pgr_error(lr.u.error.flp, lr.u.error.msg);
+						}
 
 						// and grab the appropriate value from the args
 						op_num(prg->ops, t, i);
@@ -7010,30 +7054,47 @@ static pgr_st program_gen(program prg, symtbl sym, ast stmt){
 								OP_INVALID, pr.u.vlc);
 							if (pe.type == PER_ERROR){
 								lvr_free(lr.u.lv);
+								label_free(skip);
+								label_free(perfinit);
+								label_free(doneinit);
+								label_free(finish);
+								label_free(passinit);
 								return pgr_error(pe.u.error.flp, pe.u.error.msg);
 							}
 							label_jump(finish, prg->ops);
 							label_declare(passinit, prg->ops);
+							label_free(perfinit);
+							label_free(doneinit);
+							label_free(passinit);
 						}
 
 						per_st pe = program_evalLval(prg, sym, PEM_EMPTY, VARLOC_NULL, lr.u.lv,
 							OP_INVALID, t);
 						lvr_free(lr.u.lv);
-						if (pe.type == PER_ERROR)
+						if (pe.type == PER_ERROR){
+							label_free(skip);
+							if (finish)
+								label_free(finish);
 							return pgr_error(pe.u.error.flp, pe.u.error.msg);
-
-						if (ex->u.infix.right != NULL)
+						}
+						if (ex->u.infix.right != NULL){
 							label_declare(finish, prg->ops);
+							label_free(finish);
+						}
 					}
 					else if (i == stmt->u.def.lvalues->size - 1 && ex->type == EXPR_PREFIX &&
 						ex->u.prefix.k == KS_PERIOD3){
 						lvp_st lr = lval_addVars(sym, ex->u.ex);
-						if (lr.type == LVP_ERROR)
+						if (lr.type == LVP_ERROR){
+							label_free(skip);
 							return pgr_error(lr.u.error.flp, lr.u.error.msg);
+						}
 						assert(lr.u.lv->type == LVR_VAR);
 						ts = symtbl_addTemp(sym);
-						if (ts.type == STA_ERROR)
+						if (ts.type == STA_ERROR){
+							label_free(skip);
 							return pgr_error(stmt->flp, ts.u.msg);
+						}
 						varloc_st t2 = ts.u.vlc;
 						op_num(prg->ops, t, i);
 						op_rest(prg->ops, t2, args, t);
@@ -7048,14 +7109,18 @@ static pgr_st program_gen(program prg, symtbl sym, ast stmt){
 			}
 
 			pgr_st pr = program_genBody(prg, sym, stmt->u.def.body);
-			if (pr.type == PGR_ERROR)
+			if (pr.type == PGR_ERROR){
+				label_free(skip);
 				return pr;
+			}
 
 			if (stmt->u.def.body->size <= 0 ||
 				((ast)stmt->u.def.body->ptrs[stmt->u.def.body->size - 1])->type != AST_RETURN){
 				sta_st ts = symtbl_addTemp(sym);
-				if (ts.type == STA_ERROR)
+				if (ts.type == STA_ERROR){
+					label_free(skip);
 					return pgr_error(stmt->flp, ts.u.msg);
+				}
 				varloc_st nil = ts.u.vlc;
 				op_nil(prg->ops, nil);
 				op_return(prg->ops, nil);
@@ -7064,7 +7129,7 @@ static pgr_st program_gen(program prg, symtbl sym, ast stmt){
 
 			symtbl_popFrame(sym);
 			label_declare(skip, prg->ops);
-
+			label_free(skip);
 			return pgr_ok();
 		} break;
 
@@ -7072,9 +7137,12 @@ static pgr_st program_gen(program prg, symtbl sym, ast stmt){
 			symtbl_pushScope(sym);
 			sym->sc->lblBreak = label_newStr("^do_break");
 			pgr_st pr = program_genBody(prg, sym, stmt->u.body);
-			if (pr.type == PGR_ERROR)
+			if (pr.type == PGR_ERROR){
+				label_free(sym->sc->lblBreak);
 				return pr;
+			}
 			label_declare(sym->sc->lblBreak, prg->ops);
+			label_free(sym->sc->lblBreak);
 			symtbl_popScope(sym);
 			return pgr_ok();
 		} break;
@@ -7091,26 +7159,41 @@ static pgr_st program_gen(program prg, symtbl sym, ast stmt){
 			label_declare(top, prg->ops);
 
 			pgr_st pr = program_genBody(prg, sym, stmt->u.doWhile.doBody);
-			if (pr.type == PGR_ERROR)
+			if (pr.type == PGR_ERROR){
+				label_free(top);
+				label_free(cond);
+				label_free(finish);
 				return pr;
+			}
 
 			label_declare(cond, prg->ops);
 			per_st pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, stmt->u.doWhile.cond);
-			if (pe.type == PER_ERROR)
+			if (pe.type == PER_ERROR){
+				label_free(top);
+				label_free(cond);
+				label_free(finish);
 				return pgr_error(pe.u.error.flp, pe.u.error.msg);
+			}
 			label_jumpFalse(finish, prg->ops, pe.u.vlc);
 			symtbl_clearTemp(sym, pe.u.vlc);
 
 			sym->sc->lblContinue = top;
 
 			pr = program_genBody(prg, sym, stmt->u.doWhile.whileBody);
-			if (pr.type == PGR_ERROR)
+			if (pr.type == PGR_ERROR){
+				label_free(top);
+				label_free(cond);
+				label_free(finish);
 				return pr;
+			}
 
 			label_jump(top, prg->ops);
 
 			label_declare(finish, prg->ops);
 			symtbl_popScope(sym);
+			label_free(top);
+			label_free(cond);
+			label_free(finish);
 			return pgr_ok();
 		} break;
 
@@ -7180,8 +7263,12 @@ static pgr_st program_gen(program prg, symtbl sym, ast stmt){
 			label finish = label_newStr("^for_finish");
 
 			sta_st ts = symtbl_addTemp(sym);
-			if (ts.type == STA_ERROR)
+			if (ts.type == STA_ERROR){
+				label_free(top);
+				label_free(inc);
+				label_free(finish);
 				return pgr_error(stmt->flp, ts.u.msg);
+			}
 			varloc_st t = ts.u.vlc;
 
 			label_declare(top, prg->ops);
@@ -7195,8 +7282,12 @@ static pgr_st program_gen(program prg, symtbl sym, ast stmt){
 			sym->sc->lblContinue = inc;
 
 			pgr_st pr = program_genBody(prg, sym, stmt->u.afor.body);
-			if (pr.type == PGR_ERROR)
+			if (pr.type == PGR_ERROR){
+				label_free(top);
+				label_free(inc);
+				label_free(finish);
 				return pr;
+			}
 
 			label_declare(inc, prg->ops);
 			op_inc(prg->ops, idx_vlc);
@@ -7207,6 +7298,9 @@ static pgr_st program_gen(program prg, symtbl sym, ast stmt){
 			symtbl_clearTemp(sym, idx_vlc);
 			symtbl_clearTemp(sym, pe.u.vlc);
 			symtbl_popScope(sym);
+			label_free(top);
+			label_free(inc);
+			label_free(finish);
 			return pgr_ok();
 		} break;
 
@@ -7216,10 +7310,15 @@ static pgr_st program_gen(program prg, symtbl sym, ast stmt){
 			sym->sc->lblBreak = label_newStr("^loop_break");
 			label_declare(sym->sc->lblContinue, prg->ops);
 			pgr_st pr = program_genBody(prg, sym, stmt->u.body);
-			if (pr.type == PGR_ERROR)
+			if (pr.type == PGR_ERROR){
+				label_free(sym->sc->lblContinue);
+				label_free(sym->sc->lblBreak);
 				return pr;
+			}
 			label_jump(sym->sc->lblContinue, prg->ops);
 			label_declare(sym->sc->lblBreak, prg->ops);
+			label_free(sym->sc->lblContinue);
+			label_free(sym->sc->lblBreak);
 			symtbl_popScope(sym);
 			return pgr_ok();
 		} break;
@@ -7244,30 +7343,42 @@ static pgr_st program_gen(program prg, symtbl sym, ast stmt){
 			label nextcond = NULL;
 			label ifdone = label_newStr("^ifdone");
 			for (int i = 0; i < stmt->u.aif.conds->size; i++){
-				if (i > 0)
+				if (i > 0){
 					label_declare(nextcond, prg->ops);
+					label_free(nextcond);
+				}
 				nextcond = label_newStr("^nextcond");
 				per_st pr = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL,
 					((cond)stmt->u.aif.conds->ptrs[i])->ex);
-				if (pr.type == PER_ERROR)
+				if (pr.type == PER_ERROR){
+					label_free(nextcond);
+					label_free(ifdone);
 					return pgr_error(pr.u.error.flp, pr.u.error.msg);
+				}
 				label_jumpFalse(nextcond, prg->ops, pr.u.vlc);
 				symtbl_clearTemp(sym, pr.u.vlc);
 
 				symtbl_pushScope(sym);
 				pgr_st pg = program_genBody(prg, sym, ((cond)stmt->u.aif.conds->ptrs[i])->body);
-				if (pg.type == PGR_ERROR)
+				if (pg.type == PGR_ERROR){
+					label_free(nextcond);
+					label_free(ifdone);
 					return pg;
+				}
 				symtbl_popScope(sym);
 				label_jump(ifdone, prg->ops);
 			}
 			label_declare(nextcond, prg->ops);
+			label_free(nextcond);
 			symtbl_pushScope(sym);
 			pgr_st pg = program_genBody(prg, sym, stmt->u.aif.elseBody);
-			if (pg.type == PGR_ERROR)
+			if (pg.type == PGR_ERROR){
+				label_free(ifdone);
 				return pg;
+			}
 			symtbl_popScope(sym);
 			label_declare(ifdone, prg->ops);
+			label_free(ifdone);
 			return pgr_ok();
 		} break;
 
@@ -7556,6 +7667,10 @@ char *sink_repl_write(sink_repl rp, uint8_t *bytes, int size){
 		tkflp_free(tf);
 	}
 	return NULL;
+}
+
+int sink_repl_level(sink_repl rp){
+	return ((repl)rp)->pr->level;
 }
 
 void sink_repl_reset(sink_repl rp){

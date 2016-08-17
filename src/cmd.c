@@ -24,11 +24,19 @@ static inline void catchint(){
 #	error Don't know how to catch Ctrl+C for other platforms
 #endif
 
-static inline void printline(int line){
+static inline void printline(int line, int level){
 	if (line < 10)
-		printf(" %d: ", line);
+		printf(" %d", line);
 	else
-		printf("%d: ", line);
+		printf("%d", line);
+	if (level <= 0)
+		printf(": ");
+	else{
+		printf(".");
+		for (int i = 0; i < level; i++)
+			printf("..");
+		printf(" ");
+	}
 }
 
 int main(int argc, char **argv){
@@ -42,7 +50,7 @@ int main(int argc, char **argv){
 		return 1;
 	}
 	catchint();
-	printline(line);
+	printline(line, sink_repl_level(repl));
 	while (!done){
 		int ch = fgetc(stdin);
 		if (ch == EOF){
@@ -65,7 +73,7 @@ int main(int argc, char **argv){
 					printf("Error: %s\n", err);
 					sink_repl_reset(repl);
 				}
-				printline(++line);
+				printline(++line, sink_repl_level(repl));
 			}
 			bufsize = 0;
 		}
