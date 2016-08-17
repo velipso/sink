@@ -229,6 +229,15 @@ static inline list_byte list_byte_new(){
 	return b;
 }
 
+static inline list_byte list_byte_newCopy(list_byte b){
+	list_byte b2 = mem_alloc(sizeof(list_byte_st));
+	b2->size = b->size;
+	b2->count = b->size;
+	b2->bytes = mem_alloc(sizeof(uint8_t *) * b2->count);
+	memcpy(b2->bytes, b->bytes, sizeof(uint8_t *) * b2->count);
+	return b2;
+}
+
 static inline list_byte list_byte_newStr(const char *data){
 	list_byte b = mem_alloc(sizeof(list_byte_st));
 	b->size = strlen(data);
@@ -4700,6 +4709,23 @@ static inline void frame_free(frame fr){
 	mem_free(fr);
 }
 
+static void frame_print(frame fr){
+	#ifdef SINK_DEBUG
+	debug("FRAME:");
+	for (int i = 0; i < fr->vars->size; i++){
+		debugf("  %d. %s", i, fr->vars->vals[i] == FVR_VAR ? "VAR" :
+			(fr->vars->vals[i] == FVR_TEMP_INUSE ? "TMP (Used)" : "TMP (Avlb)"));
+	}
+	if (fr->lbls->size > 0){
+		debug("  -> LABELS:");
+		for (int i = 0; i < fr->lbls->size; i++){
+			list_byte b = ((label)fr->lbls->ptrs[i])->name;
+			debugf("  %.*s", b->size, b->bytes);
+		}
+	}
+	#endif
+}
+
 static inline frame frame_new(frame parent){
 	frame fr = mem_alloc(sizeof(frame_st));
 	fr->vars = list_int_new();
@@ -4753,6 +4779,7 @@ typedef struct {
 } nsname_st, *nsname;
 
 static void nsname_free(nsname nsn){
+	list_byte_free(nsn->name);
 	switch (nsn->type){
 		case NSN_VAR:
 			break;
@@ -4772,9 +4799,32 @@ static void nsname_free(nsname nsn){
 	mem_free(nsn);
 }
 
+static void nsname_print(nsname nsn){
+	#ifdef SINK_DEBUG
+	switch (nsn->type){
+		case NSN_VAR:
+			debugf("%.*s NSN_VAR %d", nsn->name->size, nsn->name->bytes, nsn->u.var.index);
+			break;
+		case NSN_CMD_LOCAL:
+			debugf("%.*s NSN_CMD_LOCAL", nsn->name->size, nsn->name->bytes);
+			break;
+		case NSN_CMD_NATIVE:
+			debugf("%.*s NSN_CMD_NATIVE", nsn->name->size, nsn->name->bytes);
+			break;
+		case NSN_CMD_OPCODE:
+			debugf("%.*s NSN_CMD_OPCODE 0x%02X", nsn->name->size, nsn->name->bytes,
+				nsn->u.cmdOpcode.opcode);
+			break;
+		case NSN_NAMESPACE:
+			debugf("%.*s NSN_NAMESPACE", nsn->name->size, nsn->name->bytes);
+			break;
+	}
+	#endif
+}
+
 static inline nsname nsname_var(list_byte name, frame fr, int index){
 	nsname nsn = mem_alloc(sizeof(nsname_st));
-	nsn->name = name;
+	nsn->name = list_byte_newCopy(name);
 	nsn->type = NSN_VAR;
 	nsn->u.var.fr = fr;
 	nsn->u.var.index = index;
@@ -4783,7 +4833,7 @@ static inline nsname nsname_var(list_byte name, frame fr, int index){
 
 static inline nsname nsname_cmdLocal(list_byte name, frame fr, label lbl){
 	nsname nsn = mem_alloc(sizeof(nsname_st));
-	nsn->name = name;
+	nsn->name = list_byte_newCopy(name);
 	nsn->type = NSN_CMD_LOCAL;
 	nsn->u.cmdLocal.fr = fr;
 	nsn->u.cmdLocal.lbl = lbl;
@@ -4792,7 +4842,7 @@ static inline nsname nsname_cmdLocal(list_byte name, frame fr, label lbl){
 
 static inline nsname nsname_cmdNative(list_byte name, int index){
 	nsname nsn = mem_alloc(sizeof(nsname_st));
-	nsn->name = name;
+	nsn->name = list_byte_newCopy(name);
 	nsn->type = NSN_CMD_NATIVE;
 	nsn->u.index = index;
 	return nsn;
@@ -4800,7 +4850,7 @@ static inline nsname nsname_cmdNative(list_byte name, int index){
 
 static inline nsname nsname_cmdOpcode(list_byte name, op_enum opcode, int params){
 	nsname nsn = mem_alloc(sizeof(nsname_st));
-	nsn->name = name;
+	nsn->name = list_byte_newCopy(name);
 	nsn->type = NSN_CMD_OPCODE;
 	nsn->u.cmdOpcode.opcode = opcode;
 	nsn->u.cmdOpcode.params = params;
@@ -4809,7 +4859,7 @@ static inline nsname nsname_cmdOpcode(list_byte name, op_enum opcode, int params
 
 static inline nsname nsname_namespace(list_byte name, namespace ns){
 	nsname nsn = mem_alloc(sizeof(nsname_st));
-	nsn->name = name;
+	nsn->name = list_byte_newCopy(name);
 	nsn->type = NSN_NAMESPACE;
 	nsn->u.ns = ns;
 	return nsn;
@@ -4825,6 +4875,14 @@ static inline void namespace_free(namespace ns){
 	list_ptr_free(ns->usings);
 	list_ptr_free(ns->names);
 	mem_free(ns);
+}
+
+static void namespace_print(namespace ns){
+	#ifdef SINK_DEBUG
+	debug("NAMESPACE:");
+	for (int i = 0; i < ns->names->size; i++)
+		nsname_print(ns->names->ptrs[i]);
+	#endif
 }
 
 static inline namespace namespace_new(frame fr){
@@ -4847,6 +4905,13 @@ struct scope_struct {
 static inline void scope_free(scope sc){
 	list_ptr_free(sc->nsStack);
 	mem_free(sc);
+}
+
+static void scope_print(scope sc){
+	#ifdef SINK_DEBUG
+	for (int i = 0; i < sc->nsStack->size; i++)
+		namespace_print(sc->nsStack->ptrs[i]);
+	#endif
 }
 
 static inline scope scope_new(frame fr, label lblBreak, label lblContinue, scope parent){
@@ -4880,6 +4945,13 @@ static inline void symtbl_free(symtbl sym){
 		scope_free(del);
 	}
 	mem_free(sym);
+}
+
+static void symtbl_print(symtbl sym){
+	#ifdef SINK_DEBUG
+	frame_print(sym->fr);
+	scope_print(sym->sc);
+	#endif
 }
 
 static inline symtbl symtbl_new(bool repl){
@@ -6569,21 +6641,28 @@ static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st int
 
 					per_st pe = program_lvalCheckNil(prg, sym, lp.u.lv, ex->u.infix.k == KS_AMP2EQU,
 						false, skip);
-					if (pe.type == PER_ERROR)
+					if (pe.type == PER_ERROR){
+						lvr_free(lp.u.lv);
 						return pe;
+					}
 
 					pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, ex->u.infix.right);
-					if (pe.type == PER_ERROR)
+					if (pe.type == PER_ERROR){
+						lvr_free(lp.u.lv);
 						return pe;
+					}
 
 					pe = program_lvalCondAssign(prg, sym, lp.u.lv, ex->u.infix.k == KS_AMP2EQU,
 						pe.u.vlc);
-					if (pe.type == PER_ERROR)
+					if (pe.type == PER_ERROR){
+						lvr_free(lp.u.lv);
 						return pe;
+					}
 
 					if (mode == PEM_EMPTY){
 						label_declare(skip, prg->ops);
 						lval_clearTemps(lp.u.lv, sym);
+						lvr_free(lp.u.lv);
 						return per_ok(VARLOC_NULL);
 					}
 
@@ -6593,41 +6672,57 @@ static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st int
 
 					if (mode == PEM_CREATE){
 						sta_st ts = symtbl_addTemp(sym);
-						if (ts.type == STA_ERROR)
+						if (ts.type == STA_ERROR){
+							lvr_free(lp.u.lv);
 							return per_error(ex->flp, ts.u.msg);
+						}
 						intoVlc = ts.u.vlc;
 					}
 
 					per_st ple = program_lvalGet(prg, sym, PLM_INTO, intoVlc, lp.u.lv);
-					if (ple.type == PER_ERROR)
+					if (ple.type == PER_ERROR){
+						lvr_free(lp.u.lv);
 						return ple;
+					}
 
 					label_declare(done, prg->ops);
 					lval_clearTemps(lp.u.lv, sym);
+					lvr_free(lp.u.lv);
 					return per_ok(intoVlc);
 				}
 
 				// special handling for basic variable assignment to avoid a temporary
 				if (ex->u.infix.k == KS_EQU && lp.u.lv->type == LVR_VAR){
 					per_st pe = program_eval(prg, sym, PEM_INTO, lp.u.lv->vlc, ex->u.infix.right);
-					if (pe.type == PER_ERROR)
+					if (pe.type == PER_ERROR){
+						lvr_free(lp.u.lv);
 						return pe;
-					if (mode == PEM_EMPTY)
+					}
+					if (mode == PEM_EMPTY){
+						lvr_free(lp.u.lv);
 						return per_ok(VARLOC_NULL);
+					}
 					else if (mode == PEM_CREATE){
 						sta_st ts = symtbl_addTemp(sym);
-						if (ts.type == STA_ERROR)
+						if (ts.type == STA_ERROR){
+							lvr_free(lp.u.lv);
 							return per_error(ex->flp, ts.u.msg);
+						}
 						intoVlc = ts.u.vlc;
 					}
 					op_move(prg->ops, intoVlc, lp.u.lv->vlc);
+					lvr_free(lp.u.lv);
 					return per_ok(intoVlc);
 				}
 
 				per_st pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, ex->u.infix.right);
-				if (pe.type == PER_ERROR)
+				if (pe.type == PER_ERROR){
+					lvr_free(lp.u.lv);
 					return pe;
-				return program_evalLval(prg, sym, mode, intoVlc, lp.u.lv, mutop, pe.u.vlc);
+				}
+				pe = program_evalLval(prg, sym, mode, intoVlc, lp.u.lv, mutop, pe.u.vlc);
+				lvr_free(lp.u.lv);
+				return pe;
 			}
 
 			if (mode == PEM_EMPTY || mode == PEM_CREATE){
@@ -7442,6 +7537,7 @@ char *sink_repl_write(sink_repl rp, uint8_t *bytes, int size){
 				case PRR_STATEMENT: {
 					ast_print(pp.u.stmt, 0);
 					pgr_st pr = program_gen(r->prg, r->sym, pp.u.stmt);
+					symtbl_print(r->sym);
 					ast_free(pp.u.stmt);
 					if (pr.type == PGR_ERROR){
 						tkflp_free(tf);
