@@ -6063,9 +6063,15 @@ static per_st program_evalCall(program prg, symtbl sym, pem_enum mode, varloc_st
 		}
 
 		varloc_st args;
-		if (!paramsAt)
-			params = expr_list(flp, params);
-		per_st pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, params);
+		per_st pe;
+		if (!paramsAt){
+			expr x = expr_list(flp, params);
+			pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, x);
+			x->u.ex = NULL;
+			expr_free(x);
+		}
+		else
+			pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, params);
 		if (pe.type == PER_ERROR)
 			return pe;
 		args = pe.u.vlc;
