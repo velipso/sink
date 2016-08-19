@@ -3810,11 +3810,14 @@ static prr_st parser_process(parser pr, filepos_st flp){
 			if (tk1->type != TOK_NEWLINE)
 				return prr_error(sink_format("Missing newline or semicolon"));
 			st->next->names = st->names;
+			st->names = NULL;
 			pr->state = st->next;
 			prs_free(st);
 			st = pr->state;
 			list_ptr_push(st->lvalues, expr_prefix(flp, KS_PERIOD3, expr_names(flp, st->names)));
+			st->names = NULL;
 			st->next->lvalues = st->lvalues;
+			st->lvalues = NULL;
 			pr->state = st->next;
 			prs_free(st);
 			return parser_process(pr, flp);
@@ -5548,7 +5551,8 @@ static inline void lvr_free(lvr lv){
 			break;
 		case LVR_LIST:
 			list_ptr_free(lv->u.list.body);
-			lvr_free(lv->u.list.rest);
+			if (lv->u.list.rest)
+				lvr_free(lv->u.list.rest);
 			break;
 	}
 	mem_free(lv);
@@ -5688,8 +5692,10 @@ static lvp_st lval_prepare(program prg, symtbl sym, expr ex){
 		if (le.type == LVP_ERROR)
 			return le;
 		per_st pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, ex->u.index.key);
-		if (pe.type == PER_ERROR)
+		if (pe.type == PER_ERROR){
+			lvr_free(le.u.lv);
 			return lvp_error(pe.u.error.flp, pe.u.error.msg);
+		}
 		return lvp_ok(lvr_index(ex->flp, le.u.lv, pe.u.vlc));
 	}
 	else if (ex->type == EXPR_SLICE){
@@ -5698,12 +5704,16 @@ static lvp_st lval_prepare(program prg, symtbl sym, expr ex){
 			return le;
 
 		per_st pe = program_lvalGet(prg, sym, PLM_CREATE, VARLOC_NULL, le.u.lv);
-		if (pe.type == PER_ERROR)
+		if (pe.type == PER_ERROR){
+			lvr_free(le.u.lv);
 			return lvp_error(pe.u.error.flp, pe.u.error.msg);
+		}
 
 		psr_st sr = program_slice(prg, sym, pe.u.vlc, ex);
-		if (sr.type == PSR_ERROR)
+		if (sr.type == PSR_ERROR){
+			lvr_free(le.u.lv);
 			return lvp_error(sr.u.error.flp, sr.u.error.msg);
+		}
 
 		return lvp_ok(lvr_slice(ex->flp, le.u.lv, sr.u.ok.start, sr.u.ok.len));
 	}
@@ -5718,14 +5728,18 @@ static lvp_st lval_prepare(program prg, symtbl sym, expr ex){
 				if (i == ex->u.ex->u.group->size - 1 && gex->type == EXPR_PREFIX &&
 					gex->u.prefix.k == KS_PERIOD3){
 					lvp_st lp = lval_prepare(prg, sym, gex->u.ex);
-					if (lp.type == LVP_ERROR)
+					if (lp.type == LVP_ERROR){
+						list_ptr_free(body);
 						return lp;
+					}
 					rest = lp.u.lv;
 				}
 				else{
 					lvp_st lp = lval_prepare(prg, sym, gex);
-					if (lp.type == LVP_ERROR)
+					if (lp.type == LVP_ERROR){
+						list_ptr_free(body);
 						return lp;
+					}
 					list_ptr_push(body, lp.u.lv);
 				}
 			}
@@ -5733,14 +5747,18 @@ static lvp_st lval_prepare(program prg, symtbl sym, expr ex){
 		else{
 			if (ex->u.ex->type == EXPR_PREFIX && ex->u.ex->u.prefix.k == KS_PERIOD3){
 				lvp_st lp = lval_prepare(prg, sym, ex->u.ex->u.ex);
-				if (lp.type == LVP_ERROR)
+				if (lp.type == LVP_ERROR){
+					list_ptr_free(body);
 					return lp;
+				}
 				rest = lp.u.lv;
 			}
 			else{
 				lvp_st lp = lval_prepare(prg, sym, ex->u.ex);
-				if (lp.type == LVP_ERROR)
+				if (lp.type == LVP_ERROR){
+					list_ptr_free(body);
 					return lp;
+				}
 				list_ptr_push(body, lp.u.lv);
 			}
 		}
@@ -5811,8 +5829,9 @@ static per_st program_evalLval(program prg, symtbl sym, pem_enum mode, varloc_st
 				pe = program_lvalGet(prg, sym, PLM_CREATE, VARLOC_NULL, lv);
 				if (pe.type == PER_ERROR)
 					return pe;
-				pe = program_evalLval(prg, sym, PEM_EMPTY, VARLOC_NULL,
-					lvr_var(lv->flp, lv->vlc), mutop, valueVlc);
+				lvr lv2 = lvr_var(lv->flp, lv->vlc);
+				pe = program_evalLval(prg, sym, PEM_EMPTY, VARLOC_NULL, lv2, mutop, valueVlc);
+				lvr_free(lv2);
 				if (pe.type == PER_ERROR)
 					return pe;
 				op_splice(prg->ops, lv->u.slice.obj->vlc, lv->u.slice.start, lv->u.slice.len,
@@ -6986,6 +7005,8 @@ static pgr_st program_gen(program prg, symtbl sym, ast stmt){
 				}
 			}
 			else{
+				if (lr.type == STL_ERROR)
+					mem_free(lr.u.msg);
 				lbl = label_newStr("^def");
 				list_ptr_push(sym->fr->lbls, lbl);
 				sta_st sr = symtbl_addCmdLocal(sym, stmt->u.def.names, lbl);
@@ -7091,7 +7112,7 @@ static pgr_st program_gen(program prg, symtbl sym, ast stmt){
 					}
 					else if (i == stmt->u.def.lvalues->size - 1 && ex->type == EXPR_PREFIX &&
 						ex->u.prefix.k == KS_PERIOD3){
-						lvp_st lr = lval_addVars(sym, ex->u.ex);
+						lvp_st lr = lval_addVars(sym, ex->u.prefix.ex);
 						if (lr.type == LVP_ERROR){
 							label_free(skip);
 							return pgr_error(lr.u.error.flp, lr.u.error.msg);
