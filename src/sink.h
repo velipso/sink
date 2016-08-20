@@ -156,12 +156,6 @@ void      sink_bin_free(sink_bin bin);
 sink_ctx  sink_ctx_new(sink_lib lib, sink_prg prg, sink_io_st io);
 sink_user sink_ctx_usertype(sink_ctx ctx, sink_finalize_func f_finalize);
 bool      sink_ctx_run(sink_ctx ctx);
-void      sink_ctx_gc(sink_ctx ctx);
-void      sink_ctx_say(sink_ctx ctx, sink_val *vals, int size);
-void      sink_ctx_warn(sink_ctx ctx, sink_val *vals, int size);
-sink_val  sink_ctx_ask(sink_ctx ctx, sink_val *vals, int size);
-void      sink_ctx_exit(sink_ctx ctx, sink_val *vals, int size);
-void      sink_ctx_abort(sink_ctx ctx, sink_val *vals, int size);
 void      sink_ctx_free(sink_ctx ctx);
 
 // value
@@ -173,10 +167,21 @@ static inline bool sink_typestr(sink_val v){ return (v.u & SINK_TAG_MASK) == SIN
 static inline bool sink_typelist(sink_val v){ return (v.u & SINK_TAG_MASK) == SINK_TAG_LIST; }
 static inline bool sink_typenum(sink_val v){
 	return !sink_isnil(v) && !sink_typelist(v) && !sink_typestr(v); }
-sink_val  sink_tostr(sink_ctx ctx, sink_val v);
 static inline double sink_castnum(sink_val v){ return v.f; }
 sink_str  sink_caststr(sink_ctx ctx, sink_val str);
 sink_list sink_castlist(sink_ctx ctx, sink_val ls);
+
+// globals
+sink_val  sink_tostr(sink_ctx ctx, sink_val v);
+int       sink_size(sink_ctx ctx, sink_val v);
+void      sink_say(sink_ctx ctx, sink_val *vals, int size);
+void      sink_warn(sink_ctx ctx, sink_val *vals, int size);
+sink_val  sink_ask(sink_ctx ctx, sink_val *vals, int size);
+void      sink_exit(sink_ctx ctx, sink_val *vals, int size);
+void      sink_abort(sink_ctx ctx, sink_val *vals, int size);
+void      sink_gcauto(sink_ctx ctx, bool enable);
+bool      sink_isgcauto(sink_ctx ctx);
+void      sink_gcrun(sink_ctx ctx);
 
 // nil
 static inline sink_val sink_nil(){ return SINK_NIL; }
@@ -252,6 +257,7 @@ void      sink_rand_shuffle(sink_ctx ctx, sink_val ls);
 sink_val  sink_str_newcstr(sink_ctx ctx, const char *str);
 sink_val  sink_str_newblob(sink_ctx ctx, const uint8_t *bytes, int size);
 sink_val  sink_str_newblobgive(sink_ctx ctx, uint8_t *bytes, int size);
+sink_val  sink_str_newformat(sink_ctx ctx, const char *fmt, ...);
 sink_val  sink_str_new(sink_ctx ctx, sink_val a, sink_val b);
 sink_val  sink_str_cat(sink_ctx ctx, sink_val a, sink_val b);
 sink_val  sink_str_tonum(sink_ctx ctx, sink_val a);
@@ -299,6 +305,7 @@ void      sink_list_prepend(sink_ctx ctx, sink_val ls, sink_val ls2);
 sink_val  sink_list_find(sink_ctx ctx, sink_val ls, sink_val a, sink_val b);
 sink_val  sink_list_rfind(sink_ctx ctx, sink_val ls, sink_val a, sink_val b);
 sink_val  sink_list_join(sink_ctx ctx, sink_val ls, sink_val a);
+sink_val  sink_list_joinplain(sink_ctx ctx, sink_val *vals, int size, const char *div);
 void      sink_list_rev(sink_ctx ctx, sink_val ls);
 sink_val  sink_list_str(sink_ctx ctx, sink_val ls);
 void      sink_list_sort(sink_ctx ctx, sink_val ls);

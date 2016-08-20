@@ -8,12 +8,20 @@ results.
 
 | Function          | Description                                                                 |
 |-------------------|-----------------------------------------------------------------------------|
+| `tostr a`         | Convert `a` to a string                                                     |
+| `size a`          | Size of `a` (where `a` is a string or list)                                 |
 | `say a, ...`      | Output arguments to stdout (returns nil)                                    |
 | `warn a, ...`     | Output arguments to stderr (returns nil)                                    |
 | `ask a, ...`      | Prompt the user for input from stdin; returns the inputted string           |
 | `exit a, ...`     | Output arguments to stdout and terminate execution in success               |
 | `abort a, ...`    | Output arguments to stderr and terminate execution in failure               |
+| `gcauto a`        | Turn garbage collection off is `a` is nil; otherwise turn it on             |
+| `isgcauto`        | Returns true if garbage collection is on; otherwise, false                  |
+| `gcrun`           | Run a full cycle of garbage collection right now                            |
 | `pick cond, a, b` | If `cond` is true, return `a`, otherwise return `b` (short-circuited)       |
+
+Note: garbage collection manipulation is only available in certain environments, but the functions
+always exist and execute without error.
 
 Number
 ------
@@ -361,24 +369,26 @@ struct.size {'hello'}                  # => nil because template is invalid
 List
 ----
 
-| Function                | Description                                                           |
-|-------------------------|-----------------------------------------------------------------------|
-| `list.new a, b`         | Create a new list of size `a`, with each element set to `b`           |
-| `list.cat ls1, ls2`     | `ls1 ~ ls2` (returns a new list)                                      |
-| `list.shift ls`         | Remova nd return the value at the start of `ls`                       |
-| `list.pop ls`           | Remove and return the value at the end of `ls`                        |
-| `list.push ls, b`       | Push `b` at end of list `ls` (returns `ls`)                           |
-| `list.unshift ls, b`    | Unshift `b` at the start of list `ls` (returns `ls`)                  |
-| `list.append ls, ls2`   | Append `ls2` at the end of list `ls` (returns `ls`)                   |
-| `list.prepend ls, ls2`  | Prepend `ls2` at the start of list `ls` (returns `ls`)                |
-| `list.find ls, a, b`    | Find `a` in list `ls` starting at `b`; returns nil if not found       |
-| `list.rfind ls, a, b`   | Find `a` in list `ls` starting at `b` and searching in reverse        |
-| `list.join ls, a`       | Convert list `ls` to a string by joining elements with string `a`     |
-| `list.rev ls`           | Reverse list `ls` (returns `ls`)                                      |
-| `list.str ls`           | Convert a list of bytes to a string                                   |
-| `list.sort ls`          | Sorts the list `ls` in place (returns `ls`)                           |
-| `list.rsort ls`         | Reverse sorts the list `ls` in place (returns `ls`)                   |
-| `list.sortcmp a, b`     | Compare `a` with `b` according to the sorting precedence (-1, 0, 1)   |
+| Function                  | Description                                                         |
+|---------------------------|---------------------------------------------------------------------|
+| `list.new a, b`           | Create a new list of size `a`, with each element set to `b`         |
+| `list.cat ls1, ls2`       | `ls1 ~ ls2` (returns a new list)                                    |
+| `list.slice ls, a, b`     | `ls[a:b]` (returns a new list)                                      |
+| `list.splice ls, a, b, c` | `ls[a:b] = c`                                                       |
+| `list.shift ls`           | Remova nd return the value at the start of `ls`                     |
+| `list.pop ls`             | Remove and return the value at the end of `ls`                      |
+| `list.push ls, b`         | Push `b` at end of list `ls` (returns `ls`)                         |
+| `list.unshift ls, b`      | Unshift `b` at the start of list `ls` (returns `ls`)                |
+| `list.append ls, ls2`     | Append `ls2` at the end of list `ls` (returns `ls`)                 |
+| `list.prepend ls, ls2`    | Prepend `ls2` at the start of list `ls` (returns `ls`)              |
+| `list.find ls, a, b`      | Find `a` in list `ls` starting at `b`; returns nil if not found     |
+| `list.rfind ls, a, b`     | Find `a` in list `ls` starting at `b` and searching in reverse      |
+| `list.join ls, a`         | Convert list `ls` to a string by joining elements with string `a`   |
+| `list.rev ls`             | Reverse list `ls` (returns `ls`)                                    |
+| `list.str ls`             | Convert a list of bytes to a string                                 |
+| `list.sort ls`            | Sorts the list `ls` in place (returns `ls`)                         |
+| `list.rsort ls`           | Reverse sorts the list `ls` in place (returns `ls`)                 |
+| `list.sortcmp a, b`       | Compare `a` with `b` according to the sorting precedence (-1, 0, 1) |
 
 ### Sorting
 
