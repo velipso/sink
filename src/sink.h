@@ -81,12 +81,7 @@ typedef struct {
 typedef struct {
 	uint8_t *bytes;
 	int size;
-} sink_str_st, *sink_str;
-
-typedef struct {
-	uint8_t *bytes;
-	int size;
-} sink_bin_st, *sink_bin;
+} sink_str_st, *sink_str, sink_bin_st, *sink_bin;
 
 typedef void *sink_lib;
 typedef void *sink_repl;
@@ -126,7 +121,7 @@ static const sink_val SINK_QNAN       = { .u = UINT64_C(0x7FF8000000000000) };
 static const sink_val SINK_NIL        = { .u = UINT64_C(0x7FF8000100000000) };
 static const uint64_t SINK_TAG_STR    =        UINT64_C(0x7FF8000200000000);
 static const uint64_t SINK_TAG_LIST   =        UINT64_C(0x7FF8000300000000);
-static const uint64_t SINK_TAG_MASK   =        UINT64_C(0xFFFFFFFF00000000);
+static const uint64_t SINK_TAG_MASK   =        UINT64_C(0xFFFFFFFF80000000);
 
 // native library
 sink_lib  sink_lib_new();
@@ -170,6 +165,7 @@ void      sink_ctx_abort(sink_ctx ctx, sink_val *vals, int size);
 void      sink_ctx_free(sink_ctx ctx);
 
 // value
+static inline sink_val sink_bool(bool f){ return f ? (sink_val){ .f = 1 } : SINK_NIL; }
 static inline bool sink_istrue(sink_val v){ return v.u != SINK_NIL.u; }
 static inline bool sink_isfalse(sink_val v){ return v.u == SINK_NIL.u; }
 static inline bool sink_isnil(sink_val v){ return v.u == SINK_NIL.u; }
@@ -292,6 +288,8 @@ sink_val  sink_list_newblob(sink_ctx ctx, const sink_val *vals, int size);
 sink_val  sink_list_newblobgive(sink_ctx ctx, sink_val *vals, int size, int count);
 sink_val  sink_list_new(sink_ctx ctx, sink_val a, sink_val b);
 sink_val  sink_list_cat(sink_ctx ctx, sink_val ls1, sink_val ls2);
+sink_val  sink_list_slice(sink_ctx ctx, sink_val ls, sink_val start, sink_val len);
+void      sink_list_splice(sink_ctx ctx, sink_val ls, sink_val start, sink_val len, sink_val ls2);
 sink_val  sink_list_shift(sink_ctx ctx, sink_val ls);
 sink_val  sink_list_pop(sink_ctx ctx, sink_val ls);
 void      sink_list_push(sink_ctx ctx, sink_val ls, sink_val a);
