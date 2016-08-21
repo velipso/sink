@@ -7577,10 +7577,8 @@ static inline int bmp_alloc(uint64_t *bmp, int count){
 static int bmp_reserve(void **tbl, uint64_t **aloc, uint64_t **ref, uint64_t **tick, int *size,
 	size_t st_size){
 	int index = bmp_alloc(*aloc, *size);
-	if (index >= 0){
-		bmp_setbit(*ref, index);
+	if (index >= 0)
 		return index;
-	}
 	if (*size >= 0x3FFFFFFF){
 		SINK_PANIC("Out of memory!");
 		return -1;
@@ -7597,7 +7595,6 @@ static int bmp_reserve(void **tbl, uint64_t **aloc, uint64_t **ref, uint64_t **t
 	}
 	*size = new_count;
 	(*aloc)[new_count / 128] |= 1;
-	bmp_setbit(*ref, new_count / 2);
 	return new_count / 2;
 }
 
@@ -7654,38 +7651,79 @@ typedef struct {
 	sink_output_func f_warn;
 	sink_input_func f_ask;
 
-	sink_list_st *list_tbl;
 	sink_str_st *str_tbl;
+	sink_list_st *list_tbl;
 
-	uint64_t *list_aloc;
 	uint64_t *str_aloc;
+	uint64_t *list_aloc;
 
-	uint64_t *list_ref;
 	uint64_t *str_ref;
+	uint64_t *list_ref;
 
 	uint64_t *list_tick;
 
-	int list_size;
 	int str_size;
+	int list_size;
 
 	int lex_index;
 	int pc;
 	uint32_t rand_seed;
 	uint32_t rand_i;
-	bool failed;
 	bool passed;
+	bool failed;
+	bool invalid;
+	bool gcauto;
 } context_st, *context;
 
+typedef void (*sweepfree_func)(context ctx, int index);
+
+static void context_sweepfree_str(context ctx, int index){
+	if (ctx->str_tbl[index].bytes)
+		mem_free(ctx->str_tbl[index].bytes);
+}
+
+static void context_sweepfree_list(context ctx, int index){
+	sink_list ls = &ctx->list_tbl[index];
+	if (ls->usertype >= 0){
+		sink_finalize_func f_finalize = ctx->f_finalize->ptrs[ls->usertype];
+		f_finalize(ls->user);
+	}
+	if (ls->vals)
+		mem_free(ls->vals);
+}
+
+static void context_sweephelp(context ctx, uint64_t *aloc, uint64_t *ref, int size,
+	sweepfree_func f_free){
+	int ms = size / 64;
+	for (int i = 0; i < ms; i++){
+		if (aloc[i] == ref[i])
+			continue;
+		int bi = 0;
+		for (uint64_t bit = 1; bit != 0; bit <<= 1, bi++){
+			// if we're not allocated, or we are referenced, then skip
+			if ((aloc[i] & bit) == 0 || (ref[i] & bit) != 0)
+				continue;
+			// otherwise, free
+			aloc[i] ^= bit;
+			f_free(ctx, i * 64 + bi);
+		}
+	}
+}
+
+static inline void context_sweep(context ctx){
+	context_sweephelp(ctx, ctx->str_aloc, ctx->str_ref, ctx->str_size, context_sweepfree_str);
+	context_sweephelp(ctx, ctx->list_aloc, ctx->list_ref, ctx->list_size, context_sweepfree_list);
+}
+
 static inline void context_free(context ctx){
+	memset(ctx->str_ref, 0, sizeof(uint64_t) * (ctx->str_size / 64));
+	memset(ctx->list_ref, 0, sizeof(uint64_t) * (ctx->list_size / 64));
+	context_sweep(ctx);
 	if (ctx->prg)
 		program_free(ctx->prg);
 	list_ptr_free(ctx->call_stk);
 	list_ptr_free(ctx->lex_stk);
 	list_ptr_free(ctx->f_finalize);
-	for (int i = 0; i < ctx->list_size; i++)
-		mem_free(ctx->list_tbl[i].vals);
-	for (int i = 0; i < ctx->str_size; i++)
-		mem_free(ctx->str_tbl[i].bytes);
 	mem_free(ctx->list_tbl);
 	mem_free(ctx->str_tbl);
 	mem_free(ctx->list_aloc);
@@ -7696,13 +7734,15 @@ static inline void context_free(context ctx){
 	mem_free(ctx);
 }
 
-static void lib_rand_seedauto(context ctx);
+static void opi_rand_seedauto(context ctx);
 
 static inline context context_new(program prg){
 	context ctx = mem_alloc(sizeof(context_st));
 	ctx->prg = prg;
-	ctx->failed = false;
 	ctx->passed = false;
+	ctx->failed = false;
+	ctx->invalid = false;
+	ctx->gcauto = true;
 	ctx->call_stk = list_ptr_new((free_func)ccs_free);
 	ctx->lex_stk = list_ptr_new((free_func)lxs_free);
 	list_ptr_push(ctx->lex_stk, lxs_new(SINK_NIL, NULL));
@@ -7732,7 +7772,7 @@ static inline context context_new(program prg){
 
 	ctx->list_tick = mem_alloc(sizeof(uint64_t) * (ctx->list_size / 64));
 
-	lib_rand_seedauto(ctx);
+	opi_rand_seedauto(ctx);
 	return ctx;
 }
 
@@ -7750,11 +7790,13 @@ typedef struct {
 	int index;
 } crr_st;
 
-static inline crr_st crr_exitpass(){
+static inline crr_st crr_exitpass(context ctx){
+	ctx->passed = true;
 	return (crr_st){ .type = CRR_EXITPASS };
 }
 
-static inline crr_st crr_exitfail(){
+static inline crr_st crr_exitfail(context ctx){
+	ctx->failed = true;
 	return (crr_st){ .type = CRR_EXITFAIL };
 }
 
@@ -7762,7 +7804,8 @@ static inline crr_st crr_repl(){
 	return (crr_st){ .type = CRR_REPL };
 }
 
-static inline crr_st crr_invalid(){
+static inline crr_st crr_invalid(context ctx){
+	ctx->invalid = true;
 	return (crr_st){ .type = CRR_INVALID };
 }
 
@@ -7901,7 +7944,7 @@ static inline void context_result(context ctx, crr_st cr, sink_val val){
 	var_set(ctx, cr.fdiff, cr.index, val);
 }
 
-static sink_val libhelp_num_max(context ctx, sink_val v){
+static sink_val opihelp_num_max(context ctx, sink_val v){
 	if (list_hastick(ctx, var_index(v)))
 		return SINK_NIL;
 	sink_list ls = var_castlist(ctx, v);
@@ -7912,7 +7955,7 @@ static sink_val libhelp_num_max(context ctx, sink_val v){
 				max = ls->vals[i];
 		}
 		else if (sink_typelist(ls->vals[i])){
-			sink_val lm = libhelp_num_max(ctx, ls->vals[i]);
+			sink_val lm = opihelp_num_max(ctx, ls->vals[i]);
 			if (!sink_isnil(lm) && (sink_isnil(max) || lm.f > max.f))
 				max = lm;
 		}
@@ -7920,12 +7963,12 @@ static sink_val libhelp_num_max(context ctx, sink_val v){
 	return max;
 }
 
-static inline sink_val lib_num_max(context ctx, sink_val v){
+static inline sink_val opi_num_max(context ctx, sink_val v){
 	list_cleartick(ctx);
-	return libhelp_num_max(ctx, v);
+	return opihelp_num_max(ctx, v);
 }
 
-static sink_val libhelp_num_min(context ctx, sink_val v){
+static sink_val opihelp_num_min(context ctx, sink_val v){
 	if (list_hastick(ctx, var_index(v)))
 		return SINK_NIL;
 	sink_list ls = var_castlist(ctx, v);
@@ -7936,7 +7979,7 @@ static sink_val libhelp_num_min(context ctx, sink_val v){
 				min = ls->vals[i];
 		}
 		else if (sink_typelist(ls->vals[i])){
-			sink_val lm = libhelp_num_min(ctx, ls->vals[i]);
+			sink_val lm = opihelp_num_min(ctx, ls->vals[i]);
 			if (!sink_isnil(lm) && (sink_isnil(min) || lm.f < min.f))
 				min = lm;
 		}
@@ -7944,12 +7987,12 @@ static sink_val libhelp_num_min(context ctx, sink_val v){
 	return min;
 }
 
-static inline sink_val lib_num_min(context ctx, sink_val v){
+static inline sink_val opi_num_min(context ctx, sink_val v){
 	list_cleartick(ctx);
-	return libhelp_num_min(ctx, v);
+	return opihelp_num_min(ctx, v);
 }
 
-static sink_val lib_num_base(context ctx, double num, int len, int base){
+static sink_val opi_num_base(context ctx, double num, int len, int base){
 	if (len > 256)
 		len = 256;
 	const char *digits = "0123456789ABCDEF";
@@ -8007,31 +8050,31 @@ static sink_val lib_num_base(context ctx, double num, int len, int base){
 	return sink_str_newcstr(ctx, buf);
 }
 
-static inline uint32_t lib_rand_int(context ctx);
+static inline uint32_t opi_rand_int(context ctx);
 
-static inline void lib_rand_seedauto(context ctx){
+static inline void opi_rand_seedauto(context ctx){
 	ctx->rand_seed = (uint32_t)current_ms();
 	ctx->rand_i = (uint32_t)current_ms();
 	for (int i = 0; i < 1000; i++)
-		lib_rand_int(ctx);
+		opi_rand_int(ctx);
 	ctx->rand_i = 0;
 }
 
-static inline void lib_rand_seed(context ctx, uint32_t n){
+static inline void opi_rand_seed(context ctx, uint32_t n){
 	ctx->rand_seed = n;
 	ctx->rand_i = 0;
 }
 
-static inline uint32_t lib_rand_int(context ctx){
+static inline uint32_t opi_rand_int(context ctx){
 	uint32_t m = 0x5bd1e995;
 	uint32_t k = ctx->rand_i++ * m;
 	ctx->rand_seed = (k ^ (k >> 24) ^ (ctx->rand_seed * m)) * m;
 	return ctx->rand_seed ^ (ctx->rand_seed >> 13);
 }
 
-static inline double lib_rand_num(context ctx){
-	uint64_t M1 = lib_rand_int(ctx);
-	uint64_t M2 = lib_rand_int(ctx);
+static inline double opi_rand_num(context ctx){
+	uint64_t M1 = opi_rand_int(ctx);
+	uint64_t M2 = opi_rand_int(ctx);
 	uint64_t M = (M1 << 20) | (M2 >> 12); // 52 bit random number
 	union { uint64_t i; double d; } u = {
 		.i = UINT64_C(0x3FF) << 52 | M
@@ -8039,26 +8082,26 @@ static inline double lib_rand_num(context ctx){
 	return u.d - 1.0;
 }
 
-static inline sink_val lib_rand_getstate(context ctx){
+static inline sink_val opi_rand_getstate(context ctx){
 	double vals[2] = { ctx->rand_seed, ctx->rand_i };
 	return sink_list_newblob(ctx, (sink_val *)vals, 2);
 }
 
-static inline void lib_rand_setstate(context ctx, double a, double b){
+static inline void opi_rand_setstate(context ctx, double a, double b){
 	ctx->rand_seed = (uint32_t)a;
 	ctx->rand_i = (uint32_t)b;
 }
 
-static inline sink_val lib_rand_pick(context ctx, sink_list ls){
+static inline sink_val opi_rand_pick(context ctx, sink_list ls){
 	if (ls->size <= 0)
 		return SINK_NIL;
-	return ls->vals[(int)(lib_rand_num(ctx) * ls->size)];
+	return ls->vals[(int)(opi_rand_num(ctx) * ls->size)];
 }
 
-static inline void lib_rand_shuffle(context ctx, sink_list ls){
+static inline void opi_rand_shuffle(context ctx, sink_list ls){
 	int m = ls->size;
 	while (m > 1){
-		int i = (int)(lib_rand_num(ctx) * m);
+		int i = (int)(opi_rand_num(ctx) * m);
 		m--;
 		if (m != i){
 			sink_val t = ls->vals[m];
@@ -8166,7 +8209,7 @@ static inline sink_val opi_unop(context ctx, sink_val a, unary_func f_unary, con
 		a.f = 0;
 	if (!oper_isnum(ctx, a)){
 		a = sink_str_newformat(ctx, "Expecting number or list of numbers when %s", erop);
-		sink_warn(ctx, &a, 1);
+		opi_warn(ctx, &a, 1);
 		ctx->failed = true;
 		return SINK_NIL;
 	}
@@ -8179,7 +8222,7 @@ static inline sink_val opi_binop(context ctx, sink_val a, sink_val b, binary_fun
 		a.f = 0;
 	if (!oper_isnum(ctx, a)){
 		a = sink_str_newformat(ctx, "Expecting number or list of numbers when %s", erop);
-		sink_warn(ctx, &a, 1);
+		opi_warn(ctx, &a, 1);
 		ctx->failed = true;
 		return SINK_NIL;
 	}
@@ -8187,7 +8230,7 @@ static inline sink_val opi_binop(context ctx, sink_val a, sink_val b, binary_fun
 		b.f = 0;
 	if (!oper_isnum(ctx, b)){
 		b = sink_str_newformat(ctx, "Expecting number or list of numbers when %s", erop);
-		sink_warn(ctx, &b, 1);
+		opi_warn(ctx, &b, 1);
 		ctx->failed = true;
 		return SINK_NIL;
 	}
@@ -8200,7 +8243,7 @@ static inline sink_val opi_triop(context ctx, sink_val a, sink_val b, sink_val c
 		a.f = 0;
 	if (!oper_isnum(ctx, a)){
 		a = sink_str_newformat(ctx, "Expecting number or list of numbers when %s", erop);
-		sink_warn(ctx, &a, 1);
+		opi_warn(ctx, &a, 1);
 		ctx->failed = true;
 		return SINK_NIL;
 	}
@@ -8208,7 +8251,7 @@ static inline sink_val opi_triop(context ctx, sink_val a, sink_val b, sink_val c
 		b.f = 0;
 	if (!oper_isnum(ctx, b)){
 		b = sink_str_newformat(ctx, "Expecting number or list of numbers when %s", erop);
-		sink_warn(ctx, &b, 1);
+		opi_warn(ctx, &b, 1);
 		ctx->failed = true;
 		return SINK_NIL;
 	}
@@ -8216,18 +8259,125 @@ static inline sink_val opi_triop(context ctx, sink_val a, sink_val b, sink_val c
 		c.f = 0;
 	if (!oper_isnum(ctx, c)){
 		c = sink_str_newformat(ctx, "Expecting number or list of numbers when %s", erop);
-		sink_warn(ctx, &c, 1);
+		opi_warn(ctx, &c, 1);
 		ctx->failed = true;
 		return SINK_NIL;
 	}
 	return oper_tri(ctx, a, b, c, f_trinary);
 }
 
+static inline sink_val opi_str_cat(context ctx, sink_val a, sink_val b){
+	a = sink_tostr(ctx, a);
+	b = sink_tostr(ctx, b);
+	sink_str str = var_caststr(ctx, a);
+	sink_str str2 = var_caststr(ctx, b);
+	int ns = str->size + str2->size;
+	if (ns <= 0)
+		return sink_str_newblob(ctx, NULL, 0);
+	uint8_t *bytes = mem_alloc(sizeof(uint8_t) * ns);
+	if (str->size > 0)
+		memcpy(&bytes[0], str->bytes, sizeof(uint8_t) * str->size);
+	if (str2->size > 0)
+		memcpy(&bytes[str->size], str2->bytes, sizeof(uint8_t) * str2->size);
+	return sink_str_newblobgive(ctx, bytes, ns);
+}
+
+static inline sink_val opi_list_cat(context ctx, sink_val a, sink_val b){
+	sink_list ls = var_castlist(ctx, a);
+	sink_list ls2 = var_castlist(ctx, b);
+	int ns = ls->size + ls2->size;
+	if (ns <= 0)
+		return sink_list_newblob(ctx, NULL, 0);
+	sink_val *vals = mem_alloc(sizeof(sink_val) * ns);
+	if (ls->size > 0)
+		memcpy(&vals[0], ls->vals, sizeof(sink_val) * ls->size);
+	if (ls2->size > 0)
+		memcpy(&vals[ls->size], ls2->vals, sizeof(sink_val) * ls2->size);
+	return sink_list_newblobgive(ctx, vals, ns, ns);
+}
+
+static inline sink_val opi_list_shift(context ctx, sink_val a){
+	sink_list ls = var_castlist(ctx, a);
+	if (ls->size <= 0)
+		return SINK_NIL;
+	sink_val ret = ls->vals[0];
+	if (ls->size <= 1)
+		ls->size = 0;
+	else{
+		ls->size--;
+		memcpy(&ls->vals[0], &ls->vals[1], sizeof(sink_val) * ls->size);
+	}
+	return ret;
+}
+
+static inline sink_val opi_list_pop(context ctx, sink_val a){
+	sink_list ls = var_castlist(ctx, a);
+	if (ls->size <= 0)
+		return SINK_NIL;
+	ls->size--;
+	return ls->vals[ls->size];
+}
+
+static const int sink_list_grow = 200;
+static inline sink_val opi_list_push(context ctx, sink_val a, sink_val b){
+	sink_list ls = var_castlist(ctx, a);
+	if (ls->size >= ls->count){
+		ls->count += sink_list_grow;
+		ls->vals = mem_realloc(ls->vals, sizeof(sink_val) * ls->count);
+	}
+	ls->vals[ls->size++] = b;
+	return a;
+}
+
+static inline sink_val opi_list_unshift(context ctx, sink_val a, sink_val b){
+	sink_list ls = var_castlist(ctx, a);
+	if (ls->size >= ls->count){
+		ls->count += sink_list_grow;
+		ls->vals = mem_realloc(ls->vals, sizeof(sink_val) * ls->count);
+	}
+	if (ls->size > 0)
+		memmove(&ls->vals[1], ls->vals, sizeof(sink_val) * ls->size);
+	ls->vals[0] = b;
+	return a;
+}
+
+static inline sink_val opi_list_append(context ctx, sink_val a, sink_val b){
+	sink_list ls2 = var_castlist(ctx, b);
+	if (ls2->size > 0){
+		sink_list ls = var_castlist(ctx, a);
+		if (ls->size + ls2->size >= ls->count){
+			ls->count = ls->size + ls2->size + sink_list_grow;
+			ls->vals = mem_realloc(ls->vals, sizeof(sink_val) * ls->count);
+		}
+		memcpy(&ls->vals[ls->size], ls2->vals, sizeof(sink_val) * ls2->size);
+		ls->size += ls2->size;
+	}
+	return a;
+}
+
+static inline sink_val opi_list_prepend(context ctx, sink_val a, sink_val b){
+	sink_list ls2 = var_castlist(ctx, b);
+	if (ls2->size > 0){
+		sink_list ls = var_castlist(ctx, a);
+		if (ls->size + ls2->size >= ls->count){
+			ls->count = ls->size + ls2->size + sink_list_grow;
+			ls->vals = mem_realloc(ls->vals, sizeof(sink_val) * ls->count);
+		}
+		if (ls->size > 0)
+			memmove(&ls->vals[ls2->size], ls->vals, sizeof(sink_val) * ls->size);
+		memcpy(ls->vals, ls2->vals, sizeof(sink_val) * ls2->size);
+		ls->size += ls2->size;
+	}
+	return a;
+}
+
 static crr_st context_run(context ctx){
-	if (ctx->failed)
-		return crr_exitfail();
 	if (ctx->passed)
-		return crr_exitpass();
+		return crr_exitpass(ctx);
+	if (ctx->failed)
+		return crr_exitfail(ctx);
+	if (ctx->invalid)
+		return crr_invalid(ctx);
 
 	int A, B, C, D, E, F, G, H, I;
 	sink_val X, Y, Z, W;
@@ -8241,7 +8391,7 @@ static crr_st context_run(context ctx){
 		A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];                              \
 		C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];                              \
 		if (A > ctx->lex_index || C > ctx->lex_index)                                      \
-			return crr_invalid();                                                          \
+			return crr_invalid(ctx);                                                       \
 		var_set(ctx, A, B, opi_unop(ctx, var_get(ctx, C, D), func, erop));
 
 	#define INLINE_BINOP(func, erop)                                                       \
@@ -8250,7 +8400,7 @@ static crr_st context_run(context ctx){
 		C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];                              \
 		E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];                              \
 		if (A > ctx->lex_index || C > ctx->lex_index || E > ctx->lex_index)                \
-			return crr_invalid();                                                          \
+			return crr_invalid(ctx);                                                       \
 		var_set(ctx, A, B,                                                                 \
 			opi_binop(ctx, var_get(ctx, C, D), var_get(ctx, E, F), func, erop));           \
 
@@ -8262,7 +8412,7 @@ static crr_st context_run(context ctx){
 		E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];                              \
 		G = ops->bytes[ctx->pc++]; H = ops->bytes[ctx->pc++];                              \
 		if (A > ctx->lex_index || C > ctx->lex_index || E > ctx->lex_index)                \
-			return crr_invalid();                                                          \
+			return crr_invalid(ctx);                                                       \
 		var_set(ctx, A, B,                                                                 \
 			opi_triop(ctx, var_get(ctx, C, D), var_get(ctx, E, F), var_get(ctx, G, H),     \
 				func, erop));
@@ -8277,42 +8427,40 @@ static crr_st context_run(context ctx){
 				ctx->pc++;
 				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				X = var_get(ctx, A, B);
 				if (sink_isnil(X)){
 					opi_exit(ctx, NULL, 0);
-					return crr_exitpass();
+					return crr_exitpass(ctx);
 				}
 				if (!sink_typelist(X)){
 					X = sink_str_newcstr(ctx, "Expecting list when calling exit");
 					opi_warn(ctx, &X, 1);
-					ctx->failed = true;
-					return crr_exitfail();
+					return crr_exitfail(ctx);
 				}
 				ls = var_castlist(ctx, X);
 				opi_exit(ctx, ls->vals, ls->size);
-				return crr_exitpass();
+				return crr_exitpass(ctx);
 			} break;
 
 			case OP_ABORT          : { // [SRC...]
 				ctx->pc++;
 				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				X = var_get(ctx, A, B);
 				if (sink_isnil(X)){
 					opi_abort(ctx, NULL, 0);
-					return crr_exitfail();
+					return crr_exitfail(ctx);
 				}
 				if (!sink_typelist(X)){
 					X = sink_str_newcstr(ctx, "Expecting list when calling abort");
 					opi_warn(ctx, &X, 1);
-					ctx->failed = true;
-					return crr_exitfail();
+					return crr_exitfail(ctx);
 				}
 				ls = var_castlist(ctx, X);
 				opi_abort(ctx, ls->vals, ls->size);
-				return crr_exitfail();
+				return crr_exitfail(ctx);
 			} break;
 
 			case OP_ABORTERR       : { // ERRNO
@@ -8322,9 +8470,8 @@ static crr_st context_run(context ctx){
 				if (A == 1)
 					errmsg = "Expecting list when calling function";
 				X = sink_str_newcstr(ctx, errmsg);
-				sink_warn(ctx, &X, 1);
-				ctx->failed = true;
-				return crr_exitfail();
+				opi_abort(ctx, &X, 1);
+				return crr_exitfail(ctx);
 			} break;
 
 			case OP_MOVE           : { // [TGT], [SRC]
@@ -8332,7 +8479,7 @@ static crr_st context_run(context ctx){
 				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
 				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index || C > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				var_set(ctx, A, B, var_get(ctx, C, D));
 			} break;
 
@@ -8340,13 +8487,12 @@ static crr_st context_run(context ctx){
 				ctx->pc++;
 				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				X = var_get(ctx, A, B);
 				if (!sink_typenum(X)){
 					X = sink_str_newcstr(ctx, "Expecting number when incrementing");
-					sink_warn(ctx, &X, 1);
-					ctx->failed = true;
-					return crr_exitfail();
+					opi_warn(ctx, &X, 1);
+					return crr_exitfail(ctx);
 				}
 				var_set(ctx, A, B, sink_num(X.f + 1));
 			} break;
@@ -8355,7 +8501,7 @@ static crr_st context_run(context ctx){
 				ctx->pc++;
 				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				var_set(ctx, A, B, SINK_NIL);
 			} break;
 
@@ -8364,7 +8510,7 @@ static crr_st context_run(context ctx){
 				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
 				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				var_set(ctx, A, B, sink_num(C | (D << 8)));
 			} break;
 
@@ -8373,7 +8519,7 @@ static crr_st context_run(context ctx){
 				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
 				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				var_set(ctx, A, B, sink_num((C | (D << 8)) - 65536));
 			} break;
 
@@ -8382,10 +8528,10 @@ static crr_st context_run(context ctx){
 				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
 				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				C = C | (D << 8);
 				if (C >= ctx->prg->numTable->size)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				var_set(ctx, A, B, sink_num(ctx->prg->numTable->vals[C]));
 			} break;
 
@@ -8394,10 +8540,10 @@ static crr_st context_run(context ctx){
 				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
 				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				C = C | (D << 8);
 				if (C >= ctx->prg->strTable->size)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				list_byte s = ctx->prg->strTable->ptrs[C];
 				var_set(ctx, A, B, sink_str_newblob(ctx, s->bytes, s->size));
 			} break;
@@ -8407,7 +8553,7 @@ static crr_st context_run(context ctx){
 				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
 				C = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				sink_val *vals = NULL;
 				if (C > 0)
 					vals = mem_alloc(sizeof(sink_val) * C);
@@ -8420,20 +8566,18 @@ static crr_st context_run(context ctx){
 				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
 				E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index || C > ctx->lex_index || E > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (!sink_typelist(X)){
 					X = sink_str_newcstr(ctx, "Expecting list when calculating rest");
-					sink_warn(ctx, &X, 1);
-					ctx->failed = true;
-					return crr_exitfail();
+					opi_warn(ctx, &X, 1);
+					return crr_exitfail(ctx);
 				}
 				Y = var_get(ctx, E, F);
 				if (!sink_typenum(Y)){
 					Y = sink_str_newcstr(ctx, "Expecting number when calculating rest");
-					sink_warn(ctx, &Y, 1);
-					ctx->failed = true;
-					return crr_exitfail();
+					opi_warn(ctx, &Y, 1);
+					return crr_exitfail(ctx);
 				}
 				ls = var_castlist(ctx, X);
 				if (Y.f < 0)
@@ -8455,7 +8599,7 @@ static crr_st context_run(context ctx){
 				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
 				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index || C > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
 				var_set(ctx, A, B, sink_bool(!sink_istrue(X)));
 			} break;
@@ -8465,7 +8609,7 @@ static crr_st context_run(context ctx){
 				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
 				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index || C > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				var_set(ctx, A, B, sink_num(opi_size(ctx, var_get(ctx, C, D))));
 			} break;
 
@@ -8474,7 +8618,7 @@ static crr_st context_run(context ctx){
 				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
 				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index || C > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				var_set(ctx, A, B, opi_tonum(ctx, var_get(ctx, C, D)));
 			} break;
 
@@ -8483,26 +8627,14 @@ static crr_st context_run(context ctx){
 				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
 				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index || C > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (!sink_typelist(X)){
 					X = sink_str_newcstr(ctx, "Expecting list when shifting");
 					opi_warn(ctx, &X, 1);
-					ctx->failed = true;
-					return crr_exitfail();
+					return crr_exitfail(ctx);
 				}
-				ls = var_castlist(ctx, X);
-				if (ls->size <= 0)
-					var_set(ctx, A, B, SINK_NIL);
-				else{
-					var_set(ctx, A, B, ls->vals[0]);
-					if (ls->size <= 1)
-						ls->size = 0;
-					else{
-						ls->size--;
-						memcpy(&ls->vals[0], &ls->vals[1], sizeof(sink_val) * ls->size);
-					}
-				}
+				var_set(ctx, A, B, opi_list_shift(ctx, X));
 			} break;
 
 			case OP_POP            : { // [TGT], [SRC]
@@ -8510,21 +8642,14 @@ static crr_st context_run(context ctx){
 				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
 				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index || C > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (!sink_typelist(X)){
 					X = sink_str_newcstr(ctx, "Expecting list when popping");
 					opi_warn(ctx, &X, 1);
-					ctx->failed = true;
-					return crr_exitfail();
+					return crr_exitfail(ctx);
 				}
-				ls = var_castlist(ctx, X);
-				if (ls->size <= 0)
-					var_set(ctx, A, B, SINK_NIL);
-				else{
-					ls->size--;
-					var_set(ctx, A, B, ls->vals[ls->size]);
-				}
+				var_set(ctx, A, B, opi_list_pop(ctx, X));
 			} break;
 
 			case OP_ISNUM          : { // [TGT], [SRC]
@@ -8532,9 +8657,9 @@ static crr_st context_run(context ctx){
 				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
 				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index || C > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, sink_typenum(X) ? sink_num(1) : SINK_NIL);
+				var_set(ctx, A, B, sink_bool(sink_typenum(X)));
 			} break;
 
 			case OP_ISSTR          : { // [TGT], [SRC]
@@ -8542,9 +8667,9 @@ static crr_st context_run(context ctx){
 				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
 				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index || C > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, sink_typestr(X) ? sink_num(1) : SINK_NIL);
+				var_set(ctx, A, B, sink_bool(sink_typestr(X)));
 			} break;
 
 			case OP_ISLIST         : { // [TGT], [SRC]
@@ -8552,9 +8677,9 @@ static crr_st context_run(context ctx){
 				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
 				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index || C > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, sink_typelist(X) ? sink_num(1) : SINK_NIL);
+				var_set(ctx, A, B, sink_bool(sink_typelist(X)));
 			} break;
 
 			case OP_ADD            : { // [TGT], [SRC1], [SRC2]
@@ -8587,60 +8712,29 @@ static crr_st context_run(context ctx){
 				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
 				E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index || C > ctx->lex_index || E > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				if (sink_typelist(X) && sink_typelist(Y)){
-					ls = var_castlist(ctx, X);
-					ls2 = var_castlist(ctx, Y);
-					int ns = ls->size + ls2->size;
-					if (ns <= 0)
-						var_set(ctx, A, B, sink_list_newblob(ctx, NULL, 0));
-					else{
-						sink_val *vals = mem_alloc(sizeof(sink_val) * ns);
-						if (ls->size > 0)
-							memcpy(&vals[0], ls->vals, sizeof(sink_val) * ls->size);
-						if (ls2->size > 0)
-							memcpy(&vals[ls->size], ls2->vals, sizeof(sink_val) * ls2->size);
-						var_set(ctx, A, B, sink_list_newblobgive(ctx, vals, ns, ns));
-					}
-				}
-				else{
-					X = sink_tostr(ctx, X);
-					Y = sink_tostr(ctx, Y);
-					str = var_caststr(ctx, X);
-					str2 = var_caststr(ctx, Y);
-					int ns = str->size + str2->size;
-					if (ns <= 0)
-						var_set(ctx, A, B, sink_str_newblob(ctx, NULL, 0));
-					else{
-						uint8_t *bytes = mem_alloc(sizeof(uint8_t) * ns);
-						if (str->size > 0)
-							memcpy(&bytes[0], str->bytes, sizeof(uint8_t) * str->size);
-						if (str2->size > 0)
-							memcpy(&bytes[str->size], str2->bytes, sizeof(uint8_t) * str2->size);
-						var_set(ctx, A, B, sink_str_newblobgive(ctx, bytes, ns));
-					}
-				}
+				if (sink_typelist(X) && sink_typelist(Y))
+					var_set(ctx, A, B, opi_list_cat(ctx, X, Y));
+				else
+					var_set(ctx, A, B, opi_str_cat(ctx, X, Y));
 			} break;
 
-/*
 			case OP_PUSH           : { // [TGT], [SRC1], [SRC2]
 				ctx->pc++;
 				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
 				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
 				E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index || C > ctx->lex_index || E > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (!sink_typelist(X)){
-					ctx->failed = true;
-					return crr_warnStr(ctx, sink_format("Expecting list when pushing"));
+					X = sink_str_newcstr(ctx, "Expecting list when pushing");
+					opi_warn(ctx, &X, 1);
+					return crr_exitfail(ctx);
 				}
-				Y = var_get(ctx, E, F);
-				X.push(Y);
-				if (A != C || B != D)
-					var_set(ctx, A, B, X);
+				var_set(ctx, A, B, opi_list_push(ctx, X, var_get(ctx, E, F)));
 			} break;
 
 			case OP_UNSHIFT        : { // [TGT], [SRC1], [SRC2]
@@ -8649,16 +8743,14 @@ static crr_st context_run(context ctx){
 				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
 				E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index || C > ctx->lex_index || E > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (!sink_typelist(X)){
-					ctx->failed = true;
-					return crr_warnStr(ctx, sink_format("Expecting list when unshifting"));
+					X = sink_str_newcstr(ctx, "Expecting list when unshifting");
+					opi_warn(ctx, &X, 1);
+					return crr_exitfail(ctx);
 				}
-				Y = var_get(ctx, E, F);
-				X.unshift(Y);
-				if (A != C || B != D)
-					var_set(ctx, A, B, X);
+				var_set(ctx, A, B, opi_list_unshift(ctx, X, var_get(ctx, E, F)));
 			} break;
 
 			case OP_APPEND         : { // [TGT], [SRC1], [SRC2]
@@ -8667,16 +8759,15 @@ static crr_st context_run(context ctx){
 				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
 				E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index || C > ctx->lex_index || E > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				if (!sink_typelist(X) || !sink_typelist(Y)){
-					ctx->failed = true;
-					return crr_warnStr(ctx, sink_format("Expecting list when appending"));
+					X = sink_str_newcstr(ctx, "Expecting list when appending");
+					opi_warn(ctx, &X, 1);
+					return crr_exitfail(ctx);
 				}
-				X.push.apply(X, Y);
-				if (A != C || B != D)
-					var_set(ctx, A, B, X);
+				var_set(ctx, A, B, opi_list_append(ctx, X, Y));
 			} break;
 
 			case OP_PREPEND        : { // [TGT], [SRC1], [SRC2]
@@ -8685,16 +8776,15 @@ static crr_st context_run(context ctx){
 				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
 				E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index || C > ctx->lex_index || E > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				if (!sink_typelist(X) || !sink_typelist(Y)){
-					ctx->failed = true;
-					return crr_warnStr(ctx, sink_format("Expecting list when prepending"));
+					X = sink_str_newcstr(ctx, "Expecting list when prepending");
+					opi_warn(ctx, &X, 1);
+					return crr_exitfail(ctx);
 				}
-				X.unshift.apply(X, Y);
-				if (A != C || B != D)
-					var_set(ctx, A, B, X);
+				var_set(ctx, A, B, opi_list_prepend(ctx, X, Y));
 			} break;
 
 			case OP_LT             : { // [TGT], [SRC1], [SRC2]
@@ -8703,16 +8793,19 @@ static crr_st context_run(context ctx){
 				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
 				E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index || C > ctx->lex_index || E > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				if (sink_typenum(X) && sink_typenum(Y))
-					var_set(ctx, A, B, X < Y ? 1 : NULL);
-				else if (sink_typestr(X) && sink_typestr(Y))
-					var_set(ctx, A, B, str_cmp(X, Y) < 0 ? 1 : NULL);
+				if (sink_typestr(X) && sink_typestr(Y)){
+					var_set(ctx, A, B,
+						sink_bool(str_cmp(var_caststr(ctx, X), var_caststr(ctx, Y)) < 0));
+				}
+				else if (sink_typenum(X) && sink_typenum(Y))
+					var_set(ctx, A, B, sink_bool(X.f < Y.f));
 				else{
-					ctx->failed = true;
-					return crr_warnStr(ctx, sink_format("Expecting numbers or strings"));
+					X = sink_str_newcstr(ctx, "Expecting numbers or strings");
+					opi_warn(ctx, &X, 1);
+					return crr_exitfail(ctx);
 				}
 			} break;
 
@@ -8722,16 +8815,19 @@ static crr_st context_run(context ctx){
 				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
 				E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index || C > ctx->lex_index || E > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				if (sink_typenum(X) && sink_typenum(Y))
-					var_set(ctx, A, B, X <= Y ? 1 : NULL);
-				else if (sink_typestr(X) && sink_typestr(Y))
-					var_set(ctx, A, B, str_cmp(X, Y) <= 0 ? 1 : NULL);
+				if (sink_typestr(X) && sink_typestr(Y)){
+					var_set(ctx, A, B,
+						sink_bool(str_cmp(var_caststr(ctx, X), var_caststr(ctx, Y)) <= 0));
+				}
+				else if (sink_typenum(X) && sink_typenum(Y))
+					var_set(ctx, A, B, sink_bool(X.f <= Y.f));
 				else{
-					ctx->failed = true;
-					return crr_warnStr(ctx, sink_format("Expecting numbers or strings"));
+					X = sink_str_newcstr(ctx, "Expecting numbers or strings");
+					opi_warn(ctx, &X, 1);
+					return crr_exitfail(ctx);
 				}
 			} break;
 
@@ -8741,19 +8837,21 @@ static crr_st context_run(context ctx){
 				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
 				E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index || C > ctx->lex_index || E > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				if (X == NULL && Y == NULL)
-					var_set(ctx, A, B, NULL);
-				else if (sink_typenum(X) && sink_typenum(Y))
-					var_set(ctx, A, B, X == Y ? NULL : 1);
-				else if (sink_typestr(X) && sink_typestr(Y))
-					var_set(ctx, A, B, str_cmp(X, Y) == 0 ? NULL : 1);
+				if (sink_isnil(X) && sink_isnil(Y))
+					var_set(ctx, A, B, sink_bool(false));
+				else if (sink_typestr(X) && sink_typestr(Y)){
+					var_set(ctx, A, B,
+						sink_bool(str_cmp(var_caststr(ctx, X), var_caststr(ctx, Y)) != 0));
+				}
 				else if (sink_typelist(X) && sink_typelist(Y))
-					var_set(ctx, A, B, X === Y ? NULL : 1);
+					var_set(ctx, A, B, sink_bool(X.u != Y.u));
+				else if (sink_typenum(X) && sink_typenum(Y))
+					var_set(ctx, A, B, sink_bool(X.f != Y.f));
 				else
-					var_set(ctx, A, B, 1);
+					var_set(ctx, A, B, sink_bool(true));
 			} break;
 
 			case OP_EQU            : { // [TGT], [SRC1], [SRC2]
@@ -8762,28 +8860,30 @@ static crr_st context_run(context ctx){
 				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
 				E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index || C > ctx->lex_index || E > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				if (X == NULL && Y == NULL)
-					var_set(ctx, A, B, 1);
-				else if (sink_typenum(X) && sink_typenum(Y))
-					var_set(ctx, A, B, X == Y ? 1 : NULL);
-				else if (sink_typestr(X) && sink_typestr(Y))
-					var_set(ctx, A, B, str_cmp(X, Y) == 0 ? 1 : NULL);
+				if (sink_isnil(X) && sink_isnil(Y))
+					var_set(ctx, A, B, sink_bool(true));
+				else if (sink_typestr(X) && sink_typestr(Y)){
+					var_set(ctx, A, B,
+						sink_bool(str_cmp(var_caststr(ctx, X), var_caststr(ctx, Y)) == 0));
+				}
 				else if (sink_typelist(X) && sink_typelist(Y))
-					var_set(ctx, A, B, X === Y ? 1 : NULL);
+					var_set(ctx, A, B, sink_bool(X.u == Y.u));
+				else if (sink_typenum(X) && sink_typenum(Y))
+					var_set(ctx, A, B, sink_bool(X.f == Y.f));
 				else
-					var_set(ctx, A, B, NULL);
+					var_set(ctx, A, B, sink_bool(false));
 			} break;
-
+/*
 			case OP_GETAT          : { // [TGT], [SRC1], [SRC2]
 				ctx->pc++;
 				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
 				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
 				E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index || C > ctx->lex_index || E > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (sink_typelist(X)){
 					Y = var_get(ctx, E, F);
@@ -8829,7 +8929,7 @@ static crr_st context_run(context ctx){
 				G = ops->bytes[ctx->pc++]; H = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index || C > ctx->lex_index || E > ctx->lex_index ||
 					G > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (sink_typelist(X)){
 					Y = var_get(ctx, E, F);
@@ -8887,7 +8987,7 @@ static crr_st context_run(context ctx){
 				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
 				E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index || C > ctx->lex_index || E > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 
 				X = var_get(ctx, A, B);
 				if (!sink_typelist(X)){
@@ -8916,7 +9016,7 @@ static crr_st context_run(context ctx){
 				G = ops->bytes[ctx->pc++]; H = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index || C > ctx->lex_index || E > ctx->lex_index ||
 					G > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 
 				X = var_get(ctx, A, B);
 				if (!sink_typelist(X)){
@@ -8972,7 +9072,7 @@ static crr_st context_run(context ctx){
 				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
 				E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
 				if (var_get(ctx, A, B) != NULL){
 					if (ctx.prg.repl && C == 0xFFFFFFFF){
@@ -8989,7 +9089,7 @@ static crr_st context_run(context ctx){
 				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
 				E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
 				if (var_get(ctx, A, B) == NULL){
 					if (ctx.prg.repl && C == 0xFFFFFFFF){
@@ -9008,7 +9108,7 @@ static crr_st context_run(context ctx){
 				F = ops->bytes[ctx->pc++]; G = ops->bytes[ctx->pc++];
 				H = ops->bytes[ctx->pc++]; I = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index || C > ctx->lex_index || E > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				F = F + (G << 8) + (H << 16) + ((I << 23) * 2);
 				if (ctx.prg.repl && F == 0xFFFFFFFF){
 					ctx.pc -= 10;
@@ -9033,11 +9133,11 @@ static crr_st context_run(context ctx){
 
 			case OP_RETURN         : { // [SRC]
 				if (ctx.call_stk.length <= 0)
-					return crr_exitpass();
+					return crr_exitpass(ctx);
 				ctx->pc++;
 				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				X = var_get(ctx, A, B);
 				var s = ctx.call_stk.pop();
 				ctx.lex_stk[ctx->lex_index] = ctx.lex_stk[ctx->lex_index].next;
@@ -9051,7 +9151,7 @@ static crr_st context_run(context ctx){
 				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
 				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index || C > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (!sink_typelist(X)){
 					ctx->failed = true;
@@ -9066,7 +9166,7 @@ static crr_st context_run(context ctx){
 				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
 				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index || C > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (!sink_typelist(X)){
 					ctx->failed = true;
@@ -9081,7 +9181,7 @@ static crr_st context_run(context ctx){
 				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
 				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index || C > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (!sink_typelist(X)){
 					ctx->failed = true;
@@ -9107,13 +9207,13 @@ static crr_st context_run(context ctx){
 				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
 				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index || C > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (!sink_typelist(X)){
 					ctx->failed = true;
 					return crr_warnStr(ctx, sink_format("Expecting list when calling num.max"));
 				}
-				var_set(ctx, A, B, lib_num_max(X));
+				var_set(ctx, A, B, opi_num_max(X));
 			} break;
 
 			case OP_NUM_MIN        : { // [TGT], [SRC...]
@@ -9121,13 +9221,13 @@ static crr_st context_run(context ctx){
 				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
 				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index || C > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (!sink_typelist(X)){
 					ctx->failed = true;
 					return crr_warnStr(ctx, sink_format("Expecting list when calling num.max"));
 				}
-				var_set(ctx, A, B, lib_num_min(X));
+				var_set(ctx, A, B, opi_num_min(X));
 			} break;
 
 			case OP_NUM_CLAMP      : { // [TGT], [SRC1], [SRC2], [SRC3]
@@ -9165,7 +9265,7 @@ static crr_st context_run(context ctx){
 				ctx->pc++;
 				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				var_set(ctx, A, B, NaN);
 			} break;
 
@@ -9173,7 +9273,7 @@ static crr_st context_run(context ctx){
 				ctx->pc++;
 				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				var_set(ctx, A, B, Infinity);
 			} break;
 
@@ -9182,7 +9282,7 @@ static crr_st context_run(context ctx){
 				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
 				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index || C > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (!sink_typenum(X)){
 					ctx->failed = true;
@@ -9196,7 +9296,7 @@ static crr_st context_run(context ctx){
 				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
 				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index || C > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (!sink_typenum(X)){
 					ctx->failed = true;
@@ -9209,7 +9309,7 @@ static crr_st context_run(context ctx){
 				ctx->pc++;
 				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				var_set(ctx, A, B, Math.E);
 			} break;
 
@@ -9217,7 +9317,7 @@ static crr_st context_run(context ctx){
 				ctx->pc++;
 				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				var_set(ctx, A, B, Math.PI);
 			} break;
 
@@ -9225,7 +9325,7 @@ static crr_st context_run(context ctx){
 				ctx->pc++;
 				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				var_set(ctx, A, B, Math.PI * 2);
 			} break;
 
@@ -9304,21 +9404,21 @@ static crr_st context_run(context ctx){
 			} break;
 
 			case OP_NUM_HEX        : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return lib_num_base(a, b, 16); },
+				var ib = inline_binop(function(a, b){ return opi_num_base(a, b, 16); },
 					'converting to hex');
 				if (ib !== false)
 					return ib;
 			} break;
 
 			case OP_NUM_OCT        : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return lib_num_base(a, b, 8); },
+				var ib = inline_binop(function(a, b){ return opi_num_base(a, b, 8); },
 					'converting to hex');
 				if (ib !== false)
 					return ib;
 			} break;
 
 			case OP_NUM_BIN        : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return lib_num_base(a, b, 2); },
+				var ib = inline_binop(function(a, b){ return opi_num_base(a, b, 2); },
 					'converting to hex');
 				if (ib !== false)
 					return ib;
@@ -9416,13 +9516,13 @@ static crr_st context_run(context ctx){
 				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
 				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index || C > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (!sink_typenum(X)){
 					ctx->failed = true;
 					return crr_warnStr(sink_format('Expecting number']);
 				}
-				lib_rand_seed(ctx, X);
+				opi_rand_seed(ctx, X);
 				var_set(ctx, A, B, NULL);
 			} break;
 
@@ -9430,8 +9530,8 @@ static crr_st context_run(context ctx){
 				ctx->pc++;
 				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index)
-					return crr_invalid();
-				lib_rand_seedauto(ctx);
+					return crr_invalid(ctx);
+				opi_rand_seedauto(ctx);
 				var_set(ctx, A, B, NULL);
 			} break;
 
@@ -9439,24 +9539,24 @@ static crr_st context_run(context ctx){
 				ctx->pc++;
 				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index)
-					return crr_invalid();
-				var_set(ctx, A, B, lib_rand_int(ctx));
+					return crr_invalid(ctx);
+				var_set(ctx, A, B, opi_rand_int(ctx));
 			} break;
 
 			case OP_RAND_NUM       : { // [TGT]
 				ctx->pc++;
 				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index)
-					return crr_invalid();
-				var_set(ctx, A, B, lib_rand_num(ctx));
+					return crr_invalid(ctx);
+				var_set(ctx, A, B, opi_rand_num(ctx));
 			} break;
 
 			case OP_RAND_GETSTATE  : { // [TGT]
 				ctx->pc++;
 				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index)
-					return crr_invalid();
-				var_set(ctx, A, B, lib_rand_getstate(ctx));
+					return crr_invalid(ctx);
+				var_set(ctx, A, B, opi_rand_getstate(ctx));
 			} break;
 
 			case OP_RAND_SETSTATE  : { // [TGT], [SRC]
@@ -9464,14 +9564,14 @@ static crr_st context_run(context ctx){
 				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
 				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index || C > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (!sink_typelist(X) || X.length < 2 || !sink_typenum(X[0]) ||
 					!sink_typenum(X[1])){
 					ctx->failed = true;
 					return crr_warnStr(ctx, sink_format("Expecting list of two integers"));
 				}
-				lib_rand_setstate(ctx, X[0], X[1]);
+				opi_rand_setstate(ctx, X[0], X[1]);
 				var_set(ctx, A, B, NULL);
 			} break;
 
@@ -9480,13 +9580,13 @@ static crr_st context_run(context ctx){
 				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
 				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index || C > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (!sink_typelist(X)){
 					ctx->failed = true;
 					return crr_warnStr(ctx, sink_format("Expecting list"));
 				}
-				var_set(ctx, A, B, lib_rand_pick(ctx, X));
+				var_set(ctx, A, B, opi_rand_pick(ctx, X));
 			} break;
 
 			case OP_RAND_SHUFFLE   : { // [TGT], [SRC]
@@ -9494,13 +9594,13 @@ static crr_st context_run(context ctx){
 				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
 				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index || C > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (!sink_typelist(X)){
 					ctx->failed = true;
 					return crr_warnStr(ctx, sink_format("Expecting list"));
 				}
-				lib_rand_shuffle(ctx, X)
+				opi_rand_shuffle(ctx, X)
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -9594,7 +9694,7 @@ static crr_st context_run(context ctx){
 				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
 				E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index || C > ctx->lex_index || E > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (X == NULL)
 					X = 0;
@@ -9617,7 +9717,7 @@ static crr_st context_run(context ctx){
 				G = ops->bytes[ctx->pc++]; H = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index || C > ctx->lex_index || E > ctx->lex_index ||
 					G > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (!sink_typelist(X)){
 					ctx->failed = true;
@@ -9653,7 +9753,7 @@ static crr_st context_run(context ctx){
 				G = ops->bytes[ctx->pc++]; H = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index || C > ctx->lex_index || E > ctx->lex_index ||
 					G > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (!sink_typelist(X)){
 					ctx->failed = true;
@@ -9687,7 +9787,7 @@ static crr_st context_run(context ctx){
 				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
 				E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index || C > ctx->lex_index || E > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (!sink_typelist(X)){
 					ctx->failed = true;
@@ -9707,7 +9807,7 @@ static crr_st context_run(context ctx){
 				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
 				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
 				if (A > ctx->lex_index || C > ctx->lex_index)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (!sink_typelist(X)){
 					ctx->failed = true;
@@ -9746,12 +9846,12 @@ static crr_st context_run(context ctx){
 			} break;
 */
 			default:
-				return crr_invalid();
+				return crr_invalid(ctx);
 		}
 	}
 	if (ctx->prg->repl)
 		return crr_repl();
-	return crr_exitpass();
+	return crr_exitpass(ctx);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -9820,6 +9920,7 @@ typedef struct {
 	parser pr;
 	program prg;
 	symtbl sym;
+	context ctx;
 	list_ptr tkflps;
 	filepos_node flpn;
 	char *msg;
@@ -9850,6 +9951,7 @@ sink_repl sink_repl_new(sink_lib lib, sink_io_st io, sink_inc_st inc){
 	r->prg = program_new(true);
 	r->sym = symtbl_new(true);
 	symtbl_loadStdlib(r->sym);
+	r->ctx = context_new(r->prg);
 	r->tkflps = list_ptr_new((free_func)tkflp_free);
 	r->flpn = mem_alloc(sizeof(filepos_node_st));
 	r->flpn->flp.file = NULL;
@@ -9920,6 +10022,7 @@ char *sink_repl_write(sink_repl rp, uint8_t *bytes, int size){
 						r->msg = pr.msg;
 						return r->msg;
 					}
+					context_run(r->ctx);
 				} break;
 				case PRR_ERROR:
 					tkflp_free(tf);
@@ -9959,6 +10062,8 @@ void sink_repl_free(sink_repl rp){
 	parser_free(r->pr);
 	program_free(r->prg);
 	symtbl_free(r->sym);
+	r->ctx->prg = NULL; // prg is already free so don't free it via context_free
+	context_free(r->ctx);
 	list_ptr_free(r->tkflps);
 	filepos_node flpn = r->flpn;
 	while (flpn){
@@ -10196,12 +10301,43 @@ sink_val  sink_rand_getstate(sink_ctx ctx);
 void      sink_rand_setstate(sink_ctx ctx, sink_val a);
 sink_val  sink_rand_pick(sink_ctx ctx, sink_val ls);
 void      sink_rand_shuffle(sink_ctx ctx, sink_val ls);
-
+*/
 // strings
-sink_val  sink_str_newcstr(sink_ctx ctx, const char *str);
-sink_val  sink_str_newblob(sink_ctx ctx, const uint8_t *bytes, int size);
-sink_val  sink_str_newblobgive(sink_ctx ctx, uint8_t *bytes, int size);
-sink_val  sink_str_newformat(sink_ctx ctx, const char *fmt, ...);
+sink_val sink_str_newcstr(sink_ctx ctx, const char *str){
+	return sink_str_newblob(ctx, (const uint8_t *)str, strlen(str));
+}
+
+sink_val sink_str_newblob(sink_ctx ctx, const uint8_t *bytes, int size){
+	uint8_t *copy = NULL;
+	if (size > 0){
+		copy = mem_alloc(sizeof(uint8_t) * size);
+		memcpy(copy, bytes, sizeof(uint8_t) * size);
+	}
+	return sink_str_newblobgive(ctx, copy, size);
+}
+
+sink_val sink_str_newblobgive(sink_ctx ctx, uint8_t *bytes, int size){
+	context ctx2 = ctx;
+	int index = bmp_reserve((void **)&ctx2->str_tbl, &ctx2->str_aloc, &ctx2->str_ref, NULL,
+		&ctx2->str_size, sizeof(sink_str_st));
+	sink_str s = &ctx2->str_tbl[index];
+	s->bytes = bytes;
+	s->size = size;
+	return (sink_val){ .u = SINK_TAG_STR | index };
+}
+
+sink_val sink_str_newformat(sink_ctx ctx, const char *fmt, ...){
+	va_list args, args2;
+	va_start(args, fmt);
+	va_copy(args2, args);
+	size_t s = vsnprintf(NULL, 0, fmt, args);
+	char *buf = mem_alloc(s + 1);
+	vsprintf(buf, fmt, args2);
+	va_end(args);
+	va_end(args2);
+	return sink_str_newblobgive(ctx, (uint8_t *)buf, s);
+}
+/*
 sink_val  sink_str_new(sink_ctx ctx, sink_val a, sink_val b);
 sink_val  sink_str_cat(sink_ctx ctx, sink_val a, sink_val b);
 sink_val  sink_str_tonum(sink_ctx ctx, sink_val a);
@@ -10337,8 +10473,28 @@ sink_val  sink_struct_list(sink_ctx ctx, sink_val a, sink_val tpl);
 // lists
 void      sink_list_setuser(sink_ctx ctx, sink_val ls, sink_user usertype, void *user);
 void *    sink_list_getuser(sink_ctx ctx, sink_val ls, sink_user usertype);
-sink_val  sink_list_newblob(sink_ctx ctx, const sink_val *vals, int size);
-sink_val  sink_list_newblobgive(sink_ctx ctx, sink_val *vals, int size, int count);
+*/
+sink_val sink_list_newblob(sink_ctx ctx, const sink_val *vals, int size){
+	int count = size + sink_list_grow;
+	sink_val *copy = mem_alloc(sizeof(sink_val) * count);
+	if (size > 0)
+		memcpy(copy, vals, sizeof(sink_val) * size);
+	return sink_list_newblobgive(ctx, copy, size, count);
+}
+
+sink_val sink_list_newblobgive(sink_ctx ctx, sink_val *vals, int size, int count){
+	context ctx2 = ctx;
+	int index = bmp_reserve((void **)&ctx2->list_tbl, &ctx2->list_aloc, &ctx2->list_ref,
+		&ctx2->list_tick, &ctx2->list_size, sizeof(sink_list_st));
+	sink_list ls = &ctx2->list_tbl[index];
+	ls->vals = vals;
+	ls->size = size;
+	ls->count = count;
+	ls->usertype = -1;
+	ls->user = NULL;
+	return (sink_val){ .u = SINK_TAG_LIST | index };
+}
+/*
 sink_val  sink_list_new(sink_ctx ctx, sink_val a, sink_val b);
 sink_val  sink_list_cat(sink_ctx ctx, sink_val ls1, sink_val ls2);
 int       sink_list_size(sink_ctx ctx, sink_val ls);
@@ -10353,7 +10509,35 @@ void      sink_list_prepend(sink_ctx ctx, sink_val ls, sink_val ls2);
 sink_val  sink_list_find(sink_ctx ctx, sink_val ls, sink_val a, sink_val b);
 sink_val  sink_list_rfind(sink_ctx ctx, sink_val ls, sink_val a, sink_val b);
 sink_val  sink_list_join(sink_ctx ctx, sink_val ls, sink_val a);
-sink_val  sink_list_joinplain(sink_ctx ctx, sink_val *vals, int size, const char *div);
+*/
+sink_val sink_list_joinplain(sink_ctx ctx, sink_val *vals, int size, const char *sep){
+	sink_val *strs = mem_alloc(sizeof(sink_val) * size);
+	int tot = 0;
+	int seplen = strlen(sep);
+	for (int i = 0; i < size; i++){
+		if (i > 0)
+			tot += seplen;
+		strs[i] = sink_tostr(ctx, vals[i]);
+		sink_str s = var_caststr(ctx, strs[i]);
+		tot += s->size;
+	}
+	uint8_t *bytes = mem_alloc(sizeof(uint8_t) * tot);
+	int nb = 0;
+	for (int i = 0; i < size; i++){
+		if (i > 0 && seplen > 0){
+			memcpy(&bytes[nb], sep, sizeof(char) * seplen);
+			nb += seplen;
+		}
+		sink_str s = var_caststr(ctx, strs[i]);
+		if (s->size > 0){
+			memcpy(&bytes[nb], s->bytes, sizeof(uint8_t) * s->size);
+			nb += s->size;
+		}
+	}
+	mem_free(strs);
+	return sink_str_newblobgive(ctx, bytes, tot);
+}
+/*
 void      sink_list_rev(sink_ctx ctx, sink_val ls);
 sink_val  sink_list_str(sink_ctx ctx, sink_val ls);
 void      sink_list_sort(sink_ctx ctx, sink_val ls);
