@@ -7736,7 +7736,7 @@ static inline void context_free(context ctx){
 
 static void opi_rand_seedauto(context ctx);
 
-static inline context context_new(program prg){
+static inline context context_new(program prg, sink_io_st io){
 	context ctx = mem_alloc(sizeof(context_st));
 	ctx->prg = prg;
 	ctx->passed = false;
@@ -7748,9 +7748,9 @@ static inline context context_new(program prg){
 	list_ptr_push(ctx->lex_stk, lxs_new(SINK_NIL, NULL));
 	ctx->f_finalize = list_ptr_new(NULL);
 
-	ctx->f_say = NULL;
-	ctx->f_warn = NULL;
-	ctx->f_ask = NULL;
+	ctx->f_say = io.f_say;
+	ctx->f_warn = io.f_warn;
+	ctx->f_ask = io.f_ask;
 
 	ctx->pc = 0;
 	ctx->rand_seed = 0;
@@ -8418,6 +8418,7 @@ static crr_st context_run(context ctx){
 				func, erop));
 
 	while (ctx->pc < ops->size){
+		printf("[%d] %02X\n", ctx->pc, ops->bytes[ctx->pc]);
 		switch ((op_enum)ops->bytes[ctx->pc]){
 			case OP_NOP            : { //
 				ctx->pc++;
@@ -9145,7 +9146,7 @@ static crr_st context_run(context ctx){
 				var_set(ctx, s.fdiff, s.index, X);
 				ctx.pc = s.pc;
 			} break;
-
+*/
 			case OP_SAY            : { // [TGT], [SRC...]
 				ctx->pc++;
 				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
@@ -9154,13 +9155,15 @@ static crr_st context_run(context ctx){
 					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (!sink_typelist(X)){
-					ctx->failed = true;
-					return crr_warnStr(ctx, sink_format("Expecting list when calling say"));
+					X = sink_str_newcstr(ctx, "Expecting list when calling say");
+					opi_warn(ctx, &X, 1);
+					return crr_exitfail(ctx);
 				}
-				var_set(ctx, A, B, NULL);
-				return crr_say(X);
+				ls = var_castlist(ctx, X);
+				opi_say(ctx, ls->vals, ls->size);
+				var_set(ctx, A, B, SINK_NIL);
 			} break;
-
+/*
 			case OP_WARN           : { // [TGT], [SRC...]
 				ctx->pc++;
 				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
@@ -9846,6 +9849,7 @@ static crr_st context_run(context ctx){
 			} break;
 */
 			default:
+				debugf("invalid opcode %02X", ops->bytes[ctx->pc]);
 				return crr_invalid(ctx);
 		}
 	}
@@ -9951,7 +9955,7 @@ sink_repl sink_repl_new(sink_lib lib, sink_io_st io, sink_inc_st inc){
 	r->prg = program_new(true);
 	r->sym = symtbl_new(true);
 	symtbl_loadStdlib(r->sym);
-	r->ctx = context_new(r->prg);
+	r->ctx = context_new(r->prg, io);
 	r->tkflps = list_ptr_new((free_func)tkflp_free);
 	r->flpn = mem_alloc(sizeof(filepos_node_st));
 	r->flpn->flp.file = NULL;
