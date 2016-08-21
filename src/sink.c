@@ -168,8 +168,6 @@ static void mem_debug_done(){
 		}
 		memlist = NULL;
 	}
-	else
-		debug("No memory leaks! :-)");
 }
 
 static void mem_free_func(void *p){
@@ -233,8 +231,9 @@ static inline list_byte list_byte_newCopy(list_byte b){
 	list_byte b2 = mem_alloc(sizeof(list_byte_st));
 	b2->size = b->size;
 	b2->count = b->size;
-	b2->bytes = mem_alloc(sizeof(uint8_t *) * b2->count);
-	memcpy(b2->bytes, b->bytes, sizeof(uint8_t *) * b2->count);
+	b2->bytes = mem_alloc(sizeof(uint8_t) * b2->count);
+	if (b->size > 0)
+		memcpy(b2->bytes, b->bytes, sizeof(uint8_t) * b->size);
 	return b2;
 }
 
@@ -5456,6 +5455,19 @@ static inline program program_new(bool repl){
 	return prg;
 }
 
+static inline program program_newCopy(program prg){
+	program prg2 = program_new(prg->repl);
+	for (int i = 0; i < prg->strTable->size; i++)
+		list_ptr_push(prg2->strTable, list_byte_newCopy(prg->strTable->ptrs[i]));
+	for (int i = 0; i < prg->numTable->size; i++)
+		list_double_push(prg2->numTable, prg->numTable->vals[i]);
+	for (int i = 0; i < prg->keyTable->size; i++)
+		list_ptr_push(prg2->keyTable, list_byte_newCopy(prg->keyTable->ptrs[i]));
+	list_byte_free(prg2->ops);
+	prg2->ops = list_byte_newCopy(prg->ops);
+	return prg2;
+}
+
 typedef enum {
 	PER_OK,
 	PER_ERROR
@@ -7752,6 +7764,7 @@ static inline context context_new(program prg, sink_io_st io){
 	ctx->f_warn = io.f_warn;
 	ctx->f_ask = io.f_ask;
 
+	ctx->lex_index = 0;
 	ctx->pc = 0;
 	ctx->rand_seed = 0;
 	ctx->rand_i = 0;
@@ -7776,6 +7789,18 @@ static inline context context_new(program prg, sink_io_st io){
 	return ctx;
 }
 
+static inline bool context_done(context ctx){
+	return ctx->passed || ctx->failed || ctx->invalid;
+}
+
+static inline int context_result(context ctx){
+	if (ctx->invalid)
+		return 2;
+	if (ctx->failed)
+		return 1;
+	return 0;
+}
+
 typedef enum {
 	CRR_EXITPASS,
 	CRR_EXITFAIL,
@@ -7783,30 +7808,23 @@ typedef enum {
 	CRR_INVALID
 } crr_enum;
 
-typedef struct {
-	crr_enum type;
-	sink_val args;
-	int fdiff;
-	int index;
-} crr_st;
-
-static inline crr_st crr_exitpass(context ctx){
+static inline crr_enum crr_exitpass(context ctx){
 	ctx->passed = true;
-	return (crr_st){ .type = CRR_EXITPASS };
+	return CRR_EXITPASS;
 }
 
-static inline crr_st crr_exitfail(context ctx){
+static inline crr_enum crr_exitfail(context ctx){
 	ctx->failed = true;
-	return (crr_st){ .type = CRR_EXITFAIL };
+	return CRR_EXITFAIL;
 }
 
-static inline crr_st crr_repl(){
-	return (crr_st){ .type = CRR_REPL };
+static inline crr_enum crr_repl(){
+	return CRR_REPL;
 }
 
-static inline crr_st crr_invalid(context ctx){
+static inline crr_enum crr_invalid(context ctx){
 	ctx->invalid = true;
-	return (crr_st){ .type = CRR_INVALID };
+	return CRR_INVALID;
 }
 
 static inline void list_cleartick(context ctx){
@@ -7938,10 +7956,6 @@ static int str_cmp(sink_str a, sink_str b){
 	else if (b->size < a->size)
 		return 1;
 	return 0;
-}
-
-static inline void context_result(context ctx, crr_st cr, sink_val val){
-	var_set(ctx, cr.fdiff, cr.index, val);
 }
 
 static sink_val opihelp_num_max(context ctx, sink_val v){
@@ -8371,7 +8385,7 @@ static inline sink_val opi_list_prepend(context ctx, sink_val a, sink_val b){
 	return a;
 }
 
-static crr_st context_run(context ctx){
+static crr_enum context_run(context ctx){
 	if (ctx->passed)
 		return crr_exitpass(ctx);
 	if (ctx->failed)
@@ -8418,7 +8432,6 @@ static crr_st context_run(context ctx){
 				func, erop));
 
 	while (ctx->pc < ops->size){
-		printf("[%d] %02X\n", ctx->pc, ops->bytes[ctx->pc]);
 		switch ((op_enum)ops->bytes[ctx->pc]){
 			case OP_NOP            : { //
 				ctx->pc++;
@@ -9858,6 +9871,204 @@ static crr_st context_run(context ctx){
 	return crr_exitpass(ctx);
 }
 
+//
+// compiler
+//
+
+typedef struct filepos_node_struct filepos_node_st, *filepos_node;
+struct filepos_node_struct {
+	filepos_st flp;
+	filepos_node next;
+};
+
+typedef struct {
+	list_ptr tks;
+	filepos_st flp;
+} tkflp_st, *tkflp;
+
+static void tkflp_free(tkflp tf){
+	list_ptr_free(tf->tks);
+	mem_free(tf);
+}
+
+static tkflp tkflp_new(list_ptr tks, filepos_st flp){
+	tkflp tf = mem_alloc(sizeof(tkflp_st));
+	tf->tks = tks;
+	tf->flp = flp;
+	return tf;
+}
+
+typedef struct {
+	lex lx;
+	parser pr;
+	program prg;
+	symtbl sym;
+	context ctx;
+	list_ptr tkflps;
+	filepos_node flpn;
+	char *msg;
+	bool wascr;
+	bool repl;
+} compiler_st, *compiler;
+
+static compiler compiler_new(sink_lib lib, sink_io_st io, sink_inc_st inc, const char *file,
+	bool repl){
+	compiler cmp = mem_alloc(sizeof(compiler_st));
+	cmp->lx = lex_new();
+	cmp->pr = parser_new();
+	cmp->prg = program_new(repl);
+	cmp->sym = symtbl_new(repl);
+	symtbl_loadStdlib(cmp->sym);
+	cmp->ctx = repl ? context_new(cmp->prg, io) : NULL;
+	cmp->tkflps = list_ptr_new((free_func)tkflp_free);
+	cmp->flpn = mem_alloc(sizeof(filepos_node_st));
+	cmp->flpn->flp.file = NULL;
+	cmp->flpn->flp.line = 1;
+	cmp->flpn->flp.chr = 1;
+	cmp->flpn->next = NULL;
+	cmp->msg = NULL;
+	cmp->wascr = false;
+	cmp->repl = repl;
+	return cmp;
+}
+
+static char *compiler_process(compiler cmp){
+	while (cmp->tkflps->size > 0){
+		tkflp tf = list_ptr_shift(cmp->tkflps);
+		while (tf->tks->size > 0){
+			tok tk = list_ptr_shift(tf->tks);
+			tok_print(tk);
+			if (tk->type == TOK_ERROR){
+				// TODO: flp?
+				cmp->msg = tk->u.msg;
+				tk->u.msg = NULL;
+				tok_free(tk);
+				tkflp_free(tf);
+				return cmp->msg;
+			}
+			prr_st pp = parser_add(cmp->pr, tk, tf->flp);
+			switch (pp.type){
+				case PRR_MORE:
+					break;
+				case PRR_STATEMENT: {
+					ast_print(pp.u.stmt, 0);
+					pgr_st pr = program_gen(cmp->prg, cmp->sym, pp.u.stmt);
+					symtbl_print(cmp->sym);
+					ast_free(pp.u.stmt);
+					if (pr.type == PGR_ERROR){
+						tkflp_free(tf);
+						// TODO: use pr.flp
+						cmp->msg = pr.msg;
+						return cmp->msg;
+					}
+					if (cmp->repl)
+						context_run(cmp->ctx);
+				} break;
+				case PRR_ERROR:
+					tkflp_free(tf);
+					// TODO: flp?
+					cmp->msg = pp.u.msg;
+					return cmp->msg;
+			}
+		}
+		tkflp_free(tf);
+	}
+	return NULL;
+}
+
+static char *compiler_write(compiler cmp, uint8_t *bytes, int size){
+	list_ptr tks = NULL;
+	for (int i = 0; i < size; i++){
+		if (tks == NULL)
+			tks = list_ptr_new((free_func)tok_free);
+		lex_add(cmp->lx, bytes[i], tks);
+
+		if (tks->size > 0){
+			list_ptr_push(cmp->tkflps, tkflp_new(tks, cmp->flpn->flp));
+			tks = NULL;
+		}
+
+		if (bytes[i] == '\n'){
+			if (!cmp->wascr){
+				cmp->flpn->flp.line++;
+				cmp->flpn->flp.chr = 1;
+			}
+			cmp->wascr = false;
+		}
+		else if (bytes[i] == '\r'){
+			cmp->flpn->flp.line++;
+			cmp->flpn->flp.chr = 1;
+			cmp->wascr = true;
+		}
+		else
+			cmp->wascr = false;
+	}
+	if (tks != NULL)
+		list_ptr_free(tks);
+
+	return compiler_process(cmp);
+}
+
+static char *compiler_close(compiler cmp){
+	list_ptr tks = list_ptr_new((free_func)tok_free);
+	lex_close(cmp->lx, tks);
+	if (tks->size > 0)
+		list_ptr_push(cmp->tkflps, tkflp_new(tks, cmp->flpn->flp));
+	else
+		list_ptr_free(tks);
+
+	char *msg = compiler_process(cmp);
+	if (msg)
+		return msg;
+
+	prr_st pr = parser_close(cmp->pr);
+	if (pr.type == PRR_ERROR){
+		// TODO: flp?
+		cmp->msg = pr.u.msg;
+		return cmp->msg;
+	}
+
+	return NULL;
+}
+
+static void compiler_reset(compiler cmp){
+	if (cmp->msg){
+		mem_free(cmp->msg);
+		cmp->msg = NULL;
+	}
+	lex_free(cmp->lx);
+	cmp->lx = lex_new();
+	parser_free(cmp->pr);
+	cmp->pr = parser_new();
+	list_ptr_free(cmp->tkflps);
+	cmp->tkflps = list_ptr_new((free_func)tkflp_free);
+}
+
+static void compiler_free(compiler cmp){
+	bool repl = cmp->repl;
+	if (cmp->msg)
+		mem_free(cmp->msg);
+	lex_free(cmp->lx);
+	parser_free(cmp->pr);
+	program_free(cmp->prg);
+	symtbl_free(cmp->sym);
+	if (cmp->ctx){
+		cmp->ctx->prg = NULL; // prg is already free so don't free it via context_free
+		context_free(cmp->ctx);
+	}
+	list_ptr_free(cmp->tkflps);
+	filepos_node flpn = cmp->flpn;
+	while (flpn){
+		filepos_node del = flpn;
+		mem_free(del);
+		flpn = flpn->next;
+	}
+	mem_free(cmp);
+	if (repl){
+		mem_done();
+	}
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 //
 // API
@@ -9913,194 +10124,48 @@ void sink_lib_free(sink_lib lib){
 // repl API
 //
 
-typedef struct filepos_node_struct filepos_node_st, *filepos_node;
-struct filepos_node_struct {
-	filepos_st flp;
-	filepos_node next;
-};
-
-typedef struct {
-	lex lx;
-	parser pr;
-	program prg;
-	symtbl sym;
-	context ctx;
-	list_ptr tkflps;
-	filepos_node flpn;
-	char *msg;
-	bool wascr;
-} repl_st, *repl;
-
-typedef struct {
-	list_ptr tks;
-	filepos_st flp;
-} tkflp_st, *tkflp;
-
-static void tkflp_free(tkflp tf){
-	list_ptr_free(tf->tks);
-	mem_free(tf);
-}
-
-static tkflp tkflp_new(list_ptr tks, filepos_st flp){
-	tkflp tf = mem_alloc(sizeof(tkflp_st));
-	tf->tks = tks;
-	tf->flp = flp;
-	return tf;
-}
-
 sink_repl sink_repl_new(sink_lib lib, sink_io_st io, sink_inc_st inc){
-	repl r = mem_alloc(sizeof(repl_st));
-	r->lx = lex_new();
-	r->pr = parser_new();
-	r->prg = program_new(true);
-	r->sym = symtbl_new(true);
-	symtbl_loadStdlib(r->sym);
-	r->ctx = context_new(r->prg, io);
-	r->tkflps = list_ptr_new((free_func)tkflp_free);
-	r->flpn = mem_alloc(sizeof(filepos_node_st));
-	r->flpn->flp.file = NULL;
-	r->flpn->flp.line = 1;
-	r->flpn->flp.chr = 1;
-	r->flpn->next = NULL;
-	r->msg = NULL;
-	r->wascr = false;
-	return r;
+	return compiler_new(lib, io, inc, NULL, true);
 }
 
 char *sink_repl_write(sink_repl rp, uint8_t *bytes, int size){
-	repl r = (repl)rp;
-	list_ptr tks = NULL;
-	for (int i = 0; i < size; i++){
-		if (tks == NULL)
-			tks = list_ptr_new((free_func)tok_free);
-		lex_add(r->lx, bytes[i], tks);
-
-		if (tks->size > 0){
-			list_ptr_push(r->tkflps, tkflp_new(tks, r->flpn->flp));
-			tks = NULL;
-		}
-
-		if (bytes[i] == '\n'){
-			if (!r->wascr){
-				r->flpn->flp.line++;
-				r->flpn->flp.chr = 1;
-			}
-			r->wascr = false;
-		}
-		else if (bytes[i] == '\r'){
-			r->flpn->flp.line++;
-			r->flpn->flp.chr = 1;
-			r->wascr = true;
-		}
-		else
-			r->wascr = false;
-	}
-	if (tks != NULL)
-		list_ptr_free(tks);
-
-	while (r->tkflps->size > 0){
-		tkflp tf = list_ptr_shift(r->tkflps);
-		while (tf->tks->size > 0){
-			tok tk = list_ptr_shift(tf->tks);
-			tok_print(tk);
-			if (tk->type == TOK_ERROR){
-				// TODO: flp?
-				r->msg = tk->u.msg;
-				tk->u.msg = NULL;
-				tok_free(tk);
-				tkflp_free(tf);
-				return r->msg;
-			}
-			prr_st pp = parser_add(r->pr, tk, tf->flp);
-			switch (pp.type){
-				case PRR_MORE:
-					break;
-				case PRR_STATEMENT: {
-					ast_print(pp.u.stmt, 0);
-					pgr_st pr = program_gen(r->prg, r->sym, pp.u.stmt);
-					symtbl_print(r->sym);
-					ast_free(pp.u.stmt);
-					if (pr.type == PGR_ERROR){
-						tkflp_free(tf);
-						// TODO: use pr.flp
-						r->msg = pr.msg;
-						return r->msg;
-					}
-					context_run(r->ctx);
-				} break;
-				case PRR_ERROR:
-					tkflp_free(tf);
-					// TODO: flp?
-					r->msg = pp.u.msg;
-					return r->msg;
-			}
-		}
-		tkflp_free(tf);
-	}
-	return NULL;
+	return compiler_write(rp, bytes, size);
 }
 
 int sink_repl_level(sink_repl rp){
-	return ((repl)rp)->pr->level;
+	return ((compiler)rp)->pr->level;
+}
+
+bool sink_repl_done(sink_repl rp){
+	return context_done(((compiler)rp)->ctx);
 }
 
 void sink_repl_reset(sink_repl rp){
-	repl r = (repl)rp;
-	if (r->msg){
-		mem_free(r->msg);
-		r->msg = NULL;
-	}
-	lex_free(r->lx);
-	r->lx = lex_new();
-	parser_free(r->pr);
-	r->pr = parser_new();
-	list_ptr_free(r->tkflps);
-	r->tkflps = list_ptr_new((free_func)tkflp_free);
+	compiler_reset(rp);
+}
+
+int sink_repl_result(sink_repl rp){
+	return context_result(((compiler)rp)->ctx);
 }
 
 void sink_repl_free(sink_repl rp){
-	repl r = (repl)rp;
-	if (r->msg)
-		mem_free(r->msg);
-	lex_free(r->lx);
-	parser_free(r->pr);
-	program_free(r->prg);
-	symtbl_free(r->sym);
-	r->ctx->prg = NULL; // prg is already free so don't free it via context_free
-	context_free(r->ctx);
-	list_ptr_free(r->tkflps);
-	filepos_node flpn = r->flpn;
-	while (flpn){
-		filepos_node del = flpn;
-		mem_free(del);
-		flpn = flpn->next;
-	}
-	mem_free(r);
-	mem_done();
+	compiler_free(rp);
 }
 
 //
 // compiler API
 //
 
-typedef struct {
-} compiler_st, *compiler;
-
 sink_cmp sink_cmp_new(const char *file, sink_inc_st inc){
-	compiler cmp = mem_alloc(sizeof(compiler_st));
-	return cmp;
+	return compiler_new(NULL, (sink_io_st){}, inc, file, false);
 }
 
 char *sink_cmp_write(sink_cmp cmp, uint8_t *bytes, int size){
-	// TODO: this
-	abort();
-	return NULL;
+	return compiler_write(cmp, bytes, size);
 }
 
 char *sink_cmp_close(sink_cmp cmp){
-	// TODO: this
-	abort();
-	return NULL;
+	return compiler_close(cmp);
 }
 
 sink_bin sink_cmp_getbin(sink_cmp cmp){
@@ -10110,37 +10175,56 @@ sink_bin sink_cmp_getbin(sink_cmp cmp){
 }
 
 sink_prg sink_cmp_getprg(sink_cmp cmp){
-	// TODO: this
-	abort();
-	return NULL;
+	return program_newCopy(((compiler)cmp)->prg);
 }
 
 void sink_cmp_free(sink_cmp cmp){
-	mem_free(cmp);
+	compiler_free(cmp);
 }
 
 sink_prg sink_prg_load(uint8_t *bytes, int size){
 	abort();
+	// TODO: this
 	return NULL;
 }
 
 void sink_prg_free(sink_prg prg){
-	abort();
+	program_free(prg);
 }
 
 void sink_bin_free(sink_bin bin){
+	abort();
+	// TODO: this
 }
 
-/*
 // context
-sink_ctx  sink_ctx_new(sink_prg prg, sink_io_st io);
-sink_user sink_ctx_usertype(sink_ctx ctx, sink_finalize_func f_finalize);
-bool      sink_ctx_run(sink_ctx ctx);
-void      sink_ctx_free(sink_ctx ctx);
+sink_ctx sink_ctx_new(sink_lib lib, sink_prg prg, sink_io_st io){
+	return context_new(program_newCopy(prg), io);
+}
 
-sink_str  sink_caststr(sink_ctx ctx, sink_val str);
-sink_list sink_castlist(sink_ctx ctx, sink_val ls);
-*/
+sink_user sink_ctx_usertype(sink_ctx ctx, sink_finalize_func f_finalize){
+	context ctx2 = ctx;
+	int pos = ctx2->f_finalize->size;
+	list_ptr_push(ctx2->f_finalize, f_finalize);
+	return pos;
+}
+
+int sink_ctx_run(sink_ctx ctx){
+	context_run(ctx);
+	return context_result(ctx);
+}
+
+void sink_ctx_free(sink_ctx ctx){
+	context_free(ctx);
+}
+
+sink_str sink_caststr(sink_ctx ctx, sink_val str){
+	return var_caststr(ctx, str);
+}
+
+sink_list sink_castlist(sink_ctx ctx, sink_val ls){
+	return var_castlist(ctx, ls);
+}
 
 static sink_val sinkhelp_tostr(context ctx, sink_val v, bool first){
 	if (sink_typestr(v)){
