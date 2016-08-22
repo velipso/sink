@@ -159,25 +159,28 @@ String
 
 Strings are 8-bit clean, and interpreted as binary data.
 
-| Function              | Description                                                             |
-|-----------------------|-------------------------------------------------------------------------|
-| `str.new a, b`        | Create a new string by repeating string `a` `b` times                   |
-| `str.cat a, b`        | `a ~ b`                                                                 |
-| `str.tonum a`         | `+a` (convert string `a` to a number)                                   |
-| `str.split a, b`      | Split `a` into an array of strings based on separator `b`               |
-| `str.replace a, b, c` | Replace all occurrences of `b` in string `a` with `c`                   |
-| `str.begins a, b`     | True if string `a` begins with string `b`; false otherwise              |
-| `str.ends a, b`       | True if string `a` ends with string `b`; false otherwise                |
-| `str.pad a, b`        | Pads string `a` with space until it is length `b` (`-b` to pad left)    |
-| `str.find a, b, c`    | Find `b` in string `a` starting at `c`; returns nil if not found        |
-| `str.rfind a, b, c`   | Find `b` in string `a` starting at `c` and searching in reverse         |
-| `str.lower a`         | Convert `a` to lowercase                                                |
-| `str.upper a`         | Convert `a` to uppercase                                                |
-| `str.trim a`          | Trim surrounding whitespace from `a`                                    |
-| `str.rev a`           | Reverse `a`                                                             |
-| `str.list a`          | Convert a string to a list of bytes                                     |
-| `str.byte a, b`       | Unsigned byte from string `a` at index `b` (nil if out of range)        |
-| `str.hash a, b`       | Hash string `a` with seed `b` (interpretted as 32-bit unsigned integer) |
+| Function                | Description                                                           |
+|-------------------------|-----------------------------------------------------------------------|
+| `str.new a, b`          | Create a new string by repeating string `a` `b` times                 |
+| `str.at a, b`           | `a[b]` (returns character at index `b`, nil if out of range)          |
+| `str.cat a, b`          | `a ~ b`                                                               |
+| `str.tonum a`           | `+a` (convert string `a` to a number)                                 |
+| `str.slice a, b, c`     | `a[b:c]`                                                              |
+| `str.splice a, b, c, d` | `a[b:c] = d`                                                          |
+| `str.split a, b`        | Split `a` into an array of strings based on separator `b`             |
+| `str.replace a, b, c`   | Replace all occurrences of `b` in string `a` with `c`                 |
+| `str.begins a, b`       | True if string `a` begins with string `b`; false otherwise            |
+| `str.ends a, b`         | True if string `a` ends with string `b`; false otherwise              |
+| `str.pad a, b`          | Pads string `a` with space until it is length `b` (`-b` to pad left)  |
+| `str.find a, b, c`      | Find `b` in string `a` starting at `c`; returns nil if not found      |
+| `str.rfind a, b, c`     | Find `b` in string `a` starting at `c` and searching in reverse       |
+| `str.lower a`           | Convert `a` to lowercase                                              |
+| `str.upper a`           | Convert `a` to uppercase                                              |
+| `str.trim a`            | Trim surrounding whitespace from `a`                                  |
+| `str.rev a`             | Reverse `a`                                                           |
+| `str.list a`            | Convert a string to a list of bytes                                   |
+| `str.byte a, b`         | Unsigned byte from string `a` at index `b` (nil if out of range)      |
+| `str.hash a, b`         | Hash string `a` with seed `b` (interpretted as 32-bit unsigned int)   |
 
 ### Uppercase, Lowercase, Trim
 
@@ -372,6 +375,7 @@ List
 | Function                  | Description                                                         |
 |---------------------------|---------------------------------------------------------------------|
 | `list.new a, b`           | Create a new list of size `a`, with each element set to `b`         |
+| `list.at ls, a`           | `ls[a]` (nil if out of range)                                       |
 | `list.cat ls1, ls2`       | `ls1 ~ ls2` (returns a new list)                                    |
 | `list.slice ls, a, b`     | `ls[a:b]` (returns a new list)                                      |
 | `list.splice ls, a, b, c` | `ls[a:b] = c`                                                       |

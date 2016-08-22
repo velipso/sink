@@ -2761,11 +2761,10 @@ function parser_process(pr, flp){
 					if (pri.type == PRI_ERROR)
 						return prr_error(pri.msg);
 					st.exprTerm = pri.ex;
+					st.exprStack = st.exprStack.next;
 					st.exprPreStack = st.exprPreStackStack.ets;
 					st.exprPreStackStack = st.exprPreStackStack.next;
 					st.exprMidStack = st.exprMidStack.next;
-					// TODO: shouldn't I do st.exprStack = st.exprStack.next?
-					// BUGFIX
 				}
 				else // otherwise, the current Mid wins
 					break;
