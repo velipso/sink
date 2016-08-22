@@ -6599,14 +6599,14 @@ function context_run(ctx){
 
 			case OP_NUM_OCT        : { // [TGT], [SRC1], [SRC2]
 				var ib = inline_binop(function(a, b){ return lib_num_base(a, b, 8); },
-					'converting to hex');
+					'converting to oct');
 				if (ib !== false)
 					return ib;
 			} break;
 
 			case OP_NUM_BIN        : { // [TGT], [SRC1], [SRC2]
 				var ib = inline_binop(function(a, b){ return lib_num_base(a, b, 2); },
-					'converting to hex');
+					'converting to bin');
 				if (ib !== false)
 					return ib;
 			} break;

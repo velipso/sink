@@ -8018,43 +8018,43 @@ static sink_val opi_num_base(context ctx, double num, int len, int base){
 		num = -num;
 	}
 
-	if (base == 16){
-		buf[p++] = '0';
+	buf[p++] = '0';
+	if (base == 16)
 		buf[p++] = 'x';
-	}
-	else if (base == 8){
-		buf[p++] = '0';
+	else if (base == 8)
 		buf[p++] = 'c';
-	}
-	else if (base == 2){
-		buf[p++] = '0';
+	else if (base == 2)
 		buf[p++] = 'b';
-	}
+	else
+		assert(false);
 
 	char buf2[500];
 	int bodysize = 0;
-	int nint = floor(num);
-	double nfra = num - (double)nint;
+	double nint = floor(num);
+	double nfra = num - nint;
 	while (nint > 0 && bodysize < 400){
-		buf2[bodysize++] = digits[nint % base];
-		nint = nint / base;
+		buf2[bodysize++] = digits[(int)fmod(nint, base)];
+		nint = floor(nint / base);
 	}
-	while (bodysize < len && p < 400)
+	int bi = 0;
+	while (bodysize + bi < len && p < 400){
 		buf[p++] = '0';
+		bi++;
+	}
 	if (bodysize > 0){
-		memcpy(&buf[p], buf2, sizeof(char) * bodysize);
-		p += bodysize;
+		for (int i = 0; i < bodysize; i++)
+			buf[p++] = buf2[bodysize - 1 - i];
 	}
 	else if (len <= 0)
 		buf[p++] = '0';
 
-	if (nfra != 0){
+	if (nfra > 0.00001){
 		buf[p++] = '.';
 		int i = 0;
 		while (nfra > 0.00001 && i < 16){
 			nfra *= base;
 			nint = floor(nfra);
-			buf[p++] = digits[nint];
+			buf[p++] = digits[(int)nint];
 			nfra -= nint;
 			i++;
 		}
@@ -8106,13 +8106,15 @@ static inline void opi_rand_setstate(context ctx, double a, double b){
 	ctx->rand_i = (uint32_t)b;
 }
 
-static inline sink_val opi_rand_pick(context ctx, sink_list ls){
+static inline sink_val opi_rand_pick(context ctx, sink_val a){
+	sink_list ls = var_castlist(ctx, a);
 	if (ls->size <= 0)
 		return SINK_NIL;
 	return ls->vals[(int)(opi_rand_num(ctx) * ls->size)];
 }
 
-static inline void opi_rand_shuffle(context ctx, sink_list ls){
+static inline void opi_rand_shuffle(context ctx, sink_val a){
+	sink_list ls = var_castlist(ctx, a);
 	int m = ls->size;
 	while (m > 1){
 		int i = (int)(opi_rand_num(ctx) * m);
@@ -8229,6 +8231,18 @@ static sink_val binop_pow(context ctx, sink_val a, sink_val b){
 
 static sink_val binop_num_atan2(context ctx, sink_val a, sink_val b){
 	return sink_num(atan2(a.f, b.f));
+}
+
+static sink_val binop_num_hex(context ctx, sink_val a, sink_val b){
+	return opi_num_base(ctx, a.f, b.f, 16);
+}
+
+static sink_val binop_num_oct(context ctx, sink_val a, sink_val b){
+	return opi_num_base(ctx, a.f, b.f, 8);
+}
+
+static sink_val binop_num_bin(context ctx, sink_val a, sink_val b){
+	return opi_num_base(ctx, a.f, b.f, 2);
 }
 
 static sink_val triop_num_clamp(context ctx, sink_val a, sink_val b, sink_val c){
@@ -9313,28 +9327,19 @@ static crr_enum context_run(context ctx){
 			case OP_NUM_LERP       : { // [TGT], [SRC1], [SRC2], [SRC3]
 				INLINE_TRIOP(triop_num_lerp, "lerping")
 			} break;
-/*
+
 			case OP_NUM_HEX        : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return opi_num_base(a, b, 16); },
-					'converting to hex');
-				if (ib !== false)
-					return ib;
+				INLINE_BINOP(binop_num_hex, "converting to hex")
 			} break;
 
 			case OP_NUM_OCT        : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return opi_num_base(a, b, 8); },
-					'converting to hex');
-				if (ib !== false)
-					return ib;
+				INLINE_BINOP(binop_num_oct, "converting to oct")
 			} break;
 
 			case OP_NUM_BIN        : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return opi_num_base(a, b, 2); },
-					'converting to hex');
-				if (ib !== false)
-					return ib;
+				INLINE_BINOP(binop_num_bin, "converting to bin")
 			} break;
-
+/*
 			case OP_INT_CAST       : { // [TGT], [SRC]
 				var iu = inline_unop(function(a){ return a | 0; }, 'casting to int');
 				if (iu !== false)
@@ -9421,100 +9426,66 @@ static crr_enum context_run(context ctx){
 				if (iu !== false)
 					return iu;
 			} break;
-
+*/
 			case OP_RAND_SEED      : { // [TGT], [SRC]
-				ctx->pc++;
-				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
-				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
-				if (A > ctx->lex_index || C > ctx->lex_index)
-					return crr_invalid(ctx);
+				LOAD_ABCD();
 				X = var_get(ctx, C, D);
-				if (!sink_typenum(X)){
-					ctx->failed = true;
-					return crr_warnStr(sink_format('Expecting number']);
-				}
-				opi_rand_seed(ctx, X);
-				var_set(ctx, A, B, NULL);
+				if (!sink_typenum(X))
+					RETURN_FAIL("Expecting number");
+				opi_rand_seed(ctx, X.f);
+				var_set(ctx, A, B, SINK_NIL);
 			} break;
 
 			case OP_RAND_SEEDAUTO  : { // [TGT]
-				ctx->pc++;
-				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
-				if (A > ctx->lex_index)
-					return crr_invalid(ctx);
+				LOAD_AB();
 				opi_rand_seedauto(ctx);
-				var_set(ctx, A, B, NULL);
+				var_set(ctx, A, B, SINK_NIL);
 			} break;
 
 			case OP_RAND_INT       : { // [TGT]
-				ctx->pc++;
-				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
-				if (A > ctx->lex_index)
-					return crr_invalid(ctx);
-				var_set(ctx, A, B, opi_rand_int(ctx));
+				LOAD_AB();
+				var_set(ctx, A, B, sink_num(opi_rand_int(ctx)));
 			} break;
 
 			case OP_RAND_NUM       : { // [TGT]
-				ctx->pc++;
-				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
-				if (A > ctx->lex_index)
-					return crr_invalid(ctx);
-				var_set(ctx, A, B, opi_rand_num(ctx));
+				LOAD_AB();
+				var_set(ctx, A, B, sink_num(opi_rand_num(ctx)));
 			} break;
 
 			case OP_RAND_GETSTATE  : { // [TGT]
-				ctx->pc++;
-				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
-				if (A > ctx->lex_index)
-					return crr_invalid(ctx);
+				LOAD_AB();
 				var_set(ctx, A, B, opi_rand_getstate(ctx));
 			} break;
 
 			case OP_RAND_SETSTATE  : { // [TGT], [SRC]
-				ctx->pc++;
-				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
-				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
-				if (A > ctx->lex_index || C > ctx->lex_index)
-					return crr_invalid(ctx);
+				LOAD_ABCD();
 				X = var_get(ctx, C, D);
-				if (!sink_typelist(X) || X.length < 2 || !sink_typenum(X[0]) ||
-					!sink_typenum(X[1])){
-					ctx->failed = true;
-					return crr_warnStr(ctx, sink_format("Expecting list of two integers"));
-				}
-				opi_rand_setstate(ctx, X[0], X[1]);
-				var_set(ctx, A, B, NULL);
+				if (!sink_typelist(X))
+					RETURN_FAIL("Expecting list of two integers");
+				ls = var_castlist(ctx, X);
+				 if (ls->size < 2 || !sink_typenum(ls->vals[0]) || !sink_typenum(ls->vals[1]))
+				 	RETURN_FAIL("Expecting list of two integers");
+				opi_rand_setstate(ctx, ls->vals[0].f, ls->vals[1].f);
+				var_set(ctx, A, B, SINK_NIL);
 			} break;
 
 			case OP_RAND_PICK      : { // [TGT], [SRC]
-				ctx->pc++;
-				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
-				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
-				if (A > ctx->lex_index || C > ctx->lex_index)
-					return crr_invalid(ctx);
+				LOAD_ABCD();
 				X = var_get(ctx, C, D);
-				if (!sink_typelist(X)){
-					ctx->failed = true;
-					return crr_warnStr(ctx, sink_format("Expecting list"));
-				}
+				if (!sink_typelist(X))
+					RETURN_FAIL("Expecting list");
 				var_set(ctx, A, B, opi_rand_pick(ctx, X));
 			} break;
 
 			case OP_RAND_SHUFFLE   : { // [TGT], [SRC]
-				ctx->pc++;
-				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
-				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
-				if (A > ctx->lex_index || C > ctx->lex_index)
-					return crr_invalid(ctx);
+				LOAD_ABCD();
 				X = var_get(ctx, C, D);
-				if (!sink_typelist(X)){
-					ctx->failed = true;
-					return crr_warnStr(ctx, sink_format("Expecting list"));
-				}
-				opi_rand_shuffle(ctx, X)
+				if (!sink_typelist(X))
+					RETURN_FAIL("Expecting list");
+				opi_rand_shuffle(ctx, X);
 				var_set(ctx, A, B, X);
 			} break;
-*/
+
 			case OP_STR_NEW        : { // [TGT], [SRC1], [SRC2]
 				THROW("OP_STR_NEW");
 			} break;
@@ -9679,9 +9650,6 @@ static crr_enum context_run(context ctx){
 
 
 
-			case OP_NUM_HEX: THROW("OP_NUM_HEX"); break;
-			case OP_NUM_OCT: THROW("OP_NUM_OCT"); break;
-			case OP_NUM_BIN: THROW("OP_NUM_BIN"); break;
 			case OP_INT_CAST: THROW("OP_INT_CAST"); break;
 			case OP_INT_NOT: THROW("OP_INT_NOT"); break;
 			case OP_INT_AND: THROW("OP_INT_AND"); break;
@@ -9696,14 +9664,6 @@ static crr_enum context_run(context ctx){
 			case OP_INT_DIV: THROW("OP_INT_DIV"); break;
 			case OP_INT_MOD: THROW("OP_INT_MOD"); break;
 			case OP_INT_CLZ: THROW("OP_INT_CLZ"); break;
-			case OP_RAND_SEED: THROW("OP_RAND_SEED"); break;
-			case OP_RAND_SEEDAUTO: THROW("OP_RAND_SEEDAUTO"); break;
-			case OP_RAND_INT: THROW("OP_RAND_INT"); break;
-			case OP_RAND_NUM: THROW("OP_RAND_NUM"); break;
-			case OP_RAND_GETSTATE: THROW("OP_RAND_GETSTATE"); break;
-			case OP_RAND_SETSTATE: THROW("OP_RAND_SETSTATE"); break;
-			case OP_RAND_PICK: THROW("OP_RAND_PICK"); break;
-			case OP_RAND_SHUFFLE: THROW("OP_RAND_SHUFFLE"); break;
 
 
 			default:
