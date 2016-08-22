@@ -8135,7 +8135,72 @@ static sink_val unop_tonum(context ctx, sink_val a){
 		return a;
 	// TODO: actually parse `a` into a number
 	assert(false);
+	abort();
 	return SINK_NIL;
+}
+
+static sink_val unop_num_abs(context ctx, sink_val a){
+	return sink_num(fabs(a.f));
+}
+
+static sink_val unop_num_sign(context ctx, sink_val a){
+	return sink_num(a.f < 0 ? -1 : (a.f > 0 ? 1 : 0));
+}
+
+static sink_val unop_num_floor(context ctx, sink_val a){
+	return sink_num(floor(a.f));
+}
+
+static sink_val unop_num_ceil(context ctx, sink_val a){
+	return sink_num(ceil(a.f));
+}
+
+static sink_val unop_num_round(context ctx, sink_val a){
+	return sink_num(round(a.f));
+}
+
+static sink_val unop_num_trunc(context ctx, sink_val a){
+	return sink_num(trunc(a.f));
+}
+
+static sink_val unop_num_sin(context ctx, sink_val a){
+	return sink_num(sin(a.f));
+}
+
+static sink_val unop_num_cos(context ctx, sink_val a){
+	return sink_num(cos(a.f));
+}
+
+static sink_val unop_num_tan(context ctx, sink_val a){
+	return sink_num(tan(a.f));
+}
+
+static sink_val unop_num_asin(context ctx, sink_val a){
+	return sink_num(asin(a.f));
+}
+
+static sink_val unop_num_acos(context ctx, sink_val a){
+	return sink_num(acos(a.f));
+}
+
+static sink_val unop_num_atan(context ctx, sink_val a){
+	return sink_num(atan(a.f));
+}
+
+static sink_val unop_num_log(context ctx, sink_val a){
+	return sink_num(log(a.f));
+}
+
+static sink_val unop_num_log2(context ctx, sink_val a){
+	return sink_num(log2(a.f));
+}
+
+static sink_val unop_num_log10(context ctx, sink_val a){
+	return sink_num(log10(a.f));
+}
+
+static sink_val unop_num_exp(context ctx, sink_val a){
+	return sink_num(exp(a.f));
 }
 
 static sink_val binop_add(context ctx, sink_val a, sink_val b){
@@ -8160,6 +8225,18 @@ static sink_val binop_mod(context ctx, sink_val a, sink_val b){
 
 static sink_val binop_pow(context ctx, sink_val a, sink_val b){
 	return sink_num(pow(a.f, b.f));
+}
+
+static sink_val binop_num_atan2(context ctx, sink_val a, sink_val b){
+	return sink_num(atan2(a.f, b.f));
+}
+
+static sink_val triop_num_clamp(context ctx, sink_val a, sink_val b, sink_val c){
+	return sink_num(a.f < b.f ? b.f : (a.f > c.f ? c.f : a.f));
+}
+
+static sink_val triop_num_lerp(context ctx, sink_val a, sink_val b, sink_val c){
+	return sink_num(a.f + (b.f - a.f) * c.f);
 }
 
 // inline operators
@@ -8999,11 +9076,8 @@ static crr_enum context_run(context ctx){
 					return crr_repl();
 				}
 				X = var_get(ctx, C, D);
-				if (!sink_typelist(X)){
-					X = sink_str_newcstr(ctx, "Expecting list when calling function");
-					opi_warn(ctx, &X, 1);
-					return crr_exitfail(ctx);
-				}
+				if (!sink_typelist(X))
+					RETURN_FAIL("Expecting list when calling function");
 				list_ptr_push(ctx->call_stk, ccs_new(ctx->pc, A, B, ctx->lex_index));
 				ctx->lex_index = ctx->lex_index - E + 1;
 				while (ctx->lex_index >= ctx->lex_stk->size)
@@ -9059,220 +9133,140 @@ static crr_enum context_run(context ctx){
 				ls = var_castlist(ctx, X);
 				var_set(ctx, A, B, opi_ask(ctx, ls->vals, ls->size));
 			} break;
-/*
+
 			case OP_NUM_ABS        : { // [TGT], [SRC]
-				var iu = inline_unop(function(a){ return Math.abs(a); }, 'taking absolute value');
-				if (iu !== false)
-					return iu;
+				INLINE_UNOP(unop_num_abs, "taking absolute value")
 			} break;
 
 			case OP_NUM_SIGN       : { // [TGT], [SRC]
-				var iu = inline_unop(function(a){ return polyfill.Math_sign(a); }, 'taking sign');
-				if (iu !== false)
-					return iu;
+				INLINE_UNOP(unop_num_sign, "taking sign")
 			} break;
 
 			case OP_NUM_MAX        : { // [TGT], [SRC...]
-				ctx->pc++;
-				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
-				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
-				if (A > ctx->lex_index || C > ctx->lex_index)
-					return crr_invalid(ctx);
+				LOAD_ABCD();
 				X = var_get(ctx, C, D);
-				if (!sink_typelist(X)){
-					ctx->failed = true;
-					return crr_warnStr(ctx, sink_format("Expecting list when calling num.max"));
-				}
-				var_set(ctx, A, B, opi_num_max(X));
+				if (!sink_typelist(X))
+					RETURN_FAIL("Expecting list when calling num.max");
+				var_set(ctx, A, B, opi_num_max(ctx, X));
 			} break;
 
 			case OP_NUM_MIN        : { // [TGT], [SRC...]
-				ctx->pc++;
-				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
-				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
-				if (A > ctx->lex_index || C > ctx->lex_index)
-					return crr_invalid(ctx);
+				LOAD_ABCD();
 				X = var_get(ctx, C, D);
-				if (!sink_typelist(X)){
-					ctx->failed = true;
-					return crr_warnStr(ctx, sink_format("Expecting list when calling num.max"));
-				}
-				var_set(ctx, A, B, opi_num_min(X));
+				if (!sink_typelist(X))
+					RETURN_FAIL("Expecting list when calling num.max");
+				var_set(ctx, A, B, opi_num_min(ctx, X));
 			} break;
 
 			case OP_NUM_CLAMP      : { // [TGT], [SRC1], [SRC2], [SRC3]
-				var it = inline_triop(function(a, b, c){ return a < b ? b : (a > c ? c : a); },
-					'clamping');
-				if (it !== false)
-					return it;
+				INLINE_TRIOP(triop_num_clamp, "clamping")
 			} break;
 
 			case OP_NUM_FLOOR      : { // [TGT], [SRC]
-				var iu = inline_unop(function(a){ return Math.floor(a); }, 'taking floor');
-				if (iu !== false)
-					return iu;
+				INLINE_UNOP(unop_num_floor, "taking floor")
 			} break;
 
 			case OP_NUM_CEIL       : { // [TGT], [SRC]
-				var iu = inline_unop(function(a){ return Math.ceil(a); }, 'taking ceil');
-				if (iu !== false)
-					return iu;
+				INLINE_UNOP(unop_num_ceil, "taking ceil")
 			} break;
 
 			case OP_NUM_ROUND      : { // [TGT], [SRC]
-				var iu = inline_unop(function(a){ return Math.round(a); }, 'rounding');
-				if (iu !== false)
-					return iu;
+				INLINE_UNOP(unop_num_round, "rounding")
 			} break;
 
 			case OP_NUM_TRUNC      : { // [TGT], [SRC]
-				var iu = inline_unop(function(a){ return polyfill.Math_trunc(a); }, 'truncating');
-				if (iu !== false)
-					return iu;
+				INLINE_UNOP(unop_num_trunc, "truncating")
 			} break;
 
 			case OP_NUM_NAN        : { // [TGT]
-				ctx->pc++;
-				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
-				if (A > ctx->lex_index)
-					return crr_invalid(ctx);
-				var_set(ctx, A, B, NaN);
+				LOAD_AB();
+				var_set(ctx, A, B, sink_num_nan());
 			} break;
 
 			case OP_NUM_INF        : { // [TGT]
-				ctx->pc++;
-				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
-				if (A > ctx->lex_index)
-					return crr_invalid(ctx);
-				var_set(ctx, A, B, Infinity);
+				LOAD_AB();
+				var_set(ctx, A, B, sink_num_inf());
 			} break;
 
 			case OP_NUM_ISNAN      : { // [TGT], [SRC]
-				ctx->pc++;
-				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
-				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
-				if (A > ctx->lex_index || C > ctx->lex_index)
-					return crr_invalid(ctx);
+				LOAD_ABCD();
 				X = var_get(ctx, C, D);
-				if (!sink_typenum(X)){
-					ctx->failed = true;
-					return crr_warnStr(ctx, sink_format("Expecting number"));
-				}
-				var_set(ctx, A, B, isNaN(X) ? 1 : NULL);
+				if (!sink_typenum(X))
+					RETURN_FAIL("Expecting number");
+				var_set(ctx, A, B, sink_bool(sink_num_isnan(X)));
 			} break;
 
 			case OP_NUM_ISFINITE   : { // [TGT], [SRC]
-				ctx->pc++;
-				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
-				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
-				if (A > ctx->lex_index || C > ctx->lex_index)
-					return crr_invalid(ctx);
+				LOAD_ABCD();
 				X = var_get(ctx, C, D);
-				if (!sink_typenum(X)){
-					ctx->failed = true;
-					return crr_warnStr(ctx, sink_format("Expecting number"));
-				}
-				var_set(ctx, A, B, isFinite(X) ? 1 : NULL);
+				if (!sink_typenum(X))
+					RETURN_FAIL("Expecting number");
+				var_set(ctx, A, B, sink_bool(sink_num_isfinite(X)));
 			} break;
 
 			case OP_NUM_E          : { // [TGT]
-				ctx->pc++;
-				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
-				if (A > ctx->lex_index)
-					return crr_invalid(ctx);
-				var_set(ctx, A, B, Math.E);
+				LOAD_AB();
+				var_set(ctx, A, B, sink_num_e());
 			} break;
 
 			case OP_NUM_PI         : { // [TGT]
-				ctx->pc++;
-				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
-				if (A > ctx->lex_index)
-					return crr_invalid(ctx);
-				var_set(ctx, A, B, Math.PI);
+				LOAD_AB();
+				var_set(ctx, A, B, sink_num_pi());
 			} break;
 
 			case OP_NUM_TAU        : { // [TGT]
-				ctx->pc++;
-				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
-				if (A > ctx->lex_index)
-					return crr_invalid(ctx);
-				var_set(ctx, A, B, Math.PI * 2);
+				LOAD_AB();
+				var_set(ctx, A, B, sink_num_tau());
 			} break;
 
 			case OP_NUM_SIN        : { // [TGT], [SRC]
-				var iu = inline_unop(function(a){ return Math.sin(a); }, 'taking sin');
-				if (iu !== false)
-					return iu;
+				INLINE_UNOP(unop_num_sin, "taking sin")
 			} break;
 
 			case OP_NUM_COS        : { // [TGT], [SRC]
-				var iu = inline_unop(function(a){ return Math.cos(a); }, 'taking cos');
-				if (iu !== false)
-					return iu;
+				INLINE_UNOP(unop_num_cos, "taking cos")
 			} break;
 
 			case OP_NUM_TAN        : { // [TGT], [SRC]
-				var iu = inline_unop(function(a){ return Math.tan(a); }, 'taking tan');
-				if (iu !== false)
-					return iu;
+				INLINE_UNOP(unop_num_tan, "taking tan")
 			} break;
 
 			case OP_NUM_ASIN       : { // [TGT], [SRC]
-				var iu = inline_unop(function(a){ return Math.asin(a); }, 'taking arc-sin');
-				if (iu !== false)
-					return iu;
+				INLINE_UNOP(unop_num_asin, "taking arc-sin")
 			} break;
 
 			case OP_NUM_ACOS       : { // [TGT], [SRC]
-				var iu = inline_unop(function(a){ return Math.acos(a); }, 'taking arc-cos');
-				if (iu !== false)
-					return iu;
+				INLINE_UNOP(unop_num_acos, "taking arc-cos")
 			} break;
 
 			case OP_NUM_ATAN       : { // [TGT], [SRC]
-				var iu = inline_unop(function(a){ return Math.atan(a); }, 'taking arc-tan');
-				if (iu !== false)
-					return iu;
+				INLINE_UNOP(unop_num_atan, "taking arc-tan")
 			} break;
 
 			case OP_NUM_ATAN2      : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return Math.atan2(a, b); }, 'taking arc-tan');
-				if (ib !== false)
-					return ib;
+				INLINE_BINOP(binop_num_atan2, "taking arc-tan")
 			} break;
 
 			case OP_NUM_LOG        : { // [TGT], [SRC]
-				var iu = inline_unop(function(a){ return Math.log(a); }, 'taking logarithm');
-				if (iu !== false)
-					return iu;
+				INLINE_UNOP(unop_num_log, "taking logarithm")
 			} break;
 
 			case OP_NUM_LOG2       : { // [TGT], [SRC]
-				var iu = inline_unop(function(a){ return polyfill.Math_log2(a); },
-					'taking logarithm');
-				if (iu !== false)
-					return iu;
+				INLINE_UNOP(unop_num_log2, "taking logarithm")
 			} break;
 
 			case OP_NUM_LOG10      : { // [TGT], [SRC]
-				var iu = inline_unop(function(a){ return polyfill.Math_log10(a); },
-					'taking logarithm');
-				if (iu !== false)
-					return iu;
+				INLINE_UNOP(unop_num_log10, "taking logarithm")
 			} break;
 
 			case OP_NUM_EXP        : { // [TGT], [SRC]
-				var iu = inline_unop(function(a){ return Math.exp(a); }, 'exponentiating');
-				if (iu !== false)
-					return iu;
+				INLINE_UNOP(unop_num_exp, "exponentiating")
 			} break;
 
 			case OP_NUM_LERP       : { // [TGT], [SRC1], [SRC2], [SRC3]
-				var it = inline_triop(function(a, b, c){ return a + (b - a) * c; }, 'lerping');
-				if (it !== false)
-					return it;
+				INLINE_TRIOP(triop_num_lerp, "lerping")
 			} break;
-
+/*
 			case OP_NUM_HEX        : { // [TGT], [SRC1], [SRC2]
 				var ib = inline_binop(function(a, b){ return opi_num_base(a, b, 16); },
 					'converting to hex');
@@ -9717,34 +9711,6 @@ static crr_enum context_run(context ctx){
 
 
 
-			case OP_NUM_ABS: THROW("OP_NUM_ABS"); break;
-			case OP_NUM_SIGN: THROW("OP_NUM_SIGN"); break;
-			case OP_NUM_MAX: THROW("OP_NUM_MAX"); break;
-			case OP_NUM_MIN: THROW("OP_NUM_MIN"); break;
-			case OP_NUM_CLAMP: THROW("OP_NUM_CLAMP"); break;
-			case OP_NUM_FLOOR: THROW("OP_NUM_FLOOR"); break;
-			case OP_NUM_CEIL: THROW("OP_NUM_CEIL"); break;
-			case OP_NUM_ROUND: THROW("OP_NUM_ROUND"); break;
-			case OP_NUM_TRUNC: THROW("OP_NUM_TRUNC"); break;
-			case OP_NUM_NAN: THROW("OP_NUM_NAN"); break;
-			case OP_NUM_INF: THROW("OP_NUM_INF"); break;
-			case OP_NUM_ISNAN: THROW("OP_NUM_ISNAN"); break;
-			case OP_NUM_ISFINITE: THROW("OP_NUM_ISFINITE"); break;
-			case OP_NUM_E: THROW("OP_NUM_E"); break;
-			case OP_NUM_PI: THROW("OP_NUM_PI"); break;
-			case OP_NUM_TAU: THROW("OP_NUM_TAU"); break;
-			case OP_NUM_SIN: THROW("OP_NUM_SIN"); break;
-			case OP_NUM_COS: THROW("OP_NUM_COS"); break;
-			case OP_NUM_TAN: THROW("OP_NUM_TAN"); break;
-			case OP_NUM_ASIN: THROW("OP_NUM_ASIN"); break;
-			case OP_NUM_ACOS: THROW("OP_NUM_ACOS"); break;
-			case OP_NUM_ATAN: THROW("OP_NUM_ATAN"); break;
-			case OP_NUM_ATAN2: THROW("OP_NUM_ATAN2"); break;
-			case OP_NUM_LOG: THROW("OP_NUM_LOG"); break;
-			case OP_NUM_LOG2: THROW("OP_NUM_LOG2"); break;
-			case OP_NUM_LOG10: THROW("OP_NUM_LOG10"); break;
-			case OP_NUM_EXP: THROW("OP_NUM_EXP"); break;
-			case OP_NUM_LERP: THROW("OP_NUM_LERP"); break;
 			case OP_NUM_HEX: THROW("OP_NUM_HEX"); break;
 			case OP_NUM_OCT: THROW("OP_NUM_OCT"); break;
 			case OP_NUM_BIN: THROW("OP_NUM_BIN"); break;
