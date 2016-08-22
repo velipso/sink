@@ -265,7 +265,7 @@ sink_val  sink_str_at(sink_ctx ctx, sink_val a, sink_val b);
 sink_val  sink_str_cat(sink_ctx ctx, sink_val a, sink_val b);
 sink_val  sink_str_tonum(sink_ctx ctx, sink_val a);
 sink_val  sink_str_slice(sink_ctx ctx, sink_val a, sink_val start, sink_val len);
-sink_val  sink_str_splice(sink_ctx ctx, sink_val a, sink_val start, sink_val len, sink_val d);
+//TODO: sink_val  sink_str_splice(sink_ctx ctx, sink_val a, sink_val start, sink_val len, sink_val d);
 sink_val  sink_str_split(sink_ctx ctx, sink_val a, sink_val b);
 sink_val  sink_str_replace(sink_ctx ctx, sink_val a, sink_val b, sink_val c);
 bool      sink_str_begins(sink_ctx ctx, sink_val a, sink_val b);

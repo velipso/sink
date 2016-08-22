@@ -8364,6 +8364,42 @@ static inline sink_val opi_list_slice(context ctx, sink_val a, sink_val b, sink_
 	return sink_list_newblob(ctx, &ls->vals[start], len);
 }
 
+static inline void opi_list_splice(context ctx, sink_val a, sink_val b, sink_val c, sink_val d){
+	// TODO: this logic looks wrong... rewrite this and check against sink.js
+	// in fact, all splice logic needs to be rewritten in general, to accomodate string splicing
+	sink_list ls = var_castlist(ctx, a);
+	int start = b.f;
+	int len = c.f;
+	if (start < 0)
+		start += ls->size;
+	if (start + len > ls->size)
+		len = ls->size - start;
+	if (start >= 0 && start < ls->size){
+		if (sink_isnil(d)){
+			memmove(&ls->vals[start], &ls->vals[start + len],
+				sizeof(sink_val) * (ls->size - len - start));
+			ls->size -= len;
+		}
+		else{
+			sink_list ls2 = var_castlist(ctx, d);
+			int tot = ls->size - len + ls2->size;
+			sink_val *nb = mem_alloc(sizeof(sink_val) * tot);
+			if (start > 0)
+				memcpy(nb, ls->vals, sizeof(sink_val) * start);
+			if (ls2->size > 0)
+				memcpy(&nb[start], ls2->vals, sizeof(sink_val) * ls2->size);
+			if (start + len < ls->size){
+				memcpy(&nb[start + ls2->size], &ls->vals[start + len],
+					sizeof(sink_val) * (ls->size - len - start));
+			}
+			mem_free(ls->vals);
+			ls->vals = nb;
+			ls->size = tot;
+			ls->count = tot;
+		}
+	}
+}
+
 static inline sink_val opi_list_shift(context ctx, sink_val a){
 	sink_list ls = var_castlist(ctx, a);
 	if (ls->size <= 0)
@@ -8395,6 +8431,17 @@ static inline sink_val opi_list_push(context ctx, sink_val a, sink_val b){
 	}
 	ls->vals[ls->size++] = b;
 	return a;
+}
+
+static inline void opi_list_pushnils(context ctx, sink_list ls, int totalsize){
+	if (ls->size >= totalsize)
+		return;
+	if (totalsize > ls->count){
+		ls->count = totalsize + sink_list_grow;
+		ls->vals = mem_realloc(ls->vals, sizeof(sink_val) * ls->count);
+	}
+	while (ls->size < totalsize)
+		ls->vals[ls->size++] = SINK_NIL;
 }
 
 static inline sink_val opi_list_unshift(context ctx, sink_val a, sink_val b){
@@ -8868,63 +8915,48 @@ static crr_enum context_run(context ctx){
 				else
 					var_set(ctx, A, B, opi_str_slice(ctx, X, Y, Z));
 			} break;
-/*
+
 			case OP_SETAT          : { // [SRC1], [SRC2], [SRC3]
 				LOAD_ABCDEF();
 				X = var_get(ctx, A, B);
-				if (!sink_typelist(X)){
-					ctx->failed = true;
-					return crr_warnStr(ctx, sink_format("Expecting list when setting index"));
-				}
+				if (!sink_typelist(X))
+					RETURN_FAIL("Expecting list when setting index");
 				Y = var_get(ctx, C, D);
-				if (!sink_typenum(Y)){
-					ctx->failed = true;
-					return crr_warnStr(ctx, sink_format("Expecting index to be number"));
-				}
-				if (Y < 0)
-					Y += X.length;
-				while (Y >= X.length)
-					X.push(NULL);
-				if (Y >= 0 && Y < X.length)
-					X[Y] = var_get(ctx, E, F);
+				if (!sink_typenum(Y))
+					RETURN_FAIL("Expecting index to be number");
+				ls = var_castlist(ctx, X);
+				Y.f = (int)Y.f;
+				if (Y.f < 0)
+					Y.f += ls->size;
+				opi_list_pushnils(ctx, ls, Y.f);
+				if (Y.f >= 0 && Y.f < ls->size)
+					ls->vals[(int)Y.f] = var_get(ctx, E, F);
 			} break;
 
 			case OP_SPLICE         : { // [SRC1], [SRC2], [SRC3], [SRC4]
 				LOAD_ABCDEFGH();
 				X = var_get(ctx, A, B);
-				if (!sink_typelist(X)){
-					ctx->failed = true;
-					return crr_warnStr(ctx, sink_format("Expecting list when splicing"));
-				}
+				if (!sink_typelist(X) && !sink_typestr(X))
+					RETURN_FAIL("Expecting list or string when splicing");
 				Y = var_get(ctx, C, D);
 				Z = var_get(ctx, E, F);
-				if (!sink_typenum(Y) || !sink_typenum(Z)){
-					ctx->failed = true;
-					return crr_warnStr(ctx, sink_format("Expecting splice values to be numbers"));
-				}
-				if (Y < 0)
-					Y += X.length;
-				if (Y + Z > X.length)
-					Z = X.length - Y;
+				if (!sink_typenum(Y) || !sink_typenum(Z))
+					RETURN_FAIL("Expecting splice values to be numbers");
 				W = var_get(ctx, G, H);
-				if (W == NULL){
-					if (Y >= 0 && Y < X.length)
-						X.splice(Y, Z);
-				}
-				else if (sink_typelist(W)){
-					if (Y >= 0 && Y < X.length){
-						var args = W.concat();
-						args.unshift(Z);
-						args.unshift(Y);
-						X.splice.apply(X, args);
-					}
+				if (sink_typelist(X)){
+					if (!sink_isnil(W) && !sink_typelist(W))
+						RETURN_FAIL("Expecting spliced value to be a list");
+					opi_list_splice(ctx, X, Y, Z, W);
 				}
 				else{
-					ctx->failed = true;
-					return crr_warnStr(ctx, sink_format("Expecting spliced value to be a list"));
+					abort();
+					// TODO: this
+					//if (!sink_isnil(W) && !sink_typestr(W))
+					//	RETURN_FAIL("Expecting spliced value to be a string");
+					//opi_str_splice(ctx, X, Y, Z, W);
 				}
 			} break;
-
+/*
 			case OP_JUMP           : { // [[LOCATION]]
 				LOAD_abcd();
 				A = A + (B << 8) + (C << 16) + ((D << 23) * 2);

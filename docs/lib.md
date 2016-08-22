@@ -378,7 +378,7 @@ List
 | `list.at ls, a`           | `ls[a]` (nil if out of range)                                       |
 | `list.cat ls1, ls2`       | `ls1 ~ ls2` (returns a new list)                                    |
 | `list.slice ls, a, b`     | `ls[a:b]` (returns a new list)                                      |
-| `list.splice ls, a, b, c` | `ls[a:b] = c`                                                       |
+| `list.splice ls, a, b, c` | `ls[a:b] = c` (returns `ls`)                                        |
 | `list.shift ls`           | Remova nd return the value at the start of `ls`                     |
 | `list.pop ls`             | Remove and return the value at the end of `ls`                      |
 | `list.push ls, b`         | Push `b` at end of list `ls` (returns `ls`)                         |
