@@ -311,7 +311,7 @@ void      sink_list_prepend(sink_ctx ctx, sink_val ls, sink_val ls2);
 sink_val  sink_list_find(sink_ctx ctx, sink_val ls, sink_val a, sink_val b);
 sink_val  sink_list_rfind(sink_ctx ctx, sink_val ls, sink_val a, sink_val b);
 sink_val  sink_list_join(sink_ctx ctx, sink_val ls, sink_val a);
-sink_val  sink_list_joinplain(sink_ctx ctx, sink_val *vals, int size, const char *sep);
+sink_val  sink_list_joinplain(sink_ctx ctx, sink_val *vals, int size, const uint8_t *sep, int sepz);
 void      sink_list_rev(sink_ctx ctx, sink_val ls);
 sink_val  sink_list_str(sink_ctx ctx, sink_val ls);
 void      sink_list_sort(sink_ctx ctx, sink_val ls);

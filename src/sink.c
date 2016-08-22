@@ -8242,6 +8242,18 @@ static sink_val triop_num_lerp(context ctx, sink_val a, sink_val b, sink_val c){
 // inline operators
 static inline void opi_warn(context ctx, sink_val *vals, int size);
 
+static inline bool opi_equ(context ctx, sink_val a, sink_val b){
+	if (sink_isnil(a) && sink_isnil(b))
+		return true;
+	else if (sink_typestr(a) && sink_typestr(b))
+		return str_cmp(var_caststr(ctx, a), var_caststr(ctx, b)) == 0;
+	else if (sink_typelist(a) && sink_typelist(b))
+		return a.u == b.u;
+	else if (sink_typenum(a) && sink_typenum(b))
+		return a.f == b.f;
+	return false;
+}
+
 static inline int opi_size(context ctx, sink_val a){
 	if (sink_typelist(a)){
 		sink_list ls = var_castlist(ctx, a);
@@ -8268,18 +8280,24 @@ static inline sink_val opi_tonum(context ctx, sink_val a){
 }
 
 static inline void opi_say(context ctx, sink_val *vals, int size){
-	if (ctx->f_say)
-		ctx->f_say(ctx, var_caststr(ctx, sink_list_joinplain(ctx, vals, size, " ")));
+	if (ctx->f_say){
+		ctx->f_say(ctx, var_caststr(ctx,
+			sink_list_joinplain(ctx, vals, size, (const uint8_t *)" ", 1)));
+	}
 }
 
 static inline void opi_warn(context ctx, sink_val *vals, int size){
-	if (ctx->f_warn)
-		ctx->f_warn(ctx, var_caststr(ctx, sink_list_joinplain(ctx, vals, size, " ")));
+	if (ctx->f_warn){
+		ctx->f_warn(ctx, var_caststr(ctx,
+			sink_list_joinplain(ctx, vals, size, (const uint8_t *)" ", 1)));
+	}
 }
 
 static inline sink_val opi_ask(context ctx, sink_val *vals, int size){
-	if (ctx->f_ask)
-		return ctx->f_ask(ctx, var_caststr(ctx, sink_list_joinplain(ctx, vals, size, " ")));
+	if (ctx->f_ask){
+		return ctx->f_ask(ctx, var_caststr(ctx,
+			sink_list_joinplain(ctx, vals, size, (const uint8_t *)" ", 1)));
+	}
 	return SINK_NIL;
 }
 
@@ -8398,6 +8416,16 @@ static inline sink_val opi_str_slice(context ctx, sink_val a, sink_val b, sink_v
 	if (start + len > s->size)
 		len = s->size - start;
 	return sink_str_newblob(ctx, &s->bytes[start], len);
+}
+
+static inline sink_val opi_list_new(context ctx, sink_val a, sink_val b){
+	int size = sink_isnil(a) ? 0 : a.f;
+	if (size <= 0)
+		return sink_list_newblob(ctx, NULL, 0);
+	sink_val *vals = mem_alloc(sizeof(sink_val) * size);
+	for (int i = 0; i < size; i++)
+		vals[i] = b;
+	return sink_list_newblobgive(ctx, vals, size, size);
 }
 
 static inline sink_val opi_list_at(context ctx, sink_val a, sink_val b){
@@ -8559,6 +8587,47 @@ static inline sink_val opi_list_prepend(context ctx, sink_val a, sink_val b){
 			memmove(&ls->vals[ls2->size], ls->vals, sizeof(sink_val) * ls->size);
 		memcpy(ls->vals, ls2->vals, sizeof(sink_val) * ls2->size);
 		ls->size += ls2->size;
+	}
+	return a;
+}
+
+static inline sink_val opi_list_find(context ctx, sink_val a, sink_val b, sink_val c){
+	sink_list ls = var_castlist(ctx, a);
+	int pos = (sink_isnil(c) || sink_num_isnan(c)) ? 0 : c.f;
+	if (pos < 0)
+		pos = 0;
+	for (; pos < ls->size; pos++){
+		if (opi_equ(ctx, ls->vals[pos], b))
+			return sink_num(pos);
+	}
+	return SINK_NIL;
+}
+
+static inline sink_val opi_list_rfind(context ctx, sink_val a, sink_val b, sink_val c){
+	sink_list ls = var_castlist(ctx, a);
+	int pos = (sink_isnil(c) || sink_num_isnan(c)) ? ls->size - 1 : c.f;
+	if (pos < 0 || pos >= ls->size)
+		pos = ls->size - 1;
+	for (; pos >= 0; pos--){
+		if (opi_equ(ctx, ls->vals[pos], b))
+			return sink_num(pos);
+	}
+	return SINK_NIL;
+}
+
+static inline sink_val opi_list_join(context ctx, sink_val a, sink_val b){
+	sink_list ls = var_castlist(ctx, a);
+	sink_str str = var_caststr(ctx, sink_tostr(ctx, b));
+	return sink_list_joinplain(ctx, ls->vals, ls->size, str->bytes, str->size);
+}
+
+static inline sink_val opi_list_rev(context ctx, sink_val a){
+	sink_list ls = var_castlist(ctx, a);
+	int max = ls->size / 2;
+	for (int i = 0, ri = ls->size - 1; i < max; i++, ri--){
+		sink_val temp = ls->vals[i];
+		ls->vals[i] = ls->vals[ri];
+		ls->vals[ri] = temp;
 	}
 	return a;
 }
@@ -8932,36 +9001,14 @@ static crr_enum context_run(context ctx){
 				LOAD_ABCDEF();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				if (sink_isnil(X) && sink_isnil(Y))
-					var_set(ctx, A, B, sink_bool(false));
-				else if (sink_typestr(X) && sink_typestr(Y)){
-					var_set(ctx, A, B,
-						sink_bool(str_cmp(var_caststr(ctx, X), var_caststr(ctx, Y)) != 0));
-				}
-				else if (sink_typelist(X) && sink_typelist(Y))
-					var_set(ctx, A, B, sink_bool(X.u != Y.u));
-				else if (sink_typenum(X) && sink_typenum(Y))
-					var_set(ctx, A, B, sink_bool(X.f != Y.f));
-				else
-					var_set(ctx, A, B, sink_bool(true));
+				var_set(ctx, A, B, sink_bool(!opi_equ(ctx, X, Y)));
 			} break;
 
 			case OP_EQU            : { // [TGT], [SRC1], [SRC2]
 				LOAD_ABCDEF();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				if (sink_isnil(X) && sink_isnil(Y))
-					var_set(ctx, A, B, sink_bool(true));
-				else if (sink_typestr(X) && sink_typestr(Y)){
-					var_set(ctx, A, B,
-						sink_bool(str_cmp(var_caststr(ctx, X), var_caststr(ctx, Y)) == 0));
-				}
-				else if (sink_typelist(X) && sink_typelist(Y))
-					var_set(ctx, A, B, sink_bool(X.u == Y.u));
-				else if (sink_typenum(X) && sink_typenum(Y))
-					var_set(ctx, A, B, sink_bool(X.f == Y.f));
-				else
-					var_set(ctx, A, B, sink_bool(false));
+				var_set(ctx, A, B, sink_bool(opi_equ(ctx, X, Y)));
 			} break;
 
 			case OP_GETAT          : { // [TGT], [SRC1], [SRC2]
@@ -9551,136 +9598,57 @@ static crr_enum context_run(context ctx){
 			case OP_STRUCT_LIST    : { // [TGT], [SRC1], [SRC2]
 				THROW("OP_STRUCT_LIST");
 			} break;
-/*
+
 			case OP_LIST_NEW       : { // [TGT], [SRC1], [SRC2]
-				ctx->pc++;
-				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
-				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
-				E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
-				if (A > ctx->lex_index || C > ctx->lex_index || E > ctx->lex_index)
-					return crr_invalid(ctx);
+				LOAD_ABCDEF();
 				X = var_get(ctx, C, D);
-				if (X == NULL)
-					X = 0;
-				else if (!sink_typenum(X)){
-					ctx->failed = true;
-					return crr_warnStr(sink_format('Expecting number for list.new']);
-				}
+				if (!sink_isnil(X) && !sink_typenum(X))
+					RETURN_FAIL("Expecting number for list.new");
 				Y = var_get(ctx, E, F);
-				var r = [];
-				for (var i = 0; i < X; i++)
-					r.push(Y);
-				var_set(ctx, A, B, r);
+				var_set(ctx, A, B, opi_list_new(ctx, X, Y));
 			} break;
 
 			case OP_LIST_FIND      : { // [TGT], [SRC1], [SRC2], [SRC3]
-				ctx->pc++;
-				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
-				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
-				E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
-				G = ops->bytes[ctx->pc++]; H = ops->bytes[ctx->pc++];
-				if (A > ctx->lex_index || C > ctx->lex_index || E > ctx->lex_index ||
-					G > ctx->lex_index)
-					return crr_invalid(ctx);
+				LOAD_ABCDEFGH();
 				X = var_get(ctx, C, D);
-				if (!sink_typelist(X)){
-					ctx->failed = true;
-					return crr_warnStr(ctx, sink_format("Expecting list for list.find"));
-				}
+				if (!sink_typelist(X))
+					RETURN_FAIL("Expecting list for list.find");
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
-				if (Z == NULL)
-					Z = 0;
-				else if (!sink_typenum(Z)){
-					ctx->failed = true;
-					return crr_warnStr(ctx, sink_format("Expecting number for list.find"));
-				}
-				if (Z < 0 || isNaN(Z))
-					Z = 0;
-				var found = false;
-				for (var i = Z; i < X.length; i++){
-					if (X[i] == Y){
-						var_set(ctx, A, B, i);
-						found = true;
-						break;
-					}
-				}
-				if (!found)
-					var_set(ctx, A, B, NULL);
+				if (!sink_isnil(Z) && !sink_typenum(Z))
+					RETURN_FAIL("Expecting number for list.find");
+				var_set(ctx, A, B, opi_list_find(ctx, X, Y, Z));
 			} break;
 
 			case OP_LIST_FINDREV   : { // [TGT], [SRC1], [SRC2], [SRC3]
-				ctx->pc++;
-				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
-				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
-				E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
-				G = ops->bytes[ctx->pc++]; H = ops->bytes[ctx->pc++];
-				if (A > ctx->lex_index || C > ctx->lex_index || E > ctx->lex_index ||
-					G > ctx->lex_index)
-					return crr_invalid(ctx);
+				LOAD_ABCDEFGH();
 				X = var_get(ctx, C, D);
-				if (!sink_typelist(X)){
-					ctx->failed = true;
-					return crr_warnStr(ctx, sink_format("Expecting list for list.find"));
-				}
+				if (!sink_typelist(X))
+					RETURN_FAIL("Expecting list for list.rfind");
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
-				if (Z == NULL)
-					Z = X.length - 1;
-				else if (!sink_typenum(Z)){
-					ctx->failed = true;
-					return crr_warnStr(ctx, sink_format("Expecting number for list.find"));
-				}
-				if (Z < 0 || isNaN(Z))
-					Z = X.length - 1;
-				var found = false;
-				for (var i = Z; i >= 0; i--){
-					if (X[i] == Y){
-						var_set(ctx, A, B, i);
-						found = true;
-						break;
-					}
-				}
-				if (!found)
-					var_set(ctx, A, B, NULL);
+				if (!sink_isnil(Z) && !sink_typenum(Z))
+					RETURN_FAIL("Expecting number for list.rfind");
+				var_set(ctx, A, B, opi_list_find(ctx, X, Y, Z));
 			} break;
 
 			case OP_LIST_JOIN      : { // [TGT], [SRC1], [SRC2]
-				ctx->pc++;
-				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
-				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
-				E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
-				if (A > ctx->lex_index || C > ctx->lex_index || E > ctx->lex_index)
-					return crr_invalid(ctx);
+				LOAD_ABCDEF();
 				X = var_get(ctx, C, D);
-				if (!sink_typelist(X)){
-					ctx->failed = true;
-					return crr_warnStr(ctx, sink_format("Expecting list for list.find"));
-				}
+				if (!sink_typelist(X))
+					RETURN_FAIL("Expecting list for list.find");
 				Y = var_get(ctx, E, F);
-				if (Y == NULL)
-					Y = '';
-				var out = [];
-				for (var i = 0; i < X.length; i++)
-					out.push(var_tostr(X[i]));
-				var_set(ctx, A, B, out.join(var_tostr(Y)));
+				var_set(ctx, A, B, opi_list_join(ctx, X, Y));
 			} break;
 
 			case OP_LIST_REV       : { // [TGT], [SRC]
-				ctx->pc++;
-				A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
-				C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
-				if (A > ctx->lex_index || C > ctx->lex_index)
-					return crr_invalid(ctx);
+				LOAD_ABCD();
 				X = var_get(ctx, C, D);
-				if (!sink_typelist(X)){
-					ctx->failed = true;
-					return crr_warnStr(ctx, sink_format("Expecting list for list.find"));
-				}
-				X.reverse();
-				var_set(ctx, A, B, X);
+				if (!sink_typelist(X))
+					RETURN_FAIL("Expecting list for list.find");
+				var_set(ctx, A, B, opi_list_rev(ctx, X));
 			} break;
-*/
+
 			case OP_LIST_STR       : { // [TGT], [SRC]
 				THROW("OP_LIST_STR");
 			} break;
@@ -9736,11 +9704,6 @@ static crr_enum context_run(context ctx){
 			case OP_RAND_SETSTATE: THROW("OP_RAND_SETSTATE"); break;
 			case OP_RAND_PICK: THROW("OP_RAND_PICK"); break;
 			case OP_RAND_SHUFFLE: THROW("OP_RAND_SHUFFLE"); break;
-			case OP_LIST_NEW: THROW("OP_LIST_NEW"); break;
-			case OP_LIST_FIND: THROW("OP_LIST_FIND"); break;
-			case OP_LIST_FINDREV: THROW("OP_LIST_FINDREV"); break;
-			case OP_LIST_JOIN: THROW("OP_LIST_JOIN"); break;
-			case OP_LIST_REV: THROW("OP_LIST_REV"); break;
 
 
 			default:
@@ -10498,13 +10461,12 @@ sink_val  sink_list_find(sink_ctx ctx, sink_val ls, sink_val a, sink_val b);
 sink_val  sink_list_rfind(sink_ctx ctx, sink_val ls, sink_val a, sink_val b);
 sink_val  sink_list_join(sink_ctx ctx, sink_val ls, sink_val a);
 */
-sink_val sink_list_joinplain(sink_ctx ctx, sink_val *vals, int size, const char *sep){
+sink_val sink_list_joinplain(sink_ctx ctx, sink_val *vals, int size, const uint8_t *sep, int sepz){
 	sink_val *strs = mem_alloc(sizeof(sink_val) * size);
 	int tot = 0;
-	int seplen = strlen(sep);
 	for (int i = 0; i < size; i++){
 		if (i > 0)
-			tot += seplen;
+			tot += sepz;
 		strs[i] = sink_tostr(ctx, vals[i]);
 		sink_str s = var_caststr(ctx, strs[i]);
 		tot += s->size;
@@ -10512,9 +10474,9 @@ sink_val sink_list_joinplain(sink_ctx ctx, sink_val *vals, int size, const char 
 	uint8_t *bytes = mem_alloc(sizeof(uint8_t) * tot);
 	int nb = 0;
 	for (int i = 0; i < size; i++){
-		if (i > 0 && seplen > 0){
-			memcpy(&bytes[nb], sep, sizeof(char) * seplen);
-			nb += seplen;
+		if (i > 0 && sepz > 0){
+			memcpy(&bytes[nb], sep, sizeof(uint8_t) * sepz);
+			nb += sepz;
 		}
 		sink_str s = var_caststr(ctx, strs[i]);
 		if (s->size > 0){

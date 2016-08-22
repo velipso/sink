@@ -6941,7 +6941,7 @@ function context_run(ctx){
 				X = var_get(ctx, C, D);
 				if (!var_islist(X)){
 					ctx.failed = true;
-					return crr_warn(['Expecting list for list.find']);
+					return crr_warn(['Expecting list for list.rfind']);
 				}
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
@@ -6949,7 +6949,7 @@ function context_run(ctx){
 					Z = X.length - 1;
 				else if (!var_isnum(Z)){
 					ctx.failed = true;
-					return crr_warn(['Expecting number for list.find']);
+					return crr_warn(['Expecting number for list.rfind']);
 				}
 				if (Z < 0 || isNaN(Z))
 					Z = X.length - 1;
