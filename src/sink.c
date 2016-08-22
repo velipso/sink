@@ -8440,7 +8440,7 @@ static inline void opi_list_pushnils(context ctx, sink_list ls, int totalsize){
 		ls->count = totalsize + sink_list_grow;
 		ls->vals = mem_realloc(ls->vals, sizeof(sink_val) * ls->count);
 	}
-	while (ls->size < totalsize)
+	while (ls->size <= totalsize)
 		ls->vals[ls->size++] = SINK_NIL;
 }
 
@@ -8956,77 +8956,81 @@ static crr_enum context_run(context ctx){
 					//opi_str_splice(ctx, X, Y, Z, W);
 				}
 			} break;
-/*
+
 			case OP_JUMP           : { // [[LOCATION]]
 				LOAD_abcd();
 				A = A + (B << 8) + (C << 16) + ((D << 23) * 2);
-				if (ctx.prg.repl && A == 0xFFFFFFFF){
-					ctx.pc -= 5;
+				if (ctx->prg->repl && A == -1){
+					ctx->pc -= 5;
 					return crr_repl();
 				}
-				ctx.pc = A;
+				ctx->pc = A;
 			} break;
 
 			case OP_JUMPTRUE       : { // [SRC], [[LOCATION]]
 				LOAD_ABcdef();
 				C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
-				if (var_get(ctx, A, B) != NULL){
-					if (ctx.prg.repl && C == 0xFFFFFFFF){
-						ctx.pc -= 7;
+				if (!sink_isnil(var_get(ctx, A, B))){
+					if (ctx->prg->repl && C == -1){
+						ctx->pc -= 7;
 						return crr_repl();
 					}
-					ctx.pc = C;
+					ctx->pc = C;
 				}
 			} break;
 
 			case OP_JUMPFALSE      : { // [SRC], [[LOCATION]]
 				LOAD_ABcdef();
 				C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
-				if (var_get(ctx, A, B) == NULL){
-					if (ctx.prg.repl && C == 0xFFFFFFFF){
-						ctx.pc -= 7;
+				if (sink_isnil(var_get(ctx, A, B))){
+					if (ctx->prg->repl && C == -1){
+						ctx->pc -= 7;
 						return crr_repl();
 					}
-					ctx.pc = C;
+					ctx->pc = C;
 				}
 			} break;
 
 			case OP_CALL           : { // [TGT], [SRC], LEVEL, [[LOCATION]]
 				LOAD_ABCDefghi();
 				F = F + (G << 8) + (H << 16) + ((I << 23) * 2);
-				if (ctx.prg.repl && F == 0xFFFFFFFF){
-					ctx.pc -= 10;
+				if (ctx->prg->repl && F == -1){
+					ctx->pc -= 10;
 					return crr_repl();
 				}
 				X = var_get(ctx, C, D);
 				if (!sink_typelist(X)){
-					ctx->failed = true;
-					return crr_warnStr(ctx, sink_format("Expecting list when calling function"));
+					X = sink_str_newcstr(ctx, "Expecting list when calling function");
+					opi_warn(ctx, &X, 1);
+					return crr_exitfail(ctx);
 				}
-				ctx.call_stk.push(ccs_new(ctx.pc, A, B, ctx->lex_index));
+				list_ptr_push(ctx->call_stk, ccs_new(ctx->pc, A, B, ctx->lex_index));
 				ctx->lex_index = ctx->lex_index - E + 1;
-				while (ctx->lex_index >= ctx.lex_stk.length)
-					ctx.lex_stk.push(NULL);
-				ctx.lex_stk[ctx->lex_index] = lxs_new(X, ctx.lex_stk[ctx->lex_index]);
-				ctx.pc = F;
+				while (ctx->lex_index >= ctx->lex_stk->size)
+					list_ptr_push(ctx->lex_stk, NULL);
+				ctx->lex_stk->ptrs[ctx->lex_index] = lxs_new(X, ctx->lex_stk->ptrs[ctx->lex_index]);
+				ctx->pc = F;
 			} break;
-*/
+
 			case OP_NATIVE         : { // [TGT], [SRC], [INDEX]
 				THROW("OP_NATIVE");
 			} break;
-/*
+
 			case OP_RETURN         : { // [SRC]
-				if (ctx.call_stk.length <= 0)
+				if (ctx->call_stk->size <= 0)
 					return crr_exitpass(ctx);
 				LOAD_AB();
 				X = var_get(ctx, A, B);
-				var s = ctx.call_stk.pop();
-				ctx.lex_stk[ctx->lex_index] = ctx.lex_stk[ctx->lex_index].next;
-				ctx->lex_index = s.lex_index;
-				var_set(ctx, s.fdiff, s.index, X);
-				ctx.pc = s.pc;
+				ccs s = list_ptr_pop(ctx->call_stk);
+				lxs lx = ctx->lex_stk->ptrs[ctx->lex_index];
+				ctx->lex_stk->ptrs[ctx->lex_index] = lx->next;
+				lxs_free(lx);
+				ctx->lex_index = s->lex_index;
+				var_set(ctx, s->fdiff, s->index, X);
+				ctx->pc = s->pc;
+				ccs_free(s);
 			} break;
-*/
+
 			case OP_SAY            : { // [TGT], [SRC...]
 				LOAD_ABCD();
 				X = var_get(ctx, C, D);
@@ -9710,6 +9714,68 @@ static crr_enum context_run(context ctx){
 			case OP_PICKLE_VAL     : { // [TGT], [SRC]
 				THROW("OP_PICKLE_VAL");
 			} break;
+
+
+
+			case OP_NUM_ABS: THROW("OP_NUM_ABS"); break;
+			case OP_NUM_SIGN: THROW("OP_NUM_SIGN"); break;
+			case OP_NUM_MAX: THROW("OP_NUM_MAX"); break;
+			case OP_NUM_MIN: THROW("OP_NUM_MIN"); break;
+			case OP_NUM_CLAMP: THROW("OP_NUM_CLAMP"); break;
+			case OP_NUM_FLOOR: THROW("OP_NUM_FLOOR"); break;
+			case OP_NUM_CEIL: THROW("OP_NUM_CEIL"); break;
+			case OP_NUM_ROUND: THROW("OP_NUM_ROUND"); break;
+			case OP_NUM_TRUNC: THROW("OP_NUM_TRUNC"); break;
+			case OP_NUM_NAN: THROW("OP_NUM_NAN"); break;
+			case OP_NUM_INF: THROW("OP_NUM_INF"); break;
+			case OP_NUM_ISNAN: THROW("OP_NUM_ISNAN"); break;
+			case OP_NUM_ISFINITE: THROW("OP_NUM_ISFINITE"); break;
+			case OP_NUM_E: THROW("OP_NUM_E"); break;
+			case OP_NUM_PI: THROW("OP_NUM_PI"); break;
+			case OP_NUM_TAU: THROW("OP_NUM_TAU"); break;
+			case OP_NUM_SIN: THROW("OP_NUM_SIN"); break;
+			case OP_NUM_COS: THROW("OP_NUM_COS"); break;
+			case OP_NUM_TAN: THROW("OP_NUM_TAN"); break;
+			case OP_NUM_ASIN: THROW("OP_NUM_ASIN"); break;
+			case OP_NUM_ACOS: THROW("OP_NUM_ACOS"); break;
+			case OP_NUM_ATAN: THROW("OP_NUM_ATAN"); break;
+			case OP_NUM_ATAN2: THROW("OP_NUM_ATAN2"); break;
+			case OP_NUM_LOG: THROW("OP_NUM_LOG"); break;
+			case OP_NUM_LOG2: THROW("OP_NUM_LOG2"); break;
+			case OP_NUM_LOG10: THROW("OP_NUM_LOG10"); break;
+			case OP_NUM_EXP: THROW("OP_NUM_EXP"); break;
+			case OP_NUM_LERP: THROW("OP_NUM_LERP"); break;
+			case OP_NUM_HEX: THROW("OP_NUM_HEX"); break;
+			case OP_NUM_OCT: THROW("OP_NUM_OCT"); break;
+			case OP_NUM_BIN: THROW("OP_NUM_BIN"); break;
+			case OP_INT_CAST: THROW("OP_INT_CAST"); break;
+			case OP_INT_NOT: THROW("OP_INT_NOT"); break;
+			case OP_INT_AND: THROW("OP_INT_AND"); break;
+			case OP_INT_OR: THROW("OP_INT_OR"); break;
+			case OP_INT_XOR: THROW("OP_INT_XOR"); break;
+			case OP_INT_SHL: THROW("OP_INT_SHL"); break;
+			case OP_INT_SHR: THROW("OP_INT_SHR"); break;
+			case OP_INT_SAR: THROW("OP_INT_SAR"); break;
+			case OP_INT_ADD: THROW("OP_INT_ADD"); break;
+			case OP_INT_SUB: THROW("OP_INT_SUB"); break;
+			case OP_INT_MUL: THROW("OP_INT_MUL"); break;
+			case OP_INT_DIV: THROW("OP_INT_DIV"); break;
+			case OP_INT_MOD: THROW("OP_INT_MOD"); break;
+			case OP_INT_CLZ: THROW("OP_INT_CLZ"); break;
+			case OP_RAND_SEED: THROW("OP_RAND_SEED"); break;
+			case OP_RAND_SEEDAUTO: THROW("OP_RAND_SEEDAUTO"); break;
+			case OP_RAND_INT: THROW("OP_RAND_INT"); break;
+			case OP_RAND_NUM: THROW("OP_RAND_NUM"); break;
+			case OP_RAND_GETSTATE: THROW("OP_RAND_GETSTATE"); break;
+			case OP_RAND_SETSTATE: THROW("OP_RAND_SETSTATE"); break;
+			case OP_RAND_PICK: THROW("OP_RAND_PICK"); break;
+			case OP_RAND_SHUFFLE: THROW("OP_RAND_SHUFFLE"); break;
+			case OP_LIST_NEW: THROW("OP_LIST_NEW"); break;
+			case OP_LIST_FIND: THROW("OP_LIST_FIND"); break;
+			case OP_LIST_FINDREV: THROW("OP_LIST_FINDREV"); break;
+			case OP_LIST_JOIN: THROW("OP_LIST_JOIN"); break;
+			case OP_LIST_REV: THROW("OP_LIST_REV"); break;
+
 
 			default:
 				debugf("invalid opcode %02X", ops->bytes[ctx->pc]);

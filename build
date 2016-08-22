@@ -194,8 +194,10 @@ run_tests() {
 			status=$?
 			set -e
 		else
-			echo TODO
-			exit 1
+			set +e
+			$TGT_DIR/sink "$test_dir"/"$test_name".sink "$test_name" > "$out" 2>"$err"
+			status=$?
+			set -e
 		fi
 
 		if [ -e "$test_dir"/pass.txt ]; then
