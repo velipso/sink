@@ -12,144 +12,152 @@ function varloc_new(fdiff, index){
 	return { fdiff: fdiff, index: index };
 }
 
-var OP_NOP            = 0x00; //
-var OP_EXIT           = 0x01; // [SRC...]
-var OP_ABORT          = 0x02; // [SRC...]
-var OP_ABORTERR       = 0x03; // ERRNO
-var OP_MOVE           = 0x04; // [TGT], [SRC]
-var OP_INC            = 0x05; // [TGT/SRC]
-var OP_NIL            = 0x06; // [TGT]
-var OP_NUMPOS         = 0x07; // [TGT], [VALUE]
-var OP_NUMNEG         = 0x08; // [TGT], [VALUE]
-var OP_NUMTBL         = 0x09; // [TGT], [INDEX]
-var OP_STR            = 0x0A; // [TGT], [INDEX]
-var OP_LIST           = 0x0B; // [TGT], HINT
-var OP_REST           = 0x0C; // [TGT], [SRC1], [SRC2]
-var OP_NEG            = 0x0D; // [TGT], [SRC]
-var OP_NOT            = 0x0E; // [TGT], [SRC]
-var OP_SIZE           = 0x0F; // [TGT], [SRC]
-var OP_TONUM          = 0x10; // [TGT], [SRC]
-var OP_SHIFT          = 0x11; // [TGT], [SRC]
-var OP_POP            = 0x12; // [TGT], [SRC]
-var OP_ISNUM          = 0x13; // [TGT], [SRC]
-var OP_ISSTR          = 0x14; // [TGT], [SRC]
-var OP_ISLIST         = 0x15; // [TGT], [SRC]
-var OP_ADD            = 0x16; // [TGT], [SRC1], [SRC2]
-var OP_SUB            = 0x17; // [TGT], [SRC1], [SRC2]
-var OP_MUL            = 0x18; // [TGT], [SRC1], [SRC2]
-var OP_DIV            = 0x19; // [TGT], [SRC1], [SRC2]
-var OP_MOD            = 0x1A; // [TGT], [SRC1], [SRC2]
-var OP_POW            = 0x1B; // [TGT], [SRC1], [SRC2]
-var OP_CAT            = 0x1C; // [TGT], [SRC1], [SRC2]
-var OP_PUSH           = 0x1D; // [TGT], [SRC1], [SRC2]
-var OP_UNSHIFT        = 0x1E; // [TGT], [SRC1], [SRC2]
-var OP_APPEND         = 0x1F; // [TGT], [SRC1], [SRC2]
-var OP_PREPEND        = 0x20; // [TGT], [SRC1], [SRC2]
-var OP_LT             = 0x21; // [TGT], [SRC1], [SRC2]
-var OP_LTE            = 0x22; // [TGT], [SRC1], [SRC2]
-var OP_NEQ            = 0x23; // [TGT], [SRC1], [SRC2]
-var OP_EQU            = 0x24; // [TGT], [SRC1], [SRC2]
-var OP_GETAT          = 0x25; // [TGT], [SRC1], [SRC2]
-var OP_SLICE          = 0x26; // [TGT], [SRC1], [SRC2], [SRC3]
-var OP_SETAT          = 0x27; // [SRC1], [SRC2], [SRC3]
-var OP_SPLICE         = 0x28; // [SRC1], [SRC2], [SRC3], [SRC4]
-var OP_JUMP           = 0x29; // [[LOCATION]]
-var OP_JUMPTRUE       = 0x2A; // [SRC], [[LOCATION]]
-var OP_JUMPFALSE      = 0x2B; // [SRC], [[LOCATION]]
-var OP_CALL           = 0x2C; // [TGT], [SRC], LEVEL, [[LOCATION]]
-var OP_NATIVE         = 0x2D; // [TGT], [SRC], [INDEX]
-var OP_RETURN         = 0x2E; // [SRC]
-var OP_SAY            = 0x2F; // [TGT], [SRC...]
-var OP_WARN           = 0x30; // [TGT], [SRC...]
-var OP_ASK            = 0x31; // [TGT], [SRC...]
-var OP_NUM_ABS        = 0x32; // [TGT], [SRC]
-var OP_NUM_SIGN       = 0x33; // [TGT], [SRC]
-var OP_NUM_MAX        = 0x34; // [TGT], [SRC...]
-var OP_NUM_MIN        = 0x35; // [TGT], [SRC...]
-var OP_NUM_CLAMP      = 0x36; // [TGT], [SRC1], [SRC2], [SRC3]
-var OP_NUM_FLOOR      = 0x37; // [TGT], [SRC]
-var OP_NUM_CEIL       = 0x38; // [TGT], [SRC]
-var OP_NUM_ROUND      = 0x39; // [TGT], [SRC]
-var OP_NUM_TRUNC      = 0x3A; // [TGT], [SRC]
-var OP_NUM_NAN        = 0x3B; // [TGT]
-var OP_NUM_INF        = 0x3C; // [TGT]
-var OP_NUM_ISNAN      = 0x3D; // [TGT], [SRC]
-var OP_NUM_ISFINITE   = 0x3E; // [TGT], [SRC]
-var OP_NUM_E          = 0x3F; // [TGT]
-var OP_NUM_PI         = 0x40; // [TGT]
-var OP_NUM_TAU        = 0x41; // [TGT]
-var OP_NUM_SIN        = 0x42; // [TGT], [SRC]
-var OP_NUM_COS        = 0x43; // [TGT], [SRC]
-var OP_NUM_TAN        = 0x44; // [TGT], [SRC]
-var OP_NUM_ASIN       = 0x45; // [TGT], [SRC]
-var OP_NUM_ACOS       = 0x46; // [TGT], [SRC]
-var OP_NUM_ATAN       = 0x47; // [TGT], [SRC]
-var OP_NUM_ATAN2      = 0x48; // [TGT], [SRC1], [SRC2]
-var OP_NUM_LOG        = 0x49; // [TGT], [SRC]
-var OP_NUM_LOG2       = 0x4A; // [TGT], [SRC]
-var OP_NUM_LOG10      = 0x4B; // [TGT], [SRC]
-var OP_NUM_EXP        = 0x4C; // [TGT], [SRC]
-var OP_NUM_LERP       = 0x4D; // [TGT], [SRC1], [SRC2], [SRC3]
-var OP_NUM_HEX        = 0x4E; // [TGT], [SRC1], [SRC2]
-var OP_NUM_OCT        = 0x4F; // [TGT], [SRC1], [SRC2]
-var OP_NUM_BIN        = 0x50; // [TGT], [SRC1], [SRC2]
-var OP_INT_CAST       = 0x51; // [TGT], [SRC]
-var OP_INT_NOT        = 0x52; // [TGT], [SRC]
-var OP_INT_AND        = 0x53; // [TGT], [SRC1], [SRC2]
-var OP_INT_OR         = 0x54; // [TGT], [SRC1], [SRC2]
-var OP_INT_XOR        = 0x55; // [TGT], [SRC1], [SRC2]
-var OP_INT_SHL        = 0x56; // [TGT], [SRC1], [SRC2]
-var OP_INT_SHR        = 0x57; // [TGT], [SRC1], [SRC2]
-var OP_INT_SAR        = 0x58; // [TGT], [SRC1], [SRC2]
-var OP_INT_ADD        = 0x59; // [TGT], [SRC1], [SRC2]
-var OP_INT_SUB        = 0x5A; // [TGT], [SRC1], [SRC2]
-var OP_INT_MUL        = 0x5B; // [TGT], [SRC1], [SRC2]
-var OP_INT_DIV        = 0x5C; // [TGT], [SRC1], [SRC2]
-var OP_INT_MOD        = 0x5D; // [TGT], [SRC1], [SRC2]
-var OP_INT_CLZ        = 0x5E; // [TGT], [SRC]
-var OP_RAND_SEED      = 0x5F; // [TGT], [SRC]
-var OP_RAND_SEEDAUTO  = 0x60; // [TGT]
-var OP_RAND_INT       = 0x61; // [TGT]
-var OP_RAND_NUM       = 0x62; // [TGT]
-var OP_RAND_GETSTATE  = 0x63; // [TGT]
-var OP_RAND_SETSTATE  = 0x64; // [TGT], [SRC]
-var OP_RAND_PICK      = 0x65; // [TGT], [SRC]
-var OP_RAND_SHUFFLE   = 0x66; // [TGT], [SRC]
-var OP_STR_NEW        = 0x67; // [TGT], [SRC1], [SRC2]
-var OP_STR_SPLIT      = 0x68; // [TGT], [SRC1], [SRC2]
-var OP_STR_REPLACE    = 0x69; // [TGT], [SRC1], [SRC2], [SRC3]
-var OP_STR_STARTSWITH = 0x6A; // [TGT], [SRC1], [SRC2]
-var OP_STR_ENDSWITH   = 0x6B; // [TGT], [SRC1], [SRC2]
-var OP_STR_PAD        = 0x6C; // [TGT], [SRC1], [SRC2]
-var OP_STR_FIND       = 0x6D; // [TGT], [SRC1], [SRC2], [SRC3]
-var OP_STR_FINDREV    = 0x6E; // [TGT], [SRC1], [SRC2], [SRC3]
-var OP_STR_LOWER      = 0x6F; // [TGT], [SRC]
-var OP_STR_UPPER      = 0x70; // [TGT], [SRC]
-var OP_STR_TRIM       = 0x71; // [TGT], [SRC]
-var OP_STR_REV        = 0x72; // [TGT], [SRC]
-var OP_STR_LIST       = 0x73; // [TGT], [SRC]
-var OP_STR_BYTE       = 0x74; // [TGT], [SRC1], [SRC2]
-var OP_STR_HASH       = 0x75; // [TGT], [SRC1], [SRC2]
-var OP_UTF8_VALID     = 0x76; // [TGT], [SRC]
-var OP_UTF8_LIST      = 0x77; // [TGT], [SRC]
-var OP_UTF8_STR       = 0x78; // [TGT], [SRC]
-var OP_STRUCT_SIZE    = 0x79; // [TGT], [SRC]
-var OP_STRUCT_STR     = 0x7A; // [TGT], [SRC1], [SRC2]
-var OP_STRUCT_LIST    = 0x7B; // [TGT], [SRC1], [SRC2]
-var OP_LIST_NEW       = 0x7C; // [TGT], [SRC1], [SRC2]
-var OP_LIST_FIND      = 0x7D; // [TGT], [SRC1], [SRC2], [SRC3]
-var OP_LIST_FINDREV   = 0x7E; // [TGT], [SRC1], [SRC2], [SRC3]
-var OP_LIST_JOIN      = 0x7F; // [TGT], [SRC1], [SRC2]
-var OP_LIST_REV       = 0x80; // [TGT], [SRC]
-var OP_LIST_STR       = 0x81; // [TGT], [SRC]
-var OP_LIST_SORT      = 0x82; // [TGT], [SRC]
-var OP_LIST_SORTREV   = 0x83; // [TGT], [SRC]
-var OP_LIST_SORTCMP   = 0x84; // [TGT], [SRC1], [SRC2]
-var OP_PICKLE_VALID   = 0x85; // [TGT], [SRC]
-var OP_PICKLE_STR     = 0x86; // [TGT], [SRC]
-var OP_PICKLE_VAL     = 0x87; // [TGT], [SRC]
+var OP_NOP           = 0x00; //
+var OP_ABORTERR      = 0x01; // ERRNO
+var OP_MOVE          = 0x02; // [TGT], [SRC]
+var OP_INC           = 0x03; // [TGT/SRC]
+var OP_NIL           = 0x04; // [TGT]
+var OP_NUMPOS        = 0x05; // [TGT], [VALUE]
+var OP_NUMNEG        = 0x06; // [TGT], [VALUE]
+var OP_NUMTBL        = 0x07; // [TGT], [INDEX]
+var OP_STR           = 0x08; // [TGT], [INDEX]
+var OP_LIST          = 0x09; // [TGT], HINT
+var OP_ISNUM         = 0x0A; // [TGT], [SRC]
+var OP_ISSTR         = 0x0B; // [TGT], [SRC]
+var OP_ISLIST        = 0x0C; // [TGT], [SRC]
+var OP_NOT           = 0x0D; // [TGT], [SRC]
+var OP_SIZE          = 0x0E; // [TGT], [SRC]
+var OP_TONUM         = 0x0F; // [TGT], [SRC]
+var OP_CAT           = 0x10; // [TGT], [SRC1], [SRC2]
+var OP_LT            = 0x11; // [TGT], [SRC1], [SRC2]
+var OP_LTE           = 0x12; // [TGT], [SRC1], [SRC2]
+var OP_NEQ           = 0x13; // [TGT], [SRC1], [SRC2]
+var OP_EQU           = 0x14; // [TGT], [SRC1], [SRC2]
+var OP_GETAT         = 0x15; // [TGT], [SRC1], [SRC2]
+var OP_SLICE         = 0x16; // [TGT], [SRC1], [SRC2], [SRC3]
+var OP_SETAT         = 0x17; // [SRC1], [SRC2], [SRC3]
+var OP_SPLICE        = 0x18; // [SRC1], [SRC2], [SRC3], [SRC4]
+var OP_JUMP          = 0x19; // [[LOCATION]]
+var OP_JUMPTRUE      = 0x1A; // [SRC], [[LOCATION]]
+var OP_JUMPFALSE     = 0x1B; // [SRC], [[LOCATION]]
+var OP_CALL          = 0x1C; // [TGT], [SRC], LEVEL, [[LOCATION]]
+var OP_NATIVE        = 0x1D; // [TGT], [SRC], [INDEX]
+var OP_RETURN        = 0x1E; // [SRC]
+var OP_SAY           = 0x1F; // [TGT], [SRC...]
+var OP_WARN          = 0x20; // [TGT], [SRC...]
+var OP_ASK           = 0x21; // [TGT], [SRC...]
+var OP_EXIT          = 0x22; // [TGT], [SRC...]
+var OP_ABORT         = 0x23; // [TGT], [SRC...]
+var OP_NUM_NEG       = 0x24; // [TGT], [SRC]
+var OP_NUM_ADD       = 0x25; // [TGT], [SRC1], [SRC2]
+var OP_NUM_SUB       = 0x26; // [TGT], [SRC1], [SRC2]
+var OP_NUM_MUL       = 0x27; // [TGT], [SRC1], [SRC2]
+var OP_NUM_DIV       = 0x28; // [TGT], [SRC1], [SRC2]
+var OP_NUM_MOD       = 0x29; // [TGT], [SRC1], [SRC2]
+var OP_NUM_POW       = 0x2A; // [TGT], [SRC1], [SRC2]
+var OP_NUM_ABS       = 0x2B; // [TGT], [SRC]
+var OP_NUM_SIGN      = 0x2C; // [TGT], [SRC]
+var OP_NUM_MAX       = 0x2D; // [TGT], [SRC...]
+var OP_NUM_MIN       = 0x2E; // [TGT], [SRC...]
+var OP_NUM_CLAMP     = 0x2F; // [TGT], [SRC1], [SRC2], [SRC3]
+var OP_NUM_FLOOR     = 0x30; // [TGT], [SRC]
+var OP_NUM_CEIL      = 0x31; // [TGT], [SRC]
+var OP_NUM_ROUND     = 0x32; // [TGT], [SRC]
+var OP_NUM_TRUNC     = 0x33; // [TGT], [SRC]
+var OP_NUM_NAN       = 0x34; // [TGT]
+var OP_NUM_INF       = 0x35; // [TGT]
+var OP_NUM_ISNAN     = 0x36; // [TGT], [SRC]
+var OP_NUM_ISFINITE  = 0x37; // [TGT], [SRC]
+var OP_NUM_E         = 0x38; // [TGT]
+var OP_NUM_PI        = 0x39; // [TGT]
+var OP_NUM_TAU       = 0x3A; // [TGT]
+var OP_NUM_SIN       = 0x3B; // [TGT], [SRC]
+var OP_NUM_COS       = 0x3C; // [TGT], [SRC]
+var OP_NUM_TAN       = 0x3D; // [TGT], [SRC]
+var OP_NUM_ASIN      = 0x3E; // [TGT], [SRC]
+var OP_NUM_ACOS      = 0x3F; // [TGT], [SRC]
+var OP_NUM_ATAN      = 0x40; // [TGT], [SRC]
+var OP_NUM_ATAN2     = 0x41; // [TGT], [SRC1], [SRC2]
+var OP_NUM_LOG       = 0x42; // [TGT], [SRC]
+var OP_NUM_LOG2      = 0x43; // [TGT], [SRC]
+var OP_NUM_LOG10     = 0x44; // [TGT], [SRC]
+var OP_NUM_EXP       = 0x45; // [TGT], [SRC]
+var OP_NUM_LERP      = 0x46; // [TGT], [SRC1], [SRC2], [SRC3]
+var OP_NUM_HEX       = 0x47; // [TGT], [SRC1], [SRC2]
+var OP_NUM_OCT       = 0x48; // [TGT], [SRC1], [SRC2]
+var OP_NUM_BIN       = 0x49; // [TGT], [SRC1], [SRC2]
+var OP_INT_NEW       = 0x4A; // [TGT], [SRC]
+var OP_INT_NOT       = 0x4B; // [TGT], [SRC]
+var OP_INT_AND       = 0x4C; // [TGT], [SRC1], [SRC2]
+var OP_INT_OR        = 0x4D; // [TGT], [SRC1], [SRC2]
+var OP_INT_XOR       = 0x4E; // [TGT], [SRC1], [SRC2]
+var OP_INT_SHL       = 0x4F; // [TGT], [SRC1], [SRC2]
+var OP_INT_SHR       = 0x50; // [TGT], [SRC1], [SRC2]
+var OP_INT_SAR       = 0x51; // [TGT], [SRC1], [SRC2]
+var OP_INT_ADD       = 0x52; // [TGT], [SRC1], [SRC2]
+var OP_INT_SUB       = 0x53; // [TGT], [SRC1], [SRC2]
+var OP_INT_MUL       = 0x54; // [TGT], [SRC1], [SRC2]
+var OP_INT_DIV       = 0x55; // [TGT], [SRC1], [SRC2]
+var OP_INT_MOD       = 0x56; // [TGT], [SRC1], [SRC2]
+var OP_INT_CLZ       = 0x57; // [TGT], [SRC]
+var OP_RAND_SEED     = 0x58; // [TGT], [SRC]
+var OP_RAND_SEEDAUTO = 0x59; // [TGT]
+var OP_RAND_INT      = 0x5A; // [TGT]
+var OP_RAND_NUM      = 0x5B; // [TGT]
+var OP_RAND_GETSTATE = 0x5C; // [TGT]
+var OP_RAND_SETSTATE = 0x5D; // [TGT], [SRC]
+var OP_RAND_PICK     = 0x5E; // [TGT], [SRC]
+var OP_RAND_SHUFFLE  = 0x5F; // [TGT], [SRC]
+var OP_STR_NEW       = 0x60; // [TGT], [SRC...]
+var OP_STR_SPLIT     = 0x61; // [TGT], [SRC1], [SRC2]
+var OP_STR_REPLACE   = 0x62; // [TGT], [SRC1], [SRC2], [SRC3]
+var OP_STR_BEGINS    = 0x63; // [TGT], [SRC1], [SRC2]
+var OP_STR_ENDS      = 0x64; // [TGT], [SRC1], [SRC2]
+var OP_STR_PAD       = 0x65; // [TGT], [SRC1], [SRC2]
+var OP_STR_FIND      = 0x66; // [TGT], [SRC1], [SRC2], [SRC3]
+var OP_STR_RFIND     = 0x67; // [TGT], [SRC1], [SRC2], [SRC3]
+var OP_STR_LOWER     = 0x68; // [TGT], [SRC]
+var OP_STR_UPPER     = 0x69; // [TGT], [SRC]
+var OP_STR_TRIM      = 0x6A; // [TGT], [SRC]
+var OP_STR_REV       = 0x6B; // [TGT], [SRC]
+var OP_STR_REP       = 0x6C; // [TGT], [SRC]
+var OP_STR_LIST      = 0x6D; // [TGT], [SRC]
+var OP_STR_BYTE      = 0x6E; // [TGT], [SRC1], [SRC2]
+var OP_STR_HASH      = 0x6F; // [TGT], [SRC1], [SRC2]
+var OP_UTF8_VALID    = 0x70; // [TGT], [SRC]
+var OP_UTF8_LIST     = 0x71; // [TGT], [SRC]
+var OP_UTF8_STR      = 0x72; // [TGT], [SRC]
+var OP_STRUCT_SIZE   = 0x73; // [TGT], [SRC]
+var OP_STRUCT_STR    = 0x74; // [TGT], [SRC1], [SRC2]
+var OP_STRUCT_LIST   = 0x75; // [TGT], [SRC1], [SRC2]
+var OP_LIST_NEW      = 0x76; // [TGT], [SRC1], [SRC2]
+var OP_LIST_SHIFT    = 0x77; // [TGT], [SRC]
+var OP_LIST_POP      = 0x78; // [TGT], [SRC]
+var OP_LIST_PUSH     = 0x79; // [TGT], [SRC1], [SRC2]
+var OP_LIST_UNSHIFT  = 0x7A; // [TGT], [SRC1], [SRC2]
+var OP_LIST_APPEND   = 0x7B; // [TGT], [SRC1], [SRC2]
+var OP_LIST_PREPEND  = 0x7C; // [TGT], [SRC1], [SRC2]
+var OP_LIST_FIND     = 0x7D; // [TGT], [SRC1], [SRC2], [SRC3]
+var OP_LIST_RFIND    = 0x7E; // [TGT], [SRC1], [SRC2], [SRC3]
+var OP_LIST_JOIN     = 0x7F; // [TGT], [SRC1], [SRC2]
+var OP_LIST_REV      = 0x80; // [TGT], [SRC]
+var OP_LIST_STR      = 0x81; // [TGT], [SRC]
+var OP_LIST_SORT     = 0x82; // [TGT], [SRC]
+var OP_LIST_RSORT    = 0x83; // [TGT], [SRC]
+var OP_LIST_SORTCMP  = 0x84; // [TGT], [SRC1], [SRC2]
+var OP_PICKLE_VALID  = 0x85; // [TGT], [SRC]
+var OP_PICKLE_STR    = 0x86; // [TGT], [SRC]
+var OP_PICKLE_VAL    = 0x87; // [TGT], [SRC]
+var OP_TASK_ID       = 0x88; // [TGT]
+var OP_TASK_FORK     = 0x89; // [TGT]
+var OP_TASK_SEND     = 0x8A; // [TGT], [SRC1], [SRC2]
+var OP_TASK_RECV     = 0x8B; // [TGT]
+var OP_TASK_PEEK     = 0x8C; // [TGT]
+var OP_GC_GET        = 0x8D; // [TGT]
+var OP_GC_SET        = 0x8E; // [TGT], [SRC]
+var OP_GC_RUN        = 0x8F; // [TGT]
 
-var ABORT_LISTFUNC    = 0x01;
+var ABORT_LISTFUNC   = 0x01;
 
 function oplog(){
 	return;
@@ -161,21 +169,6 @@ function oplog(){
 		out += (i == 1 ? ' ' : ', ') + a;
 	}
 	console.error('> ' + out);
-}
-
-function op_nop(b){
-	oplog('NOP');
-	b.push(OP_NOP);
-}
-
-function op_exit(b, src){
-	oplog('EXIT', src);
-	b.push(OP_EXIT, src.fdiff, src.index);
-}
-
-function op_abort(b, src){
-	oplog('ABORT', src);
-	b.push(OP_ABORT, src.fdiff, src.index);
 }
 
 function op_aborterr(b, errno){
@@ -210,7 +203,7 @@ function op_num(b, tgt, num){
 	}
 }
 
-function op_num_tbl(b, tgt, index){
+function op_numtbl(b, tgt, index){
 	oplog('NUMTBL', tgt, index);
 	b.push(OP_NUMTBL, tgt.fdiff, tgt.index, index % 256, Math.floor(index / 256));
 }
@@ -227,22 +220,17 @@ function op_list(b, tgt, hint){
 	b.push(OP_LIST, tgt.fdiff, tgt.index, hint);
 }
 
-function op_rest(b, tgt, src1, src2){
-	oplog('REST', tgt, src1, src2);
-	b.push(OP_REST, tgt.fdiff, tgt.index, src1.fdiff, src1.index, src2.fdiff, src2.index);
-}
-
 function op_unop(b, opcode, tgt, src){
 	var opstr = '???';
-	if      (opcode == OP_NEG   ) opstr = 'NEG';
-	else if (opcode == OP_NOT   ) opstr = 'NOT';
-	else if (opcode == OP_SIZE  ) opstr = 'SIZE';
-	else if (opcode == OP_TONUM ) opstr = 'TONUM';
-	else if (opcode == OP_SHIFT ) opstr = 'SHIFT';
-	else if (opcode == OP_POP   ) opstr = 'POP';
-	else if (opcode == OP_ISNUM ) opstr = 'ISNUM';
-	else if (opcode == OP_ISSTR ) opstr = 'ISSTR';
-	else if (opcode == OP_ISLIST) opstr = 'ISLIST';
+	if      (opcode == OP_ISNUM      ) opstr = 'ISNUM';
+	else if (opcode == OP_ISSTR      ) opstr = 'ISSTR';
+	else if (opcode == OP_ISLIST     ) opstr = 'ISLIST';
+	else if (opcode == OP_NOT        ) opstr = 'NOT';
+	else if (opcode == OP_SIZE       ) opstr = 'SIZE';
+	else if (opcode == OP_TONUM      ) opstr = 'TONUM';
+	else if (opcode == OP_NUM_NEG    ) opstr = 'NUM_NEG';
+	else if (opcode == OP_LIST_SHIFT ) opstr = 'LIST_SHIFT';
+	else if (opcode == OP_LIST_POP   ) opstr = 'LIST_POP';
 	oplog(opstr, tgt, src);
 	b.push(opcode, tgt.fdiff, tgt.index, src.fdiff, src.index);
 }
@@ -263,21 +251,17 @@ function op_binop(b, opcode, tgt, src1, src2){
 	}
 
 	var opstr = '???';
-	if      (opcode == OP_ADD    ) opstr = 'ADD';
-	else if (opcode == OP_SUB    ) opstr = 'SUB';
-	else if (opcode == OP_MUL    ) opstr = 'MUL';
-	else if (opcode == OP_DIV    ) opstr = 'DIV';
-	else if (opcode == OP_MOD    ) opstr = 'MOD';
-	else if (opcode == OP_POW    ) opstr = 'POW';
-	else if (opcode == OP_CAT    ) opstr = 'CAT';
-	else if (opcode == OP_PUSH   ) opstr = 'PUSH';
-	else if (opcode == OP_UNSHIFT) opstr = 'UNSHIFT';
-	else if (opcode == OP_APPEND ) opstr = 'APPEND';
-	else if (opcode == OP_PREPEND) opstr = 'PREPEND';
+	if      (opcode == OP_CAT    ) opstr = 'CAT';
 	else if (opcode == OP_LT     ) opstr = 'LT';
 	else if (opcode == OP_LTE    ) opstr = 'LTE';
 	else if (opcode == OP_NEQ    ) opstr = 'NEQ';
 	else if (opcode == OP_EQU    ) opstr = 'EQU';
+	else if (opcode == OP_NUM_ADD) opstr = 'NUM_ADD';
+	else if (opcode == OP_NUM_SUB) opstr = 'NUM_SUB';
+	else if (opcode == OP_NUM_MUL) opstr = 'NUM_MUL';
+	else if (opcode == OP_NUM_DIV) opstr = 'NUM_DIV';
+	else if (opcode == OP_NUM_MOD) opstr = 'NUM_MOD';
+	else if (opcode == OP_NUM_POW) opstr = 'NUM_POW';
 	oplog(opstr, tgt, src1, src2);
 	b.push(opcode, tgt.fdiff, tgt.index, src1.fdiff, src1.index, src2.fdiff, src2.index);
 }
@@ -432,15 +416,9 @@ var KS_GTEQU      = 'KS_GTEQU';
 var KS_BANGEQU    = 'KS_BANGEQU';
 var KS_EQU2       = 'KS_EQU2';
 var KS_TILDEEQU   = 'KS_TILDEEQU';
-var KS_TILDEPLUS  = 'KS_TILDEPLUS';
-var KS_PLUSTILDE  = 'KS_PLUSTILDE';
-var KS_TILDEMINUS = 'KS_TILDEMINUS';
-var KS_MINUSTILDE = 'KS_MINUSTILDE';
 var KS_AMP2       = 'KS_AMP2';
 var KS_PIPE2      = 'KS_PIPE2';
 var KS_PERIOD3    = 'KS_PERIOD3';
-var KS_TILDE2PLUS = 'KS_TILDE2PLUS';
-var KS_PLUSTILDE2 = 'KS_PLUSTILDE2';
 var KS_PIPE2EQU   = 'KS_PIPE2EQU';
 var KS_AMP2EQU    = 'KS_AMP2EQU';
 var KS_BREAK      = 'KS_BREAK';
@@ -504,10 +482,6 @@ function ks_char2(c1, c2){
 	else if (c1 == '!' && c2 == '=') return KS_BANGEQU;
 	else if (c1 == '=' && c2 == '=') return KS_EQU2;
 	else if (c1 == '~' && c2 == '=') return KS_TILDEEQU;
-	else if (c1 == '~' && c2 == '+') return KS_TILDEPLUS;
-	else if (c1 == '+' && c2 == '~') return KS_PLUSTILDE;
-	else if (c1 == '~' && c2 == '-') return KS_TILDEMINUS;
-	else if (c1 == '-' && c2 == '~') return KS_MINUSTILDE;
 	else if (c1 == '&' && c2 == '&') return KS_AMP2;
 	else if (c1 == '|' && c2 == '|') return KS_PIPE2;
 	return KS_INVALID;
@@ -515,8 +489,6 @@ function ks_char2(c1, c2){
 
 function ks_char3(c1, c2, c3){
 	if      (c1 == '.' && c2 == '.' && c3 == '.') return KS_PERIOD3;
-	else if (c1 == '~' && c2 == '~' && c3 == '+') return KS_TILDE2PLUS;
-	else if (c1 == '+' && c2 == '~' && c3 == '~') return KS_PLUSTILDE2;
 	else if (c1 == '|' && c2 == '|' && c3 == '=') return KS_PIPE2EQU;
 	else if (c1 == '&' && c2 == '&' && c3 == '=') return KS_AMP2EQU;
 	return KS_INVALID;
@@ -550,12 +522,10 @@ function ks_str(s){
 function ks_toUnaryOp(k){
 	if      (k == KS_PLUS      ) return OP_TONUM;
 	else if (k == KS_UNPLUS    ) return OP_TONUM;
-	else if (k == KS_MINUS     ) return OP_NEG;
-	else if (k == KS_UNMINUS   ) return OP_NEG;
+	else if (k == KS_MINUS     ) return OP_NUM_NEG;
+	else if (k == KS_UNMINUS   ) return OP_NUM_NEG;
 	else if (k == KS_AMP       ) return OP_SIZE;
 	else if (k == KS_BANG      ) return OP_NOT;
-	else if (k == KS_MINUSTILDE) return OP_SHIFT;
-	else if (k == KS_TILDEMINUS) return OP_POP;
 	else if (k == KS_TYPENUM   ) return OP_ISNUM;
 	else if (k == KS_TYPESTR   ) return OP_ISSTR;
 	else if (k == KS_TYPELIST  ) return OP_ISLIST;
@@ -563,12 +533,12 @@ function ks_toUnaryOp(k){
 }
 
 function ks_toBinaryOp(k){
-	if      (k == KS_PLUS      ) return OP_ADD;
-	else if (k == KS_MINUS     ) return OP_SUB;
-	else if (k == KS_PERCENT   ) return OP_MOD;
-	else if (k == KS_STAR      ) return OP_MUL;
-	else if (k == KS_SLASH     ) return OP_DIV;
-	else if (k == KS_CARET     ) return OP_POW;
+	if      (k == KS_PLUS      ) return OP_NUM_ADD;
+	else if (k == KS_MINUS     ) return OP_NUM_SUB;
+	else if (k == KS_PERCENT   ) return OP_NUM_MOD;
+	else if (k == KS_STAR      ) return OP_NUM_MUL;
+	else if (k == KS_SLASH     ) return OP_NUM_DIV;
+	else if (k == KS_CARET     ) return OP_NUM_POW;
 	else if (k == KS_LT        ) return OP_LT;
 	else if (k == KS_GT        ) return 0x100; // intercepted by op_binop
 	else if (k == KS_TILDE     ) return OP_CAT;
@@ -576,20 +546,16 @@ function ks_toBinaryOp(k){
 	else if (k == KS_GTEQU     ) return 0x101; // intercepted by op_binop
 	else if (k == KS_BANGEQU   ) return OP_NEQ;
 	else if (k == KS_EQU2      ) return OP_EQU;
-	else if (k == KS_TILDEPLUS ) return OP_PUSH;
-	else if (k == KS_PLUSTILDE ) return OP_UNSHIFT;
-	else if (k == KS_TILDE2PLUS) return OP_APPEND;
-	else if (k == KS_PLUSTILDE2) return OP_PREPEND;
 	return -1;
 }
 
 function ks_toMutateOp(k){
-	if      (k == KS_PLUSEQU   ) return OP_ADD;
-	else if (k == KS_PERCENTEQU) return OP_MOD;
-	else if (k == KS_MINUSEQU  ) return OP_SUB;
-	else if (k == KS_STAREQU   ) return OP_MUL;
-	else if (k == KS_SLASHEQU  ) return OP_DIV;
-	else if (k == KS_CARETEQU  ) return OP_POW;
+	if      (k == KS_PLUSEQU   ) return OP_NUM_ADD;
+	else if (k == KS_PERCENTEQU) return OP_NUM_MOD;
+	else if (k == KS_MINUSEQU  ) return OP_NUM_SUB;
+	else if (k == KS_STAREQU   ) return OP_NUM_MUL;
+	else if (k == KS_SLASHEQU  ) return OP_NUM_DIV;
+	else if (k == KS_CARETEQU  ) return OP_NUM_POW;
 	else if (k == KS_TILDEEQU  ) return OP_CAT;
 	return -1;
 }
@@ -644,8 +610,6 @@ function tok_isPre(tk){
 		tk.k == KS_AMP        ||
 		tk.k == KS_BANG       ||
 		tk.k == KS_PERIOD3    ||
-		tk.k == KS_MINUSTILDE ||
-		tk.k == KS_TILDEMINUS ||
 		tk.k == KS_TYPENUM    ||
 		tk.k == KS_TYPESTR    ||
 		tk.k == KS_TYPELIST;
@@ -677,10 +641,6 @@ function tok_isMid(tk, allowComma, allowPipe){
 		tk.k == KS_EQU2       ||
 		tk.k == KS_TILDE      ||
 		tk.k == KS_TILDEEQU   ||
-		tk.k == KS_TILDEPLUS  ||
-		tk.k == KS_PLUSTILDE  ||
-		tk.k == KS_TILDE2PLUS ||
-		tk.k == KS_PLUSTILDE2 ||
 		tk.k == KS_AMP2       ||
 		tk.k == KS_PIPE2      ||
 		tk.k == KS_AMP2EQU    ||
@@ -716,20 +676,16 @@ function tok_midPrecedence(tk){
 	else if (k == KS_PERCENT   ) return  2;
 	else if (k == KS_PLUS      ) return  3;
 	else if (k == KS_MINUS     ) return  3;
-	else if (k == KS_TILDEPLUS ) return  4;
-	else if (k == KS_PLUSTILDE ) return  4;
-	else if (k == KS_TILDE2PLUS) return  5;
-	else if (k == KS_PLUSTILDE2) return  5;
-	else if (k == KS_TILDE     ) return  6;
-	else if (k == KS_AT        ) return  7;
-	else if (k == KS_LTEQU     ) return  8;
-	else if (k == KS_LT        ) return  8;
-	else if (k == KS_GTEQU     ) return  8;
-	else if (k == KS_GT        ) return  8;
-	else if (k == KS_BANGEQU   ) return  9;
-	else if (k == KS_EQU2      ) return  9;
-	else if (k == KS_AMP2      ) return 10;
-	else if (k == KS_PIPE2     ) return 11;
+	else if (k == KS_TILDE     ) return  4;
+	else if (k == KS_AT        ) return  5;
+	else if (k == KS_LTEQU     ) return  6;
+	else if (k == KS_LT        ) return  6;
+	else if (k == KS_GTEQU     ) return  6;
+	else if (k == KS_GT        ) return  6;
+	else if (k == KS_BANGEQU   ) return  7;
+	else if (k == KS_EQU2      ) return  7;
+	else if (k == KS_AMP2      ) return  8;
+	else if (k == KS_PIPE2     ) return  9;
 	else if (k == KS_EQU       ) return 20;
 	else if (k == KS_PLUSEQU   ) return 20;
 	else if (k == KS_PERCENTEQU) return 20;
@@ -3267,10 +3223,10 @@ function symtbl_loadStdlib(sym){
 		SAC(sym, 'ceil'      , OP_NUM_CEIL      ,  1);
 		SAC(sym, 'round'     , OP_NUM_ROUND     ,  1);
 		SAC(sym, 'trunc'     , OP_NUM_TRUNC     ,  1);
-		SAC(sym, 'NaN'       , OP_NUM_NAN       ,  0);
+		SAC(sym, 'nan'       , OP_NUM_NAN       ,  0);
 		SAC(sym, 'inf'       , OP_NUM_INF       ,  0);
-		SAC(sym, 'isNaN'     , OP_NUM_ISNAN     ,  1);
-		SAC(sym, 'isFinite'  , OP_NUM_ISFINITE  ,  1);
+		SAC(sym, 'isnan'     , OP_NUM_ISNAN     ,  1);
+		SAC(sym, 'isfinite'  , OP_NUM_ISFINITE  ,  1);
 		SAC(sym, 'e'         , OP_NUM_E         ,  0);
 		SAC(sym, 'pi'        , OP_NUM_PI        ,  0);
 		SAC(sym, 'tau'       , OP_NUM_TAU       ,  0);
@@ -3291,7 +3247,7 @@ function symtbl_loadStdlib(sym){
 		SAC(sym, 'bin'       , OP_NUM_BIN       ,  2);
 	symtbl_popNamespace(sym);
 	symtbl_pushNamespace(sym, ['int']);
-		SAC(sym, 'cast'      , OP_INT_CAST      ,  1);
+		SAC(sym, 'new'       , OP_INT_NEW       ,  1);
 		SAC(sym, 'not'       , OP_INT_NOT       ,  1);
 		SAC(sym, 'and'       , OP_INT_AND       ,  2);
 		SAC(sym, 'or'        , OP_INT_OR        ,  2);
@@ -3317,18 +3273,19 @@ function symtbl_loadStdlib(sym){
 		SAC(sym, 'shuffle'   , OP_RAND_SHUFFLE  ,  1);
 	symtbl_popNamespace(sym);
 	symtbl_pushNamespace(sym, ['str']);
-		SAC(sym, 'new'       , OP_STR_NEW       ,  2);
+		SAC(sym, 'new'       , OP_STR_NEW       , -1);
 		SAC(sym, 'split'     , OP_STR_SPLIT     ,  2);
 		SAC(sym, 'replace'   , OP_STR_REPLACE   ,  3);
-		SAC(sym, 'startsWith', OP_STR_STARTSWITH,  2);
-		SAC(sym, 'endsWith'  , OP_STR_ENDSWITH  ,  2);
+		SAC(sym, 'begins'    , OP_STR_BEGINS    ,  2);
+		SAC(sym, 'ends'      , OP_STR_ENDS      ,  2);
 		SAC(sym, 'pad'       , OP_STR_PAD       ,  2);
 		SAC(sym, 'find'      , OP_STR_FIND      ,  3);
-		SAC(sym, 'findRev'   , OP_STR_FINDREV   ,  3);
+		SAC(sym, 'rfind'     , OP_STR_RFIND     ,  3);
 		SAC(sym, 'lower'     , OP_STR_LOWER     ,  1);
 		SAC(sym, 'upper'     , OP_STR_UPPER     ,  1);
 		SAC(sym, 'trim'      , OP_STR_TRIM      ,  1);
 		SAC(sym, 'rev'       , OP_STR_REV       ,  1);
+		SAC(sym, 'rep'       , OP_STR_REP       ,  1);
 		SAC(sym, 'list'      , OP_STR_LIST      ,  1);
 		SAC(sym, 'byte'      , OP_STR_BYTE      ,  2);
 		SAC(sym, 'hash'      , OP_STR_HASH      ,  2);
@@ -3345,19 +3302,37 @@ function symtbl_loadStdlib(sym){
 	symtbl_popNamespace(sym);
 	symtbl_pushNamespace(sym, ['list']);
 		SAC(sym, 'new'       , OP_LIST_NEW      ,  2);
+		SAC(sym, 'shift'     , OP_LIST_SHIFT    ,  2);
+		SAC(sym, 'pop'       , OP_LIST_POP      ,  2);
+		SAC(sym, 'push'      , OP_LIST_PUSH     ,  2);
+		SAC(sym, 'unshift'   , OP_LIST_UNSHIFT  ,  2);
+		SAC(sym, 'append'    , OP_LIST_APPEND   ,  2);
+		SAC(sym, 'prepend'   , OP_LIST_PREPEND  ,  2);
 		SAC(sym, 'find'      , OP_LIST_FIND     ,  3);
-		SAC(sym, 'findRev'   , OP_LIST_FINDREV  ,  3);
+		SAC(sym, 'rfind'     , OP_LIST_RFIND    ,  3);
 		SAC(sym, 'join'      , OP_LIST_JOIN     ,  2);
 		SAC(sym, 'rev'       , OP_LIST_REV      ,  1);
 		SAC(sym, 'str'       , OP_LIST_STR      ,  1);
 		SAC(sym, 'sort'      , OP_LIST_SORT     ,  1);
-		SAC(sym, 'sortRev'   , OP_LIST_SORTREV  ,  1);
-		SAC(sym, 'sortCmp'   , OP_LIST_SORTCMP  ,  2);
+		SAC(sym, 'rsort'     , OP_LIST_RSORT    ,  1);
+		SAC(sym, 'sortcmp'   , OP_LIST_SORTCMP  ,  2);
 	symtbl_popNamespace(sym);
 	symtbl_pushNamespace(sym, ['pickle']);
 		SAC(sym, 'valid'     , OP_PICKLE_VALID  ,  1);
 		SAC(sym, 'str'       , OP_PICKLE_STR    ,  1);
 		SAC(sym, 'val'       , OP_PICKLE_VAL    ,  1);
+	symtbl_popNamespace(sym);
+	symtbl_pushNamespace(sym, ['task']);
+		SAC(sym, 'id'        , OP_TASK_ID       ,  0);
+		SAC(sym, 'fork'      , OP_TASK_FORK     ,  0);
+		SAC(sym, 'send'      , OP_TASK_SEND     ,  2);
+		SAC(sym, 'recv'      , OP_TASK_RECV     ,  0);
+		SAC(sym, 'peek'      , OP_TASK_PEEK     ,  0);
+	symtbl_popNamespace(sym);
+	symtbl_pushNamespace(sym, ['gc']);
+		SAC(sym, 'get'       , OP_GC_GET        ,  0);
+		SAC(sym, 'set'       , OP_GC_SET        ,  1);
+		SAC(sym, 'run'       , OP_GC_RUN        ,  0);
 	symtbl_popNamespace(sym);
 }
 
@@ -3651,7 +3626,7 @@ function program_evalLval(prg, sym, mode, intoVlc, lv, mutop, valueVlc){
 				var t2 = ts.vlc;
 
 				op_num(prg.ops, t, lv.body.length);
-				op_rest(prg.ops, t2, valueVlc, t);
+				op_nil(prg.ops, t2);
 				op_slice(prg.ops, t, valueVlc, t, t2);
 				symtbl_clearTemp(sym, t2);
 				var pe = program_evalLval(prg, sym, PEM_EMPTY, null, lv.rest, mutop, t);
@@ -3703,7 +3678,7 @@ function program_slice(prg, sym, obj, ex){
 		if (ts.type == STA_ERROR)
 			return psr_error(ex.flp, ts.msg);
 		len = ts.vlc;
-		op_rest(prg.ops, len, obj, start);
+		op_nil(prg.ops, len);
 	}
 	else{
 		var pe = program_eval(prg, sym, PEM_CREATE, null, ex.len);
@@ -3755,14 +3730,14 @@ function program_lvalGet(prg, sym, mode, intoVlc, lv){
 				var pe = program_lvalGet(prg, sym, PLM_CREATE, null, lv.body[i]);
 				if (pe.type == PER_ERROR)
 					return pe;
-				op_binop(prg.ops, OP_PUSH, intoVlc, intoVlc, pe.vlc);
+				op_param2(prg.ops, OP_LIST_PUSH, intoVlc, intoVlc, pe.vlc);
 			}
 
 			if (lv.rest != null){
 				var pe = program_lvalGet(prg, sym, PLM_CREATE, null, lv.rest);
 				if (pe.type == PER_ERROR)
 					return pe;
-				op_binop(prg.ops, OP_APPEND, intoVlc, intoVlc, pe.vlc);
+				op_param2(prg.ops, OP_LIST_APPEND, intoVlc, intoVlc, pe.vlc);
 			}
 		} break;
 	}
@@ -3826,27 +3801,6 @@ function program_evalCall(prg, sym, mode, intoVlc, flp, nsn, paramsAt, params){
 		return per_ok(intoVlc);
 	}
 
-	if (nsn.type == NSN_CMD_OPCODE && (nsn.opcode == OP_EXIT || nsn.opcode == OP_ABORT) &&
-		params == null){
-		// if empty exit/abort, then just call it with nil
-		if (mode == PEM_EMPTY || mode == PEM_CREATE){
-			var ts = symtbl_addTemp(sym);
-			if (ts.type == STA_ERROR)
-				return per_error(flp, ts.msg);
-			intoVlc = ts.vlc;
-		}
-		op_nil(prg.ops, intoVlc);
-		if (nsn.opcode == OP_EXIT)
-			op_exit(prg.ops, intoVlc);
-		else
-			op_abort(prg.ops, intoVlc);
-		if (mode == PEM_EMPTY){
-			symtbl_clearTemp(sym, intoVlc);
-			return per_ok(null);
-		}
-		return per_ok(intoVlc);
-	}
-
 	if (nsn.type == NSN_CMD_LOCAL || nsn.type == NSN_CMD_NATIVE ||
 		(nsn.type == NSN_CMD_OPCODE && nsn.params == -1)){
 		if (mode == PEM_EMPTY || mode == PEM_CREATE){
@@ -3868,14 +3822,8 @@ function program_evalCall(prg, sym, mode, intoVlc, flp, nsn, paramsAt, params){
 			label_call(nsn.lbl, prg.ops, intoVlc, args, frame_diff(nsn.fr, sym.fr));
 		else if (nsn.type == NSN_CMD_NATIVE)
 			op_native(prg.ops, intoVlc, args, nsn.index);
-		else{ // variable argument NSN_CMD_OPCODE
-			if (nsn.opcode == OP_EXIT)
-				op_exit(prg.ops, args);
-			else if (nsn.opcode == OP_ABORT)
-				op_abort(prg.ops, args);
-			else
-				op_param1(prg.ops, nsn.opcode, intoVlc, args);
-		}
+		else // variable argument NSN_CMD_OPCODE
+			op_param1(prg.ops, nsn.opcode, intoVlc, args);
 
 		symtbl_clearTemp(sym, args);
 	}
@@ -4076,14 +4024,22 @@ function program_lvalCheckNil(prg, sym, lv, jumpFalse, inverted, skip){
 			op_num(prg.ops, idx, 0);
 
 			var next = label_new('^condslicenext');
+			var lennum = label_new('^lennum');
 			label_declare(next, prg.ops);
 
+			op_nil(prg.ops, t);
+			op_binop(prg.ops, OP_EQU, t, t, lv.len);
+			label_jumpFalse(lennum, prg.ops, t);
+			op_unop(prg.ops, OP_SIZE, t, obj);
+			op_binop(prg.ops, OP_NUM_SUB, lv.len, t, lv.start);
+
+			label_declare(lennum, prg.ops);
 			op_binop(prg.ops, OP_LT, t, idx, lv.len);
 
 			var keep = label_new('^condslicekeep');
 			label_jumpFalse(inverted ? keep : skip, prg.ops, t);
 
-			op_binop(prg.ops, OP_ADD, t, idx, lv.start);
+			op_binop(prg.ops, OP_NUM_ADD, t, idx, lv.start);
 			op_getat(prg.ops, t, obj, t);
 			if (jumpFalse)
 				label_jumpTrue(inverted ? skip : keep, prg.ops, t);
@@ -4155,15 +4111,23 @@ function program_lvalCondAssignPart(prg, sym, lv, jumpFalse, valueVlc){
 			op_num(prg.ops, idx, 0);
 
 			var next = label_new('^condpartslicenext');
+			var lennum = label_new('^lennum');
 			label_declare(next, prg.ops);
 
-			op_binop(prg.ops, OP_LT, t, idx, lv.len);
+			op_nil(prg.ops, t);
+			op_binop(prg.ops, OP_EQU, t, t, lv.len);
+			label_jumpFalse(lennum, prg.ops, t);
+			op_unop(prg.ops, OP_SIZE, t, obj);
+			op_binop(prg.ops, OP_NUM_SUB, lv.len, t, lv.start);
+
+			label_declare(lennum, prg.ops);
+			op_binop(prg.ops, OP_LT, t, idx, lv.len); // BUGFIX: lv.len could be nil
 
 			var done = label_new('^condpartslicedone');
 			label_jumpFalse(done, prg.ops, t);
 
 			var inc = label_new('^condpartsliceinc');
-			op_binop(prg.ops, OP_ADD, t, idx, lv.start);
+			op_binop(prg.ops, OP_NUM_ADD, t, idx, lv.start);
 			op_getat(prg.ops, t2, obj, t);
 			if (jumpFalse)
 				label_jumpFalse(inc, prg.ops, t2);
@@ -4201,7 +4165,7 @@ function program_lvalCondAssignPart(prg, sym, lv, jumpFalse, valueVlc){
 					return per_error(lv.flp, ts.msg);
 				var t2 = ts.vlc;
 				op_num(prg.ops, t, lv.body.length);
-				op_rest(prg.ops, t2, valueVlc, t);
+				op_nil(prg.ops, t2);
 				op_slice(prg.ops, t, valueVlc, t, t2);
 				symtbl_clearTemp(sym, t2);
 				var pe = program_lvalCondAssignPart(prg, sym, lv.rest, jumpFalse, t);
@@ -4271,7 +4235,7 @@ function program_eval(prg, sym, mode, intoVlc, ex){
 					return per_error(ex.flp, 'Too many number constants');
 				prg.numTable.push(ex.num);
 			}
-			op_num_tbl(prg.ops, intoVlc, index);
+			op_numtbl(prg.ops, intoVlc, index);
 			return per_ok(intoVlc);
 		} break;
 
@@ -4320,7 +4284,7 @@ function program_eval(prg, sym, mode, intoVlc, ex){
 						if (pe.type == PER_ERROR)
 							return pe;
 						symtbl_clearTemp(sym, pe.vlc);
-						op_binop(prg.ops, OP_PUSH, intoVlc, intoVlc, pe.vlc);
+						op_param2(prg.ops, OP_LIST_PUSH, intoVlc, intoVlc, pe.vlc);
 					}
 				}
 				else{
@@ -4329,7 +4293,7 @@ function program_eval(prg, sym, mode, intoVlc, ex){
 					if (pe.type == PER_ERROR)
 						return pe;
 					symtbl_clearTemp(sym, pe.vlc);
-					op_binop(prg.ops, OP_PUSH, intoVlc, intoVlc, pe.vlc);
+					op_param2(prg.ops, OP_LIST_PUSH, intoVlc, intoVlc, pe.vlc);
 				}
 			}
 			else
@@ -4762,7 +4726,7 @@ function program_gen(prg, sym, stmt){
 							return pgr_error(stmt.flp, ts.msg);
 						var t2 = ts.vlc;
 						op_num(prg.ops, t, i);
-						op_rest(prg.ops, t2, args, t);
+						op_nil(prg.ops, t2);
 						op_slice(prg.ops, lr.lv.vlc, args, t, t2);
 						symtbl_clearTemp(sym, t2);
 					}
@@ -5059,7 +5023,7 @@ function program_gen(prg, sym, stmt){
 					return pgr_error(stmt.flp, ts.msg);
 				var t = ts.vlc;
 				op_list(prg.ops, t, 1);
-				op_binop(prg.ops, OP_PUSH, t, t, pr.vlc);
+				op_param2(prg.ops, OP_LIST_PUSH, t, t, pr.vlc);
 				op_param1(prg.ops, OP_SAY, t, t);
 				symtbl_clearTemp(sym, t);
 				symtbl_clearTemp(sym, pr.vlc);
@@ -5598,42 +5562,6 @@ function context_run(ctx){
 				ctx.pc++;
 			} break;
 
-			case OP_EXIT           : { // [SRC...]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				if (A > ctx.lexIndex)
-					return crr_invalid();
-				X = var_get(ctx, A, B);
-				if (X == null){
-					ctx.passed = true;
-					return crr_exitpass();
-				}
-				if (!var_islist(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting list when calling exit']);
-				}
-				ctx.passed = true;
-				return crr_say(X);
-			} break;
-
-			case OP_ABORT          : { // [SRC...]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				if (A > ctx.lexIndex)
-					return crr_invalid();
-				X = var_get(ctx, A, B);
-				if (X == null){
-					ctx.failed = true;
-					return crr_exitfail();
-				}
-				if (!var_islist(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting list when calling abort']);
-				}
-				ctx.failed = true;
-				return crr_warn(X);
-			} break;
-
 			case OP_ABORTERR       : { // ERRNO
 				ctx.pc++;
 				A = ops[ctx.pc++];
@@ -5725,37 +5653,34 @@ function context_run(ctx){
 				var_set(ctx, A, B, []);
 			} break;
 
-			case OP_REST           : { // [TGT], [SRC1], [SRC2]
+			case OP_ISNUM          : { // [TGT], [SRC]
 				ctx.pc++;
 				A = ops[ctx.pc++]; B = ops[ctx.pc++];
 				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				E = ops[ctx.pc++]; F = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
+				if (A > ctx.lexIndex || C > ctx.lexIndex)
 					return crr_invalid();
 				X = var_get(ctx, C, D);
-				if (!var_islist(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting list when calculating rest']);
-				}
-				Y = var_get(ctx, E, F);
-				if (!var_isnum(Y)){
-					ctx.failed = true;
-					return crr_warn(['Expecting number when calculating rest']);
-				}
-				if (Y < 0)
-					Y += X.length;
-				if (Y <= 0)
-					var_set(ctx, A, B, X.length);
-				else if (Y >= X.length)
-					var_set(ctx, A, B, 0);
-				else
-					var_set(ctx, A, B, X.length - Y);
+				var_set(ctx, A, B, var_isnum(X) ? 1 : null);
 			} break;
 
-			case OP_NEG            : { // [TGT], [SRC]
-				var iu = inline_unop(function(a){ return -a; }, 'negating');
-				if (iu !== false)
-					return iu;
+			case OP_ISSTR          : { // [TGT], [SRC]
+				ctx.pc++;
+				A = ops[ctx.pc++]; B = ops[ctx.pc++];
+				C = ops[ctx.pc++]; D = ops[ctx.pc++];
+				if (A > ctx.lexIndex || C > ctx.lexIndex)
+					return crr_invalid();
+				X = var_get(ctx, C, D);
+				var_set(ctx, A, B, var_isstr(X) ? 1 : null);
+			} break;
+
+			case OP_ISLIST         : { // [TGT], [SRC]
+				ctx.pc++;
+				A = ops[ctx.pc++]; B = ops[ctx.pc++];
+				C = ops[ctx.pc++]; D = ops[ctx.pc++];
+				if (A > ctx.lexIndex || C > ctx.lexIndex)
+					return crr_invalid();
+				X = var_get(ctx, C, D);
+				var_set(ctx, A, B, var_islist(X) ? 1 : null);
 			} break;
 
 			case OP_NOT            : { // [TGT], [SRC]
@@ -5801,106 +5726,6 @@ function context_run(ctx){
 					}));
 			} break;
 
-			case OP_SHIFT          : { // [TGT], [SRC]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex)
-					return crr_invalid();
-				X = var_get(ctx, C, D);
-				if (!var_islist(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting list when shifting']);
-				}
-				if (X.length <= 0)
-					var_set(ctx, A, B, null);
-				else
-					var_set(ctx, A, B, X.shift());
-			} break;
-
-			case OP_POP            : { // [TGT], [SRC]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex)
-					return crr_invalid();
-				X = var_get(ctx, C, D);
-				if (!var_islist(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting list when popping']);
-				}
-				if (X.length <= 0)
-					var_set(ctx, A, B, null);
-				else
-					var_set(ctx, A, B, X.pop());
-			} break;
-
-			case OP_ISNUM          : { // [TGT], [SRC]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex)
-					return crr_invalid();
-				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, var_isnum(X) ? 1 : null);
-			} break;
-
-			case OP_ISSTR          : { // [TGT], [SRC]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex)
-					return crr_invalid();
-				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, var_isstr(X) ? 1 : null);
-			} break;
-
-			case OP_ISLIST         : { // [TGT], [SRC]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex)
-					return crr_invalid();
-				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, var_islist(X) ? 1 : null);
-			} break;
-
-			case OP_ADD            : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return a + b; }, 'adding');
-				if (ib !== false)
-					return ib;
-			} break;
-
-			case OP_SUB            : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return a - b; }, 'subtracting');
-				if (ib !== false)
-					return ib;
-			} break;
-
-			case OP_MUL            : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return a * b; }, 'multiplying');
-				if (ib !== false)
-					return ib;
-			} break;
-
-			case OP_DIV            : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return a / b; }, 'dividing');
-				if (ib !== false)
-					return ib;
-			} break;
-
-			case OP_MOD            : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return a % b; }, 'taking modular');
-				if (ib !== false)
-					return ib;
-			} break;
-
-			case OP_POW            : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return Math.pow(a, b); }, 'exponentiating');
-				if (ib !== false)
-					return ib;
-			} break;
-
 			case OP_CAT            : { // [TGT], [SRC1], [SRC2]
 				ctx.pc++;
 				A = ops[ctx.pc++]; B = ops[ctx.pc++];
@@ -5914,78 +5739,6 @@ function context_run(ctx){
 					var_set(ctx, A, B, X.concat(Y));
 				else
 					var_set(ctx, A, B, var_tostr(X) + var_tostr(Y));
-			} break;
-
-			case OP_PUSH           : { // [TGT], [SRC1], [SRC2]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				E = ops[ctx.pc++]; F = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
-					return crr_invalid();
-				X = var_get(ctx, C, D);
-				if (!var_islist(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting list when pushing']);
-				}
-				Y = var_get(ctx, E, F);
-				X.push(Y);
-				if (A != C || B != D)
-					var_set(ctx, A, B, X);
-			} break;
-
-			case OP_UNSHIFT        : { // [TGT], [SRC1], [SRC2]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				E = ops[ctx.pc++]; F = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
-					return crr_invalid();
-				X = var_get(ctx, C, D);
-				if (!var_islist(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting list when unshifting']);
-				}
-				Y = var_get(ctx, E, F);
-				X.unshift(Y);
-				if (A != C || B != D)
-					var_set(ctx, A, B, X);
-			} break;
-
-			case OP_APPEND         : { // [TGT], [SRC1], [SRC2]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				E = ops[ctx.pc++]; F = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
-					return crr_invalid();
-				X = var_get(ctx, C, D);
-				Y = var_get(ctx, E, F);
-				if (!var_islist(X) || !var_islist(Y)){
-					ctx.failed = true;
-					return crr_warn(['Expecting list when appending']);
-				}
-				X.push.apply(X, Y);
-				if (A != C || B != D)
-					var_set(ctx, A, B, X);
-			} break;
-
-			case OP_PREPEND        : { // [TGT], [SRC1], [SRC2]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				E = ops[ctx.pc++]; F = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
-					return crr_invalid();
-				X = var_get(ctx, C, D);
-				Y = var_get(ctx, E, F);
-				if (!var_islist(X) || !var_islist(Y)){
-					ctx.failed = true;
-					return crr_warn(['Expecting list when prepending']);
-				}
-				X.unshift.apply(X, Y);
-				if (A != C || B != D)
-					var_set(ctx, A, B, X);
 			} break;
 
 			case OP_LT             : { // [TGT], [SRC1], [SRC2]
@@ -6124,7 +5877,7 @@ function context_run(ctx){
 				if (var_islist(X)){
 					Y = var_get(ctx, E, F);
 					Z = var_get(ctx, G, H);
-					if (!var_isnum(Y) || !var_isnum(Z)){
+					if (!var_isnum(Y) || (Z !== null && !var_isnum(Z))){
 						ctx.failed = true;
 						return crr_warn(['Expecting slice values to be numbers']);
 					}
@@ -6133,11 +5886,9 @@ function context_run(ctx){
 					else{
 						if (Y < 0)
 							Y += X.length;
-						if (Y >= X.length)
-							Y = X.length - 1;
 						if (Y < 0)
 							Y = 0;
-						if (Y + Z > X.length)
+						if (Z == null || Y + Z > X.length)
 							Z = X.length - Y;
 						var_set(ctx, A, B, X.slice(Y, Y + Z));
 					}
@@ -6145,7 +5896,7 @@ function context_run(ctx){
 				else if (var_isstr(X)){
 					Y = var_get(ctx, E, F);
 					Z = var_get(ctx, G, H);
-					if (!var_isnum(Y) || !var_isnum(Z)){
+					if (!var_isnum(Y) || (Z !== null && !var_isnum(Z))){
 						ctx.failed = true;
 						return crr_warn(['Expecting slice values to be numbers']);
 					}
@@ -6154,11 +5905,9 @@ function context_run(ctx){
 					else{
 						if (Y < 0)
 							Y += X.length;
-						if (Y >= X.length)
-							Y = X.length - 1;
 						if (Y < 0)
 							Y = 0;
-						if (Y + Z > X.length)
+						if (Z === null || Y + Z > X.length)
 							Z = X.length - Y;
 						var_set(ctx, A, B, X.substr(Y, Z));
 					}
@@ -6213,13 +5962,13 @@ function context_run(ctx){
 
 				Y = var_get(ctx, C, D);
 				Z = var_get(ctx, E, F);
-				if (!var_isnum(Y) || !var_isnum(Z)){
+				if (!var_isnum(Y) || (Z !== null && !var_isnum(Z))){
 					ctx.failed = true;
 					return crr_warn(['Expecting splice values to be numbers']);
 				}
 				if (Y < 0)
 					Y += X.length;
-				if (Y + Z > X.length)
+				if (Z === null || Y + Z > X.length)
 					Z = X.length - Y;
 
 				W = var_get(ctx, G, H);
@@ -6375,6 +6124,82 @@ function context_run(ctx){
 					return crr_warn(['Expecting list when calling ask']);
 				}
 				return crr_ask(X, A, B);
+			} break;
+
+			case OP_EXIT           : { // [TGT], [SRC...]
+				ctx.pc++;
+				A = ops[ctx.pc++]; B = ops[ctx.pc++];
+				C = ops[ctx.pc++]; D = ops[ctx.pc++];
+				if (A > ctx.lexIndex || C > ctx.lexIndex)
+					return crr_invalid();
+				X = var_get(ctx, C, D);
+				if (!var_islist(X)){
+					ctx.failed = true;
+					return crr_warn(['Expecting list when calling exit']);
+				}
+				ctx.passed = true;
+				if (X.length > 0)
+					return crr_say(X);
+				return crr_exitpass();
+			} break;
+
+			case OP_ABORT          : { // [TGT], [SRC...]
+				ctx.pc++;
+				A = ops[ctx.pc++]; B = ops[ctx.pc++];
+				C = ops[ctx.pc++]; D = ops[ctx.pc++];
+				if (A > ctx.lexIndex || C > ctx.lexIndex)
+					return crr_invalid();
+				X = var_get(ctx, C, D);
+				if (!var_islist(X)){
+					ctx.failed = true;
+					return crr_warn(['Expecting list when calling abort']);
+				}
+				ctx.failed = true;
+				if (X.length > 0)
+					return crr_warn(X);
+				return crr_exitfail();
+			} break;
+
+			case OP_NUM_NEG        : { // [TGT], [SRC]
+				var iu = inline_unop(function(a){ return -a; }, 'negating');
+				if (iu !== false)
+					return iu;
+			} break;
+
+			case OP_NUM_ADD        : { // [TGT], [SRC1], [SRC2]
+				var ib = inline_binop(function(a, b){ return a + b; }, 'adding');
+				if (ib !== false)
+					return ib;
+			} break;
+
+			case OP_NUM_SUB        : { // [TGT], [SRC1], [SRC2]
+				var ib = inline_binop(function(a, b){ return a - b; }, 'subtracting');
+				if (ib !== false)
+					return ib;
+			} break;
+
+			case OP_NUM_MUL        : { // [TGT], [SRC1], [SRC2]
+				var ib = inline_binop(function(a, b){ return a * b; }, 'multiplying');
+				if (ib !== false)
+					return ib;
+			} break;
+
+			case OP_NUM_DIV        : { // [TGT], [SRC1], [SRC2]
+				var ib = inline_binop(function(a, b){ return a / b; }, 'dividing');
+				if (ib !== false)
+					return ib;
+			} break;
+
+			case OP_NUM_MOD        : { // [TGT], [SRC1], [SRC2]
+				var ib = inline_binop(function(a, b){ return a % b; }, 'taking modular');
+				if (ib !== false)
+					return ib;
+			} break;
+
+			case OP_NUM_POW        : { // [TGT], [SRC1], [SRC2]
+				var ib = inline_binop(function(a, b){ return Math.pow(a, b); }, 'exponentiating');
+				if (ib !== false)
+					return ib;
 			} break;
 
 			case OP_NUM_ABS        : { // [TGT], [SRC]
@@ -6611,7 +6436,7 @@ function context_run(ctx){
 					return ib;
 			} break;
 
-			case OP_INT_CAST       : { // [TGT], [SRC]
+			case OP_INT_NEW        : { // [TGT], [SRC]
 				var iu = inline_unop(function(a){ return a | 0; }, 'casting to int');
 				if (iu !== false)
 					return iu;
@@ -6790,7 +6615,7 @@ function context_run(ctx){
 				var_set(ctx, A, B, X);
 			} break;
 
-			case OP_STR_NEW        : { // [TGT], [SRC1], [SRC2]
+			case OP_STR_NEW        : { // [TGT], [SRC...]
 				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
 			} break;
 
@@ -6802,11 +6627,11 @@ function context_run(ctx){
 				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
 			} break;
 
-			case OP_STR_STARTSWITH : { // [TGT], [SRC1], [SRC2]
+			case OP_STR_BEGINS     : { // [TGT], [SRC1], [SRC2]
 				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
 			} break;
 
-			case OP_STR_ENDSWITH   : { // [TGT], [SRC1], [SRC2]
+			case OP_STR_ENDS       : { // [TGT], [SRC1], [SRC2]
 				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
 			} break;
 
@@ -6818,7 +6643,7 @@ function context_run(ctx){
 				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
 			} break;
 
-			case OP_STR_FINDREV    : { // [TGT], [SRC1], [SRC2], [SRC3]
+			case OP_STR_RFIND      : { // [TGT], [SRC1], [SRC2], [SRC3]
 				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
 			} break;
 
@@ -6835,6 +6660,10 @@ function context_run(ctx){
 			} break;
 
 			case OP_STR_REV        : { // [TGT], [SRC]
+				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+			} break;
+
+			case OP_STR_REP        : { // [TGT], [SRC]
 				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
 			} break;
 
@@ -6895,6 +6724,112 @@ function context_run(ctx){
 				var_set(ctx, A, B, r);
 			} break;
 
+			case OP_LIST_SHIFT     : { // [TGT], [SRC]
+				ctx.pc++;
+				A = ops[ctx.pc++]; B = ops[ctx.pc++];
+				C = ops[ctx.pc++]; D = ops[ctx.pc++];
+				if (A > ctx.lexIndex || C > ctx.lexIndex)
+					return crr_invalid();
+				X = var_get(ctx, C, D);
+				if (!var_islist(X)){
+					ctx.failed = true;
+					return crr_warn(['Expecting list when shifting']);
+				}
+				if (X.length <= 0)
+					var_set(ctx, A, B, null);
+				else
+					var_set(ctx, A, B, X.shift());
+			} break;
+
+			case OP_LIST_POP       : { // [TGT], [SRC]
+				ctx.pc++;
+				A = ops[ctx.pc++]; B = ops[ctx.pc++];
+				C = ops[ctx.pc++]; D = ops[ctx.pc++];
+				if (A > ctx.lexIndex || C > ctx.lexIndex)
+					return crr_invalid();
+				X = var_get(ctx, C, D);
+				if (!var_islist(X)){
+					ctx.failed = true;
+					return crr_warn(['Expecting list when popping']);
+				}
+				if (X.length <= 0)
+					var_set(ctx, A, B, null);
+				else
+					var_set(ctx, A, B, X.pop());
+			} break;
+
+			case OP_LIST_PUSH      : { // [TGT], [SRC1], [SRC2]
+				ctx.pc++;
+				A = ops[ctx.pc++]; B = ops[ctx.pc++];
+				C = ops[ctx.pc++]; D = ops[ctx.pc++];
+				E = ops[ctx.pc++]; F = ops[ctx.pc++];
+				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
+					return crr_invalid();
+				X = var_get(ctx, C, D);
+				if (!var_islist(X)){
+					ctx.failed = true;
+					return crr_warn(['Expecting list when pushing']);
+				}
+				Y = var_get(ctx, E, F);
+				X.push(Y);
+				if (A != C || B != D)
+					var_set(ctx, A, B, X);
+			} break;
+
+			case OP_LIST_UNSHIFT   : { // [TGT], [SRC1], [SRC2]
+				ctx.pc++;
+				A = ops[ctx.pc++]; B = ops[ctx.pc++];
+				C = ops[ctx.pc++]; D = ops[ctx.pc++];
+				E = ops[ctx.pc++]; F = ops[ctx.pc++];
+				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
+					return crr_invalid();
+				X = var_get(ctx, C, D);
+				if (!var_islist(X)){
+					ctx.failed = true;
+					return crr_warn(['Expecting list when unshifting']);
+				}
+				Y = var_get(ctx, E, F);
+				X.unshift(Y);
+				if (A != C || B != D)
+					var_set(ctx, A, B, X);
+			} break;
+
+			case OP_LIST_APPEND    : { // [TGT], [SRC1], [SRC2]
+				ctx.pc++;
+				A = ops[ctx.pc++]; B = ops[ctx.pc++];
+				C = ops[ctx.pc++]; D = ops[ctx.pc++];
+				E = ops[ctx.pc++]; F = ops[ctx.pc++];
+				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
+					return crr_invalid();
+				X = var_get(ctx, C, D);
+				Y = var_get(ctx, E, F);
+				if (!var_islist(X) || !var_islist(Y)){
+					ctx.failed = true;
+					return crr_warn(['Expecting list when appending']);
+				}
+				X.push.apply(X, Y);
+				if (A != C || B != D)
+					var_set(ctx, A, B, X);
+			} break;
+
+			case OP_LIST_PREPEND   : { // [TGT], [SRC1], [SRC2]
+				ctx.pc++;
+				A = ops[ctx.pc++]; B = ops[ctx.pc++];
+				C = ops[ctx.pc++]; D = ops[ctx.pc++];
+				E = ops[ctx.pc++]; F = ops[ctx.pc++];
+				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
+					return crr_invalid();
+				X = var_get(ctx, C, D);
+				Y = var_get(ctx, E, F);
+				if (!var_islist(X) || !var_islist(Y)){
+					ctx.failed = true;
+					return crr_warn(['Expecting list when prepending']);
+				}
+				X.unshift.apply(X, Y);
+				if (A != C || B != D)
+					var_set(ctx, A, B, X);
+			} break;
+
 			case OP_LIST_FIND      : { // [TGT], [SRC1], [SRC2], [SRC3]
 				ctx.pc++;
 				A = ops[ctx.pc++]; B = ops[ctx.pc++];
@@ -6930,7 +6865,7 @@ function context_run(ctx){
 					var_set(ctx, A, B, null);
 			} break;
 
-			case OP_LIST_FINDREV   : { // [TGT], [SRC1], [SRC2], [SRC3]
+			case OP_LIST_RFIND     : { // [TGT], [SRC1], [SRC2], [SRC3]
 				ctx.pc++;
 				A = ops[ctx.pc++]; B = ops[ctx.pc++];
 				C = ops[ctx.pc++]; D = ops[ctx.pc++];
@@ -6975,7 +6910,7 @@ function context_run(ctx){
 				X = var_get(ctx, C, D);
 				if (!var_islist(X)){
 					ctx.failed = true;
-					return crr_warn(['Expecting list for list.find']);
+					return crr_warn(['Expecting list for list.join']);
 				}
 				Y = var_get(ctx, E, F);
 				if (Y == null)
@@ -6995,7 +6930,7 @@ function context_run(ctx){
 				X = var_get(ctx, C, D);
 				if (!var_islist(X)){
 					ctx.failed = true;
-					return crr_warn(['Expecting list for list.find']);
+					return crr_warn(['Expecting list for list.rev']);
 				}
 				X.reverse();
 				var_set(ctx, A, B, X);
@@ -7009,7 +6944,7 @@ function context_run(ctx){
 				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
 			} break;
 
-			case OP_LIST_SORTREV   : { // [TGT], [SRC]
+			case OP_LIST_RSORT     : { // [TGT], [SRC]
 				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
 			} break;
 
@@ -7026,6 +6961,38 @@ function context_run(ctx){
 			} break;
 
 			case OP_PICKLE_VAL     : { // [TGT], [SRC]
+				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+			} break;
+
+			case OP_TASK_ID        : { // [TGT]
+				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+			} break;
+
+			case OP_TASK_FORK      : { // [TGT]
+				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+			} break;
+
+			case OP_TASK_SEND      : { // [TGT], [SRC1], [SRC2]
+				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+			} break;
+
+			case OP_TASK_RECV      : { // [TGT]
+				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+			} break;
+
+			case OP_TASK_PEEK      : { // [TGT]
+				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+			} break;
+
+			case OP_GC_GET         : { // [TGT]
+				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+			} break;
+
+			case OP_GC_SET         : { // [TGT], [SRC]
+				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+			} break;
+
+			case OP_GC_RUN         : { // [TGT]
 				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
 			} break;
 

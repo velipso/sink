@@ -58,7 +58,7 @@ say 'goto3'
 
 x = {1, 2, 3, 4}
 
-x ~+ 5
+list.push x, 5
 
 for var e, i: x ~ {6, 7}
 	say "$i: $e"
@@ -103,7 +103,7 @@ end
 x = {1, 2, {3, 4}}
 x[0] = 5
 say x[0]
-(get_x)[2] ~+ 6
+list.push (get_x)[2], 6
 say x[2][1]
 x[add 2, 3] = add 3, 4
 

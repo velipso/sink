@@ -1,5 +1,5 @@
 def r1000 a
-	return num.round (a * 1000)
+	return num.round a * 1000
 end
 
 say num.floor 1.5

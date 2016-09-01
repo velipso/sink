@@ -7654,6 +7654,9 @@ static inline lxs lxs_new(sink_val args, lxs next){
 }
 
 typedef struct {
+	void *user;
+	sink_finalize_func f_freeuser;
+
 	program prg;
 	list_ptr call_stk;
 	list_ptr lex_stk;
@@ -7728,6 +7731,8 @@ static inline void context_sweep(context ctx){
 }
 
 static inline void context_free(context ctx){
+	if (ctx->user && ctx->f_freeuser)
+		ctx->f_freeuser(ctx->user);
 	memset(ctx->str_ref, 0, sizeof(uint64_t) * (ctx->str_size / 64));
 	memset(ctx->list_ref, 0, sizeof(uint64_t) * (ctx->list_size / 64));
 	context_sweep(ctx);
@@ -7750,6 +7755,8 @@ static void opi_rand_seedauto(context ctx);
 
 static inline context context_new(program prg, sink_io_st io){
 	context ctx = mem_alloc(sizeof(context_st));
+	ctx->user = NULL;
+	ctx->f_freeuser = NULL;
 	ctx->prg = prg;
 	ctx->passed = false;
 	ctx->failed = false;
@@ -9951,6 +9958,10 @@ sink_repl sink_repl_new(sink_lib lib, sink_io_st io, sink_inc_st inc){
 	return compiler_new(lib, io, inc, NULL, true);
 }
 
+sink_ctx sink_repl_getctx(sink_repl rp){
+	return ((compiler)rp)->ctx;
+}
+
 char *sink_repl_write(sink_repl rp, uint8_t *bytes, int size){
 	return compiler_write(rp, bytes, size);
 }
@@ -10023,6 +10034,18 @@ void sink_bin_free(sink_bin bin){
 // context
 sink_ctx sink_ctx_new(sink_lib lib, sink_prg prg, sink_io_st io){
 	return context_new(program_newCopy(prg), io);
+}
+
+void sink_ctx_setuser(sink_ctx ctx, void *user, sink_finalize_func f_freeuser){
+	context ctx2 = ctx;
+	if (ctx2->user && ctx2->f_freeuser)
+		ctx2->f_freeuser(ctx2->user);
+	ctx2->user = user;
+	ctx2->f_freeuser = f_freeuser;
+}
+
+void *sink_ctx_getuser(sink_ctx ctx){
+	return ((context)ctx)->user;
 }
 
 sink_user sink_ctx_usertype(sink_ctx ctx, sink_finalize_func f_finalize){

@@ -132,6 +132,7 @@ void      sink_lib_free(sink_lib lib);
 
 // repl
 sink_repl sink_repl_new(sink_lib lib, sink_io_st io, sink_inc_st inc);
+sink_ctx  sink_repl_getctx(sink_repl repl);
 char *    sink_repl_write(sink_repl repl, uint8_t *bytes, int size);
 int       sink_repl_level(sink_repl repl);
 bool      sink_repl_done(sink_repl repl);
@@ -156,6 +157,8 @@ void      sink_bin_free(sink_bin bin);
 
 // context
 sink_ctx  sink_ctx_new(sink_lib lib, sink_prg prg, sink_io_st io);
+void      sink_ctx_setuser(sink_ctx ctx, void *user, sink_finalize_func f_freeuser);
+void *    sink_ctx_getuser(sink_ctx ctx);
 sink_user sink_ctx_usertype(sink_ctx ctx, sink_finalize_func f_finalize);
 int       sink_ctx_run(sink_ctx ctx); // 0 = ok, 1 = failed, 2 = invalid
 void      sink_ctx_free(sink_ctx ctx);

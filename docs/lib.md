@@ -8,20 +8,12 @@ results.
 
 | Function          | Description                                                                 |
 |-------------------|-----------------------------------------------------------------------------|
-| `tostr a`         | Convert `a` to a string                                                     |
-| `size a`          | Size of `a` (where `a` is a string or list)                                 |
 | `say a, ...`      | Output arguments to stdout (returns nil)                                    |
 | `warn a, ...`     | Output arguments to stderr (returns nil)                                    |
 | `ask a, ...`      | Prompt the user for input from stdin; returns the inputted string           |
 | `exit a, ...`     | Output arguments to stdout and terminate execution in success               |
 | `abort a, ...`    | Output arguments to stderr and terminate execution in failure               |
-| `gcauto a`        | Turn garbage collection off is `a` is nil; otherwise turn it on             |
-| `isgcauto`        | Returns true if garbage collection is on; otherwise, false                  |
-| `gcrun`           | Run a full cycle of garbage collection right now                            |
 | `pick cond, a, b` | If `cond` is true, return `a`, otherwise return `b` (short-circuited)       |
-
-Note: garbage collection manipulation is only available in certain environments, but the functions
-always exist and execute without error.
 
 Number
 ------
@@ -31,13 +23,6 @@ built-in unary and binary operators.
 
 | Function            | Description                                                               |
 |---------------------|---------------------------------------------------------------------------|
-| `num.neg a`         | `-a`                                                                      |
-| `num.add a, b`      | `a + b`                                                                   |
-| `num.sub a, b`      | `a - b`                                                                   |
-| `num.mul a, b`      | `a * b`                                                                   |
-| `num.div a, b`      | `a / b`                                                                   |
-| `num.mod a, b`      | `a % b`                                                                   |
-| `num.pow a, b`      | `a^b`                                                                     |
 | `num.abs a`         | Absolute value of `a`                                                     |
 | `num.sign a`        | Sign of `a` (-1, 0, or 1)                                                 |
 | `num.max a, b, ...` | Returns the maximum number from all arguments                             |
@@ -50,7 +35,7 @@ built-in unary and binary operators.
 | `num.nan`           | Not-a-number value                                                        |
 | `num.inf`           | Infinity value                                                            |
 | `num.isnan a`       | Tests whether `a` is a NaN value                                          |
-| `num.isfinite a`    | Tests whether `a` is a finite value (i.e., not NaN or infinite)           |
+| `num.isfinite a`    | Tests whether `a` is a finite value (i.e., not NaN and not infinite)      |
 | `num.e`             | *e*  (2.718282...)                                                        |
 | `num.pi`            | *pi* (3.141592...)                                                        |
 | `num.tau`           | *tau* (2 * *pi* = 6.283185...)                                            |
@@ -70,8 +55,6 @@ built-in unary and binary operators.
 | `num.oct a, b`      | Convert `a` to a sink octal string, 0-padded to `b` digits                |
 | `num.bin a, b`      | Convert `a` to a sink binary string, 0-padded to `b` digits               |
 
-Note: `num.neg`, `num.add`, etc, are the *exact* same as the built-in unary/binary operators.
-
 Integer
 -------
 
@@ -83,7 +66,7 @@ built-in unary and binary operators.
 
 | Function       | Description                                                                    |
 |----------------|--------------------------------------------------------------------------------|
-| `int.cast a`   | Cast `a` to an integer                                                         |
+| `int.new a`    | Round `a` to an integer                                                        |
 | `int.not a`    | Bitwise NOT of `a`                                                             |
 | `int.and a, b` | Bitwise AND between `a` and `b`                                                |
 | `int.or a, b`  | Bitwise OR between `a` and `b`                                                 |
@@ -161,12 +144,7 @@ Strings are 8-bit clean, and interpreted as binary data.
 
 | Function                | Description                                                           |
 |-------------------------|-----------------------------------------------------------------------|
-| `str.new a, b`          | Create a new string by repeating string `a` `b` times                 |
-| `str.at a, b`           | `a[b]` (returns character at index `b`, nil if out of range)          |
-| `str.cat a, b`          | `a ~ b`                                                               |
-| `str.tonum a`           | `+a` (convert string `a` to a number)                                 |
-| `str.slice a, b, c`     | `a[b:c]`                                                              |
-| `str.splice a, b, c, d` | `a[b:c] = d`                                                          |
+| `str.new a, ...`        | Convert arguments to a string (using space as a separator)            )
 | `str.split a, b`        | Split `a` into an array of strings based on separator `b`             |
 | `str.replace a, b, c`   | Replace all occurrences of `b` in string `a` with `c`                 |
 | `str.begins a, b`       | True if string `a` begins with string `b`; false otherwise            |
@@ -178,6 +156,7 @@ Strings are 8-bit clean, and interpreted as binary data.
 | `str.upper a`           | Convert `a` to uppercase                                              |
 | `str.trim a`            | Trim surrounding whitespace from `a`                                  |
 | `str.rev a`             | Reverse `a`                                                           |
+| `str.rep a, b`          | Repeat string `a` `b` times                                           |
 | `str.list a`            | Convert a string to a list of bytes                                   |
 | `str.byte a, b`         | Unsigned byte from string `a` at index `b` (nil if out of range)      |
 | `str.hash a, b`         | Hash string `a` with seed `b` (interpretted as 32-bit unsigned int)   |
@@ -375,10 +354,6 @@ List
 | Function                  | Description                                                         |
 |---------------------------|---------------------------------------------------------------------|
 | `list.new a, b`           | Create a new list of size `a`, with each element set to `b`         |
-| `list.at ls, a`           | `ls[a]` (nil if out of range)                                       |
-| `list.cat ls1, ls2`       | `ls1 ~ ls2` (returns a new list)                                    |
-| `list.slice ls, a, b`     | `ls[a:b]` (returns a new list)                                      |
-| `list.splice ls, a, b, c` | `ls[a:b] = c` (returns `ls`)                                        |
 | `list.shift ls`           | Remova nd return the value at the start of `ls`                     |
 | `list.pop ls`             | Remove and return the value at the end of `ls`                      |
 | `list.push ls, b`         | Push `b` at end of list `ls` (returns `ls`)                         |
@@ -404,11 +379,11 @@ Sorting precedence:
 4. Lists (item by item comparison; if equal, shorter lists first)
 
 ```
-list.sortCmp nil, 1     # => -1
-list.sortCmp 55, 5      # =>  1
-list.sortCmp 'a', 'ab'  # => -1
-list.sortCmp {}, ''     # =>  1
-list.sortCmp {1}, {1}   # =>  0
+list.sortcmp nil, 1     # => -1
+list.sortcmp 55, 5      # =>  1
+list.sortcmp 'a', 'ab'  # => -1
+list.sortcmp {}, ''     # =>  1
+list.sortcmp {1}, {1}   # =>  0
 
 list.sort {3, 2, nil, 4}     # => {nil, 2, 3, 4}
 list.sortRev {3, 2, nil, 4}  # => {4, 3, 2, nil}
@@ -433,3 +408,41 @@ pickle.valid '{}'       # => nil, not all of JSON can be converted to sink
 pickle.valid '"\u1000"' # => nil, only bytes in strings are supported ("\u0000" to "\u00FF")
 pickle.valid 'null'     # => 1, 'null' is nil
 ```
+
+Task
+----
+
+| Function         | Description                                                                  |
+|------------------|------------------------------------------------------------------------------|
+| `task.id`        | Current task's id (first task is 0, every task after increases by 1)         |
+| `task.fork`      | Create a new task by forking the runtime; returns the current task id        |
+| `task.send a, b` | Send message `b` to the task with id `a`                                     |
+| `task.recv`      | Receive a message (blocking); returns a two item list: `{ fromid, message }` |
+| `task.peek`      | Returns true if a message is waiting; false otherwise                        |
+
+GC
+--
+
+Note: garbage collection manipulation is only available in certain environments, but the functions
+always exist and execute without error.
+
+| Function   | Description                                                                        |
+|------------|------------------------------------------------------------------------------------|
+| `gc.get`   | Get the garbage collection level (see below)                                       |
+| `gc.set a` | Set the garbage collection level                                                   |
+| `gc.run`   | Run a full cycle of garbage collection right now                                   |
+
+### GC Level
+
+The garbage collection level is a number between 0 and 1 (inclusive).
+
+A value of 0 represents no automatic garbage collection, intended for high speed execution at the
+cost of memory use.
+
+A value of 1 represents the most aggressive garbage collection strategy, intended for memory
+constrained environments, at the cost of speed.
+
+A value of 0.5 is the default, and represents a reasonable balance between speed and memory
+consumption.
+
+No matter what the level is set to, running `gc.run` will always peform a full collection.
