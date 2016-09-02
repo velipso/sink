@@ -421,6 +421,18 @@ Task
 | `task.peek`      | Returns true if a message is waiting; false otherwise                        |
 | `task.exit`      | Exit the current task                                                        |
 
+### Example
+
+```
+var orig = task.id
+var t = task.fork
+if t == orig
+  say 'inside original task'
+else
+  say 'inside forked task'
+end
+```
+
 GC
 --
 
