@@ -386,7 +386,7 @@ list.sortcmp {}, ''     # =>  1
 list.sortcmp {1}, {1}   # =>  0
 
 list.sort {3, 2, nil, 4}     # => {nil, 2, 3, 4}
-list.sortRev {3, 2, nil, 4}  # => {4, 3, 2, nil}
+list.rsort {3, 2, nil, 4}  # => {4, 3, 2, nil}
 ```
 
 Pickle
