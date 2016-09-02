@@ -526,168 +526,161 @@ static inline bool varloc_isnull(varloc_st vlc){
 //
 
 typedef enum {
-	OP_NOP            = 0x00, //
-	OP_EXIT           = 0x01, // [SRC...]
-	OP_ABORT          = 0x02, // [SRC...]
-	OP_ABORTERR       = 0x03, // ERRNO
-	OP_MOVE           = 0x04, // [TGT], [SRC]
-	OP_INC            = 0x05, // [TGT/SRC]
-	OP_NIL            = 0x06, // [TGT]
-	OP_NUMPOS         = 0x07, // [TGT], [VALUE]
-	OP_NUMNEG         = 0x08, // [TGT], [VALUE]
-	OP_NUMTBL         = 0x09, // [TGT], [INDEX]
-	OP_STR            = 0x0A, // [TGT], [INDEX]
-	OP_LIST           = 0x0B, // [TGT], HINT
-	OP_REST           = 0x0C, // [TGT], [SRC1], [SRC2]
-	OP_NEG            = 0x0D, // [TGT], [SRC]
-	OP_NOT            = 0x0E, // [TGT], [SRC]
-	OP_SIZE           = 0x0F, // [TGT], [SRC]
-	OP_TONUM          = 0x10, // [TGT], [SRC]
-	OP_SHIFT          = 0x11, // [TGT], [SRC]
-	OP_POP            = 0x12, // [TGT], [SRC]
-	OP_ISNUM          = 0x13, // [TGT], [SRC]
-	OP_ISSTR          = 0x14, // [TGT], [SRC]
-	OP_ISLIST         = 0x15, // [TGT], [SRC]
-	OP_ADD            = 0x16, // [TGT], [SRC1], [SRC2]
-	OP_SUB            = 0x17, // [TGT], [SRC1], [SRC2]
-	OP_MUL            = 0x18, // [TGT], [SRC1], [SRC2]
-	OP_DIV            = 0x19, // [TGT], [SRC1], [SRC2]
-	OP_MOD            = 0x1A, // [TGT], [SRC1], [SRC2]
-	OP_POW            = 0x1B, // [TGT], [SRC1], [SRC2]
-	OP_CAT            = 0x1C, // [TGT], [SRC1], [SRC2]
-	OP_PUSH           = 0x1D, // [TGT], [SRC1], [SRC2]
-	OP_UNSHIFT        = 0x1E, // [TGT], [SRC1], [SRC2]
-	OP_APPEND         = 0x1F, // [TGT], [SRC1], [SRC2]
-	OP_PREPEND        = 0x20, // [TGT], [SRC1], [SRC2]
-	OP_LT             = 0x21, // [TGT], [SRC1], [SRC2]
-	OP_LTE            = 0x22, // [TGT], [SRC1], [SRC2]
-	OP_NEQ            = 0x23, // [TGT], [SRC1], [SRC2]
-	OP_EQU            = 0x24, // [TGT], [SRC1], [SRC2]
-	OP_GETAT          = 0x25, // [TGT], [SRC1], [SRC2]
-	OP_SLICE          = 0x26, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_SETAT          = 0x27, // [SRC1], [SRC2], [SRC3]
-	OP_SPLICE         = 0x28, // [SRC1], [SRC2], [SRC3], [SRC4]
-	OP_JUMP           = 0x29, // [[LOCATION]]
-	OP_JUMPTRUE       = 0x2A, // [SRC], [[LOCATION]]
-	OP_JUMPFALSE      = 0x2B, // [SRC], [[LOCATION]]
-	OP_CALL           = 0x2C, // [TGT], [SRC], LEVEL, [[LOCATION]]
-	OP_NATIVE         = 0x2D, // [TGT], [SRC], [INDEX]
-	OP_RETURN         = 0x2E, // [SRC]
-	OP_SAY            = 0x2F, // [TGT], [SRC...]
-	OP_WARN           = 0x30, // [TGT], [SRC...]
-	OP_ASK            = 0x31, // [TGT], [SRC...]
-	OP_NUM_ABS        = 0x32, // [TGT], [SRC]
-	OP_NUM_SIGN       = 0x33, // [TGT], [SRC]
-	OP_NUM_MAX        = 0x34, // [TGT], [SRC...]
-	OP_NUM_MIN        = 0x35, // [TGT], [SRC...]
-	OP_NUM_CLAMP      = 0x36, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_NUM_FLOOR      = 0x37, // [TGT], [SRC]
-	OP_NUM_CEIL       = 0x38, // [TGT], [SRC]
-	OP_NUM_ROUND      = 0x39, // [TGT], [SRC]
-	OP_NUM_TRUNC      = 0x3A, // [TGT], [SRC]
-	OP_NUM_NAN        = 0x3B, // [TGT]
-	OP_NUM_INF        = 0x3C, // [TGT]
-	OP_NUM_ISNAN      = 0x3D, // [TGT], [SRC]
-	OP_NUM_ISFINITE   = 0x3E, // [TGT], [SRC]
-	OP_NUM_E          = 0x3F, // [TGT]
-	OP_NUM_PI         = 0x40, // [TGT]
-	OP_NUM_TAU        = 0x41, // [TGT]
-	OP_NUM_SIN        = 0x42, // [TGT], [SRC]
-	OP_NUM_COS        = 0x43, // [TGT], [SRC]
-	OP_NUM_TAN        = 0x44, // [TGT], [SRC]
-	OP_NUM_ASIN       = 0x45, // [TGT], [SRC]
-	OP_NUM_ACOS       = 0x46, // [TGT], [SRC]
-	OP_NUM_ATAN       = 0x47, // [TGT], [SRC]
-	OP_NUM_ATAN2      = 0x48, // [TGT], [SRC1], [SRC2]
-	OP_NUM_LOG        = 0x49, // [TGT], [SRC]
-	OP_NUM_LOG2       = 0x4A, // [TGT], [SRC]
-	OP_NUM_LOG10      = 0x4B, // [TGT], [SRC]
-	OP_NUM_EXP        = 0x4C, // [TGT], [SRC]
-	OP_NUM_LERP       = 0x4D, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_NUM_HEX        = 0x4E, // [TGT], [SRC1], [SRC2]
-	OP_NUM_OCT        = 0x4F, // [TGT], [SRC1], [SRC2]
-	OP_NUM_BIN        = 0x50, // [TGT], [SRC1], [SRC2]
-	OP_INT_CAST       = 0x51, // [TGT], [SRC]
-	OP_INT_NOT        = 0x52, // [TGT], [SRC]
-	OP_INT_AND        = 0x53, // [TGT], [SRC1], [SRC2]
-	OP_INT_OR         = 0x54, // [TGT], [SRC1], [SRC2]
-	OP_INT_XOR        = 0x55, // [TGT], [SRC1], [SRC2]
-	OP_INT_SHL        = 0x56, // [TGT], [SRC1], [SRC2]
-	OP_INT_SHR        = 0x57, // [TGT], [SRC1], [SRC2]
-	OP_INT_SAR        = 0x58, // [TGT], [SRC1], [SRC2]
-	OP_INT_ADD        = 0x59, // [TGT], [SRC1], [SRC2]
-	OP_INT_SUB        = 0x5A, // [TGT], [SRC1], [SRC2]
-	OP_INT_MUL        = 0x5B, // [TGT], [SRC1], [SRC2]
-	OP_INT_DIV        = 0x5C, // [TGT], [SRC1], [SRC2]
-	OP_INT_MOD        = 0x5D, // [TGT], [SRC1], [SRC2]
-	OP_INT_CLZ        = 0x5E, // [TGT], [SRC]
-	OP_RAND_SEED      = 0x5F, // [TGT], [SRC]
-	OP_RAND_SEEDAUTO  = 0x60, // [TGT]
-	OP_RAND_INT       = 0x61, // [TGT]
-	OP_RAND_NUM       = 0x62, // [TGT]
-	OP_RAND_GETSTATE  = 0x63, // [TGT]
-	OP_RAND_SETSTATE  = 0x64, // [TGT], [SRC]
-	OP_RAND_PICK      = 0x65, // [TGT], [SRC]
-	OP_RAND_SHUFFLE   = 0x66, // [TGT], [SRC]
-	OP_STR_NEW        = 0x67, // [TGT], [SRC1], [SRC2]
-	OP_STR_SPLIT      = 0x68, // [TGT], [SRC1], [SRC2]
-	OP_STR_REPLACE    = 0x69, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_STR_STARTSWITH = 0x6A, // [TGT], [SRC1], [SRC2]
-	OP_STR_ENDSWITH   = 0x6B, // [TGT], [SRC1], [SRC2]
-	OP_STR_PAD        = 0x6C, // [TGT], [SRC1], [SRC2]
-	OP_STR_FIND       = 0x6D, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_STR_FINDREV    = 0x6E, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_STR_LOWER      = 0x6F, // [TGT], [SRC]
-	OP_STR_UPPER      = 0x70, // [TGT], [SRC]
-	OP_STR_TRIM       = 0x71, // [TGT], [SRC]
-	OP_STR_REV        = 0x72, // [TGT], [SRC]
-	OP_STR_LIST       = 0x73, // [TGT], [SRC]
-	OP_STR_BYTE       = 0x74, // [TGT], [SRC1], [SRC2]
-	OP_STR_HASH       = 0x75, // [TGT], [SRC1], [SRC2]
-	OP_UTF8_VALID     = 0x76, // [TGT], [SRC]
-	OP_UTF8_LIST      = 0x77, // [TGT], [SRC]
-	OP_UTF8_STR       = 0x78, // [TGT], [SRC]
-	OP_STRUCT_SIZE    = 0x79, // [TGT], [SRC]
-	OP_STRUCT_STR     = 0x7A, // [TGT], [SRC1], [SRC2]
-	OP_STRUCT_LIST    = 0x7B, // [TGT], [SRC1], [SRC2]
-	OP_LIST_NEW       = 0x7C, // [TGT], [SRC1], [SRC2]
-	OP_LIST_FIND      = 0x7D, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_LIST_FINDREV   = 0x7E, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_LIST_JOIN      = 0x7F, // [TGT], [SRC1], [SRC2]
-	OP_LIST_REV       = 0x80, // [TGT], [SRC]
-	OP_LIST_STR       = 0x81, // [TGT], [SRC]
-	OP_LIST_SORT      = 0x82, // [TGT], [SRC]
-	OP_LIST_SORTREV   = 0x83, // [TGT], [SRC]
-	OP_LIST_SORTCMP   = 0x84, // [TGT], [SRC1], [SRC2]
-	OP_PICKLE_VALID   = 0x85, // [TGT], [SRC]
-	OP_PICKLE_STR     = 0x86, // [TGT], [SRC]
-	OP_PICKLE_VAL     = 0x87, // [TGT], [SRC]
+	OP_NOP           = 0x00, //
+	OP_ABORTERR      = 0x01, // ERRNO
+	OP_MOVE          = 0x02, // [TGT], [SRC]
+	OP_INC           = 0x03, // [TGT/SRC]
+	OP_NIL           = 0x04, // [TGT]
+	OP_NUMPOS        = 0x05, // [TGT], [VALUE]
+	OP_NUMNEG        = 0x06, // [TGT], [VALUE]
+	OP_NUMTBL        = 0x07, // [TGT], [INDEX]
+	OP_STR           = 0x08, // [TGT], [INDEX]
+	OP_LIST          = 0x09, // [TGT], HINT
+	OP_ISNUM         = 0x0A, // [TGT], [SRC]
+	OP_ISSTR         = 0x0B, // [TGT], [SRC]
+	OP_ISLIST        = 0x0C, // [TGT], [SRC]
+	OP_NOT           = 0x0D, // [TGT], [SRC]
+	OP_SIZE          = 0x0E, // [TGT], [SRC]
+	OP_TONUM         = 0x0F, // [TGT], [SRC]
+	OP_CAT           = 0x10, // [TGT], [SRC1], [SRC2]
+	OP_LT            = 0x11, // [TGT], [SRC1], [SRC2]
+	OP_LTE           = 0x12, // [TGT], [SRC1], [SRC2]
+	OP_NEQ           = 0x13, // [TGT], [SRC1], [SRC2]
+	OP_EQU           = 0x14, // [TGT], [SRC1], [SRC2]
+	OP_GETAT         = 0x15, // [TGT], [SRC1], [SRC2]
+	OP_SLICE         = 0x16, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_SETAT         = 0x17, // [SRC1], [SRC2], [SRC3]
+	OP_SPLICE        = 0x18, // [SRC1], [SRC2], [SRC3], [SRC4]
+	OP_JUMP          = 0x19, // [[LOCATION]]
+	OP_JUMPTRUE      = 0x1A, // [SRC], [[LOCATION]]
+	OP_JUMPFALSE     = 0x1B, // [SRC], [[LOCATION]]
+	OP_CALL          = 0x1C, // [TGT], [SRC], LEVEL, [[LOCATION]]
+	OP_NATIVE        = 0x1D, // [TGT], [SRC], [INDEX]
+	OP_RETURN        = 0x1E, // [SRC]
+	OP_SAY           = 0x1F, // [TGT], [SRC...]
+	OP_WARN          = 0x20, // [TGT], [SRC...]
+	OP_ASK           = 0x21, // [TGT], [SRC...]
+	OP_EXIT          = 0x22, // [TGT], [SRC...]
+	OP_ABORT         = 0x23, // [TGT], [SRC...]
+	OP_NUM_NEG       = 0x24, // [TGT], [SRC]
+	OP_NUM_ADD       = 0x25, // [TGT], [SRC1], [SRC2]
+	OP_NUM_SUB       = 0x26, // [TGT], [SRC1], [SRC2]
+	OP_NUM_MUL       = 0x27, // [TGT], [SRC1], [SRC2]
+	OP_NUM_DIV       = 0x28, // [TGT], [SRC1], [SRC2]
+	OP_NUM_MOD       = 0x29, // [TGT], [SRC1], [SRC2]
+	OP_NUM_POW       = 0x2A, // [TGT], [SRC1], [SRC2]
+	OP_NUM_ABS       = 0x2B, // [TGT], [SRC]
+	OP_NUM_SIGN      = 0x2C, // [TGT], [SRC]
+	OP_NUM_MAX       = 0x2D, // [TGT], [SRC...]
+	OP_NUM_MIN       = 0x2E, // [TGT], [SRC...]
+	OP_NUM_CLAMP     = 0x2F, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_NUM_FLOOR     = 0x30, // [TGT], [SRC]
+	OP_NUM_CEIL      = 0x31, // [TGT], [SRC]
+	OP_NUM_ROUND     = 0x32, // [TGT], [SRC]
+	OP_NUM_TRUNC     = 0x33, // [TGT], [SRC]
+	OP_NUM_NAN       = 0x34, // [TGT]
+	OP_NUM_INF       = 0x35, // [TGT]
+	OP_NUM_ISNAN     = 0x36, // [TGT], [SRC]
+	OP_NUM_ISFINITE  = 0x37, // [TGT], [SRC]
+	OP_NUM_E         = 0x38, // [TGT]
+	OP_NUM_PI        = 0x39, // [TGT]
+	OP_NUM_TAU       = 0x3A, // [TGT]
+	OP_NUM_SIN       = 0x3B, // [TGT], [SRC]
+	OP_NUM_COS       = 0x3C, // [TGT], [SRC]
+	OP_NUM_TAN       = 0x3D, // [TGT], [SRC]
+	OP_NUM_ASIN      = 0x3E, // [TGT], [SRC]
+	OP_NUM_ACOS      = 0x3F, // [TGT], [SRC]
+	OP_NUM_ATAN      = 0x40, // [TGT], [SRC]
+	OP_NUM_ATAN2     = 0x41, // [TGT], [SRC1], [SRC2]
+	OP_NUM_LOG       = 0x42, // [TGT], [SRC]
+	OP_NUM_LOG2      = 0x43, // [TGT], [SRC]
+	OP_NUM_LOG10     = 0x44, // [TGT], [SRC]
+	OP_NUM_EXP       = 0x45, // [TGT], [SRC]
+	OP_NUM_LERP      = 0x46, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_NUM_HEX       = 0x47, // [TGT], [SRC1], [SRC2]
+	OP_NUM_OCT       = 0x48, // [TGT], [SRC1], [SRC2]
+	OP_NUM_BIN       = 0x49, // [TGT], [SRC1], [SRC2]
+	OP_INT_NEW       = 0x4A, // [TGT], [SRC]
+	OP_INT_NOT       = 0x4B, // [TGT], [SRC]
+	OP_INT_AND       = 0x4C, // [TGT], [SRC1], [SRC2]
+	OP_INT_OR        = 0x4D, // [TGT], [SRC1], [SRC2]
+	OP_INT_XOR       = 0x4E, // [TGT], [SRC1], [SRC2]
+	OP_INT_SHL       = 0x4F, // [TGT], [SRC1], [SRC2]
+	OP_INT_SHR       = 0x50, // [TGT], [SRC1], [SRC2]
+	OP_INT_SAR       = 0x51, // [TGT], [SRC1], [SRC2]
+	OP_INT_ADD       = 0x52, // [TGT], [SRC1], [SRC2]
+	OP_INT_SUB       = 0x53, // [TGT], [SRC1], [SRC2]
+	OP_INT_MUL       = 0x54, // [TGT], [SRC1], [SRC2]
+	OP_INT_DIV       = 0x55, // [TGT], [SRC1], [SRC2]
+	OP_INT_MOD       = 0x56, // [TGT], [SRC1], [SRC2]
+	OP_INT_CLZ       = 0x57, // [TGT], [SRC]
+	OP_RAND_SEED     = 0x58, // [TGT], [SRC]
+	OP_RAND_SEEDAUTO = 0x59, // [TGT]
+	OP_RAND_INT      = 0x5A, // [TGT]
+	OP_RAND_NUM      = 0x5B, // [TGT]
+	OP_RAND_GETSTATE = 0x5C, // [TGT]
+	OP_RAND_SETSTATE = 0x5D, // [TGT], [SRC]
+	OP_RAND_PICK     = 0x5E, // [TGT], [SRC]
+	OP_RAND_SHUFFLE  = 0x5F, // [TGT], [SRC]
+	OP_STR_NEW       = 0x60, // [TGT], [SRC...]
+	OP_STR_SPLIT     = 0x61, // [TGT], [SRC1], [SRC2]
+	OP_STR_REPLACE   = 0x62, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_STR_BEGINS    = 0x63, // [TGT], [SRC1], [SRC2]
+	OP_STR_ENDS      = 0x64, // [TGT], [SRC1], [SRC2]
+	OP_STR_PAD       = 0x65, // [TGT], [SRC1], [SRC2]
+	OP_STR_FIND      = 0x66, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_STR_RFIND     = 0x67, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_STR_LOWER     = 0x68, // [TGT], [SRC]
+	OP_STR_UPPER     = 0x69, // [TGT], [SRC]
+	OP_STR_TRIM      = 0x6A, // [TGT], [SRC]
+	OP_STR_REV       = 0x6B, // [TGT], [SRC]
+	OP_STR_REP       = 0x6C, // [TGT], [SRC]
+	OP_STR_LIST      = 0x6D, // [TGT], [SRC]
+	OP_STR_BYTE      = 0x6E, // [TGT], [SRC1], [SRC2]
+	OP_STR_HASH      = 0x6F, // [TGT], [SRC1], [SRC2]
+	OP_UTF8_VALID    = 0x70, // [TGT], [SRC]
+	OP_UTF8_LIST     = 0x71, // [TGT], [SRC]
+	OP_UTF8_STR      = 0x72, // [TGT], [SRC]
+	OP_STRUCT_SIZE   = 0x73, // [TGT], [SRC]
+	OP_STRUCT_STR    = 0x74, // [TGT], [SRC1], [SRC2]
+	OP_STRUCT_LIST   = 0x75, // [TGT], [SRC1], [SRC2]
+	OP_LIST_NEW      = 0x76, // [TGT], [SRC1], [SRC2]
+	OP_LIST_SHIFT    = 0x77, // [TGT], [SRC]
+	OP_LIST_POP      = 0x78, // [TGT], [SRC]
+	OP_LIST_PUSH     = 0x79, // [TGT], [SRC1], [SRC2]
+	OP_LIST_UNSHIFT  = 0x7A, // [TGT], [SRC1], [SRC2]
+	OP_LIST_APPEND   = 0x7B, // [TGT], [SRC1], [SRC2]
+	OP_LIST_PREPEND  = 0x7C, // [TGT], [SRC1], [SRC2]
+	OP_LIST_FIND     = 0x7D, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_LIST_RFIND    = 0x7E, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_LIST_JOIN     = 0x7F, // [TGT], [SRC1], [SRC2]
+	OP_LIST_REV      = 0x80, // [TGT], [SRC]
+	OP_LIST_STR      = 0x81, // [TGT], [SRC]
+	OP_LIST_SORT     = 0x82, // [TGT], [SRC]
+	OP_LIST_RSORT    = 0x83, // [TGT], [SRC]
+	OP_LIST_SORTCMP  = 0x84, // [TGT], [SRC1], [SRC2]
+	OP_PICKLE_VALID  = 0x85, // [TGT], [SRC]
+	OP_PICKLE_STR    = 0x86, // [TGT], [SRC]
+	OP_PICKLE_VAL    = 0x87, // [TGT], [SRC]
+	OP_TASK_ID       = 0x88, // [TGT]
+	OP_TASK_FORK     = 0x89, // [TGT]
+	OP_TASK_SEND     = 0x8A, // [TGT], [SRC1], [SRC2]
+	OP_TASK_RECV     = 0x8B, // [TGT]
+	OP_TASK_PEEK     = 0x8C, // [TGT]
+	OP_GC_GET        = 0x8D, // [TGT]
+	OP_GC_SET        = 0x8E, // [TGT], [SRC]
+	OP_GC_RUN        = 0x8F, // [TGT]
 
 	// fake ops
-	OP_GT             = 0x1F0,
-	OP_GTE            = 0x1F1,
-	OP_PICK           = 0x1F2,
-	OP_INVALID        = 0x1F3
+	OP_GT            = 0x1F0,
+	OP_GTE           = 0x1F1,
+	OP_PICK          = 0x1F2,
+	OP_INVALID       = 0x1F3
 } op_enum;
 
 typedef enum {
 	ABORT_LISTFUNC = 0x01
 } abort_enum;
-
-static inline void op_nop(list_byte b){
-	oplog("NOP");
-	list_byte_push(b, OP_NOP);
-}
-
-static inline void op_exit(list_byte b, varloc_st src){
-	oplogf("EXIT %d:%d", src.fdiff, src.index);
-	list_byte_push3(b, OP_EXIT, src.fdiff, src.index);
-}
-
-static inline void op_abort(list_byte b, varloc_st src){
-	oplogf("ABORT %d:%d", src.fdiff, src.index);
-	list_byte_push3(b, OP_ABORT, src.fdiff, src.index);
-}
 
 static inline void op_aborterr(list_byte b, int errno){
 	oplogf("ABORTERR %d", errno);
@@ -721,7 +714,7 @@ static inline void op_num(list_byte b, varloc_st tgt, int num){
 	}
 }
 
-static inline void op_num_tbl(list_byte b, varloc_st tgt, int index){
+static inline void op_numtbl(list_byte b, varloc_st tgt, int index){
 	oplogf("NUMTBL %d:%d, %d", tgt.fdiff, tgt.index, index);
 	list_byte_push5(b, OP_NUMTBL, tgt.fdiff, tgt.index, index % 256, index >> 8);
 }
@@ -738,25 +731,18 @@ static inline void op_list(list_byte b, varloc_st tgt, int hint){
 	list_byte_push4(b, OP_LIST, tgt.fdiff, tgt.index, hint);
 }
 
-static inline void op_rest(list_byte b, varloc_st tgt, varloc_st src1, varloc_st src2){
-	oplogf("REST %d:%d, %d:%d, %d:%d", tgt.fdiff, tgt.index, src1.fdiff, src1.index,
-		src2.fdiff, src2.index);
-	list_byte_push7(b, OP_REST, tgt.fdiff, tgt.index, src1.fdiff, src1.index,
-		src2.fdiff, src2.index);
-}
-
 static inline void op_unop(list_byte b, op_enum opcode, varloc_st tgt, varloc_st src){
 	#ifdef SINK_DEBUG
 	const char *opstr = "???";
-	if      (opcode == OP_NEG   ) opstr = "NEG";
-	else if (opcode == OP_NOT   ) opstr = "NOT";
-	else if (opcode == OP_SIZE  ) opstr = "SIZE";
-	else if (opcode == OP_TONUM ) opstr = "TONUM";
-	else if (opcode == OP_SHIFT ) opstr = "SHIFT";
-	else if (opcode == OP_POP   ) opstr = "POP";
-	else if (opcode == OP_ISNUM ) opstr = "ISNUM";
-	else if (opcode == OP_ISSTR ) opstr = "ISSTR";
-	else if (opcode == OP_ISLIST) opstr = "ISLIST";
+	if      (opcode == OP_ISNUM     ) opstr = "ISNUM";
+	else if (opcode == OP_ISSTR     ) opstr = "ISSTR";
+	else if (opcode == OP_ISLIST    ) opstr = "ISLIST";
+	else if (opcode == OP_NOT       ) opstr = "NOT";
+	else if (opcode == OP_SIZE      ) opstr = "SIZE";
+	else if (opcode == OP_TONUM     ) opstr = "TONUM";
+	else if (opcode == OP_NUM_NEG   ) opstr = "NUM_NEG";
+	else if (opcode == OP_LIST_SHIFT) opstr = "LIST_SHIFT";
+	else if (opcode == OP_LIST_POP  ) opstr = "LIST_POP";
 	oplogf("%s %d:%d, %d:%d", opstr, tgt.fdiff, tgt.index, src.fdiff, src.index);
 	#endif
 	list_byte_push5(b, opcode, tgt.fdiff, tgt.index, src.fdiff, src.index);
@@ -780,21 +766,17 @@ static inline void op_binop(list_byte b, op_enum opcode, varloc_st tgt, varloc_s
 
 	#ifdef SINK_DEBUG
 	const char *opstr = "???";
-	if      (opcode == OP_ADD    ) opstr = "ADD";
-	else if (opcode == OP_SUB    ) opstr = "SUB";
-	else if (opcode == OP_MUL    ) opstr = "MUL";
-	else if (opcode == OP_DIV    ) opstr = "DIV";
-	else if (opcode == OP_MOD    ) opstr = "MOD";
-	else if (opcode == OP_POW    ) opstr = "POW";
-	else if (opcode == OP_CAT    ) opstr = "CAT";
-	else if (opcode == OP_PUSH   ) opstr = "PUSH";
-	else if (opcode == OP_UNSHIFT) opstr = "UNSHIFT";
-	else if (opcode == OP_APPEND ) opstr = "APPEND";
-	else if (opcode == OP_PREPEND) opstr = "PREPEND";
+	if      (opcode == OP_CAT    ) opstr = "CAT";
 	else if (opcode == OP_LT     ) opstr = "LT";
 	else if (opcode == OP_LTE    ) opstr = "LTE";
 	else if (opcode == OP_NEQ    ) opstr = "NEQ";
 	else if (opcode == OP_EQU    ) opstr = "EQU";
+	else if (opcode == OP_NUM_ADD) opstr = "NUM_ADD";
+	else if (opcode == OP_NUM_SUB) opstr = "NUM_SUB";
+	else if (opcode == OP_NUM_MUL) opstr = "NUM_MUL";
+	else if (opcode == OP_NUM_DIV) opstr = "NUM_DIV";
+	else if (opcode == OP_NUM_MOD) opstr = "NUM_MOD";
+	else if (opcode == OP_NUM_POW) opstr = "NUM_POW";
 	oplogf("%s %d:%d, %d:%d, %d:%d", opstr, tgt.fdiff, tgt.index, src1.fdiff, src1.index,
 		src2.fdiff, src2.index);
 	#endif
@@ -969,15 +951,9 @@ typedef enum {
 	KS_BANGEQU,
 	KS_EQU2,
 	KS_TILDEEQU,
-	KS_TILDEPLUS,
-	KS_PLUSTILDE,
-	KS_TILDEMINUS,
-	KS_MINUSTILDE,
 	KS_AMP2,
 	KS_PIPE2,
 	KS_PERIOD3,
-	KS_TILDE2PLUS,
-	KS_PLUSTILDE2,
 	KS_PIPE2EQU,
 	KS_AMP2EQU,
 	KS_BREAK,
@@ -1043,15 +1019,9 @@ static const char *ks_name(ks_enum k){
 		case KS_BANGEQU:    return "KS_BANGEQU";
 		case KS_EQU2:       return "KS_EQU2";
 		case KS_TILDEEQU:   return "KS_TILDEEQU";
-		case KS_TILDEPLUS:  return "KS_TILDEPLUS";
-		case KS_PLUSTILDE:  return "KS_PLUSTILDE";
-		case KS_TILDEMINUS: return "KS_TILDEMINUS";
-		case KS_MINUSTILDE: return "KS_MINUSTILDE";
 		case KS_AMP2:       return "KS_AMP2";
 		case KS_PIPE2:      return "KS_PIPE2";
 		case KS_PERIOD3:    return "KS_PERIOD3";
-		case KS_TILDE2PLUS: return "KS_TILDE2PLUS";
-		case KS_PLUSTILDE2: return "KS_PLUSTILDE2";
 		case KS_PIPE2EQU:   return "KS_PIPE2EQU";
 		case KS_AMP2EQU:    return "KS_AMP2EQU";
 		case KS_BREAK:      return "KS_BREAK";
@@ -1120,10 +1090,6 @@ static inline ks_enum ks_char2(char c1, char c2){
 	else if (c1 == '!' && c2 == '=') return KS_BANGEQU;
 	else if (c1 == '=' && c2 == '=') return KS_EQU2;
 	else if (c1 == '~' && c2 == '=') return KS_TILDEEQU;
-	else if (c1 == '~' && c2 == '+') return KS_TILDEPLUS;
-	else if (c1 == '+' && c2 == '~') return KS_PLUSTILDE;
-	else if (c1 == '~' && c2 == '-') return KS_TILDEMINUS;
-	else if (c1 == '-' && c2 == '~') return KS_MINUSTILDE;
 	else if (c1 == '&' && c2 == '&') return KS_AMP2;
 	else if (c1 == '|' && c2 == '|') return KS_PIPE2;
 	return KS_INVALID;
@@ -1131,8 +1097,6 @@ static inline ks_enum ks_char2(char c1, char c2){
 
 static inline ks_enum ks_char3(char c1, char c2, char c3){
 	if      (c1 == '.' && c2 == '.' && c3 == '.') return KS_PERIOD3;
-	else if (c1 == '~' && c2 == '~' && c3 == '+') return KS_TILDE2PLUS;
-	else if (c1 == '+' && c2 == '~' && c3 == '~') return KS_PLUSTILDE2;
 	else if (c1 == '|' && c2 == '|' && c3 == '=') return KS_PIPE2EQU;
 	else if (c1 == '&' && c2 == '&' && c3 == '=') return KS_AMP2EQU;
 	return KS_INVALID;
@@ -1166,12 +1130,10 @@ static inline ks_enum ks_str(list_byte s){
 static inline op_enum ks_toUnaryOp(ks_enum k){
 	if      (k == KS_PLUS      ) return OP_TONUM;
 	else if (k == KS_UNPLUS    ) return OP_TONUM;
-	else if (k == KS_MINUS     ) return OP_NEG;
-	else if (k == KS_UNMINUS   ) return OP_NEG;
+	else if (k == KS_MINUS     ) return OP_NUM_NEG;
+	else if (k == KS_UNMINUS   ) return OP_NUM_NEG;
 	else if (k == KS_AMP       ) return OP_SIZE;
 	else if (k == KS_BANG      ) return OP_NOT;
-	else if (k == KS_MINUSTILDE) return OP_SHIFT;
-	else if (k == KS_TILDEMINUS) return OP_POP;
 	else if (k == KS_TYPENUM   ) return OP_ISNUM;
 	else if (k == KS_TYPESTR   ) return OP_ISSTR;
 	else if (k == KS_TYPELIST  ) return OP_ISLIST;
@@ -1179,12 +1141,12 @@ static inline op_enum ks_toUnaryOp(ks_enum k){
 }
 
 static inline op_enum ks_toBinaryOp(ks_enum k){
-	if      (k == KS_PLUS      ) return OP_ADD;
-	else if (k == KS_MINUS     ) return OP_SUB;
-	else if (k == KS_PERCENT   ) return OP_MOD;
-	else if (k == KS_STAR      ) return OP_MUL;
-	else if (k == KS_SLASH     ) return OP_DIV;
-	else if (k == KS_CARET     ) return OP_POW;
+	if      (k == KS_PLUS      ) return OP_NUM_ADD;
+	else if (k == KS_MINUS     ) return OP_NUM_SUB;
+	else if (k == KS_PERCENT   ) return OP_NUM_MOD;
+	else if (k == KS_STAR      ) return OP_NUM_MUL;
+	else if (k == KS_SLASH     ) return OP_NUM_DIV;
+	else if (k == KS_CARET     ) return OP_NUM_POW;
 	else if (k == KS_LT        ) return OP_LT;
 	else if (k == KS_GT        ) return OP_GT;
 	else if (k == KS_TILDE     ) return OP_CAT;
@@ -1192,20 +1154,16 @@ static inline op_enum ks_toBinaryOp(ks_enum k){
 	else if (k == KS_GTEQU     ) return OP_GTE;
 	else if (k == KS_BANGEQU   ) return OP_NEQ;
 	else if (k == KS_EQU2      ) return OP_EQU;
-	else if (k == KS_TILDEPLUS ) return OP_PUSH;
-	else if (k == KS_PLUSTILDE ) return OP_UNSHIFT;
-	else if (k == KS_TILDE2PLUS) return OP_APPEND;
-	else if (k == KS_PLUSTILDE2) return OP_PREPEND;
 	return OP_INVALID;
 }
 
 static inline op_enum ks_toMutateOp(ks_enum k){
-	if      (k == KS_PLUSEQU   ) return OP_ADD;
-	else if (k == KS_PERCENTEQU) return OP_MOD;
-	else if (k == KS_MINUSEQU  ) return OP_SUB;
-	else if (k == KS_STAREQU   ) return OP_MUL;
-	else if (k == KS_SLASHEQU  ) return OP_DIV;
-	else if (k == KS_CARETEQU  ) return OP_POW;
+	if      (k == KS_PLUSEQU   ) return OP_NUM_ADD;
+	else if (k == KS_PERCENTEQU) return OP_NUM_MOD;
+	else if (k == KS_MINUSEQU  ) return OP_NUM_SUB;
+	else if (k == KS_STAREQU   ) return OP_NUM_MUL;
+	else if (k == KS_SLASHEQU  ) return OP_NUM_DIV;
+	else if (k == KS_CARETEQU  ) return OP_NUM_POW;
 	else if (k == KS_TILDEEQU  ) return OP_CAT;
 	return OP_INVALID;
 }
@@ -1350,8 +1308,6 @@ static inline bool tok_isPre(tok tk){
 		k == KS_AMP        ||
 		k == KS_BANG       ||
 		k == KS_PERIOD3    ||
-		k == KS_MINUSTILDE ||
-		k == KS_TILDEMINUS ||
 		k == KS_TYPENUM    ||
 		k == KS_TYPESTR    ||
 		k == KS_TYPELIST;
@@ -1384,10 +1340,6 @@ static inline bool tok_isMid(tok tk, bool allowComma, bool allowPipe){
 		k == KS_EQU2       ||
 		k == KS_TILDE      ||
 		k == KS_TILDEEQU   ||
-		k == KS_TILDEPLUS  ||
-		k == KS_PLUSTILDE  ||
-		k == KS_TILDE2PLUS ||
-		k == KS_PLUSTILDE2 ||
 		k == KS_AMP2       ||
 		k == KS_PIPE2      ||
 		k == KS_AMP2EQU    ||
@@ -1424,20 +1376,16 @@ static inline int tok_midPrecedence(tok tk){
 	else if (k == KS_PERCENT   ) return  2;
 	else if (k == KS_PLUS      ) return  3;
 	else if (k == KS_MINUS     ) return  3;
-	else if (k == KS_TILDEPLUS ) return  4;
-	else if (k == KS_PLUSTILDE ) return  4;
-	else if (k == KS_TILDE2PLUS) return  5;
-	else if (k == KS_PLUSTILDE2) return  5;
-	else if (k == KS_TILDE     ) return  6;
-	else if (k == KS_AT        ) return  7;
-	else if (k == KS_LTEQU     ) return  8;
-	else if (k == KS_LT        ) return  8;
-	else if (k == KS_GTEQU     ) return  8;
-	else if (k == KS_GT        ) return  8;
-	else if (k == KS_BANGEQU   ) return  9;
-	else if (k == KS_EQU2      ) return  9;
-	else if (k == KS_AMP2      ) return 10;
-	else if (k == KS_PIPE2     ) return 11;
+	else if (k == KS_TILDE     ) return  4;
+	else if (k == KS_AT        ) return  5;
+	else if (k == KS_LTEQU     ) return  6;
+	else if (k == KS_LT        ) return  6;
+	else if (k == KS_GTEQU     ) return  6;
+	else if (k == KS_GT        ) return  6;
+	else if (k == KS_BANGEQU   ) return  7;
+	else if (k == KS_EQU2      ) return  7;
+	else if (k == KS_AMP2      ) return  8;
+	else if (k == KS_PIPE2     ) return  9;
 	else if (k == KS_EQU       ) return 20;
 	else if (k == KS_PLUSEQU   ) return 20;
 	else if (k == KS_PERCENTEQU) return 20;
@@ -5331,10 +5279,10 @@ static inline void symtbl_loadStdlib(symtbl sym){
 		SAC(sym, "ceil"      , OP_NUM_CEIL      ,  1);
 		SAC(sym, "round"     , OP_NUM_ROUND     ,  1);
 		SAC(sym, "trunc"     , OP_NUM_TRUNC     ,  1);
-		SAC(sym, "NaN"       , OP_NUM_NAN       ,  0);
+		SAC(sym, "nan"       , OP_NUM_NAN       ,  0);
 		SAC(sym, "inf"       , OP_NUM_INF       ,  0);
-		SAC(sym, "isNaN"     , OP_NUM_ISNAN     ,  1);
-		SAC(sym, "isFinite"  , OP_NUM_ISFINITE  ,  1);
+		SAC(sym, "isnan"     , OP_NUM_ISNAN     ,  1);
+		SAC(sym, "isfinite"  , OP_NUM_ISFINITE  ,  1);
 		SAC(sym, "e"         , OP_NUM_E         ,  0);
 		SAC(sym, "pi"        , OP_NUM_PI        ,  0);
 		SAC(sym, "tau"       , OP_NUM_TAU       ,  0);
@@ -5355,7 +5303,7 @@ static inline void symtbl_loadStdlib(symtbl sym){
 		SAC(sym, "bin"       , OP_NUM_BIN       ,  2);
 	symtbl_popNamespace(sym);
 	nss = NSS("int"); symtbl_pushNamespace(sym, nss); list_ptr_free(nss);
-		SAC(sym, "cast"      , OP_INT_CAST      ,  1);
+		SAC(sym, "new"       , OP_INT_NEW       ,  1);
 		SAC(sym, "not"       , OP_INT_NOT       ,  1);
 		SAC(sym, "and"       , OP_INT_AND       ,  2);
 		SAC(sym, "or"        , OP_INT_OR        ,  2);
@@ -5381,18 +5329,19 @@ static inline void symtbl_loadStdlib(symtbl sym){
 		SAC(sym, "shuffle"   , OP_RAND_SHUFFLE  ,  1);
 	symtbl_popNamespace(sym);
 	nss = NSS("str"); symtbl_pushNamespace(sym, nss); list_ptr_free(nss);
-		SAC(sym, "new"       , OP_STR_NEW       ,  2);
+		SAC(sym, "new"       , OP_STR_NEW       , -1);
 		SAC(sym, "split"     , OP_STR_SPLIT     ,  2);
 		SAC(sym, "replace"   , OP_STR_REPLACE   ,  3);
-		SAC(sym, "startsWith", OP_STR_STARTSWITH,  2);
-		SAC(sym, "endsWith"  , OP_STR_ENDSWITH  ,  2);
+		SAC(sym, "begins"    , OP_STR_BEGINS    ,  2);
+		SAC(sym, "ends"      , OP_STR_ENDS      ,  2);
 		SAC(sym, "pad"       , OP_STR_PAD       ,  2);
 		SAC(sym, "find"      , OP_STR_FIND      ,  3);
-		SAC(sym, "findRev"   , OP_STR_FINDREV   ,  3);
+		SAC(sym, "rfind"     , OP_STR_RFIND     ,  3);
 		SAC(sym, "lower"     , OP_STR_LOWER     ,  1);
 		SAC(sym, "upper"     , OP_STR_UPPER     ,  1);
 		SAC(sym, "trim"      , OP_STR_TRIM      ,  1);
 		SAC(sym, "rev"       , OP_STR_REV       ,  1);
+		SAC(sym, "rep"       , OP_STR_REV       ,  2);
 		SAC(sym, "list"      , OP_STR_LIST      ,  1);
 		SAC(sym, "byte"      , OP_STR_BYTE      ,  2);
 		SAC(sym, "hash"      , OP_STR_HASH      ,  2);
@@ -5409,19 +5358,37 @@ static inline void symtbl_loadStdlib(symtbl sym){
 	symtbl_popNamespace(sym);
 	nss = NSS("list"); symtbl_pushNamespace(sym, nss); list_ptr_free(nss);
 		SAC(sym, "new"       , OP_LIST_NEW      ,  2);
+		SAC(sym, "shift"     , OP_LIST_SHIFT    ,  1);
+		SAC(sym, "pop"       , OP_LIST_POP      ,  1);
+		SAC(sym, "push"      , OP_LIST_PUSH     ,  2);
+		SAC(sym, "unshift"   , OP_LIST_UNSHIFT  ,  2);
+		SAC(sym, "append"    , OP_LIST_APPEND   ,  2);
+		SAC(sym, "prepend"   , OP_LIST_PREPEND  ,  2);
 		SAC(sym, "find"      , OP_LIST_FIND     ,  3);
-		SAC(sym, "findRev"   , OP_LIST_FINDREV  ,  3);
+		SAC(sym, "rfind"     , OP_LIST_RFIND    ,  3);
 		SAC(sym, "join"      , OP_LIST_JOIN     ,  2);
 		SAC(sym, "rev"       , OP_LIST_REV      ,  1);
 		SAC(sym, "str"       , OP_LIST_STR      ,  1);
 		SAC(sym, "sort"      , OP_LIST_SORT     ,  1);
-		SAC(sym, "sortRev"   , OP_LIST_SORTREV  ,  1);
-		SAC(sym, "sortCmp"   , OP_LIST_SORTCMP  ,  2);
+		SAC(sym, "rsort"     , OP_LIST_RSORT    ,  1);
+		SAC(sym, "sortcmp"   , OP_LIST_SORTCMP  ,  2);
 	symtbl_popNamespace(sym);
 	nss = NSS("pickle"); symtbl_pushNamespace(sym, nss); list_ptr_free(nss);
 		SAC(sym, "valid"     , OP_PICKLE_VALID  ,  1);
 		SAC(sym, "str"       , OP_PICKLE_STR    ,  1);
 		SAC(sym, "val"       , OP_PICKLE_VAL    ,  1);
+	symtbl_popNamespace(sym);
+	nss = NSS("task"); symtbl_pushNamespace(sym, nss); list_ptr_free(nss);
+		SAC(sym, "id"        , OP_TASK_ID       ,  0);
+		SAC(sym, "fork"      , OP_TASK_FORK     ,  0);
+		SAC(sym, "send"      , OP_TASK_SEND     ,  2);
+		SAC(sym, "recv"      , OP_TASK_RECV     ,  0);
+		SAC(sym, "peek"      , OP_TASK_PEEK     ,  0);
+	symtbl_popNamespace(sym);
+	nss = NSS("gc"); symtbl_pushNamespace(sym, nss); list_ptr_free(nss);
+		SAC(sym, "get"       , OP_GC_GET        ,  0);
+		SAC(sym, "set"       , OP_GC_SET        ,  1);
+		SAC(sym, "run"       , OP_GC_RUN        ,  0);
 	symtbl_popNamespace(sym);
 }
 
@@ -5880,7 +5847,7 @@ static per_st program_evalLval(program prg, symtbl sym, pem_enum mode, varloc_st
 				varloc_st t2 = ts.u.vlc;
 
 				op_num(prg->ops, t, lv->u.list.body->size);
-				op_rest(prg->ops, t2, valueVlc, t);
+				op_nil(prg->ops, t2);
 				op_slice(prg->ops, t, valueVlc, t, t2);
 				symtbl_clearTemp(sym, t2);
 				per_st pe = program_evalLval(prg, sym, PEM_EMPTY, VARLOC_NULL, lv->u.list.rest,
@@ -5933,7 +5900,7 @@ static psr_st program_slice(program prg, symtbl sym, varloc_st obj, expr ex){
 		if (ts.type == STA_ERROR)
 			return psr_error(ex->flp, ts.u.msg);
 		len = ts.u.vlc;
-		op_rest(prg->ops, len, obj, start);
+		op_nil(prg->ops, len);
 	}
 	else{
 		per_st pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, ex->u.slice.len);
@@ -5987,14 +5954,14 @@ static per_st program_lvalGet(program prg, symtbl sym, plm_enum mode, varloc_st 
 					lv->u.list.body->ptrs[i]);
 				if (pe.type == PER_ERROR)
 					return pe;
-				op_binop(prg->ops, OP_PUSH, intoVlc, intoVlc, pe.u.vlc);
+				op_param2(prg->ops, OP_LIST_PUSH, intoVlc, intoVlc, pe.u.vlc);
 			}
 
 			if (lv->u.list.rest != NULL){
 				per_st pe = program_lvalGet(prg, sym, PLM_CREATE, VARLOC_NULL, lv->u.list.rest);
 				if (pe.type == PER_ERROR)
 					return pe;
-				op_binop(prg->ops, OP_APPEND, intoVlc, intoVlc, pe.u.vlc);
+				op_param2(prg->ops, OP_LIST_APPEND, intoVlc, intoVlc, pe.u.vlc);
 			}
 		} break;
 	}
@@ -6069,28 +6036,6 @@ static per_st program_evalCall(program prg, symtbl sym, pem_enum mode, varloc_st
 		return per_ok(intoVlc);
 	}
 
-	if (nsn->type == NSN_CMD_OPCODE &&
-		(nsn->u.cmdOpcode.opcode == OP_EXIT || nsn->u.cmdOpcode.opcode == OP_ABORT) &&
-		params == NULL){
-		// if empty exit/abort, then just call it with nil
-		if (mode == PEM_EMPTY || mode == PEM_CREATE){
-			sta_st ts = symtbl_addTemp(sym);
-			if (ts.type == STA_ERROR)
-				return per_error(flp, ts.u.msg);
-			intoVlc = ts.u.vlc;
-		}
-		op_nil(prg->ops, intoVlc);
-		if (nsn->u.cmdOpcode.opcode == OP_EXIT)
-			op_exit(prg->ops, intoVlc);
-		else
-			op_abort(prg->ops, intoVlc);
-		if (mode == PEM_EMPTY){
-			symtbl_clearTemp(sym, intoVlc);
-			return per_ok(VARLOC_NULL);
-		}
-		return per_ok(intoVlc);
-	}
-
 	if (nsn->type == NSN_CMD_LOCAL || nsn->type == NSN_CMD_NATIVE ||
 		(nsn->type == NSN_CMD_OPCODE && nsn->u.cmdOpcode.params == -1)){
 		if (mode == PEM_EMPTY || mode == PEM_CREATE){
@@ -6120,14 +6065,8 @@ static per_st program_evalCall(program prg, symtbl sym, pem_enum mode, varloc_st
 		}
 		else if (nsn->type == NSN_CMD_NATIVE)
 			op_native(prg->ops, intoVlc, args, nsn->u.index);
-		else{ // variable argument NSN_CMD_OPCODE
-			if (nsn->u.cmdOpcode.opcode == OP_EXIT)
-				op_exit(prg->ops, args);
-			else if (nsn->u.cmdOpcode.opcode == OP_ABORT)
-				op_abort(prg->ops, args);
-			else
-				op_param1(prg->ops, nsn->u.cmdOpcode.opcode, intoVlc, args);
-		}
+		else // variable argument NSN_CMD_OPCODE
+			op_param1(prg->ops, nsn->u.cmdOpcode.opcode, intoVlc, args);
 
 		symtbl_clearTemp(sym, args);
 	}
@@ -6337,6 +6276,13 @@ static per_st program_lvalCheckNil(program prg, symtbl sym, lvr lv, bool jumpFal
 			op_num(prg->ops, idx, 0);
 
 			label next = label_newStr("^condslicenext");
+
+			op_nil(prg->ops, t);
+			op_binop(prg->ops, OP_EQU, t, t, lv->u.slice.len);
+			label_jumpFalse(next, prg->ops, t);
+			op_unop(prg->ops, OP_SIZE, t, obj);
+			op_binop(prg->ops, OP_NUM_SUB, lv->u.slice.len, t, lv->u.slice.start);
+
 			label_declare(next, prg->ops);
 
 			op_binop(prg->ops, OP_LT, t, idx, lv->u.slice.len);
@@ -6344,7 +6290,7 @@ static per_st program_lvalCheckNil(program prg, symtbl sym, lvr lv, bool jumpFal
 			label keep = label_newStr("^condslicekeep");
 			label_jumpFalse(inverted ? keep : skip, prg->ops, t);
 
-			op_binop(prg->ops, OP_ADD, t, idx, lv->u.slice.start);
+			op_binop(prg->ops, OP_NUM_ADD, t, idx, lv->u.slice.start);
 			op_getat(prg->ops, t, obj, t);
 			if (jumpFalse)
 				label_jumpTrue(inverted ? skip : keep, prg->ops, t);
@@ -6427,6 +6373,13 @@ static per_st program_lvalCondAssignPart(program prg, symtbl sym, lvr lv, bool j
 			op_num(prg->ops, idx, 0);
 
 			label next = label_newStr("^condpartslicenext");
+
+			op_nil(prg->ops, t);
+			op_binop(prg->ops, OP_EQU, t, t, lv->u.slice.len);
+			label_jumpFalse(next, prg->ops, t);
+			op_unop(prg->ops, OP_SIZE, t, obj);
+			op_binop(prg->ops, OP_NUM_SUB, lv->u.slice.len, t, lv->u.slice.start);
+
 			label_declare(next, prg->ops);
 
 			op_binop(prg->ops, OP_LT, t, idx, lv->u.slice.len);
@@ -6435,7 +6388,7 @@ static per_st program_lvalCondAssignPart(program prg, symtbl sym, lvr lv, bool j
 			label_jumpFalse(done, prg->ops, t);
 
 			label inc = label_newStr("^condpartsliceinc");
-			op_binop(prg->ops, OP_ADD, t, idx, lv->u.slice.start);
+			op_binop(prg->ops, OP_NUM_ADD, t, idx, lv->u.slice.start);
 			op_getat(prg->ops, t2, obj, t);
 			if (jumpFalse)
 				label_jumpFalse(inc, prg->ops, t2);
@@ -6477,7 +6430,7 @@ static per_st program_lvalCondAssignPart(program prg, symtbl sym, lvr lv, bool j
 					return per_error(lv->flp, ts.u.msg);
 				varloc_st t2 = ts.u.vlc;
 				op_num(prg->ops, t, lv->u.list.body->size);
-				op_rest(prg->ops, t2, valueVlc, t);
+				op_nil(prg->ops, t2);
 				op_slice(prg->ops, t, valueVlc, t, t2);
 				symtbl_clearTemp(sym, t2);
 				per_st pe = program_lvalCondAssignPart(prg, sym, lv->u.list.rest, jumpFalse, t);
@@ -6549,7 +6502,7 @@ static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st int
 					return per_error(ex->flp, sink_format("Too many number constants"));
 				list_double_push(prg->numTable, ex->u.num);
 			}
-			op_num_tbl(prg->ops, intoVlc, index);
+			op_numtbl(prg->ops, intoVlc, index);
 			return per_ok(intoVlc);
 		} break;
 
@@ -6600,7 +6553,7 @@ static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st int
 						if (pe.type == PER_ERROR)
 							return pe;
 						symtbl_clearTemp(sym, pe.u.vlc);
-						op_binop(prg->ops, OP_PUSH, intoVlc, intoVlc, pe.u.vlc);
+						op_param2(prg->ops, OP_LIST_PUSH, intoVlc, intoVlc, pe.u.vlc);
 					}
 				}
 				else{
@@ -6609,7 +6562,7 @@ static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st int
 					if (pe.type == PER_ERROR)
 						return pe;
 					symtbl_clearTemp(sym, pe.u.vlc);
-					op_binop(prg->ops, OP_PUSH, intoVlc, intoVlc, pe.u.vlc);
+					op_param2(prg->ops, OP_LIST_PUSH, intoVlc, intoVlc, pe.u.vlc);
 				}
 			}
 			else
@@ -7144,7 +7097,7 @@ static pgr_st program_gen(program prg, symtbl sym, ast stmt){
 						}
 						varloc_st t2 = ts.u.vlc;
 						op_num(prg->ops, t, i);
-						op_rest(prg->ops, t2, args, t);
+						op_nil(prg->ops, t2);
 						op_slice(prg->ops, lr.u.lv->vlc, args, t, t2);
 						lvr_free(lr.u.lv);
 						symtbl_clearTemp(sym, t2);
@@ -7504,7 +7457,7 @@ static pgr_st program_gen(program prg, symtbl sym, ast stmt){
 					return pgr_error(stmt->flp, ts.u.msg);
 				varloc_st t = ts.u.vlc;
 				op_list(prg->ops, t, 1);
-				op_binop(prg->ops, OP_PUSH, t, t, pr.u.vlc);
+				op_param2(prg->ops, OP_LIST_PUSH, t, t, pr.u.vlc);
 				op_param1(prg->ops, OP_SAY, t, t);
 				symtbl_clearTemp(sym, t);
 				symtbl_clearTemp(sym, pr.u.vlc);
@@ -8323,13 +8276,13 @@ static inline sink_val opi_ask(context ctx, sink_val *vals, int size){
 }
 
 static inline void opi_exit(context ctx, sink_val *vals, int size){
-	if (vals)
+	if (size > 0)
 		opi_say(ctx, vals, size);
 	ctx->passed = true;
 }
 
 static inline void opi_abort(context ctx, sink_val *vals, int size){
-	if (vals)
+	if (size > 0)
 		opi_warn(ctx, vals, size);
 	ctx->failed = true;
 }
@@ -8477,15 +8430,13 @@ static inline sink_val opi_list_slice(context ctx, sink_val a, sink_val b, sink_
 	sink_list ls = var_castlist(ctx, a);
 	int start = b.f;
 	int len = c.f;
-	if (ls->size < 0)
+	if (ls->size <= 0)
 		return sink_list_newblob(ctx, NULL, 0);
 	if (start < 0)
 		start += ls->size;
-	if (start >= ls->size)
-		start = ls->size - 1;
 	if (start < 0)
 		start = 0;
-	if (start + len > ls->size)
+	if (sink_isnil(c) || start + len > ls->size)
 		len = ls->size - start;
 	return sink_list_newblob(ctx, &ls->vals[start], len);
 }
@@ -8498,7 +8449,7 @@ static inline void opi_list_splice(context ctx, sink_val a, sink_val b, sink_val
 	int len = c.f;
 	if (start < 0)
 		start += ls->size;
-	if (start + len > ls->size)
+	if (sink_isnil(c) || start + len > ls->size)
 		len = ls->size - start;
 	if (start >= 0 && start < ls->size){
 		if (sink_isnil(d)){
@@ -8757,34 +8708,6 @@ static crr_enum context_run(context ctx){
 				ctx->pc++;
 			} break;
 
-			case OP_EXIT           : { // [SRC...]
-				LOAD_AB();
-				X = var_get(ctx, A, B);
-				if (sink_isnil(X)){
-					opi_exit(ctx, NULL, 0);
-					return crr_exitpass(ctx);
-				}
-				if (!sink_typelist(X))
-					RETURN_FAIL("Expecting list when calling exit");
-				ls = var_castlist(ctx, X);
-				opi_exit(ctx, ls->vals, ls->size);
-				return crr_exitpass(ctx);
-			} break;
-
-			case OP_ABORT          : { // [SRC...]
-				LOAD_AB();
-				X = var_get(ctx, A, B);
-				if (sink_isnil(X)){
-					opi_abort(ctx, NULL, 0);
-					return crr_exitfail(ctx);
-				}
-				if (!sink_typelist(X))
-					RETURN_FAIL("Expecting list when calling abort");
-				ls = var_castlist(ctx, X);
-				opi_abort(ctx, ls->vals, ls->size);
-				return crr_exitfail(ctx);
-			} break;
-
 			case OP_ABORTERR       : { // ERRNO
 				ctx->pc++;
 				A = ops->bytes[ctx->pc++];
@@ -8849,61 +8772,6 @@ static crr_enum context_run(context ctx){
 				var_set(ctx, A, B, sink_list_newblobgive(ctx, vals, 0, C));
 			} break;
 
-			case OP_REST           : { // [TGT], [SRC1], [SRC2]
-				LOAD_ABCDEF();
-				X = var_get(ctx, C, D);
-				if (!sink_typelist(X))
-					RETURN_FAIL("Expecting list when calculating rest");
-				Y = var_get(ctx, E, F);
-				if (!sink_typenum(Y))
-					RETURN_FAIL("Expecting number when calculating rest");
-				ls = var_castlist(ctx, X);
-				if (Y.f < 0)
-					Y.f += ls->size;
-				if (Y.f <= 0)
-					var_set(ctx, A, B, sink_num(ls->size));
-				else if (Y.f >= ls->size)
-					var_set(ctx, A, B, sink_num(0));
-				else
-					var_set(ctx, A, B, sink_num(ls->size - Y.f));
-			} break;
-
-			case OP_NEG            : { // [TGT], [SRC]
-				INLINE_UNOP(unop_neg, "negating")
-			} break;
-
-			case OP_NOT            : { // [TGT], [SRC]
-				LOAD_ABCD();
-				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, sink_bool(!sink_istrue(X)));
-			} break;
-
-			case OP_SIZE           : { // [TGT], [SRC]
-				LOAD_ABCD();
-				var_set(ctx, A, B, sink_num(opi_size(ctx, var_get(ctx, C, D))));
-			} break;
-
-			case OP_TONUM          : { // [TGT], [SRC]
-				LOAD_ABCD();
-				var_set(ctx, A, B, opi_tonum(ctx, var_get(ctx, C, D)));
-			} break;
-
-			case OP_SHIFT          : { // [TGT], [SRC]
-				LOAD_ABCD();
-				X = var_get(ctx, C, D);
-				if (!sink_typelist(X))
-					RETURN_FAIL("Expecting list when shifting");
-				var_set(ctx, A, B, opi_list_shift(ctx, X));
-			} break;
-
-			case OP_POP            : { // [TGT], [SRC]
-				LOAD_ABCD();
-				X = var_get(ctx, C, D);
-				if (!sink_typelist(X))
-					RETURN_FAIL("Expecting list when popping");
-				var_set(ctx, A, B, opi_list_pop(ctx, X));
-			} break;
-
 			case OP_ISNUM          : { // [TGT], [SRC]
 				LOAD_ABCD();
 				X = var_get(ctx, C, D);
@@ -8922,28 +8790,20 @@ static crr_enum context_run(context ctx){
 				var_set(ctx, A, B, sink_bool(sink_typelist(X)));
 			} break;
 
-			case OP_ADD            : { // [TGT], [SRC1], [SRC2]
-				INLINE_BINOP(binop_add, "adding")
+			case OP_NOT            : { // [TGT], [SRC]
+				LOAD_ABCD();
+				X = var_get(ctx, C, D);
+				var_set(ctx, A, B, sink_bool(!sink_istrue(X)));
 			} break;
 
-			case OP_SUB            : { // [TGT], [SRC1], [SRC2]
-				INLINE_BINOP(binop_sub, "subtracting")
+			case OP_SIZE           : { // [TGT], [SRC]
+				LOAD_ABCD();
+				var_set(ctx, A, B, sink_num(opi_size(ctx, var_get(ctx, C, D))));
 			} break;
 
-			case OP_MUL            : { // [TGT], [SRC1], [SRC2]
-				INLINE_BINOP(binop_mul, "multiplying")
-			} break;
-
-			case OP_DIV            : { // [TGT], [SRC1], [SRC2]
-				INLINE_BINOP(binop_div, "dividing")
-			} break;
-
-			case OP_MOD            : { // [TGT], [SRC1], [SRC2]
-				INLINE_BINOP(binop_mod, "taking modular")
-			} break;
-
-			case OP_POW            : { // [TGT], [SRC1], [SRC2]
-				INLINE_BINOP(binop_pow, "exponentiating")
+			case OP_TONUM          : { // [TGT], [SRC]
+				LOAD_ABCD();
+				var_set(ctx, A, B, opi_tonum(ctx, var_get(ctx, C, D)));
 			} break;
 
 			case OP_CAT            : { // [TGT], [SRC1], [SRC2]
@@ -8954,40 +8814,6 @@ static crr_enum context_run(context ctx){
 					var_set(ctx, A, B, opi_list_cat(ctx, X, Y));
 				else
 					var_set(ctx, A, B, opi_str_cat(ctx, X, Y));
-			} break;
-
-			case OP_PUSH           : { // [TGT], [SRC1], [SRC2]
-				LOAD_ABCDEF();
-				X = var_get(ctx, C, D);
-				if (!sink_typelist(X))
-					RETURN_FAIL("Expecting list when pushing");
-				var_set(ctx, A, B, opi_list_push(ctx, X, var_get(ctx, E, F)));
-			} break;
-
-			case OP_UNSHIFT        : { // [TGT], [SRC1], [SRC2]
-				LOAD_ABCDEF();
-				X = var_get(ctx, C, D);
-				if (!sink_typelist(X))
-					RETURN_FAIL("Expecting list when unshifting");
-				var_set(ctx, A, B, opi_list_unshift(ctx, X, var_get(ctx, E, F)));
-			} break;
-
-			case OP_APPEND         : { // [TGT], [SRC1], [SRC2]
-				LOAD_ABCDEF();
-				X = var_get(ctx, C, D);
-				Y = var_get(ctx, E, F);
-				if (!sink_typelist(X) || !sink_typelist(Y))
-					RETURN_FAIL("Expecting list when appending");
-				var_set(ctx, A, B, opi_list_append(ctx, X, Y));
-			} break;
-
-			case OP_PREPEND        : { // [TGT], [SRC1], [SRC2]
-				LOAD_ABCDEF();
-				X = var_get(ctx, C, D);
-				Y = var_get(ctx, E, F);
-				if (!sink_typelist(X) || !sink_typelist(Y))
-					RETURN_FAIL("Expecting list when prepending");
-				var_set(ctx, A, B, opi_list_prepend(ctx, X, Y));
 			} break;
 
 			case OP_LT             : { // [TGT], [SRC1], [SRC2]
@@ -9053,7 +8879,7 @@ static crr_enum context_run(context ctx){
 					RETURN_FAIL("Expecting list or string when slicing");
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
-				if (!sink_typenum(Y) || !sink_typenum(Z))
+				if (!sink_typenum(Y) || (!sink_isnil(Z) && !sink_typenum(Z)))
 					RETURN_FAIL("Expecting slice values to be numbers");
 				if (sink_typelist(X))
 					var_set(ctx, A, B, opi_list_slice(ctx, X, Y, Z));
@@ -9085,7 +8911,7 @@ static crr_enum context_run(context ctx){
 					RETURN_FAIL("Expecting list or string when splicing");
 				Y = var_get(ctx, C, D);
 				Z = var_get(ctx, E, F);
-				if (!sink_typenum(Y) || !sink_typenum(Z))
+				if (!sink_typenum(Y) || (!sink_isnil(Z) && !sink_typenum(Z)))
 					RETURN_FAIL("Expecting splice values to be numbers");
 				W = var_get(ctx, G, H);
 				if (sink_typelist(X)){
@@ -9200,6 +9026,54 @@ static crr_enum context_run(context ctx){
 					RETURN_FAIL("Expecting list when calling ask");
 				ls = var_castlist(ctx, X);
 				var_set(ctx, A, B, opi_ask(ctx, ls->vals, ls->size));
+			} break;
+
+			case OP_EXIT           : { // [TGT], [SRC...]
+				LOAD_ABCD();
+				X = var_get(ctx, C, D);
+				if (!sink_typelist(X))
+					RETURN_FAIL("Expecting list when calling exit");
+				ls = var_castlist(ctx, X);
+				opi_exit(ctx, ls->vals, ls->size);
+				return crr_exitpass(ctx);
+			} break;
+
+			case OP_ABORT          : { // [TGT], [SRC...]
+				LOAD_ABCD();
+				X = var_get(ctx, C, D);
+				if (!sink_typelist(X))
+					RETURN_FAIL("Expecting list when calling abort");
+				ls = var_castlist(ctx, X);
+				opi_abort(ctx, ls->vals, ls->size);
+				return crr_exitfail(ctx);
+			} break;
+
+			case OP_NUM_NEG        : { // [TGT], [SRC]
+				INLINE_UNOP(unop_neg, "negating")
+			} break;
+
+			case OP_NUM_ADD        : { // [TGT], [SRC1], [SRC2]
+				INLINE_BINOP(binop_add, "adding")
+			} break;
+
+			case OP_NUM_SUB        : { // [TGT], [SRC1], [SRC2]
+				INLINE_BINOP(binop_sub, "subtracting")
+			} break;
+
+			case OP_NUM_MUL        : { // [TGT], [SRC1], [SRC2]
+				INLINE_BINOP(binop_mul, "multiplying")
+			} break;
+
+			case OP_NUM_DIV        : { // [TGT], [SRC1], [SRC2]
+				INLINE_BINOP(binop_div, "dividing")
+			} break;
+
+			case OP_NUM_MOD        : { // [TGT], [SRC1], [SRC2]
+				INLINE_BINOP(binop_mod, "taking modular")
+			} break;
+
+			case OP_NUM_POW        : { // [TGT], [SRC1], [SRC2]
+				INLINE_BINOP(binop_pow, "exponentiating")
 			} break;
 
 			case OP_NUM_ABS        : { // [TGT], [SRC]
@@ -9347,7 +9221,7 @@ static crr_enum context_run(context ctx){
 				INLINE_BINOP(binop_num_bin, "converting to bin")
 			} break;
 /*
-			case OP_INT_CAST       : { // [TGT], [SRC]
+			case OP_INT_NEW        : { // [TGT], [SRC]
 				var iu = inline_unop(function(a){ return a | 0; }, 'casting to int');
 				if (iu !== false)
 					return iu;
@@ -9493,7 +9367,7 @@ static crr_enum context_run(context ctx){
 				var_set(ctx, A, B, X);
 			} break;
 
-			case OP_STR_NEW        : { // [TGT], [SRC1], [SRC2]
+			case OP_STR_NEW        : { // [TGT], [SRC...]
 				THROW("OP_STR_NEW");
 			} break;
 
@@ -9505,12 +9379,12 @@ static crr_enum context_run(context ctx){
 				THROW("OP_STR_REPLACE");
 			} break;
 
-			case OP_STR_STARTSWITH : { // [TGT], [SRC1], [SRC2]
-				THROW("OP_STR_STARTSWITH");
+			case OP_STR_BEGINS     : { // [TGT], [SRC1], [SRC2]
+				THROW("OP_STR_BEGINS");
 			} break;
 
-			case OP_STR_ENDSWITH   : { // [TGT], [SRC1], [SRC2]
-				THROW("OP_STR_ENDSWITH");
+			case OP_STR_ENDS       : { // [TGT], [SRC1], [SRC2]
+				THROW("OP_STR_ENDS");
 			} break;
 
 			case OP_STR_PAD        : { // [TGT], [SRC1], [SRC2]
@@ -9521,8 +9395,8 @@ static crr_enum context_run(context ctx){
 				THROW("OP_STR_FIND");
 			} break;
 
-			case OP_STR_FINDREV    : { // [TGT], [SRC1], [SRC2], [SRC3]
-				THROW("OP_STR_FINDREV");
+			case OP_STR_RFIND      : { // [TGT], [SRC1], [SRC2], [SRC3]
+				THROW("OP_STR_RFIND");
 			} break;
 
 			case OP_STR_LOWER      : { // [TGT], [SRC]
@@ -9539,6 +9413,10 @@ static crr_enum context_run(context ctx){
 
 			case OP_STR_REV        : { // [TGT], [SRC]
 				THROW("OP_STR_REV");
+			} break;
+
+			case OP_STR_REP        : { // [TGT], [SRC1], [SRC2]
+				THROW("OP_STR_REP");
 			} break;
 
 			case OP_STR_LIST       : { // [TGT], [SRC]
@@ -9586,6 +9464,56 @@ static crr_enum context_run(context ctx){
 				var_set(ctx, A, B, opi_list_new(ctx, X, Y));
 			} break;
 
+			case OP_LIST_SHIFT      : { // [TGT], [SRC]
+				LOAD_ABCD();
+				X = var_get(ctx, C, D);
+				if (!sink_typelist(X))
+					RETURN_FAIL("Expecting list when shifting");
+				var_set(ctx, A, B, opi_list_shift(ctx, X));
+			} break;
+
+			case OP_LIST_POP        : { // [TGT], [SRC]
+				LOAD_ABCD();
+				X = var_get(ctx, C, D);
+				if (!sink_typelist(X))
+					RETURN_FAIL("Expecting list when popping");
+				var_set(ctx, A, B, opi_list_pop(ctx, X));
+			} break;
+
+			case OP_LIST_PUSH      : { // [TGT], [SRC1], [SRC2]
+				LOAD_ABCDEF();
+				X = var_get(ctx, C, D);
+				if (!sink_typelist(X))
+					RETURN_FAIL("Expecting list when pushing");
+				var_set(ctx, A, B, opi_list_push(ctx, X, var_get(ctx, E, F)));
+			} break;
+
+			case OP_LIST_UNSHIFT   : { // [TGT], [SRC1], [SRC2]
+				LOAD_ABCDEF();
+				X = var_get(ctx, C, D);
+				if (!sink_typelist(X))
+					RETURN_FAIL("Expecting list when unshifting");
+				var_set(ctx, A, B, opi_list_unshift(ctx, X, var_get(ctx, E, F)));
+			} break;
+
+			case OP_LIST_APPEND    : { // [TGT], [SRC1], [SRC2]
+				LOAD_ABCDEF();
+				X = var_get(ctx, C, D);
+				Y = var_get(ctx, E, F);
+				if (!sink_typelist(X) || !sink_typelist(Y))
+					RETURN_FAIL("Expecting list when appending");
+				var_set(ctx, A, B, opi_list_append(ctx, X, Y));
+			} break;
+
+			case OP_LIST_PREPEND   : { // [TGT], [SRC1], [SRC2]
+				LOAD_ABCDEF();
+				X = var_get(ctx, C, D);
+				Y = var_get(ctx, E, F);
+				if (!sink_typelist(X) || !sink_typelist(Y))
+					RETURN_FAIL("Expecting list when prepending");
+				var_set(ctx, A, B, opi_list_prepend(ctx, X, Y));
+			} break;
+
 			case OP_LIST_FIND      : { // [TGT], [SRC1], [SRC2], [SRC3]
 				LOAD_ABCDEFGH();
 				X = var_get(ctx, C, D);
@@ -9598,7 +9526,7 @@ static crr_enum context_run(context ctx){
 				var_set(ctx, A, B, opi_list_find(ctx, X, Y, Z));
 			} break;
 
-			case OP_LIST_FINDREV   : { // [TGT], [SRC1], [SRC2], [SRC3]
+			case OP_LIST_RFIND     : { // [TGT], [SRC1], [SRC2], [SRC3]
 				LOAD_ABCDEFGH();
 				X = var_get(ctx, C, D);
 				if (!sink_typelist(X))
@@ -9635,8 +9563,8 @@ static crr_enum context_run(context ctx){
 				THROW("OP_LIST_SORT");
 			} break;
 
-			case OP_LIST_SORTREV   : { // [TGT], [SRC]
-				THROW("OP_LIST_SORTREV");
+			case OP_LIST_RSORT     : { // [TGT], [SRC]
+				THROW("OP_LIST_RSORT");
 			} break;
 
 			case OP_LIST_SORTCMP   : { // [TGT], [SRC1], [SRC2]
@@ -9655,12 +9583,42 @@ static crr_enum context_run(context ctx){
 				THROW("OP_PICKLE_VAL");
 			} break;
 
+			case OP_TASK_ID        : { // [TGT]
+				THROW("OP_TASK_ID");
+			} break;
 
+			case OP_TASK_FORK      : { // [TGT]
+				THROW("OP_TASK_FORK");
+			} break;
 
-			case OP_INT_CAST: THROW("OP_INT_CAST"); break;
+			case OP_TASK_SEND      : { // [TGT], [SRC1], [SRC2]
+				THROW("OP_TASK_SEND");
+			} break;
+
+			case OP_TASK_RECV      : { // [TGT]
+				THROW("OP_TASK_RECV");
+			} break;
+
+			case OP_TASK_PEEK      : { // [TGT]
+				THROW("OP_TASK_PEEK");
+			} break;
+
+			case OP_GC_GET         : { // [TGT]
+				THROW("OP_GC_GET");
+			} break;
+
+			case OP_GC_SET         : { // [TGT], [SRC]
+				THROW("OP_GC_SET");
+			} break;
+
+			case OP_GC_RUN         : { // [TGT]
+				THROW("OP_GC_RUN");
+			} break;
+
+			case OP_INT_NEW: THROW("OP_INT_NEW"); break;
 			case OP_INT_NOT: THROW("OP_INT_NOT"); break;
 			case OP_INT_AND: THROW("OP_INT_AND"); break;
-			case OP_INT_OR: THROW("OP_INT_OR"); break;
+			case OP_INT_OR : THROW("OP_INT_OR" ); break;
 			case OP_INT_XOR: THROW("OP_INT_XOR"); break;
 			case OP_INT_SHL: THROW("OP_INT_SHL"); break;
 			case OP_INT_SHR: THROW("OP_INT_SHR"); break;
@@ -9671,7 +9629,6 @@ static crr_enum context_run(context ctx){
 			case OP_INT_DIV: THROW("OP_INT_DIV"); break;
 			case OP_INT_MOD: THROW("OP_INT_MOD"); break;
 			case OP_INT_CLZ: THROW("OP_INT_CLZ"); break;
-
 
 			default:
 				debugf("invalid opcode %02X", ops->bytes[ctx->pc]);

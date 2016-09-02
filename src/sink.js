@@ -3302,8 +3302,8 @@ function symtbl_loadStdlib(sym){
 	symtbl_popNamespace(sym);
 	symtbl_pushNamespace(sym, ['list']);
 		SAC(sym, 'new'       , OP_LIST_NEW      ,  2);
-		SAC(sym, 'shift'     , OP_LIST_SHIFT    ,  2);
-		SAC(sym, 'pop'       , OP_LIST_POP      ,  2);
+		SAC(sym, 'shift'     , OP_LIST_SHIFT    ,  1);
+		SAC(sym, 'pop'       , OP_LIST_POP      ,  1);
 		SAC(sym, 'push'      , OP_LIST_PUSH     ,  2);
 		SAC(sym, 'unshift'   , OP_LIST_UNSHIFT  ,  2);
 		SAC(sym, 'append'    , OP_LIST_APPEND   ,  2);
@@ -4024,16 +4024,15 @@ function program_lvalCheckNil(prg, sym, lv, jumpFalse, inverted, skip){
 			op_num(prg.ops, idx, 0);
 
 			var next = label_new('^condslicenext');
-			var lennum = label_new('^lennum');
-			label_declare(next, prg.ops);
 
 			op_nil(prg.ops, t);
 			op_binop(prg.ops, OP_EQU, t, t, lv.len);
-			label_jumpFalse(lennum, prg.ops, t);
+			label_jumpFalse(next, prg.ops, t);
 			op_unop(prg.ops, OP_SIZE, t, obj);
 			op_binop(prg.ops, OP_NUM_SUB, lv.len, t, lv.start);
 
-			label_declare(lennum, prg.ops);
+			label_declare(next, prg.ops);
+
 			op_binop(prg.ops, OP_LT, t, idx, lv.len);
 
 			var keep = label_new('^condslicekeep');
@@ -4111,16 +4110,15 @@ function program_lvalCondAssignPart(prg, sym, lv, jumpFalse, valueVlc){
 			op_num(prg.ops, idx, 0);
 
 			var next = label_new('^condpartslicenext');
-			var lennum = label_new('^lennum');
-			label_declare(next, prg.ops);
 
 			op_nil(prg.ops, t);
 			op_binop(prg.ops, OP_EQU, t, t, lv.len);
-			label_jumpFalse(lennum, prg.ops, t);
+			label_jumpFalse(next, prg.ops, t);
 			op_unop(prg.ops, OP_SIZE, t, obj);
 			op_binop(prg.ops, OP_NUM_SUB, lv.len, t, lv.start);
 
-			label_declare(lennum, prg.ops);
+			label_declare(next, prg.ops);
+
 			op_binop(prg.ops, OP_LT, t, idx, lv.len); // BUGFIX: lv.len could be nil
 
 			var done = label_new('^condpartslicedone');
@@ -6663,7 +6661,7 @@ function context_run(ctx){
 				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
 			} break;
 
-			case OP_STR_REP        : { // [TGT], [SRC]
+			case OP_STR_REP        : { // [TGT], [SRC1], [SRC2]
 				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
 			} break;
 
