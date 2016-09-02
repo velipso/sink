@@ -419,6 +419,7 @@ Task
 | `task.send a, b` | Send message `b` to the task with id `a`                                     |
 | `task.recv`      | Receive a message (blocking); returns a two item list: `{ fromid, message }` |
 | `task.peek`      | Returns true if a message is waiting; false otherwise                        |
+| `task.exit`      | Exit the current task                                                        |
 
 GC
 --

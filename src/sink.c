@@ -667,9 +667,10 @@ typedef enum {
 	OP_TASK_SEND     = 0x8A, // [TGT], [SRC1], [SRC2]
 	OP_TASK_RECV     = 0x8B, // [TGT]
 	OP_TASK_PEEK     = 0x8C, // [TGT]
-	OP_GC_GET        = 0x8D, // [TGT]
-	OP_GC_SET        = 0x8E, // [TGT], [SRC]
-	OP_GC_RUN        = 0x8F, // [TGT]
+	OP_TASK_EXIT     = 0x8D, // [TGT]
+	OP_GC_GET        = 0x8E, // [TGT]
+	OP_GC_SET        = 0x8F, // [TGT], [SRC]
+	OP_GC_RUN        = 0x90, // [TGT]
 
 	// fake ops
 	OP_GT            = 0x1F0,
@@ -5384,6 +5385,7 @@ static inline void symtbl_loadStdlib(symtbl sym){
 		SAC(sym, "send"      , OP_TASK_SEND     ,  2);
 		SAC(sym, "recv"      , OP_TASK_RECV     ,  0);
 		SAC(sym, "peek"      , OP_TASK_PEEK     ,  0);
+		SAC(sym, "exit"      , OP_TASK_EXIT     ,  0);
 	symtbl_popNamespace(sym);
 	nss = NSS("gc"); symtbl_pushNamespace(sym, nss); list_ptr_free(nss);
 		SAC(sym, "get"       , OP_GC_GET        ,  0);
@@ -7640,7 +7642,6 @@ typedef struct {
 	bool passed;
 	bool failed;
 	bool invalid;
-	bool gcauto;
 } context_st, *context;
 
 typedef void (*sweepfree_func)(context ctx, int index);
@@ -7714,7 +7715,6 @@ static inline context context_new(program prg, sink_io_st io){
 	ctx->passed = false;
 	ctx->failed = false;
 	ctx->invalid = false;
-	ctx->gcauto = true;
 	ctx->call_stk = list_ptr_new((free_func)ccs_free);
 	ctx->lex_stk = list_ptr_new((free_func)lxs_free);
 	list_ptr_push(ctx->lex_stk, lxs_new(SINK_NIL, NULL));
@@ -9603,6 +9603,10 @@ static crr_enum context_run(context ctx){
 				THROW("OP_TASK_PEEK");
 			} break;
 
+			case OP_TASK_EXIT      : { // [TGT]
+				THROW("OP_TASK_EXIT");
+			} break;
+
 			case OP_GC_GET         : { // [TGT]
 				THROW("OP_GC_GET");
 			} break;
@@ -10119,9 +10123,6 @@ void      sink_warn(sink_ctx ctx, sink_val *vals, int size);
 sink_val  sink_ask(sink_ctx ctx, sink_val *vals, int size);
 void      sink_exit(sink_ctx ctx, sink_val *vals, int size);
 void      sink_abort(sink_ctx ctx, sink_val *vals, int size);
-void      sink_gcauto(sink_ctx ctx, bool enable);
-bool      sink_isgcauto(sink_ctx ctx);
-void      sink_gcrun(sink_ctx ctx);
 
 // nil
 static inline sink_val sink_nil(){ return SINK_NIL; }
