@@ -244,10 +244,10 @@ run_test() {
 run_tests() {
 	# $1 : 'js' or 'c'
 	for test_dir in $TESTS_DIR/?.*; do
-		run_test $1 "$test_dir"
+		run_test "$1" "$test_dir"
 	done
 	for test_dir in $TESTS_DIR/??.*; do
-		run_test $1 "$test_dir"
+		run_test "$1" "$test_dir"
 	done
 }
 

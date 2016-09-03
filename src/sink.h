@@ -63,16 +63,23 @@
 #	define SINK_DEBUG
 #endif
 
-typedef int sink_user;
+typedef enum {
+	SINK_TYPE_NIL,
+	SINK_TYPE_NUM,
+	SINK_TYPE_STR,
+	SINK_TYPE_LIST,
+	SINK_TYPE_ASYNC // not used within the sink; used for native functions to signal async results
+} sink_type;
 
 typedef union {
 	uint64_t u;
 	double f;
 } sink_val;
 
+typedef int sink_user;
 typedef struct {
-	void *user;
 	sink_val *vals;
+	void *user;
 	int size; // how many elements are in the list
 	int count; // how much total room is in *vals
 	sink_user usertype;
@@ -81,20 +88,21 @@ typedef struct {
 typedef struct {
 	uint8_t *bytes;
 	int size;
-} sink_str_st, *sink_str, sink_bin_st, *sink_bin;
+} sink_str_st, *sink_str;
 
 typedef void *sink_lib;
-typedef void *sink_repl;
-typedef void *sink_cmp;
-typedef void *sink_prg;
+typedef void *sink_scr;
 typedef void *sink_ctx;
 
 typedef void (*sink_output_func)(sink_ctx ctx, sink_str str);
 typedef sink_val (*sink_input_func)(sink_ctx ctx, sink_str str);
-typedef void (*sink_finalize_func)(void *user);
-typedef sink_val (*sink_native_func)(sink_ctx ctx, sink_val args);
+typedef void (*sink_free_func)(void *user);
+typedef sink_val (*sink_native_func)(sink_ctx ctx, sink_val *args, int size);
+typedef sink_val (*sink_resume_func)(sink_ctx ctx);
 typedef char *(*sink_resolve_func)(const char *file, const char *fromfile);
-typedef void (*sink_include_func)(sink_cmp cmp, const char *fullfile);
+typedef bool (*sink_include_func)(sink_scr scr, const char *fullfile);
+typedef size_t (*sink_dump_func)(const void *restrict ptr, size_t size, size_t nitems,
+	void *restrict user);
 
 typedef struct {
 	sink_output_func f_say;
@@ -107,6 +115,15 @@ typedef struct {
 	sink_include_func f_include;
 } sink_inc_st;
 
+typedef enum {
+	SINK_RUN_PASS,
+	SINK_RUN_FAIL,
+	SINK_RUN_ASYNC,
+	SINK_RUN_TIMEOUT,
+	SINK_RUN_REPLMORE,
+	SINK_RUN_INVALID
+} sink_run;
+
 // Values are jammed into NaNs, like so:
 //
 // NaN (64 bit):
@@ -114,13 +131,13 @@ typedef struct {
 //
 // QNAN :  T = 0, F = 0
 // NIL  :  T = 1, F = 0
-// PAUSE:  T = 2, F = 0
+// ASYNC:  T = 2, F = 0
 // STR  :  T = 3, F = table index
 // LIST :  T = 4, F = table index
 
 static const sink_val SINK_QNAN       = { .u = UINT64_C(0x7FF8000000000000) };
 static const sink_val SINK_NIL        = { .u = UINT64_C(0x7FF8000100000000) };
-static const sink_val SINK_PAUSE      = { .u = UINT64_C(0x7FF8000200000000) };
+static const sink_val SINK_ASYNC      = { .u = UINT64_C(0x7FF8000200000000) };
 static const uint64_t SINK_TAG_STR    =        UINT64_C(0x7FF8000300000000);
 static const uint64_t SINK_TAG_LIST   =        UINT64_C(0x7FF8000400000000);
 static const uint64_t SINK_TAG_MASK   =        UINT64_C(0xFFFFFFFF80000000);
@@ -132,37 +149,22 @@ void      sink_lib_addhash(sink_lib lib, uint64_t hash, sink_native_func f_nativ
 void      sink_lib_addlib(sink_lib lib, sink_lib src);
 void      sink_lib_free(sink_lib lib);
 
-// repl
-sink_repl sink_repl_new(sink_lib lib, sink_io_st io, sink_inc_st inc);
-sink_ctx  sink_repl_getctx(sink_repl repl);
-char *    sink_repl_write(sink_repl repl, uint8_t *bytes, int size);
-int       sink_repl_level(sink_repl repl);
-bool      sink_repl_done(sink_repl repl);
-void      sink_repl_reset(sink_repl repl);
-int       sink_repl_result(sink_repl repl); // 0 = ok, 1 = failed, 2 = invalid
-void      sink_repl_free(sink_repl repl);
-
-// compiler
-sink_cmp  sink_cmp_new(const char *file, sink_inc_st inc);
-char *    sink_cmp_write(sink_cmp cmp, uint8_t *bytes, int size);
-char *    sink_cmp_close(sink_cmp cmp);
-sink_bin  sink_cmp_getbin(sink_cmp cmp);
-sink_prg  sink_cmp_getprg(sink_cmp cmp);
-void      sink_cmp_free(sink_cmp cmp);
-
-// program
-sink_prg  sink_prg_load(uint8_t *bytes, int size);
-void      sink_prg_free(sink_prg prg);
-
-// binary
-void      sink_bin_free(sink_bin bin);
+// script
+sink_scr  sink_scr_new(sink_inc_st inc, const char *fullfile, bool repl);
+char *    sink_scr_write(sink_scr scr, uint8_t *bytes, int size);
+int       sink_scr_level(sink_scr scr);
+char *    sink_scr_close(sink_scr scr);
+void      sink_scr_dump(sink_scr scr, void *user, sink_dump_func f_dump);
+void      sink_scr_free(sink_scr scr);
 
 // context
-sink_ctx  sink_ctx_new(sink_lib lib, sink_prg prg, sink_io_st io);
-void      sink_ctx_setuser(sink_ctx ctx, void *user, sink_finalize_func f_freeuser);
+sink_ctx  sink_ctx_new(sink_scr scr, sink_lib lib, sink_io_st io);
+void      sink_ctx_setuser(sink_ctx ctx, void *user, sink_free_func f_free);
 void *    sink_ctx_getuser(sink_ctx ctx);
-sink_user sink_ctx_usertype(sink_ctx ctx, sink_finalize_func f_finalize);
-int       sink_ctx_run(sink_ctx ctx); // 0 = ok, 1 = failed, 2 = invalid
+sink_user sink_ctx_addusertype(sink_ctx ctx, sink_free_func f_free);
+void      sink_ctx_asyncresult(sink_ctx ctx, sink_val v);
+void      sink_ctx_timeout(sink_ctx ctx, int timeout);
+sink_run  sink_ctx_run(sink_ctx ctx);
 void      sink_ctx_free(sink_ctx ctx);
 
 // value
@@ -170,11 +172,18 @@ static inline sink_val sink_bool(bool f){ return f ? (sink_val){ .f = 1 } : SINK
 static inline bool sink_istrue(sink_val v){ return v.u != SINK_NIL.u; }
 static inline bool sink_isfalse(sink_val v){ return v.u == SINK_NIL.u; }
 static inline bool sink_isnil(sink_val v){ return v.u == SINK_NIL.u; }
-static inline bool sink_ispause(sink_val v){ return v.u == SINK_PAUSE.u; }
+static inline bool sink_isasync(sink_val v){ return v.u == SINK_ASYNC.u; }
 static inline bool sink_typestr(sink_val v){ return (v.u & SINK_TAG_MASK) == SINK_TAG_STR; }
 static inline bool sink_typelist(sink_val v){ return (v.u & SINK_TAG_MASK) == SINK_TAG_LIST; }
 static inline bool sink_typenum(sink_val v){
-	return !sink_isnil(v) && !sink_typelist(v) && !sink_typestr(v); }
+	return !sink_isnil(v) && !sink_isasync(v) && !sink_typestr(v) && !sink_typelist(v); }
+static inline sink_type sink_typeof(sink_val v){
+	if      (sink_isnil   (v)) return SINK_TYPE_NIL;
+	else if (sink_isasync (v)) return SINK_TYPE_ASYNC;
+	else if (sink_typestr (v)) return SINK_TYPE_STR;
+	else if (sink_typelist(v)) return SINK_TYPE_LIST;
+	else                       return SINK_TYPE_NUM;
+}
 static inline double sink_castnum(sink_val v){ return v.f; }
 sink_str  sink_caststr(sink_ctx ctx, sink_val str);
 sink_list sink_castlist(sink_ctx ctx, sink_val ls);
@@ -459,9 +468,10 @@ static char *sink_stdinc_resolve(const char *file, const char *fromfile){
 	return ret;
 }
 
-static void sink_stdinc_include(sink_cmp cmp, const char *fullfile){
+static bool sink_stdinc_include(sink_scr scr, const char *fullfile){
 	abort();
 	// TODO: this
+	return false;
 }
 
 static sink_inc_st sink_stdinc = (sink_inc_st){

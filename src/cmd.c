@@ -40,7 +40,8 @@ static inline void printline(int line, int level){
 }
 
 static int main_repl(){
-	sink_repl repl = sink_repl_new(NULL, sink_stdio, sink_stdinc);
+	sink_scr scr = sink_scr_new(sink_stdinc, NULL, true);
+	sink_ctx ctx = sink_ctx_new(scr, NULL, sink_stdio);
 	int line = 1;
 	int bufsize = 0;
 	int bufcount = 200;
@@ -50,7 +51,7 @@ static int main_repl(){
 		return 1;
 	}
 	catchint();
-	printline(line, sink_repl_level(repl));
+	printline(line, sink_scr_level(scr));
 	while (!done){
 		int ch = fgetc(stdin);
 		if (ch == EOF){
@@ -68,25 +69,43 @@ static int main_repl(){
 		buf[bufsize++] = ch;
 		if (ch == '\n'){
 			if (bufsize > 1){
-				char *err = sink_repl_write(repl, (uint8_t *)buf, bufsize);
-				if (err){
+				char *err = sink_scr_write(scr, (uint8_t *)buf, bufsize);
+				if (err)
 					printf("Error: %s\n", err);
-					sink_repl_reset(repl);
+				sink_run res = sink_ctx_run(ctx);
+				switch (sink_ctx_run(ctx)){
+					case SINK_RUN_PASS:
+						done = true;
+						break;
+					case SINK_RUN_FAIL:
+						fprintf(stderr, "REPL returned failure (impossible)\n");
+						done = true;
+						break;
+					case SINK_RUN_ASYNC:
+						fprintf(stderr, "TODO: REPL invoked async function\n");
+						done = true;
+						break;
+					case SINK_RUN_TIMEOUT:
+						fprintf(stderr, "REPL returned timeout (impossible)\n");
+						done = true;
+						break;
+					case SINK_RUN_REPLMORE:
+						// do nothing
+						break;
+					case SINK_RUN_INVALID:
+						fprintf(stderr, "Invalid code generation\n");
+						done = true;
+						break;
 				}
-				if (sink_repl_done(repl))
-					done = true;
-				else
-					printline(++line, sink_repl_level(repl));
+				if (!done)
+					printline(++line, sink_scr_level(scr));
 			}
 			bufsize = 0;
 		}
 	}
 	free(buf);
-	int res = sink_repl_result(repl);
-	if (res == 2)
-		fprintf(stderr, "Invalid code generation\n");
-	sink_repl_free(repl);
-	return res;
+	sink_scr_free(scr);
+	return 0;
 }
 
 int main_run(const char *inFile, char *const *argv, int argc){
@@ -103,30 +122,39 @@ int main_run(const char *inFile, char *const *argv, int argc){
 	fread(buf, sizeof(char), bufSize, fp);
 	fclose(fp);
 
-	sink_cmp cmp = sink_cmp_new(inFile, sink_stdinc);
-	char *err = sink_cmp_write(cmp, (uint8_t *)buf, (int)bufSize);
+	sink_scr scr = sink_scr_new(sink_stdinc, inFile, false);
+	char *err = sink_scr_write(scr, (uint8_t *)buf, (int)bufSize);
 	free(buf);
 	if (err){
 		fprintf(stderr, "Error: %s\n", err);
-		sink_cmp_free(cmp);
+		sink_scr_free(scr);
 		return 1;
 	}
-	err = sink_cmp_close(cmp);
+	err = sink_scr_close(scr);
 	if (err){
 		fprintf(stderr, "Error: %s\n", err);
-		sink_cmp_free(cmp);
+		sink_scr_free(scr);
 		return 1;
 	}
 
-	sink_prg prg = sink_cmp_getprg(cmp);
-	sink_cmp_free(cmp);
-	sink_ctx ctx = sink_ctx_new(NULL, prg, sink_stdio);
-	int res = sink_ctx_run(ctx);
-	if (res == 2)
-		fprintf(stderr, "Invalid code generation\n");
+	sink_ctx ctx = sink_ctx_new(scr, NULL, sink_stdio);
+	sink_run res = sink_ctx_run(ctx);
 	sink_ctx_free(ctx);
-	sink_prg_free(prg);
-	return res;
+	sink_scr_free(scr);
+	switch (res){
+		case SINK_RUN_PASS:
+			return 0;
+		case SINK_RUN_FAIL:
+			return 1;
+		case SINK_RUN_ASYNC:
+		case SINK_RUN_TIMEOUT:
+		case SINK_RUN_REPLMORE:
+			fprintf(stderr, "Invalid return value from running context\n");
+			return 1;
+		case SINK_RUN_INVALID:
+			fprintf(stderr, "Invalid file\n");
+			return 1;
+	}
 }
 
 void printVersion(){

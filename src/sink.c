@@ -889,12 +889,12 @@ static inline void op_param3(list_byte b, op_enum opcode, varloc_st tgt, varloc_
 //
 
 typedef struct {
-	const char *file;
+	char *file;
 	int line;
 	int chr;
 } filepos_st;
 
-static inline filepos_st filepos_new(const char *file, int line, int chr){
+static inline filepos_st filepos_new(char *file, int line, int chr){
 	return (filepos_st){ .file = file, .line = line, .chr = chr };
 }
 
@@ -5410,19 +5410,6 @@ static inline program program_new(bool repl){
 	return prg;
 }
 
-static inline program program_newCopy(program prg){
-	program prg2 = program_new(prg->repl);
-	for (int i = 0; i < prg->strTable->size; i++)
-		list_ptr_push(prg2->strTable, list_byte_newCopy(prg->strTable->ptrs[i]));
-	for (int i = 0; i < prg->numTable->size; i++)
-		list_double_push(prg2->numTable, prg->numTable->vals[i]);
-	for (int i = 0; i < prg->keyTable->size; i++)
-		list_ptr_push(prg2->keyTable, list_byte_newCopy(prg->keyTable->ptrs[i]));
-	list_byte_free(prg2->ops);
-	prg2->ops = list_byte_newCopy(prg->ops);
-	return prg2;
-}
-
 typedef enum {
 	PER_OK,
 	PER_ERROR
@@ -7605,9 +7592,9 @@ static inline lxs lxs_new(sink_val args, lxs next){
 
 typedef struct {
 	void *user;
-	sink_finalize_func f_freeuser;
+	sink_free_func f_freeuser;
 
-	program prg;
+	program prg; // not freed by context_free
 	list_ptr call_stk;
 	list_ptr lex_stk;
 	list_ptr f_finalize;
@@ -7650,9 +7637,9 @@ static void context_sweepfree_str(context ctx, int index){
 static void context_sweepfree_list(context ctx, int index){
 	sink_list ls = &ctx->list_tbl[index];
 	if (ls->usertype >= 0){
-		sink_finalize_func f_finalize = ctx->f_finalize->ptrs[ls->usertype];
-		if (f_finalize)
-			f_finalize(ls->user);
+		sink_free_func f_free = ctx->f_finalize->ptrs[ls->usertype];
+		if (f_free)
+			f_free(ls->user);
 	}
 	if (ls->vals)
 		mem_free(ls->vals);
@@ -7687,8 +7674,6 @@ static inline void context_free(context ctx){
 	memset(ctx->str_ref, 0, sizeof(uint64_t) * (ctx->str_size / 64));
 	memset(ctx->list_ref, 0, sizeof(uint64_t) * (ctx->list_size / 64));
 	context_sweep(ctx);
-	if (ctx->prg)
-		program_free(ctx->prg);
 	list_ptr_free(ctx->call_stk);
 	list_ptr_free(ctx->lex_stk);
 	list_ptr_free(ctx->f_finalize);
@@ -7759,36 +7744,36 @@ static inline int context_result(context ctx){
 	return 0;
 }
 
-typedef enum {
-	CRR_EXITPASS,
-	CRR_EXITFAIL,
-	CRR_PAUSED,
-	CRR_WAITING,
-	CRR_REPL,
-	CRR_INVALID
-} crr_enum;
-
-static inline crr_enum crr_exitpass(context ctx){
+static inline sink_run crr_exitpass(context ctx){
 	ctx->passed = true;
-	return CRR_EXITPASS;
+	return SINK_RUN_PASS;
 }
 
-static inline crr_enum crr_exitfail(context ctx){
+static inline sink_run crr_exitfail(context ctx){
+	if (ctx->prg->repl){
+		ctx->failed = false;
+		ctx->pc = ctx->prg->ops->size;
+		return SINK_RUN_REPLMORE;
+	}
 	ctx->failed = true;
-	return CRR_EXITFAIL;
+	return SINK_RUN_FAIL;
 }
 
-static inline crr_enum crr_paused(){
-	return CRR_PAUSED;
+static inline sink_run crr_async(){
+	return SINK_RUN_ASYNC;
 }
 
-static inline crr_enum crr_repl(){
-	return CRR_REPL;
+static inline sink_run crr_timeout(){
+	return SINK_RUN_TIMEOUT;
 }
 
-static inline crr_enum crr_invalid(context ctx){
+static inline sink_run crr_replmore(){
+	return SINK_RUN_REPLMORE;
+}
+
+static inline sink_run crr_invalid(context ctx){
 	ctx->invalid = true;
-	return CRR_INVALID;
+	return SINK_RUN_INVALID;
 }
 
 static inline void list_cleartick(context ctx){
@@ -8608,7 +8593,7 @@ static inline sink_val opi_list_rev(context ctx, sink_val a){
 	return a;
 }
 
-static crr_enum context_run(context ctx){
+static sink_run context_run(context ctx){
 	if (ctx->passed)
 		return crr_exitpass(ctx);
 	if (ctx->failed)
@@ -8937,7 +8922,7 @@ static crr_enum context_run(context ctx){
 				A = A + (B << 8) + (C << 16) + ((D << 23) * 2);
 				if (ctx->prg->repl && A == -1){
 					ctx->pc -= 5;
-					return crr_repl();
+					return crr_replmore();
 				}
 				ctx->pc = A;
 			} break;
@@ -8948,7 +8933,7 @@ static crr_enum context_run(context ctx){
 				if (!sink_isnil(var_get(ctx, A, B))){
 					if (ctx->prg->repl && C == -1){
 						ctx->pc -= 7;
-						return crr_repl();
+						return crr_replmore();
 					}
 					ctx->pc = C;
 				}
@@ -8960,7 +8945,7 @@ static crr_enum context_run(context ctx){
 				if (sink_isnil(var_get(ctx, A, B))){
 					if (ctx->prg->repl && C == -1){
 						ctx->pc -= 7;
-						return crr_repl();
+						return crr_replmore();
 					}
 					ctx->pc = C;
 				}
@@ -8971,7 +8956,7 @@ static crr_enum context_run(context ctx){
 				F = F + (G << 8) + (H << 16) + ((I << 23) * 2);
 				if (ctx->prg->repl && F == -1){
 					ctx->pc -= 10;
-					return crr_repl();
+					return crr_replmore();
 				}
 				X = var_get(ctx, C, D);
 				if (!sink_typelist(X))
@@ -9638,7 +9623,7 @@ static crr_enum context_run(context ctx){
 	#undef RETURN_FAIL
 
 	if (ctx->prg->repl)
-		return crr_repl();
+		return crr_replmore();
 	return crr_exitpass(ctx);
 }
 
@@ -9672,34 +9657,29 @@ static tkflp tkflp_new(list_ptr tks, filepos_st flp){
 typedef struct {
 	lex lx;
 	parser pr;
-	program prg;
-	symtbl sym;
-	context ctx;
+	program prg; // not freed by compiler_free
+	symtbl sym; // TODO: in the future this will likely be created outside the compiler too
 	list_ptr tkflps;
 	filepos_node flpn;
 	char *msg;
 	bool wascr;
-	bool repl;
 } compiler_st, *compiler;
 
-static compiler compiler_new(sink_lib lib, sink_io_st io, sink_inc_st inc, const char *file,
-	bool repl){
+static compiler compiler_new(program prg, sink_inc_st inc, char *file){
 	compiler cmp = mem_alloc(sizeof(compiler_st));
 	cmp->lx = lex_new();
 	cmp->pr = parser_new();
-	cmp->prg = program_new(repl);
-	cmp->sym = symtbl_new(repl);
+	cmp->prg = prg;
+	cmp->sym = symtbl_new(prg->repl);
 	symtbl_loadStdlib(cmp->sym);
-	cmp->ctx = repl ? context_new(cmp->prg, io) : NULL;
 	cmp->tkflps = list_ptr_new((free_func)tkflp_free);
 	cmp->flpn = mem_alloc(sizeof(filepos_node_st));
-	cmp->flpn->flp.file = NULL;
+	cmp->flpn->flp.file = file;
 	cmp->flpn->flp.line = 1;
 	cmp->flpn->flp.chr = 1;
 	cmp->flpn->next = NULL;
 	cmp->msg = NULL;
 	cmp->wascr = false;
-	cmp->repl = repl;
 	return cmp;
 }
 
@@ -9732,8 +9712,6 @@ static char *compiler_process(compiler cmp){
 						cmp->msg = pr.msg;
 						return cmp->msg;
 					}
-					if (cmp->repl)
-						context_run(cmp->ctx);
 				} break;
 				case PRR_ERROR:
 					tkflp_free(tf);
@@ -9816,28 +9794,21 @@ static void compiler_reset(compiler cmp){
 }
 
 static void compiler_free(compiler cmp){
-	bool repl = cmp->repl;
 	if (cmp->msg)
 		mem_free(cmp->msg);
 	lex_free(cmp->lx);
 	parser_free(cmp->pr);
-	program_free(cmp->prg);
 	symtbl_free(cmp->sym);
-	if (cmp->ctx){
-		cmp->ctx->prg = NULL; // prg is already free so don't free it via context_free
-		context_free(cmp->ctx);
-	}
 	list_ptr_free(cmp->tkflps);
 	filepos_node flpn = cmp->flpn;
 	while (flpn){
 		filepos_node del = flpn;
-		mem_free(del);
 		flpn = flpn->next;
+		if (del->flp.file)
+			mem_free(del->flp.file);
+		mem_free(del);
 	}
 	mem_free(cmp);
-	if (repl){
-		mem_done();
-	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -9892,95 +9863,99 @@ void sink_lib_free(sink_lib lib){
 }
 
 //
-// repl API
+// script API
 //
 
-sink_repl sink_repl_new(sink_lib lib, sink_io_st io, sink_inc_st inc){
-	return compiler_new(lib, io, inc, NULL, true);
+typedef struct {
+	program prg;
+	compiler cmp;
+	sink_inc_st inc;
+	char *fullfile;
+	int mode; // 0 = unsure, 1 = load binary, 2 = compile text
+} script_st, *script;
+
+sink_scr sink_scr_new(sink_inc_st inc, const char *fullfile, bool repl){
+	script sc = mem_alloc(sizeof(script_st));
+	sc->prg = program_new(repl);
+	sc->cmp = NULL;
+	sc->inc = inc;
+	sc->fullfile = fullfile ? sink_format("%s", fullfile) : NULL;
+	sc->mode = 0;
+	return sc;
 }
 
-sink_ctx sink_repl_getctx(sink_repl rp){
-	return ((compiler)rp)->ctx;
+char *sink_scr_write(sink_scr scr, uint8_t *bytes, int size){
+	if (size <= 0)
+		return NULL;
+	script sc = scr;
+
+	// sink binary files start with 0xFC (invalid UTF8 start byte), so we can tell if we're binary
+	// just by looking at the first byte
+	if (sc->mode == 0){
+		if (bytes[0] == 0xFC)
+			sc->mode = 1;
+		else{
+			sc->mode = 2;
+			sc->cmp = compiler_new(sc->prg, sc->inc, sc->fullfile);
+			sc->fullfile = NULL; // ownership passes to compiler
+		}
+	}
+
+	if (sc->mode == 1){
+		fprintf(stderr, "TODO: read/write binary sink file\n");
+		abort();
+		return NULL;
+	}
+	else
+		return compiler_write(sc->cmp, bytes, size);
 }
 
-char *sink_repl_write(sink_repl rp, uint8_t *bytes, int size){
-	return compiler_write(rp, bytes, size);
+int sink_scr_level(sink_scr scr){
+	if (((script)scr)->mode != 2)
+		return 0;
+	return ((script)scr)->cmp->pr->level;
 }
 
-int sink_repl_level(sink_repl rp){
-	return ((compiler)rp)->pr->level;
+char *sink_scr_close(sink_scr scr){
+	script sc = scr;
+	if (sc->mode == 0)
+		return NULL;
+	else if (sc->mode == 1){
+		fprintf(stderr, "TODO: close binary sink file\n");
+		abort();
+		return NULL;
+	}
+	else
+		return compiler_close(sc->cmp);
 }
 
-bool sink_repl_done(sink_repl rp){
-	return context_done(((compiler)rp)->ctx);
+void sink_scr_dump(sink_scr scr, void *user, sink_dump_func f_dump){
+	fprintf(stderr, "TODO: write sc->prg to f_dump\n");
+	abort();
 }
 
-void sink_repl_reset(sink_repl rp){
-	compiler_reset(rp);
-}
-
-int sink_repl_result(sink_repl rp){
-	return context_result(((compiler)rp)->ctx);
-}
-
-void sink_repl_free(sink_repl rp){
-	compiler_free(rp);
+void sink_scr_free(sink_scr scr){
+	script sc = scr;
+	program_free(sc->prg);
+	if (sc->cmp)
+		compiler_free(sc->cmp);
+	if (sc->fullfile)
+		mem_free(sc->fullfile);
+	mem_free(sc);
 }
 
 //
-// compiler API
+// context API
 //
 
-sink_cmp sink_cmp_new(const char *file, sink_inc_st inc){
-	return compiler_new(NULL, (sink_io_st){}, inc, file, false);
+sink_ctx sink_ctx_new(sink_scr scr, sink_lib lib, sink_io_st io){
+	script sc = scr;
+	return context_new(sc->prg, io);
 }
 
-char *sink_cmp_write(sink_cmp cmp, uint8_t *bytes, int size){
-	return compiler_write(cmp, bytes, size);
-}
-
-char *sink_cmp_close(sink_cmp cmp){
-	return compiler_close(cmp);
-}
-
-sink_bin sink_cmp_getbin(sink_cmp cmp){
-	// TODO: this
-	abort();
-	return 0;
-}
-
-sink_prg sink_cmp_getprg(sink_cmp cmp){
-	return program_newCopy(((compiler)cmp)->prg);
-}
-
-void sink_cmp_free(sink_cmp cmp){
-	compiler_free(cmp);
-}
-
-sink_prg sink_prg_load(uint8_t *bytes, int size){
-	abort();
-	// TODO: this
-	return NULL;
-}
-
-void sink_prg_free(sink_prg prg){
-	program_free(prg);
-	mem_done();
-}
-
-void sink_bin_free(sink_bin bin){
-	abort();
-	// TODO: this
-}
-
-// context
-sink_ctx sink_ctx_new(sink_lib lib, sink_prg prg, sink_io_st io){
-	return context_new(program_newCopy(prg), io);
-}
-
-void sink_ctx_setuser(sink_ctx ctx, void *user, sink_finalize_func f_freeuser){
+void sink_ctx_setuser(sink_ctx ctx, void *user, sink_free_func f_freeuser){
 	context ctx2 = ctx;
-	if (ctx2->user && ctx2->f_freeuser)
+	if (ctx2->f_freeuser)
 		ctx2->f_freeuser(ctx2->user);
 	ctx2->user = user;
 	ctx2->f_freeuser = f_freeuser;
@@ -9990,16 +9965,20 @@ void *sink_ctx_getuser(sink_ctx ctx){
 	return ((context)ctx)->user;
 }
 
-sink_user sink_ctx_usertype(sink_ctx ctx, sink_finalize_func f_finalize){
+sink_user sink_ctx_addusertype(sink_ctx ctx, sink_free_func f_free){
 	context ctx2 = ctx;
-	int pos = ctx2->f_finalize->size;
-	list_ptr_push(ctx2->f_finalize, f_finalize);
-	return pos;
+	list_ptr_push(ctx2->f_finalize, f_free);
+	return ctx2->f_finalize->size - 1;
 }
 
-int sink_ctx_run(sink_ctx ctx){
-	context_run(ctx);
-	return context_result(ctx);
+void sink_ctx_asyncresult(sink_ctx ctx, sink_val v){
+}
+
+void sink_ctx_timeout(sink_ctx ctx, int timeout){
+}
+
+sink_run sink_ctx_run(sink_ctx ctx){
+	return context_run(ctx);
 }
 
 void sink_ctx_free(sink_ctx ctx){
@@ -10015,86 +9994,94 @@ sink_list sink_castlist(sink_ctx ctx, sink_val ls){
 }
 
 static sink_val sinkhelp_tostr(context ctx, sink_val v, bool first){
-	if (sink_typestr(v)){
-		if (first)
-			return v;
-		int tot = 2;
-		sink_str s = var_caststr(ctx, v);
-		for (int i = 0; i < s->size; i++){
-			if (s->bytes[i] == '\'' || s->bytes[i] == '\\')
-				tot++;
-			tot++;
-		}
-		uint8_t *bytes = mem_alloc(sizeof(uint8_t) * tot);
-		bytes[0] = '\'';
-		int p = 1;
-		for (int i = 0; i < s->size; i++){
-			if (s->bytes[i] == '\'' || s->bytes[i] == '\\')
-				bytes[p++] = '\\';
-			bytes[p++] = s->bytes[i];
-		}
-		bytes[p++] = '\'';
-		return sink_str_newblobgive(ctx, bytes, tot);
-	}
-	else if (sink_isnil(v)){
-		uint8_t *bytes = mem_alloc(sizeof(uint8_t) * 3);
-		bytes[0] = 'n'; bytes[1] = 'i'; bytes[2] = 'l';
-		return sink_str_newblobgive(ctx, bytes, 3);
-	}
-	else if (sink_ispause(v)){
-		v = sink_str_newcstr(ctx, "Invalid value (SINK_PAUSE) inside of machine");
-		opi_abort(ctx, &v, 1);
-		return sink_str_newblobgive(ctx, NULL, 0);
-	}
-	else if (sink_typelist(v)){
-		if (list_hastick(ctx, var_index(v))){
-			uint8_t *bytes = mem_alloc(sizeof(uint8_t) * 10);
-			bytes[0] = '{'; bytes[1] = 'c'; bytes[2] = 'i'; bytes[3] = 'r'; bytes[4] = 'c';
-			bytes[5] = 'u'; bytes[6] = 'l'; bytes[7] = 'a'; bytes[8] = 'r'; bytes[9] = '}';
-			return sink_str_newblobgive(ctx, bytes, 10);
-		}
-		sink_list ls = var_castlist(ctx, v);
-		int tot = 2;
-		list_double db = list_double_new();
-		for (int i = 0; i < ls->size; i++){
-			sink_val v = sinkhelp_tostr(ctx, ls->vals[i], false);
-			sink_str s = var_caststr(ctx, v);
-			tot += (i == 0 ? 0 : 2) + s->size;
-			list_double_push(db, v.f);
-		}
-		uint8_t *bytes = mem_alloc(sizeof(uint8_t) * tot);
-		bytes[0] = '{';
-		int p = 1;
-		for (int i = 0; i < ls->size; i++){
-			sink_str s = var_caststr(ctx, (sink_val){ .f = db->vals[i] });
-			if (i > 0){
-				bytes[p++] = ',';
-				bytes[p++] = ' ';
+	switch (sink_typeof(v)){
+		case SINK_TYPE_NIL: {
+			uint8_t *bytes = mem_alloc(sizeof(uint8_t) * 3);
+			bytes[0] = 'n'; bytes[1] = 'i'; bytes[2] = 'l';
+			return sink_str_newblobgive(ctx, bytes, 3);
+		} break;
+
+		case SINK_TYPE_NUM: {
+			if (isinf(v.f)){
+				if (v.f < 0){
+					uint8_t *bytes = mem_alloc(sizeof(uint8_t) * 4);
+					bytes[0] = '-'; bytes[1] = 'i'; bytes[2] = 'n'; bytes[3] = 'f';
+					return sink_str_newblobgive(ctx, bytes, 4);
+				}
+				uint8_t *bytes = mem_alloc(sizeof(uint8_t) * 3);
+				bytes[0] = 'i'; bytes[1] = 'n'; bytes[2] = 'f';
+				return sink_str_newblobgive(ctx, bytes, 3);
 			}
-			memcpy(&bytes[p], s->bytes, sizeof(uint8_t) * s->size);
-			p += s->size;
-		}
-		bytes[p] = '}';
-		list_double_free(db);
-		return sink_str_newblobgive(ctx, bytes, tot);
+			char *fmt = sink_format("%.15g", v.f);
+			if (fmt[0] == '-' && fmt[1] == '0' && fmt[2] == 0){ // fix negative zero silliness
+				fmt[0] = '0';
+				fmt[1] = 0;
+			}
+			return sink_str_newblobgive(ctx, (uint8_t *)fmt, strlen(fmt));
+		} break;
+
+		case SINK_TYPE_STR: {
+			if (first)
+				return v;
+			int tot = 2;
+			sink_str s = var_caststr(ctx, v);
+			for (int i = 0; i < s->size; i++){
+				if (s->bytes[i] == '\'' || s->bytes[i] == '\\')
+					tot++;
+				tot++;
+			}
+			uint8_t *bytes = mem_alloc(sizeof(uint8_t) * tot);
+			bytes[0] = '\'';
+			int p = 1;
+			for (int i = 0; i < s->size; i++){
+				if (s->bytes[i] == '\'' || s->bytes[i] == '\\')
+					bytes[p++] = '\\';
+				bytes[p++] = s->bytes[i];
+			}
+			bytes[p++] = '\'';
+			return sink_str_newblobgive(ctx, bytes, tot);
+		} break;
+
+		case SINK_TYPE_LIST: {
+			if (list_hastick(ctx, var_index(v))){
+				uint8_t *bytes = mem_alloc(sizeof(uint8_t) * 10);
+				bytes[0] = '{'; bytes[1] = 'c'; bytes[2] = 'i'; bytes[3] = 'r'; bytes[4] = 'c';
+				bytes[5] = 'u'; bytes[6] = 'l'; bytes[7] = 'a'; bytes[8] = 'r'; bytes[9] = '}';
+				return sink_str_newblobgive(ctx, bytes, 10);
+			}
+			sink_list ls = var_castlist(ctx, v);
+			int tot = 2;
+			list_double db = list_double_new();
+			for (int i = 0; i < ls->size; i++){
+				sink_val v = sinkhelp_tostr(ctx, ls->vals[i], false);
+				sink_str s = var_caststr(ctx, v);
+				tot += (i == 0 ? 0 : 2) + s->size;
+				list_double_push(db, v.f);
+			}
+			uint8_t *bytes = mem_alloc(sizeof(uint8_t) * tot);
+			bytes[0] = '{';
+			int p = 1;
+			for (int i = 0; i < ls->size; i++){
+				sink_str s = var_caststr(ctx, (sink_val){ .f = db->vals[i] });
+				if (i > 0){
+					bytes[p++] = ',';
+					bytes[p++] = ' ';
+				}
+				memcpy(&bytes[p], s->bytes, sizeof(uint8_t) * s->size);
+				p += s->size;
+			}
+			bytes[p] = '}';
+			list_double_free(db);
+			return sink_str_newblobgive(ctx, bytes, tot);
+		} break;
+
+		case SINK_TYPE_ASYNC: {
+			ctx->failed = true;
+			v = sink_str_newcstr(ctx, "Cannot convert invalid value (SINK_ASYNC) to string");
+			opi_warn(ctx, &v, 1);
+			return sink_str_newblob(ctx, NULL, 0);
+		} break;
 	}
-	// otherwise, num
-	if (isinf(v.f)){
-		if (v.f < 0){
-			uint8_t *bytes = mem_alloc(sizeof(uint8_t) * 4);
-			bytes[0] = '-'; bytes[1] = 'i'; bytes[2] = 'n'; bytes[3] = 'f';
-			return sink_str_newblobgive(ctx, bytes, 4);
-		}
-		uint8_t *bytes = mem_alloc(sizeof(uint8_t) * 3);
-		bytes[0] = 'i'; bytes[1] = 'n'; bytes[2] = 'f';
-		return sink_str_newblobgive(ctx, bytes, 3);
-	}
-	char *fmt = sink_format("%.15g", v.f);
-	if (fmt[0] == '-' && fmt[1] == '0' && fmt[2] == 0){ // fix negative zero silliness
-		fmt[0] = '0';
-		fmt[1] = 0;
-	}
-	return sink_str_newblobgive(ctx, (uint8_t *)fmt, strlen(fmt));
 }
 
 sink_val sink_tostr(sink_ctx ctx, sink_val v){
