@@ -7618,6 +7618,8 @@ typedef struct {
 	int pc;
 	int str_size;
 	int list_size;
+	int timeout;
+	int timeout_left;
 
 	uint32_t rand_seed;
 	uint32_t rand_i;
@@ -7721,6 +7723,8 @@ static inline context context_new(program prg, sink_io_st io){
 
 	ctx->lex_index = 0;
 	ctx->pc = 0;
+	ctx->timeout = 0;
+	ctx->timeout_left = 0;
 	ctx->rand_seed = 0;
 	ctx->rand_i = 0;
 
@@ -7742,6 +7746,11 @@ static inline int context_result(context ctx){
 	if (ctx->failed)
 		return 1;
 	return 0;
+}
+
+static inline void context_timeout(context ctx, int timeout){
+	ctx->timeout = timeout;
+	ctx->timeout_left = timeout;
 }
 
 static inline sink_run crr_exitpass(context ctx){
@@ -8669,18 +8678,24 @@ static sink_run context_run(context ctx){
 
 	#define INLINE_UNOP(func, erop)                                                        \
 		LOAD_ABCD();                                                                       \
-		var_set(ctx, A, B, opi_unop(ctx, var_get(ctx, C, D), func, erop));
+		var_set(ctx, A, B, opi_unop(ctx, var_get(ctx, C, D), func, erop));                 \
+		if (ctx->failed)                                                                   \
+			return crr_exitfail(ctx);
 
 	#define INLINE_BINOP(func, erop)                                                       \
 		LOAD_ABCDEF();                                                                     \
 		var_set(ctx, A, B,                                                                 \
-			opi_binop(ctx, var_get(ctx, C, D), var_get(ctx, E, F), func, erop));
+			opi_binop(ctx, var_get(ctx, C, D), var_get(ctx, E, F), func, erop));           \
+		if (ctx->failed)                                                                   \
+			return crr_exitfail(ctx);
 
 	#define INLINE_TRIOP(func, erop)                                                       \
 		LOAD_ABCDEFGH();                                                                   \
 		var_set(ctx, A, B,                                                                 \
 			opi_triop(ctx, var_get(ctx, C, D), var_get(ctx, E, F), var_get(ctx, G, H),     \
-				func, erop));
+				func, erop));                                                              \
+		if (ctx->failed)                                                                   \
+			return crr_exitfail(ctx);
 
 	#define RETURN_FAIL(msg)   do{           \
 			X = sink_str_newcstr(ctx, msg);  \
@@ -8788,6 +8803,8 @@ static sink_run context_run(context ctx){
 			case OP_SIZE           : { // [TGT], [SRC]
 				LOAD_ABCD();
 				var_set(ctx, A, B, sink_num(opi_size(ctx, var_get(ctx, C, D))));
+				if (ctx->failed)
+					return crr_exitfail(ctx);
 			} break;
 
 			case OP_TONUM          : { // [TGT], [SRC]
@@ -8801,8 +8818,11 @@ static sink_run context_run(context ctx){
 				Y = var_get(ctx, E, F);
 				if (sink_typelist(X) && sink_typelist(Y))
 					var_set(ctx, A, B, opi_list_cat(ctx, X, Y));
-				else
+				else{
 					var_set(ctx, A, B, opi_str_cat(ctx, X, Y));
+					if (ctx->failed)
+						return crr_exitfail(ctx);
+				}
 			} break;
 
 			case OP_LT             : { // [TGT], [SRC1], [SRC2]
@@ -8996,6 +9016,8 @@ static sink_run context_run(context ctx){
 				ls = var_castlist(ctx, X);
 				opi_say(ctx, ls->vals, ls->size);
 				var_set(ctx, A, B, SINK_NIL);
+				if (ctx->failed)
+					return crr_exitfail(ctx);
 			} break;
 
 			case OP_WARN           : { // [TGT], [SRC...]
@@ -9006,6 +9028,8 @@ static sink_run context_run(context ctx){
 				ls = var_castlist(ctx, X);
 				opi_warn(ctx, ls->vals, ls->size);
 				var_set(ctx, A, B, SINK_NIL);
+				if (ctx->failed)
+					return crr_exitfail(ctx);
 			} break;
 
 			case OP_ASK            : { // [TGT], [SRC...]
@@ -9015,6 +9039,8 @@ static sink_run context_run(context ctx){
 					RETURN_FAIL("Expecting list when calling ask");
 				ls = var_castlist(ctx, X);
 				var_set(ctx, A, B, opi_ask(ctx, ls->vals, ls->size));
+				if (ctx->failed)
+					return crr_exitfail(ctx);
 			} break;
 
 			case OP_EXIT           : { // [TGT], [SRC...]
@@ -9534,6 +9560,8 @@ static sink_run context_run(context ctx){
 					RETURN_FAIL("Expecting list for list.find");
 				Y = var_get(ctx, E, F);
 				var_set(ctx, A, B, opi_list_join(ctx, X, Y));
+				if (ctx->failed)
+					return crr_exitfail(ctx);
 			} break;
 
 			case OP_LIST_REV       : { // [TGT], [SRC]
