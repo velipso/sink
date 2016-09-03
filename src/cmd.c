@@ -123,12 +123,12 @@ int main_run(const char *inFile, char *const *argv, int argc){
 		int sz = fread(buf, 1, sizeof(buf), fp);
 		char *err = sink_scr_write(scr, (uint8_t *)buf, sz);
 		if (err){
+			fclose(fp);
 			fprintf(stderr, "Error: %s\n", err);
 			sink_scr_free(scr);
 			return 1;
 		}
 	}
-
 	fclose(fp);
 
 	char *err = sink_scr_close(scr);
