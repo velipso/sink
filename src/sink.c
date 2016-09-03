@@ -9060,7 +9060,7 @@ static sink_run context_run(context ctx){
 					RETURN_FAIL("Expecting list when calling abort");
 				ls = var_castlist(ctx, X);
 				opi_abort(ctx, ls->vals, ls->size);
-				return crr_exitfail(ctx);
+				return SINK_RUN_FAIL; // return this directly so REPL's are affected by `abort`
 			} break;
 
 			case OP_NUM_NEG        : { // [TGT], [SRC]

@@ -40,6 +40,7 @@ static inline void printline(int line, int level){
 }
 
 static int main_repl(){
+	int res = 0;
 	sink_scr scr = sink_scr_new(sink_stdinc, NULL, true);
 	sink_ctx ctx = sink_ctx_new(scr, NULL, sink_stdio);
 	int line = 1;
@@ -72,14 +73,14 @@ static int main_repl(){
 				char *err = sink_scr_write(scr, (uint8_t *)buf, bufsize);
 				if (err)
 					printf("Error: %s\n", err);
-				sink_run res = sink_ctx_run(ctx);
 				switch (sink_ctx_run(ctx)){
 					case SINK_RUN_PASS:
 						done = true;
+						res = 0;
 						break;
 					case SINK_RUN_FAIL:
-						fprintf(stderr, "REPL returned failure (impossible)\n");
 						done = true;
+						res = 1;
 						break;
 					case SINK_RUN_ASYNC:
 						fprintf(stderr, "TODO: REPL invoked async function\n");
@@ -105,7 +106,7 @@ static int main_repl(){
 	}
 	free(buf);
 	sink_scr_free(scr);
-	return 0;
+	return res;
 }
 
 int main_run(const char *inFile, char *const *argv, int argc){
@@ -115,22 +116,22 @@ int main_run(const char *inFile, char *const *argv, int argc){
 		return 1;
 	}
 
-	fseek(fp, 0, SEEK_END);
-	long bufSize = ftell(fp);
-	fseek(fp, 0, SEEK_SET);
-	char *buf = malloc(sizeof(char) * bufSize);
-	fread(buf, sizeof(char), bufSize, fp);
+	sink_scr scr = sink_scr_new(sink_stdinc, inFile, false);
+
+	char buf[1000];
+	while (!feof(fp)){
+		int sz = fread(buf, 1, sizeof(buf), fp);
+		char *err = sink_scr_write(scr, (uint8_t *)buf, sz);
+		if (err){
+			fprintf(stderr, "Error: %s\n", err);
+			sink_scr_free(scr);
+			return 1;
+		}
+	}
+
 	fclose(fp);
 
-	sink_scr scr = sink_scr_new(sink_stdinc, inFile, false);
-	char *err = sink_scr_write(scr, (uint8_t *)buf, (int)bufSize);
-	free(buf);
-	if (err){
-		fprintf(stderr, "Error: %s\n", err);
-		sink_scr_free(scr);
-		return 1;
-	}
-	err = sink_scr_close(scr);
+	char *err = sink_scr_close(scr);
 	if (err){
 		fprintf(stderr, "Error: %s\n", err);
 		sink_scr_free(scr);
