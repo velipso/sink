@@ -71,10 +71,10 @@ typedef union {
 } sink_val;
 
 typedef struct {
-	sink_val *vals;
 	void *user;
-	int size;
-	int count;
+	sink_val *vals;
+	int size; // how many elements are in the list
+	int count; // how much total room is in *vals
 	sink_user usertype;
 } sink_list_st, *sink_list;
 
@@ -112,15 +112,17 @@ typedef struct {
 // NaN (64 bit):
 // 01111111 11111000 00000000 TTTTTTTT  0FFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF
 //
-// QNAN:  T = 0, F = 0
-// NIL :  T = 1, F = 0
-// STR :  T = 2, F = table index
-// LIST:  T = 3, F = table index
+// QNAN :  T = 0, F = 0
+// NIL  :  T = 1, F = 0
+// PAUSE:  T = 2, F = 0
+// STR  :  T = 3, F = table index
+// LIST :  T = 4, F = table index
 
 static const sink_val SINK_QNAN       = { .u = UINT64_C(0x7FF8000000000000) };
 static const sink_val SINK_NIL        = { .u = UINT64_C(0x7FF8000100000000) };
-static const uint64_t SINK_TAG_STR    =        UINT64_C(0x7FF8000200000000);
-static const uint64_t SINK_TAG_LIST   =        UINT64_C(0x7FF8000300000000);
+static const sink_val SINK_PAUSE      = { .u = UINT64_C(0x7FF8000200000000) };
+static const uint64_t SINK_TAG_STR    =        UINT64_C(0x7FF8000300000000);
+static const uint64_t SINK_TAG_LIST   =        UINT64_C(0x7FF8000400000000);
 static const uint64_t SINK_TAG_MASK   =        UINT64_C(0xFFFFFFFF80000000);
 
 // native library
@@ -168,6 +170,7 @@ static inline sink_val sink_bool(bool f){ return f ? (sink_val){ .f = 1 } : SINK
 static inline bool sink_istrue(sink_val v){ return v.u != SINK_NIL.u; }
 static inline bool sink_isfalse(sink_val v){ return v.u == SINK_NIL.u; }
 static inline bool sink_isnil(sink_val v){ return v.u == SINK_NIL.u; }
+static inline bool sink_ispause(sink_val v){ return v.u == SINK_PAUSE.u; }
 static inline bool sink_typestr(sink_val v){ return (v.u & SINK_TAG_MASK) == SINK_TAG_STR; }
 static inline bool sink_typelist(sink_val v){ return (v.u & SINK_TAG_MASK) == SINK_TAG_LIST; }
 static inline bool sink_typenum(sink_val v){
@@ -323,13 +326,6 @@ sink_val  sink_list_sortcmp(sink_ctx ctx, sink_val a, sink_val b);
 bool      sink_pickle_valid(sink_ctx ctx, sink_val a);
 sink_val  sink_pickle_str(sink_ctx ctx, sink_val a);
 sink_val  sink_pickle_val(sink_ctx ctx, sink_val a);
-
-// task
-int       sink_task_id(sink_ctx ctx);
-int       sink_task_fork(sink_ctx ctx, sink_val ret);
-void      sink_task_send(sink_ctx ctx, sink_val a, sink_val b);
-sink_val  sink_task_recv(sink_ctx ctx);
-bool      sink_task_peek(sink_ctx ctx);
 
 // gc
 double    sink_gc_get(sink_ctx ctx);

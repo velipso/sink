@@ -409,30 +409,6 @@ pickle.valid '"\u1000"' # => nil, only bytes in strings are supported ("\u0000" 
 pickle.valid 'null'     # => 1, 'null' is nil
 ```
 
-Task
-----
-
-| Function         | Description                                                                  |
-|------------------|------------------------------------------------------------------------------|
-| `task.id`        | Current task's id (first task is 0, every task after increases by 1)         |
-| `task.fork`      | Create a new task by forking the runtime; returns the current task id        |
-| `task.send a, b` | Send message `b` to the task with id `a`                                     |
-| `task.recv`      | Receive a message (blocking); returns a two item list: `{ fromid, message }` |
-| `task.peek`      | Returns true if a message is waiting; false otherwise                        |
-| `task.exit`      | Exit the current task                                                        |
-
-### Example
-
-```
-var orig = task.id
-var t = task.fork
-if t == orig
-  say 'inside original task'
-else
-  say 'inside forked task'
-end
-```
-
 GC
 --
 

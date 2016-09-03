@@ -18,8 +18,8 @@ compile_c() { # production compile
 	# $1 : the input .c file
 	# $2 : the output .o file
 	if which clang > /dev/null; then
-		#clang -c -o "$2" -fwrapv -DSINK_MEMTEST "$1"
-		clang -c -o "$2" -fwrapv "$1"
+		clang -c -o "$2" -fwrapv -DSINK_MEMTEST "$1"; echo '(memtest)'
+		#clang -c -o "$2" -fwrapv "$1"
 	else
 		echo 'ERROR:'
 		echo 'Missing "clang" which is required for building.'
@@ -177,68 +177,78 @@ README
 		;;
 esac
 
-run_tests() {
+run_test() {
 	# $1 : 'js' or 'c'
+	# $2 : test directory
 	test_prog="$1"
+	test_dir="$2"
 	out=$(mktemp "$TGT_DIR"/test_output.stdout.XXXXXX)
 	err=$(mktemp "$TGT_DIR"/test_output.stderr.XXXXXX)
-	for test_dir in $TESTS_DIR/*; do
-		test_base=$(basename "$test_dir")
-		test_num=$(echo "$test_base" | cut -d . -f 1)
-		test_name=$(echo "$test_base" | cut -d . -f 2)
+	test_base=$(basename "$test_dir")
+	test_num=$(echo "$test_base" | cut -d . -f 1)
+	test_name=$(echo "$test_base" | cut -d . -f 2)
 
-		printf "%3s.%-10s  " "$test_num" "$test_name"
+	printf "%3s.%-12s  " "$test_num" "$test_name"
 
-		if [ "$test_prog" = "js" ]; then
-			set +e
-			$DIST_DIR/sink/cmd.js "$test_dir"/"$test_name".sink "$test_name" > "$out" 2>"$err"
-			status=$?
-			set -e
+	if [ "$test_prog" = "js" ]; then
+		set +e
+		$DIST_DIR/sink/cmd.js "$test_dir"/"$test_name".sink "$test_name" > "$out" 2>"$err"
+		status=$?
+		set -e
+	else
+		set +e
+		$TGT_DIR/sink "$test_dir"/"$test_name".sink "$test_name" > "$out" 2>"$err"
+		status=$?
+		set -e
+	fi
+
+	if [ -e "$test_dir"/pass.txt ]; then
+		if [ "$status" != "0" ]; then
+			echo FAIL
+			cat "$err"
+			rm -f "$out"
+			rm -f "$err"
+			exit 1
 		else
 			set +e
-			$TGT_DIR/sink "$test_dir"/"$test_name".sink "$test_name" > "$out" 2>"$err"
+			d=$(diff -u --label 'Expected Output' "$test_dir"/pass.txt --label \
+				'Actual Output' "$out")
 			status=$?
 			set -e
-		fi
-
-		if [ -e "$test_dir"/pass.txt ]; then
-			if [ "$status" != "0" ]; then
-				echo FAIL
-				cat "$err"
-				rm -f "$out"
-				rm -f "$err"
-				exit 1
-			else
-				set +e
-				d=$(diff -u --label 'Expected Output' "$test_dir"/pass.txt --label \
-					'Actual Output' "$out")
-				status=$?
-				set -e
-				if [ "$status" = "0" ]; then
-					echo PASS
-				else
-					echo FAIL
-					echo "$d"
-					rm -f "$out"
-					rm -f "$err"
-					exit 1
-				fi
-			fi
-		else
 			if [ "$status" = "0" ]; then
+				echo PASS
+			else
 				echo FAIL
-				echo 'Expecting test to result in error; instead it ran with the result:'
-				cat "$out"
+				echo "$d"
 				rm -f "$out"
 				rm -f "$err"
 				exit 1
-			else
-				echo PASS
 			fi
 		fi
-	done
+	else
+		if [ "$status" = "0" ]; then
+			echo FAIL
+			echo 'Expecting test to result in error; instead it ran with the result:'
+			cat "$out"
+			rm -f "$out"
+			rm -f "$err"
+			exit 1
+		else
+			echo PASS
+		fi
+	fi
 	rm -f "$out"
 	rm -f "$err"
+}
+
+run_tests() {
+	# $1 : 'js' or 'c'
+	for test_dir in $TESTS_DIR/?.*; do
+		run_test $1 "$test_dir"
+	done
+	for test_dir in $TESTS_DIR/??.*; do
+		run_test $1 "$test_dir"
+	done
 }
 
 #

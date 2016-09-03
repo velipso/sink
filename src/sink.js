@@ -148,15 +148,9 @@ var OP_LIST_SORTCMP  = 0x84; // [TGT], [SRC1], [SRC2]
 var OP_PICKLE_VALID  = 0x85; // [TGT], [SRC]
 var OP_PICKLE_STR    = 0x86; // [TGT], [SRC]
 var OP_PICKLE_VAL    = 0x87; // [TGT], [SRC]
-var OP_TASK_ID       = 0x88; // [TGT]
-var OP_TASK_FORK     = 0x89; // [TGT]
-var OP_TASK_SEND     = 0x8A; // [TGT], [SRC1], [SRC2]
-var OP_TASK_RECV     = 0x8B; // [TGT]
-var OP_TASK_PEEK     = 0x8C; // [TGT]
-var OP_TASK_EXIT     = 0x8D; // [TGT]
-var OP_GC_GET        = 0x8E; // [TGT]
-var OP_GC_SET        = 0x8F; // [TGT], [SRC]
-var OP_GC_RUN        = 0x90; // [TGT]
+var OP_GC_GET        = 0x88; // [TGT]
+var OP_GC_SET        = 0x89; // [TGT], [SRC]
+var OP_GC_RUN        = 0x8A; // [TGT]
 
 var ABORT_LISTFUNC   = 0x01;
 
@@ -3322,14 +3316,6 @@ function symtbl_loadStdlib(sym){
 		SAC(sym, 'valid'     , OP_PICKLE_VALID  ,  1);
 		SAC(sym, 'str'       , OP_PICKLE_STR    ,  1);
 		SAC(sym, 'val'       , OP_PICKLE_VAL    ,  1);
-	symtbl_popNamespace(sym);
-	symtbl_pushNamespace(sym, ['task']);
-		SAC(sym, 'id'        , OP_TASK_ID       ,  0);
-		SAC(sym, 'fork'      , OP_TASK_FORK     ,  0);
-		SAC(sym, 'send'      , OP_TASK_SEND     ,  2);
-		SAC(sym, 'recv'      , OP_TASK_RECV     ,  0);
-		SAC(sym, 'peek'      , OP_TASK_PEEK     ,  0);
-		SAC(sym, 'exit'      , OP_TASK_EXIT     ,  0);
 	symtbl_popNamespace(sym);
 	symtbl_pushNamespace(sym, ['gc']);
 		SAC(sym, 'get'       , OP_GC_GET        ,  0);
@@ -6961,30 +6947,6 @@ function context_run(ctx){
 			} break;
 
 			case OP_PICKLE_VAL     : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
-			} break;
-
-			case OP_TASK_ID        : { // [TGT]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
-			} break;
-
-			case OP_TASK_FORK      : { // [TGT]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
-			} break;
-
-			case OP_TASK_SEND      : { // [TGT], [SRC1], [SRC2]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
-			} break;
-
-			case OP_TASK_RECV      : { // [TGT]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
-			} break;
-
-			case OP_TASK_PEEK      : { // [TGT]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
-			} break;
-
-			case OP_TASK_EXIT      : { // [TGT]
 				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
 			} break;
 
