@@ -473,7 +473,8 @@ The commands that take files or paths as input can usually accept a list of file
 
 TODO: more
 
-date, time, sed, grep
+date, time, sed, grep, touch, set, mktemp, chmod, ln, hostname, rmdir, curl, nc, dirname,
+basename, find, whoami, printf, readlink, sort, stat, uniq, uname, sleep
 
 ### Options
 
