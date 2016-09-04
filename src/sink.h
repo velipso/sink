@@ -144,13 +144,14 @@ static const uint64_t SINK_TAG_MASK   =        UINT64_C(0xFFFFFFFF80000000);
 
 // native library
 sink_lib  sink_lib_new();
+void      sink_lib_inc(sink_lib lib, const char *name, const char *body);
 void      sink_lib_add(sink_lib lib, const char *name, sink_native_func f_native);
-void      sink_lib_addhash(sink_lib lib, uint64_t hash, sink_native_func f_native);
-void      sink_lib_addlib(sink_lib lib, sink_lib src);
+void      sink_lib_hash(sink_lib lib, uint64_t hash, sink_native_func f_native);
+void      sink_lib_append(sink_lib lib, sink_lib src);
 void      sink_lib_free(sink_lib lib);
 
 // script
-sink_scr  sink_scr_new(sink_inc_st inc, const char *fullfile, bool repl);
+sink_scr  sink_scr_new(sink_lib lib, sink_inc_st inc, const char *fullfile, bool repl);
 char *    sink_scr_write(sink_scr scr, uint8_t *bytes, int size);
 int       sink_scr_level(sink_scr scr);
 char *    sink_scr_close(sink_scr scr);
@@ -158,7 +159,7 @@ void      sink_scr_dump(sink_scr scr, void *user, sink_dump_func f_dump);
 void      sink_scr_free(sink_scr scr);
 
 // context
-sink_ctx  sink_ctx_new(sink_scr scr, sink_lib lib, sink_io_st io);
+sink_ctx  sink_ctx_new(sink_lib lib, sink_scr scr, sink_io_st io);
 void      sink_ctx_setuser(sink_ctx ctx, void *user, sink_free_func f_free);
 void *    sink_ctx_getuser(sink_ctx ctx);
 sink_user sink_ctx_addusertype(sink_ctx ctx, sink_free_func f_free);
@@ -344,6 +345,12 @@ void      sink_gc_run(sink_ctx ctx);
 // helpers
 char *sink_format(const char *fmt, ...);
 
+static inline sink_val sink_abortcstr(sink_ctx ctx, const char *msg){
+	sink_val a = sink_str_newcstr(ctx, msg);
+	sink_abort(ctx, &a, 1);
+	return SINK_NIL;
+}
+
 static void sink_stdio_say(sink_ctx ctx, sink_str str){
 	printf("%.*s\n", str->size, str->bytes);
 }
@@ -416,7 +423,7 @@ static char *sink_stdinc_resolve(const char *file, const char *fromfile){
 	int flen = strlen(file);
 	int tot = cwdlen + flen;
 	char *out = malloc(sizeof(char) * (tot + 1));
-	memcpy(out, cwd, sizeof(char) * (cwdlen + 1));
+	memcpy(out, cwd, sizeof(char) * cwdlen);
 	free(cwd);
 
 	for (int i = 0; i < flen; i++){
@@ -454,11 +461,13 @@ static char *sink_stdinc_resolve(const char *file, const char *fromfile){
 			}
 		}
 		// otherwise, copy until we hit a slash
-		while (!SINK_ISFILESEP(file[i])){
+		while (!SINK_ISFILESEP(file[i]) && i < flen){
 			out[cwdlen] = file[i];
 			cwdlen++;
 			i++;
 		}
+		if (i >= flen)
+			break;
 		out[cwdlen++] = SINK_FILESEP;
 	}
 

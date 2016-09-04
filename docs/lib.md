@@ -439,11 +439,10 @@ No matter what the level is set to, running `gc.run` will always peform a full c
 Shell Library Extension
 =======================
 
+`include 'shell'`
+
 The shell library is an extension available to sink scripts ran inside the command-line tool's
 environment.  These functions are not necessarily available in all host environments.
-
-All functions are inside the `shell` namespace (i.e., `shell.cd`, `shell.pwd`, etc).  They can be
-exposed to the global namespace with `using shell`.
 
 Many commands have options as their first parameter -- see the notes below for a breakdown of each
 comand's options.

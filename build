@@ -67,7 +67,7 @@ comp_and_link() {
 		echo "Compiling $(basename "$1")..."
 		compile_c "$1" "$2"
 	fi
-	LINK_FILES=($LINK_FILES "$2")
+	LINK_FILES=("${LINK_FILES[@]}" "$2")
 }
 
 link_finish() {
@@ -318,8 +318,9 @@ if [ "$BUILD_C" = "1" ]; then
 
 	mkdir -p $TGT_DIR
 
-	comp_and_link src/sink.c $TGT_DIR/sink.o
-	comp_and_link src/cmd.c $TGT_DIR/cmd.o
+	comp_and_link src/sink.c       $TGT_DIR/sink.o
+	comp_and_link src/sink_shell.c $TGT_DIR/sink_shell.o
+	comp_and_link src/cmd.c        $TGT_DIR/cmd.o
 	link_finish $TGT_DIR/sink
 fi
 

@@ -3012,7 +3012,7 @@ typedef struct {
 static inline void decl_free(decl dc){
 	if (dc->names)
 		list_ptr_free(dc->names);
-	if (dc->type == DECL_NATIVE && dc->key)
+	if (dc->key)
 		list_byte_free(dc->key);
 	mem_free(dc);
 }
@@ -3022,6 +3022,7 @@ static inline decl decl_local(filepos_st flp, list_ptr names){ // decls
 	dc->flp = flp;
 	dc->type = DECL_LOCAL;
 	dc->names = names;
+	dc->key = NULL;
 	return dc;
 }
 
@@ -4124,6 +4125,7 @@ static prr_st parser_process(parser pr, filepos_st flp){
 			return prr_more();
 
 		case PRS_INCLUDE_STR3:
+			list_byte_push(st->str, 0); // NULL-terminate the filename
 			list_ptr_push(st->incls, incl_new(flp, st->names, st->str));
 			st->names = NULL;
 			st->str = NULL;
@@ -6925,6 +6927,7 @@ static pgr_st program_gen(program prg, symtbl sym, ast stmt){
 							if (index >= 65536)
 								return pgr_error(dc->flp, sink_format("Too many native functions"));
 							list_ptr_push(prg->keyTable, dc->key);
+							dc->key = NULL;
 						}
 						sta_st sr = symtbl_addCmdNative(sym, dc->names, index);
 						if (sr.type == STA_ERROR)
@@ -7539,6 +7542,25 @@ static int bmp_reserve(void **tbl, uint64_t **aloc, uint64_t **ref, uint64_t **t
 }
 
 //
+// library data structure
+//
+
+typedef struct {
+	uint64_t hash;
+	sink_native_func f_native;
+} libent_st, *libent;
+
+typedef struct {
+	const char *name;
+	const char *body;
+} libinc_st, *libinc;
+
+typedef struct {
+	list_ptr ents;
+	list_ptr incs;
+} library_st, *library;
+
+//
 // context
 //
 
@@ -7691,7 +7713,7 @@ static inline void context_free(context ctx){
 
 static void opi_rand_seedauto(context ctx);
 
-static inline context context_new(program prg, sink_io_st io){
+static inline context context_new(program prg, library lib, sink_io_st io){
 	context ctx = mem_alloc(sizeof(context_st));
 	ctx->user = NULL;
 	ctx->f_freeuser = NULL;
@@ -8212,7 +8234,7 @@ static sink_val triop_num_lerp(context ctx, sink_val a, sink_val b, sink_val c){
 }
 
 // inline operators
-static inline void opi_warn(context ctx, sink_val *vals, int size);
+static inline void opi_abortcstr(context ctx, const char *msg);
 
 static inline bool opi_equ(context ctx, sink_val a, sink_val b){
 	if (sink_isnil(a) && sink_isnil(b))
@@ -8235,17 +8257,13 @@ static inline int opi_size(context ctx, sink_val a){
 		sink_str str = var_caststr(ctx, a);
 		return str->size;
 	}
-	a = sink_str_newcstr(ctx, "Expecting string or list for size");
-	opi_warn(ctx, &a, 1);
-	ctx->failed = true;
+	opi_abortcstr(ctx, "Expecting string or list for size");
 	return 0;
 }
 
 static inline sink_val opi_tonum(context ctx, sink_val a){
 	if (!oper_isnilnumstr(ctx, a)){
-		a = sink_str_newcstr(ctx, "Expecting string when converting to number");
-		opi_warn(ctx, &a, 1);
-		ctx->failed = true;
+		opi_abortcstr(ctx, "Expecting string when converting to number");
 		return SINK_NIL;
 	}
 	return oper_un(ctx, a, unop_tonum);
@@ -8285,15 +8303,32 @@ static inline void opi_abort(context ctx, sink_val *vals, int size){
 	ctx->failed = true;
 }
 
+static inline void opi_abortcstr(context ctx, const char *msg){
+	sink_val a = sink_str_newcstr(ctx, msg);
+	opi_warn(ctx, &a, 1);
+	ctx->failed = true;
+}
+
+static inline sink_val opi_abortformat(context ctx, const char *fmt, ...){
+	va_list args, args2;
+	va_start(args, fmt);
+	va_copy(args2, args);
+	size_t s = vsnprintf(NULL, 0, fmt, args);
+	char *buf = mem_alloc(s + 1);
+	vsprintf(buf, fmt, args2);
+	va_end(args);
+	va_end(args2);
+	sink_val a = sink_str_newblobgive(ctx, (uint8_t *)buf, s);
+	opi_warn(ctx, &a, 1);
+	ctx->failed = true;
+	return SINK_NIL;
+}
+
 static inline sink_val opi_unop(context ctx, sink_val a, unary_func f_unary, const char *erop){
 	if (sink_isnil(a))
 		a.f = 0;
-	if (!oper_isnum(ctx, a)){
-		a = sink_str_newformat(ctx, "Expecting number or list of numbers when %s", erop);
-		opi_warn(ctx, &a, 1);
-		ctx->failed = true;
-		return SINK_NIL;
-	}
+	if (!oper_isnum(ctx, a))
+		return opi_abortformat(ctx, "Expecting number or list of numbers when %s", erop);
 	return oper_un(ctx, a, f_unary);
 }
 
@@ -8301,20 +8336,12 @@ static inline sink_val opi_binop(context ctx, sink_val a, sink_val b, binary_fun
 	const char *erop){
 	if (sink_isnil(a))
 		a.f = 0;
-	if (!oper_isnum(ctx, a)){
-		a = sink_str_newformat(ctx, "Expecting number or list of numbers when %s", erop);
-		opi_warn(ctx, &a, 1);
-		ctx->failed = true;
-		return SINK_NIL;
-	}
+	if (!oper_isnum(ctx, a))
+		return opi_abortformat(ctx, "Expecting number or list of numbers when %s", erop);
 	if (sink_isnil(b))
 		b.f = 0;
-	if (!oper_isnum(ctx, b)){
-		b = sink_str_newformat(ctx, "Expecting number or list of numbers when %s", erop);
-		opi_warn(ctx, &b, 1);
-		ctx->failed = true;
-		return SINK_NIL;
-	}
+	if (!oper_isnum(ctx, b))
+		return opi_abortformat(ctx, "Expecting number or list of numbers when %s", erop);
 	return oper_bin(ctx, a, b, f_binary);
 }
 
@@ -8322,28 +8349,16 @@ static inline sink_val opi_triop(context ctx, sink_val a, sink_val b, sink_val c
 	trinary_func f_trinary, const char *erop){
 	if (sink_isnil(a))
 		a.f = 0;
-	if (!oper_isnum(ctx, a)){
-		a = sink_str_newformat(ctx, "Expecting number or list of numbers when %s", erop);
-		opi_warn(ctx, &a, 1);
-		ctx->failed = true;
-		return SINK_NIL;
-	}
+	if (!oper_isnum(ctx, a))
+		return opi_abortformat(ctx, "Expecting number or list of numbers when %s", erop);
 	if (sink_isnil(b))
 		b.f = 0;
-	if (!oper_isnum(ctx, b)){
-		b = sink_str_newformat(ctx, "Expecting number or list of numbers when %s", erop);
-		opi_warn(ctx, &b, 1);
-		ctx->failed = true;
-		return SINK_NIL;
-	}
+	if (!oper_isnum(ctx, b))
+		return opi_abortformat(ctx, "Expecting number or list of numbers when %s", erop);
 	if (sink_isnil(c))
 		c.f = 0;
-	if (!oper_isnum(ctx, c)){
-		c = sink_str_newformat(ctx, "Expecting number or list of numbers when %s", erop);
-		opi_warn(ctx, &c, 1);
-		ctx->failed = true;
-		return SINK_NIL;
-	}
+	if (!oper_isnum(ctx, c))
+		return opi_abortformat(ctx, "Expecting number or list of numbers when %s", erop);
 	return oper_tri(ctx, a, b, c, f_trinary);
 }
 
@@ -8655,6 +8670,11 @@ static sink_run context_run(context ctx){
 		if (A > ctx->lex_index)                                                            \
 			return crr_invalid(ctx);
 
+	#define LOAD_ABCDef()                                                                  \
+		LOAD_abcdef();                                                                     \
+		if (A > ctx->lex_index || C > ctx->lex_index)                                      \
+			return crr_invalid(ctx);
+
 	#define LOAD_ABCDEF()                                                                  \
 		LOAD_abcdef();                                                                     \
 		if (A > ctx->lex_index || C > ctx->lex_index || E > ctx->lex_index)                \
@@ -8698,8 +8718,7 @@ static sink_run context_run(context ctx){
 			return crr_exitfail(ctx);
 
 	#define RETURN_FAIL(msg)   do{           \
-			X = sink_str_newcstr(ctx, msg);  \
-			opi_warn(ctx, &X, 1);            \
+			opi_abortcstr(ctx, msg);         \
 			return crr_exitfail(ctx);        \
 		} while(false)
 
@@ -8990,7 +9009,8 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_NATIVE         : { // [TGT], [SRC], [INDEX]
-				THROW("OP_NATIVE");
+				LOAD_ABCDef();
+				var_set(ctx, A, B, SINK_NIL);
 			} break;
 
 			case OP_RETURN         : { // [SRC]
@@ -9641,6 +9661,7 @@ static sink_run context_run(context ctx){
 	#undef LOAD_ABCD
 	#undef LOAD_abcdef
 	#undef LOAD_ABcdef
+	#undef LOAD_ABCDef
 	#undef LOAD_ABCDEF
 	#undef LOAD_abcdefgh
 	#undef LOAD_ABCDEFGH
@@ -9659,12 +9680,6 @@ static sink_run context_run(context ctx){
 // compiler
 //
 
-typedef struct filepos_node_struct filepos_node_st, *filepos_node;
-struct filepos_node_struct {
-	filepos_st flp;
-	filepos_node next;
-};
-
 typedef struct {
 	list_ptr tks;
 	filepos_st flp;
@@ -9682,38 +9697,95 @@ static tkflp tkflp_new(list_ptr tks, filepos_st flp){
 	return tf;
 }
 
+typedef struct filepos_node_struct filepos_node_st, *filepos_node;
+struct filepos_node_struct {
+	filepos_st flp;
+	list_ptr tkflps;
+	filepos_node next;
+};
+
+static filepos_node flpn_new(char *file, filepos_node next){
+	filepos_node flpn = mem_alloc(sizeof(filepos_node_st));
+	flpn->tkflps = list_ptr_new((free_func)tkflp_free);
+	flpn->flp.file = file;
+	flpn->flp.line = 1;
+	flpn->flp.chr = 1;
+	flpn->next = next;
+	return flpn;
+}
+
+static void flpn_free(filepos_node flpn){
+	list_ptr_free(flpn->tkflps);
+	if (flpn->flp.file)
+		mem_free(flpn->flp.file);
+	mem_free(flpn);
+}
+
 typedef struct {
+	library lib; // not freed by compiler_free
 	lex lx;
 	parser pr;
 	program prg; // not freed by compiler_free
 	symtbl sym; // TODO: in the future this will likely be created outside the compiler too
-	list_ptr tkflps;
 	filepos_node flpn;
+	sink_inc_st inc;
 	char *msg;
 	bool wascr;
 } compiler_st, *compiler;
 
-static compiler compiler_new(program prg, sink_inc_st inc, char *file){
+static compiler compiler_new(program prg, library lib, sink_inc_st inc, char *file){
 	compiler cmp = mem_alloc(sizeof(compiler_st));
+	cmp->lib = lib;
 	cmp->lx = lex_new();
 	cmp->pr = parser_new();
 	cmp->prg = prg;
 	cmp->sym = symtbl_new(prg->repl);
 	symtbl_loadStdlib(cmp->sym);
-	cmp->tkflps = list_ptr_new((free_func)tkflp_free);
-	cmp->flpn = mem_alloc(sizeof(filepos_node_st));
-	cmp->flpn->flp.file = file;
-	cmp->flpn->flp.line = 1;
-	cmp->flpn->flp.chr = 1;
-	cmp->flpn->next = NULL;
+	cmp->flpn = flpn_new(file, NULL);
+	cmp->inc = inc;
 	cmp->msg = NULL;
 	cmp->wascr = false;
 	return cmp;
 }
 
+static void compiler_resetlp(compiler cmp){
+	lex_free(cmp->lx);
+	cmp->lx = lex_new();
+	parser_free(cmp->pr);
+	cmp->pr = parser_new();
+}
+
+static void compiler_reset(compiler cmp){
+	if (cmp->msg){
+		mem_free(cmp->msg);
+		cmp->msg = NULL;
+	}
+	compiler_resetlp(cmp);
+	list_ptr_free(cmp->flpn->tkflps);
+	cmp->flpn->tkflps = list_ptr_new((free_func)tkflp_free);
+}
+
+static void compiler_begininc(compiler cmp, list_ptr names, char *file){
+	cmp->flpn = flpn_new(file, cmp->flpn);
+	if (names)
+		symtbl_pushNamespace(cmp->sym, names);
+}
+
+static void compiler_endinc(compiler cmp, bool ns){
+	if (ns)
+		symtbl_popNamespace(cmp->sym);
+	filepos_node del = cmp->flpn;
+	cmp->flpn = cmp->flpn->next;
+	flpn_free(del);
+	compiler_resetlp(cmp);
+}
+
+static char *compiler_write(compiler cmp, const uint8_t *bytes, int size);
+static char *compiler_close(compiler cmp);
+
 static char *compiler_process(compiler cmp){
-	while (cmp->tkflps->size > 0){
-		tkflp tf = list_ptr_shift(cmp->tkflps);
+	while (cmp->flpn->tkflps->size > 0){
+		tkflp tf = list_ptr_shift(cmp->flpn->tkflps);
 		while (tf->tks->size > 0){
 			tok tk = list_ptr_shift(tf->tks);
 			tok_print(tk);
@@ -9731,14 +9803,65 @@ static char *compiler_process(compiler cmp){
 					break;
 				case PRR_STATEMENT: {
 					ast_print(pp.u.stmt, 0);
-					pgr_st pr = program_gen(cmp->prg, cmp->sym, pp.u.stmt);
-					symtbl_print(cmp->sym);
-					ast_free(pp.u.stmt);
-					if (pr.type == PGR_ERROR){
-						tkflp_free(tf);
-						// TODO: use pr.flp
-						cmp->msg = pr.msg;
-						return cmp->msg;
+					if (pp.u.stmt->type == AST_INCLUDE){
+						// intercept include statements to process by the compiler
+						list_ptr incls = pp.u.stmt->u.incls;
+						for (int i = 0; i < incls->size; i++){
+							incl inc = incls->ptrs[i];
+							const char *file = (const char *)inc->file->bytes;
+
+							// look if file matches a hardcoded library
+							bool internal = false;
+							for (int j = 0; j < cmp->lib->incs->size; j++){
+								libinc li = cmp->lib->incs->ptrs[j];
+								if (strcmp(file, li->name) == 0){
+									internal = true;
+									compiler_begininc(cmp, inc->names, sink_format("%s", file));
+									char *err = compiler_write(cmp, (const uint8_t *)li->body,
+										strlen(li->body));
+									if (err){
+										compiler_endinc(cmp, inc->names != NULL);
+										ast_free(pp.u.stmt);
+										tkflp_free(tf);
+										return cmp->msg;
+									}
+									err = compiler_close(cmp);
+									compiler_endinc(cmp, inc->names != NULL);
+									if (err){
+										ast_free(pp.u.stmt);
+										tkflp_free(tf);
+										return cmp->msg;
+									}
+									break;
+								}
+							}
+							if (internal)
+								continue;
+
+							// resolve the file to an absolute file
+							char *fullfile = cmp->inc.f_resolve(file, inc->flp.file);
+							if (fullfile == NULL){
+								cmp->msg = sink_format("Failed to include: %s", inc->file->bytes);
+								ast_free(pp.u.stmt);
+								tkflp_free(tf);
+								return cmp->msg;
+							}
+							abort();
+							// TODO: f_include
+							mem_free(fullfile);
+						}
+						ast_free(pp.u.stmt);
+					}
+					else{
+						pgr_st pr = program_gen(cmp->prg, cmp->sym, pp.u.stmt);
+						symtbl_print(cmp->sym);
+						ast_free(pp.u.stmt);
+						if (pr.type == PGR_ERROR){
+							tkflp_free(tf);
+							// TODO: use pr.flp
+							cmp->msg = pr.msg;
+							return cmp->msg;
+						}
 					}
 				} break;
 				case PRR_ERROR:
@@ -9753,7 +9876,7 @@ static char *compiler_process(compiler cmp){
 	return NULL;
 }
 
-static char *compiler_write(compiler cmp, uint8_t *bytes, int size){
+static char *compiler_write(compiler cmp, const uint8_t *bytes, int size){
 	list_ptr tks = NULL;
 	for (int i = 0; i < size; i++){
 		if (tks == NULL)
@@ -9761,7 +9884,7 @@ static char *compiler_write(compiler cmp, uint8_t *bytes, int size){
 		lex_add(cmp->lx, bytes[i], tks);
 
 		if (tks->size > 0){
-			list_ptr_push(cmp->tkflps, tkflp_new(tks, cmp->flpn->flp));
+			list_ptr_push(cmp->flpn->tkflps, tkflp_new(tks, cmp->flpn->flp));
 			tks = NULL;
 		}
 
@@ -9790,7 +9913,7 @@ static char *compiler_close(compiler cmp){
 	list_ptr tks = list_ptr_new((free_func)tok_free);
 	lex_close(cmp->lx, tks);
 	if (tks->size > 0)
-		list_ptr_push(cmp->tkflps, tkflp_new(tks, cmp->flpn->flp));
+		list_ptr_push(cmp->flpn->tkflps, tkflp_new(tks, cmp->flpn->flp));
 	else
 		list_ptr_free(tks);
 
@@ -9808,33 +9931,17 @@ static char *compiler_close(compiler cmp){
 	return NULL;
 }
 
-static void compiler_reset(compiler cmp){
-	if (cmp->msg){
-		mem_free(cmp->msg);
-		cmp->msg = NULL;
-	}
-	lex_free(cmp->lx);
-	cmp->lx = lex_new();
-	parser_free(cmp->pr);
-	cmp->pr = parser_new();
-	list_ptr_free(cmp->tkflps);
-	cmp->tkflps = list_ptr_new((free_func)tkflp_free);
-}
-
 static void compiler_free(compiler cmp){
 	if (cmp->msg)
 		mem_free(cmp->msg);
 	lex_free(cmp->lx);
 	parser_free(cmp->pr);
 	symtbl_free(cmp->sym);
-	list_ptr_free(cmp->tkflps);
 	filepos_node flpn = cmp->flpn;
 	while (flpn){
 		filepos_node del = flpn;
 		flpn = flpn->next;
-		if (del->flp.file)
-			mem_free(del->flp.file);
-		mem_free(del);
+		flpn_free(del);
 	}
 	mem_free(cmp);
 }
@@ -9846,28 +9953,40 @@ static void compiler_free(compiler cmp){
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 //
-// lib API
+// library API
 //
 
-typedef struct {
-	uint64_t hash;
-	sink_native_func f_native;
-} libent_st, *libent;
-
 sink_lib sink_lib_new(){
-	return (sink_lib)list_ptr_new(mem_free_func);
+	library lib = mem_alloc(sizeof(library_st));
+	lib->ents = list_ptr_new(mem_free_func);
+	lib->incs = list_ptr_new(mem_free_func);
+	return lib;
+}
+
+void sink_lib_inc(sink_lib lib, const char *name, const char *body){
+	library L = lib;
+	for (int i = 0; i < L->incs->size; i++){
+		libinc li = L->incs->ptrs[i];
+		if (strcmp(li->name, name) == 0){
+			SINK_PANIC("Name collision when adding library to includes");
+		}
+	}
+	libinc li = mem_alloc(sizeof(libinc_st));
+	li->name = name;
+	li->body = body;
+	list_ptr_push(L->incs, li);
 }
 
 void sink_lib_add(sink_lib lib, const char *name, sink_native_func f_native){
 	uint32_t hash[4];
 	sink_str_hashplain((uint8_t *)name, strlen(name), 0, hash);
-	sink_lib_addhash(lib, ((uint64_t)hash[1] << 32) | hash[0], f_native);
+	sink_lib_hash(lib, ((uint64_t)hash[1] << 32) | hash[0], f_native);
 }
 
-void sink_lib_addhash(sink_lib lib, uint64_t hash, sink_native_func f_native){
-	list_ptr p = (list_ptr)lib;
-	for (int i = 0; i < p->size; i++){
-		libent le = p->ptrs[i];
+void sink_lib_hash(sink_lib lib, uint64_t hash, sink_native_func f_native){
+	library L = lib;
+	for (int i = 0; i < L->ents->size; i++){
+		libent le = L->ents->ptrs[i];
 		if (le->hash == hash){
 			SINK_PANIC("Hash collision when adding native function");
 		}
@@ -9875,19 +9994,25 @@ void sink_lib_addhash(sink_lib lib, uint64_t hash, sink_native_func f_native){
 	libent le = mem_alloc(sizeof(libent_st));
 	le->hash = hash;
 	le->f_native = f_native;
-	list_ptr_push(p, le);
+	list_ptr_push(L->ents, le);
 }
 
-void sink_lib_addlib(sink_lib lib, sink_lib src){
-	list_ptr p = (list_ptr)src;
-	for (int i = 0; i < p->size; i++){
-		libent le = p->ptrs[i];
-		sink_lib_addhash(lib, le->hash, le->f_native);
+void sink_lib_append(sink_lib lib, sink_lib src){
+	library L = src;
+	for (int i = 0; i < L->ents->size; i++){
+		libent le = L->ents->ptrs[i];
+		sink_lib_hash(lib, le->hash, le->f_native);
+	}
+	for (int i = 0; i < L->incs->size; i++){
+		libinc li = L->incs->ptrs[i];
+		sink_lib_inc(lib, li->name, li->body);
 	}
 }
 
 void sink_lib_free(sink_lib lib){
-	list_ptr_free((list_ptr)lib);
+	list_ptr_free(((library)lib)->ents);
+	list_ptr_free(((library)lib)->incs);
+	mem_free(lib);
 }
 
 //
@@ -9895,6 +10020,7 @@ void sink_lib_free(sink_lib lib){
 //
 
 typedef struct {
+	library lib; // not freed by sink_scr_free
 	program prg;
 	compiler cmp;
 	sink_inc_st inc;
@@ -9903,8 +10029,9 @@ typedef struct {
 	int mode; // 0 = unsure, 1 = load binary, 2 = compile text
 } script_st, *script;
 
-sink_scr sink_scr_new(sink_inc_st inc, const char *fullfile, bool repl){
+sink_scr sink_scr_new(sink_lib lib, sink_inc_st inc, const char *fullfile, bool repl){
 	script sc = mem_alloc(sizeof(script_st));
+	sc->lib = lib;
 	sc->prg = program_new(repl);
 	sc->cmp = NULL;
 	sc->inc = inc;
@@ -9926,7 +10053,7 @@ char *sink_scr_write(sink_scr scr, uint8_t *bytes, int size){
 			sc->mode = 1;
 		else{
 			sc->mode = 2;
-			sc->cmp = compiler_new(sc->prg, sc->inc, sc->fullfile);
+			sc->cmp = compiler_new(sc->prg, sc->lib, sc->inc, sc->fullfile);
 			sc->fullfile = NULL; // ownership passes to compiler
 		}
 	}
@@ -9991,9 +10118,8 @@ void sink_scr_free(sink_scr scr){
 // context API
 //
 
-sink_ctx sink_ctx_new(sink_scr scr, sink_lib lib, sink_io_st io){
-	script sc = scr;
-	return context_new(sc->prg, io);
+sink_ctx sink_ctx_new(sink_lib lib, sink_scr scr, sink_io_st io){
+	return context_new(((script)scr)->prg, lib, io);
 }
 
 void sink_ctx_setuser(sink_ctx ctx, void *user, sink_free_func f_freeuser){
@@ -10119,9 +10245,7 @@ static sink_val sinkhelp_tostr(context ctx, sink_val v, bool first){
 		} break;
 
 		case SINK_TYPE_ASYNC: {
-			ctx->failed = true;
-			v = sink_str_newcstr(ctx, "Cannot convert invalid value (SINK_ASYNC) to string");
-			opi_warn(ctx, &v, 1);
+			opi_abortcstr(ctx, "Cannot convert invalid value (SINK_ASYNC) to string");
 			return sink_str_newblob(ctx, NULL, 0);
 		} break;
 	}
@@ -10139,8 +10263,11 @@ void      sink_say(sink_ctx ctx, sink_val *vals, int size);
 void      sink_warn(sink_ctx ctx, sink_val *vals, int size);
 sink_val  sink_ask(sink_ctx ctx, sink_val *vals, int size);
 void      sink_exit(sink_ctx ctx, sink_val *vals, int size);
-void      sink_abort(sink_ctx ctx, sink_val *vals, int size);
-
+*/
+void sink_abort(sink_ctx ctx, sink_val *vals, int size){
+	opi_abort(ctx, vals, size);
+}
+/*
 // numbers
 sink_val  sink_num_neg(sink_ctx ctx, sink_val a);
 sink_val  sink_num_add(sink_ctx ctx, sink_val a, sink_val b);

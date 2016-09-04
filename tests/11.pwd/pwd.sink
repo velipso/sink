@@ -1,0 +1,8 @@
+
+include 'shell'
+
+if typestr pwd
+	say 'pass'
+else
+	say 'fail'
+end
