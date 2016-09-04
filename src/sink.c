@@ -392,6 +392,35 @@ static inline void list_int_push(list_int ls, int_fast32_t v){
 	ls->vals[ls->size++] = v;
 }
 
+typedef struct {
+	uint64_t *vals;
+	int size;
+	int count;
+} list_u64_st, *list_u64;
+
+const int list_u64_grow = 200;
+
+static inline void list_u64_free(list_u64 ls){
+	mem_free(ls->vals);
+	mem_free(ls);
+}
+
+static inline list_u64 list_u64_new(){
+	list_u64 ls = mem_alloc(sizeof(list_u64_st));
+	ls->size = 0;
+	ls->count = list_u64_grow;
+	ls->vals = mem_alloc(sizeof(uint64_t) * ls->count);
+	return ls;
+}
+
+static inline void list_u64_push(list_u64 ls, uint64_t v){
+	if (ls->size >= ls->count){
+		ls->count += list_u64_grow;
+		ls->vals = mem_realloc(ls->vals, sizeof(uint64_t) * ls->count);
+	}
+	ls->vals[ls->size++] = v;
+}
+
 typedef void (*free_func)(void *p);
 
 typedef struct {
@@ -499,6 +528,34 @@ static inline void list_double_push(list_double ls, double v){
 	ls->vals[ls->size++] = v;
 }
 
+// cleanup helper
+typedef struct {
+	list_ptr cuser;
+	list_ptr f_free;
+} cleanup_st, *cleanup;
+
+static inline cleanup cleanup_new(){
+	cleanup cup = mem_alloc(sizeof(cleanup_st));
+	cup->cuser = list_ptr_new(NULL);
+	cup->f_free = list_ptr_new(NULL);
+	return cup;
+}
+
+static inline void cleanup_add(cleanup cup, void *cuser, sink_free_func f_free){
+	list_ptr_push(cup->cuser, cuser);
+	list_ptr_push(cup->f_free, f_free);
+}
+
+static inline void cleanup_free(cleanup cup){
+	for (int i = 0; i < cup->cuser->size; i++){
+		sink_free_func f_free = cup->f_free->ptrs[i];
+		f_free(cup->cuser->ptrs[i]);
+	}
+	list_ptr_free(cup->cuser);
+	list_ptr_free(cup->f_free);
+	mem_free(cup);
+}
+
 typedef struct {
 	int fdiff;
 	int index;
@@ -512,6 +569,12 @@ static const varloc_st VARLOC_NULL = (varloc_st){ .fdiff = -1 };
 
 static inline bool varloc_isnull(varloc_st vlc){
 	return vlc.fdiff < 0;
+}
+
+static inline uint64_t native_hash(const uint8_t *bytes, int size){
+	uint32_t hash[4];
+	sink_str_hashplain(bytes, size, 0, hash);
+	return ((uint64_t)hash[1] << 32) | hash[0];
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -5389,7 +5452,7 @@ static inline void symtbl_loadStdlib(symtbl sym){
 typedef struct {
 	list_ptr strTable;
 	list_double numTable;
-	list_ptr keyTable;
+	list_u64 keyTable;
 	list_byte ops;
 	bool repl;
 } program_st, *program;
@@ -5397,7 +5460,7 @@ typedef struct {
 static inline void program_free(program prg){
 	list_ptr_free(prg->strTable);
 	list_double_free(prg->numTable);
-	list_ptr_free(prg->keyTable);
+	list_u64_free(prg->keyTable);
 	list_byte_free(prg->ops);
 	mem_free(prg);
 }
@@ -5406,7 +5469,7 @@ static inline program program_new(bool repl){
 	program prg = mem_alloc(sizeof(program_st));
 	prg->strTable = list_ptr_new((free_func)list_byte_free);
 	prg->numTable = list_double_new();
-	prg->keyTable = list_ptr_new((free_func)list_byte_free);
+	prg->keyTable = list_u64_new();
 	prg->ops = list_byte_new();
 	prg->repl = repl;
 	return prg;
@@ -6917,17 +6980,17 @@ static pgr_st program_gen(program prg, symtbl sym, ast stmt){
 					} break;
 					case DECL_NATIVE: {
 						bool found = false;
+						uint64_t hash = native_hash(dc->key->bytes, dc->key->size);
 						int index;
 						for (index = 0; index < prg->keyTable->size; index++){
-							found = list_byte_equ(prg->keyTable->ptrs[index], dc->key);
+							found = prg->keyTable->vals[index] == hash;
 							if (found)
 								break;
 						}
 						if (!found){
 							if (index >= 65536)
 								return pgr_error(dc->flp, sink_format("Too many native functions"));
-							list_ptr_push(prg->keyTable, dc->key);
-							dc->key = NULL;
+							list_u64_push(prg->keyTable, hash);
 						}
 						sta_st sr = symtbl_addCmdNative(sym, dc->names, index);
 						if (sr.type == STA_ERROR)
@@ -7542,25 +7605,6 @@ static int bmp_reserve(void **tbl, uint64_t **aloc, uint64_t **ref, uint64_t **t
 }
 
 //
-// library data structure
-//
-
-typedef struct {
-	uint64_t hash;
-	sink_native_func f_native;
-} libent_st, *libent;
-
-typedef struct {
-	const char *name;
-	const char *body;
-} libinc_st, *libinc;
-
-typedef struct {
-	list_ptr ents;
-	list_ptr incs;
-} library_st, *library;
-
-//
 // context
 //
 
@@ -7613,8 +7657,24 @@ static inline lxs lxs_new(sink_val args, lxs next){
 }
 
 typedef struct {
+	void *nuser;
+	sink_native_func f_native;
+	uint64_t hash;
+} native_st, *native;
+
+static inline native native_new(uint64_t hash, void *nuser, sink_native_func f_native){
+	native nat = mem_alloc(sizeof(native_st));
+	nat->hash = hash;
+	nat->nuser = nuser;
+	nat->f_native = f_native;
+	return nat;
+}
+
+typedef struct {
 	void *user;
 	sink_free_func f_freeuser;
+	cleanup cup;
+	list_ptr natives;
 
 	program prg; // not freed by context_free
 	list_ptr call_stk;
@@ -7650,6 +7710,15 @@ typedef struct {
 	bool failed;
 	bool invalid;
 } context_st, *context;
+
+static inline void context_cleanup(context ctx, void *cuser, sink_free_func f_free){
+	cleanup_add(ctx->cup, cuser, f_free);
+}
+
+static inline void context_native(context ctx, uint64_t hash, void *nuser,
+	sink_native_func f_native){
+	list_ptr_push(ctx->natives, native_new(hash, nuser, f_native));
+}
 
 typedef void (*sweepfree_func)(context ctx, int index);
 
@@ -7693,8 +7762,10 @@ static inline void context_sweep(context ctx){
 }
 
 static inline void context_free(context ctx){
+	cleanup_free(ctx->cup);
 	if (ctx->user && ctx->f_freeuser)
 		ctx->f_freeuser(ctx->user);
+	list_ptr_free(ctx->natives);
 	memset(ctx->str_ref, 0, sizeof(uint64_t) * (ctx->str_size / 64));
 	memset(ctx->list_ref, 0, sizeof(uint64_t) * (ctx->list_size / 64));
 	context_sweep(ctx);
@@ -7713,10 +7784,12 @@ static inline void context_free(context ctx){
 
 static void opi_rand_seedauto(context ctx);
 
-static inline context context_new(program prg, library lib, sink_io_st io){
+static inline context context_new(program prg, sink_io_st io){
 	context ctx = mem_alloc(sizeof(context_st));
 	ctx->user = NULL;
 	ctx->f_freeuser = NULL;
+	ctx->cup = cleanup_new();
+	ctx->natives = list_ptr_new(mem_free_func);
 	ctx->call_stk = list_ptr_new((free_func)ccs_free);
 	ctx->lex_stk = list_ptr_new((free_func)lxs_freeAll);
 	list_ptr_push(ctx->lex_stk, lxs_new(SINK_NIL, NULL));
@@ -9010,7 +9083,31 @@ static sink_run context_run(context ctx){
 
 			case OP_NATIVE         : { // [TGT], [SRC], [INDEX]
 				LOAD_ABCDef();
-				var_set(ctx, A, B, SINK_NIL);
+				X = var_get(ctx, C, D);
+				if (!sink_typelist(X))
+					RETURN_FAIL("Expecting list when calling function");
+				E = E | (F << 8);
+				if (E < 0 || E >= ctx->prg->keyTable->size)
+					RETURN_FAIL("Invalid native call");
+				uint64_t hash = ctx->prg->keyTable->vals[E];
+				bool found = false;
+				for (int i = 0; i < ctx->natives->size; i++){
+					native nat = ctx->natives->ptrs[i];
+					if (nat->hash == hash){
+						found = true;
+						ls = var_castlist(ctx, X);
+						X = nat->f_native(ctx, nat->nuser, ls->vals, ls->size);
+						if (sink_isasync(X)){
+							RETURN_FAIL("TODO: handle async native functions");
+						}
+						else{
+							var_set(ctx, A, B, X);
+							break;
+						}
+					}
+				}
+				if (!found)
+					RETURN_FAIL("Invalid native call2");
 			} break;
 
 			case OP_RETURN         : { // [SRC]
@@ -9722,7 +9819,30 @@ static void flpn_free(filepos_node flpn){
 }
 
 typedef struct {
-	library lib; // not freed by compiler_free
+	list_ptr name;
+	list_ptr body;
+} staticinc_st, *staticinc;
+
+static inline staticinc staticinc_new(){
+	staticinc sinc = mem_alloc(sizeof(staticinc_st));
+	sinc->name = list_ptr_new(NULL);
+	sinc->body = list_ptr_new(NULL);
+	return sinc;
+}
+
+static inline void staticinc_add(staticinc sinc, const char *name, const char *body){
+	list_ptr_push(sinc->name, (void *)name);
+	list_ptr_push(sinc->body, (void *)body);
+}
+
+static inline void staticinc_free(staticinc sinc){
+	list_ptr_free(sinc->name);
+	list_ptr_free(sinc->body);
+	mem_free(sinc);
+}
+
+typedef struct {
+	staticinc sinc;
 	lex lx;
 	parser pr;
 	program prg; // not freed by compiler_free
@@ -9733,9 +9853,9 @@ typedef struct {
 	bool wascr;
 } compiler_st, *compiler;
 
-static compiler compiler_new(program prg, library lib, sink_inc_st inc, char *file){
+static compiler compiler_new(program prg, staticinc sinc, sink_inc_st inc, char *file){
 	compiler cmp = mem_alloc(sizeof(compiler_st));
-	cmp->lib = lib;
+	cmp->sinc = sinc;
 	cmp->lx = lex_new();
 	cmp->pr = parser_new();
 	cmp->prg = prg;
@@ -9810,15 +9930,16 @@ static char *compiler_process(compiler cmp){
 							incl inc = incls->ptrs[i];
 							const char *file = (const char *)inc->file->bytes;
 
-							// look if file matches a hardcoded library
+							// look if file matches a static include pseudo-file
 							bool internal = false;
-							for (int j = 0; j < cmp->lib->incs->size; j++){
-								libinc li = cmp->lib->incs->ptrs[j];
-								if (strcmp(file, li->name) == 0){
+							for (int j = 0; j < cmp->sinc->name->size; j++){
+								const char *sinc_name = cmp->sinc->name->ptrs[i];
+								const char *sinc_body = cmp->sinc->body->ptrs[i];
+								if (strcmp(file, sinc_name) == 0){
 									internal = true;
 									compiler_begininc(cmp, inc->names, sink_format("%s", file));
-									char *err = compiler_write(cmp, (const uint8_t *)li->body,
-										strlen(li->body));
+									char *err = compiler_write(cmp, (const uint8_t *)sinc_body,
+										strlen(sinc_body));
 									if (err){
 										compiler_endinc(cmp, inc->names != NULL);
 										ast_free(pp.u.stmt);
@@ -9953,92 +10074,39 @@ static void compiler_free(compiler cmp){
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 //
-// library API
-//
-
-sink_lib sink_lib_new(){
-	library lib = mem_alloc(sizeof(library_st));
-	lib->ents = list_ptr_new(mem_free_func);
-	lib->incs = list_ptr_new(mem_free_func);
-	return lib;
-}
-
-void sink_lib_inc(sink_lib lib, const char *name, const char *body){
-	library L = lib;
-	for (int i = 0; i < L->incs->size; i++){
-		libinc li = L->incs->ptrs[i];
-		if (strcmp(li->name, name) == 0){
-			SINK_PANIC("Name collision when adding library to includes");
-		}
-	}
-	libinc li = mem_alloc(sizeof(libinc_st));
-	li->name = name;
-	li->body = body;
-	list_ptr_push(L->incs, li);
-}
-
-void sink_lib_add(sink_lib lib, const char *name, sink_native_func f_native){
-	uint32_t hash[4];
-	sink_str_hashplain((uint8_t *)name, strlen(name), 0, hash);
-	sink_lib_hash(lib, ((uint64_t)hash[1] << 32) | hash[0], f_native);
-}
-
-void sink_lib_hash(sink_lib lib, uint64_t hash, sink_native_func f_native){
-	library L = lib;
-	for (int i = 0; i < L->ents->size; i++){
-		libent le = L->ents->ptrs[i];
-		if (le->hash == hash){
-			SINK_PANIC("Hash collision when adding native function");
-		}
-	}
-	libent le = mem_alloc(sizeof(libent_st));
-	le->hash = hash;
-	le->f_native = f_native;
-	list_ptr_push(L->ents, le);
-}
-
-void sink_lib_append(sink_lib lib, sink_lib src){
-	library L = src;
-	for (int i = 0; i < L->ents->size; i++){
-		libent le = L->ents->ptrs[i];
-		sink_lib_hash(lib, le->hash, le->f_native);
-	}
-	for (int i = 0; i < L->incs->size; i++){
-		libinc li = L->incs->ptrs[i];
-		sink_lib_inc(lib, li->name, li->body);
-	}
-}
-
-void sink_lib_free(sink_lib lib){
-	list_ptr_free(((library)lib)->ents);
-	list_ptr_free(((library)lib)->incs);
-	mem_free(lib);
-}
-
-//
 // script API
 //
 
 typedef struct {
-	library lib; // not freed by sink_scr_free
 	program prg;
 	compiler cmp;
+	staticinc sinc;
+	cleanup cup;
 	sink_inc_st inc;
 	char *fullfile;
 	char *msg;
 	int mode; // 0 = unsure, 1 = load binary, 2 = compile text
 } script_st, *script;
 
-sink_scr sink_scr_new(sink_lib lib, sink_inc_st inc, const char *fullfile, bool repl){
+sink_scr sink_scr_new(sink_inc_st inc, const char *fullfile, bool repl){
 	script sc = mem_alloc(sizeof(script_st));
-	sc->lib = lib;
 	sc->prg = program_new(repl);
 	sc->cmp = NULL;
+	sc->sinc = staticinc_new();
+	sc->cup = cleanup_new();
 	sc->inc = inc;
 	sc->fullfile = fullfile ? sink_format("%s", fullfile) : NULL;
 	sc->msg = NULL;
 	sc->mode = 0;
 	return sc;
+}
+
+void sink_scr_inc(sink_scr scr, const char *name, const char *body){
+	staticinc_add(((script)scr)->sinc, name, body);
+}
+
+void sink_scr_cleanup(sink_scr scr, void *cuser, sink_free_func f_free){
+	cleanup_add(((script)scr)->cup, cuser, f_free);
 }
 
 char *sink_scr_write(sink_scr scr, uint8_t *bytes, int size){
@@ -10053,7 +10121,7 @@ char *sink_scr_write(sink_scr scr, uint8_t *bytes, int size){
 			sc->mode = 1;
 		else{
 			sc->mode = 2;
-			sc->cmp = compiler_new(sc->prg, sc->lib, sc->inc, sc->fullfile);
+			sc->cmp = compiler_new(sc->prg, sc->sinc, sc->inc, sc->fullfile);
 			sc->fullfile = NULL; // ownership passes to compiler
 		}
 	}
@@ -10105,6 +10173,8 @@ void sink_scr_dump(sink_scr scr, void *user, sink_dump_func f_dump){
 void sink_scr_free(sink_scr scr){
 	script sc = scr;
 	program_free(sc->prg);
+	staticinc_free(sc->sinc);
+	cleanup_free(sc->cup);
 	if (sc->cmp)
 		compiler_free(sc->cmp);
 	if (sc->fullfile)
@@ -10118,8 +10188,20 @@ void sink_scr_free(sink_scr scr){
 // context API
 //
 
-sink_ctx sink_ctx_new(sink_lib lib, sink_scr scr, sink_io_st io){
-	return context_new(((script)scr)->prg, lib, io);
+sink_ctx sink_ctx_new(sink_scr scr, sink_io_st io){
+	return context_new(((script)scr)->prg, io);
+}
+
+void sink_ctx_native(sink_ctx ctx, const char *name, void *nuser, sink_native_func f_native){
+	context_native(ctx, native_hash((const uint8_t *)name, strlen(name)), nuser, f_native);
+}
+
+void sink_ctx_nativehash(sink_ctx ctx, uint64_t hash, void *nuser, sink_native_func f_native){
+	context_native(ctx, hash, nuser, f_native);
+}
+
+void sink_ctx_cleanup(sink_ctx ctx, void *cuser, sink_free_func f_cleanup){
+	context_cleanup(ctx, cuser, f_cleanup);
 }
 
 void sink_ctx_setuser(sink_ctx ctx, void *user, sink_free_func f_freeuser){

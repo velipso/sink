@@ -42,9 +42,10 @@ static inline void printline(int line, int level){
 
 static int main_repl(){
 	int res = 0;
-	sink_lib lib = sink_shell_get();
-	sink_scr scr = sink_scr_new(lib, sink_stdinc, NULL, true);
-	sink_ctx ctx = sink_ctx_new(lib, scr, sink_stdio);
+	sink_scr scr = sink_scr_new(sink_stdinc, NULL, true);
+	sink_shell_scr(scr);
+	sink_ctx ctx = sink_ctx_new(scr, sink_stdio);
+	sink_shell_ctx(ctx);
 	int line = 1;
 	int bufsize = 0;
 	int bufcount = 200;
@@ -108,7 +109,6 @@ static int main_repl(){
 	}
 	free(buf);
 	sink_scr_free(scr);
-	sink_lib_free(lib);
 	return res;
 }
 
@@ -119,8 +119,8 @@ int main_run(const char *inFile, char *const *argv, int argc){
 		return 1;
 	}
 
-	sink_lib lib = sink_shell_get();
-	sink_scr scr = sink_scr_new(lib, sink_stdinc, inFile, false);
+	sink_scr scr = sink_scr_new(sink_stdinc, inFile, false);
+	sink_shell_scr(scr);
 
 	char buf[1000];
 	while (!feof(fp)){
@@ -142,11 +142,11 @@ int main_run(const char *inFile, char *const *argv, int argc){
 		return 1;
 	}
 
-	sink_ctx ctx = sink_ctx_new(lib, scr, sink_stdio);
+	sink_ctx ctx = sink_ctx_new(scr, sink_stdio);
+	sink_shell_ctx(ctx);
 	sink_run res = sink_ctx_run(ctx);
 	sink_ctx_free(ctx);
 	sink_scr_free(scr);
-	sink_lib_free(lib);
 	switch (res){
 		case SINK_RUN_PASS:
 			return 0;

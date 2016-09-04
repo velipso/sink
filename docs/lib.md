@@ -442,10 +442,10 @@ Shell Library Extension
 `include 'shell'`
 
 The shell library is an extension available to sink scripts ran inside the command-line tool's
-environment.  These functions are not necessarily available in all host environments.
+environment.
 
 Many commands have options as their first parameter -- see the notes below for a breakdown of each
-comand's options.
+command's options.
 
 The commands that take files or paths as input can usually accept a list of files too.  For example,
 `cat 'foo.txt'` returns a string, but `cat glob '*.txt'` will return a list of strings.

@@ -7,6 +7,7 @@
 
 #include "sink.h"
 
-sink_lib sink_shell_get();
+void sink_shell_scr(sink_scr scr);
+void sink_shell_ctx(sink_ctx ctx);
 
 #endif // SINK_SHELL__H

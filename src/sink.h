@@ -90,14 +90,13 @@ typedef struct {
 	int size;
 } sink_str_st, *sink_str;
 
-typedef void *sink_lib;
 typedef void *sink_scr;
 typedef void *sink_ctx;
 
 typedef void (*sink_output_func)(sink_ctx ctx, sink_str str);
 typedef sink_val (*sink_input_func)(sink_ctx ctx, sink_str str);
 typedef void (*sink_free_func)(void *user);
-typedef sink_val (*sink_native_func)(sink_ctx ctx, sink_val *args, int size);
+typedef sink_val (*sink_native_func)(sink_ctx ctx, void *nuser, sink_val *args, int size);
 typedef sink_val (*sink_resume_func)(sink_ctx ctx);
 typedef char *(*sink_resolve_func)(const char *file, const char *fromfile);
 typedef bool (*sink_include_func)(sink_scr scr, const char *fullfile);
@@ -142,16 +141,10 @@ static const uint64_t SINK_TAG_STR    =        UINT64_C(0x7FF8000300000000);
 static const uint64_t SINK_TAG_LIST   =        UINT64_C(0x7FF8000400000000);
 static const uint64_t SINK_TAG_MASK   =        UINT64_C(0xFFFFFFFF80000000);
 
-// native library
-sink_lib  sink_lib_new();
-void      sink_lib_inc(sink_lib lib, const char *name, const char *body);
-void      sink_lib_add(sink_lib lib, const char *name, sink_native_func f_native);
-void      sink_lib_hash(sink_lib lib, uint64_t hash, sink_native_func f_native);
-void      sink_lib_append(sink_lib lib, sink_lib src);
-void      sink_lib_free(sink_lib lib);
-
 // script
-sink_scr  sink_scr_new(sink_lib lib, sink_inc_st inc, const char *fullfile, bool repl);
+sink_scr  sink_scr_new(sink_inc_st inc, const char *fullfile, bool repl);
+void      sink_scr_inc(sink_scr scr, const char *name, const char *body);
+void      sink_scr_cleanup(sink_scr scr, void *cuser, sink_free_func f_free);
 char *    sink_scr_write(sink_scr scr, uint8_t *bytes, int size);
 int       sink_scr_level(sink_scr scr);
 char *    sink_scr_close(sink_scr scr);
@@ -159,7 +152,10 @@ void      sink_scr_dump(sink_scr scr, void *user, sink_dump_func f_dump);
 void      sink_scr_free(sink_scr scr);
 
 // context
-sink_ctx  sink_ctx_new(sink_lib lib, sink_scr scr, sink_io_st io);
+sink_ctx  sink_ctx_new(sink_scr scr, sink_io_st io);
+void      sink_ctx_native(sink_ctx ctx, const char *name, void *nuser, sink_native_func f_native);
+void      sink_ctx_nativehash(sink_ctx ctx, uint64_t hash, void *nuser, sink_native_func f_native);
+void      sink_ctx_cleanup(sink_ctx ctx, void *cuser, sink_free_func f_cleanup);
 void      sink_ctx_setuser(sink_ctx ctx, void *user, sink_free_func f_free);
 void *    sink_ctx_getuser(sink_ctx ctx);
 sink_user sink_ctx_addusertype(sink_ctx ctx, sink_free_func f_free);

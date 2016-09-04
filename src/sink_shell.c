@@ -4,7 +4,7 @@
 
 #include "sink_shell.h"
 
-static sink_val L_pwd(sink_ctx ctx, sink_val *args, int size){
+static sink_val L_pwd(sink_ctx ctx, void *nuser, sink_val *args, int size){
 	char *cwd = getcwd(NULL, 0); // cross-platform getcwd is provided by sink.h
 	if (cwd == NULL)
 		return sink_abortcstr(ctx, "Failed to get current directory");
@@ -13,9 +13,8 @@ static sink_val L_pwd(sink_ctx ctx, sink_val *args, int size){
 	return a;
 }
 
-sink_lib sink_shell_get(){
-	sink_lib lib = sink_lib_new();
-	sink_lib_inc(lib, "shell",
+void sink_shell_scr(sink_scr scr){
+	sink_scr_inc(scr, "shell",
 		"declare cat   'sink.shell.cat'  ;"
 		"declare cd    'sink.shell.cd'   ;"
 		"declare cp    'sink.shell.cp'   ;"
@@ -34,6 +33,8 @@ sink_lib sink_shell_get(){
 		"declare test  'sink.shell.test' ;"
 		"declare which 'sink.shell.which';"
 	);
-	sink_lib_add(lib, "sink.shell.pwd", L_pwd);
-	return lib;
+}
+
+void sink_shell_ctx(sink_ctx ctx){
+	sink_ctx_native(ctx, "sink.shell.pwd", NULL, L_pwd);
 }
