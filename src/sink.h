@@ -68,7 +68,7 @@ typedef enum {
 	SINK_TYPE_NUM,
 	SINK_TYPE_STR,
 	SINK_TYPE_LIST,
-	SINK_TYPE_ASYNC // not used within the sink; used for native functions to signal async results
+	SINK_TYPE_ASYNC // not used within sink; used for native functions to signal async results
 } sink_type;
 
 typedef union {
