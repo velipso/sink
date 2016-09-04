@@ -435,3 +435,46 @@ A value of 0.5 is the default, and represents a reasonable balance between speed
 consumption.
 
 No matter what the level is set to, running `gc.run` will always peform a full collection.
+
+Shell Library Extension
+=======================
+
+The shell library is an extension available to sink scripts ran inside the command-line tool's
+environment.  These functions are not necessarily available in all host environments.
+
+All functions are inside the `shell` namespace (i.e., `shell.cd`, `shell.pwd`, etc).  They can be
+exposed to the global namespace with `using shell`.
+
+Many commands have options as their first parameter -- see the notes below for a breakdown of each
+comand's options.
+
+The commands that take files or paths as input can usually accept a list of files too.  For example,
+`cat 'foo.txt'` returns a string, but `cat glob '*.txt'` will return a list of strings.
+
+| Function     | Description                                                                      |
+|--------------|----------------------------------------------------------------------------------|
+| cat a        | Returns the contents of file `a`                                                 |
+| cd a         | Change directory to `a` (home directory if `a` is nil)                           |
+| cp opt, a, b | Copy files `a` to directory `b`, using options `opt`                             |
+| env a        | Read an environment variable `a`                                                 |
+| exec a, args | Execute command `a`, using `args` as a list of arguments                         |
+| glob a       | Converts a glob pattern (`'A*.txt'`) to a list of files (`{'A1.txt', 'A2.txt'}`) |
+| head a, b    | Returns the first `a` lines of file `b`                                          |
+| ls opt, a    | Returns list of files in path `a`, using options `opt`                           |
+| mv opt, a, b | Move files `a` to `b`, using options `opt`                                       |
+| mkdir opt, a | Make directory `a`, using options `opt`                                          |
+| pushd a      | Change directory to `a`, saving previous directory on directory stack            |
+| popd         | Restore a previous directory from the directory stack                            |
+| pwd          | Returns current directory                                                        |
+| rm opt, a    | Remove file `a`, using options `opt`                                             |
+| tail a, b    | Returns the last `a` lines of file `b`                                           |
+| test a, b    | Perform test `a` on path `b`                                                     |
+| which a      | Searches for `a` in system paths; returns full path if found, otherwise nil      |
+
+TODO: more
+
+date, time, sed, grep
+
+### Options
+
+TODO: this

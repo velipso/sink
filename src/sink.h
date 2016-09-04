@@ -201,7 +201,7 @@ void      sink_abort(sink_ctx ctx, sink_val *vals, int size);
 static inline sink_val sink_nil(){ return SINK_NIL; }
 
 // numbers
-static inline sink_val sink_num(double v){ return ((sink_val){ .f = v }); }
+static inline sink_val sink_num(double v){ return (sink_val){ .f = v }; }
 sink_val  sink_num_neg(sink_ctx ctx, sink_val a);
 sink_val  sink_num_add(sink_ctx ctx, sink_val a, sink_val b);
 sink_val  sink_num_sub(sink_ctx ctx, sink_val a, sink_val b);

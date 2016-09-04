@@ -9899,6 +9899,7 @@ typedef struct {
 	compiler cmp;
 	sink_inc_st inc;
 	char *fullfile;
+	char *msg;
 	int mode; // 0 = unsure, 1 = load binary, 2 = compile text
 } script_st, *script;
 
@@ -9908,6 +9909,7 @@ sink_scr sink_scr_new(sink_inc_st inc, const char *fullfile, bool repl){
 	sc->cmp = NULL;
 	sc->inc = inc;
 	sc->fullfile = fullfile ? sink_format("%s", fullfile) : NULL;
+	sc->msg = NULL;
 	sc->mode = 0;
 	return sc;
 }
@@ -9934,8 +9936,19 @@ char *sink_scr_write(sink_scr scr, uint8_t *bytes, int size){
 		abort();
 		return NULL;
 	}
-	else
-		return compiler_write(sc->cmp, bytes, size);
+	else{
+		char *err = compiler_write(sc->cmp, bytes, size);
+		if (err && sc->prg->repl){
+			// move ownership of error over to sc
+			if (sc->msg)
+				mem_free(sc->msg);
+			sc->msg = err;
+			sc->cmp->msg = NULL;
+			// reset compiler
+			compiler_reset(sc->cmp);
+		}
+		return err;
+	}
 }
 
 int sink_scr_level(sink_scr scr){
@@ -9969,6 +9982,8 @@ void sink_scr_free(sink_scr scr){
 		compiler_free(sc->cmp);
 	if (sc->fullfile)
 		mem_free(sc->fullfile);
+	if (sc->msg)
+		mem_free(sc->msg);
 	mem_free(sc);
 }
 
