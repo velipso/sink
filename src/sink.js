@@ -594,6 +594,11 @@ function tok_isKS(tk, k){
 	return tk.type == TOK_KS && tk.k == k;
 }
 
+function tok_isMidStmt(tk){
+	return tok_isKS(tk, KS_END) || tok_isKS(tk, KS_ELSE) || tok_isKS(tk, KS_ELSEIF) ||
+		tok_isKS(tk, KS_WHILE);
+}
+
 function tok_isPre(tk){
 	if (tk.type != TOK_KS)
 		return false;
@@ -1478,23 +1483,31 @@ function expr_slice(flp, obj, start, len){
 // ast
 //
 
-var AST_BREAK     = 'AST_BREAK';
-var AST_CONTINUE  = 'AST_CONTINUE';
-var AST_DECLARE   = 'AST_DECLARE';
-var AST_DEF       = 'AST_DEF';
-var AST_DO_END    = 'AST_DO_END';
-var AST_DO_WHILE  = 'AST_DO_WHILE';
-var AST_FOR       = 'AST_FOR';
-var AST_LOOP      = 'AST_LOOP';
-var AST_GOTO      = 'AST_GOTO';
-var AST_IF        = 'AST_IF';
-var AST_INCLUDE   = 'AST_INCLUDE';
-var AST_NAMESPACE = 'AST_NAMESPACE';
-var AST_RETURN    = 'AST_RETURN';
-var AST_USING     = 'AST_USING';
-var AST_VAR       = 'AST_VAR';
-var AST_EVAL      = 'AST_EVAL';
-var AST_LABEL     = 'AST_LABEL';
+var AST_BREAK      = 'AST_BREAK';
+var AST_CONTINUE   = 'AST_CONTINUE';
+var AST_DECLARE    = 'AST_DECLARE';
+var AST_DEF1       = 'AST_DEF1';
+var AST_DEF2       = 'AST_DEF2';
+var AST_DOWHILE1   = 'AST_DOWHILE1';
+var AST_DOWHILE2   = 'AST_DOWHILE2';
+var AST_DOWHILE3   = 'AST_DOWHILE3';
+var AST_FOR1       = 'AST_FOR1';
+var AST_FOR2       = 'AST_FOR2';
+var AST_LOOP1      = 'AST_LOOP1';
+var AST_LOOP2      = 'AST_LOOP2';
+var AST_GOTO       = 'AST_GOTO';
+var AST_IF1        = 'AST_IF1';
+var AST_IF2        = 'AST_IF2';
+var AST_IF3        = 'AST_IF3';
+var AST_IF4        = 'AST_IF4';
+var AST_INCLUDE    = 'AST_INCLUDE';
+var AST_NAMESPACE1 = 'AST_NAMESPACE1';
+var AST_NAMESPACE2 = 'AST_NAMESPACE2';
+var AST_RETURN     = 'AST_RETURN';
+var AST_USING      = 'AST_USING';
+var AST_VAR        = 'AST_VAR';
+var AST_EVAL       = 'AST_EVAL';
+var AST_LABEL      = 'AST_LABEL';
 
 function ast_break(flp){
 	return { flp: flp, type: AST_BREAK };
@@ -1504,60 +1517,91 @@ function ast_continue(flp){
 	return { flp: flp, type: AST_CONTINUE };
 }
 
-function ast_declare(flp, decls){
-	return { flp: flp, type: AST_DECLARE, decls: decls };
+function ast_declare(flp, dc){
+	return { flp: flp, type: AST_DECLARE, dc: dc };
 }
 
-function ast_def(flp, names, lvalues, body){
-	return { flp: flp, type: AST_DEF, names: names, lvalues: lvalues, body: body };
+function ast_def1(flp, names, lvalues){
+	return { flp: flp, type: AST_DEF1, names: names, lvalues: lvalues };
 }
 
-function ast_doEnd(flp, body){
-	return { flp: flp, type: AST_DO_END, body: body };
+function ast_def2(flp){
+	return { flp: flp, type: AST_DEF2 };
 }
 
-function ast_doWhile(flp, doBody, cond, whileBody){
-	return { flp: flp, type: AST_DO_WHILE, doBody: doBody, cond: cond, whileBody: whileBody };
+function ast_dowhile1(flp){
+	return { flp: flp, type: AST_DOWHILE1 };
 }
 
-function ast_for(flp, forVar, names1, names2, ex, body){
+function ast_dowhile2(flp, cond){
+	return { flp: flp, type: AST_DOWHILE2, cond: cond };
+}
+
+function ast_dowhile3(flp){
+	return { flp: flp, type: AST_DOWHILE3 };
+}
+
+function ast_for1(flp, forVar, names1, names2, ex){
 	return {
 		flp: flp,
-		type: AST_FOR,
+		type: AST_FOR1,
 		forVar: forVar,
 		names1: names1,
 		names2: names2,
-		ex: ex,
-		body: body
+		ex: ex
 	};
 }
 
-function ast_loop(flp, body){
-	return { flp: flp, type: AST_LOOP, body: body };
+function ast_for2(flp){
+	return { flp: flp, type: AST_FOR2 };
+}
+
+function ast_loop1(flp){
+	return { flp: flp, type: AST_LOOP1 };
+}
+
+function ast_loop2(flp){
+	return { flp: flp, type: AST_LOOP2 };
 }
 
 function ast_goto(flp, ident){
 	return { flp: flp, type: AST_GOTO, ident: ident };
 }
 
-function ast_if(flp, conds, elseBody){
-	return { flp: flp, type: AST_IF, conds: conds, elseBody: elseBody };
+function ast_if1(flp){
+	return { flp: flp, type: AST_IF1 };
 }
 
-function ast_include(flp, incls){
-	return { flp: flp, type: AST_INCLUDE, incls: incls };
+function ast_if2(flp, cond){
+	return { flp: flp, type: AST_IF2, cond: cond };
 }
 
-function ast_namespace(flp, names, body){
-	return { flp: flp, type: AST_NAMESPACE, names: names, body: body };
+function ast_if3(flp){
+	return { flp: flp, type: AST_IF3 };
+}
+
+function ast_if4(flp){
+	return { flp: flp, type: AST_IF4 };
+}
+
+function ast_include(flp, names, file){
+	return { flp: flp, type: AST_INCLUDE, names: names, file: file };
+}
+
+function ast_namespace1(flp, names){
+	return { flp: flp, type: AST_NAMESPACE1, names: names };
+}
+
+function ast_namespace2(flp){
+	return { flp: flp, type: AST_NAMESPACE2 };
 }
 
 function ast_return(flp, ex){
 	return { flp: flp, type: AST_RETURN, ex: ex };
 }
 
-function ast_using(flp, namesList){
-	return { flp: flp, type: AST_USING, namesList: namesList };
+function ast_using(flp, names){
+	return { flp: flp, type: AST_USING, names: names };
 }
 
 function ast_var(flp, lvalues){
@@ -1576,23 +1620,15 @@ function ast_label(flp, ident){
 // parser state helpers
 //
 
-function cond_new(ex, body){ // conds
-	return { ex: ex, body: body };
-}
-
 var DECL_LOCAL  = 'DECL_LOCAL';
 var DECL_NATIVE = 'DECL_NATIVE';
 
-function decl_local(flp, names){ // decls
-	return { flp: flp, type: DECL_LOCAL, names: names };
+function decl_local(names){ // decls
+	return { type: DECL_LOCAL, names: names };
 }
 
-function decl_native(flp, names, key){ // decls
-	return { flp: flp, type: DECL_NATIVE, names: names, key: key };
-}
-
-function incl_new(flp, names, file){ // incls
-	return { flp: flp, names: names, file: file };
+function decl_native(names, key){ // decls
+	return { type: DECL_NATIVE, names: names, key: key };
 }
 
 function ets_new(tk, next){ // exprPreStack, exprMidStack
@@ -1611,9 +1647,8 @@ function eps_new(ets, next){ // exprPreStackStack
 // parser state
 //
 
-var PRS_START                         = 'PRS_START';
-var PRS_START_STATEMENT               = 'PRS_START_STATEMENT';
 var PRS_STATEMENT                     = 'PRS_STATEMENT';
+var PRS_STATEMENT_END                 = 'PRS_STATEMENT_END';
 var PRS_LOOKUP                        = 'PRS_LOOKUP';
 var PRS_LOOKUP_IDENT                  = 'PRS_LOOKUP_IDENT';
 var PRS_BODY                          = 'PRS_BODY';
@@ -1635,7 +1670,6 @@ var PRS_LVALUES_DEF_TAIL_DONE         = 'PRS_LVALUES_DEF_TAIL_DONE';
 var PRS_BREAK                         = 'PRS_BREAK';
 var PRS_CONTINUE                      = 'PRS_CONTINUE';
 var PRS_DECLARE                       = 'PRS_DECLARE';
-var PRS_DECLARE2                      = 'PRS_DECLARE2';
 var PRS_DECLARE_LOOKUP                = 'PRS_DECLARE_LOOKUP';
 var PRS_DECLARE_STR                   = 'PRS_DECLARE_STR';
 var PRS_DECLARE_STR2                  = 'PRS_DECLARE_STR2';
@@ -1644,16 +1678,12 @@ var PRS_DEF                           = 'PRS_DEF';
 var PRS_DEF_LOOKUP                    = 'PRS_DEF_LOOKUP';
 var PRS_DEF_LVALUES                   = 'PRS_DEF_LVALUES';
 var PRS_DEF_BODY                      = 'PRS_DEF_BODY';
-var PRS_DEF_DONE                      = 'PRS_DEF_DONE';
 var PRS_DO                            = 'PRS_DO';
 var PRS_DO_BODY                       = 'PRS_DO_BODY';
-var PRS_DO_DONE                       = 'PRS_DO_DONE';
 var PRS_DO_WHILE_EXPR                 = 'PRS_DO_WHILE_EXPR';
 var PRS_DO_WHILE_BODY                 = 'PRS_DO_WHILE_BODY';
-var PRS_DO_WHILE_DONE                 = 'PRS_DO_WHILE_DONE';
 var PRS_FOR                           = 'PRS_FOR';
 var PRS_LOOP_BODY                     = 'PRS_LOOP_BODY';
-var PRS_LOOP_DONE                     = 'PRS_LOOP_DONE';
 var PRS_FOR_VARS                      = 'PRS_FOR_VARS';
 var PRS_FOR_VARS_LOOKUP               = 'PRS_FOR_VARS_LOOKUP';
 var PRS_FOR_VARS2                     = 'PRS_FOR_VARS2';
@@ -1661,18 +1691,13 @@ var PRS_FOR_VARS2_LOOKUP              = 'PRS_FOR_VARS2_LOOKUP';
 var PRS_FOR_VARS_DONE                 = 'PRS_FOR_VARS_DONE';
 var PRS_FOR_EXPR                      = 'PRS_FOR_EXPR';
 var PRS_FOR_BODY                      = 'PRS_FOR_BODY';
-var PRS_FOR_DONE                      = 'PRS_FOR_DONE';
 var PRS_GOTO                          = 'PRS_GOTO';
-var PRS_GOTO_DONE                     = 'PRS_GOTO_DONE';
 var PRS_IF                            = 'PRS_IF';
+var PRS_IF2                           = 'PRS_IF2';
 var PRS_IF_EXPR                       = 'PRS_IF_EXPR';
 var PRS_IF_BODY                       = 'PRS_IF_BODY';
-var PRS_ELSEIF                        = 'PRS_ELSEIF';
-var PRS_IF_DONE                       = 'PRS_IF_DONE';
 var PRS_ELSE_BODY                     = 'PRS_ELSE_BODY';
-var PRS_ELSE_DONE                     = 'PRS_ELSE_DONE';
 var PRS_INCLUDE                       = 'PRS_INCLUDE';
-var PRS_INCLUDE2                      = 'PRS_INCLUDE2';
 var PRS_INCLUDE_LOOKUP                = 'PRS_INCLUDE_LOOKUP';
 var PRS_INCLUDE_STR                   = 'PRS_INCLUDE_STR';
 var PRS_INCLUDE_STR2                  = 'PRS_INCLUDE_STR2';
@@ -1680,7 +1705,6 @@ var PRS_INCLUDE_STR3                  = 'PRS_INCLUDE_STR3';
 var PRS_NAMESPACE                     = 'PRS_NAMESPACE';
 var PRS_NAMESPACE_LOOKUP              = 'PRS_NAMESPACE_LOOKUP';
 var PRS_NAMESPACE_BODY                = 'PRS_NAMESPACE_BODY';
-var PRS_NAMESPACE_DONE                = 'PRS_NAMESPACE_DONE';
 var PRS_RETURN                        = 'PRS_RETURN';
 var PRS_RETURN_DONE                   = 'PRS_RETURN_DONE';
 var PRS_USING                         = 'PRS_USING';
@@ -1712,12 +1736,6 @@ var PRS_EXPR_FINISH                   = 'PRS_EXPR_FINISH';
 function prs_new(state, next){
 	return {
 		state: state,
-		stmt: null,                 // single ast_*
-		body: null,                 // list of ast_*'s
-		body2: null,                // list of ast_*'s
-		conds: null,                // list of cond_new's
-		decls: null,                // list of decl_*'s
-		incls: null,                // list of incl_new's
 		lvalues: null,              // list of expr
 		lvaluesPeriods: 0,          // 0 off, 1 def, 2 nested list
 		forVar: false,
@@ -1734,7 +1752,6 @@ function prs_new(state, next){
 		exprTerm3: null,            // expr
 		names: null,                // list of strings
 		names2: null,               // list of strings
-		namesList: null,            // list of list of strings
 		next: next
 	};
 }
@@ -1745,7 +1762,7 @@ function prs_new(state, next){
 
 function parser_new(){
 	return {
-		state: prs_new(PRS_START, null),
+		state: prs_new(PRS_STATEMENT, null),
 		tkR: null,
 		tk1: null,
 		tk2: null,
@@ -1766,26 +1783,14 @@ function parser_rev(pr){
 }
 
 var PRR_MORE      = 'PRR_MORE';
-var PRR_STATEMENT = 'PRR_STATEMENT';
 var PRR_ERROR     = 'PRR_ERROR';
 
 function prr_more(){
 	return { type: PRR_MORE };
 }
 
-function prr_statement(stmt){
-	return { type: PRR_STATEMENT, stmt: stmt };
-}
-
 function prr_error(msg){
 	return { type: PRR_ERROR, msg: msg };
-}
-
-function parser_statement(pr, stmt){
-	pr.level--;
-	pr.state = pr.state.next;
-	pr.state.stmt = stmt;
-	return parser_process(pr, stmt.flp);
 }
 
 function parser_push(pr, state){
@@ -1822,25 +1827,23 @@ function parser_start(pr, state){
 	return prr_more();
 }
 
-function parser_process(pr, flp){
+function parser_statement(pr, flp, stmts, more){
+	pr.level--;
+	pr.state.state = PRS_STATEMENT_END;
+	return more ? prr_more() : parser_process(pr, flp, stmts);
+}
+
+function parser_lookup(pr, retstate){
+	pr.state.state = retstate;
+	parser_push(pr, PRS_LOOKUP);
+	pr.state.names = [pr.tk1.ident];
+	return prr_more();
+}
+
+function parser_process(pr, flp, stmts){
 	var tk1 = pr.tk1;
 	var st = pr.state;
 	switch (st.state){
-		case PRS_START:
-			st.state = PRS_START_STATEMENT;
-			st.stmt = null;
-			parser_push(pr, PRS_STATEMENT);
-			return parser_process(pr, flp);
-
-		case PRS_START_STATEMENT:
-			if (st.stmt == null)
-				return prr_error('Invalid statement');
-			// all statements require a newline to terminate it... except labels
-			if (st.stmt.type != AST_LABEL && tk1.type != TOK_NEWLINE)
-				return prr_error('Missing newline or semicolon');
-			st.state = PRS_START;
-			return prr_statement(st.stmt);
-
 		case PRS_STATEMENT:
 			if      (tk1.type == TOK_NEWLINE    ) return prr_more();
 			else if (tok_isKS(tk1, KS_BREAK    )) return parser_start(pr, PRS_BREAK    );
@@ -1856,30 +1859,32 @@ function parser_process(pr, flp){
 			else if (tok_isKS(tk1, KS_RETURN   )) return parser_start(pr, PRS_RETURN   );
 			else if (tok_isKS(tk1, KS_USING    )) return parser_start(pr, PRS_USING    );
 			else if (tok_isKS(tk1, KS_VAR      )) return parser_start(pr, PRS_VAR      );
-			else if (tk1.type == TOK_IDENT){
-				st.state = PRS_IDENTS;
-				parser_push(pr, PRS_LOOKUP);
-				pr.state.names = [tk1.ident];
-				return prr_more();
-			}
+			else if (tk1.type == TOK_IDENT)
+				return parser_lookup(pr, PRS_IDENTS);
 			else if (tok_isPre(tk1) || tok_isTerm(tk1)){
 				pr.level++;
 				st.state = PRS_EVAL;
-				return parser_process(pr, flp);
+				return parser_process(pr, flp, stmts);
 			}
-			else if (tok_isKS(tk1, KS_END) || tok_isKS(tk1, KS_ELSE) || tok_isKS(tk1, KS_ELSEIF) ||
-				tok_isKS(tk1, KS_WHILE)){
-				// stmt is already null, so don't touch it, so we return null
+			else if (tok_isMidStmt(tk1)){
+				if (st.next === null)
+					return prr_error('Invalid statement');
 				pr.state = st.next;
-				return parser_process(pr, flp);
+				return parser_process(pr, flp, stmts);
 			}
 			return prr_error('Invalid statement');
+
+		case PRS_STATEMENT_END:
+			if (tk1.type != TOK_NEWLINE)
+				return prr_error('Missing newline or semicolon');
+			st.state = PRS_STATEMENT;
+			return prr_more();
 
 		case PRS_LOOKUP:
 			if (!tok_isKS(tk1, KS_PERIOD)){
 				st.next.names = st.names;
 				pr.state = st.next;
-				return parser_process(pr, flp);
+				return parser_process(pr, flp, stmts);
 			}
 			st.state = PRS_LOOKUP_IDENT;
 			return prr_more();
@@ -1893,18 +1898,14 @@ function parser_process(pr, flp){
 
 		case PRS_BODY:
 			st.state = PRS_BODY_STATEMENT;
-			st.stmt = null;
 			parser_push(pr, PRS_STATEMENT);
-			return parser_process(pr, flp);
+			return parser_process(pr, flp, stmts);
 
 		case PRS_BODY_STATEMENT:
 			if (st.stmt == null){
-				st.next.body = st.body;
 				pr.state = st.next;
-				return parser_process(pr, flp);
+				return parser_process(pr, flp, stmts);
 			}
-			st.body.push(st.stmt);
-			st.stmt = null;
 			parser_push(pr, PRS_STATEMENT);
 			return prr_more();
 
@@ -1912,20 +1913,16 @@ function parser_process(pr, flp){
 			if (tk1.type == TOK_NEWLINE && !tk1.soft){
 				st.next.lvalues = st.lvalues;
 				pr.state = st.next;
-				return parser_process(pr, flp);
+				return parser_process(pr, flp, stmts);
 			}
 			st.state = PRS_LVALUES_TERM_DONE;
 			parser_push(pr, PRS_LVALUES_TERM);
 			pr.state.lvaluesPeriods = st.lvaluesPeriods;
-			return parser_process(pr, flp);
+			return parser_process(pr, flp, stmts);
 
 		case PRS_LVALUES_TERM:
-			if (tk1.type == TOK_IDENT){
-				st.state = PRS_LVALUES_TERM_LOOKUP;
-				parser_push(pr, PRS_LOOKUP);
-				pr.state.names = [tk1.ident];
-				return prr_more();
-			}
+			if (tk1.type == TOK_IDENT)
+				return parser_lookup(pr, PRS_LVALUES_TERM_LOOKUP);
 			else if (tok_isKS(tk1, KS_LBRACE)){
 				st.state = PRS_LVALUES_TERM_LIST_DONE;
 				parser_push(pr, PRS_LVALUES_TERM_LIST);
@@ -1943,7 +1940,7 @@ function parser_process(pr, flp){
 		case PRS_LVALUES_TERM_LOOKUP:
 			st.next.exprTerm = expr_names(flp, st.names);
 			pr.state = st.next;
-			return parser_process(pr, flp);
+			return parser_process(pr, flp, stmts);
 
 		case PRS_LVALUES_TERM_LIST:
 			if (tk1.type == TOK_NEWLINE && !tk1.soft)
@@ -1956,7 +1953,7 @@ function parser_process(pr, flp){
 			st.state = PRS_LVALUES_TERM_LIST_TERM_DONE;
 			parser_push(pr, PRS_LVALUES_TERM);
 			pr.state.lvaluesPeriods = 2;
-			return parser_process(pr, flp);
+			return parser_process(pr, flp, stmts);
 
 		case PRS_LVALUES_TERM_LIST_TERM_DONE:
 			if (tk1.type == TOK_NEWLINE && !tk1.soft)
@@ -1984,10 +1981,7 @@ function parser_process(pr, flp){
 		case PRS_LVALUES_TERM_LIST_TAIL:
 			if (tk1.type != TOK_IDENT)
 				return prr_error('Expecting identifier');
-			st.state = PRS_LVALUES_TERM_LIST_TAIL_LOOKUP;
-			parser_push(pr, PRS_LOOKUP);
-			pr.state.names = [tk1.ident];
-			return prr_more();
+			return parser_lookup(pr, PRS_LVALUES_TERM_LIST_TAIL_LOOKUP);
 
 		case PRS_LVALUES_TERM_LIST_TAIL_LOOKUP:
 			if (tk1.type == TOK_NEWLINE && !tk1.soft)
@@ -1995,31 +1989,29 @@ function parser_process(pr, flp){
 			st.state = PRS_LVALUES_TERM_LIST_TAIL_DONE;
 			if (tok_isKS(tk1, KS_COMMA))
 				return prr_more();
-			return parser_process(pr, flp);
+			return parser_process(pr, flp, stmts);
 
 		case PRS_LVALUES_TERM_LIST_TAIL_DONE:
 			if (!tok_isKS(tk1, KS_RBRACE))
 				return prr_error('Missing end of list');
 			st.next.exprTerm = expr_prefix(flp, KS_PERIOD3, expr_names(flp, st.names));
 			pr.state = st.next;
-			return parser_process(pr, flp);
+			return parser_process(pr, flp, stmts);
 
 		case PRS_LVALUES_TERM_LIST_DONE:
 			st.next.exprTerm = expr_list(flp, st.exprTerm);
 			pr.state = st.next;
-			return parser_process(pr, flp);
+			return parser_process(pr, flp, stmts);
 
 		case PRS_LVALUES_TERM_DONE:
 			if (tk1.type == TOK_NEWLINE){
 				st.lvalues.push(expr_infix(flp, KS_EQU, st.exprTerm, null));
-				st.exprTerm = null;
 				st.next.lvalues = st.lvalues;
 				pr.state = st.next;
-				return parser_process(pr, flp);
+				return parser_process(pr, flp, stmts);
 			}
 			else if (tok_isKS(tk1, KS_EQU)){
 				st.exprTerm2 = st.exprTerm;
-				st.exprTerm = null;
 				st.state = PRS_LVALUES_TERM_EXPR;
 				parser_push(pr, PRS_EXPR);
 				pr.state.exprAllowComma = false;
@@ -2027,7 +2019,6 @@ function parser_process(pr, flp){
 			}
 			else if (tok_isKS(tk1, KS_COMMA)){
 				st.lvalues.push(expr_infix(flp, KS_EQU, st.exprTerm, null));
-				st.exprTerm = null;
 				st.state = PRS_LVALUES_MORE;
 				return prr_more();
 			}
@@ -2035,12 +2026,10 @@ function parser_process(pr, flp){
 
 		case PRS_LVALUES_TERM_EXPR:
 			st.lvalues.push(expr_infix(flp, KS_EQU, st.exprTerm2, st.exprTerm));
-			st.exprTerm2 = null;
-			st.exprTerm = null;
 			if (tk1.type == TOK_NEWLINE){
 				st.next.lvalues = st.lvalues;
 				pr.state = st.next;
-				return parser_process(pr, flp);
+				return parser_process(pr, flp, stmts);
 			}
 			else if (tok_isKS(tk1, KS_COMMA)){
 				st.state = PRS_LVALUES_MORE;
@@ -2054,15 +2043,12 @@ function parser_process(pr, flp){
 			st.state = PRS_LVALUES_TERM_DONE;
 			parser_push(pr, PRS_LVALUES_TERM);
 			pr.state.lvaluesPeriods = st.lvaluesPeriods;
-			return parser_process(pr, flp);
+			return parser_process(pr, flp, stmts);
 
 		case PRS_LVALUES_DEF_TAIL:
 			if (tk1.type != TOK_IDENT)
 				return prr_error('Expecting identifier');
-			st.state = PRS_LVALUES_DEF_TAIL_DONE;
-			parser_push(pr, PRS_LOOKUP);
-			pr.state.names = [tk1.ident];
-			return prr_more();
+			return parser_lookup(pr, PRS_LVALUES_DEF_TAIL_DONE);
 
 		case PRS_LVALUES_DEF_TAIL_DONE:
 			if (tk1.type != TOK_NEWLINE)
@@ -2072,46 +2058,39 @@ function parser_process(pr, flp){
 			st.lvalues.push(expr_prefix(flp, KS_PERIOD3, expr_names(flp, st.names)));
 			st.next.lvalues = st.lvalues;
 			pr.state = st.next;
-			return parser_process(pr, flp);
+			return parser_process(pr, flp, stmts);
 
 		case PRS_BREAK:
-			return parser_statement(pr, ast_break(flp));
+			stmts.push(ast_break(flp));
+			return parser_statement(pr, flp, stmts, false);
 
 		case PRS_CONTINUE:
-			return parser_statement(pr, ast_continue(flp));
+			stmts.push(ast_continue(flp));
+			return parser_statement(pr, flp, stmts, false);
 
 		case PRS_DECLARE:
-			st.decls = [];
-			st.state = PRS_DECLARE2;
-			return parser_process(pr, flp);
-
-		case PRS_DECLARE2:
 			if (tk1.type == TOK_NEWLINE && !tk1.soft)
 				return prr_more();
 			if (tk1.type != TOK_IDENT)
 				return prr_error('Expecting identifier');
-			st.state = PRS_DECLARE_LOOKUP;
-			parser_push(pr, PRS_LOOKUP);
-			pr.state.names = [tk1.ident];
-			return prr_more();
+			return parser_lookup(pr, PRS_DECLARE_LOOKUP);
 
 		case PRS_DECLARE_LOOKUP:
 			if (tok_isKS(tk1, KS_LPAREN)){
 				st.state = PRS_DECLARE_STR;
 				return prr_more();
 			}
-			else if (tok_isKS(tk1, KS_COMMA)){
-				st.decls.push(decl_local(flp, st.names));
-				st.state = PRS_DECLARE2;
+			stmts.push(ast_declare(flp, decl_local(st.names)));
+			if (tok_isKS(tk1, KS_COMMA)){
+				st.state = PRS_DECLARE;
 				return prr_more();
 			}
-			st.decls.push(decl_local(flp, st.names));
-			return parser_statement(pr, ast_declare(flp, st.decls));
+			return parser_statement(pr, flp, stmts, false);
 
 		case PRS_DECLARE_STR:
 			if (tk1.type != TOK_STR)
 				return prr_error('Expecting string constant');
-			st.decls.push(decl_native(flp, st.names, tk1.str));
+			stmts.push(ast_declare(flp, decl_native(st.names, tk1.str)));
 			st.state = PRS_DECLARE_STR2;
 			return prr_more();
 
@@ -2126,83 +2105,72 @@ function parser_process(pr, flp){
 				st.state = PRS_DECLARE2;
 				return prr_more();
 			}
-			return parser_statement(pr, ast_declare(flp, st.decls));
+			return parser_statement(pr, flp, stmts, false);
 
 		case PRS_DEF:
 			if (tk1.type != TOK_IDENT)
 				return prr_error('Expecting identifier');
-			st.state = PRS_DEF_LOOKUP;
-			parser_push(pr, PRS_LOOKUP);
-			pr.state.names = [tk1.ident];
-			return prr_more();
+			return parser_lookup(pr, PRS_DEF_LOOKUP);
 
 		case PRS_DEF_LOOKUP:
 			st.state = PRS_DEF_LVALUES;
 			parser_push(pr, PRS_LVALUES);
 			pr.state.lvalues = [];
 			pr.state.lvaluesPeriods = 1;
-			return parser_process(pr, flp);
+			return parser_process(pr, flp, stmts);
 
 		case PRS_DEF_LVALUES:
+			if (tk1.type != TOK_NEWLINE)
+				return prr_error('Missing newline or semicolon');
+			stmts.push(ast_def1(flp, st.names, st.lvalues));
 			st.state = PRS_DEF_BODY;
 			parser_push(pr, PRS_BODY);
-			pr.state.body = [];
-			return parser_process(pr, flp);
+			return parser_process(pr, flp, stmts);
 
 		case PRS_DEF_BODY:
 			if (!tok_isKS(tk1, KS_END))
 				return prr_error('Missing `end` of def block');
-			st.state = PRS_DEF_DONE;
-			return prr_more();
-
-		case PRS_DEF_DONE:
-			return parser_statement(pr, ast_def(flp, st.names, st.lvalues, st.body));
+			stmts.push(ast_def2(flp));
+			return parser_statement(pr, flp, stmts, true);
 
 		case PRS_DO:
+			stmts.push(ast_dowhile1(flp));
 			st.state = PRS_DO_BODY;
 			parser_push(pr, PRS_BODY);
-			pr.state.body = [];
-			return parser_process(pr, flp);
+			return parser_process(pr, flp, stmts);
 
 		case PRS_DO_BODY:
 			if (tok_isKS(tk1, KS_WHILE)){
-				st.body2 = st.body;
-				st.body = null;
 				st.state = PRS_DO_WHILE_EXPR;
 				parser_push(pr, PRS_EXPR);
 				return prr_more();
 			}
 			else if (tok_isKS(tk1, KS_END)){
-				st.state = PRS_DO_DONE;
-				return prr_more();
+				stmts.push(ast_dowhile2(flp, null));
+				stmts.push(ast_dowhile3(flp));
+				return parser_statement(pr, flp, stmts, true);
 			}
 			return prr_error('Missing `while` or `end` of do block');
-
-		case PRS_DO_DONE:
-			return parser_statement(pr, ast_doEnd(flp, st.body));
 
 		case PRS_DO_WHILE_EXPR:
 			if (tk1.type != TOK_NEWLINE)
 				return prr_error('Missing newline or semicolon');
+			stmts.push(ast_dowhile2(flp, st.exprTerm));
 			st.state = PRS_DO_WHILE_BODY;
 			parser_push(pr, PRS_BODY);
-			pr.state.body = [];
 			return prr_more();
 
 		case PRS_DO_WHILE_BODY:
 			if (!tok_isKS(tk1, KS_END))
 				return prr_error('Missing `end` of do-while block');
-			st.state = PRS_DO_WHILE_DONE;
-			return prr_more();
-
-		case PRS_DO_WHILE_DONE:
-			return parser_statement(pr, ast_doWhile(flp, st.body2, st.exprTerm, st.body));
+			stmts.push(ast_dowhile3(flp));
+			return parser_statement(pr, flp, stmts, true);
 
 		case PRS_FOR:
 			if (tk1.type == TOK_NEWLINE){
+				stmts.push(ast_loop1(flp));
 				st.state = PRS_LOOP_BODY;
 				parser_push(pr, PRS_BODY);
-				pr.state.body = [];
 				return prr_more();
 			}
 			st.state = PRS_FOR_VARS;
@@ -2210,45 +2178,36 @@ function parser_process(pr, flp){
 				st.forVar = true;
 				return prr_more();
 			}
-			return parser_process(pr, flp);
+			return parser_process(pr, flp, stmts);
 
 		case PRS_LOOP_BODY:
 			if (!tok_isKS(tk1, KS_END))
 				return prr_error('Missing `end` of for block');
-			st.state = PRS_LOOP_DONE;
-			return prr_more();
-
-		case PRS_LOOP_DONE:
-			return parser_statement(pr, ast_loop(flp, st.body));
+			stmts.push(ast_loop2(flp));
+			return parser_statement(pr, flp, stmts, true);
 
 		case PRS_FOR_VARS:
 			if (tk1.type != TOK_IDENT)
 				return prr_error('Expecting identifier');
-			st.state = PRS_FOR_VARS_LOOKUP;
-			parser_push(pr, PRS_LOOKUP);
-			pr.state.names = [tk1.ident];
-			return prr_more();
+			return parser_lookup(pr, PRS_FOR_VARS_LOOKUP);
 
 		case PRS_FOR_VARS_LOOKUP:
 			st.names2 = st.names;
-			st.names = null;
+			st.names = null; // required
 			if (tok_isKS(tk1, KS_COMMA)){
 				st.state = PRS_FOR_VARS2;
 				return prr_more();
 			}
 			else if (tok_isKS(tk1, KS_COLON)){
-				st.state = PRS_FOR_VARS2_LOOKUP;
-				return parser_process(pr, flp);
+				st.state = PRS_FOR_VARS_DONE;
+				return prr_more();
 			}
 			return prr_error('Invalid for loop');
 
 		case PRS_FOR_VARS2:
 			if (tk1.type != TOK_IDENT)
 				return prr_error('Expecting identifier');
-			st.state = PRS_FOR_VARS2_LOOKUP;
-			parser_push(pr, PRS_LOOKUP);
-			pr.state.names = [tk1.ident];
-			return prr_more();
+			return parser_lookup(pr, PRS_FOR_VARS2_LOOKUP);
 
 		case PRS_FOR_VARS2_LOOKUP:
 			if (!tok_isKS(tk1, KS_COLON))
@@ -2261,105 +2220,78 @@ function parser_process(pr, flp){
 				return prr_error('Expecting expression in for statement');
 			st.state = PRS_FOR_EXPR;
 			parser_push(pr, PRS_EXPR);
-			return parser_process(pr, flp);
+			return parser_process(pr, flp, stmts);
 
 		case PRS_FOR_EXPR:
 			if (tk1.type != TOK_NEWLINE)
 				return prr_error('Missing newline or semicolon');
+			stmts.push(ast_for1(flp, st.forVar, st.names2, st.names, st.exprTerm));
 			st.state = PRS_FOR_BODY;
 			parser_push(pr, PRS_BODY);
-			pr.state.body = [];
 			return prr_more();
 
 		case PRS_FOR_BODY:
 			if (!tok_isKS(tk1, KS_END))
 				return prr_error('Missing `end` of for block');
-			st.state = PRS_FOR_DONE;
-			return prr_more();
-
-		case PRS_FOR_DONE:
-			return parser_statement(pr,
-				ast_for(flp, st.forVar, st.names2, st.names, st.exprTerm, st.body));
+			stmts.push(ast_for2(flp));
+			return parser_statement(pr, flp, stmts, true);
 
 		case PRS_GOTO:
 			if (tk1.type != TOK_IDENT)
 				return prr_error('Expecting identifier');
-			st.state = PRS_GOTO_DONE;
-			return prr_more();
-
-		case PRS_GOTO_DONE:
-			return parser_statement(pr, ast_goto(flp, pr.tk2.ident));
+			stmts.push(ast_goto(flp, tk1.ident));
+			return parser_statement(pr, flp, stmts, true);
 
 		case PRS_IF:
+			stmts.push(ast_if1(flp));
+			st.state = PRS_IF2;
+			return parser_process(pr, flp, stmts);
+
+		case PRS_IF2:
 			if (tk1.type == TOK_NEWLINE)
 				return prr_error('Missing conditional expression');
 			st.state = PRS_IF_EXPR;
-			st.conds = [];
 			parser_push(pr, PRS_EXPR);
-			return parser_process(pr, flp);
+			return parser_process(pr, flp, stmts);
 
 		case PRS_IF_EXPR:
 			if (tk1.type != TOK_NEWLINE)
 				return prr_error('Missing newline or semicolon');
+			stmts.push(ast_if2(flp, st.exprTerm));
 			st.state = PRS_IF_BODY;
 			parser_push(pr, PRS_BODY);
-			pr.state.body = [];
 			return prr_more();
 
 		case PRS_IF_BODY:
-			st.conds.push(cond_new(st.exprTerm, st.body));
-			st.exprTerm = null;
-			st.body = null;
 			if (tok_isKS(tk1, KS_ELSEIF)){
-				st.state = PRS_ELSEIF;
+				st.state = PRS_IF2;
 				return prr_more();
 			}
-			else if (tok_isKS(tk1, KS_ELSE)){
+			stmts.push(ast_if3(flp));
+			if (tok_isKS(tk1, KS_ELSE)){
 				st.state = PRS_ELSE_BODY;
 				parser_push(pr, PRS_BODY);
-				pr.state.body = [];
 				return prr_more();
 			}
 			else if (tok_isKS(tk1, KS_END)){
-				st.state = PRS_IF_DONE;
-				return prr_more();
+				stmts.push(ast_if4(flp));
+				return parser_statement(pr, flp, stmts, true);
 			}
 			return prr_error('Missing `elseif`, `else`, or `end` of if block');
-
-		case PRS_ELSEIF:
-			if (tk1.type == TOK_NEWLINE)
-				return prr_error('Missing conditional expression');
-			st.state = PRS_IF_EXPR;
-			parser_push(pr, PRS_EXPR);
-			return parser_process(pr, flp);
-
-		case PRS_IF_DONE:
-			return parser_statement(pr, ast_if(flp, st.conds, []));
 
 		case PRS_ELSE_BODY:
 			if (!tok_isKS(tk1, KS_END))
 				return prr_error('Missing `end` of if block');
-			st.state = PRS_ELSE_DONE;
-			return prr_more();
-
-		case PRS_ELSE_DONE:
-			return parser_statement(pr, ast_if(flp, st.conds, st.body));
+			stmts.push(ast_if4(flp));
+			return parser_statement(pr, flp, stmts, true);
 
 		case PRS_INCLUDE:
-			st.incls = [];
-			st.state = PRS_INCLUDE2;
-			return parser_process(pr, flp);
-
-		case PRS_INCLUDE2:
 			if (tk1.type == TOK_NEWLINE && !tk1.soft)
 				return prr_more();
-			else if (tk1.type == TOK_IDENT){
-				st.state = PRS_INCLUDE_LOOKUP;
-				parser_push(pr, PRS_LOOKUP);
-				pr.state.names = [tk1.ident];
-				return prr_more();
-			}
+			else if (tk1.type == TOK_IDENT)
+				return parser_lookup(pr, PRS_INCLUDE_LOOKUP);
 			else if (tok_isKS(tk1, KS_LPAREN)){
+				st.names = null; // required
 				st.state = PRS_INCLUDE_STR;
 				return prr_more();
 			}
@@ -2385,73 +2317,63 @@ function parser_process(pr, flp){
 			return prr_more();
 
 		case PRS_INCLUDE_STR3:
-			st.incls.push(incl_new(flp, st.names, st.str));
+			stmts.push(ast_include(flp, st.names, st.str));
 			if (tok_isKS(tk1, KS_COMMA)){
-				st.state = PRS_INCLUDE2;
+				st.state = PRS_INCLUDE;
 				return prr_more();
 			}
-			return parser_statement(pr, ast_include(flp, st.incls));
+			return parser_statement(pr, flp, stmts, false);
 
 		case PRS_NAMESPACE:
 			if (tk1.type != TOK_IDENT)
 				return prr_error('Expecting identifier');
-			st.state = PRS_NAMESPACE_LOOKUP;
-			parser_push(pr, PRS_LOOKUP);
-			pr.state.names = [tk1.ident];
-			return prr_more();
+			return parser_lookup(pr, PRS_NAMESPACE_LOOKUP);
 
 		case PRS_NAMESPACE_LOOKUP:
 			if (tk1.type != TOK_NEWLINE)
 				return prr_error('Missing newline or semicolon');
+			stmts.push(ast_namespace1(flp, st.names));
 			st.state = PRS_NAMESPACE_BODY;
 			parser_push(pr, PRS_BODY);
-			pr.state.body = [];
 			return prr_more();
 
 		case PRS_NAMESPACE_BODY:
 			if (!tok_isKS(tk1, KS_END))
 				return prr_error('Missing `end` of namespace block');
-			st.state = PRS_NAMESPACE_DONE;
-			return prr_more();
-
-		case PRS_NAMESPACE_DONE:
-			return parser_statement(pr, ast_namespace(flp, st.names, st.body));
+			stmts.push(ast_namespace2(flp));
+			return parser_statement(pr, flp, stmts, true);
 
 		case PRS_RETURN:
 			if (tk1.type == TOK_NEWLINE)
 				return parser_statement(pr, ast_return(flp, expr_nil(flp)));
 			st.state = PRS_RETURN_DONE;
 			parser_push(pr, PRS_EXPR);
-			return parser_process(pr, flp);
+			return parser_process(pr, flp, stmts);
 
 		case PRS_RETURN_DONE:
-			return parser_statement(pr, ast_return(flp, st.exprTerm));
+			stmts.push(ast_return(flp, st.exprTerm));
+			return parser_statement(pr, flp, stmts, false);
 
 		case PRS_USING:
 			if (tk1.type == TOK_NEWLINE)
 				return prr_error('Expecting identifier');
-			st.namesList = [];
 			st.state = PRS_USING2;
-			return parser_process(pr, flp);
+			return parser_process(pr, flp, stmts);
 
 		case PRS_USING2:
 			if (tk1.type == TOK_NEWLINE && !tk1.soft)
 				return prr_more();
 			if (tk1.type != TOK_IDENT)
 				return prr_error('Expecting identifier');
-			st.state = PRS_USING_LOOKUP;
-			parser_push(pr, PRS_LOOKUP);
-			pr.state.names = [tk1.ident];
-			return prr_more();
+			return parser_lookup(pr, PRS_USING_LOOKUP);
 
 		case PRS_USING_LOOKUP:
-			st.namesList.push(st.names);
-			st.names = null;
+			stmts.push(ast_using(flp, st.names));
 			if (tok_isKS(tk1, KS_COMMA)){
 				st.state = PRS_USING2;
 				return prr_more();
 			}
-			return parser_statement(pr, ast_using(flp, st.namesList));
+			return parser_statement(pr, flp, stmts, false);
 
 		case PRS_VAR:
 			if (tk1.type == TOK_NEWLINE && !tk1.soft)
@@ -2459,29 +2381,34 @@ function parser_process(pr, flp){
 			st.state = PRS_VAR_LVALUES;
 			parser_push(pr, PRS_LVALUES);
 			pr.state.lvalues = [];
-			return parser_process(pr, flp);
+			return parser_process(pr, flp, stmts);
 
 		case PRS_VAR_LVALUES:
 			if (st.lvalues.length <= 0)
 				return prr_error('Invalid variable declaration');
-			return parser_statement(pr, ast_var(flp, st.lvalues));
+			stmts.push(ast_var(flp, st.lvalues));
+			return parser_statement(pr, flp, stmts, false);
 
 		case PRS_IDENTS:
-			if (st.names.length == 1 && tok_isKS(tk1, KS_COLON))
-				return parser_statement(pr, ast_label(flp, st.names[0]));
+			if (st.names.length == 1 && tok_isKS(tk1, KS_COLON)){
+				stmts.push(ast_label(flp, st.names[0]));
+				st.state = PRS_STATEMENT;
+				return prr_more();
+			}
 			pr.level++;
 			st.state = PRS_EVAL_EXPR;
 			parser_push(pr, PRS_EXPR_POST);
 			pr.state.exprTerm = expr_names(flp, st.names);
-			return parser_process(pr, flp);
+			return parser_process(pr, flp, stmts);
 
 		case PRS_EVAL:
 			st.state = PRS_EVAL_EXPR;
 			parser_push(pr, PRS_EXPR);
-			return parser_process(pr, flp);
+			return parser_process(pr, flp, stmts);
 
 		case PRS_EVAL_EXPR:
-			return parser_statement(pr, ast_eval(flp, st.exprTerm));
+			stmts.push(ast_eval(flp, st.exprTerm));
+			return parser_statement(pr, flp, stmts, false);
 
 		case PRS_EXPR:
 			if (tok_isPre(tk1)){
@@ -2489,7 +2416,7 @@ function parser_process(pr, flp){
 				return prr_more();
 			}
 			st.state = PRS_EXPR_TERM;
-			return parser_process(pr, flp);
+			return parser_process(pr, flp, stmts);
 
 		case PRS_EXPR_TERM:
 			if (tk1.type == TOK_NEWLINE && !tk1.soft)
@@ -2538,7 +2465,7 @@ function parser_process(pr, flp){
 			st.state = PRS_EXPR_TERM_CLOSEBRACE;
 			parser_push(pr, PRS_EXPR);
 			pr.state.exprAllowTrailComma = true;
-			return parser_process(pr, flp);
+			return parser_process(pr, flp, stmts);
 
 		case PRS_EXPR_TERM_CLOSEBRACE:
 			if (tk1.type == TOK_NEWLINE && !tk1.soft)
@@ -2561,12 +2488,12 @@ function parser_process(pr, flp){
 		case PRS_EXPR_TERM_LOOKUP:
 			st.exprTerm = expr_names(flp, st.names);
 			st.state = PRS_EXPR_POST;
-			return parser_process(pr, flp);
+			return parser_process(pr, flp, stmts);
 
 		case PRS_EXPR_POST:
 			if (tk1.type == TOK_NEWLINE){
 				st.state = PRS_EXPR_FINISH;
-				return parser_process(pr, flp);
+				return parser_process(pr, flp, stmts);
 			}
 			else if (tok_isKS(tk1, KS_LBRACKET)){
 				st.state = PRS_EXPR_INDEX_CHECK;
@@ -2578,13 +2505,13 @@ function parser_process(pr, flp){
 					return prr_more();
 				}
 				st.state = PRS_EXPR_MID;
-				return parser_process(pr, flp);
+				return parser_process(pr, flp, stmts);
 			}
 			else if (tok_isKS(tk1, KS_RBRACE) || tok_isKS(tk1, KS_RBRACKET) ||
 				tok_isKS(tk1, KS_RPAREN) || tok_isKS(tk1, KS_COLON) || tok_isKS(tk1, KS_COMMA) ||
 				tok_isKS(tk1, KS_PIPE)){
 				st.state = PRS_EXPR_FINISH;
-				return parser_process(pr, flp);
+				return parser_process(pr, flp, stmts);
 			}
 			// otherwise, this should be a call
 			st.exprTerm2 = st.exprTerm;
@@ -2592,13 +2519,13 @@ function parser_process(pr, flp){
 			st.state = PRS_EXPR_POST_CALL;
 			parser_push(pr, PRS_EXPR);
 			pr.state.exprAllowPipe = false;
-			return parser_process(pr, flp);
+			return parser_process(pr, flp, stmts);
 
 		case PRS_EXPR_POST_CALL:
 			st.exprTerm = expr_call(flp, st.exprTerm2, st.exprTerm);
 			st.exprTerm2 = null;
 			st.state = PRS_EXPR_POST;
-			return parser_process(pr, flp);
+			return parser_process(pr, flp, stmts);
 
 		case PRS_EXPR_INDEX_CHECK:
 			if (tk1.type == TOK_NEWLINE && !tk1.soft)
@@ -2611,7 +2538,7 @@ function parser_process(pr, flp){
 			st.exprTerm = null;
 			st.state = PRS_EXPR_INDEX_EXPR_CHECK;
 			parser_push(pr, PRS_EXPR);
-			return parser_process(pr, flp);
+			return parser_process(pr, flp, stmts);
 
 		case PRS_EXPR_INDEX_COLON_CHECK:
 			if (tk1.type == TOK_NEWLINE && !tk1.soft)
@@ -2625,7 +2552,7 @@ function parser_process(pr, flp){
 			st.exprTerm = null;
 			st.state = PRS_EXPR_INDEX_COLON_EXPR;
 			parser_push(pr, PRS_EXPR);
-			return parser_process(pr, flp);
+			return parser_process(pr, flp, stmts);
 
 		case PRS_EXPR_INDEX_COLON_EXPR:
 			if (tk1.type == TOK_NEWLINE && !tk1.soft)
@@ -2662,7 +2589,7 @@ function parser_process(pr, flp){
 			st.exprTerm = null;
 			st.state = PRS_EXPR_INDEX_EXPR_COLON_EXPR;
 			parser_push(pr, PRS_EXPR);
-			return parser_process(pr, flp);
+			return parser_process(pr, flp, stmts);
 
 		case PRS_EXPR_INDEX_EXPR_COLON_EXPR:
 			if (tk1.type == TOK_NEWLINE && !tk1.soft)
@@ -2683,18 +2610,18 @@ function parser_process(pr, flp){
 			if (!tok_isKS(tk1, KS_RPAREN) && !tok_isKS(tk1, KS_RBRACE)){
 				st.state = PRS_EXPR_MID;
 				parser_rev(pr);
-				parser_process(pr, flp);
+				parser_process(pr, flp, stmts);
 				parser_fwd(pr, pr.tkR);
-				return parser_process(pr, flp);
+				return parser_process(pr, flp, stmts);
 			}
 			// found a trailing comma
 			st.state = PRS_EXPR_FINISH;
-			return parser_process(pr, flp);
+			return parser_process(pr, flp, stmts);
 
 		case PRS_EXPR_MID:
 			if (!tok_isMid(tk1, st.exprAllowComma, st.exprAllowPipe)){
 				st.state = PRS_EXPR_FINISH;
-				return parser_process(pr, flp);
+				return parser_process(pr, flp, stmts);
 			}
 			while (true){
 				// fight between the Pre and the Mid
@@ -2757,19 +2684,17 @@ function parser_process(pr, flp){
 			// everything has been applied, and exprTerm has been set!
 			st.next.exprTerm = st.exprTerm;
 			pr.state = st.next;
-			return parser_process(pr, flp);
+			return parser_process(pr, flp, stmts);
 	}
 }
 
-function parser_add(pr, tk, flp){
+function parser_add(pr, tk, flp, stmts){
 	parser_fwd(pr, tk);
-	return parser_process(pr, flp);
+	return parser_process(pr, flp, stmts);
 }
 
 function parser_close(pr){
-	if (pr.state.state != PRS_STATEMENT ||
-		pr.state.next == null ||
-		pr.state.next.state != PRS_START_STATEMENT)
+	if (pr.state.next !== null)
 		return prr_error('Invalid end of file');
 	return prr_more();
 }
@@ -4553,75 +4478,98 @@ function program_eval(prg, sym, mode, intoVlc, ex){
 }
 
 var PGR_OK    = 'PGR_OK';
+var PGR_PUSH  = 'PGR_PUSH';
+var PGR_POP   = 'PGR_POP';
 var PGR_ERROR = 'PGR_ERROR';
 
 function pgr_ok(){
 	return { type: PGR_OK };
 }
 
+function pgr_push(state){
+	return { type: PGR_PUSH, state: state };
+}
+
+function pgr_pop(){
+	return { type: PGR_POP };
+}
+
 function pgr_error(flp, msg){
 	return { type: PGR_ERROR, flp: flp, msg: msg };
 }
 
-function program_genBody(prg, sym, body){
-	var repl = prg.repl;
-	prg.repl = false;
-	for (var i = 0; i < body.length; i++){
-		var pr = program_gen(prg, sym, body[i]);
-		if (pr.type == PGR_ERROR)
-			return pr;
-	}
-	prg.repl = repl;
-	return pgr_ok();
+function pgs_dowhile_new(top, cond, finish){
+	return { top: top, cond: cond, finish: finish };
 }
 
-function program_gen(prg, sym, stmt){
+function pgs_for_new(t, exp_vlc, val_vlc, idx_vlc, top, inc, finish){
+	return {
+		t: t,
+		exp_vlc: exp_vlc,
+		val_vlc: val_vlc,
+		idx_vlc: idx_vlc,
+		top: top,
+		inc: inc,
+		finish: finish
+	};
+}
+
+function pgs_loop_new(lcont, lbrk){
+	return { lcont: lcont, lbrk: lbrk };
+}
+
+function pgs_if_new(nextcond, ifdone){
+	return { nextcond: nextcond, ifdone: ifdone };
+}
+
+function program_gen(prg, sym, stmt, pst){
 	switch (stmt.type){
-		case AST_BREAK:
+		case AST_BREAK: {
 			if (sym.sc.lblBreak == null)
 				return pgr_error(stmt.flp, 'Invalid `break`');
 			label_jump(sym.sc.lblBreak, prg.ops);
 			return pgr_ok();
+		} break;
 
-		case AST_CONTINUE:
+		case AST_CONTINUE: {
 			if (sym.sc.lblContinue == null)
 				return pgr_error(stmt.flp, 'Invalid `continue`');
 			label_jump(sym.sc.lblContinue, prg.ops);
 			return pgr_ok();
+		} break;
 
-		case AST_DECLARE:
-			for (var i = 0; i < stmt.decls.length; i++){
-				var dc = stmt.decls[i];
-				switch (dc.type){
-					case DECL_LOCAL: {
-						var lbl = label_new('^def');
-						sym.fr.lbls.push(lbl);
-						var sr = symtbl_addCmdLocal(sym, dc.names, lbl);
-						if (sr.type == STA_ERROR)
-							return pgr_error(dc.flp, sr.msg);
-					} break;
-					case DECL_NATIVE: {
-						var found = false;
-						var index;
-						for (index = 0; index < prg.keyTable.length; index++){
-							found = prg.keyTable[index] == dc.key;
-							if (found)
-								break;
-						}
-						if (!found){
-							if (index >= 65536)
-								return pgr_error(dc.flp, 'Too many native functions');
-							prg.keyTable.push(dc.key);
-						}
-						var sr = symtbl_addCmdNative(sym, dc.names, index);
-						if (sr.type == STA_ERROR)
-							return pgr_error(dc.flp, sr.msg);
-					} break;
-				}
+		case AST_DECLARE: {
+			var dc = stmt.dc;
+			switch (dc.type){
+				case DECL_LOCAL: {
+					var lbl = label_new('^def');
+					sym.fr.lbls.push(lbl);
+					var sr = symtbl_addCmdLocal(sym, dc.names, lbl);
+					if (sr.type == STA_ERROR)
+						return pgr_error(dc.flp, sr.msg);
+				} break;
+				case DECL_NATIVE: {
+					var found = false;
+					var index;
+					for (index = 0; index < prg.keyTable.length; index++){
+						found = prg.keyTable[index] == dc.key;
+						if (found)
+							break;
+					}
+					if (!found){
+						if (index >= 65536)
+							return pgr_error(dc.flp, 'Too many native functions');
+						prg.keyTable.push(dc.key);
+					}
+					var sr = symtbl_addCmdNative(sym, dc.names, index);
+					if (sr.type == STA_ERROR)
+						return pgr_error(dc.flp, sr.msg);
+				} break;
 			}
 			return pgr_ok();
+		} break;
 
-		case AST_DEF: {
+		case AST_DEF1: {
 			var lr = symtbl_lookup(sym, stmt.names);
 			var lbl;
 			if (lr.type == STL_OK && lr.nsn.type == NSN_CMD_LOCAL){
@@ -4721,39 +4669,25 @@ function program_gen(prg, sym, stmt){
 				}
 				symtbl_clearTemp(sym, t);
 			}
+			return pgr_push(skip);
+		} break;
 
-			var pr = program_genBody(prg, sym, stmt.body);
-			if (pr.type == PGR_ERROR)
-				return pr;
-
-			if (stmt.body.length <= 0 || stmt.body[stmt.body.length - 1].type != AST_RETURN){
-				var ts = symtbl_addTemp(sym);
-				if (ts.type == STA_ERROR)
-					return pgr_error(stmt.flp, ts.msg);
-				var nil = ts.vlc;
-				op_nil(prg.ops, nil);
-				op_return(prg.ops, nil);
-				symtbl_clearTemp(sym, nil);
-			}
+		case AST_DEF2: {
+			var ts = symtbl_addTemp(sym);
+			if (ts.type == STA_ERROR)
+				return pgr_error(stmt.flp, ts.msg);
+			var nil = ts.vlc;
+			op_nil(prg.ops, nil);
+			op_return(prg.ops, nil);
+			symtbl_clearTemp(sym, nil);
 
 			symtbl_popFrame(sym);
+			var skip = pst;
 			label_declare(skip, prg.ops);
-
-			return pgr_ok();
+			return pgr_pop();
 		} break;
 
-		case AST_DO_END: {
-			symtbl_pushScope(sym);
-			sym.sc.lblBreak = label_new('^do_break');
-			var pr = program_genBody(prg, sym, stmt.body);
-			if (pr.type == PGR_ERROR)
-				return pr;
-			label_declare(sym.sc.lblBreak, prg.ops);
-			symtbl_popScope(sym);
-			return pgr_ok();
-		} break;
-
-		case AST_DO_WHILE: {
+		case AST_DOWHILE1: {
 			var top    = label_new('^dowhile_top');
 			var cond   = label_new('^dowhile_cond');
 			var finish = label_new('^dowhile_finish');
@@ -4763,38 +4697,45 @@ function program_gen(prg, sym, stmt){
 			sym.sc.lblContinue = cond;
 
 			label_declare(top, prg.ops);
-
-			var pr = program_genBody(prg, sym, stmt.doBody);
-			if (pr.type == PGR_ERROR)
-				return pr;
-
-			label_declare(cond, prg.ops);
-			var pe = program_eval(prg, sym, PEM_CREATE, null, stmt.cond);
-			if (pe.type == PER_ERROR)
-				return pgr_error(pe.flp, pe.msg);
-			label_jumpFalse(finish, prg.ops, pe.vlc);
-			symtbl_clearTemp(sym, pe.vlc);
-
-			sym.sc.lblContinue = top;
-
-			pr = program_genBody(prg, sym, stmt.whileBody);
-			if (pr.type == PGR_ERROR)
-				return pr;
-
-			label_jump(top, prg.ops);
-
-			label_declare(finish, prg.ops);
-			symtbl_popScope(sym);
-			return pgr_ok();
+			return pgr_push(pgs_dowhile_new(top, cond, finish));
 		} break;
 
-		case AST_FOR: {
+		case AST_DOWHILE2: {
+			label_declare(pst.cond, prg.ops);
+
+			if (stmt.cond !== null){
+				// do while end
+				var pe = program_eval(prg, sym, PEM_CREATE, null, stmt.cond);
+				if (pe.type == PER_ERROR)
+					return pgr_error(pe.flp, pe.msg);
+				label_jumpFalse(pst.finish, prg.ops, pe.vlc);
+				symtbl_clearTemp(sym, pe.vlc);
+				sym.sc.lblContinue = pst.top;
+				return pgr_ok();
+			}
+			else{
+				// do end
+				pst.top = null;
+				return pgr_ok();
+			}
+		} break;
+
+		case AST_DOWHILE3: {
+			if (pst.top !== null)
+				label_jump(pst.top, prg.ops);
+			label_declare(pst.finish, prg.ops);
+			symtbl_popScope(sym);
+			return pgr_pop();
+		} break;
+
+		case AST_FOR1: {
 			var pe = program_eval(prg, sym, PEM_CREATE, null, stmt.ex);
 			if (pe.type == PER_ERROR)
 				return pgr_error(pe.flp, pe.msg);
 
 			symtbl_pushScope(sym);
 
+			var exp_vlc = pe.vlc;
 			var val_vlc;
 			var idx_vlc;
 
@@ -4856,42 +4797,46 @@ function program_gen(prg, sym, stmt){
 
 			label_declare(top, prg.ops);
 
-			op_unop(prg.ops, OP_SIZE, t, pe.vlc);
+			op_unop(prg.ops, OP_SIZE, t, exp_vlc);
 			op_binop(prg.ops, OP_LT, t, idx_vlc, t);
 			label_jumpFalse(finish, prg.ops, t);
 
-			op_getat(prg.ops, val_vlc, pe.vlc, idx_vlc);
+			op_getat(prg.ops, val_vlc, exp_vlc, idx_vlc);
 			sym.sc.lblBreak = finish;
 			sym.sc.lblContinue = inc;
 
-			var pr = program_genBody(prg, sym, stmt.body);
-			if (pr.type == PGR_ERROR)
-				return pr;
-
-			label_declare(inc, prg.ops);
-			op_inc(prg.ops, idx_vlc);
-			label_jump(top, prg.ops);
-
-			label_declare(finish, prg.ops);
-			symtbl_clearTemp(sym, t);
-			symtbl_clearTemp(sym, idx_vlc);
-			symtbl_clearTemp(sym, pe.vlc);
-			symtbl_popScope(sym);
-			return pgr_ok();
+			return pgr_push(pgs_for_new(t, exp_vlc, val_vlc, idx_vlc, top, inc, finish));
 		} break;
 
-		case AST_LOOP: {
-			symtbl_pushScope(sym);
-			sym.sc.lblContinue = label_new('^loop_continue');
-			sym.sc.lblBreak = label_new('^loop_break');
-			label_declare(sym.sc.lblContinue, prg.ops);
-			var pr = program_genBody(prg, sym, stmt.body);
-			if (pr.type == PGR_ERROR)
-				return pr;
-			label_jump(sym.sc.lblContinue, prg.ops);
-			label_declare(sym.sc.lblBreak, prg.ops);
+		case AST_FOR2: {
+			label_declare(pst.inc, prg.ops);
+			op_inc(prg.ops, pst.idx_vlc);
+			label_jump(pst.top, prg.ops);
+
+			label_declare(pst.finish, prg.ops);
+			symtbl_clearTemp(sym, pst.t);
+			symtbl_clearTemp(sym, pst.val_vlc);
+			symtbl_clearTemp(sym, pst.idx_vlc);
+			symtbl_clearTemp(sym, pst.exp_vlc);
 			symtbl_popScope(sym);
-			return pgr_ok();
+			return pgr_pop();
+		} break;
+
+		case AST_LOOP1: {
+			symtbl_pushScope(sym);
+			var lcont = label_new('^loop_continue');
+			var lbrk = label_new('^loop_break');
+			sym.sc.lblContinue = lcont;
+			sym.sc.lblBreak = lbrk;
+			label_declare(lcont, prg.ops);
+			return pgr_push(pgs_loop_new(lcont, lbrk));
+		} break;
+
+		case AST_LOOP2: {
+			label_jump(pst.lcont, prg.ops);
+			label_declare(pst.lbrk, prg.ops);
+			symtbl_popScope(sym);
+			return pgr_pop();
 		} break;
 
 		case AST_GOTO: {
@@ -4909,48 +4854,56 @@ function program_gen(prg, sym, stmt){
 			return pgr_ok();
 		} break;
 
-		case AST_IF: {
-			var nextcond = null;
-			var ifdone = label_new('^ifdone');
-			for (var i = 0; i < stmt.conds.length; i++){
-				if (i > 0)
-					label_declare(nextcond, prg.ops);
-				nextcond = label_new('^nextcond');
-				var pr = program_eval(prg, sym, PEM_CREATE, null, stmt.conds[i].ex);
-				if (pr.type == PER_ERROR)
-					return pgr_error(pr.flp, pr.msg);
-				label_jumpFalse(nextcond, prg.ops, pr.vlc);
-				symtbl_clearTemp(sym, pr.vlc);
+		case AST_IF1: {
+			return pgr_push(pgs_if_new(null, label_new('^ifdone')));
+		} break;
 
-				symtbl_pushScope(sym);
-				var pg = program_genBody(prg, sym, stmt.conds[i].body);
-				if (pg.type == PGR_ERROR)
-					return pg;
+		case AST_IF2: {
+			if (pst.nextcond !== null){
 				symtbl_popScope(sym);
-				label_jump(ifdone, prg.ops);
+				label_jump(pst.ifdone, prg.ops);
+
+				label_declare(pst.nextcond, prg.ops);
 			}
-			label_declare(nextcond, prg.ops);
+			pst.nextcond = label_new('^nextcond');
+			var pr = program_eval(prg, sym, PEM_CREATE, null, stmt.cond);
+			if (pr.type == PER_ERROR)
+				return pgr_error(pr.flp, pr.msg);
+			label_jumpFalse(pst.nextcond, prg.ops, pr.vlc);
+			symtbl_clearTemp(sym, pr.vlc);
+
 			symtbl_pushScope(sym);
-			var pg = program_genBody(prg, sym, stmt.elseBody);
-			if (pg.type == PGR_ERROR)
-				return pg;
-			symtbl_popScope(sym);
-			label_declare(ifdone, prg.ops);
 			return pgr_ok();
+		} break;
+
+		case AST_IF3: {
+			symtbl_popScope(sym);
+			label_jump(pst.ifdone, prg.ops);
+
+			label_declare(pst.nextcond, prg.ops);
+			symtbl_pushScope(sym);
+			return pgr_ok();
+		} break;
+
+		case AST_IF4: {
+			symtbl_popScope(sym);
+			label_declare(pst.ifdone, prg.ops);
+			return pgr_pop();
 		} break;
 
 		case AST_INCLUDE:
 			throw new Error('Cannot generate code for include (this shouldn\'t happen)');
 
-		case AST_NAMESPACE: {
+		case AST_NAMESPACE1: {
 			var sr = symtbl_pushNamespace(sym, stmt.names);
 			if (sr.type == SPN_ERROR)
 				return pgr_error(stmt.flp, sr.msg);
-			var pr = program_genBody(prg, sym, stmt.body);
-			if (pr.type == PGR_ERROR)
-				return pr;
+			return pgr_push(null);
+		} break;
+
+		case AST_NAMESPACE2: {
 			symtbl_popNamespace(sym);
-			return pgr_ok();
+			return pgr_pop();
 		} break;
 
 		case AST_RETURN: {
@@ -4963,20 +4916,18 @@ function program_gen(prg, sym, stmt){
 		} break;
 
 		case AST_USING: {
-			for (var i = 0; i < stmt.namesList.length; i++){
-				var sr = symtbl_findNamespace(sym, stmt.namesList[i], stmt.namesList[i].length);
-				if (sr.type == SFN_ERROR)
-					return pgr_error(stmt.flp, sr.msg);
-				var found = false;
-				for (var j = 0; j < sym.sc.ns.usings.length && !found; j++)
-					found = sym.sc.ns.usings[j] == sr.ns;
-				if (!found)
-					sym.sc.ns.usings.push(sr.ns);
-			}
+			var sr = symtbl_findNamespace(sym, stmt.names, stmt.names.length);
+			if (sr.type == SFN_ERROR)
+				return pgr_error(stmt.flp, sr.msg);
+			var found = false;
+			for (var j = 0; j < sym.sc.ns.usings.length && !found; j++)
+				found = sym.sc.ns.usings[j] == sr.ns;
+			if (!found)
+				sym.sc.ns.usings.push(sr.ns);
 			return pgr_ok();
 		} break;
 
-		case AST_VAR:
+		case AST_VAR: {
 			for (var i = 0; i < stmt.lvalues.length; i++){
 				var ex = stmt.lvalues[i];
 				if (ex.type != EXPR_INFIX)
@@ -4998,9 +4949,10 @@ function program_gen(prg, sym, stmt){
 				}
 			}
 			return pgr_ok();
+		} break;
 
 		case AST_EVAL: {
-			if (prg.repl){
+			if (prg.repl){ // TODO: not entirely true now (program_genBody used to set to false)
 				var pr = program_eval(prg, sym, PEM_CREATE, null, stmt.ex);
 				if (pr.type == PER_ERROR)
 					return pgr_error(pr.flp, pr.msg);
@@ -7055,8 +7007,6 @@ function cma_error(msg){
 }
 
 function compiler_process(cmp){
-	if (cmp.file.incls.length > 0)
-		return cma_include(cmp.file.incls[0].file);
 	var cmprs = cmp.file.cmprs;
 	for (var c = 0; c < cmprs.length; c++){
 		if (cmprs[c] == null){ // end of file
@@ -7077,6 +7027,7 @@ function compiler_process(cmp){
 		}
 		var flp = cmprs[c].flp;
 		var tks = cmprs[c].tks;
+		var stmts = [];
 		for (var i = 0; i < tks.length; i++){
 			var tk = tks[i];
 			if (tk.type == TOK_ERROR){
@@ -7084,29 +7035,35 @@ function compiler_process(cmp){
 				tks.splice(0, i + 1);
 				return cma_error(filepos_err(flp, tk.msg));
 			}
-			var res = parser_add(cmp.pr, tk, flp);
-			if (res.type == PRR_MORE)
-				continue;
-			else if (res.type == PRR_ERROR){
+			var res = parser_add(cmp.pr, tk, flp, stmts);
+			if (res.type == PRR_ERROR){
 				cmprs.splice(0, c);
 				tks.splice(0, i + 1);
 				cmp.pr = parser_new(); // reset the parser
 				return cma_error(filepos_err(flp, res.msg));
 			}
+		}
 
-			if (res.stmt.type == AST_INCLUDE){
-				// cmp.file.incls is guaranteed to be empty, so just overwrite it
-				cmp.file.incls = res.stmt.incls;
-				cmprs.splice(0, c);
-				tks.splice(0, i + 1);
-				return cma_include(cmp.file.incls[0].file);
+		for (var i = 0; i < stmts.length; i++){
+			var stmt = stmts[i];
+			if (stmt.type == AST_INCLUDE){
+				throw new Error('include');
 			}
 			else{
-				var pr = program_gen(cmp.prg, cmp.sym, res.stmt);
-				if (pr.type == PGR_ERROR){
-					cmprs.splice(0, c);
-					tks.splice(0, i + 1);
-					return cma_error(filepos_err(pr.flp, pr.msg));
+				var pr = program_gen(cmp.prg, cmp.sym, stmt,
+					cmp.file.pgstate.length <= 0 ? null :
+					cmp.file.pgstate[cmp.file.pgstate.length - 1]);
+				switch (pr.type){
+					case PGR_OK:
+						break;
+					case PGR_PUSH:
+						cmp.file.pgstate.push(pr.state);
+						break;
+					case PGR_POP:
+						cmp.file.pgstate.pop();
+						break;
+					case PGR_ERROR:
+						return cma_error(filepos_err(stmt.flp, pr.msg));
 				}
 			}
 		}
@@ -7140,8 +7097,8 @@ function compiler_pushFile(cmp, file){
 		flp: filepos_new(file, 1, 1),
 		lastret: false,
 		lx: lex_new(),
-		incls: [],
 		cmprs: [],
+		pgstate: [],
 		next: cmp.file
 	};
 	return cmf_ok();

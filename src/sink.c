@@ -3342,7 +3342,6 @@ struct prs_struct {
 	expr exprTerm3;
 	list_ptr names;
 	list_ptr names2;
-	list_ptr namesList;
 	prs next;
 };
 
@@ -3393,8 +3392,6 @@ static void prs_free(prs pr){
 		list_ptr_free(pr->names);
 	if (pr->names2)
 		list_ptr_free(pr->names2);
-	if (pr->namesList)
-		list_ptr_free(pr->namesList);
 	mem_free(pr);
 }
 
@@ -3417,7 +3414,6 @@ static prs prs_new(prs_enum state, prs next){
 	pr->exprTerm3 = NULL;            // expr
 	pr->names = NULL;                // list of strings
 	pr->names2 = NULL;               // list of strings
-	pr->namesList = NULL;            // list of list of strings
 	pr->next = next;
 	return pr;
 }
@@ -3829,14 +3825,12 @@ static prr_st parser_process(parser pr, filepos_st flp, list_ptr stmts){
 				st->state = PRS_DECLARE_STR;
 				return prr_more();
 			}
-			else if (tok_isKS(tk1, KS_COMMA)){
-				list_ptr_push(stmts, ast_declare(flp, decl_local(st->names)));
-				st->names = NULL;
+			list_ptr_push(stmts, ast_declare(flp, decl_local(st->names)));
+			st->names = NULL;
+			if (tok_isKS(tk1, KS_COMMA)){
 				st->state = PRS_DECLARE;
 				return prr_more();
 			}
-			list_ptr_push(stmts, ast_declare(flp, decl_local(st->names)));
-			st->names = NULL;
 			return parser_statement(pr, flp, stmts, false);
 
 		case PRS_DECLARE_STR:
@@ -7189,13 +7183,13 @@ static inline pgr_st program_gen(program prg, symtbl sym, ast stmt, void *state)
 		} break;
 
 		case AST_FOR1: {
-			per_st pex = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, stmt->u.for1.ex);
-			if (pex.type == PER_ERROR)
-				return pgr_error(pex.u.error.flp, pex.u.error.msg);
+			per_st pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, stmt->u.for1.ex);
+			if (pe.type == PER_ERROR)
+				return pgr_error(pe.u.error.flp, pe.u.error.msg);
 
 			symtbl_pushScope(sym);
 
-			varloc_st exp_vlc = pex.u.vlc;
+			varloc_st exp_vlc = pe.u.vlc;
 			varloc_st val_vlc;
 			varloc_st idx_vlc;
 
