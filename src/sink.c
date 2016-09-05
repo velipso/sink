@@ -7778,14 +7778,6 @@ static inline bool context_done(context ctx){
 	return ctx->passed || ctx->failed || ctx->invalid;
 }
 
-static inline int context_result(context ctx){
-	if (ctx->invalid)
-		return 2;
-	if (ctx->failed)
-		return 1;
-	return 0;
-}
-
 static inline void context_timeout(context ctx, int timeout){
 	ctx->timeout = timeout;
 	ctx->timeout_left = timeout;
@@ -8124,7 +8116,7 @@ static inline void opi_rand_shuffle(context ctx, sink_val a){
 }
 
 // operators
-static sink_val unop_neg(context ctx, sink_val a){
+static sink_val unop_num_neg(context ctx, sink_val a){
 	return sink_num(-a.f);
 }
 
@@ -8201,27 +8193,27 @@ static sink_val unop_num_exp(context ctx, sink_val a){
 	return sink_num(exp(a.f));
 }
 
-static sink_val binop_add(context ctx, sink_val a, sink_val b){
+static sink_val binop_num_add(context ctx, sink_val a, sink_val b){
 	return sink_num(a.f + b.f);
 }
 
-static sink_val binop_sub(context ctx, sink_val a, sink_val b){
+static sink_val binop_num_sub(context ctx, sink_val a, sink_val b){
 	return sink_num(a.f - b.f);
 }
 
-static sink_val binop_mul(context ctx, sink_val a, sink_val b){
+static sink_val binop_num_mul(context ctx, sink_val a, sink_val b){
 	return sink_num(a.f * b.f);
 }
 
-static sink_val binop_div(context ctx, sink_val a, sink_val b){
+static sink_val binop_num_div(context ctx, sink_val a, sink_val b){
 	return sink_num(a.f / b.f);
 }
 
-static sink_val binop_mod(context ctx, sink_val a, sink_val b){
+static sink_val binop_num_mod(context ctx, sink_val a, sink_val b){
 	return sink_num(fmod(a.f, b.f));
 }
 
-static sink_val binop_pow(context ctx, sink_val a, sink_val b){
+static sink_val binop_num_pow(context ctx, sink_val a, sink_val b){
 	return sink_num(pow(a.f, b.f));
 }
 
@@ -8832,7 +8824,7 @@ static sink_run context_run(context ctx){
 			case OP_NOT            : { // [TGT], [SRC]
 				LOAD_ABCD();
 				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, sink_bool(!sink_istrue(X)));
+				var_set(ctx, A, B, sink_bool(sink_isfalse(X)));
 			} break;
 
 			case OP_SIZE           : { // [TGT], [SRC]
@@ -9124,31 +9116,31 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_NUM_NEG        : { // [TGT], [SRC]
-				INLINE_UNOP(unop_neg, "negating")
+				INLINE_UNOP(unop_num_neg, "negating")
 			} break;
 
 			case OP_NUM_ADD        : { // [TGT], [SRC1], [SRC2]
-				INLINE_BINOP(binop_add, "adding")
+				INLINE_BINOP(binop_num_add, "adding")
 			} break;
 
 			case OP_NUM_SUB        : { // [TGT], [SRC1], [SRC2]
-				INLINE_BINOP(binop_sub, "subtracting")
+				INLINE_BINOP(binop_num_sub, "subtracting")
 			} break;
 
 			case OP_NUM_MUL        : { // [TGT], [SRC1], [SRC2]
-				INLINE_BINOP(binop_mul, "multiplying")
+				INLINE_BINOP(binop_num_mul, "multiplying")
 			} break;
 
 			case OP_NUM_DIV        : { // [TGT], [SRC1], [SRC2]
-				INLINE_BINOP(binop_div, "dividing")
+				INLINE_BINOP(binop_num_div, "dividing")
 			} break;
 
 			case OP_NUM_MOD        : { // [TGT], [SRC1], [SRC2]
-				INLINE_BINOP(binop_mod, "taking modular")
+				INLINE_BINOP(binop_num_mod, "taking modular")
 			} break;
 
 			case OP_NUM_POW        : { // [TGT], [SRC1], [SRC2]
-				INLINE_BINOP(binop_pow, "exponentiating")
+				INLINE_BINOP(binop_num_pow, "exponentiating")
 			} break;
 
 			case OP_NUM_ABS        : { // [TGT], [SRC]

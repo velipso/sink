@@ -4,6 +4,12 @@
 
 (function(){
 
+// used for detecting async objects
+function isPromise(obj){
+	return !!obj && (typeof obj === 'object' || typeof obj === 'function') &&
+		typeof obj.then === 'function';
+}
+
 //
 // opcodes
 //
@@ -4996,112 +5002,145 @@ function program_gen(prg, sym, stmt, pst){
 	}
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+// runtime
+//
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+var SINK_RUN_PASS     = 'SINK_RUN_PASS';
+var SINK_RUN_FAIL     = 'SINK_RUN_FAIL';
+var SINK_RUN_ASYNC    = 'SINK_RUN_ASYNC';
+var SINK_RUN_TIMEOUT  = 'SINK_RUN_TIMEOUT';
+var SINK_RUN_REPLMORE = 'SINK_RUN_REPLMORE';
+var SINK_RUN_INVALID  = 'SINK_RUN_INVALID';
+
 //
 // context
 //
 
-function ccs_new(pc, fdiff, index, lexIndex){
-	return { pc: pc, fdiff: fdiff, index: index, lexIndex: lexIndex };
+function ccs_new(pc, fdiff, index, lex_index){
+	return { pc: pc, fdiff: fdiff, index: index, lex_index: lex_index };
 }
 
 function lxs_new(args, next){
 	var v = [args];
 	for (var i = 1; i < 256; i++)
 		v.push(null);
-	return {
-		vals: v,
-		next: next
-	};
+	return { vals: v, next: next };
+}
+
+function native_new(hash, f_native){
+	return { hash: hash, f_native: f_native };
 }
 
 function context_new(prg){
 	var ctx = {
+		natives: [],
 		prg: prg,
 		failed: false,
 		passed: false,
-		callStack: [],
-		lexStack: [lxs_new(null, null)],
-		lexIndex: 0,
+		invalid: false,
+		call_stk: [],
+		lex_stk: [lxs_new(null, null)],
+		lex_index: 0,
 		pc: 0,
-		randSeed: 0,
-		randI: 0
+		timeout: 0,
+		timeout_left: 0,
+		rand_seed: 0,
+		rand_i: 0
 	};
-	lib_rand_seedauto(ctx);
+	opi_rand_seedauto(ctx);
 	return ctx;
 }
 
-var CRR_EXITPASS = 'CRR_EXITPASS';
-var CRR_EXITFAIL = 'CRR_EXITFAIL';
-var CRR_SAY      = 'CRR_SAY';
-var CRR_WARN     = 'CRR_WARN';
-var CRR_ASK      = 'CRR_ASK';
-var CRR_REPL     = 'CRR_REPL';
-var CRR_INVALID  = 'CRR_INVALID';
-
-function crr_exitpass(){
-	return { type: CRR_EXITPASS };
+function context_done(ctx){
+	return ctx.passed || ctx.failed || ctx.invalid;
 }
 
-function crr_exitfail(){
-	return { type: CRR_EXITFAIL };
+function context_timeout(ctx, timeout){
+	ctx.timeout = timeout;
+	ctx.timeout_left = timeout;
 }
 
-function crr_say(args){
-	return { type: CRR_SAY, args: args };
+function crr_exitpass(ctx){
+	ctx.passed = true;
+	return SINK_RUN_PASS;
 }
 
-function crr_warn(args){
-	return { type: CRR_WARN, args: args };
+function crr_exitfail(ctx){
+	if (ctx.prg.repl){
+		ctx.failed = false;
+		ctx.pc = ctx.prg.ops.length;
+		return SINK_RUN_REPLMORE;
+	}
+	ctx.failed = true;
+	return SINK_RUN_FAIL;
 }
 
-function crr_ask(args, fdiff, index){
-	return { type: CRR_ASK, args: args, fdiff: fdiff, index: index };
+function crr_async(){
+	return SINK_RUN_ASYNC;
 }
 
-function crr_repl(){
-	return { type: CRR_REPL };
+function crr_timeout(){
+	return SINK_RUN_TIMEOUT;
 }
 
-function crr_invalid(){
-	throw new Error('invalid!?'); // TODO: remove
-	return { type: CRR_INVALID };
+function crr_replmore(){
+	return SINK_RUN_REPLMORE;
+}
+
+function crr_invalid(ctx){
+	return SINK_RUN_INVALID;
 }
 
 function var_get(ctx, fdiff, index){
-	return ctx.lexStack[ctx.lexIndex - fdiff].vals[index];
+	return ctx.lex_stk[ctx.lex_index - fdiff].vals[index];
 }
 
 function var_set(ctx, fdiff, index, val){
-	ctx.lexStack[ctx.lexIndex - fdiff].vals[index] = val;
+	ctx.lex_stk[ctx.lex_index - fdiff].vals[index] = val;
 }
 
-function var_isnum(val){
+function sink_typenum(val){
 	return typeof val == 'number';
 }
 
-function var_isstr(val){
+function sink_typestr(val){
 	return typeof val == 'string';
 }
 
-function var_islist(val){
+function sink_typelist(val){
 	return Object.prototype.toString.call(val) == '[object Array]';
 }
 
-var var_tostr_marker = 0;
-function var_tostr(v){
-	var m = var_tostr_marker++;
+function sink_bool(b){
+	return b ? 1 : null;
+}
+
+function sink_istrue(v){
+	return v !== null;
+}
+
+function sink_isfalse(v){
+	return v === null;
+}
+
+var sink_tostr_marker = 0;
+function sink_tostr(v){
+	var m = sink_tostr_marker++;
 	function tos(v, first){
 		if (v == null)
 			return 'nil';
-		else if (var_isnum(v)){
+		else if (sink_typenum(v)){
 			if (v == Infinity)
 				return 'inf';
 			else if (v == -Infinity)
 				return '-inf';
 			return '' + v;
 		}
-		else if (var_isstr(v))
-			return first ? v : '\'' + v + '\'';
+		else if (sink_typestr(v))
+			return first ? v : '\'' + v.replace(/([\'\\])/g, '\\$1') + '\'';
 		// otherwise, list
 		if (v.tostr_marker == m)
 			return '{circular}';
@@ -5115,41 +5154,41 @@ function var_tostr(v){
 }
 
 function arget(ar, index){
-	if (var_islist(ar))
+	if (sink_typelist(ar))
 		return index >= ar.length ? 0 : ar[index];
 	return ar;
 }
 
 function arsize(ar){
-	if (var_islist(ar))
+	if (sink_typelist(ar))
 		return ar.length;
 	return 1;
 }
 
 function oper_isnum(a){
-	if (var_islist(a)){
+	if (sink_typelist(a)){
 		for (var i = 0; i < a.length; i++){
-			if (!var_isnum(a[i]))
+			if (!sink_typenum(a[i]))
 				return false;
 		}
 		return true;
 	}
-	return var_isnum(a);
+	return sink_typenum(a);
 }
 
 function oper_isnilnumstr(a){
-	if (var_islist(a)){
+	if (sink_typelist(a)){
 		for (var i = 0; i < a.length; i++){
-			if (a[i] != null && !var_isnum(a[i]) && !var_isstr(a[i]))
+			if (a[i] != null && !sink_typenum(a[i]) && !sink_typestr(a[i]))
 				return false;
 		}
 		return true;
 	}
-	return a == null || var_isnum(a) || var_isstr(a);
+	return a == null || sink_typenum(a) || sink_typestr(a);
 }
 
 function oper_un(a, func){
-	if (var_islist(a)){
+	if (sink_typelist(a)){
 		var ret = [];
 		for (var i = 0; i < a.length; i++)
 			ret.push(func(a[i]));
@@ -5159,7 +5198,7 @@ function oper_un(a, func){
 }
 
 function oper_bin(a, b, func){
-	if (var_islist(a) || var_islist(b)){
+	if (sink_typelist(a) || sink_typelist(b)){
 		var ret = [];
 		var m = Math.max(arsize(a), arsize(b));
 		for (var i = 0; i < m; i++)
@@ -5170,7 +5209,7 @@ function oper_bin(a, b, func){
 }
 
 function oper_tri(a, b, c, func){
-	if (var_islist(a) || var_islist(b) || var_islist(c)){
+	if (sink_typelist(a) || sink_typelist(b) || sink_typelist(c)){
 		var ret = [];
 		var m = Math.max(arsize(a), arsize(b), arsize(c));
 		for (var i = 0; i < m; i++)
@@ -5195,10 +5234,6 @@ function str_cmp(a, b){
 	else if (b.length < a.length)
 		return 1;
 	return 0;
-}
-
-function context_result(ctx, cr, val){
-	var_set(ctx, cr.fdiff, cr.index, val);
 }
 
 // shitty polyfills mostly for internet explorer
@@ -5257,20 +5292,20 @@ var polyfill = (function(){
 	};
 })();
 
-var lib_num_max_marker = 0;
-function lib_num_max(v){
-	var m = lib_num_max_marker++;
+var opi_num_max_marker = 0;
+function opi_num_max(v){
+	var m = opi_num_max_marker++;
 	function mx(v){
-		if (v.lib_num_max_marker == m)
+		if (v.opi_num_max_marker == m)
 			return null;
-		v.lib_num_max_marker = m;
+		v.opi_num_max_marker = m;
 		var max = null;
 		for (var i = 0; i < v.length; i++){
-			if (var_isnum(v[i])){
+			if (sink_typenum(v[i])){
 				if (max == null || v[i] > max)
 					max = v[i];
 			}
-			else if (var_islist(v[i])){
+			else if (sink_typelist(v[i])){
 				var lm = mx(v[i]);
 				if (lm != null && (max == null || lm > max))
 					max = lm;
@@ -5281,20 +5316,20 @@ function lib_num_max(v){
 	return mx(v);
 }
 
-var lib_num_min_marker = 0;
-function lib_num_min(v){
-	var m = lib_num_min_marker++;
+var opi_num_min_marker = 0;
+function opi_num_min(v){
+	var m = opi_num_min_marker++;
 	function mn(v){
-		if (v.lib_num_min_marker == m)
+		if (v.opi_num_min_marker == m)
 			return null;
-		v.lib_num_min_marker = m;
+		v.opi_num_min_marker = m;
 		var min = null;
 		for (var i = 0; i < v.length; i++){
-			if (var_isnum(v[i])){
+			if (sink_typenum(v[i])){
 				if (min == null || v[i] < min)
 					min = v[i];
 			}
-			else if (var_islist(v[i])){
+			else if (sink_typelist(v[i])){
 				var lm = mn(v[i]);
 				if (lm != null && (min == null || lm < min))
 					min = lm;
@@ -5305,7 +5340,7 @@ function lib_num_min(v){
 	return mn(v);
 }
 
-function lib_num_base(num, len, base){
+function opi_num_base(num, len, base){
 	if (len > 256)
 		len = 256;
 	var digits = '0123456789ABCDEF';
@@ -5339,66 +5374,66 @@ function lib_num_base(num, len, base){
 	return neg + (base == 16 ? '0x' : (base == 8 ? '0c' : '0b')) + body;
 }
 
-function lib_rand_seedauto(ctx){
-	ctx.randSeed = (new Date()).getTime() | 0;
-	ctx.randI = (Math.random() * 0xFFFFFFFF) | 0;
+function opi_rand_seedauto(ctx){
+	ctx.rand_seed = (new Date()).getTime() | 0;
+	ctx.rand_i = (Math.random() * 0xFFFFFFFF) | 0;
 	for (var i = 0; i < 1000; i++)
-		lib_rand_int(ctx);
-	ctx.randI = 0;
+		opi_rand_int(ctx);
+	ctx.rand_i = 0;
 }
 
-function lib_rand_seed(ctx, n){
-	ctx.randSeed = n | 0;
-	ctx.randI = 0;
+function opi_rand_seed(ctx, n){
+	ctx.rand_seed = n | 0;
+	ctx.rand_i = 0;
 }
 
-function lib_rand_int(ctx){
+function opi_rand_int(ctx){
 	var m = 0x5bd1e995;
-	var k = polyfill.Math_imul(ctx.randI,  m);
-	ctx.randI = (ctx.randI + 1) | 0;
-	ctx.randSeed = polyfill.Math_imul(k ^ (k >>> 24) ^ polyfill.Math_imul(ctx.randSeed, m), m);
-	var res = (ctx.randSeed ^ (ctx.randSeed >>> 13)) | 0;
+	var k = polyfill.Math_imul(ctx.rand_i,  m);
+	ctx.rand_i = (ctx.rand_i + 1) | 0;
+	ctx.rand_seed = polyfill.Math_imul(k ^ (k >>> 24) ^ polyfill.Math_imul(ctx.rand_seed, m), m);
+	var res = (ctx.rand_seed ^ (ctx.rand_seed >>> 13)) | 0;
 	if (res < 0)
 		return res + 0x100000000;
 	return res;
 }
 
-function lib_rand_num(ctx){
-	var M1 = lib_rand_int(ctx);
-	var M2 = lib_rand_int(ctx);
+function opi_rand_num(ctx){
+	var M1 = opi_rand_int(ctx);
+	var M2 = opi_rand_int(ctx);
 	var view = new DataView(new ArrayBuffer(8));
 	view.setInt32(0, (M1 << 20) | (M2 >> 12), true);
 	view.setInt32(4, 0x3FF00000 | (M1 >>> 12), true);
 	return view.getFloat64(0, true) - 1;
 }
 
-function lib_rand_getstate(ctx){
+function opi_rand_getstate(ctx){
 	// slight goofy logic to convert int32 to uint32
-	if (ctx.randI < 0){
-		if (ctx.randSeed < 0)
-			return [ctx.randSeed + 0x100000000, ctx.randI + 0x100000000];
-		return [ctx.randSeed, ctx.randI + 0x100000000];
+	if (ctx.rand_i < 0){
+		if (ctx.rand_seed < 0)
+			return [ctx.rand_seed + 0x100000000, ctx.rand_i + 0x100000000];
+		return [ctx.rand_seed, ctx.rand_i + 0x100000000];
 	}
-	else if (ctx.randSeed < 0)
-		return [ctx.randSeed + 0x100000000, ctx.randI];
-	return [ctx.randSeed, ctx.randI];
+	else if (ctx.rand_seed < 0)
+		return [ctx.rand_seed + 0x100000000, ctx.rand_i];
+	return [ctx.rand_seed, ctx.rand_i];
 }
 
-function lib_rand_setstate(ctx, a, b){
-	ctx.randSeed = a | 0;
-	ctx.randI = b | 0;
+function opi_rand_setstate(ctx, a, b){
+	ctx.rand_seed = a | 0;
+	ctx.rand_i = b | 0;
 }
 
-function lib_rand_pick(ctx, ls){
+function opi_rand_pick(ctx, ls){
 	if (ls.length <= 0)
 		return null;
-	return ls[Math.floor(lib_rand_num(ctx) * ls.length)];
+	return ls[Math.floor(opi_rand_num(ctx) * ls.length)];
 }
 
-function lib_rand_shuffle(ctx, ls){
+function opi_rand_shuffle(ctx, ls){
 	var m = ls.length;
 	while (m > 1){
-		var i = Math.floor(lib_rand_num(ctx) * m);
+		var i = Math.floor(opi_rand_num(ctx) * m);
 		m--;
 		if (m != i){
 			var t = ls[m];
@@ -5408,88 +5443,209 @@ function lib_rand_shuffle(ctx, ls){
 	}
 }
 
+// operators
+function unop_num_neg(a){
+	return -a;
+}
+
+function unop_tonum(a){
+	if (var_isnum(a))
+		return a;
+	throw 'TODO: parse number';
+}
+
+var unop_num_abs   = Math.abs;
+var unop_num_sign  = polyfill.Math_sign;
+var unop_num_floor = Math.floor;
+var unop_num_ceil  = Math.ceil;
+var unop_num_round = Math.round;
+var unop_num_trunc = polyfill.Math_trunc;
+var unop_num_sin   = Math.sin;
+var unop_num_cos   = Math.cos;
+var unop_num_tan   = Math.tan;
+var unop_num_asin  = Math.asin;
+var unop_num_acos  = Math.acos;
+var unop_num_atan  = Math.atan;
+var unop_num_log   = Math.log;
+var unop_num_log2  = polyfill.Math_log2;
+var unop_num_log10 = polyfill.Math_log10;
+var unop_num_exp   = Math.exp;
+
+function binop_num_add(a, b){
+	return a + b;
+}
+
+function binop_num_sub(a, b){
+	return a - b;
+}
+
+function binop_num_mul(a, b){
+	return a * b;
+}
+
+function binop_num_div(a, b){
+	return a / b;
+}
+
+function binop_num_mod(a, b){
+	return a % b;
+}
+
+var binop_num_pow   = Math.pow;
+var binop_num_atan2 = Math.atan2;
+
+function binop_num_hex(a, b){
+	return opi_num_base(a, b, 16);
+}
+
+function binop_num_oct(a, b){
+	return opi_num_base(a, b, 8);
+}
+
+function binop_num_bin(a, b){
+	return opi_num_base(a, b, 2);
+}
+
+function triop_num_clamp(a, b, c){
+	return a < b ? b : (a > c ? c : a);
+}
+
+function triop_num_lerp(a, b, c){
+	return a + (b - a) * c;
+}
+
+function opi_say(ctx, args, fdiff, index){
+	var_set(ctx, fdiff, index, null);
+	return false;
+}
+
+function opi_warn(ctx, args, fdiff, index){
+	var_set(ctx, fdiff, index, null);
+	return false;
+}
+
+function opi_ask(ctx, args, fdiff, index){
+	var_set(ctx, fdiff, index, null);
+	return false;
+}
+
+function opi_exit(ctx, args){
+	return crr_exitpass(ctx);
+}
+
+function opi_abort(ctx, args){
+	return crr_exitfail(ctx);
+}
+
+function opi_abortstr(ctx, str){
+	// TODO: warn `str`
+	return crr_exitfail(ctx);
+}
+
 function context_run(ctx){
-	if (ctx.failed)
-		return crr_exitfail();
 	if (ctx.passed)
-		return crr_exitpass();
+		return crr_exitpass(ctx);
+	if (ctx.failed)
+		return crr_exitfail(ctx);
+	if (ctx.invalid)
+		return crr_invalid(ctx);
 
 	var A, B, C, D, E, F, G, H, I; // ints
 	var X, Y, Z, W; // values
 
 	var ops = ctx.prg.ops;
 
-	function inline_unop(func, erop){
+	function LOAD_ab(){
+		ctx.pc++;
+		A = ops[ctx.pc++]; B = ops[ctx.pc++];
+	}
+
+	function LOAD_abcd(){
 		ctx.pc++;
 		A = ops[ctx.pc++]; B = ops[ctx.pc++];
 		C = ops[ctx.pc++]; D = ops[ctx.pc++];
-		if (A > ctx.lexIndex || C > ctx.lexIndex)
-			return crr_invalid();
-		X = var_get(ctx, C, D);
-		if (X == null)
-			X = 0;
-		if (!oper_isnum(X)){
-			ctx.failed = true;
-			return crr_warn(['Expecting number or list of numbers when ' + erop]);
-		}
-		var_set(ctx, A, B, oper_un(X, func));
-		return false;
 	}
 
-	function inline_binop(func, erop){
+	function LOAD_abc(){
+		ctx.pc++;
+		A = ops[ctx.pc++]; B = ops[ctx.pc++];
+		C = ops[ctx.pc++];
+	}
+
+	function LOAD_abcdef(){
 		ctx.pc++;
 		A = ops[ctx.pc++]; B = ops[ctx.pc++];
 		C = ops[ctx.pc++]; D = ops[ctx.pc++];
 		E = ops[ctx.pc++]; F = ops[ctx.pc++];
-		if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
-			return crr_invalid();
-		X = var_get(ctx, C, D);
-		if (X == null)
-			X = 0;
-		if (!oper_isnum(X)){
-			ctx.failed = true;
-			return crr_warn(['Expecting number or list of numbers when ' + erop]);
-		}
-		Y = var_get(ctx, E, F);
-		if (Y == null)
-			Y = 0;
-		if (!oper_isnum(Y)){
-			ctx.failed = true;
-			return crr_warn(['Expecting number or list of numbers when ' + erop]);
-		}
-		var_set(ctx, A, B, oper_bin(X, Y, func));
-		return false;
 	}
 
-	function inline_triop(func, erop){
+	function LOAD_abcdefgh(){
 		ctx.pc++;
 		A = ops[ctx.pc++]; B = ops[ctx.pc++];
 		C = ops[ctx.pc++]; D = ops[ctx.pc++];
 		E = ops[ctx.pc++]; F = ops[ctx.pc++];
 		G = ops[ctx.pc++]; H = ops[ctx.pc++];
-		if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
-			return crr_invalid();
+	}
+
+	function LOAD_abcdefghi(){
+		ctx.pc++;
+		A = ops[ctx.pc++]; B = ops[ctx.pc++];
+		C = ops[ctx.pc++]; D = ops[ctx.pc++];
+		E = ops[ctx.pc++]; F = ops[ctx.pc++];
+		G = ops[ctx.pc++]; H = ops[ctx.pc++];
+		I = ops[ctx.pc++];
+	}
+
+	function INLINE_UNOP(func, erop){
+		LOAD_abcd();
+		if (A > ctx.lex_index || C > ctx.lex_index)
+			return crr_invalid(ctx);
 		X = var_get(ctx, C, D);
 		if (X == null)
 			X = 0;
-		if (!oper_isnum(X)){
-			ctx.failed = true;
-			return crr_warn(['Expecting number or list of numbers when ' + erop]);
-		}
+		if (!oper_isnum(X))
+			return opi_abortstr(ctx, 'Expecting number or list of numbers when ' + erop);
+		var_set(ctx, A, B, oper_un(X, func));
+		return false;
+	}
+
+	function INLINE_BINOP(func, erop){
+		LOAD_abcdef();
+		if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
+			return crr_invalid(ctx);
+		X = var_get(ctx, C, D);
+		if (X == null)
+			X = 0;
+		if (!oper_isnum(X))
+			return opi_abortstr(ctx, 'Expecting number or list of numbers when ' + erop);
 		Y = var_get(ctx, E, F);
 		if (Y == null)
 			Y = 0;
-		if (!oper_isnum(Y)){
-			ctx.failed = true;
-			return crr_warn(['Expecting number or list of numbers when ' + erop]);
-		}
+		if (!oper_isnum(Y))
+			return opi_abortstr(ctx, 'Expecting number or list of numbers when ' + erop);
+		var_set(ctx, A, B, oper_bin(X, Y, func));
+		return false;
+	}
+
+	function INLINE_TRIOP(func, erop){
+		LOAD_abcdefgh();
+		if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
+			return crr_invalid(ctx);
+		X = var_get(ctx, C, D);
+		if (X == null)
+			X = 0;
+		if (!oper_isnum(X))
+			return opi_abortstr(ctx, 'Expecting number or list of numbers when ' + erop);
+		Y = var_get(ctx, E, F);
+		if (Y == null)
+			Y = 0;
+		if (!oper_isnum(Y))
+			return opi_abortstr(ctx, 'Expecting number or list of numbers when ' + erop);
 		Z = var_get(ctx, G, H);
 		if (Z == null)
 			Z = 0;
-		if (!oper_isnum(Z)){
-			ctx.failed = true;
-			return crr_warn(['Expecting number or list of numbers when ' + erop]);
-		}
+		if (!oper_isnum(Z))
+			return opi_abortstr(ctx, 'Expecting number or list of numbers when ' + erop);
 		var_set(ctx, A, B, oper_tri(X, Y, Z, func));
 		return false;
 	}
@@ -5507,318 +5663,225 @@ function context_run(ctx){
 				var errmsg = 'Unknown error';
 				if (A == ABORT_LISTFUNC)
 					errmsg = 'Expecting list when calling function';
-				return crr_warn([errmsg]);
+				return opi_abortstr(ctx, errmsg);
 			} break;
 
 			case OP_MOVE           : { // [TGT], [SRC]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex)
-					return crr_invalid();
+				LOAD_abcd();
+				if (A > ctx.lex_index || C > ctx.lex_index)
+					return crr_invalid(ctx);
 				var_set(ctx, A, B, var_get(ctx, C, D));
 			} break;
 
 			case OP_INC            : { // [TGT/SRC]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				if (A > ctx.lexIndex)
-					return crr_invalid();
+				LOAD_ab();
+				if (A > ctx.lex_index)
+					return crr_invalid(ctx);
 				X = var_get(ctx, A, B);
-				if (!var_isnum(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting number when incrementing']);
-				}
+				if (!sink_typenum(X))
+					return opi_abortstr(ctx, 'Expecting number when incrementing');
 				var_set(ctx, A, B, X + 1);
 			} break;
 
 			case OP_NIL            : { // [TGT]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				if (A > ctx.lexIndex)
-					return crr_invalid();
+				LOAD_ab();
+				if (A > ctx.lex_index)
+					return crr_invalid(ctx);
 				var_set(ctx, A, B, null);
 			} break;
 
 			case OP_NUMPOS         : { // [TGT], [VALUE]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex)
-					return crr_invalid();
+				LOAD_abcd();
+				if (A > ctx.lex_index)
+					return crr_invalid(ctx);
 				var_set(ctx, A, B, C | (D << 8));
 			} break;
 
 			case OP_NUMNEG         : { // [TGT], [VALUE]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex)
-					return crr_invalid();
+				LOAD_abcd();
+				if (A > ctx.lex_index)
+					return crr_invalid(ctx);
 				var_set(ctx, A, B, (C | (D << 8)) - 65536);
 			} break;
 
 			case OP_NUMTBL         : { // [TGT], [INDEX]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex)
-					return crr_invalid();
+				LOAD_abcd();
+				if (A > ctx.lex_index)
+					return crr_invalid(ctx);
 				C = C | (D << 8);
 				if (C >= ctx.prg.numTable.length)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				var_set(ctx, A, B, ctx.prg.numTable[C]);
 			} break;
 
 			case OP_STR            : { // [TGT], [INDEX]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex)
-					return crr_invalid();
+				LOAD_abcd();
+				if (A > ctx.lex_index)
+					return crr_invalid(ctx);
 				C = C | (D << 8);
 				if (C >= ctx.prg.strTable.length)
-					return crr_invalid();
+					return crr_invalid(ctx);
 				var_set(ctx, A, B, ctx.prg.strTable[C]);
 			} break;
 
 			case OP_LIST           : { // [TGT], HINT
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++];
-				if (A > ctx.lexIndex)
-					return crr_invalid();
+				LOAD_abc();
+				if (A > ctx.lex_index)
+					return crr_invalid(ctx);
 				var_set(ctx, A, B, []);
 			} break;
 
 			case OP_ISNUM          : { // [TGT], [SRC]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex)
-					return crr_invalid();
+				LOAD_abcd();
+				if (A > ctx.lex_index || C > ctx.lex_index)
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, var_isnum(X) ? 1 : null);
+				var_set(ctx, A, B, sink_bool(sink_typenum(X)));
 			} break;
 
 			case OP_ISSTR          : { // [TGT], [SRC]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex)
-					return crr_invalid();
+				LOAD_abcd();
+				if (A > ctx.lex_index || C > ctx.lex_index)
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, var_isstr(X) ? 1 : null);
+				var_set(ctx, A, B, sink_bool(sink_typestr(X)));
 			} break;
 
 			case OP_ISLIST         : { // [TGT], [SRC]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex)
-					return crr_invalid();
+				LOAD_abcd();
+				if (A > ctx.lex_index || C > ctx.lex_index)
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, var_islist(X) ? 1 : null);
+				var_set(ctx, A, B, sink_bool(sink_typelist(X)));
 			} break;
 
 			case OP_NOT            : { // [TGT], [SRC]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex)
-					return crr_invalid();
+				LOAD_abcd();
+				if (A > ctx.lex_index || C > ctx.lex_index)
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, X == null ? 1 : null);
+				var_set(ctx, A, B, sink_bool(sink_isfalse(X)));
 			} break;
 
 			case OP_SIZE           : { // [TGT], [SRC]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex)
-					return crr_invalid();
+				LOAD_abcd();
+				if (A > ctx.lex_index || C > ctx.lex_index)
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				if (!var_islist(X) && !var_isstr(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting string or list for size']);
-				}
+				if (!sink_typelist(X) && !sink_typestr(X))
+					return opi_abortstr(ctx, 'Expecting string or list for size');
 				var_set(ctx, A, B, X.length);
 			} break;
 
 			case OP_TONUM          : { // [TGT], [SRC]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex)
-					return crr_invalid();
+				LOAD_abcd();
+				if (A > ctx.lex_index || C > ctx.lex_index)
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				if (!oper_isnilnumstr(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting string when converting to number']);
-				}
-				var_set(ctx, A, B, oper_un(X,
-					function(a){
-						if (var_isnum(a))
-							return a;
-						throw 'TODO: parse string `a` according to sink number rules';
-					}));
+				if (!oper_isnilnumstr(X))
+					return opi_abortstr(ctx, 'Expecting string when converting to number');
+				var_set(ctx, A, B, oper_un(X, unop_tonum));
 			} break;
 
 			case OP_CAT            : { // [TGT], [SRC1], [SRC2]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				E = ops[ctx.pc++]; F = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
-					return crr_invalid();
+				LOAD_abcdef();
+				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				if (var_islist(X) && var_islist(Y))
+				if (sink_typelist(X) && sink_typelist(Y))
 					var_set(ctx, A, B, X.concat(Y));
 				else
-					var_set(ctx, A, B, var_tostr(X) + var_tostr(Y));
+					var_set(ctx, A, B, sink_tostr(X) + sink_tostr(Y));
 			} break;
 
 			case OP_LT             : { // [TGT], [SRC1], [SRC2]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				E = ops[ctx.pc++]; F = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
-					return crr_invalid();
+				LOAD_abcdef();
+				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				if (var_isnum(X) && var_isnum(Y))
-					var_set(ctx, A, B, X < Y ? 1 : null);
-				else if (var_isstr(X) && var_isstr(Y))
-					var_set(ctx, A, B, str_cmp(X, Y) < 0 ? 1 : null);
-				else{
-					ctx.failed = true;
-					return crr_warn(['Expecting numbers or strings']);
-				}
+				if (sink_typenum(X) && sink_typenum(Y))
+					var_set(ctx, A, B, sink_bool(X < Y));
+				else if (sink_typestr(X) && sink_typestr(Y))
+					var_set(ctx, A, B, sink_bool(str_cmp(X, Y) < 0));
+				else
+					return opi_abortstr(ctx, 'Expecting numbers or strings');
 			} break;
 
 			case OP_LTE            : { // [TGT], [SRC1], [SRC2]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				E = ops[ctx.pc++]; F = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
-					return crr_invalid();
+				LOAD_abcdef();
+				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				if (var_isnum(X) && var_isnum(Y))
-					var_set(ctx, A, B, X <= Y ? 1 : null);
-				else if (var_isstr(X) && var_isstr(Y))
-					var_set(ctx, A, B, str_cmp(X, Y) <= 0 ? 1 : null);
-				else{
-					ctx.failed = true;
-					return crr_warn(['Expecting numbers or strings']);
-				}
+				if (sink_typenum(X) && sink_typenum(Y))
+					var_set(ctx, A, B, sink_bool(X <= Y));
+				else if (sink_typestr(X) && sink_typestr(Y))
+					var_set(ctx, A, B, sink_bool(str_cmp(X, Y) <= 0));
+				else
+					return opi_abortstr(ctx, 'Expecting numbers or strings');
 			} break;
 
 			case OP_NEQ            : { // [TGT], [SRC1], [SRC2]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				E = ops[ctx.pc++]; F = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
-					return crr_invalid();
+				LOAD_abcdef();
+				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				if (X == null && Y == null)
-					var_set(ctx, A, B, null);
-				else if (var_isnum(X) && var_isnum(Y))
-					var_set(ctx, A, B, X == Y ? null : 1);
-				else if (var_isstr(X) && var_isstr(Y))
-					var_set(ctx, A, B, str_cmp(X, Y) == 0 ? null : 1);
-				else if (var_islist(X) && var_islist(Y))
-					var_set(ctx, A, B, X === Y ? null : 1);
-				else
-					var_set(ctx, A, B, 1);
+				var_set(ctx, A, B, sink_bool(X !== Y));
 			} break;
 
 			case OP_EQU            : { // [TGT], [SRC1], [SRC2]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				E = ops[ctx.pc++]; F = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
-					return crr_invalid();
+				LOAD_abcdef();
+				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				if (X == null && Y == null)
-					var_set(ctx, A, B, 1);
-				else if (var_isnum(X) && var_isnum(Y))
-					var_set(ctx, A, B, X == Y ? 1 : null);
-				else if (var_isstr(X) && var_isstr(Y))
-					var_set(ctx, A, B, str_cmp(X, Y) == 0 ? 1 : null);
-				else if (var_islist(X) && var_islist(Y))
-					var_set(ctx, A, B, X === Y ? 1 : null);
-				else
-					var_set(ctx, A, B, null);
+				var_set(ctx, A, B, sink_bool(X === Y));
 			} break;
 
 			case OP_GETAT          : { // [TGT], [SRC1], [SRC2]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				E = ops[ctx.pc++]; F = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
-					return crr_invalid();
+				LOAD_abcdef();
+				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				if (var_islist(X)){
+				if (sink_typelist(X)){
 					Y = var_get(ctx, E, F);
-					if (var_isnum(Y)){
-						if (Y < 0)
-							Y += X.length;
-						if (Y < 0 || Y >= X.length)
-							var_set(ctx, A, B, null);
-						else
-							var_set(ctx, A, B, X[Y]);
-					}
-					else{
-						ctx.failed = true;
-						return crr_warn(['Expecting index to be number']);
-					}
+					if (!sink_typenum(Y))
+						return opi_abortstr(ctx, 'Expecting index to be number');
+					if (Y < 0)
+						Y += X.length;
+					if (Y < 0 || Y >= X.length)
+						var_set(ctx, A, B, null);
+					else
+						var_set(ctx, A, B, X[Y]);
 				}
-				else if (var_isstr(X)){
+				else if (sink_typestr(X)){
 					Y = var_get(ctx, E, F);
-					if (var_isnum(Y)){
-						if (Y < 0)
-							Y += X.length;
-						if (Y < 0 || Y >= X.length)
-							var_set(ctx, A, B, null);
-						else
-							var_set(ctx, A, B, X.charAt(Y));
-					}
-					else{
-						ctx.failed = true;
-						return crr_warn(['Expecting index to be number']);
-					}
+					if (!sink_typenum(Y))
+						return opi_abortstr(ctx, 'Expecting index to be number');
+					if (Y < 0)
+						Y += X.length;
+					if (Y < 0 || Y >= X.length)
+						var_set(ctx, A, B, null);
+					else
+						var_set(ctx, A, B, X.charAt(Y));
 				}
-				else{
-					ctx.failed = true;
-					return crr_warn(['Expecting list or string when indexing']);
-				}
+				else
+					return opi_abortstr(ctx, 'Expecting list or string when indexing');
 			} break;
 
 			case OP_SLICE          : { // [TGT], [SRC1], [SRC2], [SRC3]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				E = ops[ctx.pc++]; F = ops[ctx.pc++];
-				G = ops[ctx.pc++]; H = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex || G > ctx.lexIndex)
-					return crr_invalid();
+				LOAD_abcdefgh();
+				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index || G > ctx.lex_index)
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				if (var_islist(X)){
+				if (sink_typelist(X)){
 					Y = var_get(ctx, E, F);
 					Z = var_get(ctx, G, H);
-					if (!var_isnum(Y) || (Z !== null && !var_isnum(Z))){
-						ctx.failed = true;
-						return crr_warn(['Expecting slice values to be numbers']);
-					}
+					if (!sink_typenum(Y) || (Z !== null && !sink_typenum(Z)))
+						return opi_abortstr(ctx, 'Expecting slice values to be numbers');
 					if (X.length <= 0)
 						var_set(ctx, A, B, []);
 					else{
@@ -5831,13 +5894,11 @@ function context_run(ctx){
 						var_set(ctx, A, B, X.slice(Y, Y + Z));
 					}
 				}
-				else if (var_isstr(X)){
+				else if (sink_typestr(X)){
 					Y = var_get(ctx, E, F);
 					Z = var_get(ctx, G, H);
-					if (!var_isnum(Y) || (Z !== null && !var_isnum(Z))){
-						ctx.failed = true;
-						return crr_warn(['Expecting slice values to be numbers']);
-					}
+					if (!sink_typenum(Y) || (Z !== null && !sink_typenum(Z)))
+						return opi_abortstr(ctx, 'Expecting slice values to be numbers');
 					if (X.length <= 0)
 						var_set(ctx, A, B, '');
 					else{
@@ -5850,31 +5911,20 @@ function context_run(ctx){
 						var_set(ctx, A, B, X.substr(Y, Z));
 					}
 				}
-				else{
-					ctx.failed = true;
-					return crr_warn(['Expecting list or string when slicing']);
-				}
+				else
+					return opi_abortstr(ctx, 'Expecting list or string when slicing');
 			} break;
 
 			case OP_SETAT          : { // [SRC1], [SRC2], [SRC3]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				E = ops[ctx.pc++]; F = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
-					return crr_invalid();
-
+				LOAD_abcdef();
+				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
+					return crr_invalid(ctx);
 				X = var_get(ctx, A, B);
-				if (!var_islist(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting list when setting index']);
-				}
-
+				if (!sink_typelist(X))
+					return opi_abortstr(ctx, 'Expecting list when setting index');
 				Y = var_get(ctx, C, D);
-				if (!var_isnum(Y)){
-					ctx.failed = true;
-					return crr_warn(['Expecting index to be number']);
-				}
+				if (!sink_typenum(Y))
+					return opi_abortstr(ctx, 'Expecting index to be number');
 				if (Y < 0)
 					Y += X.length;
 				while (Y >= X.length)
@@ -5884,37 +5934,27 @@ function context_run(ctx){
 			} break;
 
 			case OP_SPLICE         : { // [SRC1], [SRC2], [SRC3], [SRC4]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				E = ops[ctx.pc++]; F = ops[ctx.pc++];
-				G = ops[ctx.pc++]; H = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex || G > ctx.lexIndex)
-					return crr_invalid();
-
+				LOAD_abcdefgh();
+				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index ||
+					G > ctx.lex_index)
+					return crr_invalid(ctx);
 				X = var_get(ctx, A, B);
-				if (!var_islist(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting list when splicing']);
-				}
-
+				if (!sink_typelist(X))
+					return opi_abortstr(ctx, 'Expecting list when splicing');
 				Y = var_get(ctx, C, D);
 				Z = var_get(ctx, E, F);
-				if (!var_isnum(Y) || (Z !== null && !var_isnum(Z))){
-					ctx.failed = true;
-					return crr_warn(['Expecting splice values to be numbers']);
-				}
+				if (!sink_typenum(Y) || (Z !== null && !sink_typenum(Z)))
+					return opi_abortstr(ctx, 'Expecting splice values to be numbers');
 				if (Y < 0)
 					Y += X.length;
 				if (Z === null || Y + Z > X.length)
 					Z = X.length - Y;
-
 				W = var_get(ctx, G, H);
 				if (W == null){
 					if (Y >= 0 && Y < X.length)
 						X.splice(Y, Z);
 				}
-				else if (var_islist(W)){
+				else if (sink_typelist(W)){
 					if (Y >= 0 && Y < X.length){
 						var args = W.concat();
 						args.unshift(Z);
@@ -5922,82 +5962,65 @@ function context_run(ctx){
 						X.splice.apply(X, args);
 					}
 				}
-				else{
-					ctx.failed = true;
-					return crr_warn(['Expecting spliced value to be a list']);
-				}
+				else
+					return opi_abortstr(ctx, 'Expecting spliced value to be a list');
 			} break;
 
 			case OP_JUMP           : { // [[LOCATION]]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
+				LOAD_abcd();
 				A = A + (B << 8) + (C << 16) + ((D << 23) * 2);
 				if (ctx.prg.repl && A == 0xFFFFFFFF){
 					ctx.pc -= 5;
-					return crr_repl();
+					return crr_replmore();
 				}
 				ctx.pc = A;
 			} break;
 
 			case OP_JUMPTRUE       : { // [SRC], [[LOCATION]]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				E = ops[ctx.pc++]; F = ops[ctx.pc++];
-				if (A > ctx.lexIndex)
-					return crr_invalid();
+				LOAD_abcdef();
+				if (A > ctx.lex_index)
+					return crr_invalid(ctx);
 				C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
 				if (var_get(ctx, A, B) != null){
 					if (ctx.prg.repl && C == 0xFFFFFFFF){
 						ctx.pc -= 7;
-						return crr_repl();
+						return crr_replmore();
 					}
 					ctx.pc = C;
 				}
 			} break;
 
 			case OP_JUMPFALSE      : { // [SRC], [[LOCATION]]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				E = ops[ctx.pc++]; F = ops[ctx.pc++];
-				if (A > ctx.lexIndex)
-					return crr_invalid();
+				LOAD_abcdef();
+				if (A > ctx.lex_index)
+					return crr_invalid(ctx);
 				C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
 				if (var_get(ctx, A, B) == null){
 					if (ctx.prg.repl && C == 0xFFFFFFFF){
 						ctx.pc -= 7;
-						return crr_repl();
+						return crr_replmore();
 					}
 					ctx.pc = C;
 				}
 			} break;
 
 			case OP_CALL           : { // [TGT], [SRC], LEVEL, [[LOCATION]]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				E = ops[ctx.pc++];
-				F = ops[ctx.pc++]; G = ops[ctx.pc++];
-				H = ops[ctx.pc++]; I = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
-					return crr_invalid();
+				LOAD_abcdefghi();
+				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
+					return crr_invalid(ctx);
 				F = F + (G << 8) + (H << 16) + ((I << 23) * 2);
 				if (ctx.prg.repl && F == 0xFFFFFFFF){
 					ctx.pc -= 10;
-					return crr_repl();
+					return crr_replmore();
 				}
 				X = var_get(ctx, C, D);
-				if (!var_islist(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting list when calling function']);
-				}
-				ctx.callStack.push(ccs_new(ctx.pc, A, B, ctx.lexIndex));
-				ctx.lexIndex = ctx.lexIndex - E + 1;
-				while (ctx.lexIndex >= ctx.lexStack.length)
-					ctx.lexStack.push(null);
-				ctx.lexStack[ctx.lexIndex] = lxs_new(X, ctx.lexStack[ctx.lexIndex]);
+				if (!sink_typelist(X))
+					return opi_abortstr(ctx, 'Expecting list when calling function');
+				ctx.call_stk.push(ccs_new(ctx.pc, A, B, ctx.lex_index));
+				ctx.lex_index = ctx.lex_index - E + 1;
+				while (ctx.lex_index >= ctx.lex_stk.length)
+					ctx.lex_stk.push(null);
+				ctx.lex_stk[ctx.lex_index] = lxs_new(X, ctx.lex_stk[ctx.lex_index]);
 				ctx.pc = F;
 			} break;
 
@@ -6006,550 +6029,485 @@ function context_run(ctx){
 			} break;
 
 			case OP_RETURN         : { // [SRC]
-				if (ctx.callStack.length <= 0)
+				if (ctx.call_stk.length <= 0)
 					return crr_exitpass();
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				if (A > ctx.lexIndex)
-					return crr_invalid();
+				LOAD_ab();
+				if (A > ctx.lex_index)
+					return crr_invalid(ctx);
 				X = var_get(ctx, A, B);
-				var s = ctx.callStack.pop();
-				ctx.lexStack[ctx.lexIndex] = ctx.lexStack[ctx.lexIndex].next;
-				ctx.lexIndex = s.lexIndex;
+				var s = ctx.call_stk.pop();
+				ctx.lex_stk[ctx.lex_index] = ctx.lex_stk[ctx.lex_index].next;
+				ctx.lex_index = s.lex_index;
 				var_set(ctx, s.fdiff, s.index, X);
 				ctx.pc = s.pc;
 			} break;
 
 			case OP_SAY            : { // [TGT], [SRC...]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex)
-					return crr_invalid();
+				LOAD_abcd();
+				if (A > ctx.lex_index || C > ctx.lex_index)
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				if (!var_islist(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting list when calling say']);
-				}
-				var_set(ctx, A, B, null);
-				return crr_say(X);
+				if (!sink_typelist(X))
+					return opi_abortstr(ctx, 'Expecting list when calling say');
+				var r = opi_say(ctx, X, A, B);
+				if (r !== false)
+					return r;
 			} break;
 
 			case OP_WARN           : { // [TGT], [SRC...]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex)
-					return crr_invalid();
+				LOAD_abcd();
+				if (A > ctx.lex_index || C > ctx.lex_index)
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				if (!var_islist(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting list when calling warn']);
-				}
-				var_set(ctx, A, B, null);
-				return crr_warn(X);
+				if (!sink_typelist(X))
+					return opi_abortstr(ctx, 'Expecting list when calling warn');
+				var r = opi_warn(ctx, X, A, B);
+				if (r !== false)
+					return r;
 			} break;
 
 			case OP_ASK            : { // [TGT], [SRC...]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex)
-					return crr_invalid();
+				LOAD_abcd();
+				if (A > ctx.lex_index || C > ctx.lex_index)
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				if (!var_islist(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting list when calling ask']);
-				}
-				return crr_ask(X, A, B);
+				if (!sink_typelist(X))
+					return opi_abortstr(ctx, 'Expecting list when calling ask');
+				var r = opi_ask(ctx, X, A, B);
+				if (r !== false)
+					return r;
 			} break;
 
 			case OP_EXIT           : { // [TGT], [SRC...]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex)
-					return crr_invalid();
+				LOAD_abcd();
+				if (A > ctx.lex_index || C > ctx.lex_index)
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				if (!var_islist(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting list when calling exit']);
-				}
-				ctx.passed = true;
-				if (X.length > 0)
-					return crr_say(X);
-				return crr_exitpass();
+				if (!sink_typelist(X))
+					return opi_abortstr(ctx, 'Expecting list when calling exit');
+				return opi_exit(ctx, X);
 			} break;
 
 			case OP_ABORT          : { // [TGT], [SRC...]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex)
-					return crr_invalid();
+				LOAD_abcd();
+				if (A > ctx.lex_index || C > ctx.lex_index)
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				if (!var_islist(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting list when calling abort']);
-				}
-				ctx.failed = true;
-				if (X.length > 0)
-					return crr_warn(X);
-				return crr_exitfail();
+				if (!sink_typelist(X))
+					return opi_abortstr(ctx, 'Expecting list when calling abort');
+				return opi_abort(ctx, X);
 			} break;
 
 			case OP_NUM_NEG        : { // [TGT], [SRC]
-				var iu = inline_unop(function(a){ return -a; }, 'negating');
+				var iu = INLINE_UNOP(unop_num_neg, 'negating');
 				if (iu !== false)
 					return iu;
 			} break;
 
 			case OP_NUM_ADD        : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return a + b; }, 'adding');
+				var ib = INLINE_BINOP(binop_num_add, 'adding');
 				if (ib !== false)
 					return ib;
 			} break;
 
 			case OP_NUM_SUB        : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return a - b; }, 'subtracting');
+				var ib = INLINE_BINOP(binop_num_sub, 'subtracting');
 				if (ib !== false)
 					return ib;
 			} break;
 
 			case OP_NUM_MUL        : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return a * b; }, 'multiplying');
+				var ib = INLINE_BINOP(binop_num_mul, 'multiplying');
 				if (ib !== false)
 					return ib;
 			} break;
 
 			case OP_NUM_DIV        : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return a / b; }, 'dividing');
+				var ib = INLINE_BINOP(binop_num_div, 'dividing');
 				if (ib !== false)
 					return ib;
 			} break;
 
 			case OP_NUM_MOD        : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return a % b; }, 'taking modular');
+				var ib = INLINE_BINOP(binop_num_mod, 'taking modular');
 				if (ib !== false)
 					return ib;
 			} break;
 
 			case OP_NUM_POW        : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return Math.pow(a, b); }, 'exponentiating');
+				var ib = INLINE_BINOP(binop_num_pow, 'exponentiating');
 				if (ib !== false)
 					return ib;
 			} break;
 
 			case OP_NUM_ABS        : { // [TGT], [SRC]
-				var iu = inline_unop(function(a){ return Math.abs(a); }, 'taking absolute value');
+				var iu = INLINE_UNOP(unop_num_abs, 'taking absolute value');
 				if (iu !== false)
 					return iu;
 			} break;
 
 			case OP_NUM_SIGN       : { // [TGT], [SRC]
-				var iu = inline_unop(function(a){ return polyfill.Math_sign(a); }, 'taking sign');
+				var iu = INLINE_UNOP(unop_num_sign, 'taking sign');
 				if (iu !== false)
 					return iu;
 			} break;
 
 			case OP_NUM_MAX        : { // [TGT], [SRC...]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex)
-					return crr_invalid();
+				LOAD_abcd();
+				if (A > ctx.lex_index || C > ctx.lex_index)
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				if (!var_islist(X)){
+				if (!sink_typelist(X)){
 					ctx.failed = true;
 					return crr_warn(['Expecting list when calling num.max']);
 				}
-				var_set(ctx, A, B, lib_num_max(X));
+				var_set(ctx, A, B, opi_num_max(X));
 			} break;
 
 			case OP_NUM_MIN        : { // [TGT], [SRC...]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex)
-					return crr_invalid();
+				LOAD_abcd();
+				if (A > ctx.lex_index || C > ctx.lex_index)
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				if (!var_islist(X)){
+				if (!sink_typelist(X)){
 					ctx.failed = true;
 					return crr_warn(['Expecting list when calling num.max']);
 				}
-				var_set(ctx, A, B, lib_num_min(X));
+				var_set(ctx, A, B, opi_num_min(X));
 			} break;
 
 			case OP_NUM_CLAMP      : { // [TGT], [SRC1], [SRC2], [SRC3]
-				var it = inline_triop(function(a, b, c){ return a < b ? b : (a > c ? c : a); },
-					'clamping');
+				var it = INLINE_TRIOP(triop_num_clamp, 'clamping');
 				if (it !== false)
 					return it;
 			} break;
 
 			case OP_NUM_FLOOR      : { // [TGT], [SRC]
-				var iu = inline_unop(function(a){ return Math.floor(a); }, 'taking floor');
+				var iu = INLINE_UNOP(unop_num_floor, 'taking floor');
 				if (iu !== false)
 					return iu;
 			} break;
 
 			case OP_NUM_CEIL       : { // [TGT], [SRC]
-				var iu = inline_unop(function(a){ return Math.ceil(a); }, 'taking ceil');
+				var iu = INLINE_UNOP(unop_num_ceil, 'taking ceil');
 				if (iu !== false)
 					return iu;
 			} break;
 
 			case OP_NUM_ROUND      : { // [TGT], [SRC]
-				var iu = inline_unop(function(a){ return Math.round(a); }, 'rounding');
+				var iu = INLINE_UNOP(unop_num_round, 'rounding');
 				if (iu !== false)
 					return iu;
 			} break;
 
 			case OP_NUM_TRUNC      : { // [TGT], [SRC]
-				var iu = inline_unop(function(a){ return polyfill.Math_trunc(a); }, 'truncating');
+				var iu = INLINE_UNOP(unop_num_truc, 'truncating');
 				if (iu !== false)
 					return iu;
 			} break;
 
 			case OP_NUM_NAN        : { // [TGT]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				if (A > ctx.lexIndex)
-					return crr_invalid();
+				LOAD_ab();
+				if (A > ctx.lex_index)
+					return crr_invalid(ctx);
 				var_set(ctx, A, B, NaN);
 			} break;
 
 			case OP_NUM_INF        : { // [TGT]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				if (A > ctx.lexIndex)
-					return crr_invalid();
+				LOAD_ab();
+				if (A > ctx.lex_index)
+					return crr_invalid(ctx);
 				var_set(ctx, A, B, Infinity);
 			} break;
 
 			case OP_NUM_ISNAN      : { // [TGT], [SRC]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex)
-					return crr_invalid();
+				LOAD_abcd();
+				if (A > ctx.lex_index || C > ctx.lex_index)
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				if (!var_isnum(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting number']);
-				}
-				var_set(ctx, A, B, isNaN(X) ? 1 : null);
+				if (!sink_typenum(X))
+					return opi_abortstr(ctx, 'Expecting number');
+				var_set(ctx, A, B, sink_bool(isNaN(X)));
 			} break;
 
 			case OP_NUM_ISFINITE   : { // [TGT], [SRC]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex)
-					return crr_invalid();
+				LOAD_abcd();
+				if (A > ctx.lex_index || C > ctx.lex_index)
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				if (!var_isnum(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting number']);
-				}
-				var_set(ctx, A, B, isFinite(X) ? 1 : null);
+				if (!sink_typenum(X))
+					return opi_abortstr(ctx, 'Expecting number');
+				var_set(ctx, A, B, sink_bool(isFinite(X)));
 			} break;
 
 			case OP_NUM_E          : { // [TGT]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				if (A > ctx.lexIndex)
-					return crr_invalid();
+				LOAD_ab();
+				if (A > ctx.lex_index)
+					return crr_invalid(ctx);
 				var_set(ctx, A, B, Math.E);
 			} break;
 
 			case OP_NUM_PI         : { // [TGT]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				if (A > ctx.lexIndex)
-					return crr_invalid();
+				LOAD_ab();
+				if (A > ctx.lex_index)
+					return crr_invalid(ctx);
 				var_set(ctx, A, B, Math.PI);
 			} break;
 
 			case OP_NUM_TAU        : { // [TGT]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				if (A > ctx.lexIndex)
-					return crr_invalid();
+				LOAD_ab();
+				if (A > ctx.lex_index)
+					return crr_invalid(ctx);
 				var_set(ctx, A, B, Math.PI * 2);
 			} break;
 
 			case OP_NUM_SIN        : { // [TGT], [SRC]
-				var iu = inline_unop(function(a){ return Math.sin(a); }, 'taking sin');
+				var iu = INLINE_UNOP(unop_num_sin, 'taking sin');
 				if (iu !== false)
 					return iu;
 			} break;
 
 			case OP_NUM_COS        : { // [TGT], [SRC]
-				var iu = inline_unop(function(a){ return Math.cos(a); }, 'taking cos');
+				var iu = INLINE_UNOP(unop_num_cos, 'taking cos');
 				if (iu !== false)
 					return iu;
 			} break;
 
 			case OP_NUM_TAN        : { // [TGT], [SRC]
-				var iu = inline_unop(function(a){ return Math.tan(a); }, 'taking tan');
+				var iu = INLINE_UNOP(unop_num_tan, 'taking tan');
 				if (iu !== false)
 					return iu;
 			} break;
 
 			case OP_NUM_ASIN       : { // [TGT], [SRC]
-				var iu = inline_unop(function(a){ return Math.asin(a); }, 'taking arc-sin');
+				var iu = INLINE_UNOP(unop_num_asin, 'taking arc-sin');
 				if (iu !== false)
 					return iu;
 			} break;
 
 			case OP_NUM_ACOS       : { // [TGT], [SRC]
-				var iu = inline_unop(function(a){ return Math.acos(a); }, 'taking arc-cos');
+				var iu = INLINE_UNOP(unop_num_acos, 'taking arc-cos');
 				if (iu !== false)
 					return iu;
 			} break;
 
 			case OP_NUM_ATAN       : { // [TGT], [SRC]
-				var iu = inline_unop(function(a){ return Math.atan(a); }, 'taking arc-tan');
+				var iu = INLINE_UNOP(unop_num_atan, 'taking arc-tan');
 				if (iu !== false)
 					return iu;
 			} break;
 
 			case OP_NUM_ATAN2      : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return Math.atan2(a, b); }, 'taking arc-tan');
+				var ib = INLINE_BINOP(unop_num_atan2, 'taking arc-tan');
 				if (ib !== false)
 					return ib;
 			} break;
 
 			case OP_NUM_LOG        : { // [TGT], [SRC]
-				var iu = inline_unop(function(a){ return Math.log(a); }, 'taking logarithm');
+				var iu = INLINE_UNOP(unop_num_log, 'taking logarithm');
 				if (iu !== false)
 					return iu;
 			} break;
 
 			case OP_NUM_LOG2       : { // [TGT], [SRC]
-				var iu = inline_unop(function(a){ return polyfill.Math_log2(a); },
-					'taking logarithm');
+				var iu = INLINE_UNOP(unop_num_log2, 'taking logarithm');
 				if (iu !== false)
 					return iu;
 			} break;
 
 			case OP_NUM_LOG10      : { // [TGT], [SRC]
-				var iu = inline_unop(function(a){ return polyfill.Math_log10(a); },
-					'taking logarithm');
+				var iu = INLINE_UNOP(unop_num_log10, 'taking logarithm');
 				if (iu !== false)
 					return iu;
 			} break;
 
 			case OP_NUM_EXP        : { // [TGT], [SRC]
-				var iu = inline_unop(function(a){ return Math.exp(a); }, 'exponentiating');
+				var iu = INLINE_UNOP(unop_num_exp, 'exponentiating');
 				if (iu !== false)
 					return iu;
 			} break;
 
 			case OP_NUM_LERP       : { // [TGT], [SRC1], [SRC2], [SRC3]
-				var it = inline_triop(function(a, b, c){ return a + (b - a) * c; }, 'lerping');
+				var it = INLINE_TRIOP(triop_num_lerp, 'lerping');
 				if (it !== false)
 					return it;
 			} break;
 
 			case OP_NUM_HEX        : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return lib_num_base(a, b, 16); },
-					'converting to hex');
+				var ib = INLINE_BINOP(binop_num_hex, 'converting to hex');
 				if (ib !== false)
 					return ib;
 			} break;
 
 			case OP_NUM_OCT        : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return lib_num_base(a, b, 8); },
-					'converting to oct');
+				var ib = INLINE_BINOP(binop_num_oct, 'converting to oct');
 				if (ib !== false)
 					return ib;
 			} break;
 
 			case OP_NUM_BIN        : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return lib_num_base(a, b, 2); },
-					'converting to bin');
+				var ib = INLINE_BINOP(binop_num_bin, 'converting to bin');
 				if (ib !== false)
 					return ib;
 			} break;
 
+			// TODO: rewrite these to use unop_int_new, binop_int_add, etc
 			case OP_INT_NEW        : { // [TGT], [SRC]
-				var iu = inline_unop(function(a){ return a | 0; }, 'casting to int');
+				var iu = INLINE_UNOP(function(a){ return a | 0; }, 'casting to int');
 				if (iu !== false)
 					return iu;
 			} break;
 
 			case OP_INT_NOT        : { // [TGT], [SRC]
-				var iu = inline_unop(function(a){ return ~a; }, 'NOTing');
+				var iu = INLINE_UNOP(function(a){ return ~a; }, 'NOTing');
 				if (iu !== false)
 					return iu;
 			} break;
 
 			case OP_INT_AND        : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return a & b; }, 'ANDing');
+				var ib = INLINE_BINOP(function(a, b){ return a & b; }, 'ANDing');
 				if (ib !== false)
 					return ib;
 			} break;
 
 			case OP_INT_OR         : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return a | b; }, 'ORing');
+				var ib = INLINE_BINOP(function(a, b){ return a | b; }, 'ORing');
 				if (ib !== false)
 					return ib;
 			} break;
 
 			case OP_INT_XOR        : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return a ^ b; }, 'XORing');
+				var ib = INLINE_BINOP(function(a, b){ return a ^ b; }, 'XORing');
 				if (ib !== false)
 					return ib;
 			} break;
 
 			case OP_INT_SHL        : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return a << b; }, 'shifting left');
+				var ib = INLINE_BINOP(function(a, b){ return a << b; }, 'shifting left');
 				if (ib !== false)
 					return ib;
 			} break;
 
 			case OP_INT_SHR        : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return a >>> b; }, 'shifting right');
+				var ib = INLINE_BINOP(function(a, b){ return a >>> b; }, 'shifting right');
 				if (ib !== false)
 					return ib;
 			} break;
 
 			case OP_INT_SAR        : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return a >> b; }, 'shifting right');
+				var ib = INLINE_BINOP(function(a, b){ return a >> b; }, 'shifting right');
 				if (ib !== false)
 					return ib;
 			} break;
 
 			case OP_INT_ADD        : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return ((a|0) + (b|0)) | 0; }, 'adding');
+				var ib = INLINE_BINOP(function(a, b){ return ((a|0) + (b|0)) | 0; }, 'adding');
 				if (ib !== false)
 					return ib;
 			} break;
 
 			case OP_INT_SUB        : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return ((a|0) - (b|0)) | 0; }, 'subtracting');
+				var ib = INLINE_BINOP(function(a, b){ return ((a|0) - (b|0)) | 0; }, 'subtracting');
 				if (ib !== false)
 					return ib;
 			} break;
 
 			case OP_INT_MUL        : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return polyfill.Math_imul(a, b); },
+				var ib = INLINE_BINOP(function(a, b){ return polyfill.Math_imul(a, b); },
 					'multiplying');
 				if (ib !== false)
 					return ib;
 			} break;
 
 			case OP_INT_DIV        : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return ((a|0) / (b|0)) | 0; }, 'dividing');
+				var ib = INLINE_BINOP(function(a, b){ return ((a|0) / (b|0)) | 0; }, 'dividing');
 				if (ib !== false)
 					return ib;
 			} break;
 
 			case OP_INT_MOD        : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return ((a|0) % (b|0)) | 0; },
+				var ib = INLINE_BINOP(function(a, b){ return ((a|0) % (b|0)) | 0; },
 					'taking modular');
 				if (ib !== false)
 					return ib;
 			} break;
 
 			case OP_INT_CLZ        : { // [TGT], [SRC]
-				var iu = inline_unop(function(a){ return polyfill.Math_clz32(a); },
+				var iu = INLINE_UNOP(function(a){ return polyfill.Math_clz32(a); },
 					'counting leading zeros');
 				if (iu !== false)
 					return iu;
 			} break;
 
 			case OP_RAND_SEED      : { // [TGT], [SRC]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex)
-					return crr_invalid();
+				LOAD_abcd();
+				if (A > ctx.lex_index || C > ctx.lex_index)
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				if (!var_isnum(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting number']);
-				}
-				lib_rand_seed(ctx, X);
+				if (!sink_typenum(X))
+					return opi_abortstr(ctx, 'Expecting number');
+				opi_rand_seed(ctx, X);
 				var_set(ctx, A, B, null);
 			} break;
 
 			case OP_RAND_SEEDAUTO  : { // [TGT]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				if (A > ctx.lexIndex)
-					return crr_invalid();
-				lib_rand_seedauto(ctx);
+				LOAD_ab();
+				if (A > ctx.lex_index)
+					return crr_invalid(ctx);
+				opi_rand_seedauto(ctx);
 				var_set(ctx, A, B, null);
 			} break;
 
 			case OP_RAND_INT       : { // [TGT]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				if (A > ctx.lexIndex)
-					return crr_invalid();
-				var_set(ctx, A, B, lib_rand_int(ctx));
+				LOAD_ab();
+				if (A > ctx.lex_index)
+					return crr_invalid(ctx);
+				var_set(ctx, A, B, opi_rand_int(ctx));
 			} break;
 
 			case OP_RAND_NUM       : { // [TGT]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				if (A > ctx.lexIndex)
-					return crr_invalid();
-				var_set(ctx, A, B, lib_rand_num(ctx));
+				LOAD_ab();
+				if (A > ctx.lex_index)
+					return crr_invalid(ctx);
+				var_set(ctx, A, B, opi_rand_num(ctx));
 			} break;
 
 			case OP_RAND_GETSTATE  : { // [TGT]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				if (A > ctx.lexIndex)
-					return crr_invalid();
-				var_set(ctx, A, B, lib_rand_getstate(ctx));
+				LOAD_ab();
+				if (A > ctx.lex_index)
+					return crr_invalid(ctx);
+				var_set(ctx, A, B, opi_rand_getstate(ctx));
 			} break;
 
 			case OP_RAND_SETSTATE  : { // [TGT], [SRC]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex)
-					return crr_invalid();
+				LOAD_abcd();
+				if (A > ctx.lex_index || C > ctx.lex_index)
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				if (!var_islist(X) || X.length < 2 || !var_isnum(X[0]) || !var_isnum(X[1])){
-					ctx.failed = true;
-					return crr_warn(['Expecting list of two integers']);
-				}
-				lib_rand_setstate(ctx, X[0], X[1]);
+				if (!sink_typelist(X) || X.length < 2 || !sink_typenum(X[0]) || !sink_typenum(X[1]))
+					return opi_abortstr(ctx, 'Expecting list of two integers');
+				opi_rand_setstate(ctx, X[0], X[1]);
 				var_set(ctx, A, B, null);
 			} break;
 
 			case OP_RAND_PICK      : { // [TGT], [SRC]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex)
-					return crr_invalid();
+				LOAD_abcd();
+				if (A > ctx.lex_index || C > ctx.lex_index)
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				if (!var_islist(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting list']);
-				}
-				var_set(ctx, A, B, lib_rand_pick(ctx, X));
+				if (!sink_typelist(X))
+					return opi_abortstr(ctx, 'Expecting list');
+				var_set(ctx, A, B, opi_rand_pick(ctx, X));
 			} break;
 
 			case OP_RAND_SHUFFLE   : { // [TGT], [SRC]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex)
-					return crr_invalid();
+				LOAD_abcd();
+				if (A > ctx.lex_index || C > ctx.lex_index)
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				if (!var_islist(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting list']);
-				}
-				lib_rand_shuffle(ctx, X)
+				if (!sink_typelist(X))
+					return opi_abortstr(ctx, 'Expecting list');
+				opi_rand_shuffle(ctx, X)
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -6642,19 +6600,14 @@ function context_run(ctx){
 			} break;
 
 			case OP_LIST_NEW       : { // [TGT], [SRC1], [SRC2]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				E = ops[ctx.pc++]; F = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
-					return crr_invalid();
+				LOAD_abcdef();
+				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (X == null)
 					X = 0;
-				else if (!var_isnum(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting number for list.new']);
-				}
+				else if (!sink_typenum(X))
+					return opi_abortstr(ctx, 'Expecting number for list.new');
 				Y = var_get(ctx, E, F);
 				var r = [];
 				for (var i = 0; i < X; i++)
@@ -6663,16 +6616,12 @@ function context_run(ctx){
 			} break;
 
 			case OP_LIST_SHIFT     : { // [TGT], [SRC]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex)
-					return crr_invalid();
+				LOAD_abcd();
+				if (A > ctx.lex_index || C > ctx.lex_index)
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				if (!var_islist(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting list when shifting']);
-				}
+				if (!sink_typelist(X))
+					return opi_abortstr(ctx, 'Expecting list when shifting');
 				if (X.length <= 0)
 					var_set(ctx, A, B, null);
 				else
@@ -6680,16 +6629,12 @@ function context_run(ctx){
 			} break;
 
 			case OP_LIST_POP       : { // [TGT], [SRC]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex)
-					return crr_invalid();
+				LOAD_abcd();
+				if (A > ctx.lex_index || C > ctx.lex_index)
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				if (!var_islist(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting list when popping']);
-				}
+				if (!sink_typelist(X))
+					return opi_abortstr(ctx, 'Expecting list when popping');
 				if (X.length <= 0)
 					var_set(ctx, A, B, null);
 				else
@@ -6697,17 +6642,12 @@ function context_run(ctx){
 			} break;
 
 			case OP_LIST_PUSH      : { // [TGT], [SRC1], [SRC2]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				E = ops[ctx.pc++]; F = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
-					return crr_invalid();
+				LOAD_abcdef();
+				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				if (!var_islist(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting list when pushing']);
-				}
+				if (!sink_typelist(X))
+					return opi_abortstr(ctx, 'Expecting list when pushing');
 				Y = var_get(ctx, E, F);
 				X.push(Y);
 				if (A != C || B != D)
@@ -6715,17 +6655,12 @@ function context_run(ctx){
 			} break;
 
 			case OP_LIST_UNSHIFT   : { // [TGT], [SRC1], [SRC2]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				E = ops[ctx.pc++]; F = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
-					return crr_invalid();
+				LOAD_abcdef();
+				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				if (!var_islist(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting list when unshifting']);
-				}
+				if (!sink_typelist(X))
+					return opi_abortstr(ctx, 'Expecting list when unshifting');
 				Y = var_get(ctx, E, F);
 				X.unshift(Y);
 				if (A != C || B != D)
@@ -6733,62 +6668,45 @@ function context_run(ctx){
 			} break;
 
 			case OP_LIST_APPEND    : { // [TGT], [SRC1], [SRC2]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				E = ops[ctx.pc++]; F = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
-					return crr_invalid();
+				LOAD_abcdef();
+				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				if (!var_islist(X) || !var_islist(Y)){
-					ctx.failed = true;
-					return crr_warn(['Expecting list when appending']);
-				}
+				if (!sink_typelist(X) || !sink_typelist(Y))
+					return opi_abortstr(ctx, 'Expecting list when appending');
 				X.push.apply(X, Y);
 				if (A != C || B != D)
 					var_set(ctx, A, B, X);
 			} break;
 
 			case OP_LIST_PREPEND   : { // [TGT], [SRC1], [SRC2]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				E = ops[ctx.pc++]; F = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
-					return crr_invalid();
+				LOAD_abcdef();
+				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				if (!var_islist(X) || !var_islist(Y)){
-					ctx.failed = true;
-					return crr_warn(['Expecting list when prepending']);
-				}
+				if (!sink_typelist(X) || !sink_typelist(Y))
+					return opi_abortstr(ctx, 'Expecting list when prepending');
 				X.unshift.apply(X, Y);
 				if (A != C || B != D)
 					var_set(ctx, A, B, X);
 			} break;
 
 			case OP_LIST_FIND      : { // [TGT], [SRC1], [SRC2], [SRC3]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				E = ops[ctx.pc++]; F = ops[ctx.pc++];
-				G = ops[ctx.pc++]; H = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex || G > ctx.lexIndex)
-					return crr_invalid();
+				LOAD_abcdefgh();
+				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index ||
+					G > ctx.lex_index)
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				if (!var_islist(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting list for list.find']);
-				}
+				if (!sink_typelist(X))
+					return opi_abortstr(ctx, 'Expecting list for list.find');
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
 				if (Z == null)
 					Z = 0;
-				else if (!var_isnum(Z)){
-					ctx.failed = true;
-					return crr_warn(['Expecting number for list.find']);
-				}
+				else if (!sink_typenum(Z))
+					return opi_abortstr(ctx, 'Expecting number for list.find');
 				if (Z < 0 || isNaN(Z))
 					Z = 0;
 				var found = false;
@@ -6804,26 +6722,19 @@ function context_run(ctx){
 			} break;
 
 			case OP_LIST_RFIND     : { // [TGT], [SRC1], [SRC2], [SRC3]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				E = ops[ctx.pc++]; F = ops[ctx.pc++];
-				G = ops[ctx.pc++]; H = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex || G > ctx.lexIndex)
-					return crr_invalid();
+				LOAD_abcdefgh();
+				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index ||
+					G > ctx.lex_index)
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				if (!var_islist(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting list for list.rfind']);
-				}
+				if (!sink_typelist(X))
+					return opi_abortstr(ctx, 'Expecting list for list.rfind');
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
 				if (Z == null)
 					Z = X.length - 1;
-				else if (!var_isnum(Z)){
-					ctx.failed = true;
-					return crr_warn(['Expecting number for list.rfind']);
-				}
+				else if (!sink_typenum(Z))
+					return opi_abortstr(ctx, 'Expecting number for list.rfind');
 				if (Z < 0 || isNaN(Z))
 					Z = X.length - 1;
 				var found = false;
@@ -6839,37 +6750,28 @@ function context_run(ctx){
 			} break;
 
 			case OP_LIST_JOIN      : { // [TGT], [SRC1], [SRC2]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				E = ops[ctx.pc++]; F = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex || E > ctx.lexIndex)
-					return crr_invalid();
+				LOAD_abcdef();
+				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				if (!var_islist(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting list for list.join']);
-				}
+				if (!sink_typelist(X))
+					return opi_abortstr(ctx, 'Expecting list for list.join');
 				Y = var_get(ctx, E, F);
 				if (Y == null)
 					Y = '';
 				var out = [];
 				for (var i = 0; i < X.length; i++)
-					out.push(var_tostr(X[i]));
-				var_set(ctx, A, B, out.join(var_tostr(Y)));
+					out.push(sink_tostr(X[i]));
+				var_set(ctx, A, B, out.join(sink_tostr(Y)));
 			} break;
 
 			case OP_LIST_REV       : { // [TGT], [SRC]
-				ctx.pc++;
-				A = ops[ctx.pc++]; B = ops[ctx.pc++];
-				C = ops[ctx.pc++]; D = ops[ctx.pc++];
-				if (A > ctx.lexIndex || C > ctx.lexIndex)
-					return crr_invalid();
+				LOAD_abcd();
+				if (A > ctx.lex_index || C > ctx.lex_index)
+					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				if (!var_islist(X)){
-					ctx.failed = true;
-					return crr_warn(['Expecting list for list.rev']);
-				}
+				if (!sink_typelist(X))
+					return opi_abortstr(ctx, 'Expecting list for list.rev');
 				X.reverse();
 				var_set(ctx, A, B, X);
 			} break;
@@ -6915,65 +6817,17 @@ function context_run(ctx){
 			} break;
 
 			default:
-				return crr_invalid();
+				return crr_invalid(ctx);
 		}
 	}
 	if (ctx.prg.repl)
-		return crr_repl();
+		return crr_replmore();
 	return crr_exitpass();
 }
 
 //
 // compiler
 //
-
-/*
-
-Example Usage:
-
-	Note: the API user is in charge of file locating and reading
-
-	var cmp = compiler_new(program_new(false));
-
-	function process(){
-		while (true){
-			var cm = compiler_process(cmp);
-			if (cm.type == CMA_OK)
-				break;
-			else if (cm.type == CMA_ERROR)
-				throw new Error(cm.msg);
-			else if (cm.type == CMA_INCLUDE)
-				processFile(cm.file);
-		}
-	}
-
-	function processFile(file){
-		var cf = compiler_pushFile(cmp, file);
-		if (cf.type == CMF_ERROR)
-			throw new Error(cf.msg);
-		while (fileHasData){
-			compiler_add(cmp, "someFileDataAsString");
-			// and/or:
-			compiler_addBytes(cmp, [some, file, data, as, bytes]);
-
-			// incremental processing (optional):
-			process();
-		}
-		compiler_popFile(cmp);
-		process();
-	}
-
-	processFile('./start-file');
-
-If doing a REPL, pass `true` into `compiler_new`, and push your first file as `null` for the name
-
-*/
-
-var UTF8;
-if (typeof window === 'undefined')
-	UTF8 = require('./utf8');
-else
-	UTF8 = window.UTF8;
 
 function comppr_new(flp, tks){
 	return { flp: flp, tks: tks };
@@ -7111,11 +6965,7 @@ function compiler_popFile(cmp){
 	cmp.file.cmprs.push(null); // signify EOF
 }
 
-function compiler_add(cmp, str){
-	compiler_addBytes(cmp, UTF8.encode(str));
-}
-
-function compiler_addBytes(cmp, bytes){
+function compiler_write(cmp, bytes){
 	for (var i = 0; i < bytes.length; i++){
 		var flp = filepos_newCopy(cmp.file.flp);
 
@@ -7154,16 +7004,17 @@ function compiler_level(cmp){
 // JavaScript API
 //
 
-function isPromise(obj){
-	return !!obj && (typeof obj === 'object' || typeof obj === 'function') &&
-		typeof obj.then === 'function';
-}
+var UTF8;
+if (typeof window === 'undefined')
+	UTF8 = require('./utf8');
+else
+	UTF8 = window.UTF8;
 
 var Sink = {
 	valToStr: function(){
 		var out = [];
 		for (var i = 0; i < arguments.length; i++)
-			out.push(var_tostr(arguments[i]));
+			out.push(sink_tostr(arguments[i]));
 		return out.join(' ');
 	},
 	repl: function(prompt, die, fileResolve, fileRead, say, warn){
@@ -7289,13 +7140,13 @@ var Sink = {
 						else if (cr.type == CRR_SAY){
 							var out = [];
 							for (var i = 0; i < cr.args.length; i++)
-								out.push(var_tostr(cr.args[i]));
+								out.push(sink_tostr(cr.args[i]));
 							console.log(out.join(' '));
 						}
 						else if (cr.type == CRR_WARN){
 							var out = [];
 							for (var i = 0; i < cr.args.length; i++)
-								out.push(var_tostr(cr.args[i]));
+								out.push(sink_tostr(cr.args[i]));
 							console.error(out.join(' '));
 						}
 						else{
