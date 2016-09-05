@@ -6,3 +6,13 @@ if typestr pwd
 else
 	say 'fail'
 end
+
+namespace a.b.c.d
+	include 'shell'
+end
+
+if typestr a.b.c.d.pwd
+	say 'pass'
+else
+	say 'fail'
+end
