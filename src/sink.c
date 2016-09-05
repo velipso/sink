@@ -1568,14 +1568,15 @@ static inline void lex_free(lex lx){
 	mem_free(lx);
 }
 
-static lex lex_new(){
-	lex lx = mem_alloc(sizeof(lex_st));
+static void lex_reset(lex lx){
 	lx->state = LEX_START;
 	lx->chR = 0;
 	lx->ch1 = 0;
 	lx->ch2 = 0;
 	lx->ch3 = 0;
 	lx->ch4 = 0;
+	if (lx->str)
+		list_byte_free(lx->str);
 	lx->str = NULL;
 	lx->num_val = 0;
 	lx->num_base = 0;
@@ -1587,6 +1588,12 @@ static lex lex_new(){
 	lx->str_depth = 0;
 	lx->str_hexval = 0;
 	lx->str_hexleft = 0;
+}
+
+static lex lex_new(){
+	lex lx = mem_alloc(sizeof(lex_st));
+	lx->str = NULL;
+	lex_reset(lx);
 	return lx;
 }
 
@@ -9794,7 +9801,7 @@ typedef struct {
 	lex lx;
 	parser pr;
 	program prg; // not freed by compiler_free
-	symtbl sym; // TODO: in the future this will likely be created outside the compiler too
+	symtbl sym;
 	filepos_node flpn;
 	sink_inc_st inc;
 	char *msg;
@@ -9816,19 +9823,16 @@ static compiler compiler_new(program prg, staticinc sinc, sink_inc_st inc, char 
 	return cmp;
 }
 
-static void compiler_resetlp(compiler cmp){
-	lex_free(cmp->lx);
-	cmp->lx = lex_new();
-	parser_free(cmp->pr);
-	cmp->pr = parser_new();
-}
-
 static void compiler_reset(compiler cmp){
 	if (cmp->msg){
 		mem_free(cmp->msg);
 		cmp->msg = NULL;
 	}
-	compiler_resetlp(cmp);
+
+	lex_reset(cmp->lx);
+	parser_free(cmp->pr);
+	cmp->pr = parser_new();
+
 	list_ptr_free(cmp->flpn->tkflps);
 	cmp->flpn->tkflps = list_ptr_new((free_func)tkflp_free);
 }
@@ -9837,6 +9841,7 @@ static void compiler_begininc(compiler cmp, list_ptr names, char *file){
 	cmp->flpn = flpn_new(file, cmp->flpn);
 	if (names)
 		symtbl_pushNamespace(cmp->sym, names);
+	lex_reset(cmp->lx);
 }
 
 static void compiler_endinc(compiler cmp, bool ns){
@@ -9845,13 +9850,14 @@ static void compiler_endinc(compiler cmp, bool ns){
 	filepos_node del = cmp->flpn;
 	cmp->flpn = cmp->flpn->next;
 	flpn_free(del);
-	compiler_resetlp(cmp);
+	lex_reset(cmp->lx);
 }
 
 static char *compiler_write(compiler cmp, const uint8_t *bytes, int size);
-static char *compiler_close(compiler cmp);
+static char *compiler_closeLexer(compiler cmp);
 
 static char *compiler_process(compiler cmp){
+	// generate statements
 	list_ptr stmts = list_ptr_new((free_func)ast_free);
 	while (cmp->flpn->tkflps->size > 0){
 		tkflp tf = list_ptr_shift(cmp->flpn->tkflps);
@@ -9877,64 +9883,63 @@ static char *compiler_process(compiler cmp){
 		tkflp_free(tf);
 	}
 
+	// process statements
 	while (stmts->size > 0){
 		ast stmt = list_ptr_shift(stmts);
 		ast_print(stmt);
 
 		if (stmt->type == AST_INCLUDE){
-			/*
 			// intercept include statements to process by the compiler
-			list_ptr incls = pp.u.stmt->u.incls;
-			for (int i = 0; i < incls->size; i++){
-				incl inc = incls->ptrs[i];
-				const char *file = (const char *)inc->file->bytes;
+			const char *file = (const char *)stmt->u.include.file->bytes;
 
-				// look if file matches a static include pseudo-file
-				bool internal = false;
-				for (int j = 0; j < cmp->sinc->name->size; j++){
-					const char *sinc_name = cmp->sinc->name->ptrs[i];
-					const char *sinc_body = cmp->sinc->body->ptrs[i];
-					if (strcmp(file, sinc_name) == 0){
-						internal = true;
-						compiler_begininc(cmp, inc->names, sink_format("%s", file));
-						char *err = compiler_write(cmp, (const uint8_t *)sinc_body,
-							strlen(sinc_body));
-						if (err){
-							compiler_endinc(cmp, inc->names != NULL);
-							ast_free(pp.u.stmt);
-							tkflp_free(tf);
-							return cmp->msg;
-						}
-						err = compiler_close(cmp);
-						compiler_endinc(cmp, inc->names != NULL);
-						if (err){
-							ast_free(pp.u.stmt);
-							tkflp_free(tf);
-							return cmp->msg;
-						}
-						break;
+			// look if file matches a static include pseudo-file
+			bool internal = false;
+			for (int i = 0; i < cmp->sinc->name->size; i++){
+				const char *sinc_name = cmp->sinc->name->ptrs[i];
+				const char *sinc_body = cmp->sinc->body->ptrs[i];
+				if (strcmp(file, sinc_name) == 0){
+					internal = true;
+					char *err = compiler_closeLexer(cmp);
+					if (err){
+						ast_free(stmt);
+						list_ptr_free(stmts);
+						return cmp->msg;
 					}
+					compiler_begininc(cmp, stmt->u.include.names, sink_format("%s", file));
+					err = compiler_write(cmp, (const uint8_t *)sinc_body,
+						strlen(sinc_body));
+					if (err){
+						compiler_endinc(cmp, stmt->u.include.names != NULL);
+						ast_free(stmt);
+						list_ptr_free(stmts);
+						return cmp->msg;
+					}
+					err = compiler_closeLexer(cmp);
+					compiler_endinc(cmp, stmt->u.include.names != NULL);
+					if (err){
+						ast_free(stmt);
+						list_ptr_free(stmts);
+						return cmp->msg;
+					}
+					break;
 				}
-				if (internal)
-					continue;
-
+			}
+			if (!internal){
 				// resolve the file to an absolute file
-				char *fullfile = cmp->inc.f_resolve(file, inc->flp.file);
+				char *fullfile = cmp->inc.f_resolve(file, stmt->flp.file);
 				if (fullfile == NULL){
-					cmp->msg = sink_format("Failed to include: %s", inc->file->bytes);
-					ast_free(pp.u.stmt);
-					tkflp_free(tf);
+					cmp->msg = sink_format("Failed to include: %s", file);
+					ast_free(stmt);
+					list_ptr_free(stmts);
 					return cmp->msg;
 				}
 				abort();
 				// TODO: f_include
 				mem_free(fullfile);
+				fprintf(stderr, "TODO: includes\n");
+				abort();
+				return NULL;
 			}
-			ast_free(pp.u.stmt);
-			*/
-			fprintf(stderr, "TODO: includes\n");
-			abort();
-			return NULL;
 		}
 		else{
 			list_ptr pgsl = cmp->flpn->pgstate;
@@ -9997,17 +10002,20 @@ static char *compiler_write(compiler cmp, const uint8_t *bytes, int size){
 	return compiler_process(cmp);
 }
 
-static char *compiler_close(compiler cmp){
+static char *compiler_closeLexer(compiler cmp){
 	list_ptr tks = list_ptr_new((free_func)tok_free);
 	lex_close(cmp->lx, tks);
 	if (tks->size > 0)
 		list_ptr_push(cmp->flpn->tkflps, tkflp_new(tks, cmp->flpn->flp));
 	else
 		list_ptr_free(tks);
+	return compiler_process(cmp);
+}
 
-	char *msg = compiler_process(cmp);
-	if (msg)
-		return msg;
+static char *compiler_close(compiler cmp){
+	char *err = compiler_closeLexer(cmp);
+	if (err)
+		return err;
 
 	prr_st pr = parser_close(cmp->pr);
 	if (pr.type == PRR_ERROR){
