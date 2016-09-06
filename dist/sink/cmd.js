@@ -4,6 +4,7 @@
 // Project Home: https://github.com/voidqk/sink
 
 var Sink = require('./sink');
+var SinkShell = require('./sink_shell');
 var fs = require('fs');
 var path = require('path');
 var readline = require('readline');
@@ -39,13 +40,7 @@ function fileResolve(file, fromFile){
 }
 
 function fileRead(file){
-	return new Promise(function(resolve, reject){
-		fs.readFile(file, 'utf8', function(err, data){
-			if (err)
-				return reject(err);
-			resolve(data);
-		});
-	});
+	return fs.readFileSync(file, 'utf8');
 }
 
 function say(str){
@@ -130,7 +125,7 @@ for (var i = 2; i < process.argv.length; i++){
 switch (mode){
 	case 'repl':
 	case 'rest':
-		return Sink.repl(replPrompt(), sinkExit, fileResolve, fileRead, say, warn, ask);
+		return Sink.repl(replPrompt(), sinkExit, fileResolve, fileRead, say, warn, ask, [SinkShell]);
 	case 'version':
 		return printVersion();
 	case 'compile':
@@ -144,5 +139,5 @@ switch (mode){
 	case 'run':
 		if (inFile === false)
 			return printHelp();
-		return Sink.run(inFile, sinkExit, fileResolve, fileRead, say, warn, ask);
+		return Sink.run(inFile, sinkExit, fileResolve, fileRead, say, warn, ask, [SinkShell]);
 }

@@ -9042,7 +9042,7 @@ static sink_run context_run(context ctx){
 					}
 				}
 				if (!found)
-					RETURN_FAIL("Invalid native call2");
+					RETURN_FAIL("Invalid native call");
 			} break;
 
 			case OP_RETURN         : { // [SRC]
@@ -9731,26 +9731,31 @@ static tkflp tkflp_new(list_ptr tks, filepos_st flp){
 
 typedef struct filepos_node_struct filepos_node_st, *filepos_node;
 struct filepos_node_struct {
-	filepos_st flp;
+	lex lx;
 	list_ptr tkflps;
 	list_ptr stmts;
 	list_ptr pgstate;
 	filepos_node next;
+	filepos_st flp;
+	bool wascr;
 };
 
 static filepos_node flpn_new(char *file, filepos_node next){
 	filepos_node flpn = mem_alloc(sizeof(filepos_node_st));
+	flpn->lx = lex_new();
 	flpn->tkflps = list_ptr_new((free_func)tkflp_free);
 	flpn->stmts = list_ptr_new((free_func)ast_free);
 	flpn->pgstate = list_ptr_new((free_func)pgst_free);
 	flpn->flp.file = file;
 	flpn->flp.line = 1;
 	flpn->flp.chr = 1;
+	flpn->wascr = false;
 	flpn->next = next;
 	return flpn;
 }
 
 static void flpn_free(filepos_node flpn){
+	lex_free(flpn->lx);
 	list_ptr_free(flpn->tkflps);
 	list_ptr_free(flpn->stmts);
 	list_ptr_free(flpn->pgstate);
@@ -9784,20 +9789,17 @@ static inline void staticinc_free(staticinc sinc){
 
 typedef struct {
 	staticinc sinc;
-	lex lx;
 	parser pr;
 	program prg; // not freed by compiler_free
 	symtbl sym;
 	filepos_node flpn;
 	sink_inc_st inc;
 	char *msg;
-	bool wascr;
 } compiler_st, *compiler;
 
 static compiler compiler_new(program prg, staticinc sinc, sink_inc_st inc, char *file){
 	compiler cmp = mem_alloc(sizeof(compiler_st));
 	cmp->sinc = sinc;
-	cmp->lx = lex_new();
 	cmp->pr = parser_new();
 	cmp->prg = prg;
 	cmp->sym = symtbl_new(prg->repl);
@@ -9805,7 +9807,6 @@ static compiler compiler_new(program prg, staticinc sinc, sink_inc_st inc, char 
 	cmp->flpn = flpn_new(file, NULL);
 	cmp->inc = inc;
 	cmp->msg = NULL;
-	cmp->wascr = false;
 	return cmp;
 }
 
@@ -9815,7 +9816,7 @@ static void compiler_reset(compiler cmp){
 		cmp->msg = NULL;
 	}
 
-	lex_reset(cmp->lx);
+	lex_reset(cmp->flpn->lx);
 	parser_free(cmp->pr);
 	cmp->pr = parser_new();
 
@@ -9827,7 +9828,6 @@ static void compiler_begininc(compiler cmp, list_ptr names, char *file){
 	cmp->flpn = flpn_new(file, cmp->flpn);
 	if (names)
 		symtbl_pushNamespace(cmp->sym, names);
-	lex_reset(cmp->lx);
 }
 
 static void compiler_endinc(compiler cmp, bool ns){
@@ -9836,7 +9836,6 @@ static void compiler_endinc(compiler cmp, bool ns){
 	filepos_node del = cmp->flpn;
 	cmp->flpn = cmp->flpn->next;
 	flpn_free(del);
-	lex_reset(cmp->lx);
 }
 
 static char *compiler_write(compiler cmp, const uint8_t *bytes, int size);
@@ -9957,30 +9956,31 @@ static char *compiler_process(compiler cmp){
 
 static char *compiler_write(compiler cmp, const uint8_t *bytes, int size){
 	list_ptr tks = NULL;
+	filepos_node flpn = cmp->flpn;
 	for (int i = 0; i < size; i++){
 		if (tks == NULL)
 			tks = list_ptr_new((free_func)tok_free);
-		lex_add(cmp->lx, bytes[i], tks);
+		lex_add(flpn->lx, bytes[i], tks);
 
 		if (tks->size > 0){
-			list_ptr_push(cmp->flpn->tkflps, tkflp_new(tks, cmp->flpn->flp));
+			list_ptr_push(flpn->tkflps, tkflp_new(tks, flpn->flp));
 			tks = NULL;
 		}
 
 		if (bytes[i] == '\n'){
-			if (!cmp->wascr){
-				cmp->flpn->flp.line++;
-				cmp->flpn->flp.chr = 1;
+			if (!flpn->wascr){
+				flpn->flp.line++;
+				flpn->flp.chr = 1;
 			}
-			cmp->wascr = false;
+			flpn->wascr = false;
 		}
 		else if (bytes[i] == '\r'){
-			cmp->flpn->flp.line++;
-			cmp->flpn->flp.chr = 1;
-			cmp->wascr = true;
+			flpn->flp.line++;
+			flpn->flp.chr = 1;
+			flpn->wascr = true;
 		}
 		else
-			cmp->wascr = false;
+			flpn->wascr = false;
 	}
 	if (tks != NULL)
 		list_ptr_free(tks);
@@ -9990,7 +9990,7 @@ static char *compiler_write(compiler cmp, const uint8_t *bytes, int size){
 
 static char *compiler_closeLexer(compiler cmp){
 	list_ptr tks = list_ptr_new((free_func)tok_free);
-	lex_close(cmp->lx, tks);
+	lex_close(cmp->flpn->lx, tks);
 	if (tks->size > 0)
 		list_ptr_push(cmp->flpn->tkflps, tkflp_new(tks, cmp->flpn->flp));
 	else
@@ -10016,7 +10016,6 @@ static char *compiler_close(compiler cmp){
 static void compiler_free(compiler cmp){
 	if (cmp->msg)
 		mem_free(cmp->msg);
-	lex_free(cmp->lx);
 	parser_free(cmp->pr);
 	symtbl_free(cmp->sym);
 	filepos_node flpn = cmp->flpn;

@@ -4,6 +4,7 @@
 	<title>Sink REPL</title>
 	<script src="./utf8.js"></script>
 	<script src="./sink.js"></script>
+	<script src="./sink_shell.js"></script>
 	<style>
 html, body {
 	padding: 0;
@@ -145,7 +146,8 @@ Sink.repl(
 	},
 	function(str){
 		return prompt(str);
-	}
+	},
+	[SinkShell]
 );
 
 	</script>

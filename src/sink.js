@@ -368,10 +368,6 @@ function filepos_new(file, line, chr){
 	return { file: file, line: line, chr: chr };
 }
 
-function filepos_newCopy(flp){
-	return filepos_new(flp.file, flp.line, flp.chr);
-}
-
 function filepos_err(flp, msg){
 	return (flp.file == null ? '' : flp.file + ':') + flp.line + ':' + flp.chr + ': ' + msg;
 }
@@ -5034,9 +5030,9 @@ function native_new(hash, f_native){
 	return { hash: hash, f_native: f_native };
 }
 
-function context_new(prg, say, warn, ask){
+function context_new(prg, say, warn, ask, natives){
 	var ctx = {
-		natives: [],
+		natives: natives,
 		prg: prg,
 		failed: false,
 		passed: false,
@@ -5557,7 +5553,9 @@ function opi_abort(ctx, args){
 }
 
 function opi_abortstr(ctx, str){
-	// TODO: warn `str`
+	var r = ctx.warn(str);
+	if (isPromise(r))
+		throw 'TODO: deal with async warn2';
 	return crr_exitfail(ctx);
 }
 
@@ -6044,7 +6042,28 @@ function context_run(ctx){
 			} break;
 
 			case OP_NATIVE         : { // [TGT], [SRC], [INDEX]
-				throw 'TODO: deal with OP_NATIVE';
+				LOAD_abcdef();
+				if (A > ctx.lex_index || C > ctx.lex_index)
+					return crr_invalid(ctx);
+				X = var_get(ctx, C, D);
+				if (!sink_typelist(X))
+					return opi_abortstr(ctx, 'Expecting list when calling function');
+				E = E | (F << 8);
+				if (E < 0 || E >= ctx.prg.keyTable.length)
+					return opi_abortstr(ctx, 'Invalid native call');
+				E = ctx.prg.keyTable[E];
+				if (!ctx.natives.hasOwnProperty(E))
+					return opi_abortstr(ctx, 'Invalid native call');
+				X = ctx.natives[E].apply(void 0, X);
+				if (isPromise(X))
+					throw new Error('TODO: handle async results from native call');
+				if (typeof X === 'undefined')
+					X = null;
+				if (X === true || X === false)
+					X = sink_bool(X);
+				if (X !== null && !sink_typenum(X) && !sink_typestr(X) && !sink_typelist(X))
+					return opi_abortstr(ctx, 'Invalid return value from native call');
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_RETURN         : { // [SRC]
@@ -6848,31 +6867,52 @@ function context_run(ctx){
 // compiler
 //
 
-function comppr_new(flp, tks){
-	return { flp: flp, tks: tks };
+function tkflp_new(tks, flp){
+	return { tks: tks, flp: flp };
 }
 
-function compiler_new(prg){
+function flpn_new(file, next){
+	return {
+		flp: filepos_new(file, 1, 1),
+		lx: lex_new(),
+		tkflps: [],
+		stmts: [],
+		pgstate: [],
+		next: next
+	};
+}
+
+function compiler_new(prg, file, file_resolve, file_read, includes){
 	var sym = symtbl_new(prg.repl);
 	symtbl_loadStdlib(sym);
 	return {
 		pr: parser_new(),
-		file: null,
 		prg: prg,
-		sym: sym
+		sym: sym,
+		flpn: flpn_new(file, null),
+		file_resolve: file_resolve,
+		file_read: file_read,
+		includes: includes
 	};
 }
 
+function compiler_begininc(cmp, names, file){
+	cmp.flpn = flpn_new(file, cmp.flpn);
+	if (names)
+		symtbl_pushNamespace(cmp.sym, names);
+}
+
+function compiler_endinc(cmp, ns){
+	if (ns)
+		symtbl_popNamespace(cmp.sym);
+	cmp.flpn = cmp.flpn.next;
+}
+
 var CMA_OK      = 'CMA_OK';
-var CMA_INCLUDE = 'CMA_INCLUDE';
 var CMA_ERROR   = 'CMA_ERROR';
 
 function cma_ok(){
 	return { type: CMA_OK };
-}
-
-function cma_include(file){
-	return { type: CMA_INCLUDE, file: file };
 }
 
 function cma_error(msg){
@@ -6880,69 +6920,60 @@ function cma_error(msg){
 }
 
 function compiler_process(cmp){
-	var cmprs = cmp.file.cmprs;
-	for (var c = 0; c < cmprs.length; c++){
-		if (cmprs[c] == null){ // end of file
-			var res = parser_close(cmp.pr);
-			if (res.type == PRR_ERROR)
-				return cma_error(filepos_err(cmp.file.flp, res.msg));
-
-			// actually pop the file
-			cmp.file.cmprs = [];
-			cmp.file = cmp.file.next;
-			if (cmp.file != null && cmp.file.incls.length > 0){
-				// assume user is finished with the next included file
-				if (cmp.file.incls[0].names != null)
-					symtbl_popNamespace(cmp.sym);
-				cmp.file.incls.shift();
-			}
-			return cma_ok();
-		}
-		var flp = cmprs[c].flp;
-		var tks = cmprs[c].tks;
-		var stmts = [];
-		for (var i = 0; i < tks.length; i++){
-			var tk = tks[i];
-			if (tk.type == TOK_ERROR){
-				cmprs.splice(0, c);
-				tks.splice(0, i + 1);
+	var stmts = [];
+	var tkflps = cmp.flpn.tkflps;
+	while (tkflps.length > 0){
+		var tf = tkflps.shift();
+		var tks = tf.tks;
+		var flp = tf.flp;
+		while (tks.length > 0){
+			var tk = tks.shift();
+			if (tk.type == TOK_ERROR)
 				return cma_error(filepos_err(flp, tk.msg));
-			}
-			var res = parser_add(cmp.pr, tk, flp, stmts);
-			if (res.type == PRR_ERROR){
-				cmprs.splice(0, c);
-				tks.splice(0, i + 1);
-				cmp.pr = parser_new(); // reset the parser
-				return cma_error(filepos_err(flp, res.msg));
-			}
-		}
-
-		for (var i = 0; i < stmts.length; i++){
-			var stmt = stmts[i];
-			if (stmt.type == AST_INCLUDE){
-				throw new Error('include');
-			}
-			else{
-				var pr = program_gen(cmp.prg, cmp.sym, stmt,
-					cmp.file.pgstate.length <= 0 ? null :
-					cmp.file.pgstate[cmp.file.pgstate.length - 1]);
-				switch (pr.type){
-					case PGR_OK:
-						break;
-					case PGR_PUSH:
-						cmp.file.pgstate.push(pr.state);
-						break;
-					case PGR_POP:
-						cmp.file.pgstate.pop();
-						break;
-					case PGR_ERROR:
-						return cma_error(filepos_err(stmt.flp, pr.msg));
-				}
-			}
+			var pp = parser_add(cmp.pr, tk, flp, stmts);
+			if (pp.type == PRR_ERROR)
+				return cma_error(filepos_err(flp, pp.msg));
 		}
 	}
 
-	cmp.file.cmprs = [];
+	// process statements
+	while (stmts.length > 0){
+		var stmt = stmts.shift();
+		if (stmt.type == AST_INCLUDE){
+			if (cmp.includes.hasOwnProperty(stmt.file)){
+				compiler_begininc(cmp, stmt.names, stmt.file);
+				var res = compiler_write(cmp, cmp.includes[stmt.file]);
+				if (res.type == CMA_ERROR){
+					compiler_endinc(cmp, stmt.names !== null);
+					return res;
+				}
+				res = compiler_closeLexer(cmp);
+				compiler_endinc(cmp, stmt.names !== null);
+				if (res.type == CMA_ERROR)
+					return res;
+			}
+			else{
+				throw new Error('include');
+			}
+		}
+		else{
+			var pr = program_gen(cmp.prg, cmp.sym, stmt,
+				cmp.flpn.pgstate.length <= 0 ? null :
+				cmp.flpn.pgstate[cmp.flpn.pgstate.length - 1]);
+			switch (pr.type){
+				case PGR_OK:
+					break;
+				case PGR_PUSH:
+					cmp.flpn.pgstate.push(pr.state);
+					break;
+				case PGR_POP:
+					cmp.flpn.pgstate.pop();
+					break;
+				case PGR_ERROR:
+					return cma_error(filepos_err(stmt.flp, pr.msg));
+			}
+		}
+	}
 	return cma_ok();
 }
 
@@ -6957,62 +6988,50 @@ function cmf_error(msg){
 	return { type: CMF_ERROR, msg: msg };
 }
 
-function compiler_pushFile(cmp, file){
-	if (cmp.file != null && cmp.file.incls.length > 0){
-		// assume user is pushing the next included file
-		if (cmp.file.incls[0].names != null){
-			var sr = symtbl_pushNamespace(cmp.sym, cmp.file.incls[0].names);
-			if (sr.type == SPN_ERROR)
-				return cmf_error(filepos_err(cmp.file.incls[0].flp, sr.msg));
-		}
-	}
-	cmp.file = {
-		flp: filepos_new(file, 1, 1),
-		lastret: false,
-		lx: lex_new(),
-		cmprs: [],
-		pgstate: [],
-		next: cmp.file
-	};
-	return cmf_ok();
-}
-
-function compiler_popFile(cmp){
-	var tks = [];
-	lex_close(cmp.file.lx, tks);
-	cmp.file.cmprs.push(comppr_new(cmp.file.flp, tks));
-	cmp.file.cmprs.push(null); // signify EOF
-}
-
 function compiler_write(cmp, bytes){
+	var flpn = cmp.flpn;
 	for (var i = 0; i < bytes.length; i++){
-		var flp = filepos_newCopy(cmp.file.flp);
-
 		var ch = String.fromCharCode(bytes[i]);
-
-		// calculate future line/chr
-		if (ch == '\r'){
-			cmp.file.lastret = true;
-			cmp.file.flp.line++;
-			cmp.file.flp.chr = 1;
-		}
-		else{
-			if (ch == '\n'){
-				if (!cmp.file.lastret){
-					cmp.file.flp.line++;
-					cmp.file.flp.chr = 1;
-				}
-			}
-			else
-				cmp.file.flp.chr++;
-			cmp.file.lastret = false;
-		}
-
 		var tks = [];
-		lex_add(cmp.file.lx, ch, tks);
+		lex_add(flpn.lx, ch, tks);
 		if (tks.length > 0)
-			cmp.file.cmprs.push(comppr_new(flp, tks));
+			flpn.tkflps.push(tkflp_new(tks, flpn.flp));
+
+		if (ch == '\n'){
+			if (!flpn.wascr){
+				flpn.flp.line++;
+				flpn.flp.chr = 1;
+			}
+			flpn.wascr = false;
+		}
+		else if (ch == '\r'){
+			flpn.flp.line++;
+			flpn.flp.chr = 1;
+			flpn.wascr = true;
+		}
+		else
+			flpn.wascr = false;
 	}
+	return compiler_process(cmp);
+}
+
+function compiler_closeLexer(cmp){
+	var tks = [];
+	lex_close(cmp.flpn.lx, tks);
+	if (tks.length > 0)
+		cmp.flpn.tkflps.push(tkflp_new(tks, cmp.flpn.flp));
+	return compiler_process(cmp);
+}
+
+function compiler_close(cmp){
+	var res = compiler_closeLexer(cmp);
+	if (res.type == CMA_ERROR)
+		return res;
+
+	var pr = parser_close(cmp.pr);
+	if (pr.type == PRR_ERROR)
+		return cma_error(filepos_err(cmp.flpn.flp, pr.msg));
+	return cma_ok();
 }
 
 function compiler_level(cmp){
@@ -7029,22 +7048,44 @@ if (typeof window === 'undefined')
 else
 	UTF8 = window.UTF8;
 
+function libs_getIncludes(libs){
+	var out = {};
+	libs.forEach(function(lib){
+		for (var k in lib.includes){
+			if (!lib.includes.hasOwnProperty(k))
+				continue;
+			if (out.hasOwnProperty(k))
+				throw new Error('Cannot have multiple static includes for name: "' + k + '"');
+			out[k] = UTF8.encode(lib.includes[k]);
+		}
+	});
+	return out;
+}
+
+function libs_getNatives(libs){
+	var out = {};
+	libs.forEach(function(lib){
+		for (var k in lib.natives){
+			if (!lib.natives.hasOwnProperty(k))
+				continue;
+			if (out.hasOwnProperty(k))
+				throw new Error('Cannot have multiple native functions for key: "' + k + '"');
+			out[k] = lib.natives[k];
+		}
+	});
+	return out;
+}
+
 var Sink = {
-	repl: function(prompt, die, fileResolve, fileRead, say, warn, ask){
+	repl: function(prompt, die, fileResolve, fileRead, say, warn, ask, libs){
 		var prg = program_new(true);
-		var cmp = compiler_new(prg);
-		var ctx = context_new(prg, say, warn, ask);
-		compiler_pushFile(cmp, null);
-		var depth = 0;
+		var cmp = compiler_new(prg, null, fileResolve, fileRead, libs_getIncludes(libs));
+		var ctx = context_new(prg, say, warn, ask, libs_getNatives(libs));
 
 		function process(){
 			while (true){
 				var cm = compiler_process(cmp);
 				if (cm.type == CMA_OK){
-					if (depth > 0){
-						depth--;
-						continue;
-					}
 					while (true){
 						var cr = context_run(ctx);
 						if (cr == SINK_RUN_REPLMORE)
@@ -7063,115 +7104,47 @@ var Sink = {
 					break;
 				}
 				else if (cm.type == CMA_ERROR)
-					warn(['Error: ' + cm.msg]);
-				else if (cm.type == CMA_INCLUDE){
-					depth++;
-					var r = fileResolve(cm.file, cmp.file.flp.file);
-					if (isPromise(r))
-						r.then(fileResolved).catch(incError);
-					else
-						fileResolved(r);
-					break;
-				}
+					warn('Error: ' + cm.msg);
 			}
-		}
-
-		function fileResolved(file){
-			var r = fileRead(file);
-			if (isPromise(r))
-				r.then(function(data){ fileLoaded(file, data); }).catch(incError);
-			else
-				fileLoaded(file, r);
-		}
-
-		function fileLoaded(file, data){
-			var cf = compiler_pushFile(cmp, file);
-			if (cf.type == CMF_ERROR)
-				throw new Error(cf.msg);
-			compiler_write(cmp, UTF8.encode(data));
-			compiler_popFile(cmp);
-			process();
-		}
-
-		function incError(err){
-			if (err.stack)
-				warn(['' + err.stack ]);
-			else
-				warn(['' + err ]);
-			compiler_pushFile(cmp, 'failure');
-			compiler_popFile(cmp);
-			process();
 		}
 
 		process();
 	},
-	run: function(startFile, die, fileResolve, fileRead, say, warn, ask){
+	run: function(startFile, die, fileResolve, fileRead, say, warn, ask, libs){
 		var prg = program_new(false);
-		var cmp = compiler_new(prg);
-		var depth = 0;
+		var cmp = compiler_new(prg, startFile, fileResolve, fileRead, libs_getIncludes(libs));
 
-		function processFile(file, fromFile){
-			var r = fileResolve(file, fromFile);
-			if (isPromise(r))
-				r.then(fileResolved).catch(incError);
-			else
-				fileResolved(r);
+		var fullFile = fileResolve(startFile, null);
+		if (isPromise(fullFile))
+			throw new Error('TODO: fileResolve returns promise');
+		var data = fileRead(fullFile);
+		if (isPromise(data))
+			throw new Error('TODO: fileRead returns promise');
+		compiler_write(cmp, UTF8.encode(data));
+
+		var cm = compiler_process(cmp);
+		if (cm.type == CMA_ERROR){
+			warn('Error: ' + cm.msg);
+			return die(false);
+		}
+		cm = compiler_close(cmp);
+		if (cm.type == CMA_ERROR){
+			warn('Error: ' + cm.msg);
+			return die(false);
 		}
 
-		function fileResolved(file){
-			var r = fileRead(file);
-			if (isPromise(r))
-				r.then(function(data){ fileLoaded(file, data); }).catch(incError);
-			else
-				fileLoaded(file, r);
-		}
-
-		function fileLoaded(file, data){
-			var cf = compiler_pushFile(cmp, file);
-			if (cf.type == CMF_ERROR)
-				return incError(cf.msg);
-			compiler_write(cmp, UTF8.encode(data));
-			compiler_popFile(cmp);
-			while (true){
-				var cm = compiler_process(cmp);
-				if (cm.type == CMA_OK){
-					if (depth > 0){
-						depth--;
-						continue;
-					}
-
-					// run the finished program
-					var ctx = context_new(prg, say, warn, ask);
-					while (true){
-						var cr = context_run(ctx);
-						if (cr == SINK_RUN_PASS || cr == SINK_RUN_FAIL)
-							return die(cr == SINK_RUN_PASS);
-						else{
-							console.log('cr', cr);
-							throw 'TODO: deal with a different cr';
-						}
-					}
-					return die(true);
-				}
-				else if (cm.type == CMA_ERROR)
-					return incError(cm.msg);
-				else if (cm.type == CMA_INCLUDE){
-					depth++;
-					processFile(cm.file, file);
-					break;
-				}
+		// run the finished program
+		var ctx = context_new(prg, say, warn, ask, libs_getNatives(libs));
+		while (true){
+			var cr = context_run(ctx);
+			if (cr == SINK_RUN_PASS || cr == SINK_RUN_FAIL)
+				return die(cr == SINK_RUN_PASS);
+			else{
+				console.log('cr', cr);
+				throw 'TODO: deal with a different cr';
 			}
 		}
-
-		function incError(err){
-			if (err.stack)
-				console.error(err.stack);
-			else
-				console.error(err.toString());
-			die(false);
-		}
-
-		processFile(startFile, null);
+		return die(true);
 	}
 };
 
