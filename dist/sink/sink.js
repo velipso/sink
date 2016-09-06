@@ -1,4 +1,4 @@
-// (c) Cyright 2016, Sean Connelly (@voidqk), http://syntheti.cc
+// (c) Copyright 2016, Sean Connelly (@voidqk), http://syntheti.cc
 // MIT License
 // Project Home: https://github.com/voidqk/sink
 
@@ -3385,28 +3385,24 @@ function lval_prepare(prg, sym, ex){
 		return lvp_ok(lvr_var(ex.flp, varloc_new(frame_diff(sl.nsn.fr, sym.fr), sl.nsn.index)));
 	}
 	else if (ex.type == EXPR_INDEX){
-		var le = lval_prepare(prg, sym, ex.obj);
-		if (le.type == LVP_ERROR)
-			return le;
-		var pe = program_eval(prg, sym, PEM_CREATE, null, ex.key);
+		var pe = program_eval(prg, sym, PEM_CREATE, null, ex.obj);
 		if (pe.type == PER_ERROR)
 			return lvp_error(pe.flp, pe.msg);
-		return lvp_ok(lvr_index(ex.flp, le.lv, pe.vlc));
+		var obj = pe.vlc;
+		pe = program_eval(prg, sym, PEM_CREATE, null, ex.key);
+		if (pe.type == PER_ERROR)
+			return lvp_error(pe.flp, pe.msg);
+		return lvp_ok(lvr_index(ex.flp, obj, pe.vlc));
 	}
 	else if (ex.type == EXPR_SLICE){
-		var le = lval_prepare(prg, sym, ex.obj);
-		if (le.type == LVP_ERROR)
-			return le;
-
-		var pe = program_lvalGet(prg, sym, PLM_CREATE, null, le.lv);
+		var pe = program_eval(prg, sym, PEM_CREATE, null, ex.obj);
 		if (pe.type == PER_ERROR)
 			return lvp_error(pe.flp, pe.msg);
-
-		var sr = program_slice(prg, sym, pe.vlc, ex);
+		var obj = pe.vlc;
+		var sr = program_slice(prg, sym, obj, ex);
 		if (sr.type == PSR_ERROR)
 			return lvp_error(sr.flp, sr.msg);
-
-		return lvp_ok(lvr_slice(ex.flp, le.lv, sr.start, sr.len));
+		return lvp_ok(lvr_slice(ex.flp, obj, sr.start, sr.len));
 	}
 	else if (ex.type == EXPR_LIST){
 		var body = [];
@@ -3459,11 +3455,11 @@ function lval_clearTemps(lv, sym){
 		case LVR_VAR:
 			return;
 		case LVR_INDEX:
-			lval_clearTemps(lv.obj, sym);
+			symtbl_clearTemp(sym, lv.obj);
 			symtbl_clearTemp(sym, lv.key);
 			return;
 		case LVR_SLICE:
-			lval_clearTemps(lv.obj, sym);
+			symtbl_clearTemp(sym, lv.obj);
 			symtbl_clearTemp(sym, lv.start);
 			symtbl_clearTemp(sym, lv.len);
 			return;
@@ -3488,35 +3484,29 @@ function program_evalLval(prg, sym, mode, intoVlc, lv, mutop, valueVlc){
 			break;
 
 		case LVR_INDEX: {
-			var pe = program_lvalGet(prg, sym, PLM_CREATE, null, lv.obj);
-			if (pe.type == PER_ERROR)
-				return pe;
 			if (mutop < 0)
-				op_setat(prg.ops, pe.vlc, lv.key, valueVlc);
+				op_setat(prg.ops, lv.obj, lv.key, valueVlc);
 			else{
-				pe = program_lvalGet(prg, sym, PLM_CREATE, null, lv);
+				var pe = program_lvalGet(prg, sym, PLM_CREATE, null, lv);
 				if (pe.type == PER_ERROR)
 					return pe;
 				op_binop(prg.ops, mutop, pe.vlc, pe.vlc, valueVlc);
-				op_setat(prg.ops, lv.obj.vlc, lv.key, pe.vlc);
+				op_setat(prg.ops, lv.obj, lv.key, pe.vlc);
 			}
 		} break;
 
 		case LVR_SLICE: {
-			var pe = program_lvalGet(prg, sym, PLM_CREATE, null, lv.obj);
-			if (pe.type == PER_ERROR)
-				return pe;
 			if (mutop < 0)
-				op_splice(prg.ops, pe.vlc, lv.start, lv.len, valueVlc);
+				op_splice(prg.ops, lv.obj, lv.start, lv.len, valueVlc);
 			else{
-				pe = program_lvalGet(prg, sym, PLM_CREATE, null, lv);
+				var pe = program_lvalGet(prg, sym, PLM_CREATE, null, lv);
 				if (pe.type == PER_ERROR)
 					return pe;
 				pe = program_evalLval(prg, sym, PEM_EMPTY, null,
 					lvr_var(lv.flp, lv.vlc), mutop, valueVlc);
 				if (pe.type == PER_ERROR)
 					return pe;
-				op_splice(prg.ops, lv.obj.vlc, lv.start, lv.len, lv.vlc);
+				op_splice(prg.ops, lv.obj, lv.start, lv.len, lv.vlc);
 			}
 		} break;
 
@@ -3624,19 +3614,13 @@ function program_lvalGet(prg, sym, mode, intoVlc, lv){
 		case LVR_VAR:
 			throw new Error('LVR_VAR doesn\'t have vlc set');
 
-		case LVR_INDEX: {
-			var pe = program_lvalGet(prg, sym, PLM_CREATE, null, lv.obj);
-			if (pe.type == PER_ERROR)
-				return pe;
-			op_getat(prg.ops, intoVlc, pe.vlc, lv.key);
-		} break;
+		case LVR_INDEX:
+			op_getat(prg.ops, intoVlc, lv.obj, lv.key);
+			break;
 
-		case LVR_SLICE: {
-			var pe = program_lvalGet(prg, sym, PLM_CREATE, null, lv.obj);
-			if (pe.type == PER_ERROR)
-				return pe;
-			op_slice(prg.ops, intoVlc, pe.vlc, lv.start, lv.len);
-		} break;
+		case LVR_SLICE:
+			op_slice(prg.ops, intoVlc, lv.obj, lv.start, lv.len);
+			break;
 
 		case LVR_LIST: {
 			op_list(prg.ops, intoVlc, lv.body.length);
@@ -3921,11 +3905,6 @@ function program_lvalCheckNil(prg, sym, lv, jumpFalse, inverted, skip){
 		} break;
 
 		case LVR_SLICE: {
-			var pe = program_lvalGet(prg, sym, PLM_CREATE, null, lv.obj);
-			if (pe.type == PER_ERROR)
-				return pe;
-			var obj = pe.vlc;
-
 			var ts = symtbl_addTemp(sym);
 			if (ts.type == STA_ERROR)
 				return per_error(lv.flp, ts.msg);
@@ -3943,7 +3922,7 @@ function program_lvalCheckNil(prg, sym, lv, jumpFalse, inverted, skip){
 			op_nil(prg.ops, t);
 			op_binop(prg.ops, OP_EQU, t, t, lv.len);
 			label_jumpFalse(next, prg.ops, t);
-			op_unop(prg.ops, OP_SIZE, t, obj);
+			op_unop(prg.ops, OP_SIZE, t, lv.obj);
 			op_binop(prg.ops, OP_NUM_SUB, lv.len, t, lv.start);
 
 			label_declare(next, prg.ops);
@@ -3954,7 +3933,7 @@ function program_lvalCheckNil(prg, sym, lv, jumpFalse, inverted, skip){
 			label_jumpFalse(inverted ? keep : skip, prg.ops, t);
 
 			op_binop(prg.ops, OP_NUM_ADD, t, idx, lv.start);
-			op_getat(prg.ops, t, obj, t);
+			op_getat(prg.ops, t, lv.obj, t);
 			if (jumpFalse)
 				label_jumpTrue(inverted ? skip : keep, prg.ops, t);
 			else
@@ -4002,11 +3981,6 @@ function program_lvalCondAssignPart(prg, sym, lv, jumpFalse, valueVlc){
 		} break;
 
 		case LVR_SLICE: {
-			var pe = program_lvalGet(prg, sym, PLM_CREATE, null, lv.obj);
-			if (pe.type == PER_ERROR)
-				return pe;
-			var obj = pe.vlc;
-
 			var ts = symtbl_addTemp(sym);
 			if (ts.type == STA_ERROR)
 				return per_error(lv.flp, ts.msg);
@@ -4029,7 +4003,7 @@ function program_lvalCondAssignPart(prg, sym, lv, jumpFalse, valueVlc){
 			op_nil(prg.ops, t);
 			op_binop(prg.ops, OP_EQU, t, t, lv.len);
 			label_jumpFalse(next, prg.ops, t);
-			op_unop(prg.ops, OP_SIZE, t, obj);
+			op_unop(prg.ops, OP_SIZE, t, lv.obj);
 			op_binop(prg.ops, OP_NUM_SUB, lv.len, t, lv.start);
 
 			label_declare(next, prg.ops);
@@ -4041,14 +4015,14 @@ function program_lvalCondAssignPart(prg, sym, lv, jumpFalse, valueVlc){
 
 			var inc = label_new('^condpartsliceinc');
 			op_binop(prg.ops, OP_NUM_ADD, t, idx, lv.start);
-			op_getat(prg.ops, t2, obj, t);
+			op_getat(prg.ops, t2, lv.obj, t);
 			if (jumpFalse)
 				label_jumpFalse(inc, prg.ops, t2);
 			else
 				label_jumpTrue(inc, prg.ops, t2);
 
 			op_getat(prg.ops, t2, valueVlc, idx);
-			op_setat(prg.ops, obj, t, t2);
+			op_setat(prg.ops, lv.obj, t, t2);
 
 			label_declare(inc, prg.ops);
 			op_inc(prg.ops, idx);
@@ -4524,7 +4498,7 @@ function pgs_if_new(nextcond, ifdone){
 	return { nextcond: nextcond, ifdone: ifdone };
 }
 
-function program_gen(prg, sym, stmt, pst){
+function program_gen(prg, sym, stmt, pst, sayexpr){
 	switch (stmt.type){
 		case AST_BREAK: {
 			if (sym.sc.lblBreak == null)
@@ -4954,7 +4928,7 @@ function program_gen(prg, sym, stmt, pst){
 		} break;
 
 		case AST_EVAL: {
-			if (prg.repl){ // TODO: not entirely true now (program_genBody used to set to false)
+			if (sayexpr){
 				var pr = program_eval(prg, sym, PEM_CREATE, null, stmt.ex);
 				if (pr.type == PER_ERROR)
 					return pgr_error(pr.flp, pr.msg);
@@ -6959,7 +6933,8 @@ function compiler_process(cmp){
 		else{
 			var pr = program_gen(cmp.prg, cmp.sym, stmt,
 				cmp.flpn.pgstate.length <= 0 ? null :
-				cmp.flpn.pgstate[cmp.flpn.pgstate.length - 1]);
+				cmp.flpn.pgstate[cmp.flpn.pgstate.length - 1],
+				cmp.prg.repl && cmp.flpn.next == null && cmp.flpn.pgstate.length == 0);
 			switch (pr.type){
 				case PGR_OK:
 					break;
