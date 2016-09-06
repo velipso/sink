@@ -48,12 +48,16 @@ function fileRead(file){
 	});
 }
 
-function say(args){
-	console.log(Sink.valToStr.apply(Sink, args));
+function say(str){
+	console.log(str);
 }
 
-function warn(args){
-	console.error(Sink.valToStr.apply(Sink, args));
+function warn(str){
+	console.error(str);
+}
+
+function ask(str){
+	throw 'TODO: ask';
 }
 
 function printVersion(){
@@ -126,7 +130,7 @@ for (var i = 2; i < process.argv.length; i++){
 switch (mode){
 	case 'repl':
 	case 'rest':
-		return Sink.repl(replPrompt(), sinkExit, fileResolve, fileRead, say, warn);
+		return Sink.repl(replPrompt(), sinkExit, fileResolve, fileRead, say, warn, ask);
 	case 'version':
 		return printVersion();
 	case 'compile':
@@ -140,5 +144,5 @@ switch (mode){
 	case 'run':
 		if (inFile === false)
 			return printHelp();
-		return Sink.run(inFile, sinkExit, fileResolve, fileRead);
+		return Sink.run(inFile, sinkExit, fileResolve, fileRead, say, warn, ask);
 }

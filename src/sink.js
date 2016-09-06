@@ -5034,13 +5034,16 @@ function native_new(hash, f_native){
 	return { hash: hash, f_native: f_native };
 }
 
-function context_new(prg){
+function context_new(prg, say, warn, ask){
 	var ctx = {
 		natives: [],
 		prg: prg,
 		failed: false,
 		passed: false,
 		invalid: false,
+		say: say,
+		warn: warn,
+		ask: ask,
 		call_stk: [],
 		lex_stk: [lxs_new(null, null)],
 		lex_index: 0,
@@ -5151,6 +5154,13 @@ function sink_tostr(v){
 		return '{' + out.join(', ') + '}';
 	}
 	return tos(v, true);
+}
+
+function sink_list_join(ls, sep){
+	var out = [];
+	for (var i = 0; i < ls.length; i++)
+		out.push(sink_tostr(ls[i]));
+	return out.join(sep);
 }
 
 function arget(ar, index){
@@ -5515,17 +5525,26 @@ function triop_num_lerp(a, b, c){
 }
 
 function opi_say(ctx, args, fdiff, index){
+	var r = ctx.say(sink_list_join(args, ' '));
+	if (isPromise(r))
+		throw 'TODO: deal with async say';
 	var_set(ctx, fdiff, index, null);
 	return false;
 }
 
 function opi_warn(ctx, args, fdiff, index){
+	var r = ctx.warn(sink_list_join(args, ' '));
+	if (isPromise(r))
+		throw 'TODO: deal with async warn';
 	var_set(ctx, fdiff, index, null);
 	return false;
 }
 
 function opi_ask(ctx, args, fdiff, index){
-	var_set(ctx, fdiff, index, null);
+	var r = ctx.ask(sink_list_join(args, ' '));
+	if (isPromise(r))
+		throw 'TODO: deal with async ask';
+	var_set(ctx, fdiff, index, r);
 	return false;
 }
 
@@ -6030,7 +6049,7 @@ function context_run(ctx){
 
 			case OP_RETURN         : { // [SRC]
 				if (ctx.call_stk.length <= 0)
-					return crr_exitpass();
+					return crr_exitpass(ctx);
 				LOAD_ab();
 				if (A > ctx.lex_index)
 					return crr_invalid(ctx);
@@ -6298,7 +6317,7 @@ function context_run(ctx){
 			} break;
 
 			case OP_NUM_ATAN2      : { // [TGT], [SRC1], [SRC2]
-				var ib = INLINE_BINOP(unop_num_atan2, 'taking arc-tan');
+				var ib = INLINE_BINOP(binop_num_atan2, 'taking arc-tan');
 				if (ib !== false)
 					return ib;
 			} break;
@@ -6822,7 +6841,7 @@ function context_run(ctx){
 	}
 	if (ctx.prg.repl)
 		return crr_replmore();
-	return crr_exitpass();
+	return crr_exitpass(ctx);
 }
 
 //
@@ -7011,16 +7030,10 @@ else
 	UTF8 = window.UTF8;
 
 var Sink = {
-	valToStr: function(){
-		var out = [];
-		for (var i = 0; i < arguments.length; i++)
-			out.push(sink_tostr(arguments[i]));
-		return out.join(' ');
-	},
-	repl: function(prompt, die, fileResolve, fileRead, say, warn){
+	repl: function(prompt, die, fileResolve, fileRead, say, warn, ask){
 		var prg = program_new(true);
 		var cmp = compiler_new(prg);
-		var ctx = context_new(prg);
+		var ctx = context_new(prg, say, warn, ask);
 		compiler_pushFile(cmp, null);
 		var depth = 0;
 
@@ -7034,21 +7047,17 @@ var Sink = {
 					}
 					while (true){
 						var cr = context_run(ctx);
-						if (cr.type == CRR_REPL)
+						if (cr == SINK_RUN_REPLMORE)
 							break;
-						else if (cr.type == CRR_EXITPASS || cr.type == CRR_EXITFAIL)
-							return die(cr.type == CRR_EXITPASS);
-						else if (cr.type == CRR_SAY)
-							say(cr.args);
-						else if (cr.type == CRR_WARN)
-							warn(cr.args);
+						else if (cr == SINK_RUN_PASS || cr == SINK_RUN_FAIL)
+							return die(cr == SINK_RUN_PASS);
 						else{
 							console.log('cr', cr);
 							throw 'TODO: deal with a different cr';
 						}
 					}
 					prompt(compiler_level(cmp), function(data){
-						compiler_add(cmp, data);
+						compiler_write(cmp, UTF8.encode(data));
 						process();
 					});
 					break;
@@ -7079,7 +7088,7 @@ var Sink = {
 			var cf = compiler_pushFile(cmp, file);
 			if (cf.type == CMF_ERROR)
 				throw new Error(cf.msg);
-			compiler_add(cmp, data);
+			compiler_write(cmp, UTF8.encode(data));
 			compiler_popFile(cmp);
 			process();
 		}
@@ -7096,7 +7105,7 @@ var Sink = {
 
 		process();
 	},
-	run: function(startFile, die, fileResolve, fileRead){
+	run: function(startFile, die, fileResolve, fileRead, say, warn, ask){
 		var prg = program_new(false);
 		var cmp = compiler_new(prg);
 		var depth = 0;
@@ -7121,7 +7130,7 @@ var Sink = {
 			var cf = compiler_pushFile(cmp, file);
 			if (cf.type == CMF_ERROR)
 				return incError(cf.msg);
-			compiler_add(cmp, data);
+			compiler_write(cmp, UTF8.encode(data));
 			compiler_popFile(cmp);
 			while (true){
 				var cm = compiler_process(cmp);
@@ -7132,23 +7141,11 @@ var Sink = {
 					}
 
 					// run the finished program
-					var ctx = context_new(prg);
+					var ctx = context_new(prg, say, warn, ask);
 					while (true){
 						var cr = context_run(ctx);
-						if (cr.type == CRR_EXITPASS || cr.type == CRR_EXITFAIL)
-							return die(cr.type == CRR_EXITPASS);
-						else if (cr.type == CRR_SAY){
-							var out = [];
-							for (var i = 0; i < cr.args.length; i++)
-								out.push(sink_tostr(cr.args[i]));
-							console.log(out.join(' '));
-						}
-						else if (cr.type == CRR_WARN){
-							var out = [];
-							for (var i = 0; i < cr.args.length; i++)
-								out.push(sink_tostr(cr.args[i]));
-							console.error(out.join(' '));
-						}
+						if (cr == SINK_RUN_PASS || cr == SINK_RUN_FAIL)
+							return die(cr == SINK_RUN_PASS);
 						else{
 							console.log('cr', cr);
 							throw 'TODO: deal with a different cr';
