@@ -5414,11 +5414,11 @@ struct lvr_struct {
 	lvr_enum type;
 	union {
 		struct {
-			lvr obj;
+			varloc_st obj;
 			varloc_st key;
 		} index;
 		struct {
-			lvr obj;
+			varloc_st obj;
 			varloc_st start;
 			varloc_st len;
 		} slice;
@@ -5432,12 +5432,8 @@ struct lvr_struct {
 static inline void lvr_free(lvr lv){
 	switch (lv->type){
 		case LVR_VAR:
-			break;
 		case LVR_INDEX:
-			lvr_free(lv->u.index.obj);
-			break;
 		case LVR_SLICE:
-			lvr_free(lv->u.slice.obj);
 			break;
 		case LVR_LIST:
 			list_ptr_free(lv->u.list.body);
@@ -5456,7 +5452,7 @@ static inline lvr lvr_var(filepos_st flp, varloc_st vlc){
 	return lv;
 }
 
-static inline lvr lvr_index(filepos_st flp, lvr obj, varloc_st key){
+static inline lvr lvr_index(filepos_st flp, varloc_st obj, varloc_st key){
 	lvr lv = mem_alloc(sizeof(lvr_st));
 	lv->flp = flp;
 	lv->vlc = VARLOC_NULL;
@@ -5466,7 +5462,7 @@ static inline lvr lvr_index(filepos_st flp, lvr obj, varloc_st key){
 	return lv;
 }
 
-static inline lvr lvr_slice(filepos_st flp, lvr obj, varloc_st start, varloc_st len){
+static inline lvr lvr_slice(filepos_st flp, varloc_st obj, varloc_st start, varloc_st len){
 	lvr lv = mem_alloc(sizeof(lvr_st));
 	lv->flp = flp;
 	lv->vlc = VARLOC_NULL;
@@ -5578,34 +5574,24 @@ static lvp_st lval_prepare(program prg, symtbl sym, expr ex){
 			varloc_new(frame_diff(sl.u.nsn->u.var.fr, sym->fr), sl.u.nsn->u.var.index)));
 	}
 	else if (ex->type == EXPR_INDEX){
-		lvp_st le = lval_prepare(prg, sym, ex->u.index.obj);
-		if (le.type == LVP_ERROR)
-			return le;
-		per_st pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, ex->u.index.key);
-		if (pe.type == PER_ERROR){
-			lvr_free(le.u.lv);
+		per_st pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, ex->u.index.obj);
+		if (pe.type == PER_ERROR)
 			return lvp_error(pe.u.error.flp, pe.u.error.msg);
-		}
-		return lvp_ok(lvr_index(ex->flp, le.u.lv, pe.u.vlc));
+		varloc_st obj = pe.u.vlc;
+		pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, ex->u.index.key);
+		if (pe.type == PER_ERROR)
+			return lvp_error(pe.u.error.flp, pe.u.error.msg);
+		return lvp_ok(lvr_index(ex->flp, obj, pe.u.vlc));
 	}
 	else if (ex->type == EXPR_SLICE){
-		lvp_st le = lval_prepare(prg, sym, ex->u.slice.obj);
-		if (le.type == LVP_ERROR)
-			return le;
-
-		per_st pe = program_lvalGet(prg, sym, PLM_CREATE, VARLOC_NULL, le.u.lv);
-		if (pe.type == PER_ERROR){
-			lvr_free(le.u.lv);
+		per_st pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, ex->u.slice.obj);
+		if (pe.type == PER_ERROR)
 			return lvp_error(pe.u.error.flp, pe.u.error.msg);
-		}
-
-		psr_st sr = program_slice(prg, sym, pe.u.vlc, ex);
-		if (sr.type == PSR_ERROR){
-			lvr_free(le.u.lv);
+		varloc_st obj = pe.u.vlc;
+		psr_st sr = program_slice(prg, sym, obj, ex);
+		if (sr.type == PSR_ERROR)
 			return lvp_error(sr.u.error.flp, sr.u.error.msg);
-		}
-
-		return lvp_ok(lvr_slice(ex->flp, le.u.lv, sr.u.ok.start, sr.u.ok.len));
+		return lvp_ok(lvr_slice(ex->flp, obj, sr.u.ok.start, sr.u.ok.len));
 	}
 	else if (ex->type == EXPR_LIST){
 		list_ptr body = list_ptr_new((free_func)lvr_free);
@@ -5666,11 +5652,11 @@ static void lval_clearTemps(lvr lv, symtbl sym){
 		case LVR_VAR:
 			return;
 		case LVR_INDEX:
-			lval_clearTemps(lv->u.index.obj, sym);
+			symtbl_clearTemp(sym, lv->u.index.obj);
 			symtbl_clearTemp(sym, lv->u.index.key);
 			return;
 		case LVR_SLICE:
-			lval_clearTemps(lv->u.slice.obj, sym);
+			symtbl_clearTemp(sym, lv->u.index.obj);
 			symtbl_clearTemp(sym, lv->u.slice.start);
 			symtbl_clearTemp(sym, lv->u.slice.len);
 			return;
@@ -5695,28 +5681,22 @@ static per_st program_evalLval(program prg, symtbl sym, pem_enum mode, varloc_st
 			break;
 
 		case LVR_INDEX: {
-			per_st pe = program_lvalGet(prg, sym, PLM_CREATE, VARLOC_NULL, lv->u.index.obj);
-			if (pe.type == PER_ERROR)
-				return pe;
 			if (mutop == OP_INVALID)
-				op_setat(prg->ops, pe.u.vlc, lv->u.index.key, valueVlc);
+				op_setat(prg->ops, lv->u.index.obj, lv->u.index.key, valueVlc);
 			else{
-				pe = program_lvalGet(prg, sym, PLM_CREATE, VARLOC_NULL, lv);
+				per_st pe = program_lvalGet(prg, sym, PLM_CREATE, VARLOC_NULL, lv);
 				if (pe.type == PER_ERROR)
 					return pe;
 				op_binop(prg->ops, mutop, pe.u.vlc, pe.u.vlc, valueVlc);
-				op_setat(prg->ops, lv->u.index.obj->vlc, lv->u.index.key, pe.u.vlc);
+				op_setat(prg->ops, lv->u.index.obj, lv->u.index.key, pe.u.vlc);
 			}
 		} break;
 
 		case LVR_SLICE: {
-			per_st pe = program_lvalGet(prg, sym, PLM_CREATE, VARLOC_NULL, lv->u.slice.obj);
-			if (pe.type == PER_ERROR)
-				return pe;
 			if (mutop == OP_INVALID)
-				op_splice(prg->ops, pe.u.vlc, lv->u.slice.start, lv->u.slice.len, valueVlc);
+				op_splice(prg->ops, lv->u.slice.obj, lv->u.slice.start, lv->u.slice.len, valueVlc);
 			else{
-				pe = program_lvalGet(prg, sym, PLM_CREATE, VARLOC_NULL, lv);
+				per_st pe = program_lvalGet(prg, sym, PLM_CREATE, VARLOC_NULL, lv);
 				if (pe.type == PER_ERROR)
 					return pe;
 				lvr lv2 = lvr_var(lv->flp, lv->vlc);
@@ -5724,8 +5704,7 @@ static per_st program_evalLval(program prg, symtbl sym, pem_enum mode, varloc_st
 				lvr_free(lv2);
 				if (pe.type == PER_ERROR)
 					return pe;
-				op_splice(prg->ops, lv->u.slice.obj->vlc, lv->u.slice.start, lv->u.slice.len,
-					lv->vlc);
+				op_splice(prg->ops, lv->u.slice.obj, lv->u.slice.start, lv->u.slice.len, lv->vlc);
 			}
 		} break;
 
@@ -5836,19 +5815,13 @@ static per_st program_lvalGet(program prg, symtbl sym, plm_enum mode, varloc_st 
 			assert(false);
 			break;
 
-		case LVR_INDEX: {
-			per_st pe = program_lvalGet(prg, sym, PLM_CREATE, VARLOC_NULL, lv->u.index.obj);
-			if (pe.type == PER_ERROR)
-				return pe;
-			op_getat(prg->ops, intoVlc, pe.u.vlc, lv->u.index.key);
-		} break;
+		case LVR_INDEX:
+			op_getat(prg->ops, intoVlc, lv->u.index.obj, lv->u.index.key);
+			break;
 
-		case LVR_SLICE: {
-			per_st pe = program_lvalGet(prg, sym, PLM_CREATE, VARLOC_NULL, lv->u.slice.obj);
-			if (pe.type == PER_ERROR)
-				return pe;
-			op_slice(prg->ops, intoVlc, pe.u.vlc, lv->u.slice.start, lv->u.slice.len);
-		} break;
+		case LVR_SLICE:
+			op_slice(prg->ops, intoVlc, lv->u.slice.obj, lv->u.slice.start, lv->u.slice.len);
+			break;
 
 		case LVR_LIST: {
 			op_list(prg->ops, intoVlc, lv->u.list.body->size);
@@ -6162,11 +6135,6 @@ static per_st program_lvalCheckNil(program prg, symtbl sym, lvr lv, bool jumpFal
 		} break;
 
 		case LVR_SLICE: {
-			per_st pe = program_lvalGet(prg, sym, PLM_CREATE, VARLOC_NULL, lv->u.slice.obj);
-			if (pe.type == PER_ERROR)
-				return pe;
-			varloc_st obj = pe.u.vlc;
-
 			sta_st ts = symtbl_addTemp(sym);
 			if (ts.type == STA_ERROR)
 				return per_error(lv->flp, ts.u.msg);
@@ -6184,7 +6152,7 @@ static per_st program_lvalCheckNil(program prg, symtbl sym, lvr lv, bool jumpFal
 			op_nil(prg->ops, t);
 			op_binop(prg->ops, OP_EQU, t, t, lv->u.slice.len);
 			label_jumpFalse(next, prg->ops, t);
-			op_unop(prg->ops, OP_SIZE, t, obj);
+			op_unop(prg->ops, OP_SIZE, t, lv->u.slice.obj);
 			op_binop(prg->ops, OP_NUM_SUB, lv->u.slice.len, t, lv->u.slice.start);
 
 			label_declare(next, prg->ops);
@@ -6195,7 +6163,7 @@ static per_st program_lvalCheckNil(program prg, symtbl sym, lvr lv, bool jumpFal
 			label_jumpFalse(inverted ? keep : skip, prg->ops, t);
 
 			op_binop(prg->ops, OP_NUM_ADD, t, idx, lv->u.slice.start);
-			op_getat(prg->ops, t, obj, t);
+			op_getat(prg->ops, t, lv->u.slice.obj, t);
 			if (jumpFalse)
 				label_jumpTrue(inverted ? skip : keep, prg->ops, t);
 			else
@@ -6254,11 +6222,6 @@ static per_st program_lvalCondAssignPart(program prg, symtbl sym, lvr lv, bool j
 		} break;
 
 		case LVR_SLICE: {
-			per_st pe = program_lvalGet(prg, sym, PLM_CREATE, VARLOC_NULL, lv->u.slice.obj);
-			if (pe.type == PER_ERROR)
-				return pe;
-			varloc_st obj = pe.u.vlc;
-
 			sta_st ts = symtbl_addTemp(sym);
 			if (ts.type == STA_ERROR)
 				return per_error(lv->flp, ts.u.msg);
@@ -6281,7 +6244,7 @@ static per_st program_lvalCondAssignPart(program prg, symtbl sym, lvr lv, bool j
 			op_nil(prg->ops, t);
 			op_binop(prg->ops, OP_EQU, t, t, lv->u.slice.len);
 			label_jumpFalse(next, prg->ops, t);
-			op_unop(prg->ops, OP_SIZE, t, obj);
+			op_unop(prg->ops, OP_SIZE, t, lv->u.slice.obj);
 			op_binop(prg->ops, OP_NUM_SUB, lv->u.slice.len, t, lv->u.slice.start);
 
 			label_declare(next, prg->ops);
@@ -6293,14 +6256,14 @@ static per_st program_lvalCondAssignPart(program prg, symtbl sym, lvr lv, bool j
 
 			label inc = label_newStr("^condpartsliceinc");
 			op_binop(prg->ops, OP_NUM_ADD, t, idx, lv->u.slice.start);
-			op_getat(prg->ops, t2, obj, t);
+			op_getat(prg->ops, t2, lv->u.slice.obj, t);
 			if (jumpFalse)
 				label_jumpFalse(inc, prg->ops, t2);
 			else
 				label_jumpTrue(inc, prg->ops, t2);
 
 			op_getat(prg->ops, t2, valueVlc, idx);
-			op_setat(prg->ops, obj, t, t2);
+			op_setat(prg->ops, lv->u.slice.obj, t, t2);
 
 			label_declare(inc, prg->ops);
 			op_inc(prg->ops, idx);
