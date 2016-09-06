@@ -8538,7 +8538,7 @@ static inline void opi_list_pushnils(context ctx, sink_list ls, int totalsize){
 		ls->count = totalsize + sink_list_grow;
 		ls->vals = mem_realloc(ls->vals, sizeof(sink_val) * ls->count);
 	}
-	while (ls->size <= totalsize)
+	while (ls->size < totalsize)
 		ls->vals[ls->size++] = SINK_NIL;
 }
 
@@ -8932,12 +8932,12 @@ static sink_run context_run(context ctx){
 				if (!sink_typenum(Y))
 					RETURN_FAIL("Expecting index to be number");
 				ls = var_castlist(ctx, X);
-				Y.f = (int)Y.f;
-				if (Y.f < 0)
-					Y.f += ls->size;
-				opi_list_pushnils(ctx, ls, Y.f);
-				if (Y.f >= 0 && Y.f < ls->size)
-					ls->vals[(int)Y.f] = var_get(ctx, E, F);
+				A = (int)Y.f;
+				if (A < 0)
+					A += ls->size;
+				opi_list_pushnils(ctx, ls, A + 1);
+				if (A >= 0 && A < ls->size)
+					ls->vals[A] = var_get(ctx, E, F);
 			} break;
 
 			case OP_SPLICE         : { // [SRC1], [SRC2], [SRC3], [SRC4]
