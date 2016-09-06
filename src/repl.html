@@ -135,13 +135,16 @@ Sink.repl(
 			reject('Cannot include files in demo');
 		});
 	},
-	function(args){
+	function(str){
 		lines.push('#fff');
-		lines.push(Sink.valToStr.apply(Sink, args));
+		lines.push(str);
 	},
-	function(args){
+	function(str){
 		lines.push('#f00');
-		lines.push(Sink.valToStr.apply(Sink, args));
+		lines.push(str);
+	},
+	function(str){
+		throw 'TODO: ask';
 	}
 );
 
