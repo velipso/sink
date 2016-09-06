@@ -4498,7 +4498,7 @@ function pgs_if_new(nextcond, ifdone){
 	return { nextcond: nextcond, ifdone: ifdone };
 }
 
-function program_gen(prg, sym, stmt, pst){
+function program_gen(prg, sym, stmt, pst, sayexpr){
 	switch (stmt.type){
 		case AST_BREAK: {
 			if (sym.sc.lblBreak == null)
@@ -4928,7 +4928,7 @@ function program_gen(prg, sym, stmt, pst){
 		} break;
 
 		case AST_EVAL: {
-			if (prg.repl){ // TODO: not entirely true now (program_genBody used to set to false)
+			if (sayexpr){
 				var pr = program_eval(prg, sym, PEM_CREATE, null, stmt.ex);
 				if (pr.type == PER_ERROR)
 					return pgr_error(pr.flp, pr.msg);
@@ -6933,7 +6933,8 @@ function compiler_process(cmp){
 		else{
 			var pr = program_gen(cmp.prg, cmp.sym, stmt,
 				cmp.flpn.pgstate.length <= 0 ? null :
-				cmp.flpn.pgstate[cmp.flpn.pgstate.length - 1]);
+				cmp.flpn.pgstate[cmp.flpn.pgstate.length - 1],
+				cmp.prg.repl && cmp.flpn.next == null && cmp.flpn.pgstate.length == 0);
 			switch (pr.type){
 				case PGR_OK:
 					break;

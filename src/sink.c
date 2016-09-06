@@ -6886,7 +6886,7 @@ static inline pgs_if pgs_if_new(label nextcond, label ifdone){
 	return pst;
 }
 
-static inline pgr_st program_gen(program prg, symtbl sym, ast stmt, void *state){
+static inline pgr_st program_gen(program prg, symtbl sym, ast stmt, void *state, bool sayexpr){
 	switch (stmt->type){
 		case AST_BREAK: {
 			if (sym->sc->lblBreak == NULL)
@@ -7395,7 +7395,7 @@ static inline pgr_st program_gen(program prg, symtbl sym, ast stmt, void *state)
 		} break;
 
 		case AST_EVAL: {
-			if (prg->repl){ // TODO: not entirely true now (program_genBody used to set to false)
+			if (sayexpr){
 				per_st pr = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, stmt->u.eval.ex);
 				if (pr.type == PER_ERROR)
 					return pgr_error(pr.u.error.flp, pr.u.error.msg);
@@ -9892,7 +9892,8 @@ static char *compiler_process(compiler cmp){
 		else{
 			list_ptr pgsl = cmp->flpn->pgstate;
 			pgr_st pg = program_gen(cmp->prg, cmp->sym, stmt,
-				pgsl->size <= 0 ? NULL : ((pgst)pgsl->ptrs[pgsl->size - 1])->state);
+				pgsl->size <= 0 ? NULL : ((pgst)pgsl->ptrs[pgsl->size - 1])->state,
+				cmp->prg->repl && cmp->flpn->next == NULL && pgsl->size <= 0);
 			symtbl_print(cmp->sym);
 			switch (pg.type){
 				case PGR_OK:
