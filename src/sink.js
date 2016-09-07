@@ -7096,7 +7096,7 @@ var Sink = {
 		}
 		return read();
 	},
-	run: function(startFile, die, fileResolve, fileRead, say, warn, ask, libs){
+	run: function(startFile, fileResolve, fileRead, say, warn, ask, libs){
 		var prg = program_new(false);
 		var cmp = compiler_new(prg, startFile, fileResolve, fileRead, libs_getIncludes(libs));
 
@@ -7124,13 +7124,12 @@ var Sink = {
 		while (true){
 			var cr = context_run(ctx);
 			if (cr == SINK_RUN_PASS || cr == SINK_RUN_FAIL)
-				return die(cr == SINK_RUN_PASS);
+				return cr == SINK_RUN_PASS;
 			else{
 				console.log('cr', cr);
 				throw 'TODO: deal with a different cr';
 			}
 		}
-		return die(true);
 	}
 };
 

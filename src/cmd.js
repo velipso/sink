@@ -142,5 +142,5 @@ switch (mode){
 	case 'run':
 		if (inFile === false)
 			return printHelp();
-		return Sink.run(inFile, sinkExit, fileResolve, fileRead, say, warn, ask, [SinkShell]);
+		return sinkExit(Sink.run(inFile, fileResolve, fileRead, say, warn, ask, [SinkShell]));
 }
