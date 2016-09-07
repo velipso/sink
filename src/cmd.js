@@ -15,18 +15,19 @@ function replPrompt(){
 		output: process.stdout
 	});
 	var line = 1;
-	// prompt for new line, call `result` with the data
-	return function(levels, result){
-		var p = ': ';
-		if (levels > 0)
-			p = (new Array(levels + 1)).join('..') + '. ';
-		if (line < 10)
-			p = ' ' + line + p;
-		else
-			p = line + p;
-		rl.question(p, function(ans){
-			line++;
-			result(ans + '\n');
+	return function(levels){
+		return new Promise(function(resolve, reject){
+			var p = ': ';
+			if (levels > 0)
+				p = (new Array(levels + 1)).join('..') + '. ';
+			if (line < 10)
+				p = ' ' + line + p;
+			else
+				p = line + p;
+			rl.question(p, function(ans){
+				line++;
+				resolve(ans + '\n');
+			});
 		});
 	};
 }
@@ -125,7 +126,9 @@ for (var i = 2; i < process.argv.length; i++){
 switch (mode){
 	case 'repl':
 	case 'rest':
-		return Sink.repl(replPrompt(), sinkExit, fileResolve, fileRead, say, warn, ask, [SinkShell]);
+		return Sink
+			.repl(replPrompt(), fileResolve, fileRead, say, warn, ask, [SinkShell])
+			.then(sinkExit);
 	case 'version':
 		return printVersion();
 	case 'compile':
