@@ -10033,7 +10033,7 @@ void sink_scr_cleanup(sink_scr scr, void *cuser, sink_free_func f_free){
 	cleanup_add(((script)scr)->cup, cuser, f_free);
 }
 
-char *sink_scr_write(sink_scr scr, uint8_t *bytes, int size){
+char *sink_scr_write(sink_scr scr, const uint8_t *bytes, int size){
 	if (size <= 0)
 		return NULL;
 	script sc = scr;
@@ -10068,6 +10068,14 @@ char *sink_scr_write(sink_scr scr, uint8_t *bytes, int size){
 		}
 		return err;
 	}
+}
+
+void sink_scr_resetpos(sink_scr scr){
+	script sc = scr;
+	if (sc->mode != 2)
+		return;
+	sc->cmp->flpn->flp.line = 1;
+	sc->cmp->flpn->flp.chr = 1;
 }
 
 int sink_scr_level(sink_scr scr){
