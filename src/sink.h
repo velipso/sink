@@ -50,9 +50,13 @@
 #endif
 
 #ifndef SINK_ALLOC
-#	define SINK_ALLOC(s)      malloc(s)
-#   define SINK_REALLOC(p, s) realloc(p, s)
-#	define SINK_FREE(s)       free(s)
+#	define SINK_ALLOC    malloc
+#   define SINK_REALLOC  realloc
+#	define SINK_FREE     free
+#else
+	void *SINK_ALLOC(size_t sz);
+	void *SINK_REALLOC(void *ptr, size_t sz);
+	void SINK_FREE(void *ptr);
 #endif
 
 #ifndef SINK_PANIC

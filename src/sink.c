@@ -10508,11 +10508,27 @@ sink_val  sink_utf8_str(sink_ctx ctx, sink_val a);
 sink_val  sink_struct_size(sink_ctx ctx, sink_val tpl);
 sink_val  sink_struct_str(sink_ctx ctx, sink_val ls, sink_val tpl);
 sink_val  sink_struct_list(sink_ctx ctx, sink_val a, sink_val tpl);
+*/
 
 // lists
-void      sink_list_setuser(sink_ctx ctx, sink_val ls, sink_user usertype, void *user);
-void *    sink_list_getuser(sink_ctx ctx, sink_val ls, sink_user usertype);
-*/
+void sink_list_setuser(sink_ctx ctx, sink_val ls, sink_user usertype, void *user){
+	sink_list ls2 = var_castlist(ctx, ls);
+	if (ls2->usertype >= 0){
+		sink_free_func f_free = ((context)ctx)->f_finalize->ptrs[ls2->usertype];
+		if (f_free)
+			f_free(ls2->user);
+	}
+	ls2->usertype = usertype;
+	ls2->user = user;
+}
+
+void *sink_list_getuser(sink_ctx ctx, sink_val ls, sink_user usertype){
+	sink_list ls2 = var_castlist(ctx, ls);
+	if (ls2->usertype != usertype)
+		return NULL;
+	return ls2->user;
+}
+
 sink_val sink_list_newblob(sink_ctx ctx, const sink_val *vals, int size){
 	int count = size + sink_list_grow;
 	sink_val *copy = mem_alloc(sizeof(sink_val) * count);
