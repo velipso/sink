@@ -3,7 +3,6 @@
 // Project Home: https://github.com/voidqk/sink
 
 #include "sink.h"
-#include <stdarg.h>
 
 #ifdef SINK_MACOSX
 #	include <strings.h>  // ffsll
@@ -7586,6 +7585,7 @@ typedef struct {
 	list_ptr call_stk;
 	list_ptr lex_stk;
 	list_ptr f_finalize;
+	list_ptr user_hint;
 
 	sink_output_func f_say;
 	sink_output_func f_warn;
@@ -7681,6 +7681,7 @@ static inline void context_free(context ctx){
 	list_ptr_free(ctx->call_stk);
 	list_ptr_free(ctx->lex_stk);
 	list_ptr_free(ctx->f_finalize);
+	list_ptr_free(ctx->user_hint);
 	mem_free(ctx->list_tbl);
 	mem_free(ctx->str_tbl);
 	mem_free(ctx->list_aloc);
@@ -7704,6 +7705,7 @@ static inline context context_new(program prg, sink_io_st io){
 	list_ptr_push(ctx->lex_stk, lxs_new(SINK_NIL, NULL));
 	ctx->prg = prg;
 	ctx->f_finalize = list_ptr_new(NULL);
+	ctx->user_hint = list_ptr_new(NULL);
 
 	ctx->f_say = io.f_say;
 	ctx->f_warn = io.f_warn;
@@ -10159,10 +10161,19 @@ void *sink_ctx_getuser(sink_ctx ctx){
 	return ((context)ctx)->user;
 }
 
-sink_user sink_ctx_addusertype(sink_ctx ctx, sink_free_func f_free){
+sink_user sink_ctx_addusertype(sink_ctx ctx, const char *hint, sink_free_func f_free){
 	context ctx2 = ctx;
 	list_ptr_push(ctx2->f_finalize, f_free);
+	list_ptr_push(ctx2->user_hint, (void *)hint);
 	return ctx2->f_finalize->size - 1;
+}
+
+sink_free_func sink_ctx_getuserfree(sink_ctx ctx, sink_user usertype){
+	return ((context)ctx)->f_finalize->ptrs[usertype];
+}
+
+const char *sink_ctx_getuserhint(sink_ctx ctx, sink_user usertype){
+	return ((context)ctx)->user_hint->ptrs[usertype];
 }
 
 void sink_ctx_asyncresult(sink_ctx ctx, sink_val v){
@@ -10203,6 +10214,87 @@ sink_str sink_caststr(sink_ctx ctx, sink_val str){
 
 sink_list sink_castlist(sink_ctx ctx, sink_val ls){
 	return var_castlist(ctx, ls);
+}
+
+bool sink_arg_bool(sink_val *args, int size, int index){
+	if (index < 0 || index >= size)
+		return false;
+	return sink_istrue(args[index]);
+}
+
+bool sink_arg_num(sink_ctx ctx, sink_val *args, int size, int index, double *num){
+	if (index < 0 || index >= size){
+		*num = 0;
+		return true;
+	}
+	switch (sink_typeof(args[index])){
+		case SINK_TYPE_NIL:
+			*num = 0;
+			return true;
+		case SINK_TYPE_NUM:
+			*num = sink_castnum(args[index]);
+			return true;
+		case SINK_TYPE_STR: // TODO: should this perform a number parse?
+		case SINK_TYPE_LIST:
+		case SINK_TYPE_ASYNC:
+			sink_abortformat(ctx, "Expecting number for argument %d", index + 1);
+			return false;
+	}
+}
+
+void sink_arg_str(sink_ctx ctx, sink_val *args, int size, int index, sink_str *str){
+	sink_val v;
+	if (index < 0 || index >= size)
+		v = SINK_NIL;
+	else
+		v = args[index];
+	v = sink_tostr(ctx, v);
+	*str = sink_caststr(ctx, v);
+}
+
+bool sink_arg_list(sink_ctx ctx, sink_val *args, int size, int index, sink_list *ls){
+	if (index < 0 || index >= size){
+		sink_abortformat(ctx, "Expecting list for argument %d", index + 1);
+		*ls = NULL;
+		return false;
+	}
+	if (!sink_typelist(args[index])){
+		sink_abortformat(ctx, "Expecting list for argument %d", index + 1);
+		*ls = NULL;
+		return false;
+	}
+	*ls = sink_castlist(ctx, args[index]);
+	return true;
+}
+
+bool sink_arg_user(sink_ctx ctx, sink_val *args, int size, int index, sink_user usertype,
+	void **user){
+	context ctx2 = ctx;
+	const char *hint = ctx2->user_hint->ptrs[usertype];
+
+	#define ABORT() \
+		sink_abortformat(ctx, "Expecting user type%s%s for argument %d", \
+			hint == NULL ? "" : " ", hint == NULL ? "" : hint, index + 1)
+
+	if (index < 0 || index >= size){
+		ABORT();
+		*user = NULL;
+		return false;
+	}
+	if (!sink_typelist(args[index])){
+		ABORT();
+		*user = NULL;
+		return false;
+	}
+	*user = sink_list_getuser(ctx, args[index], usertype);
+	if (user == NULL){
+		ABORT();
+		return false;
+	}
+
+	#undef ABORT
+
+	return true;
 }
 
 static sink_val sinkhelp_tostr(context ctx, sink_val v, bool first){
@@ -10632,3 +10724,17 @@ bool      sink_pickle_valid(sink_ctx ctx, sink_val a);
 sink_val  sink_pickle_str(sink_ctx ctx, sink_val a);
 sink_val  sink_pickle_val(sink_ctx ctx, sink_val a);
 */
+
+sink_val sink_abortformat(sink_ctx ctx, const char *fmt, ...){
+	va_list args, args2;
+	va_start(args, fmt);
+	va_copy(args2, args);
+	size_t s = vsnprintf(NULL, 0, fmt, args);
+	char *buf = mem_alloc(s + 1);
+	vsprintf(buf, fmt, args2);
+	va_end(args);
+	va_end(args2);
+	sink_val a = sink_str_newblobgive(ctx, (uint8_t *)buf, s);
+	opi_abort(ctx, &a, 1);
+	return SINK_NIL;
+}
