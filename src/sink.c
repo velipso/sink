@@ -10186,6 +10186,11 @@ void sink_ctx_asyncresult(sink_ctx ctx, sink_val v){
 	ctx2->async = false;
 }
 
+bool sink_ctx_ready(sink_ctx ctx){
+	context ctx2 = ctx;
+	return !(ctx2->passed || ctx2->failed || ctx2->invalid || ctx2->async);
+}
+
 void sink_ctx_settimeout(sink_ctx ctx, int timeout){
 	context ctx2 = ctx;
 	ctx2->timeout = timeout;
