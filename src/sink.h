@@ -165,7 +165,9 @@ void      sink_ctx_setuser(sink_ctx ctx, void *user, sink_free_func f_free);
 void *    sink_ctx_getuser(sink_ctx ctx);
 sink_user sink_ctx_addusertype(sink_ctx ctx, sink_free_func f_free);
 void      sink_ctx_asyncresult(sink_ctx ctx, sink_val v);
-void      sink_ctx_timeout(sink_ctx ctx, int timeout);
+void      sink_ctx_settimeout(sink_ctx ctx, int timeout);
+int       sink_ctx_gettimeout(sink_ctx ctx);
+void      sink_ctx_forcetimeout(sink_ctx ctx);
 sink_run  sink_ctx_run(sink_ctx ctx);
 void      sink_ctx_free(sink_ctx ctx);
 

@@ -7608,6 +7608,8 @@ typedef struct {
 	int list_size;
 	int timeout;
 	int timeout_left;
+	int async_fdiff;
+	int async_index;
 
 	uint32_t rand_seed;
 	uint32_t rand_i;
@@ -7615,6 +7617,7 @@ typedef struct {
 	bool passed;
 	bool failed;
 	bool invalid;
+	bool async;
 } context_st, *context;
 
 static inline void context_cleanup(context ctx, void *cuser, sink_free_func f_free){
@@ -7732,6 +7735,7 @@ static inline context context_new(program prg, sink_io_st io){
 	ctx->passed = false;
 	ctx->failed = false;
 	ctx->invalid = false;
+	ctx->async = false;
 
 	opi_rand_seedauto(ctx);
 	return ctx;
@@ -7739,11 +7743,6 @@ static inline context context_new(program prg, sink_io_st io){
 
 static inline bool context_done(context ctx){
 	return ctx->passed || ctx->failed || ctx->invalid;
-}
-
-static inline void context_timeout(context ctx, int timeout){
-	ctx->timeout = timeout;
-	ctx->timeout_left = timeout;
 }
 
 static inline sink_run crr_exitpass(context ctx){
@@ -7761,7 +7760,8 @@ static inline sink_run crr_exitfail(context ctx){
 	return SINK_RUN_FAIL;
 }
 
-static inline sink_run crr_async(){
+static inline sink_run crr_async(context ctx){
+	ctx->async = true;
 	return SINK_RUN_ASYNC;
 }
 
@@ -8595,6 +8595,8 @@ static sink_run context_run(context ctx){
 		return crr_exitfail(ctx);
 	if (ctx->invalid)
 		return crr_invalid(ctx);
+	if (ctx->async)
+		return crr_async(ctx);
 
 	int A, B, C, D, E, F, G, H, I;
 	sink_val X, Y, Z, W;
@@ -8996,7 +8998,9 @@ static sink_run context_run(context ctx){
 						ls = var_castlist(ctx, X);
 						X = nat->f_native(ctx, nat->nuser, ls->vals, ls->size);
 						if (sink_isasync(X)){
-							RETURN_FAIL("TODO: handle async native functions");
+							ctx->async_fdiff = A;
+							ctx->async_index = B;
+							return crr_async(ctx);
 						}
 						else{
 							var_set(ctx, A, B, X);
@@ -9494,7 +9498,7 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, opi_list_new(ctx, X, Y));
 			} break;
 
-			case OP_LIST_SHIFT      : { // [TGT], [SRC]
+			case OP_LIST_SHIFT     : { // [TGT], [SRC]
 				LOAD_ABCD();
 				X = var_get(ctx, C, D);
 				if (!sink_typelist(X))
@@ -9502,7 +9506,7 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, opi_list_shift(ctx, X));
 			} break;
 
-			case OP_LIST_POP        : { // [TGT], [SRC]
+			case OP_LIST_POP       : { // [TGT], [SRC]
 				LOAD_ABCD();
 				X = var_get(ctx, C, D);
 				if (!sink_typelist(X))
@@ -9645,6 +9649,13 @@ static sink_run context_run(context ctx){
 			default:
 				debugf("invalid opcode %02X", ops->bytes[ctx->pc]);
 				return crr_invalid(ctx);
+		}
+		if (ctx->timeout > 0){
+			ctx->timeout_left--;
+			if (ctx->timeout_left <= 0){
+				ctx->timeout_left = ctx->timeout;
+				return crr_timeout();
+			}
 		}
 	}
 
@@ -10155,9 +10166,27 @@ sink_user sink_ctx_addusertype(sink_ctx ctx, sink_free_func f_free){
 }
 
 void sink_ctx_asyncresult(sink_ctx ctx, sink_val v){
+	context ctx2 = ctx;
+	if (!ctx2->async){
+		assert(false);
+		return;
+	}
+	var_set(ctx2, ctx2->async_fdiff, ctx2->async_index, v);
+	ctx2->async = false;
 }
 
-void sink_ctx_timeout(sink_ctx ctx, int timeout){
+void sink_ctx_settimeout(sink_ctx ctx, int timeout){
+	context ctx2 = ctx;
+	ctx2->timeout = timeout;
+	ctx2->timeout_left = timeout;
+}
+
+int sink_ctx_gettimeout(sink_ctx ctx){
+	return ((context)ctx)->timeout;
+}
+
+void sink_ctx_forcetimeout(sink_ctx ctx){
+	((context)ctx)->timeout_left = 0;
 }
 
 sink_run sink_ctx_run(sink_ctx ctx){

@@ -5522,7 +5522,11 @@ function opi_exit(ctx, args){
 	return crr_exitpass(ctx);
 }
 
-function opi_abort(ctx, args){
+function opi_abort(ctx, args, force){
+	if (force){
+		ctx.failed = true;
+		return SINK_RUN_FAIL;
+	}
 	return crr_exitfail(ctx);
 }
 
@@ -6107,7 +6111,7 @@ function context_run(ctx){
 				X = var_get(ctx, C, D);
 				if (!sink_typelist(X))
 					return opi_abortstr(ctx, 'Expecting list when calling abort');
-				return opi_abort(ctx, X);
+				return opi_abort(ctx, X, true);
 			} break;
 
 			case OP_NUM_NEG        : { // [TGT], [SRC]
@@ -7052,40 +7056,47 @@ function libs_getNatives(libs){
 }
 
 var Sink = {
-	repl: function(prompt, die, fileResolve, fileRead, say, warn, ask, libs){
+	repl: function(prompt, fileResolve, fileRead, say, warn, ask, libs){
 		var prg = program_new(true);
 		var cmp = compiler_new(prg, null, fileResolve, fileRead, libs_getIncludes(libs));
 		var ctx = context_new(prg, say, warn, ask, libs_getNatives(libs));
 
-		function process(){
-			while (true){
-				var cm = compiler_process(cmp);
-				if (cm.type == CMA_OK){
-					while (true){
-						var cr = context_run(ctx);
-						if (cr == SINK_RUN_REPLMORE)
-							break;
-						else if (cr == SINK_RUN_PASS || cr == SINK_RUN_FAIL)
-							return die(cr == SINK_RUN_PASS);
-						else{
-							console.log('cr', cr);
-							throw 'TODO: deal with a different cr';
-						}
-					}
-					prompt(compiler_level(cmp), function(data){
-						compiler_write(cmp, UTF8.encode(data));
-						process();
-					});
-					break;
+		function process(data){
+			compiler_write(cmp, UTF8.encode(data));
+			var cm = compiler_process(cmp);
+			if (cm.type == CMA_OK){
+				var cr = context_run(ctx);
+				if (cr == SINK_RUN_REPLMORE)
+					/* do nothing */;
+				else if (cr == SINK_RUN_PASS || cr == SINK_RUN_FAIL)
+					return cr == SINK_RUN_PASS; // true/false means script finished
+				else{
+					// SINK_RUN_ASYNC, SINK_RUN_TIMEOUT, SINK_RUN_INVALID
+					console.log('cr', cr);
+					throw 'TODO: deal with a different cr';
 				}
-				else if (cm.type == CMA_ERROR)
-					warn('Error: ' + cm.msg);
 			}
+			else if (cm.type == CMA_ERROR)
+				warn('Error: ' + cm.msg);
+			return null; // null means read more
 		}
 
-		process();
+		function read(){
+			var p = prompt(compiler_level(cmp));
+			if (isPromise(p)){
+				return p.then(function(data){
+					var pp = process(data);
+					if (pp === null)
+						return read();
+					return pp;
+				});
+			}
+			process(p);
+			return read();
+		}
+		return read();
 	},
-	run: function(startFile, die, fileResolve, fileRead, say, warn, ask, libs){
+	run: function(startFile, fileResolve, fileRead, say, warn, ask, libs){
 		var prg = program_new(false);
 		var cmp = compiler_new(prg, startFile, fileResolve, fileRead, libs_getIncludes(libs));
 
@@ -7113,13 +7124,12 @@ var Sink = {
 		while (true){
 			var cr = context_run(ctx);
 			if (cr == SINK_RUN_PASS || cr == SINK_RUN_FAIL)
-				return die(cr == SINK_RUN_PASS);
+				return cr == SINK_RUN_PASS;
 			else{
 				console.log('cr', cr);
 				throw 'TODO: deal with a different cr';
 			}
 		}
-		return die(true);
 	}
 };
 
