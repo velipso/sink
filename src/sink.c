@@ -10675,8 +10675,21 @@ sink_val sink_list_newblobgive(sink_ctx ctx, sink_val *vals, int size, int count
 	ls->usertype = -1;
 	return (sink_val){ .u = SINK_TAG_LIST | index };
 }
+
+sink_val sink_list_new(sink_ctx ctx, sink_val a, sink_val b){
+	if (!sink_typenum(a))
+		return sink_abortformat(ctx, "Expecting number");
+	int size = (int)sink_castnum(a);
+	if (size < 0)
+		size = 0;
+	int count = size < sink_list_grow ? sink_list_grow : size;
+	sink_val *vals = mem_alloc(sizeof(sink_val) * count);
+	for (int i = 0; i < size; i++)
+		vals[i] = b;
+	return sink_list_newblobgive(ctx, vals, size, count);
+}
+
 /*
-sink_val  sink_list_new(sink_ctx ctx, sink_val a, sink_val b);
 sink_val  sink_list_cat(sink_ctx ctx, sink_val ls1, sink_val ls2);
 int       sink_list_size(sink_ctx ctx, sink_val ls);
 sink_val  sink_list_slice(sink_ctx ctx, sink_val ls, sink_val start, sink_val len);
