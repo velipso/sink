@@ -103,8 +103,8 @@ typedef sink_val (*sink_input_func)(sink_ctx ctx, sink_str str);
 typedef void (*sink_free_func)(void *user);
 typedef sink_val (*sink_native_func)(sink_ctx ctx, void *nuser, sink_val *args, int size);
 typedef sink_val (*sink_resume_func)(sink_ctx ctx);
-typedef char *(*sink_resolve_func)(const char *file, const char *fromfile);
-typedef bool (*sink_include_func)(sink_scr scr, const char *fullfile);
+typedef char *(*sink_resolve_func)(const char *file, const char *fromfile, void *user);
+typedef bool (*sink_include_func)(sink_scr scr, const char *fullfile, void *user);
 typedef size_t (*sink_dump_func)(const void *restrict ptr, size_t size, size_t nitems,
 	void *restrict user);
 
@@ -117,6 +117,7 @@ typedef struct {
 typedef struct {
 	sink_resolve_func f_resolve;
 	sink_include_func f_include;
+	void *user;
 } sink_inc_st;
 
 typedef enum {
@@ -390,7 +391,7 @@ static sink_io_st sink_stdio = (sink_io_st){
 	.f_ask = sink_stdio_ask
 };
 
-static char *sink_stdinc_resolve(const char *file, const char *fromfile){
+static char *sink_stdinc_resolve(const char *file, const char *fromfile, void *user){
 	// check for an absolute path
 	#ifdef SINK_WIN32
 		if (file[0] != 0 && (file[0] == '\\' || file[0] == '/' || file[1] == ':'))
@@ -495,7 +496,7 @@ static char *sink_stdinc_resolve(const char *file, const char *fromfile){
 	return ret;
 }
 
-static bool sink_stdinc_include(sink_scr scr, const char *fullfile){
+static bool sink_stdinc_include(sink_scr scr, const char *fullfile, void *user){
 	abort();
 	// TODO: this
 	return false;
@@ -503,7 +504,8 @@ static bool sink_stdinc_include(sink_scr scr, const char *fullfile){
 
 static sink_inc_st sink_stdinc = (sink_inc_st){
 	.f_resolve = sink_stdinc_resolve,
-	.f_include = sink_stdinc_include
+	.f_include = sink_stdinc_include,
+	.user = NULL
 };
 
 #endif // SINK__H

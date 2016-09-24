@@ -9887,7 +9887,7 @@ static char *compiler_process(compiler cmp){
 			}
 			if (!internal){
 				// resolve the file to an absolute file
-				char *fullfile = cmp->inc.f_resolve(file, stmt->flp.file);
+				char *fullfile = cmp->inc.f_resolve(file, stmt->flp.file, cmp->inc.user);
 				if (fullfile == NULL){
 					cmp->msg = sink_format("Failed to include: %s", file);
 					ast_free(stmt);
