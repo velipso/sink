@@ -51,6 +51,8 @@ static int main_repl(){
 	int bufcount = 200;
 	char *buf = malloc(sizeof(char) * bufcount);
 	if (buf == NULL){
+		sink_ctx_free(ctx);
+		sink_scr_free(scr);
 		fprintf(stderr, "Out of memory!\n");
 		return 1;
 	}
@@ -66,6 +68,8 @@ static int main_repl(){
 			bufcount += 200;
 			buf = realloc(buf, sizeof(char) * bufcount);
 			if (buf == NULL){
+				sink_ctx_free(ctx);
+				sink_scr_free(scr);
 				fprintf(stderr, "Out of memory!\n");
 				return 1;
 			}
@@ -106,6 +110,7 @@ static int main_repl(){
 		}
 	}
 	free(buf);
+	sink_ctx_free(ctx);
 	sink_scr_free(scr);
 	return res;
 }

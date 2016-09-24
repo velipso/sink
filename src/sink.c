@@ -9006,6 +9006,7 @@ static sink_run context_run(context ctx){
 						if (sink_isasync(X)){
 							ctx->async_fdiff = A;
 							ctx->async_index = B;
+							ctx->timeout_left = ctx->timeout;
 							return crr_async(ctx);
 						}
 						else{
