@@ -6811,6 +6811,7 @@ static inline void pgs_dowhile_free(pgs_dowhile pst){
 		label_free(pst->top);
 	label_free(pst->cond);
 	label_free(pst->finish);
+	mem_free(pst);
 }
 
 static inline pgs_dowhile pgs_dowhile_new(label top, label cond, label finish){
@@ -6835,6 +6836,7 @@ static inline void pgs_for_free(pgs_for pst){
 	label_free(pst->top);
 	label_free(pst->inc);
 	label_free(pst->finish);
+	mem_free(pst);
 }
 
 static inline pgs_for pgs_for_new(varloc_st t, varloc_st exp_vlc, varloc_st val_vlc,
@@ -6858,6 +6860,7 @@ typedef struct {
 static inline void pgs_loop_free(pgs_loop pst){
 	label_free(pst->lcont);
 	label_free(pst->lbrk);
+	mem_free(pst);
 }
 
 static inline pgs_loop pgs_loop_new(label lcont, label lbrk){
@@ -6876,6 +6879,7 @@ static inline void pgs_if_free(pgs_if pst){
 	if (pst->nextcond)
 		label_free(pst->nextcond);
 	label_free(pst->ifdone);
+	mem_free(pst);
 }
 
 static inline pgs_if pgs_if_new(label nextcond, label ifdone){
@@ -10046,7 +10050,7 @@ void sink_scr_cleanup(sink_scr scr, void *cuser, sink_free_func f_free){
 	cleanup_add(((script)scr)->cup, cuser, f_free);
 }
 
-char *sink_scr_write(sink_scr scr, const uint8_t *bytes, int size){
+const char *sink_scr_write(sink_scr scr, const uint8_t *bytes, int size){
 	if (size <= 0)
 		return NULL;
 	script sc = scr;
@@ -10097,7 +10101,7 @@ int sink_scr_level(sink_scr scr){
 	return ((script)scr)->cmp->pr->level;
 }
 
-char *sink_scr_close(sink_scr scr){
+const char *sink_scr_close(sink_scr scr){
 	script sc = scr;
 	if (sc->mode == 0)
 		return NULL;
@@ -10127,6 +10131,9 @@ void sink_scr_free(sink_scr scr){
 	if (sc->msg)
 		mem_free(sc->msg);
 	mem_free(sc);
+	#ifdef SINK_MEMTEST
+	mem_done();
+	#endif
 }
 
 //

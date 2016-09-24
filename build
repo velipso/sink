@@ -18,8 +18,8 @@ compile_c() { # production compile
 	# $1 : the input .c file
 	# $2 : the output .o file
 	if which clang > /dev/null; then
-		#clang -c -o "$2" -fwrapv -DSINK_MEMTEST "$1"; echo '(memtest)'
-		clang -c -o "$2" -fwrapv "$1"
+		#clang -c -o "$2" -fwrapv -Werror -DSINK_MEMTEST "$1"; echo '(memtest)'
+		clang -c -o "$2" -fwrapv -Werror "$1"
 	else
 		echo 'ERROR:'
 		echo 'Missing "clang" which is required for building.'

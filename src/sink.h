@@ -148,15 +148,15 @@ static const uint64_t SINK_TAG_LIST   =        UINT64_C(0x7FF8000400000000);
 static const uint64_t SINK_TAG_MASK   =        UINT64_C(0xFFFFFFFF80000000);
 
 // script
-sink_scr sink_scr_new(sink_inc_st inc, const char *fullfile, bool repl);
-void     sink_scr_inc(sink_scr scr, const char *name, const char *body);
-void     sink_scr_cleanup(sink_scr scr, void *cuser, sink_free_func f_free);
-char *   sink_scr_write(sink_scr scr, const uint8_t *bytes, int size);
-void     sink_scr_resetpos(sink_scr scr);
-int      sink_scr_level(sink_scr scr);
-char *   sink_scr_close(sink_scr scr);
-void     sink_scr_dump(sink_scr scr, void *user, sink_dump_func f_dump);
-void     sink_scr_free(sink_scr scr);
+sink_scr    sink_scr_new(sink_inc_st inc, const char *fullfile, bool repl);
+void        sink_scr_inc(sink_scr scr, const char *name, const char *body);
+void        sink_scr_cleanup(sink_scr scr, void *cuser, sink_free_func f_free);
+const char *sink_scr_write(sink_scr scr, const uint8_t *bytes, int size);
+void        sink_scr_resetpos(sink_scr scr);
+int         sink_scr_level(sink_scr scr);
+const char *sink_scr_close(sink_scr scr);
+void        sink_scr_dump(sink_scr scr, void *user, sink_dump_func f_dump);
+void        sink_scr_free(sink_scr scr);
 
 // context
 sink_ctx       sink_ctx_new(sink_scr scr, sink_io_st io);
