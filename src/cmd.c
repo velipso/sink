@@ -76,7 +76,7 @@ static int main_repl(){
 		}
 		buf[bufsize++] = ch;
 		if (ch == '\n'){
-			const char *err = sink_scr_write(scr, (uint8_t *)buf, bufsize);
+			const char *err = sink_scr_write(scr, bufsize, (uint8_t *)buf);
 			if (err)
 				printf("Error: %s\n", err);
 			switch (sink_ctx_run(ctx)){
@@ -128,7 +128,7 @@ int main_run(const char *inFile, char *const *argv, int argc){
 	char buf[1000];
 	while (!feof(fp)){
 		int sz = fread(buf, 1, sizeof(buf), fp);
-		const char *err = sink_scr_write(scr, (uint8_t *)buf, sz);
+		const char *err = sink_scr_write(scr, sz, (uint8_t *)buf);
 		if (err){
 			fclose(fp);
 			fprintf(stderr, "Error: %s\n", err);

@@ -4,7 +4,7 @@
 
 #include "sink_shell.h"
 
-static sink_val L_pwd(sink_ctx ctx, void *nuser, sink_val *args, int size){
+static sink_val L_pwd(sink_ctx ctx, void *nuser, int size, sink_val *args){
 	char *cwd = getcwd(NULL, 0); // cross-platform getcwd is provided by sink.h
 	if (cwd == NULL)
 		return sink_abortcstr(ctx, "Failed to get current directory");
