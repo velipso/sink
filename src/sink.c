@@ -16,10 +16,10 @@
 #ifdef SINK_DEBUG
 #	undef NDEBUG
 #	include <assert.h>
-#	define debug(msg)       printf("> %-10s: %s\n", __func__, msg)
-#	define debugf(msg, ...) printf("> %-10s: " msg "\n", __func__, __VA_ARGS__)
-#	define oplog(msg)       printf("%% %s\n", msg)
-#	define oplogf(msg, ...) printf("%% " msg "\n", __VA_ARGS__)
+#	define debug(msg)         printf("> %-10s: %s\n", __func__, msg)
+#	define debugf(msg, ...)   printf("> %-10s: " msg "\n", __func__, __VA_ARGS__)
+#	define oplog(msg)         printf("%% %s\n", msg)
+#	define oplogf(msg, ...)   printf("%% " msg "\n", __VA_ARGS__)
 #else
 #	define NDEBUG
 #	include <assert.h>
@@ -8357,11 +8357,12 @@ static inline sink_val opi_str_cat(context ctx, sink_val a, sink_val b){
 	int ns = str->size + str2->size;
 	if (ns <= 0)
 		return sink_str_newblob(ctx, 0, NULL);
-	uint8_t *bytes = mem_alloc(sizeof(uint8_t) * ns);
+	uint8_t *bytes = mem_alloc(sizeof(uint8_t) * (ns + 1));
 	if (str->size > 0)
 		memcpy(&bytes[0], str->bytes, sizeof(uint8_t) * str->size);
 	if (str2->size > 0)
 		memcpy(&bytes[str->size], str2->bytes, sizeof(uint8_t) * str2->size);
+	bytes[ns] = 0;
 	return sink_str_newblobgive(ctx, ns, bytes);
 }
 
@@ -10312,20 +10313,20 @@ bool sink_arg_user(sink_ctx ctx, int size, sink_val *args, int index, sink_user 
 static sink_val sinkhelp_tostr(context ctx, sink_val v, bool first){
 	switch (sink_typeof(v)){
 		case SINK_TYPE_NIL: {
-			uint8_t *bytes = mem_alloc(sizeof(uint8_t) * 3);
-			bytes[0] = 'n'; bytes[1] = 'i'; bytes[2] = 'l';
+			uint8_t *bytes = mem_alloc(sizeof(uint8_t) * 4);
+			bytes[0] = 'n'; bytes[1] = 'i'; bytes[2] = 'l'; bytes[3] = 0;
 			return sink_str_newblobgive(ctx, 3, bytes);
 		} break;
 
 		case SINK_TYPE_NUM: {
 			if (isinf(v.f)){
 				if (v.f < 0){
-					uint8_t *bytes = mem_alloc(sizeof(uint8_t) * 4);
-					bytes[0] = '-'; bytes[1] = 'i'; bytes[2] = 'n'; bytes[3] = 'f';
+					uint8_t *bytes = mem_alloc(sizeof(uint8_t) * 5);
+					bytes[0] = '-'; bytes[1] = 'i'; bytes[2] = 'n'; bytes[3] = 'f'; bytes[4] = 0;
 					return sink_str_newblobgive(ctx, 4, bytes);
 				}
-				uint8_t *bytes = mem_alloc(sizeof(uint8_t) * 3);
-				bytes[0] = 'i'; bytes[1] = 'n'; bytes[2] = 'f';
+				uint8_t *bytes = mem_alloc(sizeof(uint8_t) * 4);
+				bytes[0] = 'i'; bytes[1] = 'n'; bytes[2] = 'f'; bytes[3] = 0;
 				return sink_str_newblobgive(ctx, 3, bytes);
 			}
 			char *fmt = sink_format("%.15g", v.f);
@@ -10346,7 +10347,7 @@ static sink_val sinkhelp_tostr(context ctx, sink_val v, bool first){
 					tot++;
 				tot++;
 			}
-			uint8_t *bytes = mem_alloc(sizeof(uint8_t) * tot);
+			uint8_t *bytes = mem_alloc(sizeof(uint8_t) * (tot + 1));
 			bytes[0] = '\'';
 			int p = 1;
 			for (int i = 0; i < s->size; i++){
@@ -10355,14 +10356,16 @@ static sink_val sinkhelp_tostr(context ctx, sink_val v, bool first){
 				bytes[p++] = s->bytes[i];
 			}
 			bytes[p++] = '\'';
+			bytes[tot] = 0;
 			return sink_str_newblobgive(ctx, tot, bytes);
 		} break;
 
 		case SINK_TYPE_LIST: {
 			if (list_hastick(ctx, var_index(v))){
-				uint8_t *bytes = mem_alloc(sizeof(uint8_t) * 10);
+				uint8_t *bytes = mem_alloc(sizeof(uint8_t) * 11);
 				bytes[0] = '{'; bytes[1] = 'c'; bytes[2] = 'i'; bytes[3] = 'r'; bytes[4] = 'c';
 				bytes[5] = 'u'; bytes[6] = 'l'; bytes[7] = 'a'; bytes[8] = 'r'; bytes[9] = '}';
+				bytes[10] = 0;
 				return sink_str_newblobgive(ctx, 10, bytes);
 			}
 			sink_list ls = var_castlist(ctx, v);
@@ -10374,7 +10377,7 @@ static sink_val sinkhelp_tostr(context ctx, sink_val v, bool first){
 				tot += (i == 0 ? 0 : 2) + s->size;
 				list_double_push(db, v.f);
 			}
-			uint8_t *bytes = mem_alloc(sizeof(uint8_t) * tot);
+			uint8_t *bytes = mem_alloc(sizeof(uint8_t) * (tot + 1));
 			bytes[0] = '{';
 			int p = 1;
 			for (int i = 0; i < ls->size; i++){
@@ -10388,6 +10391,7 @@ static sink_val sinkhelp_tostr(context ctx, sink_val v, bool first){
 			}
 			bytes[p] = '}';
 			list_double_free(db);
+			bytes[tot] = 0;
 			return sink_str_newblobgive(ctx, tot, bytes);
 		} break;
 
@@ -10481,13 +10485,22 @@ sink_val sink_str_newcstr(sink_ctx ctx, const char *str){
 sink_val sink_str_newblob(sink_ctx ctx, int size, const uint8_t *bytes){
 	uint8_t *copy = NULL;
 	if (size > 0){
-		copy = mem_alloc(sizeof(uint8_t) * size);
+		copy = mem_alloc(sizeof(uint8_t) * (size + 1));
 		memcpy(copy, bytes, sizeof(uint8_t) * size);
+		copy[size] = 0;
 	}
 	return sink_str_newblobgive(ctx, size, copy);
 }
 
 sink_val sink_str_newblobgive(sink_ctx ctx, int size, uint8_t *bytes){
+	if (!((bytes == NULL && size == 0) || bytes[size] == 0)){
+		opi_abortcstr(ctx,
+			"Native run-time error: sink_str_newblobgive() must either be given a NULL buffer of "
+			"size 0, or the buffer must terminate with a 0");
+		if (bytes)
+			mem_free(bytes);
+		return SINK_NIL;
+	}
 	context ctx2 = ctx;
 	int index = bmp_reserve((void **)&ctx2->str_tbl, &ctx2->str_size, &ctx2->str_aloc,
 		&ctx2->str_ref, NULL, sizeof(sink_str_st));
@@ -10720,7 +10733,7 @@ sink_val sink_list_joinplain(sink_ctx ctx, int size, sink_val *vals, int sepz, c
 		sink_str s = var_caststr(ctx, strs[i]);
 		tot += s->size;
 	}
-	uint8_t *bytes = mem_alloc(sizeof(uint8_t) * tot);
+	uint8_t *bytes = mem_alloc(sizeof(uint8_t) * (tot + 1));
 	int nb = 0;
 	for (int i = 0; i < size; i++){
 		if (i > 0 && sepz > 0){
@@ -10734,6 +10747,7 @@ sink_val sink_list_joinplain(sink_ctx ctx, int size, sink_val *vals, int sepz, c
 		}
 	}
 	mem_free(strs);
+	bytes[tot] = 0;
 	return sink_str_newblobgive(ctx, tot, bytes);
 }
 /*
