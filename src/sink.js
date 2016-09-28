@@ -4546,9 +4546,9 @@ function program_gen(prg, sym, stmt, pst, sayexpr){
 		} break;
 
 		case AST_DEF1: {
-			var lr = symtbl_lookup(sym, stmt.names);
+			var lr = symtbl_lookupNsSingle(sym, sym.sc.ns, stmt.names);
 			var lbl;
-			if (lr.type == STL_OK && lr.nsn.type == NSN_CMD_LOCAL){
+			if (lr.type == STLN_FOUND && lr.nsn.type == NSN_CMD_LOCAL){
 				lbl = lr.nsn.lbl;
 				if (!sym.repl && lbl.pos >= 0) // if already defined, error
 					return pgr_error(stmt.flp, 'Cannot redefine "' + stmt.names.join('.') + '"');
