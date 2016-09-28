@@ -4,6 +4,14 @@
 
 #include "sink.h"
 #include "sink_shell.h"
+#include <string.h>
+
+#ifdef SINK_WIN32
+#	include <direct.h> // _getcwd
+#	define getcwd _getcwd
+#else
+#	include <unistd.h> // getcwd
+#endif
 
 static volatile bool done = false;
 
@@ -25,6 +33,71 @@ static inline void catchint(){
 #	error Don't know how to catch Ctrl+C for other platforms
 #endif
 
+#if defined(SINK_POSIX) || defined(SINK_MACOSX)
+
+#include <dirent.h>
+#include <sys/stat.h>
+
+#define FIXPATH NULL
+
+static bool isdir(const char *dir){
+	struct stat buf;
+	if (stat(dir, &buf) != 0)
+		return 0;
+	return S_ISDIR(buf.st_mode);
+}
+
+static bool isfile(const char *file){
+	FILE *fp = fopen(file, "rb");
+	if (fp == NULL)
+		return false;
+	fclose(fp);
+	return true;
+}
+
+static sink_fstype fstype(const char *file, void *user){
+	if (isdir(file))
+		return SINK_FSTYPE_DIR;
+	else if (isfile(file))
+		return SINK_FSTYPE_FILE;
+	return SINK_FSTYPE_NONE;
+}
+
+static bool fsread(sink_scr scr, const char *file, void *user){
+	FILE *fp = fopen(file, "rb");
+	if (fp == NULL)
+		return false;
+	char buf[5000];
+	while (!feof(fp)){
+		size_t sz = fread(buf, 1, sizeof(buf), fp);
+		sink_scr_write(scr, sz, (const uint8_t *)buf);
+	}
+	fclose(fp);
+	return true;
+}
+
+#else
+#	error Don't know how to perform includes for other platforms
+#endif
+
+static sink_inc_st inc = {
+	.f_fixpath = FIXPATH,
+	.f_fstype = fstype,
+	.f_fsread = fsread,
+	.user = NULL
+};
+
+static void addpath(sink_scr scr){
+	const char *sp = getenv("SINK_PATH");
+	if (sp == NULL){
+		// if no environment variable, then add a default path of the current directory
+		sink_scr_addpath(scr, ".");
+		return;
+	}
+	fprintf(stderr, "TODO: process SINK_PATH\n");
+	abort();
+}
+
 static inline void printline(int line, int level){
 	if (line < 10)
 		printf(" %d", line);
@@ -42,7 +115,8 @@ static inline void printline(int line, int level){
 
 static int main_repl(){
 	int res = 0;
-	sink_scr scr = sink_scr_new(sink_stdinc, NULL, true);
+	sink_scr scr = sink_scr_new(inc, NULL, true);
+	addpath(scr);
 	sink_shell_scr(scr);
 	sink_ctx ctx = sink_ctx_new(scr, sink_stdio);
 	sink_shell_ctx(ctx);
@@ -115,6 +189,31 @@ static int main_repl(){
 	return res;
 }
 
+static char *format(const char *fmt, ...){
+	va_list args, args2;
+	va_start(args, fmt);
+	va_copy(args2, args);
+	size_t s = vsnprintf(NULL, 0, fmt, args);
+	char *buf = malloc(s + 1);
+	if (buf == NULL)
+		return NULL;
+	vsprintf(buf, fmt, args2);
+	va_end(args);
+	va_end(args2);
+	return buf;
+}
+
+static char *makeabs(const char *file){
+	if (file[0] == '/')
+		return strdup(file);
+	char *cwd = getcwd(NULL, 0);
+	if (cwd == NULL)
+		return NULL;
+	char *out = format("%s/%s", cwd, file);
+	free(cwd);
+	return out;
+}
+
 int main_run(const char *inFile, char *const *argv, int argc){
 	FILE *fp = fopen(inFile, "rb");
 	if (fp == NULL){
@@ -122,7 +221,12 @@ int main_run(const char *inFile, char *const *argv, int argc){
 		return 1;
 	}
 
-	sink_scr scr = sink_scr_new(sink_stdinc, inFile, false);
+	char *fullfile = makeabs(inFile);
+	if (fullfile == NULL)
+		return 1;
+	sink_scr scr = sink_scr_new(inc, fullfile, false);
+	free(fullfile);
+	addpath(scr);
 	sink_shell_scr(scr);
 
 	char buf[1000];

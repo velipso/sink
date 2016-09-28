@@ -4,8 +4,15 @@
 
 #include "sink_shell.h"
 
+#ifdef SINK_WIN32
+#	include <direct.h> // _getcwd
+#	define getcwd _getcwd
+#else
+#	include <unistd.h> // getcwd
+#endif
+
 static sink_val L_pwd(sink_ctx ctx, void *nuser, int size, sink_val *args){
-	char *cwd = getcwd(NULL, 0); // cross-platform getcwd is provided by sink.h
+	char *cwd = getcwd(NULL, 0);
 	if (cwd == NULL)
 		return sink_abortcstr(ctx, "Failed to get current directory");
 	sink_val a = sink_str_newcstr(ctx, cwd);

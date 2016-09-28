@@ -39,17 +39,6 @@
 #	endif
 #endif
 
-#ifdef SINK_WIN32
-#	define SINK_FILESEP      '\\'
-#	define SINK_ISFILESEP(x) ((x) == '\\' || (x) == '/')
-#	include <direct.h> // _getcwd
-#	define getcwd _getcwd
-#else
-#	define SINK_FILESEP      '/'
-#	define SINK_ISFILESEP(x) ((x) == '/')
-#	include <unistd.h> // getcwd
-#endif
-
 #ifndef SINK_ALLOC
 #	define SINK_ALLOC    malloc
 #   define SINK_REALLOC  realloc
@@ -62,10 +51,6 @@
 
 #ifndef SINK_PANIC
 #	define SINK_PANIC(msg)    do{ fprintf(stderr, "Panic: " msg "\n"); abort(); }while(false)
-#endif
-
-#if defined(SINK_INTDBG) && !defined(SINK_DEBUG)
-#	define SINK_DEBUG
 #endif
 
 typedef enum {
@@ -100,13 +85,20 @@ typedef struct {
 typedef void *sink_scr;
 typedef void *sink_ctx;
 
+typedef enum {
+	SINK_FSTYPE_NONE,
+	SINK_FSTYPE_FILE,
+	SINK_FSTYPE_DIR
+} sink_fstype;
+
 typedef void (*sink_output_func)(sink_ctx ctx, sink_str str);
 typedef sink_val (*sink_input_func)(sink_ctx ctx, sink_str str);
 typedef void (*sink_free_func)(void *user);
 typedef sink_val (*sink_native_func)(sink_ctx ctx, void *nuser, int size, sink_val *args);
 typedef sink_val (*sink_resume_func)(sink_ctx ctx);
-typedef char *(*sink_resolve_func)(const char *file, const char *fromfile, void *user);
-typedef bool (*sink_include_func)(sink_scr scr, const char *fullfile, void *user);
+typedef char *(*sink_fixpath_func)(const char *file, void *user);
+typedef sink_fstype (*sink_fstype_func)(const char *file, void *user);
+typedef bool (*sink_fsread_func)(sink_scr scr, const char *file, void *user);
 typedef size_t (*sink_dump_func)(const void *restrict ptr, size_t size, size_t nitems,
 	void *restrict user);
 
@@ -117,8 +109,9 @@ typedef struct {
 } sink_io_st;
 
 typedef struct {
-	sink_resolve_func f_resolve;
-	sink_include_func f_include;
+	sink_fixpath_func f_fixpath;
+	sink_fstype_func f_fstype;
+	sink_fsread_func f_fsread;
 	void *user;
 } sink_inc_st;
 
@@ -151,6 +144,7 @@ static const uint64_t SINK_TAG_MASK   =        UINT64_C(0xFFFFFFFF80000000);
 
 // script
 sink_scr    sink_scr_new(sink_inc_st inc, const char *fullfile, bool repl);
+void        sink_scr_addpath(sink_scr scr, const char *path);
 void        sink_scr_inc(sink_scr scr, const char *name, const char *body);
 void        sink_scr_cleanup(sink_scr scr, void *cuser, sink_free_func f_free);
 const char *sink_scr_write(sink_scr scr, int size, const uint8_t *bytes);
@@ -393,121 +387,49 @@ static sink_io_st sink_stdio = (sink_io_st){
 	.f_ask = sink_stdio_ask
 };
 
-static char *sink_stdinc_resolve(const char *file, const char *fromfile, void *user){
-	// check for an absolute path
-	#ifdef SINK_WIN32
-		if (file[0] != 0 && (file[0] == '\\' || file[0] == '/' || file[1] == ':'))
-			return sink_format("%s", file);
-	#else
-		if (file[0] == '/')
-			return sink_format("%s", file);
-	#endif
+static char *sink_win32_fixpath(const char *file, void *user){
+	// Converts POSIX-style paths (exclusively used by sink during includes) into Windows paths
+	//
+	// Best docs I could find: https://msdn.microsoft.com/en-us/library/aa365247(v=vs.85).aspx
+	//
+	// The basic strategy is pretty simple:
+	//   1. Prefix \\? to the string to force Windows to use extended-length paths
+	//   2. Convert all forward slashes to back slashes
+	//   3. Convert top level paths to drive letters (if single character letter)
+	//
+	// Examples:
+	//   /c/test                  =>   \\?\c:\test
+	//   /UNC/server/share/file   =>   \\?\UNC\server\share\file
+	//   /foo/bar/baz             =>   \\?\foo\bar\baz
+	//   /f/oo/bar/baz            =>   \\?\f:\oo\bar\baz
+	//
+	// Must return a string allocated with SINK_ALLOC, because caller will free via SINK_FREE
 
-	char *cwd;
-	int cwdlen;
-	if (fromfile == NULL){
-		char *cwd2 = getcwd(NULL, 0);
-		if (cwd2 == NULL)
-			return NULL;
-		// make sure last character is a slash
-		cwdlen = strlen(cwd2);
-		if (cwdlen > 0 && SINK_ISFILESEP(cwd2[cwdlen - 1]))
-			cwd = cwd2;
-		else{
-			cwd = malloc(sizeof(char) * (cwdlen + 2));
-			if (cwd == NULL){
-				free(cwd2);
-				return NULL;
-			}
-			memcpy(cwd, cwd2, sizeof(char) * (cwdlen + 1));
-			cwd[cwdlen++] = SINK_FILESEP;
-			cwd[cwdlen] = 0;
-			free(cwd2);
-		}
+	int len = strlen(file);
+	char *out = SINK_ALLOC(sizeof(char) * (len + 5));
+	if (out == NULL){
+		SINK_PANIC("Out of memory!");
+		return NULL;
 	}
-	else{
-		cwdlen = strlen(fromfile);
-		cwd = malloc(sizeof(char) * (cwdlen + 1));
-		if (cwd == NULL)
-			return NULL;
-		memcpy(cwd, fromfile, sizeof(char) * (cwdlen + 1));
-		// trim trailinig filename, making sure last character is a slash
-		for (int i = cwdlen - 1; i >= 0; i--){
-			if (SINK_ISFILESEP(cwd[i])){
-				cwd[i + 1] = 0;
-				cwdlen = i + 1;
-				break;
-			}
-		}
+	int j = 0;
+	out[j++] = '\\';
+	out[j++] = '\\';
+	out[j++] = '?';
+	for (int i = 0; i < len; i++){
+		if (i == 2 && file[2] == '/' &&
+			((file[1] >= 'a' && file[1] <= 'z') || (file[1] >= 'A' && file[1] <= 'Z')))
+			out[j++] = ':';
+		out[j++] = file[i] == '/' ? '\\' : file[i];
 	}
-
-	int flen = strlen(file);
-	int tot = cwdlen + flen;
-	char *out = malloc(sizeof(char) * (tot + 1));
-	memcpy(out, cwd, sizeof(char) * cwdlen);
-	free(cwd);
-
-	for (int i = 0; i < flen; i++){
-		// check for './' and '../'
-		if (file[i] == '.'){
-			if (i < flen - 1){
-				if (SINK_ISFILESEP(file[i + 1])){
-					// './'
-					i++;
-					continue;
-				}
-				else if (file[i + 1] == '.' && i < flen - 2 && SINK_ISFILESEP(file[i + 2])){
-					// '../'
-					int j;
-					for (j = cwdlen - 1; j >= 0; j--){
-						if (!SINK_ISFILESEP(out[j]))
-							break;
-					}
-					if (j < 0){
-						i += 2;
-						continue;
-					}
-					int prej = j;
-					for (; j >= 0; j--){
-						if (SINK_ISFILESEP(out[j]))
-							break;
-					}
-					if (j < 0)
-						cwdlen = prej + 2;
-					else
-						cwdlen = j + 1;
-					i += 2;
-					continue;
-				}
-			}
-		}
-		// otherwise, copy until we hit a slash
-		while (!SINK_ISFILESEP(file[i]) && i < flen){
-			out[cwdlen] = file[i];
-			cwdlen++;
-			i++;
-		}
-		if (i >= flen)
-			break;
-		out[cwdlen++] = SINK_FILESEP;
-	}
-
-	out[cwdlen] = 0;
-	char *ret = sink_format("%s", out); // `f_resolve` must return a string created via sink_format
-	free(out);
-	return ret;
+	out[j++] = 0;
+	return out;
 }
 
-static bool sink_stdinc_include(sink_scr scr, const char *fullfile, void *user){
+static char *sink_win32_sinkpath(const char *file){
+	// Converts a Windows path to a POSIX-style path (i.e., the reverse of `sink_win32_fixpath`)
+	fprintf(stderr, "TODO: sink_win32_sinkpath\n");
 	abort();
-	// TODO: this
-	return false;
+	return NULL;
 }
-
-static sink_inc_st sink_stdinc = (sink_inc_st){
-	.f_resolve = sink_stdinc_resolve,
-	.f_include = sink_stdinc_include,
-	.user = NULL
-};
 
 #endif // SINK__H

@@ -1,0 +1,28 @@
+
+say 'start'
+
+include './test1.sink'
+
+test1 1
+
+include './test2'
+
+test2 2
+
+include './test3'
+
+test3 3
+
+include T1 './test1.sink'
+
+T1.test1 4
+
+include T2 './test2'
+
+T2.test2 5
+
+include T3 './test3'
+
+T3.test3 6
+
+say 'end'

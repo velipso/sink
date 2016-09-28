@@ -1,0 +1,6 @@
+
+say 'inside test2/index.sink'
+
+def test2 a
+	say "test2: $a"
+end

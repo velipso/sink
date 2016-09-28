@@ -1,4 +1,8 @@
 
+def add x
+	say 'bad'
+end
+
 namespace foo
 	def add a, b
 		say "adding $a $b"
