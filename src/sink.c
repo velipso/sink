@@ -10190,7 +10190,7 @@ struct script_struct {
 };
 
 sink_scr sink_scr_new(sink_inc_st inc, const char *fullfile, bool repl){
-	if (fullfile[0] != '/')
+	if (fullfile != NULL && fullfile[0] != '/')
 		fprintf(stderr, "Warning: sink script \"%s\" is not an absolute path\n", fullfile);
 	script sc = mem_alloc(sizeof(script_st));
 	sc->prg = program_new(repl);
