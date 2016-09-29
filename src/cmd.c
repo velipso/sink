@@ -70,7 +70,11 @@ static bool fsread(sink_scr scr, const char *file, void *user){
 	char buf[5000];
 	while (!feof(fp)){
 		size_t sz = fread(buf, 1, sizeof(buf), fp);
-		sink_scr_write(scr, sz, (const uint8_t *)buf);
+		const char *err = sink_scr_write(scr, sz, (const uint8_t *)buf);
+		if (err){
+			fprintf(stderr, "Error: %s\n", err);
+			break;
+		}
 	}
 	fclose(fp);
 	return true;
@@ -87,11 +91,17 @@ static sink_inc_st inc = {
 	.user = NULL
 };
 
-static void addpath(sink_scr scr){
+static void addpath(sink_scr scr, bool repl){
 	const char *sp = getenv("SINK_PATH");
 	if (sp == NULL){
 		// if no environment variable, then add a default path of the current directory
-		sink_scr_addpath(scr, ".");
+		if (repl){
+			char *cwd = getcwd(NULL, 0);
+			sink_scr_addpath(scr, cwd);
+			free(cwd);
+		}
+		else
+			sink_scr_addpath(scr, ".");
 		return;
 	}
 	fprintf(stderr, "TODO: process SINK_PATH\n");
@@ -116,7 +126,7 @@ static inline void printline(int line, int level){
 static int main_repl(){
 	int res = 0;
 	sink_scr scr = sink_scr_new(inc, NULL, true);
-	addpath(scr);
+	addpath(scr, true);
 	sink_shell_scr(scr);
 	sink_ctx ctx = sink_ctx_new(scr, sink_stdio);
 	sink_shell_ctx(ctx);
@@ -152,7 +162,7 @@ static int main_repl(){
 		if (ch == '\n'){
 			const char *err = sink_scr_write(scr, bufsize, (uint8_t *)buf);
 			if (err)
-				printf("Error: %s\n", err);
+				fprintf(stderr, "Error: %s\n", err);
 			switch (sink_ctx_run(ctx)){
 				case SINK_RUN_PASS:
 					done = true;
@@ -226,7 +236,7 @@ int main_run(const char *inFile, char *const *argv, int argc){
 		return 1;
 	sink_scr scr = sink_scr_new(inc, fullfile, false);
 	free(fullfile);
-	addpath(scr);
+	addpath(scr, false);
 	sink_shell_scr(scr);
 
 	char buf[1000];

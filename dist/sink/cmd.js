@@ -51,9 +51,9 @@ function fsread(file){
 	return fs.readFileSync(file, 'utf8');
 }
 
-function getpaths(){
+function getpaths(repl){
 	// TODO: read from SINK_PATH environment variable
-	return ['.'];
+	return [repl ? process.cwd() : '.'];
 }
 
 function say(str){
@@ -145,7 +145,7 @@ switch (mode){
 	case 'repl':
 	case 'rest':
 		return Sink
-			.repl(replPrompt(), fstype, fsread, say, warn, ask, [SinkShell], getpaths())
+			.repl(replPrompt(), fstype, fsread, say, warn, ask, [SinkShell], getpaths(true))
 			.then(sinkExit);
 	case 'version':
 		return printVersion();
@@ -161,5 +161,5 @@ switch (mode){
 		if (inFile === false)
 			return printHelp();
 		return sinkExit(Sink.run(makeabs(inFile), fstype, fsread, say, warn, ask, [SinkShell],
-			getpaths()));
+			getpaths(false)));
 }

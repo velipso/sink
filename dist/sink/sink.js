@@ -779,26 +779,30 @@ var LEX_STR_INTERP_DLR_ID  = 'LEX_STR_INTERP_DLR_ID';
 var LEX_STR_INTERP_ESC     = 'LEX_STR_INTERP_ESC';
 var LEX_STR_INTERP_ESC_HEX = 'LEX_STR_INTERP_ESC_HEX';
 
+function lex_reset(lx){
+	lx.state = LEX_START;
+	lx.chR = 0;
+	lx.ch1 = 0;
+	lx.ch2 = 0;
+	lx.ch3 = 0;
+	lx.ch4 = 0;
+	lx.str = '';
+	lx.num_val = 0;
+	lx.num_base = 0;
+	lx.num_frac = 0;
+	lx.num_flen = 0;
+	lx.num_esign = 0;
+	lx.num_eval = 0;
+	lx.num_elen = 0;
+	lx.str_depth = 0;
+	lx.str_hexval = 0;
+	lx.str_hexleft = 0;
+}
+
 function lex_new(){
-	return {
-		state: LEX_START,
-		chR: 0,
-		ch1: 0,
-		ch2: 0,
-		ch3: 0,
-		ch4: 0,
-		str: '',
-		num_val: 0,
-		num_base: 0,
-		num_frac: 0,
-		num_flen: 0,
-		num_esign: 0,
-		num_eval: 0,
-		num_elen: 0,
-		str_depth: 0,
-		str_hexval: 0,
-		str_hexleft: 0
-	};
+	var lx = {};
+	lex_reset(lx);
+	return lx;
 }
 
 function lex_fwd(lx, ch){
@@ -6875,6 +6879,12 @@ function compiler_new(prg, file, fstype, fsread, includes, paths){
 	};
 }
 
+function compiler_reset(cmp){
+	lex_reset(cmp.flpn.lx);
+	cmp.pr = parser_new();
+	cmp.flpn.tkflps = [];
+}
+
 function compiler_begininc(cmp, names, file){
 	cmp.flpn = flpn_new(file, cmp.flpn);
 	if (names)
@@ -7160,8 +7170,7 @@ var Sink = {
 		var ctx = context_new(prg, say, warn, ask, libs_getNatives(libs));
 
 		function process(data){
-			compiler_write(cmp, UTF8.encode(data));
-			var cm = compiler_process(cmp);
+			var cm = compiler_write(cmp, UTF8.encode(data));
 			if (cm.type == CMA_OK){
 				var cr = context_run(ctx);
 				if (cr == SINK_RUN_REPLMORE)
@@ -7174,8 +7183,10 @@ var Sink = {
 					throw 'TODO: deal with a different cr';
 				}
 			}
-			else if (cm.type == CMA_ERROR)
+			else if (cm.type == CMA_ERROR){
 				warn('Error: ' + cm.msg);
+				compiler_reset(cmp);
+			}
 			return null; // null means read more
 		}
 
