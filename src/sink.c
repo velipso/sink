@@ -3627,7 +3627,7 @@ static prr_st parser_process(parser pr, filepos_st flp, list_ptr stmts){
 			return prr_more();
 
 		case PRS_LVALUES:
-			if (tk1->type == TOK_NEWLINE && !tk1->u.soft){
+			if (tk1->type == TOK_NEWLINE){
 				st->next->lvalues = st->lvalues;
 				st->lvalues = NULL;
 				pr->state = st->next;

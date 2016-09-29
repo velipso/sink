@@ -1916,7 +1916,7 @@ function parser_process(pr, flp, stmts){
 			return prr_more();
 
 		case PRS_LVALUES:
-			if (tk1.type == TOK_NEWLINE && !tk1.soft){
+			if (tk1.type == TOK_NEWLINE){
 				st.next.lvalues = st.lvalues;
 				pr.state = st.next;
 				return parser_process(pr, flp, stmts);
