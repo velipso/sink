@@ -9981,6 +9981,8 @@ static bool compiler_dynamicinc(compiler cmp, list_ptr names, const char *file, 
 		if (path[0] == '/') // search path is absolute
 			join = pathjoin(path, file);
 		else{ // search path is relative
+			if (from == NULL)
+				continue;
 			if (cwd == NULL)
 				cwd = pathjoin(from, ".."); // remove trailing filename
 			char *tmp = pathjoin(cwd, path);

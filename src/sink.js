@@ -6916,6 +6916,8 @@ function compiler_staticinc(cmp, names, file, body){
 function pathjoin(a, b){
 	var ret = [];
 	function proc(ar){
+		if (ar === null)
+			return;
 		ar.split(/\//g).forEach(function(part){
 			if (part.length <= 0 || part === '.')
 				return;
@@ -6984,8 +6986,11 @@ function compiler_dynamicinc(cmp, names, file, from){
 		var join;
 		if (path.charAt(0) === '/') // search path is absolute
 			join = pathjoin(path, file);
-		else // search path is relative
+		else{ // search path is relative
+			if (from === null)
+				continue;
 			join = pathjoin(pathjoin(pathjoin(from, '..'), path), file);
+		}
 		var found = compiler_tryinc(cmp, names, join, true);
 		if (found !== false)
 			return found;
