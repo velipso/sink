@@ -36,12 +36,24 @@ function sinkExit(pass){
 	process.exit(pass ? 0 : 1);
 }
 
-function fileResolve(file, fromFile){
-	return path.resolve(process.cwd(), fromFile == null ? '' : path.dirname(fromFile), file);
+function fstype(file){ // must return 'file', 'dir', or 'none'
+	if (!fs.existsSync(file))
+		return 'none';
+	var stat = fs.statSync(file);
+	if (stat.isFile())
+		return 'file';
+	else if (stat.isDirectory())
+		return 'dir';
+	return 'none';
 }
 
-function fileRead(file){
+function fsread(file){
 	return fs.readFileSync(file, 'utf8');
+}
+
+function getpaths(){
+	// TODO: read from SINK_PATH environment variable
+	return ['.'];
 }
 
 function say(str){
@@ -123,11 +135,17 @@ for (var i = 2; i < process.argv.length; i++){
 	}
 }
 
+function makeabs(file){
+	if (file.charAt(0) == '/')
+		return file;
+	return path.join(process.cwd(), file);
+}
+
 switch (mode){
 	case 'repl':
 	case 'rest':
 		return Sink
-			.repl(replPrompt(), fileResolve, fileRead, say, warn, ask, [SinkShell])
+			.repl(replPrompt(), fstype, fsread, say, warn, ask, [SinkShell], getpaths())
 			.then(sinkExit);
 	case 'version':
 		return printVersion();
@@ -142,5 +160,6 @@ switch (mode){
 	case 'run':
 		if (inFile === false)
 			return printHelp();
-		return sinkExit(Sink.run(inFile, fileResolve, fileRead, say, warn, ask, [SinkShell]));
+		return sinkExit(Sink.run(makeabs(inFile), fstype, fsread, say, warn, ask, [SinkShell],
+			getpaths()));
 }

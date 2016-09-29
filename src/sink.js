@@ -6860,7 +6860,7 @@ function flpn_new(file, next){
 	};
 }
 
-function compiler_new(prg, file, file_resolve, file_read, includes){
+function compiler_new(prg, file, fstype, fsread, includes, paths){
 	var sym = symtbl_new(prg.repl);
 	symtbl_loadStdlib(sym);
 	return {
@@ -6868,9 +6868,10 @@ function compiler_new(prg, file, file_resolve, file_read, includes){
 		prg: prg,
 		sym: sym,
 		flpn: flpn_new(file, null),
-		file_resolve: file_resolve,
-		file_read: file_read,
-		includes: includes
+		fstype: fstype,
+		fsread: fsread,
+		includes: includes,
+		paths: paths
 	};
 }
 
@@ -6897,6 +6898,101 @@ function cma_error(msg){
 	return { type: CMA_ERROR, msg: msg };
 }
 
+function compiler_staticinc(cmp, names, file, body){
+	var res = compiler_closeLexer(cmp);
+	if (res.type == CMA_ERROR)
+		return res;
+	compiler_begininc(cmp, names, file);
+	var res = compiler_write(cmp, body);
+	if (res.type == CMA_ERROR){
+		compiler_endinc(cmp, names !== null);
+		return res;
+	}
+	res = compiler_closeLexer(cmp);
+	compiler_endinc(cmp, names !== null);
+	return res;
+}
+
+function pathjoin(a, b){
+	var ret = [];
+	function proc(ar){
+		ar.split(/\//g).forEach(function(part){
+			if (part.length <= 0 || part === '.')
+				return;
+			if (part === '..'){
+				if (ret.length > 0)
+					ret.pop();
+				return;
+			}
+			ret.push(part);
+		});
+	}
+	proc(a);
+	proc(b);
+	return '/' + ret.join('/');
+}
+
+function compiler_tryinc(cmp, names, file, first){
+	var fst = cmp.fstype(file);
+	if (fst !== 'file'){
+		if (first){
+			if (fst === 'none'){
+				// try adding a .sink extension
+				if (file.substr(-5) !== '.sink')
+					return compiler_tryinc(cmp, names, file + '.sink', false);
+				else // already has .sink extension, so abort
+					return false;
+			}
+			else if (fst === 'dir') // try looking for index.sink inside the directory
+				return compiler_tryinc(cmp, names, pathjoin(file, 'index.sink'), false);
+			else{
+				throw new Error('Invalid return value from fstype ' +
+					'(must be \'file\', \'dir\', or \'none\'): "' + fst + '"');
+			}
+		}
+		else
+			return false;
+	}
+
+	var res = compiler_closeLexer(cmp);
+	if (res.type == CMA_ERROR)
+		return res;
+	compiler_begininc(cmp, names, file);
+
+	var data = cmp.fsread(file);
+	if (isPromise(data))
+		throw new Error('TODO: figure out how to deal with a Promise returned from fsread');
+	res = compiler_write(cmp, UTF8.encode(data));
+	if (res.type == CMA_ERROR){
+		compiler_endinc(cmp, names !== null);
+		return res;
+	}
+
+	res = compiler_closeLexer(cmp);
+	compiler_endinc(cmp, names !== null);
+	return res;
+}
+
+function compiler_dynamicinc(cmp, names, file, from){
+	if (file.charAt(0) === '/'){
+		// if an absolute path, there is no searching, so just try to include it directly
+		return compiler_tryinc(cmp, names, file, true);
+	}
+	// otherwise, we have a relative path, so we need to go through our search list
+	for (var i = 0; i < cmp.paths.length; i++){
+		var path = cmp.paths[i];
+		var join;
+		if (path.charAt(0) === '/') // search path is absolute
+			join = pathjoin(path, file);
+		else // search path is relative
+			join = pathjoin(pathjoin(pathjoin(from, '..'), path), file);
+		var found = compiler_tryinc(cmp, names, join, true);
+		if (found !== false)
+			return found;
+	}
+	return false;
+}
+
 function compiler_process(cmp){
 	var stmts = [];
 	var tkflps = cmp.flpn.tkflps;
@@ -6919,19 +7015,16 @@ function compiler_process(cmp){
 		var stmt = stmts.shift();
 		if (stmt.type == AST_INCLUDE){
 			if (cmp.includes.hasOwnProperty(stmt.file)){
-				compiler_begininc(cmp, stmt.names, stmt.file);
-				var res = compiler_write(cmp, cmp.includes[stmt.file]);
-				if (res.type == CMA_ERROR){
-					compiler_endinc(cmp, stmt.names !== null);
-					return res;
-				}
-				res = compiler_closeLexer(cmp);
-				compiler_endinc(cmp, stmt.names !== null);
+				var res = compiler_staticinc(cmp, stmt.names, stmt.file, cmp.includes[stmt.file]);
 				if (res.type == CMA_ERROR)
 					return res;
 			}
 			else{
-				throw new Error('include');
+				var res = compiler_dynamicinc(cmp, stmt.names, stmt.file, stmt.flp.file);
+				if (res === false)
+					return cma_error('Failed to include: ' + stmt.file);
+				if (res.type == CMA_ERROR)
+					return res;
 			}
 		}
 		else{
@@ -7056,9 +7149,9 @@ function libs_getNatives(libs){
 }
 
 var Sink = {
-	repl: function(prompt, fileResolve, fileRead, say, warn, ask, libs){
+	repl: function(prompt, fstype, fsread, say, warn, ask, libs, paths){
 		var prg = program_new(true);
-		var cmp = compiler_new(prg, null, fileResolve, fileRead, libs_getIncludes(libs));
+		var cmp = compiler_new(prg, null, fstype, fsread, libs_getIncludes(libs), paths);
 		var ctx = context_new(prg, say, warn, ask, libs_getNatives(libs));
 
 		function process(data){
@@ -7096,27 +7189,22 @@ var Sink = {
 		}
 		return read();
 	},
-	run: function(startFile, fileResolve, fileRead, say, warn, ask, libs){
+	run: function(startFile, fstype, fsread, say, warn, ask, libs, paths){
 		var prg = program_new(false);
-		var cmp = compiler_new(prg, startFile, fileResolve, fileRead, libs_getIncludes(libs));
+		var cmp = compiler_new(prg, startFile, fstype, fsread, libs_getIncludes(libs), paths);
 
-		var fullFile = fileResolve(startFile, null);
-		if (isPromise(fullFile))
-			throw new Error('TODO: fileResolve returns promise');
-		var data = fileRead(fullFile);
+		var data = fsread(startFile);
 		if (isPromise(data))
-			throw new Error('TODO: fileRead returns promise');
-		compiler_write(cmp, UTF8.encode(data));
-
-		var cm = compiler_process(cmp);
+			throw new Error('TODO: fsread returns promise');
+		var cm = compiler_write(cmp, UTF8.encode(data));
 		if (cm.type == CMA_ERROR){
 			warn('Error: ' + cm.msg);
-			return die(false);
+			return false;
 		}
 		cm = compiler_close(cmp);
 		if (cm.type == CMA_ERROR){
 			warn('Error: ' + cm.msg);
-			return die(false);
+			return false;
 		}
 
 		// run the finished program
