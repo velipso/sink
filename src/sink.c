@@ -6113,7 +6113,7 @@ static per_st program_evalCall(program prg, symtbl sym, pem_enum mode, varloc_st
 			assert(false);
 	}
 	else
-		assert(false);
+		return per_error(flp, sink_format("Invalid call"));
 
 	if (mode == PEM_EMPTY){
 		symtbl_clearTemp(sym, intoVlc);

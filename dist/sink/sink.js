@@ -3885,7 +3885,7 @@ function program_evalCall(prg, sym, mode, intoVlc, flp, nsn, paramsAt, params){
 			throw new Error('Invalid opcode params');
 	}
 	else
-		throw new Error('Invalid gevalCall');
+		return per_error(flp, 'Invalid call');
 
 	if (mode == PEM_EMPTY){
 		symtbl_clearTemp(sym, intoVlc);
