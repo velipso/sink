@@ -109,32 +109,23 @@ setInterval(redraw, 0);
 cnv.focus();
 
 Sink.repl(
-	function(levels, result){
-		inputPrompt = ': ';
-		if (levels > 0)
-			inputPrompt = (new Array(levels + 1)).join('..') + '. ';
-		if (inLine < 10)
-			inputPrompt = ' ' + inLine + inputPrompt;
-		else
-			inputPrompt = inLine + inputPrompt;
-		allowInput = result;
-	},
-	function(pass){
-		lines.push(pass ? '#fff' : '#f00');
-		lines.push('Exited');
-		allowInput = false;
-		inputPrompt = '';
-		inputLine = '';
-	},
-	function(file, fromFile){
+	function(levels){
 		return new Promise(function(resolve, reject){
-			reject('Cannot include files in demo');
+			inputPrompt = ': ';
+			if (levels > 0)
+				inputPrompt = (new Array(levels + 1)).join('..') + '. ';
+			if (inLine < 10)
+				inputPrompt = ' ' + inLine + inputPrompt;
+			else
+				inputPrompt = inLine + inputPrompt;
+			allowInput = resolve;
 		});
 	},
-	function(file){
-		return new Promise(function(resolve, reject){
-			reject('Cannot include files in demo');
-		});
+	function(){
+		return 'none';
+	},
+	function(){
+		return false;
 	},
 	function(str){
 		lines.push('#fff');
@@ -147,7 +138,8 @@ Sink.repl(
 	function(str){
 		return prompt(str);
 	},
-	[SinkShell]
+	[SinkShell],
+	['.']
 );
 
 	</script>
