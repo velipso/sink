@@ -368,6 +368,10 @@ function filepos_new(file, line, chr){
 	return { file: file, line: line, chr: chr };
 }
 
+function filepos_copy(flp){
+	return filepos_new(flp.file, flp.line, flp.chr);
+}
+
 function filepos_err(flp, msg){
 	return (flp.file == null ? '' : flp.file + ':') + flp.line + ':' + flp.chr + ': ' + msg;
 }
@@ -6850,7 +6854,7 @@ function context_run(ctx){
 //
 
 function tkflp_new(tks, flp){
-	return { tks: tks, flp: flp };
+	return { tks: tks, flp: filepos_copy(flp) };
 }
 
 function flpn_new(file, next){
