@@ -391,6 +391,11 @@ static inline void list_int_push(list_int ls, int_fast32_t v){
 	ls->vals[ls->size++] = v;
 }
 
+static inline int list_int_pop(list_int ls){
+	ls->size--;
+	return ls->vals[ls->size];
+}
+
 typedef struct {
 	uint64_t *vals;
 	int size;
@@ -1542,13 +1547,14 @@ typedef enum {
 } lex_enum;
 
 typedef struct {
+	list_byte str;
+	list_int braces;
 	lex_enum state;
 	char chR;
 	char ch1;
 	char ch2;
 	char ch3;
 	char ch4;
-	list_byte str;
 	double num_val;
 	double num_base;
 	double num_frac;
@@ -1556,7 +1562,6 @@ typedef struct {
 	double num_esign;
 	double num_eval;
 	double num_elen;
-	int str_depth;
 	int str_hexval;
 	int str_hexleft;
 } lex_st, *lex;
@@ -1564,6 +1569,7 @@ typedef struct {
 static inline void lex_free(lex lx){
 	if (lx->str)
 		list_byte_free(lx->str);
+	list_int_free(lx->braces);
 	mem_free(lx);
 }
 
@@ -1584,7 +1590,10 @@ static void lex_reset(lex lx){
 	lx->num_esign = 0;
 	lx->num_eval = 0;
 	lx->num_elen = 0;
-	lx->str_depth = 0;
+	if (lx->braces)
+		list_int_free(lx->braces);
+	lx->braces = list_int_new();
+	list_int_push(lx->braces, 0);
 	lx->str_hexval = 0;
 	lx->str_hexleft = 0;
 }
@@ -1592,6 +1601,7 @@ static void lex_reset(lex lx){
 static lex lex_new(){
 	lex lx = mem_alloc(sizeof(lex_st));
 	lx->str = NULL;
+	lx->braces = NULL;
 	lex_reset(lx);
 	return lx;
 }
@@ -1621,15 +1631,23 @@ static void lex_process(lex lx, list_ptr tks){
 				list_ptr_push(tks, tok_newline(false));
 			}
 			else if (ks_char(ch1) != KS_INVALID){
-				if (ch1 == '}' && lx->str_depth > 0){
-					lx->str_depth--;
-					lx->str = list_byte_new();
-					lx->state = LEX_STR_INTERP;
-					list_ptr_push(tks, tok_ks(KS_RPAREN));
-					list_ptr_push(tks, tok_ks(KS_TILDE));
+				if (ch1 == '{')
+					lx->braces->vals[lx->braces->size - 1]++;
+				else if (ch1 == '}'){
+					if (lx->braces->vals[lx->braces->size - 1] > 0)
+						lx->braces->vals[lx->braces->size - 1]--;
+					else if (lx->braces->size > 1){
+						list_int_pop(lx->braces);
+						lx->str = list_byte_new();
+						lx->state = LEX_STR_INTERP;
+						list_ptr_push(tks, tok_ks(KS_RPAREN));
+						list_ptr_push(tks, tok_ks(KS_TILDE));
+						break;
+					}
+					else
+						list_ptr_push(tks, tok_error(sink_format("Mismatched brace")));
 				}
-				else
-					lx->state = LEX_SPECIAL1;
+				lx->state = LEX_SPECIAL1;
 			}
 			else if (isIdentStart(ch1)){
 				lx->str = list_byte_new();
@@ -1987,7 +2005,7 @@ static void lex_process(lex lx, list_ptr tks){
 
 		case LEX_STR_INTERP_DLR:
 			if (ch1 == '{'){
-				lx->str_depth++;
+				list_int_push(lx->braces, 0);
 				lx->state = LEX_START;
 				list_ptr_push(tks, tok_ks(KS_LPAREN));
 			}
@@ -2093,7 +2111,7 @@ static inline void lex_add(lex lx, char ch, list_ptr tks){
 }
 
 static void lex_close(lex lx, list_ptr tks){
-	if (lx->str_depth > 0){
+	if (lx->braces->size > 1){
 		list_ptr_push(tks, tok_error(sink_format("Missing end of string")));
 		return;
 	}

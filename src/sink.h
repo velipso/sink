@@ -425,7 +425,7 @@ static char *sink_win32_fixpath(const char *file, void *user){
 	return out;
 }
 
-static char *sink_win32_sinkpath(const char *file){
+static char *sink_win32_unfixpath(const char *file){
 	// Converts a Windows path to a POSIX-style path (i.e., the reverse of `sink_win32_fixpath`)
 	fprintf(stderr, "TODO: sink_win32_sinkpath\n");
 	abort();

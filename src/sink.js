@@ -798,7 +798,7 @@ function lex_reset(lx){
 	lx.num_esign = 0;
 	lx.num_eval = 0;
 	lx.num_elen = 0;
-	lx.str_depth = 0;
+	lx.braces = [0];
 	lx.str_hexval = 0;
 	lx.str_hexleft = 0;
 }
@@ -834,15 +834,23 @@ function lex_process(lx, tks){
 				tks.push(tok_newline(false));
 			}
 			else if (ks_char(ch1) != KS_INVALID){
-				if (ch1 == '}' && lx.str_depth > 0){
-					lx.str_depth--;
-					lx.str = '';
-					lx.state = LEX_STR_INTERP;
-					tks.push(tok_ks(KS_RPAREN));
-					tks.push(tok_ks(KS_TILDE));
+				if (ch1 == '{')
+					lx.braces[0]++;
+				else if (ch1 == '}'){
+					if (lx.braces[0] > 0)
+						lx.braces[0]--;
+					else if (lx.braces.length > 1){
+						lx.braces.shift();
+						lx.str = '';
+						lx.state = LEX_STR_INTERP;
+						tks.push(tok_ks(KS_RPAREN));
+						tks.push(tok_ks(KS_TILDE));
+						break;
+					}
+					else
+						tks.push(tok_error('Mismatched brace'));
 				}
-				else
-					lx.state = LEX_SPECIAL1;
+				lx.state = LEX_SPECIAL1;
 			}
 			else if (isIdentStart(ch1)){
 				lx.str = ch1;
@@ -1197,7 +1205,7 @@ function lex_process(lx, tks){
 
 		case LEX_STR_INTERP_DLR:
 			if (ch1 == '{'){
-				lx.str_depth++;
+				lx.braces.unshift(0);
 				lx.state = LEX_START;
 				tks.push(tok_ks(KS_LPAREN));
 			}
@@ -1299,7 +1307,7 @@ function lex_add(lx, ch, tks){
 }
 
 function lex_close(lx, tks){
-	if (lx.str_depth > 0){
+	if (lx.braces.length > 1){
 		tks.push(tok_error('Missing end of string'));
 		return;
 	}
