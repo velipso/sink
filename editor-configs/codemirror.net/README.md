@@ -6,7 +6,7 @@ Sink syntax highlighter for the [CodeMirror](http://codemirror.net) editor.
 Install Instructions
 ====================
 
-After loading the CodeMirror code, include the `sink.js` somehow file on the page, for example:
+After loading the CodeMirror code, include the `sink.js` file somehow on the page, for example:
 
 ```html
 <script src="codemirror.js"></script>
