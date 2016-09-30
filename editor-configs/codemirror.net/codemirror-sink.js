@@ -19,7 +19,7 @@ CodeMirror.defineMode('sink', function(config, parserConfig) {
   ];
 
   var libs = {
-    'pick': true, 'say': true, 'warn': true, 'ask': true, 'exit': true, 'abort': true,
+    'nil': true, 'pick': true, 'say': true, 'warn': true, 'ask': true, 'exit': true, 'abort': true,
     'num': [
       'abs', 'sign', 'max', 'min', 'clamp', 'floor', 'ceil', 'round', 'trunc', 'nan', 'inf',
       'isnan', 'isfinite', 'e', 'pi', 'tau', 'sin', 'cos', 'tan', 'asin', 'acos', 'atan',
@@ -56,8 +56,7 @@ CodeMirror.defineMode('sink', function(config, parserConfig) {
 
   var keywords = [
     'break', 'continue', 'declare', 'def', 'do', 'else', 'elseif', 'end', 'for', 'goto', 'if',
-    'include', 'namespace', 'nil', 'return', 'typenum', 'typestr', 'typelist', 'using', 'var',
-    'while'
+    'include', 'namespace', 'return', 'typenum', 'typestr', 'typelist', 'using', 'var', 'while'
   ];
 
   function ident(id){
@@ -86,10 +85,6 @@ CodeMirror.defineMode('sink', function(config, parserConfig) {
     return isIdentStart(c) || isNum(c);
   }
 
-  function isHex(c){
-    return isNum(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
-  }
-
   return {
     startState: function(basecol) {
       return {
@@ -109,10 +104,10 @@ CodeMirror.defineMode('sink', function(config, parserConfig) {
               return null;
             }
             else if (ch == '#'){
-              st.skipToEnd();
+              stream.skipToEnd();
               return 'comment';
             }
-            else if (ch == '/' && st.eat('*'))
+            else if (ch == '/' && stream.eat('*'))
               st.state = 'blockcomment';
             else if (isNum(ch) || ((ch == '-' || ch == '+') && isNum(stream.peek()))){
               var pk = stream.peek();
@@ -163,7 +158,7 @@ CodeMirror.defineMode('sink', function(config, parserConfig) {
 
           case 'blockcomment':
             while (true){
-              if (ch == '*' && st.eat('/')){
+              if (ch == '*' && stream.eat('/')){
                 st.state = 'start';
                 return 'comment';
               }
@@ -175,9 +170,9 @@ CodeMirror.defineMode('sink', function(config, parserConfig) {
 
           case 'number':
             while (true){
-              if (!isIdentBody(stream.peek()))
-                break;
               if (stream.eol())
+                break;
+              if (!isIdentBody(stream.peek()))
                 break;
               stream.next();
             }
@@ -187,9 +182,9 @@ CodeMirror.defineMode('sink', function(config, parserConfig) {
           case 'ident':
             while (true){
               id += ch;
-              if (!isIdentBody(stream.peek()))
-                break;
               if (stream.eol())
+                break;
+              if (!isIdentBody(stream.peek()))
                 break;
               ch = stream.next();
             }
@@ -231,9 +226,9 @@ CodeMirror.defineMode('sink', function(config, parserConfig) {
           case 'lib':
             while (true){
               id += ch == '.' ? '' : ch;
-              if (!isIdentBody(stream.peek()))
-                break;
               if (stream.eol())
+                break;
+              if (!isIdentBody(stream.peek()))
                 break;
               ch = stream.next();
             }
