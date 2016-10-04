@@ -2900,13 +2900,13 @@ function namespace_getSiblings(ns, res, tried){
 		var uns = ns.usings[i];
 		if (tried.indexOf(uns) >= 0)
 			continue;
-		namespace_getSiblings(uns, res);
+		namespace_getSiblings(uns, res, tried);
 	}
 }
 
 function namespace_lookup(ns, names, start, tried){
 	if (tried.indexOf(ns) >= 0)
-		return stln_notfound();
+		return nl_notfound();
 	tried.push(ns);
 
 	var allns = [];

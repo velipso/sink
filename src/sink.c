@@ -4812,6 +4812,91 @@ static inline namespace namespace_new(frame fr){
 	return ns;
 }
 
+typedef enum {
+	NL_FOUND,
+	NL_NOTFOUND
+} nl_enum;
+
+typedef struct {
+	nl_enum type;
+	nsname nsn;
+} nl_st;
+
+static inline nl_st nl_found(nsname nsn){
+	return (nl_st){ .type = NL_FOUND, .nsn = nsn };
+}
+
+static inline nl_st nl_notfound(){
+	return (nl_st){ .type = NL_NOTFOUND };
+}
+
+static nl_st namespace_lookup(namespace ns, list_ptr names, int start, list_ptr tried);
+
+static nl_st namespace_lookupLevel(namespace ns, list_ptr names, int start, list_ptr tried){
+	for (int nsni = 0; nsni < ns->names->size; nsni++){
+		nsname nsn = ns->names->ptrs[nsni];
+		if (list_byte_equ(nsn->name, names->ptrs[start])){
+			if (start == names->size - 1) // if we're at the end of names, then report the find
+				return nl_found(nsn);
+			// otherwise, we need to traverse
+			if (nsn->type == NSN_NAMESPACE)
+				return namespace_lookup(nsn->u.ns, names, start + 1, tried);
+			return nl_notfound();
+		}
+	}
+	return nl_notfound();
+}
+
+static void namespace_getSiblings(namespace ns, list_ptr res, list_ptr tried){
+	if (list_ptr_has(res, ns))
+		return;
+	list_ptr_push(res, ns);
+	for (int i = 0; i < ns->usings->size; i++){
+		namespace uns = ns->usings->ptrs[i];
+		if (list_ptr_has(tried, uns))
+			continue;
+		namespace_getSiblings(uns, res, tried);
+	}
+}
+
+static nl_st namespace_lookup(namespace ns, list_ptr names, int start, list_ptr tried){
+	if (list_ptr_has(tried, ns))
+		return nl_notfound();
+	list_ptr_push(tried, ns);
+
+	list_ptr allns = list_ptr_new(NULL);
+	namespace_getSiblings(ns, allns, tried);
+	for (int i = 0; i < allns->size; i++){
+		namespace hns = allns->ptrs[i];
+		nl_st n = namespace_lookupLevel(hns, names, start, tried);
+		if (n.type == NL_FOUND){
+			list_ptr_free(allns);
+			return n;
+		}
+	}
+	list_ptr_free(allns);
+	return nl_notfound();
+}
+
+static inline nl_st namespace_lookupImmediate(namespace ns, list_ptr names){
+	// should perform the most ideal lookup... if it fails, then there is room to add a symbol
+	for (int ni = 0; ni < names->size; ni++){
+		list_byte name = names->ptrs[ni];
+		for (int nsni = 0; nsni < ns->names->size; nsni++){
+			nsname nsn = ns->names->ptrs[nsni];
+			if (list_byte_equ(nsn->name, name)){
+				if (ni == names->size - 1)
+					return nl_found(nsn);
+				if (nsn->type != NSN_NAMESPACE)
+					return nl_notfound();
+				ns = nsn->u.ns;
+				break;
+			}
+		}
+	}
+	return nl_notfound();
+}
+
 typedef struct scope_struct scope_st, *scope;
 struct scope_struct {
 	namespace ns;
@@ -5022,72 +5107,16 @@ static inline stl_st stl_error(char *msg){
 	return (stl_st){ .type = STL_ERROR, .u.msg = msg };
 }
 
-typedef enum {
-	STLN_FOUND,
-	STLN_NOTFOUND
-} stln_enum;
-
-typedef struct {
-	stln_enum type;
-	nsname nsn;
-} stln_st;
-
-static inline stln_st stln_found(nsname nsn){
-	return (stln_st){ .type = STLN_FOUND, .nsn = nsn };
-}
-
-static inline stln_st stln_notfound(){
-	return (stln_st){ .type = STLN_NOTFOUND };
-}
-
-static inline stln_st symtbl_lookupNsSingle(symtbl sym, namespace ns, list_ptr names){
-	for (int ni = 0; ni < names->size; ni++){
-		bool found = false;
-		for (int nsni = 0; nsni < ns->names->size; nsni++){
-			nsname nsn = ns->names->ptrs[nsni];
-			if (list_byte_equ(nsn->name, names->ptrs[ni])){
-				if (nsn->type == NSN_NAMESPACE){
-					ns = nsn->u.ns;
-					found = true;
-					break;
-				}
-				else if (ni == names->size - 1)
-					return stln_found(nsn);
-				else
-					break;
-			}
-		}
-		if (!found)
-			break;
-	}
-	return stln_notfound();
-}
-
-static stln_st symtbl_lookupNs(symtbl sym, namespace ns, list_ptr names, list_ptr tried){
-	if (list_ptr_has(tried, ns))
-		return stln_notfound();
-	list_ptr_push(tried, ns);
-	stln_st st = symtbl_lookupNsSingle(sym, ns, names);
-	if (st.type == STLN_FOUND)
-		return st;
-	for (int i = 0; i < ns->usings->size; i++){
-		st = symtbl_lookupNs(sym, ns->usings->ptrs[i], names, tried);
-		if (st.type == STLN_FOUND)
-			return st;
-	}
-	return stln_notfound();
-}
-
 static stl_st symtbl_lookup(symtbl sym, list_ptr names){
 	list_ptr tried = list_ptr_new(NULL);
 	scope trysc = sym->sc;
 	while (trysc != NULL){
 		for (int trynsi = trysc->nsStack->size - 1; trynsi >= 0; trynsi--){
 			namespace tryns = trysc->nsStack->ptrs[trynsi];
-			stln_st st = symtbl_lookupNs(sym, tryns, names, tried);
-			if (st.type == STLN_FOUND){
+			nl_st n = namespace_lookup(tryns, names, 0, tried);
+			if (n.type == NL_FOUND){
 				list_ptr_free(tried);
-				return stl_ok(st.nsn);
+				return stl_ok(n.nsn);
 			}
 		}
 		trysc = trysc->parent;
@@ -6983,10 +7012,10 @@ static inline pgr_st program_gen(program prg, symtbl sym, ast stmt, void *state,
 		} break;
 
 		case AST_DEF1: {
-			stln_st lr = symtbl_lookupNsSingle(sym, sym->sc->ns, stmt->u.def1.names);
+			nl_st n = namespace_lookupImmediate(sym->sc->ns, stmt->u.def1.names);
 			label lbl;
-			if (lr.type == STLN_FOUND && lr.nsn->type == NSN_CMD_LOCAL){
-				lbl = lr.nsn->u.cmdLocal.lbl;
+			if (n.type == NL_FOUND && n.nsn->type == NSN_CMD_LOCAL){
+				lbl = n.nsn->u.cmdLocal.lbl;
 				if (!sym->repl && lbl->pos >= 0){ // if already defined, error
 					list_byte b = stmt->u.def1.names->ptrs[0];
 					char *join = sink_format("Cannot redefine: %.*s", b->size, b->bytes);
@@ -7402,14 +7431,13 @@ static inline pgr_st program_gen(program prg, symtbl sym, ast stmt, void *state,
 		} break;
 
 		case AST_USING: {
-			sfn_st sr = symtbl_findNamespace(sym, stmt->u.using.names, stmt->u.using.names->size);
-			if (sr.type == SFN_ERROR)
-				return pgr_error(stmt->flp, sr.u.msg);
-			bool found = false;
-			for (int j = 0; j < sym->sc->ns->usings->size && !found; j++)
-				found = sym->sc->ns->usings->ptrs[j] == sr.u.ns;
-			if (!found)
-				list_ptr_push(sym->sc->ns->usings, sr.u.ns);
+			stl_st sl = symtbl_lookup(sym, stmt->u.using.names);
+			if (sl.type == STL_ERROR)
+				return pgr_error(stmt->flp, sl.u.msg);
+			if (sl.u.nsn->type != NSN_NAMESPACE)
+				return pgr_error(stmt->flp, sink_format("Expecting namespace"));
+			if (!list_ptr_has(sym->sc->ns->usings, sl.u.nsn->u.ns))
+				list_ptr_push(sym->sc->ns->usings, sl.u.nsn->u.ns);
 			return pgr_ok();
 		} break;
 
@@ -9855,8 +9883,10 @@ static void compiler_reset(compiler cmp){
 
 static void compiler_begininc(compiler cmp, list_ptr names, char *file){
 	cmp->flpn = flpn_new(file, cmp->flpn);
-	if (names)
+	if (names){
+		// TODO: symtbl_pushNamespace can return an error!
 		symtbl_pushNamespace(cmp->sym, names);
+	}
 }
 
 static void compiler_endinc(compiler cmp, bool ns){
