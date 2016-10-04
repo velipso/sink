@@ -2866,6 +2866,79 @@ function namespace_new(fr){
 	};
 }
 
+var NL_FOUND    = 'NL_FOUND';
+var NL_NOTFOUND = 'NL_NOTFOUND';
+
+function nl_found(nsn){
+	return { type: NL_FOUND, nsn: nsn };
+}
+
+function nl_notfound(){
+	return { type: NL_NOTFOUND };
+}
+
+function namespace_lookupLevel(ns, names, start, tried){
+	for (var nsni = 0; nsni < ns.names.length; nsni++){
+		var nsn = ns.names[nsni];
+		if (nsn.name === names[start]){
+			if (start === names.length - 1) // if we're at the end of names, then report the find
+				return nl_found(nsn);
+			// otherwise, we need to traverse
+			if (nsn.type === NSN_NAMESPACE)
+				return namespace_lookup(nsn.ns, names, start + 1, tried);
+			return nl_notfound();
+		}
+	}
+	return nl_notfound();
+}
+
+function namespace_getSiblings(ns, res, tried){
+	if (res.indexOf(ns) >= 0)
+		return;
+	res.push(ns);
+	for (var i = 0; i < ns.usings.length; i++){
+		var uns = ns.usings[i];
+		if (tried.indexOf(uns) >= 0)
+			continue;
+		namespace_getSiblings(uns, res);
+	}
+}
+
+function namespace_lookup(ns, names, start, tried){
+	if (tried.indexOf(ns) >= 0)
+		return stln_notfound();
+	tried.push(ns);
+
+	var allns = [];
+	namespace_getSiblings(ns, allns, tried);
+	for (var i = 0; i < allns.length; i++){
+		var hns = allns[i];
+		var n = namespace_lookupLevel(hns, names, start, tried);
+		if (n.type == NL_FOUND)
+			return n;
+	}
+	return nl_notfound();
+}
+
+function namespace_lookupImmediate(ns, names){
+	// should perform the most ideal lookup... if it fails, then there is room to add a symbol
+	for (var ni = 0; ni < names.length; ni++){
+		var name = names[ni];
+		for (var nsni = 0; nsni < ns.names.length; nsni++){
+			var nsn = ns.names[nsni];
+			if (nsn.name === name){
+				if (ni === names.length - 1)
+					return nl_found(nsn);
+				if (nsn.type !== NSN_NAMESPACE)
+					return nl_notfound();
+				ns = nsn.ns;
+				break;
+			}
+		}
+	}
+	return nl_notfound();
+}
+
 function scope_new(fr, lblBreak, lblContinue, parent){
 	var ns = namespace_new(fr);
 	return {
@@ -2987,64 +3060,15 @@ function stl_error(msg){
 	return { type: STL_ERROR, msg: msg };
 }
 
-var STLN_FOUND    = 'STLN_FOUND';
-var STLN_NOTFOUND = 'STLN_NOTFOUND';
-
-function stln_found(nsn){
-	return { type: STLN_FOUND, nsn: nsn };
-}
-
-function stln_notfound(){
-	return { type: STLN_NOTFOUND };
-}
-
-function symtbl_lookupNsSingle(sym, ns, names){
-	for (var ni = 0; ni < names.length; ni++){
-		var found = false;
-		for (var nsni = 0; nsni < ns.names.length; nsni++){
-			var nsn = ns.names[nsni];
-			if (nsn.name == names[ni]){
-				if (nsn.type == NSN_NAMESPACE){
-					ns = nsn.ns;
-					found = true;
-					break;
-				}
-				else if (ni == names.length - 1)
-					return stln_found(nsn);
-				else
-					break;
-			}
-		}
-		if (!found)
-			break;
-	}
-	return stln_notfound();
-}
-
-function symtbl_lookupNs(sym, ns, names, tried){
-	if (tried.indexOf(ns) >= 0)
-		return stln_notfound();
-	tried.push(ns);
-	var st = symtbl_lookupNsSingle(sym, ns, names);
-	if (st.type == STLN_FOUND)
-		return st;
-	for (var i = 0; i < ns.usings.length; i++){
-		st = symtbl_lookupNs(sym, ns.usings[i], names, tried);
-		if (st.type == STLN_FOUND)
-			return st;
-	}
-	return stln_notfound();
-}
-
 function symtbl_lookup(sym, names){
 	var tried = [];
 	var trysc = sym.sc;
 	while (trysc != null){
 		for (var trynsi = trysc.nsStack.length - 1; trynsi >= 0; trynsi--){
 			var tryns = trysc.nsStack[trynsi];
-			var st = symtbl_lookupNs(sym, tryns, names, tried);
-			if (st.type == STLN_FOUND)
-				return stl_ok(st.nsn);
+			var n = namespace_lookup(tryns, names, 0, tried);
+			if (n.type == NL_FOUND)
+				return stl_ok(n.nsn);
 		}
 		trysc = trysc.parent;
 	}
@@ -4571,10 +4595,10 @@ function program_gen(prg, sym, stmt, pst, sayexpr){
 		} break;
 
 		case AST_DEF1: {
-			var lr = symtbl_lookupNsSingle(sym, sym.sc.ns, stmt.names);
+			var n = namespace_lookupImmediate(sym.sc.ns, stmt.names);
 			var lbl;
-			if (lr.type == STLN_FOUND && lr.nsn.type == NSN_CMD_LOCAL){
-				lbl = lr.nsn.lbl;
+			if (n.type == NL_FOUND && n.nsn.type == NSN_CMD_LOCAL){
+				lbl = n.nsn.lbl;
 				if (!sym.repl && lbl.pos >= 0) // if already defined, error
 					return pgr_error(stmt.flp, 'Cannot redefine "' + stmt.names.join('.') + '"');
 			}
@@ -4917,14 +4941,13 @@ function program_gen(prg, sym, stmt, pst, sayexpr){
 		} break;
 
 		case AST_USING: {
-			var sr = symtbl_findNamespace(sym, stmt.names, stmt.names.length);
-			if (sr.type == SFN_ERROR)
-				return pgr_error(stmt.flp, sr.msg);
-			var found = false;
-			for (var j = 0; j < sym.sc.ns.usings.length && !found; j++)
-				found = sym.sc.ns.usings[j] == sr.ns;
-			if (!found)
-				sym.sc.ns.usings.push(sr.ns);
+			var sl = symtbl_lookup(sym, stmt.names);
+			if (sl.type == STL_ERROR)
+				return pgr_error(stmt.flp, sl.msg);
+			if (sl.nsn.type != NSN_NAMESPACE)
+				return pgr_error(stmt.flp, 'Expecting namespace');
+			if (sym.sc.ns.usings.indexOf(sl.nsn.ns) < 0)
+				sym.sc.ns.usings.push(sl.nsn.ns);
 			return pgr_ok();
 		} break;
 
@@ -6914,8 +6937,10 @@ function compiler_reset(cmp){
 
 function compiler_begininc(cmp, names, file){
 	cmp.flpn = flpn_new(file, cmp.flpn);
-	if (names)
+	if (names){
+		// TODO: symtbl_pushNamespace can return an error!
 		symtbl_pushNamespace(cmp.sym, names);
+	}
 }
 
 function compiler_endinc(cmp, ns){

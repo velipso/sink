@@ -11,3 +11,18 @@ namespace foo
 end
 
 say (foo.add 4, 5)
+
+def obj.test
+	say 'inside obj.test'
+end
+
+namespace obj2
+	using obj
+	test
+end
+
+namespace obj3
+	using obj
+end
+
+obj3.test
