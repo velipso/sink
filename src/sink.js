@@ -2371,8 +2371,10 @@ function parser_process(pr, flp, stmts){
 			return parser_statement(pr, flp, stmts, true);
 
 		case PRS_RETURN:
-			if (tk1.type == TOK_NEWLINE)
-				return parser_statement(pr, ast_return(flp, expr_nil(flp)));
+			if (tk1.type == TOK_NEWLINE){
+				stmts.push(ast_return(flp, expr_nil(flp)));
+				return parser_statement(pr, flp, stmts, false);
+			}
 			st.state = PRS_RETURN_DONE;
 			parser_push(pr, PRS_EXPR);
 			return parser_process(pr, flp, stmts);
