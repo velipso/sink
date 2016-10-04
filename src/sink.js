@@ -1602,8 +1602,12 @@ function ast_if4(flp){
 	return { flp: flp, type: AST_IF4 };
 }
 
-function ast_include(flp, names, file){
-	return { flp: flp, type: AST_INCLUDE, names: names, file: file };
+function incl_new(names, file){
+	return { names: names, file: file };
+}
+
+function ast_include(flp, incls){
+	return { flp: flp, type: AST_INCLUDE, incls: incls };
 }
 
 function ast_namespace1(flp, names){
@@ -1770,6 +1774,7 @@ function prs_new(state, next){
 		exprTerm3: null,            // expr
 		names: null,                // list of strings
 		names2: null,               // list of strings
+		incls: null,                // list of incl's
 		next: next
 	};
 }
@@ -1800,8 +1805,8 @@ function parser_rev(pr){
 	pr.tk2 = null;
 }
 
-var PRR_MORE      = 'PRR_MORE';
-var PRR_ERROR     = 'PRR_ERROR';
+var PRR_MORE  = 'PRR_MORE';
+var PRR_ERROR = 'PRR_ERROR';
 
 function prr_more(){
 	return { type: PRR_MORE };
@@ -2335,11 +2340,15 @@ function parser_process(pr, flp, stmts){
 			return prr_more();
 
 		case PRS_INCLUDE_STR3:
-			stmts.push(ast_include(flp, st.names, st.str));
+			if (st.incls == null)
+				st.incls = [];
+			st.incls.push(incl_new(st.names, st.str));
 			if (tok_isKS(tk1, KS_COMMA)){
 				st.state = PRS_INCLUDE;
 				return prr_more();
 			}
+			stmts.push(ast_include(flp, st.incls));
+			st.incls = null;
 			return parser_statement(pr, flp, stmts, false);
 
 		case PRS_NAMESPACE:
@@ -5547,6 +5556,8 @@ function opi_abort(ctx, args, force){
 }
 
 function opi_abortstr(ctx, str){
+	// TODO: maybe save previous PC's, and map them back to line numbers? then return the actual
+	// error message with the flp?
 	var r = ctx.warn(str);
 	if (isPromise(r))
 		throw 'TODO: deal with async warn2';
@@ -6048,7 +6059,12 @@ function context_run(ctx){
 				E = ctx.prg.keyTable[E];
 				if (!ctx.natives.hasOwnProperty(E))
 					return opi_abortstr(ctx, 'Invalid native call');
-				X = ctx.natives[E].apply(void 0, X);
+				try{
+					X = ctx.natives[E].apply(void 0, X);
+				}
+				catch (e){
+					return opi_abortstr(ctx, '' + e);
+				}
 				if (isPromise(X))
 					throw new Error('TODO: handle async results from native call');
 				if (typeof X === 'undefined')
@@ -6870,7 +6886,6 @@ function flpn_new(file, next){
 		flp: filepos_new(file, 1, 1),
 		lx: lex_new(),
 		tkflps: [],
-		stmts: [],
 		pgstate: [],
 		next: next
 	};
@@ -6921,9 +6936,6 @@ function cma_error(msg){
 }
 
 function compiler_staticinc(cmp, names, file, body){
-	var res = compiler_closeLexer(cmp);
-	if (res.type == CMA_ERROR)
-		return res;
 	compiler_begininc(cmp, names, file);
 	var res = compiler_write(cmp, body);
 	if (res.type == CMA_ERROR){
@@ -6978,15 +6990,12 @@ function compiler_tryinc(cmp, names, file, first){
 			return false;
 	}
 
-	var res = compiler_closeLexer(cmp);
-	if (res.type == CMA_ERROR)
-		return res;
 	compiler_begininc(cmp, names, file);
 
 	var data = cmp.fsread(file);
 	if (isPromise(data))
 		throw new Error('TODO: figure out how to deal with a Promise returned from fsread');
-	res = compiler_write(cmp, UTF8.encode(data));
+	var res = compiler_write(cmp, UTF8.encode(data));
 	if (res.type == CMA_ERROR){
 		compiler_endinc(cmp, names !== null);
 		return res;
@@ -7024,52 +7033,66 @@ function compiler_process(cmp){
 	var stmts = [];
 	var tkflps = cmp.flpn.tkflps;
 	while (tkflps.length > 0){
-		var tf = tkflps.shift();
-		var tks = tf.tks;
-		var flp = tf.flp;
-		while (tks.length > 0){
-			var tk = tks.shift();
-			if (tk.type == TOK_ERROR)
-				return cma_error(filepos_err(flp, tk.msg));
-			var pp = parser_add(cmp.pr, tk, flp, stmts);
-			if (pp.type == PRR_ERROR)
-				return cma_error(filepos_err(flp, pp.msg));
+		var found_include = false;
+		while (tkflps.length > 0){
+			var tf = tkflps[0];
+			var tks = tf.tks;
+			var flp = tf.flp;
+			while (tks.length > 0){
+				var tk = tks.shift();
+				if (tk.type == TOK_ERROR)
+					return cma_error(filepos_err(flp, tk.msg));
+				var pp = parser_add(cmp.pr, tk, flp, stmts);
+				if (pp.type == PRR_ERROR)
+					return cma_error(filepos_err(flp, pp.msg));
+				if (stmts.length > 0 && stmts[stmts.length - 1].type == AST_INCLUDE){
+					found_include = true;
+					break;
+				}
+			}
+			if (found_include)
+				break;
+			tkflps.shift();
 		}
-	}
 
-	// process statements
-	while (stmts.length > 0){
-		var stmt = stmts.shift();
-		if (stmt.type == AST_INCLUDE){
-			if (cmp.includes.hasOwnProperty(stmt.file)){
-				var res = compiler_staticinc(cmp, stmt.names, stmt.file, cmp.includes[stmt.file]);
-				if (res.type == CMA_ERROR)
-					return res;
+		// process statements
+		while (stmts.length > 0){
+			var stmt = stmts.shift();
+			if (stmt.type == AST_INCLUDE){
+				for (var i = 0; i < stmt.incls.length; i++){
+					var inc = stmt.incls[i];
+					if (cmp.includes.hasOwnProperty(inc.file)){
+						var res = compiler_staticinc(cmp, inc.names, inc.file,
+							cmp.includes[inc.file]);
+						if (res.type == CMA_ERROR)
+							return res;
+					}
+					else{
+						var res = compiler_dynamicinc(cmp, inc.names, inc.file, stmt.flp.file);
+						if (res === false)
+							return cma_error('Failed to include: ' + inc.file);
+						if (res.type == CMA_ERROR)
+							return res;
+					}
+				}
 			}
 			else{
-				var res = compiler_dynamicinc(cmp, stmt.names, stmt.file, stmt.flp.file);
-				if (res === false)
-					return cma_error('Failed to include: ' + stmt.file);
-				if (res.type == CMA_ERROR)
-					return res;
-			}
-		}
-		else{
-			var pr = program_gen(cmp.prg, cmp.sym, stmt,
-				cmp.flpn.pgstate.length <= 0 ? null :
-				cmp.flpn.pgstate[cmp.flpn.pgstate.length - 1],
-				cmp.prg.repl && cmp.flpn.next == null && cmp.flpn.pgstate.length == 0);
-			switch (pr.type){
-				case PGR_OK:
-					break;
-				case PGR_PUSH:
-					cmp.flpn.pgstate.push(pr.state);
-					break;
-				case PGR_POP:
-					cmp.flpn.pgstate.pop();
-					break;
-				case PGR_ERROR:
-					return cma_error(filepos_err(stmt.flp, pr.msg));
+				var pr = program_gen(cmp.prg, cmp.sym, stmt,
+					cmp.flpn.pgstate.length <= 0 ? null :
+					cmp.flpn.pgstate[cmp.flpn.pgstate.length - 1],
+					cmp.prg.repl && cmp.flpn.next == null && cmp.flpn.pgstate.length == 0);
+				switch (pr.type){
+					case PGR_OK:
+						break;
+					case PGR_PUSH:
+						cmp.flpn.pgstate.push(pr.state);
+						break;
+					case PGR_POP:
+						cmp.flpn.pgstate.pop();
+						break;
+					case PGR_ERROR:
+						return cma_error(filepos_err(stmt.flp, pr.msg));
+				}
 			}
 		}
 	}
@@ -7217,7 +7240,7 @@ var Sink = {
 		}
 		return read();
 	},
-	run: function(startFile, fstype, fsread, say, warn, ask, libs, paths){
+	run: function(startFile, fstype, fsread, say, warn, ask, libs, paths, error){
 		var prg = program_new(false);
 		var cmp = compiler_new(prg, startFile, fstype, fsread, libs_getIncludes(libs), paths);
 
@@ -7226,12 +7249,12 @@ var Sink = {
 			throw new Error('TODO: fsread returns promise');
 		var cm = compiler_write(cmp, UTF8.encode(data));
 		if (cm.type == CMA_ERROR){
-			warn('Error: ' + cm.msg);
+			error(cm.msg);
 			return false;
 		}
 		cm = compiler_close(cmp);
 		if (cm.type == CMA_ERROR){
-			warn('Error: ' + cm.msg);
+			error(cm.msg);
 			return false;
 		}
 

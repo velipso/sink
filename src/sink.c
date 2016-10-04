@@ -2712,8 +2712,7 @@ typedef struct {
 			expr cond;
 		} if2;
 		struct {
-			list_ptr names;
-			list_byte file;
+			list_ptr incls;
 		} include;
 		struct {
 			list_ptr names;
@@ -2800,10 +2799,8 @@ static void ast_free(ast stmt){
 			break;
 
 		case AST_INCLUDE:
-			if (stmt->u.include.names)
-				list_ptr_free(stmt->u.include.names);
-			if (stmt->u.include.file)
-				list_byte_free(stmt->u.include.file);
+			if (stmt->u.include.incls)
+				list_ptr_free(stmt->u.include.incls);
 			break;
 
 		case AST_NAMESPACE1:
@@ -2935,8 +2932,7 @@ static void ast_print(ast stmt){
 			break;
 
 		case AST_INCLUDE:
-			//if (stmt->u.include.names)
-			//if (stmt->u.include.file)
+			//if (stmt->u.include.incls)
 			debug("AST_INCLUDE");
 			break;
 
@@ -3119,12 +3115,31 @@ static inline ast ast_if4(filepos_st flp){
 	return stmt;
 }
 
-static inline ast ast_include(filepos_st flp, list_ptr names, list_byte file){
+typedef struct {
+	list_ptr names;
+	list_byte file;
+} incl_st, *incl;
+
+static void incl_free(incl inc){
+	if (inc->names)
+		list_ptr_free(inc->names);
+	if (inc->file)
+		list_byte_free(inc->file);
+	mem_free(inc);
+}
+
+static inline incl incl_new(list_ptr names, list_byte file){
+	incl inc = mem_alloc(sizeof(incl_st));
+	inc->names = names;
+	inc->file = file;
+	return inc;
+}
+
+static inline ast ast_include(filepos_st flp, list_ptr incls){
 	ast stmt = mem_alloc(sizeof(ast_st));
 	stmt->flp = flp;
 	stmt->type = AST_INCLUDE;
-	stmt->u.include.names = names;
-	stmt->u.include.file = file;
+	stmt->u.include.incls = incls;
 	return stmt;
 }
 
@@ -3359,6 +3374,7 @@ struct prs_struct {
 	expr exprTerm3;
 	list_ptr names;
 	list_ptr names2;
+	list_ptr incls;
 	prs next;
 };
 
@@ -3409,6 +3425,8 @@ static void prs_free(prs pr){
 		list_ptr_free(pr->names);
 	if (pr->names2)
 		list_ptr_free(pr->names2);
+	if (pr->incls)
+		list_ptr_free(pr->incls);
 	mem_free(pr);
 }
 
@@ -3431,6 +3449,7 @@ static prs prs_new(prs_enum state, prs next){
 	pr->exprTerm3 = NULL;            // expr
 	pr->names = NULL;                // list of strings
 	pr->names2 = NULL;               // list of strings
+	pr->incls = NULL;                // list of incl's
 	pr->next = next;
 	return pr;
 }
@@ -4090,14 +4109,18 @@ static prr_st parser_process(parser pr, filepos_st flp, list_ptr stmts){
 			return prr_more();
 
 		case PRS_INCLUDE_STR3:
+			if (st->incls == NULL)
+				st->incls = list_ptr_new((free_func)incl_free);
 			list_byte_push(st->str, 0); // NULL-terminate the filename
-			list_ptr_push(stmts, ast_include(flp, st->names, st->str));
+			list_ptr_push(st->incls, incl_new(st->names, st->str));
 			st->names = NULL;
 			st->str = NULL;
 			if (tok_isKS(tk1, KS_COMMA)){
 				st->state = PRS_INCLUDE;
 				return prr_more();
 			}
+			list_ptr_push(stmts, ast_include(flp, st->incls));
+			st->incls = NULL;
 			return parser_statement(pr, flp, stmts, false);
 
 		case PRS_NAMESPACE:
@@ -9745,7 +9768,6 @@ static filepos_node flpn_new(char *file, filepos_node next){
 	filepos_node flpn = mem_alloc(sizeof(filepos_node_st));
 	flpn->lx = lex_new();
 	flpn->tkflps = list_ptr_new((free_func)tkflp_free);
-	flpn->stmts = list_ptr_new((free_func)ast_free);
 	flpn->pgstate = list_ptr_new((free_func)pgst_free);
 	flpn->flp.file = file;
 	flpn->flp.line = 1;
@@ -9758,7 +9780,6 @@ static filepos_node flpn_new(char *file, filepos_node next){
 static void flpn_free(filepos_node flpn){
 	lex_free(flpn->lx);
 	list_ptr_free(flpn->tkflps);
-	list_ptr_free(flpn->stmts);
 	list_ptr_free(flpn->pgstate);
 	if (flpn->flp.file)
 		mem_free(flpn->flp.file);
@@ -9850,11 +9871,8 @@ static char *compiler_write(compiler cmp, int size, const uint8_t *bytes);
 static char *compiler_closeLexer(compiler cmp);
 
 static bool compiler_staticinc(compiler cmp, list_ptr names, const char *file, const char *body){
-	char *err = compiler_closeLexer(cmp);
-	if (err)
-		return false;
 	compiler_begininc(cmp, names, sink_format("%s", file));
-	err = compiler_write(cmp, strlen(body), (const uint8_t *)body);
+	char *err = compiler_write(cmp, strlen(body), (const uint8_t *)body);
 	if (err){
 		compiler_endinc(cmp, names != NULL);
 		return false;
@@ -9961,12 +9979,6 @@ static bool compiler_tryinc(compiler cmp, list_ptr names, const char *file, bool
 		}
 	}
 
-	char *err = compiler_closeLexer(cmp);
-	if (err){
-		if (freefix)
-			mem_free(fix);
-		return true;
-	}
 	compiler_begininc(cmp, names, sink_format("%s", fix));
 
 	bool success = cmp->inc.f_fsread(cmp->scr, fix, cmp->inc.user);
@@ -10024,91 +10036,102 @@ static char *compiler_process(compiler cmp){
 	// generate statements
 	list_ptr stmts = list_ptr_new((free_func)ast_free);
 	while (cmp->flpn->tkflps->size > 0){
-		tkflp tf = list_ptr_shift(cmp->flpn->tkflps);
-		while (tf->tks->size > 0){
-			tok tk = list_ptr_shift(tf->tks);
-			tok_print(tk);
-			if (tk->type == TOK_ERROR){
-				cmp->msg = filepos_err(tf->flp, tk->u.msg);
-				tok_free(tk);
-				tkflp_free(tf);
-				list_ptr_free(stmts);
-				return cmp->msg;
+		bool found_include = false;
+		while (cmp->flpn->tkflps->size > 0){
+			tkflp tf = cmp->flpn->tkflps->ptrs[0];
+			while (tf->tks->size > 0){
+				tok tk = list_ptr_shift(tf->tks);
+				tok_print(tk);
+				if (tk->type == TOK_ERROR){
+					cmp->msg = filepos_err(tf->flp, tk->u.msg);
+					tok_free(tk);
+					tkflp_free(tf);
+					list_ptr_free(stmts);
+					return cmp->msg;
+				}
+				prr_st pp = parser_add(cmp->pr, tk, tf->flp, stmts);
+				if (pp.type == PRR_ERROR){
+					tkflp_free(tf);
+					cmp->msg = filepos_err(tf->flp, pp.msg);
+					mem_free(pp.msg);
+					list_ptr_free(stmts);
+					return cmp->msg;
+				}
+				if (stmts->size > 0 && ((ast)stmts->ptrs[stmts->size - 1])->type == AST_INCLUDE){
+					found_include = true;
+					break;
+				}
 			}
-			prr_st pp = parser_add(cmp->pr, tk, tf->flp, stmts);
-			if (pp.type == PRR_ERROR){
-				tkflp_free(tf);
-				cmp->msg = filepos_err(tf->flp, pp.msg);
-				mem_free(pp.msg);
-				list_ptr_free(stmts);
-				return cmp->msg;
-			}
+			if (found_include)
+				break;
+			tkflp_free(list_ptr_shift(cmp->flpn->tkflps));
 		}
-		tkflp_free(tf);
-	}
 
-	// process statements
-	while (stmts->size > 0){
-		ast stmt = list_ptr_shift(stmts);
-		ast_print(stmt);
+		// process statements
+		while (stmts->size > 0){
+			ast stmt = list_ptr_shift(stmts);
+			ast_print(stmt);
 
-		if (stmt->type == AST_INCLUDE){
-			// intercept include statements to process by the compiler
-			const char *file = (const char *)stmt->u.include.file->bytes;
+			if (stmt->type == AST_INCLUDE){
+				// intercept include statements to process by the compiler
+				for (int ii = 0; ii < stmt->u.include.incls->size; ii++){
+					incl inc = stmt->u.include.incls->ptrs[ii];
+					const char *file = (const char *)inc->file->bytes;
 
-			// look if file matches a static include pseudo-file
-			bool internal = false;
-			for (int i = 0; i < cmp->sinc->name->size; i++){
-				const char *sinc_name = cmp->sinc->name->ptrs[i];
-				const char *sinc_body = cmp->sinc->body->ptrs[i];
-				if (strcmp(file, sinc_name) == 0){
-					internal = true;
-					bool success = compiler_staticinc(cmp, stmt->u.include.names, file, sinc_body);
-					if (!success){
+					// look if file matches a static include pseudo-file
+					bool internal = false;
+					for (int i = 0; i < cmp->sinc->name->size; i++){
+						const char *sinc_name = cmp->sinc->name->ptrs[i];
+						const char *sinc_body = cmp->sinc->body->ptrs[i];
+						if (strcmp(file, sinc_name) == 0){
+							internal = true;
+							bool success = compiler_staticinc(cmp, inc->names, file, sinc_body);
+							if (!success){
+								ast_free(stmt);
+								list_ptr_free(stmts);
+								return cmp->msg;
+							}
+							break;
+						}
+					}
+
+					if (!internal){
+						bool found = compiler_dynamicinc(cmp, inc->names, file, stmt->flp.file);
+						if (!found && cmp->msg == NULL)
+							cmp->msg = sink_format("Failed to include: %s", file);
+						if (cmp->msg){
+							ast_free(stmt);
+							list_ptr_free(stmts);
+							return cmp->msg;
+						}
+					}
+				}
+			}
+			else{
+				list_ptr pgsl = cmp->flpn->pgstate;
+				pgr_st pg = program_gen(cmp->prg, cmp->sym, stmt,
+					pgsl->size <= 0 ? NULL : ((pgst)pgsl->ptrs[pgsl->size - 1])->state,
+					cmp->prg->repl && cmp->flpn->next == NULL && pgsl->size <= 0);
+				symtbl_print(cmp->sym);
+				switch (pg.type){
+					case PGR_OK:
+						break;
+					case PGR_PUSH:
+						list_ptr_push(pgsl, pg.u.push.pgs);
+						break;
+					case PGR_POP:
+						pgst_free(list_ptr_pop(pgsl));
+						break;
+					case PGR_ERROR:
+						cmp->msg = filepos_err(stmt->flp, pg.u.error.msg);
 						ast_free(stmt);
+						mem_free(pg.u.error.msg);
 						list_ptr_free(stmts);
 						return cmp->msg;
-					}
-					break;
 				}
 			}
-
-			if (!internal){
-				bool found = compiler_dynamicinc(cmp, stmt->u.include.names, file,
-					stmt->flp.file);
-				if (!found && cmp->msg == NULL)
-					cmp->msg = sink_format("Failed to include: %s", file);
-				if (cmp->msg){
-					ast_free(stmt);
-					list_ptr_free(stmts);
-					return cmp->msg;
-				}
-			}
+			ast_free(stmt);
 		}
-		else{
-			list_ptr pgsl = cmp->flpn->pgstate;
-			pgr_st pg = program_gen(cmp->prg, cmp->sym, stmt,
-				pgsl->size <= 0 ? NULL : ((pgst)pgsl->ptrs[pgsl->size - 1])->state,
-				cmp->prg->repl && cmp->flpn->next == NULL && pgsl->size <= 0);
-			symtbl_print(cmp->sym);
-			switch (pg.type){
-				case PGR_OK:
-					break;
-				case PGR_PUSH:
-					list_ptr_push(pgsl, pg.u.push.pgs);
-					break;
-				case PGR_POP:
-					pgst_free(list_ptr_pop(pgsl));
-					break;
-				case PGR_ERROR:
-					cmp->msg = filepos_err(stmt->flp, pg.u.error.msg);
-					ast_free(stmt);
-					mem_free(pg.u.error.msg);
-					list_ptr_free(stmts);
-					return cmp->msg;
-			}
-		}
-		ast_free(stmt);
 	}
 	list_ptr_free(stmts);
 	return NULL;

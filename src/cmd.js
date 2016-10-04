@@ -161,5 +161,5 @@ switch (mode){
 		if (inFile === false)
 			return printHelp();
 		return sinkExit(Sink.run(makeabs(inFile), fstype, fsread, say, warn, ask, [SinkShell],
-			getpaths(false)));
+			getpaths(false), function(err){ warn('Error: ' + err); }));
 }
