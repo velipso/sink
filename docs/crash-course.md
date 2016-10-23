@@ -167,13 +167,13 @@ say num.oct 511  # 0c777
 Numbers can also be not-a-number, or infinity:
 
 ```
-x = num.NaN
+x = num.nan
 x = num.inf
 x = -num.inf
 
-if num.isNaN x
-  say 'x is NaN'
-elseif num.isFinite x
+if num.isnan x
+  say 'x is nan'
+elseif num.isfinite x
   say 'x is finite'
 end
 ```
@@ -213,8 +213,8 @@ say (typenum x, y)
 Strings
 -------
 
-Strings are binary-safe arrays of bytes, that can be any length, and include any value from 0x00 to
-0xFF.  Strings have no concept of unicode (though there are basic helper functions in the standard
+Strings are binary-safe arrays of bytes, that can be any length, and include any value from 0 to
+255.  Strings have no concept of unicode (though there are basic helper functions in the standard
 library for dealing specifically with UTF-8 strings).
 
 Strings can be specified with single quotes `'` or double quotes `"`.  Single quoted strings do not
@@ -273,19 +273,16 @@ say {1} * {2, 5}          # {2, 0}
 say num.abs {-1, -2}      # {1, 2}
 ```
 
-Lists are modified using the operators:
+Lists are modified using the commands:
 
-| Operator        | Description                                            |
-|-----------------|--------------------------------------------------------|
-| `ls ~+ 5`       | Push `5` at end of list                                |
-| `ls +~ 5`       | Unshift `5` at beginning of list                       |
-| `~-ls`          | Pop the last element off the end of the list           |
-| `-~ls`          | Shift the first element off the start of the list      |
-| `ls ~~+ {1, 2}` | Append the second list on the end of the first list    |
-| `ls +~~ {1, 2}` | Prepend the second list at the start of the first list |
-
-These might look goofy at first, but if you think of `+`/`-` as adding/removing, and `~` as the list
-itself, then `~+` means "add to the right side", etc.
+| Command                   | Description                                            |
+|---------------------------|--------------------------------------------------------|
+| `list.push ls, 5`         | Push `5` at end of list                                |
+| `list.unshift ls, 5`      | Unshift `5` at beginning of list                       |
+| `list.pop ls`             | Pop the last element off the end of the list           |
+| `list.shift ls`           | Shift the first element off the start of the list      |
+| `list.append ls, {1, 2}`  | Append the second list on the end of the first list    |
+| `list.prepend ls, {1, 2}` | Prepend the second list at the start of the first list |
 
 Concatenation also works, but this *creates a new list*:
 
