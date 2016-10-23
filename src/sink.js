@@ -5571,10 +5571,20 @@ function opi_ask(ctx, args, fdiff, index){
 }
 
 function opi_exit(ctx, args){
+	if (args.length > 0){
+		var r = ctx.say(sink_list_join(args, ' '));
+		if (isPromise(r))
+			throw 'TODO: deal with async say';
+	}
 	return crr_exitpass(ctx);
 }
 
 function opi_abort(ctx, args, force){
+	if (args.length > 0){
+		var r = ctx.warn(sink_list_join(args, ' '));
+		if (isPromise(r))
+			throw 'TODO: deal with async warn';
+	}
 	if (force){
 		ctx.failed = true;
 		return SINK_RUN_FAIL;
