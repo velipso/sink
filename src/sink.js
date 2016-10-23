@@ -5054,7 +5054,7 @@ function native_new(hash, f_native){
 	return { hash: hash, f_native: f_native };
 }
 
-function context_new(prg, say, warn, ask, natives){
+function context_new(prg, say, warn, ask, natives, maxticks){
 	var ctx = {
 		natives: natives,
 		prg: prg,
@@ -5071,7 +5071,9 @@ function context_new(prg, say, warn, ask, natives){
 		timeout: 0,
 		timeout_left: 0,
 		rand_seed: 0,
-		rand_i: 0
+		rand_i: 0,
+		maxticks: maxticks,
+		ticks: 0
 	};
 	opi_rand_seedauto(ctx);
 	return ctx;
@@ -6892,6 +6894,12 @@ function context_run(ctx){
 			default:
 				return crr_invalid(ctx);
 		}
+		ctx.ticks++;
+		if ((ctx.ticks % 1000) == 0){
+			if ((typeof ctx.maxticks === 'number' && ctx.ticks >= ctx.maxticks) ||
+				(typeof ctx.maxticks === 'function' && ctx.maxticks(ctx.ticks)))
+				return opi_abortstr(ctx, 'Maximum ticks');
+		}
 	}
 	if (ctx.prg.repl)
 		return crr_replmore();
@@ -7226,10 +7234,10 @@ function libs_getNatives(libs){
 }
 
 var Sink = {
-	repl: function(prompt, fstype, fsread, say, warn, ask, libs, paths){
+	repl: function(prompt, fstype, fsread, say, warn, ask, libs, paths, maxticks){
 		var prg = program_new(true);
 		var cmp = compiler_new(prg, null, fstype, fsread, libs_getIncludes(libs), paths);
-		var ctx = context_new(prg, say, warn, ask, libs_getNatives(libs));
+		var ctx = context_new(prg, say, warn, ask, libs_getNatives(libs), maxticks);
 
 		function process(data){
 			var cm = compiler_write(cmp, UTF8.encode(data));
@@ -7267,7 +7275,7 @@ var Sink = {
 		}
 		return read();
 	},
-	run: function(startFile, fstype, fsread, say, warn, ask, libs, paths, error){
+	run: function(startFile, fstype, fsread, say, warn, ask, libs, paths, error, maxticks){
 		var prg = program_new(false);
 		var cmp = compiler_new(prg, startFile, fstype, fsread, libs_getIncludes(libs), paths);
 
@@ -7286,7 +7294,7 @@ var Sink = {
 		}
 
 		// run the finished program
-		var ctx = context_new(prg, say, warn, ask, libs_getNatives(libs));
+		var ctx = context_new(prg, say, warn, ask, libs_getNatives(libs), maxticks);
 		while (true){
 			var cr = context_run(ctx);
 			if (cr == SINK_RUN_PASS || cr == SINK_RUN_FAIL)
