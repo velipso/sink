@@ -320,7 +320,7 @@ Structure templates are lists of strings, where each case-sensitive string repre
 | Code     | Size | Signed?  | Endian | C Type     |
 |----------|------|----------|--------|------------|
 | `'U8'`   |    1 | Unsigned | N/A    | `uint8_t`  |
-| `'S8'`   |    1 | Signed   | N/A    | `int16_t`  |
+| `'S8'`   |    1 | Signed   | N/A    | `int8_t`   |
 | `'U16'`  |    2 | Unsigned | Native | `uint16_t` |
 | `'S16'`  |    2 | Signed   | Native | `int16_t`  |
 | `'UL16'` |    2 | Unsigned | Little | `uint16_t` |
