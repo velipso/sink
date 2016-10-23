@@ -3,7 +3,7 @@ Standard Library
 ================
 
 The standard library is available to all sink scripts, and is native to sink itself for basic
-execution.  These functions are available in all host environments, and always produce the same
+execution.  These commands are available in all host environments, and always produce the same
 results.
 
 | Function          | Description                                                                 |
@@ -18,7 +18,7 @@ results.
 Number
 ------
 
-Number functions will operate on lists by performing the operation on each element, just like the
+Number commands will operate on lists by performing the operation on each element, just like the
 built-in unary and binary operators.
 
 | Function            | Description                                                               |
@@ -61,7 +61,7 @@ Integer
 Sink only operates on 64-bit floating point numbers, but it's possible to simulate operations on
 signed 32-bit integers using the `int` namespace, with appropriate two's-complement wrapping.
 
-Integer functions will operate on lists by performing the operation on each element, just like the
+Integer commands will operate on lists by performing the operation on each element, just like the
 built-in unary and binary operators.
 
 | Function       | Description                                                                    |
@@ -164,7 +164,7 @@ Strings are 8-bit clean, and interpreted as binary data.
 ### Uppercase, Lowercase, Trim
 
 Due to the fact strings are interpreted as binary data, and not unicode strings, the `str.lower`,
-`str.upper`, and `str.trim` functions are explicitly specified:
+`str.upper`, and `str.trim` commands are explicitly specified:
 
 * `str.lower` will only convert bytes A-Z to a-z (values 65-90 to 97-122).
 * `str.upper` will only convert bytes a-z to A-Z (values 97-122 to 65-90).
@@ -173,11 +173,11 @@ Due to the fact strings are interpreted as binary data, and not unicode strings,
 
 ### Hash Function
 
-The `str.hash` function is defined as [Murmur3_x64_128](https://github.com/aappleby/smhasher), and
+The `str.hash` command is defined as [Murmur3_x64_128](https://github.com/aappleby/smhasher), and
 returns the same results on all platforms, given the same input.  Murmur3 is known as a fast and
 high quality non-cryptographic hash function.
 
-The `str.hash` function will return a list of four numbers, each 32-bit unsigned integers.
+The `str.hash` command will return a list of four numbers, each 32-bit unsigned integers.
 
 The seed parameter is optional, and defaults to 0.  Changing the seed is useful for generating
 different hashes for the same input.
@@ -295,7 +295,7 @@ str.hash 'demon produce aisle' # => {2133076460, 2322631415, 1728380306, 2686374
 UTF-8
 -----
 
-The `utf8` namespace operates on strings (bytes), and only provides some basic functions for
+The `utf8` namespace operates on strings (bytes), and only provides some basic commands for
 encoding and decoding.
 
 | Function       | Description                                                                    |
@@ -392,7 +392,7 @@ list.rsort {3, 2, nil, 4}  # => {4, 3, 2, nil}
 Pickle
 ------
 
-The `pickle` namespace implements serialization and deserialization functions for sink values.  The
+The `pickle` namespace implements serialization and deserialization commands for sink values.  The
 serialization format is a strict subset of JSON (using lists, strings, numbers, and null for nil).
 
 | Function         | Description                                                                  |
@@ -412,7 +412,7 @@ pickle.valid 'null'     # => 1, 'null' is nil
 GC
 --
 
-Note: garbage collection manipulation is only available in certain environments, but the functions
+Note: garbage collection manipulation is only available in certain environments, but the commands
 always exist and execute without error.
 
 | Function   | Description                                                                        |
