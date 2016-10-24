@@ -692,6 +692,8 @@ function tok_midPrecedence(tk){
 	else if (k == KS_EQU2      ) return  7;
 	else if (k == KS_AMP2      ) return  8;
 	else if (k == KS_PIPE2     ) return  9;
+	else if (k == KS_COMMA     ) return 10;
+	else if (k == KS_PIPE      ) return 11;
 	else if (k == KS_EQU       ) return 20;
 	else if (k == KS_PLUSEQU   ) return 20;
 	else if (k == KS_PERCENTEQU) return 20;
@@ -700,8 +702,6 @@ function tok_midPrecedence(tk){
 	else if (k == KS_SLASHEQU  ) return 20;
 	else if (k == KS_CARETEQU  ) return 20;
 	else if (k == KS_TILDEEQU  ) return 20;
-	else if (k == KS_COMMA     ) return 30;
-	else if (k == KS_PIPE      ) return 40;
 	//assert(false);
 	return -1;
 }
