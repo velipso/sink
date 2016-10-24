@@ -188,7 +188,7 @@ run_test() {
 	test_num=$(echo "$test_base" | cut -d . -f 1)
 	test_name=$(echo "$test_base" | cut -d . -f 2)
 
-	printf "%3s.%-12s  " "$test_num" "$test_name"
+	printf "%3s.%-14s  " "$test_num" "$test_name"
 
 	if [ "$test_prog" = "js" ]; then
 		set +e

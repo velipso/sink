@@ -6713,7 +6713,7 @@ static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st int
 				stl_st sl = symtbl_lookup(sym, ex->u.infix.left->u.names);
 				if (sl.type == STL_ERROR)
 					return per_error(ex->flp, sl.u.msg);
-				per_st pe = program_evalCall(prg, sym, mode, intoVlc, ex->flp, sl.u.nsn, true,
+				per_st pe = program_evalCall(prg, sym, PEM_INTO, intoVlc, ex->flp, sl.u.nsn, true,
 					ex->u.infix.right);
 				if (pe.type == PER_ERROR)
 					return pe;

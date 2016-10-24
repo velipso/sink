@@ -1,0 +1,6 @@
+
+def test ...c
+	return c[1]
+end
+
+say test @ {1, 2, 3}

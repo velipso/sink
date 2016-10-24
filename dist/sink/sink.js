@@ -4404,7 +4404,8 @@ function program_eval(prg, sym, mode, intoVlc, ex){
 				var sl = symtbl_lookup(sym, ex.left.names);
 				if (sl.type == STL_ERROR)
 					return per_error(ex.flp, sl.msg);
-				var pe = program_evalCall(prg, sym, mode, intoVlc, ex.flp, sl.nsn, true, ex.right);
+				var pe = program_evalCall(prg, sym, PEM_INTO, intoVlc, ex.flp, sl.nsn, true,
+					ex.right);
 				if (pe.type == PER_ERROR)
 					return pe;
 			}
