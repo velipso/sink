@@ -180,16 +180,16 @@ static inline bool sink_istrue(sink_val v){ return v.u != SINK_NIL.u; }
 static inline bool sink_isfalse(sink_val v){ return v.u == SINK_NIL.u; }
 static inline bool sink_isnil(sink_val v){ return v.u == SINK_NIL.u; }
 static inline bool sink_isasync(sink_val v){ return v.u == SINK_ASYNC.u; }
-static inline bool sink_typestr(sink_val v){ return (v.u & SINK_TAG_MASK) == SINK_TAG_STR; }
-static inline bool sink_typelist(sink_val v){ return (v.u & SINK_TAG_MASK) == SINK_TAG_LIST; }
-static inline bool sink_typenum(sink_val v){
-	return !sink_isnil(v) && !sink_isasync(v) && !sink_typestr(v) && !sink_typelist(v); }
+static inline bool sink_isstr(sink_val v){ return (v.u & SINK_TAG_MASK) == SINK_TAG_STR; }
+static inline bool sink_islist(sink_val v){ return (v.u & SINK_TAG_MASK) == SINK_TAG_LIST; }
+static inline bool sink_isnum(sink_val v){
+	return !sink_isnil(v) && !sink_isasync(v) && !sink_isstr(v) && !sink_islist(v); }
 static inline sink_type sink_typeof(sink_val v){
-	if      (sink_isnil   (v)) return SINK_TYPE_NIL;
-	else if (sink_isasync (v)) return SINK_TYPE_ASYNC;
-	else if (sink_typestr (v)) return SINK_TYPE_STR;
-	else if (sink_typelist(v)) return SINK_TYPE_LIST;
-	else                       return SINK_TYPE_NUM;
+	if      (sink_isnil  (v)) return SINK_TYPE_NIL;
+	else if (sink_isasync(v)) return SINK_TYPE_ASYNC;
+	else if (sink_isstr  (v)) return SINK_TYPE_STR;
+	else if (sink_islist (v)) return SINK_TYPE_LIST;
+	else                      return SINK_TYPE_NUM;
 }
 static inline double sink_castnum(sink_val v){ return v.f; }
 sink_str  sink_caststr(sink_ctx ctx, sink_val str);
@@ -198,7 +198,7 @@ sink_list sink_castlist(sink_ctx ctx, sink_val ls);
 // argument helpers
 bool sink_arg_bool(int size, sink_val *args, int index);
 bool sink_arg_num(sink_ctx ctx, int size, sink_val *args, int index, double *num);
-void sink_arg_str(sink_ctx ctx, int size, sink_val *args, int index, sink_str *str);
+bool sink_arg_str(sink_ctx ctx, int size, sink_val *args, int index, sink_str *str);
 bool sink_arg_list(sink_ctx ctx, int size, sink_val *args, int index, sink_list *ls);
 bool sink_arg_user(sink_ctx ctx, int size, sink_val *args, int index, sink_user usertype,
 	void **user);
@@ -346,6 +346,14 @@ void     sink_list_sort(sink_ctx ctx, sink_val ls);
 void     sink_list_rsort(sink_ctx ctx, sink_val ls);
 sink_val sink_list_sortcmp(sink_ctx ctx, sink_val a, sink_val b);
 
+// user helper
+static inline sink_val sink_user_new(sink_ctx ctx, sink_user usertype, void *user){
+	sink_val hint = sink_str_newcstr(ctx, sink_ctx_getuserhint(ctx, usertype));
+	sink_val ls = sink_list_newblob(ctx, 1, &hint);
+	sink_list_setuser(ctx, ls, usertype, user);
+	return ls;
+}
+
 // pickle
 bool     sink_pickle_valid(sink_ctx ctx, sink_val a);
 sink_val sink_pickle_str(sink_ctx ctx, sink_val a);
@@ -358,7 +366,7 @@ void   sink_gc_run(sink_ctx ctx);
 
 // helpers
 char *sink_format(const char *fmt, ...);
-sink_val sink_abortformat(sink_ctx ctx, const char *fmt, ...);
+sink_val sink_abortformat(sink_ctx ctx, const char *fmt, ...); // always returns SINK_NIL
 
 static inline sink_val sink_abortcstr(sink_ctx ctx, const char *msg){
 	sink_val a = sink_str_newcstr(ctx, msg);
@@ -377,6 +385,7 @@ static void sink_stdio_warn(sink_ctx ctx, sink_str str){
 static sink_val sink_stdio_ask(sink_ctx ctx, sink_str str){
 	printf("%.*s", str->size, str->bytes);
 	// TODO: implement default ask
+	fprintf(stderr, "TODO: sink_stdio_ask\n");
 	abort();
 	return SINK_NIL;
 }

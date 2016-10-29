@@ -7887,7 +7887,7 @@ static inline sink_list var_castlist(context ctx, sink_val a){
 }
 
 static inline sink_val arget(context ctx, sink_val ar, int index){
-	if (sink_typelist(ar)){
+	if (sink_islist(ar)){
 		sink_list ls = var_castlist(ctx, ar);
 		return index >= ls->size ? (sink_val){ .f = 0 } : ls->vals[index];
 	}
@@ -7895,7 +7895,7 @@ static inline sink_val arget(context ctx, sink_val ar, int index){
 }
 
 static inline int arsize(context ctx, sink_val ar){
-	if (sink_typelist(ar)){
+	if (sink_islist(ar)){
 		sink_list ls = var_castlist(ctx, ar);
 		return ls->size;
 	}
@@ -7903,22 +7903,22 @@ static inline int arsize(context ctx, sink_val ar){
 }
 
 static inline bool oper_isnum(context ctx, sink_val a){
-	if (sink_typelist(a)){
+	if (sink_islist(a)){
 		sink_list ls = var_castlist(ctx, a);
 		for (int i = 0; i < ls->size; i++){
-			if (!sink_typenum(ls->vals[i]))
+			if (!sink_isnum(ls->vals[i]))
 				return false;
 		}
 		return true;
 	}
-	return sink_typenum(a);
+	return sink_isnum(a);
 }
 
 static inline bool oper_isnilnumstr(context ctx, sink_val a){
-	if (sink_typelist(a)){
+	if (sink_islist(a)){
 		sink_list ls = var_castlist(ctx, a);
 		for (int i = 0; i < ls->size; i++){
-			if (sink_typelist(ls->vals[i]))
+			if (sink_islist(ls->vals[i]))
 				return false;
 		}
 	}
@@ -7928,7 +7928,7 @@ static inline bool oper_isnilnumstr(context ctx, sink_val a){
 typedef sink_val (*unary_func)(context ctx, sink_val v);
 
 static sink_val oper_un(context ctx, sink_val a, unary_func f_unary){
-	if (sink_typelist(a)){
+	if (sink_islist(a)){
 		sink_list ls = var_castlist(ctx, a);
 		sink_val *ret = mem_alloc(sizeof(sink_val) * ls->size);
 		for (int i = 0; i < ls->size; i++)
@@ -7941,7 +7941,7 @@ static sink_val oper_un(context ctx, sink_val a, unary_func f_unary){
 typedef sink_val (*binary_func)(context ctx, sink_val a, sink_val b);
 
 static sink_val oper_bin(context ctx, sink_val a, sink_val b, binary_func f_binary){
-	if (sink_typelist(a) || sink_typelist(b)){
+	if (sink_islist(a) || sink_islist(b)){
 		int ma = arsize(ctx, a);
 		int mb = arsize(ctx, b);
 		int m = ma > mb ? ma : mb;
@@ -7956,7 +7956,7 @@ static sink_val oper_bin(context ctx, sink_val a, sink_val b, binary_func f_bina
 typedef sink_val (*trinary_func)(context ctx, sink_val a, sink_val b, sink_val c);
 
 static sink_val oper_tri(context ctx, sink_val a, sink_val b, sink_val c, trinary_func f_trinary){
-	if (sink_typelist(a) || sink_typelist(b) || sink_typelist(c)){
+	if (sink_islist(a) || sink_islist(b) || sink_islist(c)){
 		int ma = arsize(ctx, a);
 		int mb = arsize(ctx, b);
 		int mc = arsize(ctx, c);
@@ -7992,11 +7992,11 @@ static sink_val opihelp_num_max(context ctx, sink_val v){
 	sink_list ls = var_castlist(ctx, v);
 	sink_val max = SINK_NIL;
 	for (int i = 0; i < ls->size; i++){
-		if (sink_typenum(ls->vals[i])){
+		if (sink_isnum(ls->vals[i])){
 			if (sink_isnil(max) || ls->vals[i].f > max.f)
 				max = ls->vals[i];
 		}
-		else if (sink_typelist(ls->vals[i])){
+		else if (sink_islist(ls->vals[i])){
 			sink_val lm = opihelp_num_max(ctx, ls->vals[i]);
 			if (!sink_isnil(lm) && (sink_isnil(max) || lm.f > max.f))
 				max = lm;
@@ -8016,11 +8016,11 @@ static sink_val opihelp_num_min(context ctx, sink_val v){
 	sink_list ls = var_castlist(ctx, v);
 	sink_val min = SINK_NIL;
 	for (int i = 0; i < ls->size; i++){
-		if (sink_typenum(ls->vals[i])){
+		if (sink_isnum(ls->vals[i])){
 			if (sink_isnil(min) || ls->vals[i].f < min.f)
 				min = ls->vals[i];
 		}
-		else if (sink_typelist(ls->vals[i])){
+		else if (sink_islist(ls->vals[i])){
 			sink_val lm = opihelp_num_min(ctx, ls->vals[i]);
 			if (!sink_isnil(lm) && (sink_isnil(min) || lm.f < min.f))
 				min = lm;
@@ -8161,7 +8161,7 @@ static sink_val unop_num_neg(context ctx, sink_val a){
 }
 
 static sink_val unop_tonum(context ctx, sink_val a){
-	if (sink_typenum(a))
+	if (sink_isnum(a))
 		return a;
 	fprintf(stderr, "TODO: unop_tonum; parse `a` into a number\n");
 	abort();
@@ -8286,21 +8286,21 @@ static inline void opi_abortcstr(context ctx, const char *msg);
 static inline bool opi_equ(context ctx, sink_val a, sink_val b){
 	if (sink_isnil(a) && sink_isnil(b))
 		return true;
-	else if (sink_typestr(a) && sink_typestr(b))
+	else if (sink_isstr(a) && sink_isstr(b))
 		return str_cmp(var_caststr(ctx, a), var_caststr(ctx, b)) == 0;
-	else if (sink_typelist(a) && sink_typelist(b))
+	else if (sink_islist(a) && sink_islist(b))
 		return a.u == b.u;
-	else if (sink_typenum(a) && sink_typenum(b))
+	else if (sink_isnum(a) && sink_isnum(b))
 		return a.f == b.f;
 	return false;
 }
 
 static inline int opi_size(context ctx, sink_val a){
-	if (sink_typelist(a)){
+	if (sink_islist(a)){
 		sink_list ls = var_castlist(ctx, a);
 		return ls->size;
 	}
-	else if (sink_typestr(a)){
+	else if (sink_isstr(a)){
 		sink_str str = var_caststr(ctx, a);
 		return str->size;
 	}
@@ -8800,7 +8800,7 @@ static sink_run context_run(context ctx){
 			case OP_INC            : { // [TGT/SRC]
 				LOAD_AB();
 				X = var_get(ctx, A, B);
-				if (!sink_typenum(X))
+				if (!sink_isnum(X))
 					RETURN_FAIL("Expecting number when incrementing");
 				var_set(ctx, A, B, sink_num(X.f + 1));
 			} break;
@@ -8848,19 +8848,19 @@ static sink_run context_run(context ctx){
 			case OP_ISNUM          : { // [TGT], [SRC]
 				LOAD_ABCD();
 				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, sink_bool(sink_typenum(X)));
+				var_set(ctx, A, B, sink_bool(sink_isnum(X)));
 			} break;
 
 			case OP_ISSTR          : { // [TGT], [SRC]
 				LOAD_ABCD();
 				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, sink_bool(sink_typestr(X)));
+				var_set(ctx, A, B, sink_bool(sink_isstr(X)));
 			} break;
 
 			case OP_ISLIST         : { // [TGT], [SRC]
 				LOAD_ABCD();
 				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, sink_bool(sink_typelist(X)));
+				var_set(ctx, A, B, sink_bool(sink_islist(X)));
 			} break;
 
 			case OP_NOT            : { // [TGT], [SRC]
@@ -8885,7 +8885,7 @@ static sink_run context_run(context ctx){
 				LOAD_ABCDEF();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				if (sink_typelist(X) && sink_typelist(Y))
+				if (sink_islist(X) && sink_islist(Y))
 					var_set(ctx, A, B, opi_list_cat(ctx, X, Y));
 				else{
 					var_set(ctx, A, B, opi_str_cat(ctx, X, Y));
@@ -8898,11 +8898,11 @@ static sink_run context_run(context ctx){
 				LOAD_ABCDEF();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				if (sink_typestr(X) && sink_typestr(Y)){
+				if (sink_isstr(X) && sink_isstr(Y)){
 					var_set(ctx, A, B,
 						sink_bool(str_cmp(var_caststr(ctx, X), var_caststr(ctx, Y)) < 0));
 				}
-				else if (sink_typenum(X) && sink_typenum(Y))
+				else if (sink_isnum(X) && sink_isnum(Y))
 					var_set(ctx, A, B, sink_bool(X.f < Y.f));
 				else
 					RETURN_FAIL("Expecting numbers or strings");
@@ -8912,11 +8912,11 @@ static sink_run context_run(context ctx){
 				LOAD_ABCDEF();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				if (sink_typestr(X) && sink_typestr(Y)){
+				if (sink_isstr(X) && sink_isstr(Y)){
 					var_set(ctx, A, B,
 						sink_bool(str_cmp(var_caststr(ctx, X), var_caststr(ctx, Y)) <= 0));
 				}
-				else if (sink_typenum(X) && sink_typenum(Y))
+				else if (sink_isnum(X) && sink_isnum(Y))
 					var_set(ctx, A, B, sink_bool(X.f <= Y.f));
 				else
 					RETURN_FAIL("Expecting numbers or strings");
@@ -8939,12 +8939,12 @@ static sink_run context_run(context ctx){
 			case OP_GETAT          : { // [TGT], [SRC1], [SRC2]
 				LOAD_ABCDEF();
 				X = var_get(ctx, C, D);
-				if (!sink_typelist(X) && !sink_typestr(X))
+				if (!sink_islist(X) && !sink_isstr(X))
 					RETURN_FAIL("Expecting list or string when indexing");
 				Y = var_get(ctx, E, F);
-				if (!sink_typenum(Y))
+				if (!sink_isnum(Y))
 					RETURN_FAIL("Expecting index to be number");
-				if (sink_typelist(X))
+				if (sink_islist(X))
 					var_set(ctx, A, B, opi_list_at(ctx, X, Y));
 				else
 					var_set(ctx, A, B, opi_str_at(ctx, X, Y));
@@ -8953,13 +8953,13 @@ static sink_run context_run(context ctx){
 			case OP_SLICE          : { // [TGT], [SRC1], [SRC2], [SRC3]
 				LOAD_ABCDEFGH();
 				X = var_get(ctx, C, D);
-				if (!sink_typelist(X) && !sink_typestr(X))
+				if (!sink_islist(X) && !sink_isstr(X))
 					RETURN_FAIL("Expecting list or string when slicing");
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
-				if (!sink_typenum(Y) || (!sink_isnil(Z) && !sink_typenum(Z)))
+				if (!sink_isnum(Y) || (!sink_isnil(Z) && !sink_isnum(Z)))
 					RETURN_FAIL("Expecting slice values to be numbers");
-				if (sink_typelist(X))
+				if (sink_islist(X))
 					var_set(ctx, A, B, opi_list_slice(ctx, X, Y, Z));
 				else
 					var_set(ctx, A, B, opi_str_slice(ctx, X, Y, Z));
@@ -8968,10 +8968,10 @@ static sink_run context_run(context ctx){
 			case OP_SETAT          : { // [SRC1], [SRC2], [SRC3]
 				LOAD_ABCDEF();
 				X = var_get(ctx, A, B);
-				if (!sink_typelist(X))
+				if (!sink_islist(X))
 					RETURN_FAIL("Expecting list when setting index");
 				Y = var_get(ctx, C, D);
-				if (!sink_typenum(Y))
+				if (!sink_isnum(Y))
 					RETURN_FAIL("Expecting index to be number");
 				ls = var_castlist(ctx, X);
 				A = (int)Y.f;
@@ -8985,22 +8985,22 @@ static sink_run context_run(context ctx){
 			case OP_SPLICE         : { // [SRC1], [SRC2], [SRC3], [SRC4]
 				LOAD_ABCDEFGH();
 				X = var_get(ctx, A, B);
-				if (!sink_typelist(X) && !sink_typestr(X))
+				if (!sink_islist(X) && !sink_isstr(X))
 					RETURN_FAIL("Expecting list or string when splicing");
 				Y = var_get(ctx, C, D);
 				Z = var_get(ctx, E, F);
-				if (!sink_typenum(Y) || (!sink_isnil(Z) && !sink_typenum(Z)))
+				if (!sink_isnum(Y) || (!sink_isnil(Z) && !sink_isnum(Z)))
 					RETURN_FAIL("Expecting splice values to be numbers");
 				W = var_get(ctx, G, H);
-				if (sink_typelist(X)){
-					if (!sink_isnil(W) && !sink_typelist(W))
+				if (sink_islist(X)){
+					if (!sink_isnil(W) && !sink_islist(W))
 						RETURN_FAIL("Expecting spliced value to be a list");
 					opi_list_splice(ctx, X, Y, Z, W);
 				}
 				else{
 					abort();
 					// TODO: this
-					//if (!sink_isnil(W) && !sink_typestr(W))
+					//if (!sink_isnil(W) && !sink_isstr(W))
 					//	RETURN_FAIL("Expecting spliced value to be a string");
 					//opi_str_splice(ctx, X, Y, Z, W);
 				}
@@ -9048,7 +9048,7 @@ static sink_run context_run(context ctx){
 					return crr_replmore();
 				}
 				X = var_get(ctx, C, D);
-				if (!sink_typelist(X))
+				if (!sink_islist(X))
 					RETURN_FAIL("Expecting list when calling function");
 				list_ptr_push(ctx->call_stk, ccs_new(ctx->pc, A, B, ctx->lex_index));
 				ctx->lex_index = ctx->lex_index - E + 1;
@@ -9061,7 +9061,7 @@ static sink_run context_run(context ctx){
 			case OP_NATIVE         : { // [TGT], [SRC], [INDEX]
 				LOAD_ABCDef();
 				X = var_get(ctx, C, D);
-				if (!sink_typelist(X))
+				if (!sink_islist(X))
 					RETURN_FAIL("Expecting list when calling function");
 				E = E | (F << 8);
 				if (E < 0 || E >= ctx->prg->keyTable->size)
@@ -9108,7 +9108,7 @@ static sink_run context_run(context ctx){
 			case OP_SAY            : { // [TGT], [SRC...]
 				LOAD_ABCD();
 				X = var_get(ctx, C, D);
-				if (!sink_typelist(X))
+				if (!sink_islist(X))
 					RETURN_FAIL("Expecting list when calling say");
 				ls = var_castlist(ctx, X);
 				opi_say(ctx, ls->size, ls->vals);
@@ -9120,7 +9120,7 @@ static sink_run context_run(context ctx){
 			case OP_WARN           : { // [TGT], [SRC...]
 				LOAD_ABCD();
 				X = var_get(ctx, C, D);
-				if (!sink_typelist(X))
+				if (!sink_islist(X))
 					RETURN_FAIL("Expecting list when calling warn");
 				ls = var_castlist(ctx, X);
 				opi_warn(ctx, ls->size, ls->vals);
@@ -9132,7 +9132,7 @@ static sink_run context_run(context ctx){
 			case OP_ASK            : { // [TGT], [SRC...]
 				LOAD_ABCD();
 				X = var_get(ctx, C, D);
-				if (!sink_typelist(X))
+				if (!sink_islist(X))
 					RETURN_FAIL("Expecting list when calling ask");
 				ls = var_castlist(ctx, X);
 				var_set(ctx, A, B, opi_ask(ctx, ls->size, ls->vals));
@@ -9143,7 +9143,7 @@ static sink_run context_run(context ctx){
 			case OP_EXIT           : { // [TGT], [SRC...]
 				LOAD_ABCD();
 				X = var_get(ctx, C, D);
-				if (!sink_typelist(X))
+				if (!sink_islist(X))
 					RETURN_FAIL("Expecting list when calling exit");
 				ls = var_castlist(ctx, X);
 				opi_exit(ctx, ls->size, ls->vals);
@@ -9153,7 +9153,7 @@ static sink_run context_run(context ctx){
 			case OP_ABORT          : { // [TGT], [SRC...]
 				LOAD_ABCD();
 				X = var_get(ctx, C, D);
-				if (!sink_typelist(X))
+				if (!sink_islist(X))
 					RETURN_FAIL("Expecting list when calling abort");
 				ls = var_castlist(ctx, X);
 				opi_abort(ctx, ls->size, ls->vals);
@@ -9199,7 +9199,7 @@ static sink_run context_run(context ctx){
 			case OP_NUM_MAX        : { // [TGT], [SRC...]
 				LOAD_ABCD();
 				X = var_get(ctx, C, D);
-				if (!sink_typelist(X))
+				if (!sink_islist(X))
 					RETURN_FAIL("Expecting list when calling num.max");
 				var_set(ctx, A, B, opi_num_max(ctx, X));
 			} break;
@@ -9207,7 +9207,7 @@ static sink_run context_run(context ctx){
 			case OP_NUM_MIN        : { // [TGT], [SRC...]
 				LOAD_ABCD();
 				X = var_get(ctx, C, D);
-				if (!sink_typelist(X))
+				if (!sink_islist(X))
 					RETURN_FAIL("Expecting list when calling num.max");
 				var_set(ctx, A, B, opi_num_min(ctx, X));
 			} break;
@@ -9245,7 +9245,7 @@ static sink_run context_run(context ctx){
 			case OP_NUM_ISNAN      : { // [TGT], [SRC]
 				LOAD_ABCD();
 				X = var_get(ctx, C, D);
-				if (!sink_typenum(X))
+				if (!sink_isnum(X))
 					RETURN_FAIL("Expecting number");
 				var_set(ctx, A, B, sink_bool(sink_num_isnan(X)));
 			} break;
@@ -9253,7 +9253,7 @@ static sink_run context_run(context ctx){
 			case OP_NUM_ISFINITE   : { // [TGT], [SRC]
 				LOAD_ABCD();
 				X = var_get(ctx, C, D);
-				if (!sink_typenum(X))
+				if (!sink_isnum(X))
 					RETURN_FAIL("Expecting number");
 				var_set(ctx, A, B, sink_bool(sink_num_isfinite(X)));
 			} break;
@@ -9423,7 +9423,7 @@ static sink_run context_run(context ctx){
 			case OP_RAND_SEED      : { // [TGT], [SRC]
 				LOAD_ABCD();
 				X = var_get(ctx, C, D);
-				if (!sink_typenum(X))
+				if (!sink_isnum(X))
 					RETURN_FAIL("Expecting number");
 				opi_rand_seed(ctx, X.f);
 				var_set(ctx, A, B, SINK_NIL);
@@ -9453,10 +9453,10 @@ static sink_run context_run(context ctx){
 			case OP_RAND_SETSTATE  : { // [TGT], [SRC]
 				LOAD_ABCD();
 				X = var_get(ctx, C, D);
-				if (!sink_typelist(X))
+				if (!sink_islist(X))
 					RETURN_FAIL("Expecting list of two integers");
 				ls = var_castlist(ctx, X);
-				 if (ls->size < 2 || !sink_typenum(ls->vals[0]) || !sink_typenum(ls->vals[1]))
+				 if (ls->size < 2 || !sink_isnum(ls->vals[0]) || !sink_isnum(ls->vals[1]))
 				 	RETURN_FAIL("Expecting list of two integers");
 				opi_rand_setstate(ctx, ls->vals[0].f, ls->vals[1].f);
 				var_set(ctx, A, B, SINK_NIL);
@@ -9465,7 +9465,7 @@ static sink_run context_run(context ctx){
 			case OP_RAND_PICK      : { // [TGT], [SRC]
 				LOAD_ABCD();
 				X = var_get(ctx, C, D);
-				if (!sink_typelist(X))
+				if (!sink_islist(X))
 					RETURN_FAIL("Expecting list");
 				var_set(ctx, A, B, opi_rand_pick(ctx, X));
 			} break;
@@ -9473,7 +9473,7 @@ static sink_run context_run(context ctx){
 			case OP_RAND_SHUFFLE   : { // [TGT], [SRC]
 				LOAD_ABCD();
 				X = var_get(ctx, C, D);
-				if (!sink_typelist(X))
+				if (!sink_islist(X))
 					RETURN_FAIL("Expecting list");
 				opi_rand_shuffle(ctx, X);
 				var_set(ctx, A, B, X);
@@ -9570,7 +9570,7 @@ static sink_run context_run(context ctx){
 			case OP_LIST_NEW       : { // [TGT], [SRC1], [SRC2]
 				LOAD_ABCDEF();
 				X = var_get(ctx, C, D);
-				if (!sink_isnil(X) && !sink_typenum(X))
+				if (!sink_isnil(X) && !sink_isnum(X))
 					RETURN_FAIL("Expecting number for list.new");
 				Y = var_get(ctx, E, F);
 				var_set(ctx, A, B, opi_list_new(ctx, X, Y));
@@ -9579,7 +9579,7 @@ static sink_run context_run(context ctx){
 			case OP_LIST_SHIFT     : { // [TGT], [SRC]
 				LOAD_ABCD();
 				X = var_get(ctx, C, D);
-				if (!sink_typelist(X))
+				if (!sink_islist(X))
 					RETURN_FAIL("Expecting list when shifting");
 				var_set(ctx, A, B, opi_list_shift(ctx, X));
 			} break;
@@ -9587,7 +9587,7 @@ static sink_run context_run(context ctx){
 			case OP_LIST_POP       : { // [TGT], [SRC]
 				LOAD_ABCD();
 				X = var_get(ctx, C, D);
-				if (!sink_typelist(X))
+				if (!sink_islist(X))
 					RETURN_FAIL("Expecting list when popping");
 				var_set(ctx, A, B, opi_list_pop(ctx, X));
 			} break;
@@ -9595,7 +9595,7 @@ static sink_run context_run(context ctx){
 			case OP_LIST_PUSH      : { // [TGT], [SRC1], [SRC2]
 				LOAD_ABCDEF();
 				X = var_get(ctx, C, D);
-				if (!sink_typelist(X))
+				if (!sink_islist(X))
 					RETURN_FAIL("Expecting list when pushing");
 				var_set(ctx, A, B, opi_list_push(ctx, X, var_get(ctx, E, F)));
 			} break;
@@ -9603,7 +9603,7 @@ static sink_run context_run(context ctx){
 			case OP_LIST_UNSHIFT   : { // [TGT], [SRC1], [SRC2]
 				LOAD_ABCDEF();
 				X = var_get(ctx, C, D);
-				if (!sink_typelist(X))
+				if (!sink_islist(X))
 					RETURN_FAIL("Expecting list when unshifting");
 				var_set(ctx, A, B, opi_list_unshift(ctx, X, var_get(ctx, E, F)));
 			} break;
@@ -9612,7 +9612,7 @@ static sink_run context_run(context ctx){
 				LOAD_ABCDEF();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				if (!sink_typelist(X) || !sink_typelist(Y))
+				if (!sink_islist(X) || !sink_islist(Y))
 					RETURN_FAIL("Expecting list when appending");
 				var_set(ctx, A, B, opi_list_append(ctx, X, Y));
 			} break;
@@ -9621,7 +9621,7 @@ static sink_run context_run(context ctx){
 				LOAD_ABCDEF();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				if (!sink_typelist(X) || !sink_typelist(Y))
+				if (!sink_islist(X) || !sink_islist(Y))
 					RETURN_FAIL("Expecting list when prepending");
 				var_set(ctx, A, B, opi_list_prepend(ctx, X, Y));
 			} break;
@@ -9629,11 +9629,11 @@ static sink_run context_run(context ctx){
 			case OP_LIST_FIND      : { // [TGT], [SRC1], [SRC2], [SRC3]
 				LOAD_ABCDEFGH();
 				X = var_get(ctx, C, D);
-				if (!sink_typelist(X))
+				if (!sink_islist(X))
 					RETURN_FAIL("Expecting list for list.find");
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
-				if (!sink_isnil(Z) && !sink_typenum(Z))
+				if (!sink_isnil(Z) && !sink_isnum(Z))
 					RETURN_FAIL("Expecting number for list.find");
 				var_set(ctx, A, B, opi_list_find(ctx, X, Y, Z));
 			} break;
@@ -9641,11 +9641,11 @@ static sink_run context_run(context ctx){
 			case OP_LIST_RFIND     : { // [TGT], [SRC1], [SRC2], [SRC3]
 				LOAD_ABCDEFGH();
 				X = var_get(ctx, C, D);
-				if (!sink_typelist(X))
+				if (!sink_islist(X))
 					RETURN_FAIL("Expecting list for list.rfind");
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
-				if (!sink_isnil(Z) && !sink_typenum(Z))
+				if (!sink_isnil(Z) && !sink_isnum(Z))
 					RETURN_FAIL("Expecting number for list.rfind");
 				var_set(ctx, A, B, opi_list_find(ctx, X, Y, Z));
 			} break;
@@ -9653,7 +9653,7 @@ static sink_run context_run(context ctx){
 			case OP_LIST_JOIN      : { // [TGT], [SRC1], [SRC2]
 				LOAD_ABCDEF();
 				X = var_get(ctx, C, D);
-				if (!sink_typelist(X))
+				if (!sink_islist(X))
 					RETURN_FAIL("Expecting list for list.find");
 				Y = var_get(ctx, E, F);
 				var_set(ctx, A, B, opi_list_join(ctx, X, Y));
@@ -9664,7 +9664,7 @@ static sink_run context_run(context ctx){
 			case OP_LIST_REV       : { // [TGT], [SRC]
 				LOAD_ABCD();
 				X = var_get(ctx, C, D);
-				if (!sink_typelist(X))
+				if (!sink_islist(X))
 					RETURN_FAIL("Expecting list for list.find");
 				var_set(ctx, A, B, opi_list_rev(ctx, X));
 			} break;
@@ -10480,38 +10480,25 @@ bool sink_arg_num(sink_ctx ctx, int size, sink_val *args, int index, double *num
 		*num = 0;
 		return true;
 	}
-	switch (sink_typeof(args[index])){
-		case SINK_TYPE_NIL:
-			*num = 0;
-			return true;
-		case SINK_TYPE_NUM:
-			*num = sink_castnum(args[index]);
-			return true;
-		case SINK_TYPE_STR: // TODO: should this perform a number parse?
-		case SINK_TYPE_LIST:
-		case SINK_TYPE_ASYNC:
-			sink_abortformat(ctx, "Expecting number for argument %d", index + 1);
-			return false;
+	if (sink_isnum(args[index])){
+		*num = sink_castnum(args[index]);
+		return true;
 	}
+	sink_abortformat(ctx, "Expecting number for argument %d", index + 1);
+	return false;
 }
 
-void sink_arg_str(sink_ctx ctx, int size, sink_val *args, int index, sink_str *str){
-	sink_val v;
-	if (index < 0 || index >= size)
-		v = SINK_NIL;
-	else
-		v = args[index];
-	v = sink_tostr(ctx, v);
-	*str = sink_caststr(ctx, v);
+bool sink_arg_str(sink_ctx ctx, int size, sink_val *args, int index, sink_str *str){
+	if (index < 0 || index >= size || !sink_isstr(args[index])){
+		sink_abortformat(ctx, "Expecting string for argument %d", index + 1);
+		return false;
+	}
+	*str = sink_caststr(ctx, args[index]);
+	return true;
 }
 
 bool sink_arg_list(sink_ctx ctx, int size, sink_val *args, int index, sink_list *ls){
-	if (index < 0 || index >= size){
-		sink_abortformat(ctx, "Expecting list for argument %d", index + 1);
-		*ls = NULL;
-		return false;
-	}
-	if (!sink_typelist(args[index])){
+	if (index < 0 || index >= size || !sink_islist(args[index])){
 		sink_abortformat(ctx, "Expecting list for argument %d", index + 1);
 		*ls = NULL;
 		return false;
@@ -10529,14 +10516,8 @@ bool sink_arg_user(sink_ctx ctx, int size, sink_val *args, int index, sink_user 
 		sink_abortformat(ctx, "Expecting user type%s%s for argument %d", \
 			hint == NULL ? "" : " ", hint == NULL ? "" : hint, index + 1)
 
-	if (index < 0 || index >= size){
+	if (index < 0 || index >= size || !sink_islist(args[index])){
 		ABORT();
-		*user = NULL;
-		return false;
-	}
-	if (!sink_typelist(args[index])){
-		ABORT();
-		*user = NULL;
 		return false;
 	}
 	*user = sink_list_getuser(ctx, args[index], usertype);
@@ -10643,7 +10624,7 @@ static sink_val sinkhelp_tostr(context ctx, sink_val v, bool first){
 }
 
 sink_val sink_tostr(sink_ctx ctx, sink_val v){
-	if (sink_typelist(v))
+	if (sink_islist(v))
 		list_cleartick(ctx);
 	return sinkhelp_tostr(ctx, v, true);
 }
@@ -10936,7 +10917,7 @@ sink_val sink_list_newblobgive(sink_ctx ctx, int size, int count, sink_val *vals
 }
 
 sink_val sink_list_new(sink_ctx ctx, sink_val a, sink_val b){
-	if (!sink_typenum(a))
+	if (!sink_isnum(a))
 		return sink_abortformat(ctx, "Expecting number");
 	int size = (int)sink_castnum(a);
 	if (size < 0)
@@ -10955,7 +10936,15 @@ sink_val  sink_list_slice(sink_ctx ctx, sink_val ls, sink_val start, sink_val le
 void      sink_list_splice(sink_ctx ctx, sink_val ls, sink_val start, sink_val len, sink_val ls2);
 sink_val  sink_list_shift(sink_ctx ctx, sink_val ls);
 sink_val  sink_list_pop(sink_ctx ctx, sink_val ls);
-void      sink_list_push(sink_ctx ctx, sink_val ls, sink_val a);
+*/
+void sink_list_push(sink_ctx ctx, sink_val ls, sink_val a){
+	if (!sink_islist(ls)){
+		sink_abortcstr(ctx, "Expecting list");
+		return;
+	}
+	opi_list_push(ctx, ls, a);
+}
+/*
 void      sink_list_unshift(sink_ctx ctx, sink_val ls, sink_val a);
 void      sink_list_append(sink_ctx ctx, sink_val ls, sink_val ls2);
 void      sink_list_prepend(sink_ctx ctx, sink_val ls, sink_val ls2);
