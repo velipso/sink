@@ -7637,15 +7637,15 @@ static inline lxs lxs_new(sink_val args, lxs next){
 }
 
 typedef struct {
-	void *nuser;
+	void *natuser;
 	sink_native_func f_native;
 	uint64_t hash;
 } native_st, *native;
 
-static inline native native_new(uint64_t hash, void *nuser, sink_native_func f_native){
+static inline native native_new(uint64_t hash, void *natuser, sink_native_func f_native){
 	native nat = mem_alloc(sizeof(native_st));
 	nat->hash = hash;
-	nat->nuser = nuser;
+	nat->natuser = natuser;
 	nat->f_native = f_native;
 	return nat;
 }
@@ -7662,9 +7662,7 @@ typedef struct {
 	list_ptr f_finalize;
 	list_ptr user_hint;
 
-	sink_output_func f_say;
-	sink_output_func f_warn;
-	sink_input_func f_ask;
+	sink_io_st io;
 
 	sink_str_st *str_tbl;
 	sink_list_st *list_tbl;
@@ -7699,9 +7697,9 @@ static inline void context_cleanup(context ctx, void *cuser, sink_free_func f_fr
 	cleanup_add(ctx->cup, cuser, f_free);
 }
 
-static inline void context_native(context ctx, uint64_t hash, void *nuser,
+static inline void context_native(context ctx, uint64_t hash, void *natuser,
 	sink_native_func f_native){
-	list_ptr_push(ctx->natives, native_new(hash, nuser, f_native));
+	list_ptr_push(ctx->natives, native_new(hash, natuser, f_native));
 }
 
 typedef void (*sweepfree_func)(context ctx, int index);
@@ -7782,9 +7780,7 @@ static inline context context_new(program prg, sink_io_st io){
 	ctx->f_finalize = list_ptr_new(NULL);
 	ctx->user_hint = list_ptr_new(NULL);
 
-	ctx->f_say = io.f_say;
-	ctx->f_warn = io.f_warn;
-	ctx->f_ask = io.f_ask;
+	ctx->io = io;
 
 	ctx->str_size = 64;
 	ctx->list_size = 64;
@@ -8317,23 +8313,23 @@ static inline sink_val opi_tonum(context ctx, sink_val a){
 }
 
 static inline void opi_say(context ctx, int size, sink_val *vals){
-	if (ctx->f_say){
-		ctx->f_say(ctx, var_caststr(ctx,
-			sink_list_joinplain(ctx, size, vals, 1, (const uint8_t *)" ")));
+	if (ctx->io.f_say){
+		ctx->io.f_say(ctx, ctx->io.user,
+			var_caststr(ctx, sink_list_joinplain(ctx, size, vals, 1, (const uint8_t *)" ")));
 	}
 }
 
 static inline void opi_warn(context ctx, int size, sink_val *vals){
-	if (ctx->f_warn){
-		ctx->f_warn(ctx, var_caststr(ctx,
-			sink_list_joinplain(ctx, size, vals, 1, (const uint8_t *)" ")));
+	if (ctx->io.f_warn){
+		ctx->io.f_warn(ctx, ctx->io.user,
+			var_caststr(ctx, sink_list_joinplain(ctx, size, vals, 1, (const uint8_t *)" ")));
 	}
 }
 
 static inline sink_val opi_ask(context ctx, int size, sink_val *vals){
-	if (ctx->f_ask){
-		return ctx->f_ask(ctx, var_caststr(ctx,
-			sink_list_joinplain(ctx, size, vals, 1, (const uint8_t *)" ")));
+	if (ctx->io.f_ask){
+		return ctx->io.f_ask(ctx, ctx->io.user,
+			var_caststr(ctx, sink_list_joinplain(ctx, size, vals, 1, (const uint8_t *)" ")));
 	}
 	return SINK_NIL;
 }
@@ -9073,7 +9069,7 @@ static sink_run context_run(context ctx){
 					if (nat->hash == hash){
 						found = true;
 						ls = var_castlist(ctx, X);
-						X = nat->f_native(ctx, nat->nuser, ls->size, ls->vals);
+						X = nat->f_native(ctx, nat->natuser, ls->size, ls->vals);
 						if (sink_isasync(X)){
 							ctx->async_fdiff = A;
 							ctx->async_index = B;
@@ -10385,12 +10381,12 @@ sink_ctx sink_ctx_new(sink_scr scr, sink_io_st io){
 	return context_new(((script)scr)->prg, io);
 }
 
-void sink_ctx_native(sink_ctx ctx, const char *name, void *nuser, sink_native_func f_native){
-	context_native(ctx, native_hash(strlen(name), (const uint8_t *)name), nuser, f_native);
+void sink_ctx_native(sink_ctx ctx, const char *name, void *natuser, sink_native_func f_native){
+	context_native(ctx, native_hash(strlen(name), (const uint8_t *)name), natuser, f_native);
 }
 
-void sink_ctx_nativehash(sink_ctx ctx, uint64_t hash, void *nuser, sink_native_func f_native){
-	context_native(ctx, hash, nuser, f_native);
+void sink_ctx_nativehash(sink_ctx ctx, uint64_t hash, void *natuser, sink_native_func f_native){
+	context_native(ctx, hash, natuser, f_native);
 }
 
 void sink_ctx_cleanup(sink_ctx ctx, void *cuser, sink_free_func f_cleanup){

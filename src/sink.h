@@ -91,14 +91,14 @@ typedef enum {
 	SINK_FSTYPE_DIR
 } sink_fstype;
 
-typedef void (*sink_output_func)(sink_ctx ctx, sink_str str);
-typedef sink_val (*sink_input_func)(sink_ctx ctx, sink_str str);
+typedef void (*sink_output_func)(sink_ctx ctx, void *iouser, sink_str str);
+typedef sink_val (*sink_input_func)(sink_ctx ctx, void *iouser, sink_str str);
 typedef void (*sink_free_func)(void *user);
-typedef sink_val (*sink_native_func)(sink_ctx ctx, void *nuser, int size, sink_val *args);
+typedef sink_val (*sink_native_func)(sink_ctx ctx, void *natuser, int size, sink_val *args);
 typedef sink_val (*sink_resume_func)(sink_ctx ctx);
-typedef char *(*sink_fixpath_func)(const char *file, void *user);
-typedef sink_fstype (*sink_fstype_func)(const char *file, void *user);
-typedef bool (*sink_fsread_func)(sink_scr scr, const char *file, void *user);
+typedef char *(*sink_fixpath_func)(const char *file, void *incuser);
+typedef sink_fstype (*sink_fstype_func)(const char *file, void *incuser);
+typedef bool (*sink_fsread_func)(sink_scr scr, const char *file, void *incuser);
 typedef size_t (*sink_dump_func)(const void *restrict ptr, size_t size, size_t nitems,
 	void *restrict user);
 
@@ -106,13 +106,14 @@ typedef struct {
 	sink_output_func f_say;
 	sink_output_func f_warn;
 	sink_input_func f_ask;
+	void *user; // passed as iouser to functions
 } sink_io_st;
 
 typedef struct {
 	sink_fixpath_func f_fixpath;
 	sink_fstype_func f_fstype;
 	sink_fsread_func f_fsread;
-	void *user;
+	void *user; // passed as incuser to funcions
 } sink_inc_st;
 
 typedef enum {
@@ -156,9 +157,9 @@ void        sink_scr_free(sink_scr scr);
 
 // context
 sink_ctx       sink_ctx_new(sink_scr scr, sink_io_st io);
-void           sink_ctx_native(sink_ctx ctx, const char *name, void *nuser,
+void           sink_ctx_native(sink_ctx ctx, const char *name, void *natuser,
 	sink_native_func f_native);
-void           sink_ctx_nativehash(sink_ctx ctx, uint64_t hash, void *nuser,
+void           sink_ctx_nativehash(sink_ctx ctx, uint64_t hash, void *natuser,
 	sink_native_func f_native);
 void           sink_ctx_cleanup(sink_ctx ctx, void *cuser, sink_free_func f_cleanup);
 void           sink_ctx_setuser(sink_ctx ctx, void *user, sink_free_func f_free);
@@ -374,15 +375,15 @@ static inline sink_val sink_abortcstr(sink_ctx ctx, const char *msg){
 	return SINK_NIL;
 }
 
-static void sink_stdio_say(sink_ctx ctx, sink_str str){
+static void sink_stdio_say(sink_ctx ctx, void *iouser, sink_str str){
 	printf("%.*s\n", str->size, str->bytes);
 }
 
-static void sink_stdio_warn(sink_ctx ctx, sink_str str){
+static void sink_stdio_warn(sink_ctx ctx, void *iouser, sink_str str){
 	fprintf(stderr, "%.*s\n", str->size, str->bytes);
 }
 
-static sink_val sink_stdio_ask(sink_ctx ctx, sink_str str){
+static sink_val sink_stdio_ask(sink_ctx ctx, void *iouser, sink_str str){
 	printf("%.*s", str->size, str->bytes);
 	// TODO: implement default ask
 	fprintf(stderr, "TODO: sink_stdio_ask\n");
@@ -393,7 +394,8 @@ static sink_val sink_stdio_ask(sink_ctx ctx, sink_str str){
 static sink_io_st sink_stdio = (sink_io_st){
 	.f_say = sink_stdio_say,
 	.f_warn = sink_stdio_warn,
-	.f_ask = sink_stdio_ask
+	.f_ask = sink_stdio_ask,
+	.user = NULL
 };
 
 static char *sink_win32_fixpath(const char *file, void *user){
