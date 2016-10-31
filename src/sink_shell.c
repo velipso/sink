@@ -11,7 +11,7 @@
 #	include <unistd.h> // getcwd
 #endif
 
-static sink_val L_pwd(sink_ctx ctx, void *nuser, int size, sink_val *args){
+static sink_val L_pwd(sink_ctx ctx, int size, sink_val *args, void *nuser){
 	char *cwd = getcwd(NULL, 0);
 	if (cwd == NULL)
 		return sink_abortcstr(ctx, "Failed to get current directory");

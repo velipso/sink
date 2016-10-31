@@ -91,10 +91,10 @@ typedef enum {
 	SINK_FSTYPE_DIR
 } sink_fstype;
 
-typedef void (*sink_output_func)(sink_ctx ctx, void *iouser, sink_str str);
-typedef sink_val (*sink_input_func)(sink_ctx ctx, void *iouser, sink_str str);
+typedef void (*sink_output_func)(sink_ctx ctx, sink_str str, void *iouser);
+typedef sink_val (*sink_input_func)(sink_ctx ctx, sink_str str, void *iouser);
 typedef void (*sink_free_func)(void *user);
-typedef sink_val (*sink_native_func)(sink_ctx ctx, void *natuser, int size, sink_val *args);
+typedef sink_val (*sink_native_func)(sink_ctx ctx, int size, sink_val *args, void *natuser);
 typedef sink_val (*sink_resume_func)(sink_ctx ctx);
 typedef char *(*sink_fixpath_func)(const char *file, void *incuser);
 typedef sink_fstype (*sink_fstype_func)(const char *file, void *incuser);
@@ -375,15 +375,15 @@ static inline sink_val sink_abortcstr(sink_ctx ctx, const char *msg){
 	return SINK_NIL;
 }
 
-static void sink_stdio_say(sink_ctx ctx, void *iouser, sink_str str){
+static void sink_stdio_say(sink_ctx ctx, sink_str str, void *iouser){
 	printf("%.*s\n", str->size, str->bytes);
 }
 
-static void sink_stdio_warn(sink_ctx ctx, void *iouser, sink_str str){
+static void sink_stdio_warn(sink_ctx ctx, sink_str str, void *iouser){
 	fprintf(stderr, "%.*s\n", str->size, str->bytes);
 }
 
-static sink_val sink_stdio_ask(sink_ctx ctx, void *iouser, sink_str str){
+static sink_val sink_stdio_ask(sink_ctx ctx, sink_str str, void *iouser){
 	printf("%.*s", str->size, str->bytes);
 	// TODO: implement default ask
 	fprintf(stderr, "TODO: sink_stdio_ask\n");

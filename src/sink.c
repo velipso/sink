@@ -8314,22 +8314,31 @@ static inline sink_val opi_tonum(context ctx, sink_val a){
 
 static inline void opi_say(context ctx, int size, sink_val *vals){
 	if (ctx->io.f_say){
-		ctx->io.f_say(ctx, ctx->io.user,
-			var_caststr(ctx, sink_list_joinplain(ctx, size, vals, 1, (const uint8_t *)" ")));
+		ctx->io.f_say(
+			ctx,
+			var_caststr(ctx, sink_list_joinplain(ctx, size, vals, 1, (const uint8_t *)" ")),
+			ctx->io.user
+		);
 	}
 }
 
 static inline void opi_warn(context ctx, int size, sink_val *vals){
 	if (ctx->io.f_warn){
-		ctx->io.f_warn(ctx, ctx->io.user,
-			var_caststr(ctx, sink_list_joinplain(ctx, size, vals, 1, (const uint8_t *)" ")));
+		ctx->io.f_warn(
+			ctx,
+			var_caststr(ctx, sink_list_joinplain(ctx, size, vals, 1, (const uint8_t *)" ")),
+			ctx->io.user
+		);
 	}
 }
 
 static inline sink_val opi_ask(context ctx, int size, sink_val *vals){
 	if (ctx->io.f_ask){
-		return ctx->io.f_ask(ctx, ctx->io.user,
-			var_caststr(ctx, sink_list_joinplain(ctx, size, vals, 1, (const uint8_t *)" ")));
+		return ctx->io.f_ask(
+			ctx,
+			var_caststr(ctx, sink_list_joinplain(ctx, size, vals, 1, (const uint8_t *)" ")),
+			ctx->io.user
+		);
 	}
 	return SINK_NIL;
 }
@@ -9069,7 +9078,7 @@ static sink_run context_run(context ctx){
 					if (nat->hash == hash){
 						found = true;
 						ls = var_castlist(ctx, X);
-						X = nat->f_native(ctx, nat->natuser, ls->size, ls->vals);
+						X = nat->f_native(ctx, ls->size, ls->vals, nat->natuser);
 						if (sink_isasync(X)){
 							ctx->async_fdiff = A;
 							ctx->async_index = B;
