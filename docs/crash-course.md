@@ -321,3 +321,174 @@ x = 'hello'
 x[1:2] = 'yoyo'
 this should work
 ```
+
+If-Elseif
+---------
+
+```
+if <condition>
+  do stuff
+elseif <condition>
+  more stuff
+elseif <condition>
+  yet more stuff
+else
+  lastly this
+end
+```
+
+Note that only `nil` is considered false -- all other values are considered true.
+
+Do-While
+--------
+
+The do-while loop can express three kinds of looping:
+
+```
+# normal while loop:
+do while <condition>
+  stuff
+  continue # jump to do
+  break    # jump out of loop
+end
+
+# normal do loop:
+do
+  stuff
+  continue # jump to condition
+  break    # jump out of loop
+while <condition>; end
+
+# combined do-while loop:
+do
+  stuff
+  continue # jump to condition
+  break    # jump out of loop
+while <condition>
+  stuff
+  continue # jump to do
+  break    # jump out of loop
+end
+```
+
+For
+---
+
+The for loop simply iterates over a list:
+
+```
+for var v: {'a', 'b', 'c'}
+  say v
+end
+# output:
+#  a
+#  b
+#  c
+```
+
+Another variable can be used for the index:
+
+```
+for var v, index: {'a', 'b', 'c'}
+  say v, index
+end
+# output:
+#  a 0
+#  b 1
+#  c 2
+```
+
+The `var` is optional -- if left out, the variables must be declared before the loop.
+
+An empty for loop is an infinite loop:
+
+```
+for
+  say 1
+end
+# output:
+#  1
+#  1
+#  ...forever
+```
+
+The `continue` and `break` statements operate as expected inside the for loops.
+
+Commands
+--------
+
+Commands (aka functions) are created using `def`:
+
+```
+def add a, b
+  say "adding $a + $b: ${a + b}"
+  return a + b
+end
+
+say 'result:', add 1, 2
+
+# output:
+#  adding 1 + 2: 3
+#  result: 3
+```
+
+Variable Arguments
+------------------
+
+Commands can accept variable arguments using `...` in the definition:
+
+```
+def printargs prefix, ...x
+  for var a: x
+    say prefix, a
+  end
+end
+
+printargs 'test:', 5, 6, 7
+# output:
+#   test: 5
+#   test: 6
+#   test: 7
+```
+
+Piping
+------
+
+Command results can be piped to each other, in order to simplify syntax:
+
+```
+def mul a, b
+  say "multiplying $a * $b: ${a * b}"
+  return a * b
+end
+
+var res = add 1, 2 | mul 4
+say res
+# output:
+#  adding 1 + 2: 3
+#  multiplying 3 * 4: 12
+#  12
+```
+
+The line:
+
+```
+var res = add 1, 2 | mul 4
+```
+
+is transformed to:
+
+```
+var res = mul (add 1, 2), 4
+```
+
+Piping one command's results into another command always inserts the result as the first parameter.
+This means it's normally useful for commands to accept the object of interest as the first parameter
+and return the object so it can be used for chaining.
+
+```
+var ls = {1, 2} | list.push 3 | list.unshift 0 | list.rev
+# same as:
+# var ls = list.rev (list.unshift (list.push ({1, 2}), 3), 0)
+say ls # {3, 2, 1, 0}
+```
