@@ -9910,6 +9910,9 @@ static void compiler_reset(compiler cmp){
 
 	list_ptr_free(cmp->flpn->tkflps);
 	cmp->flpn->tkflps = list_ptr_new((free_func)tkflp_free);
+
+	list_ptr_free(cmp->flpn->pgstate);
+	cmp->flpn->pgstate = list_ptr_new((free_func)pgst_free);
 }
 
 static void compiler_begininc(compiler cmp, list_ptr names, char *file){

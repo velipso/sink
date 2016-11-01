@@ -6980,6 +6980,7 @@ function compiler_reset(cmp){
 	lex_reset(cmp.flpn.lx);
 	cmp.pr = parser_new();
 	cmp.flpn.tkflps = [];
+	cmp.flpn.pgstate = [];
 }
 
 function compiler_begininc(cmp, names, file){
