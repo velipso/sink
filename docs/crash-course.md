@@ -347,7 +347,7 @@ do
   stuff
   continue # jump to condition
   break    # jump out of loop
-while <condition>; end
+while <condition> end
 
 # combined do-while loop:
 do
