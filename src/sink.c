@@ -9659,7 +9659,7 @@ static sink_run context_run(context ctx){
 				LOAD_ABCDEF();
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X))
-					RETURN_FAIL("Expecting list for list.find");
+					RETURN_FAIL("Expecting list for list.join");
 				Y = var_get(ctx, E, F);
 				var_set(ctx, A, B, opi_list_join(ctx, X, Y));
 				if (ctx->failed)
@@ -9670,7 +9670,7 @@ static sink_run context_run(context ctx){
 				LOAD_ABCD();
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X))
-					RETURN_FAIL("Expecting list for list.find");
+					RETURN_FAIL("Expecting list for list.rev");
 				var_set(ctx, A, B, opi_list_rev(ctx, X));
 			} break;
 
@@ -10080,13 +10080,11 @@ static char *compiler_process(compiler cmp){
 				if (tk->type == TOK_ERROR){
 					cmp->msg = filepos_err(tf->flp, tk->u.msg);
 					tok_free(tk);
-					tkflp_free(tf);
 					list_ptr_free(stmts);
 					return cmp->msg;
 				}
 				prr_st pp = parser_add(cmp->pr, tk, tf->flp, stmts);
 				if (pp.type == PRR_ERROR){
-					tkflp_free(tf);
 					cmp->msg = filepos_err(tf->flp, pp.msg);
 					mem_free(pp.msg);
 					list_ptr_free(stmts);
