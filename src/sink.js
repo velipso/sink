@@ -2176,12 +2176,17 @@ function parser_process(pr, flp, stmts){
 			return prr_error('Missing `while` or `end` of do block');
 
 		case PRS_DO_WHILE_EXPR:
-			if (tk1.type != TOK_NEWLINE)
-				return prr_error('Missing newline or semicolon');
 			stmts.push(ast_dowhile2(flp, st.exprTerm));
-			st.state = PRS_DO_WHILE_BODY;
-			parser_push(pr, PRS_BODY);
-			return prr_more();
+			if (tk1.type == TOK_NEWLINE){
+				st.state = PRS_DO_WHILE_BODY;
+				parser_push(pr, PRS_BODY);
+				return prr_more();
+			}
+			else if (tok_isKS(tk1, KS_END)){
+				stmts.push(ast_dowhile3(flp));
+				return parser_statement(pr, flp, stmts, true);
+			}
+			return prr_error('Missing newline or semicolon');
 
 		case PRS_DO_WHILE_BODY:
 			if (!tok_isKS(tk1, KS_END))
@@ -2246,12 +2251,17 @@ function parser_process(pr, flp, stmts){
 			return parser_process(pr, flp, stmts);
 
 		case PRS_FOR_EXPR:
-			if (tk1.type != TOK_NEWLINE)
-				return prr_error('Missing newline or semicolon');
 			stmts.push(ast_for1(flp, st.forVar, st.names2, st.names, st.exprTerm));
-			st.state = PRS_FOR_BODY;
-			parser_push(pr, PRS_BODY);
-			return prr_more();
+			if (tk1.type == TOK_NEWLINE){
+				st.state = PRS_FOR_BODY;
+				parser_push(pr, PRS_BODY);
+				return prr_more();
+			}
+			else if (tok_isKS(tk1, KS_END)){
+				stmts.push(ast_for2(flp));
+				return parser_statement(pr, flp, stmts, true);
+			}
+			return prr_error('Missing newline or semicolon');
 
 		case PRS_FOR_BODY:
 			if (!tok_isKS(tk1, KS_END))
@@ -2278,12 +2288,27 @@ function parser_process(pr, flp, stmts){
 			return parser_process(pr, flp, stmts);
 
 		case PRS_IF_EXPR:
-			if (tk1.type != TOK_NEWLINE)
-				return prr_error('Missing newline or semicolon');
 			stmts.push(ast_if2(flp, st.exprTerm));
-			st.state = PRS_IF_BODY;
-			parser_push(pr, PRS_BODY);
-			return prr_more();
+			if (tk1.type == TOK_NEWLINE){
+				st.state = PRS_IF_BODY;
+				parser_push(pr, PRS_BODY);
+				return prr_more();
+			}
+			else if (tok_isKS(tk1, KS_ELSEIF)){
+				st.state = PRS_IF2;
+				return prr_more();
+			}
+			stmts.push(ast_if3(flp));
+			if (tok_isKS(tk1, KS_ELSE)){
+				st.state = PRS_ELSE_BODY;
+				parser_push(pr, PRS_BODY);
+				return prr_more();
+			}
+			else if (tok_isKS(tk1, KS_END)){
+				stmts.push(ast_if4(flp));
+				return parser_statement(pr, flp, stmts, true);
+			}
+			return prr_error('Missing newline or semicolon');
 
 		case PRS_IF_BODY:
 			if (tok_isKS(tk1, KS_ELSEIF)){
@@ -2520,7 +2545,8 @@ function parser_process(pr, flp, stmts){
 			return parser_process(pr, flp, stmts);
 
 		case PRS_EXPR_POST:
-			if (tk1.type == TOK_NEWLINE){
+			if (tk1.type == TOK_NEWLINE ||
+				tok_isKS(tk1, KS_END) || tok_isKS(tk1, KS_ELSE) || tok_isKS(tk1, KS_ELSEIF)){
 				st.state = PRS_EXPR_FINISH;
 				return parser_process(pr, flp, stmts);
 			}
