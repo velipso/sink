@@ -310,17 +310,7 @@ x[1:2] = {5, 6, 7}
 say x  # {1, 5, 6, 7, 4}
 ```
 
-TODO:
-
-```
-x[1:2] = {5, 6, 7} returns the wrong value
-```
-
-```
-x = 'hello'
-x[1:2] = 'yoyo'
-this should work
-```
+TODO: slicing strings?
 
 If-Elseif
 ---------
