@@ -8,6 +8,8 @@ Minimal programming language for embedding small scripts in larger programs.
 
 [Online Demo (REPL)](https://rawgit.com/voidqk/sink/master/src/repl.html)
 
+[Crash Course](https://github.com/voidqk/sink/blob/master/docs/crash-course.md) (WIP)
+
 [Example Code](https://github.com/voidqk/sink/blob/master/tests/0.sanity/sanity.sink)
 
 [Standard Library](https://github.com/voidqk/sink/blob/master/docs/lib.md)
