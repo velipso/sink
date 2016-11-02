@@ -4676,7 +4676,8 @@ static void frame_print(frame fr){
 static inline frame frame_new(frame parent){
 	frame fr = mem_alloc(sizeof(frame_st));
 	fr->vars = list_int_new();
-	list_int_push(fr->vars, FVR_VAR);
+	if (parent) // frames with parents have a reserved argument
+		list_int_push(fr->vars, FVR_VAR);
 	fr->lbls = list_ptr_new((free_func)label_free);
 	fr->parent = parent;
 	return fr;
@@ -5497,12 +5498,13 @@ static inline psr_st psr_error(filepos_st flp, char *msg){
 	return (psr_st){ .type = PSR_ERROR, .u.error.flp = flp, .u.error.msg = msg };
 }
 
-static psr_st program_slice(program prg, symtbl sym, varloc_st obj, expr ex);
+static psr_st program_slice(program prg, symtbl sym, expr ex);
 
 typedef enum {
 	LVR_VAR,
 	LVR_INDEX,
 	LVR_SLICE,
+	LVR_SLICEINDEX,
 	LVR_LIST
 } lvr_enum;
 
@@ -5522,6 +5524,13 @@ struct lvr_struct {
 			varloc_st len;
 		} slice;
 		struct {
+			varloc_st indexvlc;
+			varloc_st obj;
+			varloc_st key;
+			varloc_st start;
+			varloc_st len;
+		} sliceindex;
+		struct {
 			list_ptr body;
 			lvr rest;
 		} list;
@@ -5533,6 +5542,7 @@ static inline void lvr_free(lvr lv){
 		case LVR_VAR:
 		case LVR_INDEX:
 		case LVR_SLICE:
+		case LVR_SLICEINDEX:
 			break;
 		case LVR_LIST:
 			list_ptr_free(lv->u.list.body);
@@ -5572,6 +5582,20 @@ static inline lvr lvr_slice(filepos_st flp, varloc_st obj, varloc_st start, varl
 	return lv;
 }
 
+static inline lvr lvr_sliceindex(filepos_st flp, varloc_st obj, varloc_st key, varloc_st start,
+	varloc_st len){
+	lvr lv = mem_alloc(sizeof(lvr_st));
+	lv->flp = flp;
+	lv->vlc = VARLOC_NULL;
+	lv->type = LVR_SLICEINDEX;
+	lv->u.sliceindex.indexvlc = VARLOC_NULL;
+	lv->u.sliceindex.obj = obj;
+	lv->u.sliceindex.key = key;
+	lv->u.sliceindex.start = start;
+	lv->u.sliceindex.len = len;
+	return lv;
+}
+
 static inline lvr lvr_list(filepos_st flp, list_ptr body, lvr rest){
 	lvr lv = mem_alloc(sizeof(lvr_st));
 	lv->flp = flp;
@@ -5588,6 +5612,7 @@ typedef enum {
 } plm_enum;
 
 static per_st program_lvalGet(program prg, symtbl sym, plm_enum mode, varloc_st intoVlc, lvr lv);
+static per_st program_lvalGetIndex(program prg, symtbl sym, lvr lv);
 
 typedef enum {
 	LVP_OK,
@@ -5683,14 +5708,32 @@ static lvp_st lval_prepare(program prg, symtbl sym, expr ex){
 		return lvp_ok(lvr_index(ex->flp, obj, pe.u.vlc));
 	}
 	else if (ex->type == EXPR_SLICE){
-		per_st pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, ex->u.slice.obj);
-		if (pe.type == PER_ERROR)
-			return lvp_error(pe.u.error.flp, pe.u.error.msg);
-		varloc_st obj = pe.u.vlc;
-		psr_st sr = program_slice(prg, sym, obj, ex);
-		if (sr.type == PSR_ERROR)
-			return lvp_error(sr.u.error.flp, sr.u.error.msg);
-		return lvp_ok(lvr_slice(ex->flp, obj, sr.u.ok.start, sr.u.ok.len));
+		if (ex->u.slice.obj->type == EXPR_INDEX){
+			// we have a slice of an index `foo[1][2:3]`
+			per_st pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL,
+				ex->u.slice.obj->u.index.obj);
+			if (pe.type == PER_ERROR)
+				return lvp_error(pe.u.error.flp, pe.u.error.msg);
+			varloc_st obj = pe.u.vlc;
+			pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, ex->u.slice.obj->u.index.key);
+			if (pe.type == PER_ERROR)
+				return lvp_error(pe.u.error.flp, pe.u.error.msg);
+			varloc_st key = pe.u.vlc;
+			psr_st sr = program_slice(prg, sym, ex);
+			if (sr.type == PSR_ERROR)
+				return lvp_error(sr.u.error.flp, sr.u.error.msg);
+			return lvp_ok(lvr_sliceindex(ex->flp, obj, key, sr.u.ok.start, sr.u.ok.len));
+		}
+		else{
+			per_st pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, ex->u.slice.obj);
+			if (pe.type == PER_ERROR)
+				return lvp_error(pe.u.error.flp, pe.u.error.msg);
+			varloc_st obj = pe.u.vlc;
+			psr_st sr = program_slice(prg, sym, ex);
+			if (sr.type == PSR_ERROR)
+				return lvp_error(sr.u.error.flp, sr.u.error.msg);
+			return lvp_ok(lvr_slice(ex->flp, obj, sr.u.ok.start, sr.u.ok.len));
+		}
 	}
 	else if (ex->type == EXPR_LIST){
 		list_ptr body = list_ptr_new((free_func)lvr_free);
@@ -5755,9 +5798,19 @@ static void lval_clearTemps(lvr lv, symtbl sym){
 			symtbl_clearTemp(sym, lv->u.index.key);
 			return;
 		case LVR_SLICE:
-			symtbl_clearTemp(sym, lv->u.index.obj);
+			symtbl_clearTemp(sym, lv->u.slice.obj);
 			symtbl_clearTemp(sym, lv->u.slice.start);
 			symtbl_clearTemp(sym, lv->u.slice.len);
+			return;
+		case LVR_SLICEINDEX:
+			if (!varloc_isnull(lv->u.sliceindex.indexvlc)){
+				symtbl_clearTemp(sym, lv->u.sliceindex.indexvlc);
+				lv->u.sliceindex.indexvlc = VARLOC_NULL;
+			}
+			symtbl_clearTemp(sym, lv->u.sliceindex.obj);
+			symtbl_clearTemp(sym, lv->u.sliceindex.key);
+			symtbl_clearTemp(sym, lv->u.sliceindex.start);
+			symtbl_clearTemp(sym, lv->u.sliceindex.len);
 			return;
 		case LVR_LIST:
 			for (int i = 0; i < lv->u.list.body->size; i++)
@@ -5803,7 +5856,32 @@ static per_st program_evalLval(program prg, symtbl sym, pem_enum mode, varloc_st
 				lvr_free(lv2);
 				if (pe.type == PER_ERROR)
 					return pe;
-				op_splice(prg->ops, lv->u.slice.obj, lv->u.slice.start, lv->u.slice.len, lv->vlc);
+				sta_st ts = symtbl_addTemp(sym);
+				if (ts.type == STA_ERROR)
+					return per_error(lv->flp, ts.u.msg);
+				varloc_st t = ts.u.vlc;
+				op_num(prg->ops, t, 0);
+				op_slice(prg->ops, t, lv->vlc, t, lv->u.slice.len);
+				op_splice(prg->ops, lv->u.slice.obj, lv->u.slice.start, lv->u.slice.len, t);
+				symtbl_clearTemp(sym, t);
+				symtbl_clearTemp(sym, lv->vlc);
+				lv->vlc = VARLOC_NULL;
+			}
+		} break;
+
+		case LVR_SLICEINDEX: {
+			if (mutop == OP_INVALID){
+				per_st pe = program_lvalGetIndex(prg, sym, lv);
+				if (pe.type == PER_ERROR)
+					return pe;
+				op_splice(prg->ops, pe.u.vlc, lv->u.sliceindex.start, lv->u.sliceindex.len,
+					valueVlc);
+				op_setat(prg->ops, lv->u.sliceindex.obj, lv->u.sliceindex.key, pe.u.vlc);
+			}
+			else{
+				// TODO: probably something like `x[1][1:2] += {5, 6}`
+				fprintf(stderr, "TODO: LVR_SLICEINDEX mutate inside program_evalLval");
+				abort();
 			}
 		} break;
 
@@ -5860,7 +5938,7 @@ static per_st program_evalLval(program prg, symtbl sym, pem_enum mode, varloc_st
 	return per_ok(intoVlc);
 }
 
-static psr_st program_slice(program prg, symtbl sym, varloc_st obj, expr ex){
+static psr_st program_slice(program prg, symtbl sym, expr ex){
 	varloc_st start;
 	if (ex->u.slice.start == NULL){
 		sta_st ts = symtbl_addTemp(sym);
@@ -5894,6 +5972,20 @@ static psr_st program_slice(program prg, symtbl sym, varloc_st obj, expr ex){
 	return psr_ok(start, len);
 }
 
+static per_st program_lvalGetIndex(program prg, symtbl sym, lvr lv){
+	// specifically for LVR_SLICEINDEX in order to fill lv.indexvlc
+	if (!varloc_isnull(lv->u.sliceindex.indexvlc))
+		return per_ok(lv->u.sliceindex.indexvlc);
+
+	sta_st ts = symtbl_addTemp(sym);
+	if (ts.type == STA_ERROR)
+		return per_error(lv->flp, ts.u.msg);
+	lv->u.sliceindex.indexvlc = ts.u.vlc;
+
+	op_getat(prg->ops, lv->u.sliceindex.indexvlc, lv->u.sliceindex.obj, lv->u.sliceindex.key);
+	return per_ok(lv->u.sliceindex.indexvlc);
+}
+
 static per_st program_lvalGet(program prg, symtbl sym, plm_enum mode, varloc_st intoVlc, lvr lv){
 	if (!varloc_isnull(lv->vlc)){
 		if (mode == PLM_CREATE)
@@ -5921,6 +6013,13 @@ static per_st program_lvalGet(program prg, symtbl sym, plm_enum mode, varloc_st 
 		case LVR_SLICE:
 			op_slice(prg->ops, intoVlc, lv->u.slice.obj, lv->u.slice.start, lv->u.slice.len);
 			break;
+
+		case LVR_SLICEINDEX: {
+			per_st pe = program_lvalGetIndex(prg, sym, lv);
+			if (pe.type == PER_ERROR)
+				return pe;
+			op_slice(prg->ops, intoVlc, pe.u.vlc, lv->u.sliceindex.start, lv->u.sliceindex.len);
+		} break;
 
 		case LVR_LIST: {
 			op_list(prg->ops, intoVlc, lv->u.list.body->size);
@@ -6233,7 +6332,25 @@ static per_st program_lvalCheckNil(program prg, symtbl sym, lvr lv, bool jumpFal
 			symtbl_clearTemp(sym, pe.u.vlc);
 		} break;
 
-		case LVR_SLICE: {
+		case LVR_SLICE:
+		case LVR_SLICEINDEX: {
+			varloc_st obj;
+			varloc_st start;
+			varloc_st len;
+			if (lv->type == LVR_SLICE){
+				obj = lv->u.slice.obj;
+				start = lv->u.slice.start;
+				len = lv->u.slice.len;
+			}
+			else{
+				per_st pe = program_lvalGetIndex(prg, sym, lv);
+				if (pe.type == PER_ERROR)
+					return pe;
+				obj = pe.u.vlc;
+				start = lv->u.sliceindex.start;
+				len = lv->u.sliceindex.len;
+			}
+
 			sta_st ts = symtbl_addTemp(sym);
 			if (ts.type == STA_ERROR)
 				return per_error(lv->flp, ts.u.msg);
@@ -6249,20 +6366,20 @@ static per_st program_lvalCheckNil(program prg, symtbl sym, lvr lv, bool jumpFal
 			label next = label_newStr("^condslicenext");
 
 			op_nil(prg->ops, t);
-			op_binop(prg->ops, OP_EQU, t, t, lv->u.slice.len);
+			op_binop(prg->ops, OP_EQU, t, t, len);
 			label_jumpFalse(next, prg->ops, t);
-			op_unop(prg->ops, OP_SIZE, t, lv->u.slice.obj);
-			op_binop(prg->ops, OP_NUM_SUB, lv->u.slice.len, t, lv->u.slice.start);
+			op_unop(prg->ops, OP_SIZE, t, obj);
+			op_binop(prg->ops, OP_NUM_SUB, len, t, start);
 
 			label_declare(next, prg->ops);
 
-			op_binop(prg->ops, OP_LT, t, idx, lv->u.slice.len);
+			op_binop(prg->ops, OP_LT, t, idx, len);
 
 			label keep = label_newStr("^condslicekeep");
 			label_jumpFalse(inverted ? keep : skip, prg->ops, t);
 
-			op_binop(prg->ops, OP_NUM_ADD, t, idx, lv->u.slice.start);
-			op_getat(prg->ops, t, lv->u.slice.obj, t);
+			op_binop(prg->ops, OP_NUM_ADD, t, idx, start);
+			op_getat(prg->ops, t, obj, t);
 			if (jumpFalse)
 				label_jumpTrue(inverted ? skip : keep, prg->ops, t);
 			else
@@ -6320,7 +6437,25 @@ static per_st program_lvalCondAssignPart(program prg, symtbl sym, lvr lv, bool j
 			label_free(skip);
 		} break;
 
-		case LVR_SLICE: {
+		case LVR_SLICE:
+		case LVR_SLICEINDEX: {
+			varloc_st obj;
+			varloc_st start;
+			varloc_st len;
+			if (lv->type == LVR_SLICE){
+				obj = lv->u.slice.obj;
+				start = lv->u.slice.start;
+				len = lv->u.slice.len;
+			}
+			else{
+				per_st pe = program_lvalGetIndex(prg, sym, lv);
+				if (pe.type == PER_ERROR)
+					return pe;
+				obj = pe.u.vlc;
+				start = lv->u.sliceindex.start;
+				len = lv->u.sliceindex.len;
+			}
+
 			sta_st ts = symtbl_addTemp(sym);
 			if (ts.type == STA_ERROR)
 				return per_error(lv->flp, ts.u.msg);
@@ -6341,28 +6476,28 @@ static per_st program_lvalCondAssignPart(program prg, symtbl sym, lvr lv, bool j
 			label next = label_newStr("^condpartslicenext");
 
 			op_nil(prg->ops, t);
-			op_binop(prg->ops, OP_EQU, t, t, lv->u.slice.len);
+			op_binop(prg->ops, OP_EQU, t, t, len);
 			label_jumpFalse(next, prg->ops, t);
-			op_unop(prg->ops, OP_SIZE, t, lv->u.slice.obj);
-			op_binop(prg->ops, OP_NUM_SUB, lv->u.slice.len, t, lv->u.slice.start);
+			op_unop(prg->ops, OP_SIZE, t, obj);
+			op_binop(prg->ops, OP_NUM_SUB, len, t, start);
 
 			label_declare(next, prg->ops);
 
-			op_binop(prg->ops, OP_LT, t, idx, lv->u.slice.len);
+			op_binop(prg->ops, OP_LT, t, idx, len);
 
 			label done = label_newStr("^condpartslicedone");
 			label_jumpFalse(done, prg->ops, t);
 
 			label inc = label_newStr("^condpartsliceinc");
-			op_binop(prg->ops, OP_NUM_ADD, t, idx, lv->u.slice.start);
-			op_getat(prg->ops, t2, lv->u.slice.obj, t);
+			op_binop(prg->ops, OP_NUM_ADD, t, idx, start);
+			op_getat(prg->ops, t2, obj, t);
 			if (jumpFalse)
 				label_jumpFalse(inc, prg->ops, t2);
 			else
 				label_jumpTrue(inc, prg->ops, t2);
 
 			op_getat(prg->ops, t2, valueVlc, idx);
-			op_setat(prg->ops, lv->u.slice.obj, t, t2);
+			op_setat(prg->ops, obj, t, t2);
 
 			label_declare(inc, prg->ops);
 			op_inc(prg->ops, idx);
@@ -6421,6 +6556,7 @@ static per_st program_lvalCondAssign(program prg, symtbl sym, lvr lv, bool jumpF
 		} break;
 
 		case LVR_SLICE:
+		case LVR_SLICEINDEX:
 		case LVR_LIST:
 			return program_lvalCondAssignPart(prg, sym, lv, jumpFalse, valueVlc);
 	}
@@ -6650,8 +6786,6 @@ static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st int
 						return per_ok(VARLOC_NULL);
 					}
 
-					label done = label_newStr("^condsetdone");
-					label_jump(done, prg->ops);
 					label_declare(skip, prg->ops);
 
 					if (mode == PEM_CREATE){
@@ -6659,7 +6793,6 @@ static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st int
 						if (ts.type == STA_ERROR){
 							lvr_free(lp.u.lv);
 							label_free(skip);
-							label_free(done);
 							return per_error(ex->flp, ts.u.msg);
 						}
 						intoVlc = ts.u.vlc;
@@ -6669,15 +6802,12 @@ static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st int
 					if (ple.type == PER_ERROR){
 						lvr_free(lp.u.lv);
 						label_free(skip);
-						label_free(done);
 						return ple;
 					}
 
-					label_declare(done, prg->ops);
 					lval_clearTemps(lp.u.lv, sym);
 					lvr_free(lp.u.lv);
 					label_free(skip);
-					label_free(done);
 					return per_ok(intoVlc);
 				}
 
@@ -6827,7 +6957,7 @@ static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st int
 				return pe;
 			varloc_st obj = pe.u.vlc;
 
-			psr_st sr = program_slice(prg, sym, obj, ex);
+			psr_st sr = program_slice(prg, sym, ex);
 			if (sr.type == PSR_ERROR)
 				return per_error(sr.u.error.flp, sr.u.error.msg);
 
@@ -8534,22 +8664,31 @@ static inline sink_val opi_list_slice(context ctx, sink_val a, sink_val b, sink_
 }
 
 static inline void opi_list_splice(context ctx, sink_val a, sink_val b, sink_val c, sink_val d){
-	// TODO: this logic looks wrong... rewrite this and check against sink.js
-	// in fact, all splice logic needs to be rewritten in general, to accomodate string splicing
 	sink_list ls = var_castlist(ctx, a);
 	int start = b.f;
 	int len = c.f;
 	if (start < 0)
 		start += ls->size;
+	if (start < 0){ // TODO: build tests for this because JavaScript does it automatically
+		if (!sink_isnil(c))
+			len += start;
+		start = 0;
+	}
+	if (!sink_isnil(c) && len < 0)
+		len = 0;
 	if (sink_isnil(c) || start + len > ls->size)
 		len = ls->size - start;
-	if (start >= 0 && start < ls->size){
-		if (sink_isnil(d)){
+	if (sink_isnil(d)){
+		// remove b:c
+		if (start >= 0 && start < ls->size){
 			memmove(&ls->vals[start], &ls->vals[start + len],
 				sizeof(sink_val) * (ls->size - len - start));
 			ls->size -= len;
 		}
-		else{
+	}
+	else{
+		// replace b:c
+		if (start >= 0 && start < ls->size){
 			sink_list ls2 = var_castlist(ctx, d);
 			int tot = ls->size - len + ls2->size;
 			sink_val *nb = mem_alloc(sizeof(sink_val) * tot);
@@ -8566,6 +8705,60 @@ static inline void opi_list_splice(context ctx, sink_val a, sink_val b, sink_val
 			ls->size = tot;
 			ls->count = tot;
 		}
+	}
+}
+
+static inline sink_val opi_str_splice(context ctx, sink_val a, sink_val b, sink_val c, sink_val d){
+	sink_str s = var_caststr(ctx, a);
+	int start = b.f;
+	int len = c.f;
+	if (start < 0)
+		start += s->size;
+	if (start < 0){ // TODO: build tests for this because JavaScript does it automatically
+		if (!sink_isnil(c))
+			len += start;
+		start = 0;
+	}
+	if (!sink_isnil(c) && len < 0)
+		len = 0;
+	if (sink_isnil(c) || start + len > s->size)
+		len = s->size - start;
+	if (sink_isnil(d)){
+		// remove b:c
+		if (start >= s->size || len <= 0)
+			return a;
+		int size = s->size - len;
+		if (size <= 0)
+			return sink_str_newblobgive(ctx, 0, NULL);
+		uint8_t *bytes = mem_alloc(sizeof(uint8_t) * (size + 1));
+		if (start > 0)
+			memcpy(bytes, s->bytes, sizeof(uint8_t) * start);
+		if (size > start)
+			memcpy(&bytes[start], &s->bytes[start + len], sizeof(uint8_t) * (size - start));
+		bytes[size] = 0;
+		return sink_str_newblobgive(ctx, size, bytes);
+	}
+	else{
+		// replace b:c
+		if (start >= s->size){
+			start = s->size;
+			len = 0;
+		}
+		sink_str s2 = var_caststr(ctx, d);
+		int size = s->size + s2->size - len;
+		if (size <= 0)
+			return sink_str_newblobgive(ctx, 0, NULL);
+		uint8_t *bytes = mem_alloc(sizeof(uint8_t) * (size + 1));
+		if (start > 0)
+			memcpy(bytes, s->bytes, sizeof(uint8_t) * start);
+		if (s2->size > 0)
+			memcpy(&bytes[start], s2->bytes, sizeof(uint8_t) * s2->size);
+		if (size > start - s2->size){
+			memcpy(&bytes[start + s2->size], &s->bytes[start + len],
+				sizeof(uint8_t) * (size - s2->size - start));
+		}
+		bytes[size] = 0;
+		return sink_str_newblobgive(ctx, size, bytes);
 	}
 }
 
@@ -9028,13 +9221,13 @@ static sink_run context_run(context ctx){
 						RETURN_FAIL("Expecting spliced value to be a list");
 					opi_list_splice(ctx, X, Y, Z, W);
 				}
-				else{
-					abort();
-					// TODO: this
-					//if (!sink_isnil(W) && !sink_isstr(W))
-					//	RETURN_FAIL("Expecting spliced value to be a string");
-					//opi_str_splice(ctx, X, Y, Z, W);
+				else if (sink_isstr(X)){
+					if (!sink_isnil(W) && !sink_isstr(W))
+						RETURN_FAIL("Expecting spliced value to be a string");
+					var_set(ctx, A, B, opi_str_splice(ctx, X, Y, Z, W));
 				}
+				else
+					RETURN_FAIL("Expecting list or string when splicing");
 			} break;
 
 			case OP_JUMP           : { // [[LOCATION]]

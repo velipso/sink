@@ -2818,9 +2818,9 @@ var FVR_VAR        = 'FVR_VAR';
 var FVR_TEMP_INUSE = 'FVR_TEMP_INUSE';
 var FVR_TEMP_AVAIL = 'FVR_TEMP_AVAIL';
 
-function frame_new(parent, root){
+function frame_new(parent){
 	return {
-		vars: root ? [] : [FVR_VAR], // first frame variable reserved for arguments
+		vars: parent ? [FVR_VAR] : [], // frames with parents have a reserved argument
 		lbls: [],
 		parent: parent
 	};
@@ -2979,7 +2979,7 @@ function scope_new(fr, lblBreak, lblContinue, parent){
 }
 
 function symtbl_new(repl){
-	var fr = frame_new(null, true);
+	var fr = frame_new(null);
 	var sc = scope_new(fr, null, null, null);
 	return {
 		repl: repl,
@@ -3060,7 +3060,7 @@ function symtbl_popScope(sym){
 }
 
 function symtbl_pushFrame(sym){
-	sym.fr = frame_new(sym.fr, false);
+	sym.fr = frame_new(sym.fr);
 	sym.sc = scope_new(sym.fr, null, null, sym.sc);
 }
 
@@ -3632,6 +3632,7 @@ function program_evalLval(prg, sym, mode, intoVlc, lv, mutop, valueVlc){
 				op_slice(prg.ops, t, lv.vlc, t, lv.len);
 				op_splice(prg.ops, lv.obj, lv.start, lv.len, t);
 				symtbl_clearTemp(sym, t);
+				symtbl_clearTemp(sym, lv.vlc);
 				lv.vlc = null; // clear out the lval VLC, since it has changed
 			}
 		} break;
@@ -4485,8 +4486,6 @@ function program_eval(prg, sym, mode, intoVlc, ex){
 						return per_ok(null);
 					}
 
-					//var done = label_new('^condsetdone');
-					//label_jump(done, prg.ops);
 					label_declare(skip, prg.ops);
 
 					if (mode == PEM_CREATE){
@@ -4500,7 +4499,6 @@ function program_eval(prg, sym, mode, intoVlc, ex){
 					if (ple.type == PER_ERROR)
 						return ple;
 
-					//label_declare(done, prg.ops);
 					lval_clearTemps(lp.lv, sym);
 					return per_ok(intoVlc);
 				}
