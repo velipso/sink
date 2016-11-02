@@ -2818,9 +2818,9 @@ var FVR_VAR        = 'FVR_VAR';
 var FVR_TEMP_INUSE = 'FVR_TEMP_INUSE';
 var FVR_TEMP_AVAIL = 'FVR_TEMP_AVAIL';
 
-function frame_new(parent){
+function frame_new(parent, root){
 	return {
-		vars: [FVR_VAR], // first frame variable reserved for arguments
+		vars: root ? [] : [FVR_VAR], // first frame variable reserved for arguments
 		lbls: [],
 		parent: parent
 	};
@@ -2979,7 +2979,7 @@ function scope_new(fr, lblBreak, lblContinue, parent){
 }
 
 function symtbl_new(repl){
-	var fr = frame_new(null);
+	var fr = frame_new(null, true);
 	var sc = scope_new(fr, null, null, null);
 	return {
 		repl: repl,
@@ -3060,7 +3060,7 @@ function symtbl_popScope(sym){
 }
 
 function symtbl_pushFrame(sym){
-	sym.fr = frame_new(sym.fr);
+	sym.fr = frame_new(sym.fr, false);
 	sym.sc = scope_new(sym.fr, null, null, sym.sc);
 }
 
@@ -3368,10 +3368,11 @@ function psr_error(flp, msg){
 	return { type: PSR_ERROR, flp: flp, msg: msg };
 }
 
-var LVR_VAR    = 'LVR_VAR';
-var LVR_INDEX  = 'LVR_INDEX';
-var LVR_SLICE  = 'LVR_SLICE';
-var LVR_LIST   = 'LVR_LIST';
+var LVR_VAR        = 'LVR_VAR';
+var LVR_INDEX      = 'LVR_INDEX';
+var LVR_SLICE      = 'LVR_SLICE';
+var LVR_SLICEINDEX = 'LVR_SLICEINDEX';
+var LVR_LIST       = 'LVR_LIST';
 
 function lvr_var(flp, vlc){
 	return { flp: flp, vlc: vlc, type: LVR_VAR };
@@ -3383,6 +3384,19 @@ function lvr_index(flp, obj, key){
 
 function lvr_slice(flp, obj, start, len){
 	return { flp: flp, vlc: null, type: LVR_SLICE, obj: obj, start: start, len: len };
+}
+
+function lvr_sliceindex(flp, obj, key, start, len){
+	return {
+		flp: flp,
+		vlc: null,
+		type: LVR_SLICEINDEX,
+		indexvlc: null,
+		obj: obj,
+		key: key,
+		start: start,
+		len: len
+	};
 }
 
 function lvr_list(flp, body, rest){
@@ -3472,14 +3486,31 @@ function lval_prepare(prg, sym, ex){
 		return lvp_ok(lvr_index(ex.flp, obj, pe.vlc));
 	}
 	else if (ex.type == EXPR_SLICE){
-		var pe = program_eval(prg, sym, PEM_CREATE, null, ex.obj);
-		if (pe.type == PER_ERROR)
-			return lvp_error(pe.flp, pe.msg);
-		var obj = pe.vlc;
-		var sr = program_slice(prg, sym, obj, ex);
-		if (sr.type == PSR_ERROR)
-			return lvp_error(sr.flp, sr.msg);
-		return lvp_ok(lvr_slice(ex.flp, obj, sr.start, sr.len));
+		if (ex.obj.type == EXPR_INDEX){
+			// we have a slice of an index `foo[1][2:3]`
+			var pe = program_eval(prg, sym, PEM_CREATE, null, ex.obj.obj);
+			if (pe.type == PER_ERROR)
+				return lvp_error(pe.flp, pe.msg);
+			var obj = pe.vlc;
+			pe = program_eval(prg, sym, PEM_CREATE, null, ex.obj.key);
+			if (pe.type == PER_ERROR)
+				return lvp_error(pe.flp, pe.msg);
+			var key = pe.vlc;
+			var sr = program_slice(prg, sym, ex);
+			if (sr.type == PSR_ERROR)
+				return lvp_error(sr.flp, sr.msg);
+			return lvp_ok(lvr_sliceindex(ex.flp, obj, key, sr.start, sr.len));
+		}
+		else{
+			var pe = program_eval(prg, sym, PEM_CREATE, null, ex.obj);
+			if (pe.type == PER_ERROR)
+				return lvp_error(pe.flp, pe.msg);
+			var obj = pe.vlc;
+			var sr = program_slice(prg, sym, ex);
+			if (sr.type == PSR_ERROR)
+				return lvp_error(sr.flp, sr.msg);
+			return lvp_ok(lvr_slice(ex.flp, obj, sr.start, sr.len));
+		}
 	}
 	else if (ex.type == EXPR_LIST){
 		var body = [];
@@ -3540,6 +3571,16 @@ function lval_clearTemps(lv, sym){
 			symtbl_clearTemp(sym, lv.start);
 			symtbl_clearTemp(sym, lv.len);
 			return;
+		case LVR_SLICEINDEX:
+			if (lv.indexvlc != null){
+				symtbl_clearTemp(sym, lv.indexvlc);
+				lv.indexvlc = null;
+			}
+			symtbl_clearTemp(sym, lv.obj);
+			symtbl_clearTemp(sym, lv.key);
+			symtbl_clearTemp(sym, lv.start);
+			symtbl_clearTemp(sym, lv.len);
+			return;
 		case LVR_LIST:
 			for (var i = 0; i < lv.body.length; i++)
 				lval_clearTemps(lv.body[i], sym);
@@ -3583,7 +3624,44 @@ function program_evalLval(prg, sym, mode, intoVlc, lv, mutop, valueVlc){
 					lvr_var(lv.flp, lv.vlc), mutop, valueVlc);
 				if (pe.type == PER_ERROR)
 					return pe;
-				op_splice(prg.ops, lv.obj, lv.start, lv.len, lv.vlc);
+				var ts = symtbl_addTemp(sym);
+				if (ts.type == STA_ERROR)
+					return per_error(lv.flp, ts.msg);
+				var t = ts.vlc;
+				op_num(prg.ops, t, 0);
+				op_slice(prg.ops, t, lv.vlc, t, lv.len);
+				op_splice(prg.ops, lv.obj, lv.start, lv.len, t);
+				symtbl_clearTemp(sym, t);
+				lv.vlc = null; // clear out the lval VLC, since it has changed
+			}
+		} break;
+
+		case LVR_SLICEINDEX: {
+			if (mutop < 0){
+				var pe = program_lvalGetIndex(prg, sym, lv);
+				if (pe.type == PER_ERROR)
+					return pe;
+				op_splice(prg.ops, pe.vlc, lv.start, lv.len, valueVlc);
+				op_setat(prg.ops, lv.obj, lv.key, pe.vlc);
+			}
+			else{
+				throw new Error('TODO: This');
+				var pe = program_lvalGetIndex(prg, sym, lv);
+				if (pe.type == PER_ERROR)
+					return pe;
+				pe = program_evalLval(prg, sym, PEM_EMPTY, null,
+					lvr_var(lv.flp, lv.vlc), mutop, valueVlc);
+				if (pe.type == PER_ERROR)
+					return pe;
+				var ts = symtbl_addTemp(sym);
+				if (ts.type == STA_ERROR)
+					return per_error(lv.flp, ts.msg);
+				var t = ts.vlc;
+				op_num(prg.ops, t, 0);
+				op_slice(prg.ops, t, lv.vlc, t, lv.len);
+				op_splice(prg.ops, lv.obj, lv.start, lv.len, t);
+				symtbl_clearTemp(sym, t);
+				lv.vlc = null; // clear out the lval VLC, since it has changed
 			}
 		} break;
 
@@ -3638,7 +3716,7 @@ function program_evalLval(prg, sym, mode, intoVlc, lv, mutop, valueVlc){
 	return per_ok(intoVlc);
 }
 
-function program_slice(prg, sym, obj, ex){
+function program_slice(prg, sym, ex){
 	var start;
 	if (ex.start == null){
 		var ts = symtbl_addTemp(sym);
@@ -3672,6 +3750,20 @@ function program_slice(prg, sym, obj, ex){
 	return psr_ok(start, len);
 }
 
+function program_lvalGetIndex(prg, sym, lv){
+	// specifically for LVR_SLICEINDEX in order to fill lv.indexvlc
+	if (lv.indexvlc != null)
+		return per_ok(lv.indexvlc);
+
+	var ts = symtbl_addTemp(sym);
+	if (ts.type == STA_ERROR)
+		return per_error(lv.flp, ts.msg);
+	lv.indexvlc = ts.vlc;
+
+	op_getat(prg.ops, lv.indexvlc, lv.obj, lv.key);
+	return per_ok(lv.indexvlc);
+}
+
 function program_lvalGet(prg, sym, mode, intoVlc, lv){
 	if (lv.vlc != null){
 		if (mode == PLM_CREATE)
@@ -3698,6 +3790,13 @@ function program_lvalGet(prg, sym, mode, intoVlc, lv){
 		case LVR_SLICE:
 			op_slice(prg.ops, intoVlc, lv.obj, lv.start, lv.len);
 			break;
+
+		case LVR_SLICEINDEX: {
+			var pe = program_lvalGetIndex(prg, sym, lv);
+			if (pe.type == PER_ERROR)
+				return pe;
+			op_slice(prg.ops, intoVlc, pe.vlc, lv.start, lv.len);
+		} break;
 
 		case LVR_LIST: {
 			op_list(prg.ops, intoVlc, lv.body.length);
@@ -3981,7 +4080,18 @@ function program_lvalCheckNil(prg, sym, lv, jumpFalse, inverted, skip){
 			symtbl_clearTemp(sym, pe.vlc);
 		} break;
 
-		case LVR_SLICE: {
+		case LVR_SLICE:
+		case LVR_SLICEINDEX: {
+			var obj;
+			if (lv.type == LVR_SLICE)
+				obj = lv.obj;
+			else{
+				var pe = program_lvalGetIndex(prg, sym, lv);
+				if (pe.type == PER_ERROR)
+					return pe;
+				obj = lv.indexvlc;
+			}
+
 			var ts = symtbl_addTemp(sym);
 			if (ts.type == STA_ERROR)
 				return per_error(lv.flp, ts.msg);
@@ -3999,7 +4109,7 @@ function program_lvalCheckNil(prg, sym, lv, jumpFalse, inverted, skip){
 			op_nil(prg.ops, t);
 			op_binop(prg.ops, OP_EQU, t, t, lv.len);
 			label_jumpFalse(next, prg.ops, t);
-			op_unop(prg.ops, OP_SIZE, t, lv.obj);
+			op_unop(prg.ops, OP_SIZE, t, obj);
 			op_binop(prg.ops, OP_NUM_SUB, lv.len, t, lv.start);
 
 			label_declare(next, prg.ops);
@@ -4010,7 +4120,7 @@ function program_lvalCheckNil(prg, sym, lv, jumpFalse, inverted, skip){
 			label_jumpFalse(inverted ? keep : skip, prg.ops, t);
 
 			op_binop(prg.ops, OP_NUM_ADD, t, idx, lv.start);
-			op_getat(prg.ops, t, lv.obj, t);
+			op_getat(prg.ops, t, obj, t);
 			if (jumpFalse)
 				label_jumpTrue(inverted ? skip : keep, prg.ops, t);
 			else
@@ -4057,7 +4167,18 @@ function program_lvalCondAssignPart(prg, sym, lv, jumpFalse, valueVlc){
 			label_declare(skip, prg.ops);
 		} break;
 
-		case LVR_SLICE: {
+		case LVR_SLICE:
+		case LVR_SLICEINDEX: {
+			var obj;
+			if (lv.type == LVR_SLICE)
+				obj = lv.obj;
+			else{
+				var pe = program_lvalGetIndex(prg, sym, lv);
+				if (pe.type == PER_ERROR)
+					return pe;
+				obj = lv.indexvlc;
+			}
+
 			var ts = symtbl_addTemp(sym);
 			if (ts.type == STA_ERROR)
 				return per_error(lv.flp, ts.msg);
@@ -4080,26 +4201,26 @@ function program_lvalCondAssignPart(prg, sym, lv, jumpFalse, valueVlc){
 			op_nil(prg.ops, t);
 			op_binop(prg.ops, OP_EQU, t, t, lv.len);
 			label_jumpFalse(next, prg.ops, t);
-			op_unop(prg.ops, OP_SIZE, t, lv.obj);
+			op_unop(prg.ops, OP_SIZE, t, obj);
 			op_binop(prg.ops, OP_NUM_SUB, lv.len, t, lv.start);
 
 			label_declare(next, prg.ops);
 
-			op_binop(prg.ops, OP_LT, t, idx, lv.len); // BUGFIX: lv.len could be nil
+			op_binop(prg.ops, OP_LT, t, idx, lv.len);
 
 			var done = label_new('^condpartslicedone');
 			label_jumpFalse(done, prg.ops, t);
 
 			var inc = label_new('^condpartsliceinc');
 			op_binop(prg.ops, OP_NUM_ADD, t, idx, lv.start);
-			op_getat(prg.ops, t2, lv.obj, t);
+			op_getat(prg.ops, t2, obj, t);
 			if (jumpFalse)
 				label_jumpFalse(inc, prg.ops, t2);
 			else
 				label_jumpTrue(inc, prg.ops, t2);
 
 			op_getat(prg.ops, t2, valueVlc, idx);
-			op_setat(prg.ops, lv.obj, t, t2);
+			op_setat(prg.ops, obj, t, t2);
 
 			label_declare(inc, prg.ops);
 			op_inc(prg.ops, idx);
@@ -4152,6 +4273,7 @@ function program_lvalCondAssign(prg, sym, lv, jumpFalse, valueVlc){
 		} break;
 
 		case LVR_SLICE:
+		case LVR_SLICEINDEX:
 		case LVR_LIST:
 			return program_lvalCondAssignPart(prg, sym, lv, jumpFalse, valueVlc);
 	}
@@ -4363,8 +4485,8 @@ function program_eval(prg, sym, mode, intoVlc, ex){
 						return per_ok(null);
 					}
 
-					var done = label_new('^condsetdone');
-					label_jump(done, prg.ops);
+					//var done = label_new('^condsetdone');
+					//label_jump(done, prg.ops);
 					label_declare(skip, prg.ops);
 
 					if (mode == PEM_CREATE){
@@ -4378,7 +4500,7 @@ function program_eval(prg, sym, mode, intoVlc, ex){
 					if (ple.type == PER_ERROR)
 						return ple;
 
-					label_declare(done, prg.ops);
+					//label_declare(done, prg.ops);
 					lval_clearTemps(lp.lv, sym);
 					return per_ok(intoVlc);
 				}
@@ -4514,7 +4636,7 @@ function program_eval(prg, sym, mode, intoVlc, ex){
 				return pe;
 			var obj = pe.vlc;
 
-			var sr = program_slice(prg, sym, obj, ex);
+			var sr = program_slice(prg, sym, ex);
 			if (sr.type == PSR_ERROR)
 				return per_error(sr.flp, sr.msg);
 
@@ -5154,15 +5276,15 @@ function var_set(ctx, fdiff, index, val){
 	ctx.lex_stk[ctx.lex_index - fdiff].vals[index] = val;
 }
 
-function sink_typenum(val){
+function sink_isnum(val){
 	return typeof val == 'number';
 }
 
-function sink_typestr(val){
+function sink_isstr(val){
 	return typeof val == 'string';
 }
 
-function sink_typelist(val){
+function sink_islist(val){
 	return Object.prototype.toString.call(val) == '[object Array]';
 }
 
@@ -5184,14 +5306,14 @@ function sink_tostr(v){
 	function tos(v, first){
 		if (v == null)
 			return 'nil';
-		else if (sink_typenum(v)){
+		else if (sink_isnum(v)){
 			if (v == Infinity)
 				return 'inf';
 			else if (v == -Infinity)
 				return '-inf';
 			return '' + v;
 		}
-		else if (sink_typestr(v))
+		else if (sink_isstr(v))
 			return first ? v : '\'' + v.replace(/([\'\\])/g, '\\$1') + '\'';
 		// otherwise, list
 		if (v.tostr_marker == m)
@@ -5213,41 +5335,41 @@ function sink_list_join(ls, sep){
 }
 
 function arget(ar, index){
-	if (sink_typelist(ar))
+	if (sink_islist(ar))
 		return index >= ar.length ? 0 : ar[index];
 	return ar;
 }
 
 function arsize(ar){
-	if (sink_typelist(ar))
+	if (sink_islist(ar))
 		return ar.length;
 	return 1;
 }
 
 function oper_isnum(a){
-	if (sink_typelist(a)){
+	if (sink_islist(a)){
 		for (var i = 0; i < a.length; i++){
-			if (!sink_typenum(a[i]))
+			if (!sink_isnum(a[i]))
 				return false;
 		}
 		return true;
 	}
-	return sink_typenum(a);
+	return sink_isnum(a);
 }
 
 function oper_isnilnumstr(a){
-	if (sink_typelist(a)){
+	if (sink_islist(a)){
 		for (var i = 0; i < a.length; i++){
-			if (a[i] != null && !sink_typenum(a[i]) && !sink_typestr(a[i]))
+			if (a[i] != null && !sink_isnum(a[i]) && !sink_isstr(a[i]))
 				return false;
 		}
 		return true;
 	}
-	return a == null || sink_typenum(a) || sink_typestr(a);
+	return a == null || sink_isnum(a) || sink_isstr(a);
 }
 
 function oper_un(a, func){
-	if (sink_typelist(a)){
+	if (sink_islist(a)){
 		var ret = [];
 		for (var i = 0; i < a.length; i++)
 			ret.push(func(a[i]));
@@ -5257,7 +5379,7 @@ function oper_un(a, func){
 }
 
 function oper_bin(a, b, func){
-	if (sink_typelist(a) || sink_typelist(b)){
+	if (sink_islist(a) || sink_islist(b)){
 		var ret = [];
 		var m = Math.max(arsize(a), arsize(b));
 		for (var i = 0; i < m; i++)
@@ -5268,7 +5390,7 @@ function oper_bin(a, b, func){
 }
 
 function oper_tri(a, b, c, func){
-	if (sink_typelist(a) || sink_typelist(b) || sink_typelist(c)){
+	if (sink_islist(a) || sink_islist(b) || sink_islist(c)){
 		var ret = [];
 		var m = Math.max(arsize(a), arsize(b), arsize(c));
 		for (var i = 0; i < m; i++)
@@ -5360,11 +5482,11 @@ function opi_num_max(v){
 		v.opi_num_max_marker = m;
 		var max = null;
 		for (var i = 0; i < v.length; i++){
-			if (sink_typenum(v[i])){
+			if (sink_isnum(v[i])){
 				if (max == null || v[i] > max)
 					max = v[i];
 			}
-			else if (sink_typelist(v[i])){
+			else if (sink_islist(v[i])){
 				var lm = mx(v[i]);
 				if (lm != null && (max == null || lm > max))
 					max = lm;
@@ -5384,11 +5506,11 @@ function opi_num_min(v){
 		v.opi_num_min_marker = m;
 		var min = null;
 		for (var i = 0; i < v.length; i++){
-			if (sink_typenum(v[i])){
+			if (sink_isnum(v[i])){
 				if (min == null || v[i] < min)
 					min = v[i];
 			}
-			else if (sink_typelist(v[i])){
+			else if (sink_islist(v[i])){
 				var lm = mn(v[i]);
 				if (lm != null && (min == null || lm < min))
 					min = lm;
@@ -5764,7 +5886,7 @@ function context_run(ctx){
 				if (A > ctx.lex_index)
 					return crr_invalid(ctx);
 				X = var_get(ctx, A, B);
-				if (!sink_typenum(X))
+				if (!sink_isnum(X))
 					return opi_abortstr(ctx, 'Expecting number when incrementing');
 				var_set(ctx, A, B, X + 1);
 			} break;
@@ -5822,7 +5944,7 @@ function context_run(ctx){
 				if (A > ctx.lex_index || C > ctx.lex_index)
 					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, sink_bool(sink_typenum(X)));
+				var_set(ctx, A, B, sink_bool(sink_isnum(X)));
 			} break;
 
 			case OP_ISSTR          : { // [TGT], [SRC]
@@ -5830,7 +5952,7 @@ function context_run(ctx){
 				if (A > ctx.lex_index || C > ctx.lex_index)
 					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, sink_bool(sink_typestr(X)));
+				var_set(ctx, A, B, sink_bool(sink_isstr(X)));
 			} break;
 
 			case OP_ISLIST         : { // [TGT], [SRC]
@@ -5838,7 +5960,7 @@ function context_run(ctx){
 				if (A > ctx.lex_index || C > ctx.lex_index)
 					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, sink_bool(sink_typelist(X)));
+				var_set(ctx, A, B, sink_bool(sink_islist(X)));
 			} break;
 
 			case OP_NOT            : { // [TGT], [SRC]
@@ -5854,7 +5976,7 @@ function context_run(ctx){
 				if (A > ctx.lex_index || C > ctx.lex_index)
 					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				if (!sink_typelist(X) && !sink_typestr(X))
+				if (!sink_islist(X) && !sink_isstr(X))
 					return opi_abortstr(ctx, 'Expecting string or list for size');
 				var_set(ctx, A, B, X.length);
 			} break;
@@ -5875,7 +5997,7 @@ function context_run(ctx){
 					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				if (sink_typelist(X) && sink_typelist(Y))
+				if (sink_islist(X) && sink_islist(Y))
 					var_set(ctx, A, B, X.concat(Y));
 				else
 					var_set(ctx, A, B, sink_tostr(X) + sink_tostr(Y));
@@ -5887,9 +6009,9 @@ function context_run(ctx){
 					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				if (sink_typenum(X) && sink_typenum(Y))
+				if (sink_isnum(X) && sink_isnum(Y))
 					var_set(ctx, A, B, sink_bool(X < Y));
-				else if (sink_typestr(X) && sink_typestr(Y))
+				else if (sink_isstr(X) && sink_isstr(Y))
 					var_set(ctx, A, B, sink_bool(str_cmp(X, Y) < 0));
 				else
 					return opi_abortstr(ctx, 'Expecting numbers or strings');
@@ -5901,9 +6023,9 @@ function context_run(ctx){
 					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				if (sink_typenum(X) && sink_typenum(Y))
+				if (sink_isnum(X) && sink_isnum(Y))
 					var_set(ctx, A, B, sink_bool(X <= Y));
-				else if (sink_typestr(X) && sink_typestr(Y))
+				else if (sink_isstr(X) && sink_isstr(Y))
 					var_set(ctx, A, B, sink_bool(str_cmp(X, Y) <= 0));
 				else
 					return opi_abortstr(ctx, 'Expecting numbers or strings');
@@ -5932,9 +6054,9 @@ function context_run(ctx){
 				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
 					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				if (sink_typelist(X)){
+				if (sink_islist(X)){
 					Y = var_get(ctx, E, F);
-					if (!sink_typenum(Y))
+					if (!sink_isnum(Y))
 						return opi_abortstr(ctx, 'Expecting index to be number');
 					if (Y < 0)
 						Y += X.length;
@@ -5943,9 +6065,9 @@ function context_run(ctx){
 					else
 						var_set(ctx, A, B, X[Y]);
 				}
-				else if (sink_typestr(X)){
+				else if (sink_isstr(X)){
 					Y = var_get(ctx, E, F);
-					if (!sink_typenum(Y))
+					if (!sink_isnum(Y))
 						return opi_abortstr(ctx, 'Expecting index to be number');
 					if (Y < 0)
 						Y += X.length;
@@ -5960,13 +6082,14 @@ function context_run(ctx){
 
 			case OP_SLICE          : { // [TGT], [SRC1], [SRC2], [SRC3]
 				LOAD_abcdefgh();
-				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index || G > ctx.lex_index)
+				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index ||
+					G > ctx.lex_index)
 					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				if (sink_typelist(X)){
+				if (sink_islist(X)){
 					Y = var_get(ctx, E, F);
 					Z = var_get(ctx, G, H);
-					if (!sink_typenum(Y) || (Z !== null && !sink_typenum(Z)))
+					if (!sink_isnum(Y) || (Z !== null && !sink_isnum(Z)))
 						return opi_abortstr(ctx, 'Expecting slice values to be numbers');
 					if (X.length <= 0)
 						var_set(ctx, A, B, []);
@@ -5980,10 +6103,10 @@ function context_run(ctx){
 						var_set(ctx, A, B, X.slice(Y, Y + Z));
 					}
 				}
-				else if (sink_typestr(X)){
+				else if (sink_isstr(X)){
 					Y = var_get(ctx, E, F);
 					Z = var_get(ctx, G, H);
-					if (!sink_typenum(Y) || (Z !== null && !sink_typenum(Z)))
+					if (!sink_isnum(Y) || (Z !== null && !sink_isnum(Z)))
 						return opi_abortstr(ctx, 'Expecting slice values to be numbers');
 					if (X.length <= 0)
 						var_set(ctx, A, B, '');
@@ -6006,10 +6129,10 @@ function context_run(ctx){
 				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
 					return crr_invalid(ctx);
 				X = var_get(ctx, A, B);
-				if (!sink_typelist(X))
+				if (!sink_islist(X))
 					return opi_abortstr(ctx, 'Expecting list when setting index');
 				Y = var_get(ctx, C, D);
-				if (!sink_typenum(Y))
+				if (!sink_isnum(Y))
 					return opi_abortstr(ctx, 'Expecting index to be number');
 				if (Y < 0)
 					Y += X.length;
@@ -6025,11 +6148,11 @@ function context_run(ctx){
 					G > ctx.lex_index)
 					return crr_invalid(ctx);
 				X = var_get(ctx, A, B);
-				if (!sink_typelist(X))
-					return opi_abortstr(ctx, 'Expecting list when splicing');
+				if (!sink_islist(X) && !sink_isstr(X))
+					return opi_abortstr(ctx, 'Expecting list or string when splicing');
 				Y = var_get(ctx, C, D);
 				Z = var_get(ctx, E, F);
-				if (!sink_typenum(Y) || (Z !== null && !sink_typenum(Z)))
+				if (!sink_isnum(Y) || (Z !== null && !sink_isnum(Z)))
 					return opi_abortstr(ctx, 'Expecting splice values to be numbers');
 				if (Y < 0)
 					Y += X.length;
@@ -6037,10 +6160,16 @@ function context_run(ctx){
 					Z = X.length - Y;
 				W = var_get(ctx, G, H);
 				if (W == null){
-					if (Y >= 0 && Y < X.length)
-						X.splice(Y, Z);
+					// remove Y:Z
+					if (sink_islist(X)){
+						if (Y >= 0 && Y < X.length)
+							X.splice(Y, Z);
+					}
+					else // X is string
+						var_set(ctx, A, B, X.substr(0, Y) + X.substr(Y + Z));
 				}
-				else if (sink_typelist(W)){
+				else if (sink_islist(X) && sink_islist(W)){
+					// replace Y:Z
 					if (Y >= 0 && Y < X.length){
 						var args = W.concat();
 						args.unshift(Z);
@@ -6048,8 +6177,12 @@ function context_run(ctx){
 						X.splice.apply(X, args);
 					}
 				}
+				else if (sink_isstr(X) && sink_isstr(W)){
+					// replace Y:Z
+					var_set(ctx, A, B, X.substr(0, Y) + W + X.substr(Y + Z));
+				}
 				else
-					return opi_abortstr(ctx, 'Expecting spliced value to be a list');
+					return opi_abortstr(ctx, 'Expecting spliced value to be same as target');
 			} break;
 
 			case OP_JUMP           : { // [[LOCATION]]
@@ -6100,7 +6233,7 @@ function context_run(ctx){
 					return crr_replmore();
 				}
 				X = var_get(ctx, C, D);
-				if (!sink_typelist(X))
+				if (!sink_islist(X))
 					return opi_abortstr(ctx, 'Expecting list when calling function');
 				ctx.call_stk.push(ccs_new(ctx.pc, A, B, ctx.lex_index));
 				ctx.lex_index = ctx.lex_index - E + 1;
@@ -6115,7 +6248,7 @@ function context_run(ctx){
 				if (A > ctx.lex_index || C > ctx.lex_index)
 					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				if (!sink_typelist(X))
+				if (!sink_islist(X))
 					return opi_abortstr(ctx, 'Expecting list when calling function');
 				E = E | (F << 8);
 				if (E < 0 || E >= ctx.prg.keyTable.length)
@@ -6135,7 +6268,7 @@ function context_run(ctx){
 					X = null;
 				if (X === true || X === false)
 					X = sink_bool(X);
-				if (X !== null && !sink_typenum(X) && !sink_typestr(X) && !sink_typelist(X))
+				if (X !== null && !sink_isnum(X) && !sink_isstr(X) && !sink_islist(X))
 					return opi_abortstr(ctx, 'Invalid return value from native call');
 				var_set(ctx, A, B, X);
 			} break;
@@ -6159,7 +6292,7 @@ function context_run(ctx){
 				if (A > ctx.lex_index || C > ctx.lex_index)
 					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				if (!sink_typelist(X))
+				if (!sink_islist(X))
 					return opi_abortstr(ctx, 'Expecting list when calling say');
 				var r = opi_say(ctx, X, A, B);
 				if (r !== false)
@@ -6171,7 +6304,7 @@ function context_run(ctx){
 				if (A > ctx.lex_index || C > ctx.lex_index)
 					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				if (!sink_typelist(X))
+				if (!sink_islist(X))
 					return opi_abortstr(ctx, 'Expecting list when calling warn');
 				var r = opi_warn(ctx, X, A, B);
 				if (r !== false)
@@ -6183,7 +6316,7 @@ function context_run(ctx){
 				if (A > ctx.lex_index || C > ctx.lex_index)
 					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				if (!sink_typelist(X))
+				if (!sink_islist(X))
 					return opi_abortstr(ctx, 'Expecting list when calling ask');
 				var r = opi_ask(ctx, X, A, B);
 				if (r !== false)
@@ -6195,7 +6328,7 @@ function context_run(ctx){
 				if (A > ctx.lex_index || C > ctx.lex_index)
 					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				if (!sink_typelist(X))
+				if (!sink_islist(X))
 					return opi_abortstr(ctx, 'Expecting list when calling exit');
 				return opi_exit(ctx, X);
 			} break;
@@ -6205,7 +6338,7 @@ function context_run(ctx){
 				if (A > ctx.lex_index || C > ctx.lex_index)
 					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				if (!sink_typelist(X))
+				if (!sink_islist(X))
 					return opi_abortstr(ctx, 'Expecting list when calling abort');
 				return opi_abort(ctx, X, true);
 			} break;
@@ -6269,7 +6402,7 @@ function context_run(ctx){
 				if (A > ctx.lex_index || C > ctx.lex_index)
 					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				if (!sink_typelist(X)){
+				if (!sink_islist(X)){
 					ctx.failed = true;
 					return crr_warn(['Expecting list when calling num.max']);
 				}
@@ -6281,7 +6414,7 @@ function context_run(ctx){
 				if (A > ctx.lex_index || C > ctx.lex_index)
 					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				if (!sink_typelist(X)){
+				if (!sink_islist(X)){
 					ctx.failed = true;
 					return crr_warn(['Expecting list when calling num.max']);
 				}
@@ -6337,7 +6470,7 @@ function context_run(ctx){
 				if (A > ctx.lex_index || C > ctx.lex_index)
 					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				if (!sink_typenum(X))
+				if (!sink_isnum(X))
 					return opi_abortstr(ctx, 'Expecting number');
 				var_set(ctx, A, B, sink_bool(isNaN(X)));
 			} break;
@@ -6347,7 +6480,7 @@ function context_run(ctx){
 				if (A > ctx.lex_index || C > ctx.lex_index)
 					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				if (!sink_typenum(X))
+				if (!sink_isnum(X))
 					return opi_abortstr(ctx, 'Expecting number');
 				var_set(ctx, A, B, sink_bool(isFinite(X)));
 			} break;
@@ -6556,7 +6689,7 @@ function context_run(ctx){
 				if (A > ctx.lex_index || C > ctx.lex_index)
 					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				if (!sink_typenum(X))
+				if (!sink_isnum(X))
 					return opi_abortstr(ctx, 'Expecting number');
 				opi_rand_seed(ctx, X);
 				var_set(ctx, A, B, null);
@@ -6596,7 +6729,7 @@ function context_run(ctx){
 				if (A > ctx.lex_index || C > ctx.lex_index)
 					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				if (!sink_typelist(X) || X.length < 2 || !sink_typenum(X[0]) || !sink_typenum(X[1]))
+				if (!sink_islist(X) || X.length < 2 || !sink_isnum(X[0]) || !sink_isnum(X[1]))
 					return opi_abortstr(ctx, 'Expecting list of two integers');
 				opi_rand_setstate(ctx, X[0], X[1]);
 				var_set(ctx, A, B, null);
@@ -6607,7 +6740,7 @@ function context_run(ctx){
 				if (A > ctx.lex_index || C > ctx.lex_index)
 					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				if (!sink_typelist(X))
+				if (!sink_islist(X))
 					return opi_abortstr(ctx, 'Expecting list');
 				var_set(ctx, A, B, opi_rand_pick(ctx, X));
 			} break;
@@ -6617,7 +6750,7 @@ function context_run(ctx){
 				if (A > ctx.lex_index || C > ctx.lex_index)
 					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				if (!sink_typelist(X))
+				if (!sink_islist(X))
 					return opi_abortstr(ctx, 'Expecting list');
 				opi_rand_shuffle(ctx, X)
 				var_set(ctx, A, B, X);
@@ -6718,7 +6851,7 @@ function context_run(ctx){
 				X = var_get(ctx, C, D);
 				if (X == null)
 					X = 0;
-				else if (!sink_typenum(X))
+				else if (!sink_isnum(X))
 					return opi_abortstr(ctx, 'Expecting number for list.new');
 				Y = var_get(ctx, E, F);
 				var r = [];
@@ -6732,7 +6865,7 @@ function context_run(ctx){
 				if (A > ctx.lex_index || C > ctx.lex_index)
 					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				if (!sink_typelist(X))
+				if (!sink_islist(X))
 					return opi_abortstr(ctx, 'Expecting list when shifting');
 				if (X.length <= 0)
 					var_set(ctx, A, B, null);
@@ -6745,7 +6878,7 @@ function context_run(ctx){
 				if (A > ctx.lex_index || C > ctx.lex_index)
 					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				if (!sink_typelist(X))
+				if (!sink_islist(X))
 					return opi_abortstr(ctx, 'Expecting list when popping');
 				if (X.length <= 0)
 					var_set(ctx, A, B, null);
@@ -6758,7 +6891,7 @@ function context_run(ctx){
 				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
 					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				if (!sink_typelist(X))
+				if (!sink_islist(X))
 					return opi_abortstr(ctx, 'Expecting list when pushing');
 				Y = var_get(ctx, E, F);
 				X.push(Y);
@@ -6771,7 +6904,7 @@ function context_run(ctx){
 				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
 					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				if (!sink_typelist(X))
+				if (!sink_islist(X))
 					return opi_abortstr(ctx, 'Expecting list when unshifting');
 				Y = var_get(ctx, E, F);
 				X.unshift(Y);
@@ -6785,7 +6918,7 @@ function context_run(ctx){
 					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				if (!sink_typelist(X) || !sink_typelist(Y))
+				if (!sink_islist(X) || !sink_islist(Y))
 					return opi_abortstr(ctx, 'Expecting list when appending');
 				X.push.apply(X, Y);
 				if (A != C || B != D)
@@ -6798,7 +6931,7 @@ function context_run(ctx){
 					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				if (!sink_typelist(X) || !sink_typelist(Y))
+				if (!sink_islist(X) || !sink_islist(Y))
 					return opi_abortstr(ctx, 'Expecting list when prepending');
 				X.unshift.apply(X, Y);
 				if (A != C || B != D)
@@ -6811,13 +6944,13 @@ function context_run(ctx){
 					G > ctx.lex_index)
 					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				if (!sink_typelist(X))
+				if (!sink_islist(X))
 					return opi_abortstr(ctx, 'Expecting list for list.find');
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
 				if (Z == null)
 					Z = 0;
-				else if (!sink_typenum(Z))
+				else if (!sink_isnum(Z))
 					return opi_abortstr(ctx, 'Expecting number for list.find');
 				if (Z < 0 || isNaN(Z))
 					Z = 0;
@@ -6839,13 +6972,13 @@ function context_run(ctx){
 					G > ctx.lex_index)
 					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				if (!sink_typelist(X))
+				if (!sink_islist(X))
 					return opi_abortstr(ctx, 'Expecting list for list.rfind');
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
 				if (Z == null)
 					Z = X.length - 1;
-				else if (!sink_typenum(Z))
+				else if (!sink_isnum(Z))
 					return opi_abortstr(ctx, 'Expecting number for list.rfind');
 				if (Z < 0 || isNaN(Z))
 					Z = X.length - 1;
@@ -6866,7 +6999,7 @@ function context_run(ctx){
 				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
 					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				if (!sink_typelist(X))
+				if (!sink_islist(X))
 					return opi_abortstr(ctx, 'Expecting list for list.join');
 				Y = var_get(ctx, E, F);
 				if (Y == null)
@@ -6882,14 +7015,31 @@ function context_run(ctx){
 				if (A > ctx.lex_index || C > ctx.lex_index)
 					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				if (!sink_typelist(X))
+				if (!sink_islist(X))
 					return opi_abortstr(ctx, 'Expecting list for list.rev');
 				X.reverse();
 				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_LIST_STR       : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				LOAD_abcd();
+				if (A > ctx.lex_index || C > ctx.lex_index)
+					return crr_invalid(ctx);
+				X = var_get(ctx, C, D);
+				if (!sink_islist(X))
+					return opi_abortstr(ctx, 'Expecting list for list.str');
+				var out = '';
+				for (var i = 0; i < X.length; i++){
+					if (!sink_isnum(X[i]))
+						return opi_abortstr(ctx, 'Expecting list of integers for list.str');
+					var ch = Math.round(X[i]);
+					if (ch < 0)
+						ch = 0;
+					if (ch > 255)
+						ch = 255;
+					out += String.fromCharCode(ch);
+				}
+				var_set(ctx, A, B, out);
 			} break;
 
 			case OP_LIST_SORT      : { // [TGT], [SRC]

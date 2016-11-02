@@ -9701,7 +9701,27 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_LIST_STR       : { // [TGT], [SRC]
-				THROW("OP_LIST_STR");
+				LOAD_ABCD();
+				X = var_get(ctx, C, D);
+				if (!sink_islist(X))
+					RETURN_FAIL("Expecting list for list.str");
+				// TODO: move this to opi_list_str
+				ls = sink_castlist(ctx, X);
+				uint8_t *bytes = mem_alloc(sizeof(uint8_t) * ls->size);
+				for (I = 0; I < ls->size; I++){
+					X = ls->vals[I];
+					if (!sink_isnum(X)){
+						mem_free(bytes);
+						RETURN_FAIL("Expecting list of integers for list.str");
+					}
+					H = (int)sink_castnum(X);
+					if (H < 0)
+						H = 0;
+					if (H > 255)
+						H = 255;
+					bytes[I] = H;
+				}
+				var_set(ctx, A, B, sink_str_newblobgive(ctx, ls->size, bytes));
 			} break;
 
 			case OP_LIST_SORT      : { // [TGT], [SRC]
