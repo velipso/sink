@@ -1,0 +1,12 @@
+
+def factorial a
+	def step left, total
+		if left <= 0
+			return total
+		end
+		return step left - 1, total * left
+	end
+	return step a, 1
+end
+
+say factorial 15
