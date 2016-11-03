@@ -4401,6 +4401,7 @@ static prr_st parser_process(parser pr, filepos_st flp, list_ptr stmts){
 				return prr_more();
 			if (tok_isKS(tk1, KS_RBRACKET)){
 				st->exprTerm = expr_slice(flp, st->exprTerm2, st->exprTerm, NULL);
+				st->exprTerm2 = NULL;
 				st->state = PRS_EXPR_POST;
 				return prr_more();
 			}
@@ -8604,21 +8605,90 @@ static inline sink_val opi_str_cat(context ctx, sink_val a, sink_val b){
 	return sink_str_newblobgive(ctx, ns, bytes);
 }
 
+typedef struct {
+	int start;
+	int len;
+} fix_slice_st;
+
+static inline fix_slice_st fix_slice(sink_val startv, sink_val lenv, int objsize){
+	int start = (int)round(startv.f);
+	if (sink_isnil(lenv)){
+		if (start < 0)
+			start += objsize;
+		if (start < 0)
+			start = 0;
+		if (start >= objsize)
+			return (fix_slice_st){ 0, 0 };
+		return (fix_slice_st){ start, objsize - start };
+	}
+	else{
+		int len = (int)round(lenv.f);
+		bool wasneg = start < 0;
+		if (len < 0){
+			wasneg = start <= 0;
+			start += len;
+			len = -len;
+		}
+		if (wasneg)
+			start += objsize;
+		if (start < 0){
+			len += start;
+			start = 0;
+		}
+		if (len <= 0)
+			return (fix_slice_st){ 0, 0 };
+		if (start + len > objsize)
+			len = objsize - start;
+		return (fix_slice_st){ start, len };
+	}
+}
+
 static inline sink_val opi_str_slice(context ctx, sink_val a, sink_val b, sink_val c){
 	sink_str s = var_caststr(ctx, a);
-	int start = b.f;
-	int len = c.f;
 	if (s->size <= 0)
+		return a;
+	fix_slice_st sl = fix_slice(b, c, s->size);
+	if (sl.len <= 0)
 		return sink_str_newblob(ctx, 0, NULL);
-	if (start < 0)
-		start += s->size;
-	if (start >= s->size)
-		start = s->size - 1;
-	if (start < 0)
-		start = 0;
-	if (start + len > s->size)
-		len = s->size - start;
-	return sink_str_newblob(ctx, len, &s->bytes[start]);
+	return sink_str_newblob(ctx, sl.len, &s->bytes[sl.start]);
+}
+
+static inline sink_val opi_str_splice(context ctx, sink_val a, sink_val b, sink_val c, sink_val d){
+	sink_str s = var_caststr(ctx, a);
+	fix_slice_st sl = fix_slice(b, c, s->size);
+	if (sink_isnil(d)){
+		if (sl.len <= 0)
+			return a;
+		int tot = s->size - sl.len;
+		if (tot <= 0)
+			return sink_str_newblob(ctx, 0, NULL);
+		uint8_t *bytes = mem_alloc(sizeof(uint8_t) * (tot + 1));
+		if (sl.start > 0)
+			memcpy(bytes, s->bytes, sizeof(uint8_t) * sl.start);
+		if (s->size > sl.start + sl.len){
+			memcpy(&bytes[sl.start], &s->bytes[sl.start + sl.len],
+				sizeof(uint8_t) * (s->size - sl.start - sl.len));
+		}
+		bytes[tot] = 0;
+		return sink_str_newblobgive(ctx, tot, bytes);
+	}
+	else{
+		sink_str s2 = var_caststr(ctx, d);
+		int tot = s->size - sl.len + s2->size;
+		if (tot <= 0)
+			return sink_str_newblob(ctx, 0, NULL);
+		uint8_t *bytes = mem_alloc(sizeof(uint8_t) * (tot + 1));
+		if (sl.start > 0)
+			memcpy(bytes, s->bytes, sizeof(uint8_t) * sl.start);
+		if (s2->size > 0)
+			memcpy(&bytes[sl.start], s2->bytes, sizeof(uint8_t) * s2->size);
+		if (s->size > sl.start + sl.len){
+			memcpy(&bytes[sl.start + s2->size], &s->bytes[sl.start + sl.len],
+				sizeof(uint8_t) * (s->size - sl.start - sl.len));
+		}
+		bytes[tot] = 0;
+		return sink_str_newblobgive(ctx, tot, bytes);
+	}
 }
 
 static inline sink_val opi_list_new(context ctx, sink_val a, sink_val b){
@@ -8657,115 +8727,40 @@ static inline sink_val opi_list_cat(context ctx, sink_val a, sink_val b){
 
 static inline sink_val opi_list_slice(context ctx, sink_val a, sink_val b, sink_val c){
 	sink_list ls = var_castlist(ctx, a);
-	int start = b.f;
-	int len = c.f;
-	if (ls->size <= 0)
+	fix_slice_st sl = fix_slice(b, c, ls->size);
+	if (ls->size <= 0 || sl.len <= 0)
 		return sink_list_newblob(ctx, 0, NULL);
-	if (start < 0)
-		start += ls->size;
-	if (start < 0)
-		start = 0;
-	if (sink_isnil(c) || start + len > ls->size)
-		len = ls->size - start;
-	return sink_list_newblob(ctx, len, &ls->vals[start]);
+	return sink_list_newblob(ctx, sl.len, &ls->vals[sl.start]);
 }
 
 static inline void opi_list_splice(context ctx, sink_val a, sink_val b, sink_val c, sink_val d){
 	sink_list ls = var_castlist(ctx, a);
-	int start = b.f;
-	int len = c.f;
-	if (start < 0)
-		start += ls->size;
-	if (start < 0){ // TODO: build tests for this because JavaScript does it automatically
-		if (!sink_isnil(c))
-			len += start;
-		start = 0;
-	}
-	if (!sink_isnil(c) && len < 0)
-		len = 0;
-	if (sink_isnil(c) || start + len > ls->size)
-		len = ls->size - start;
+	fix_slice_st sl = fix_slice(b, c, ls->size);
 	if (sink_isnil(d)){
-		// remove b:c
-		if (start >= 0 && start < ls->size){
-			memmove(&ls->vals[start], &ls->vals[start + len],
-				sizeof(sink_val) * (ls->size - len - start));
-			ls->size -= len;
+		if (sl.len <= 0)
+			return;
+		if (ls->size > sl.start + sl.len){
+			memmove(&ls->vals[sl.start], &ls->vals[sl.start + sl.len],
+				sizeof(sink_val) * (ls->size - sl.start - sl.len));
 		}
+		ls->size -= sl.len;
 	}
 	else{
-		// replace b:c
-		if (start >= 0 && start < ls->size){
-			sink_list ls2 = var_castlist(ctx, d);
-			int tot = ls->size - len + ls2->size;
-			sink_val *nb = mem_alloc(sizeof(sink_val) * tot);
-			if (start > 0)
-				memcpy(nb, ls->vals, sizeof(sink_val) * start);
-			if (ls2->size > 0)
-				memcpy(&nb[start], ls2->vals, sizeof(sink_val) * ls2->size);
-			if (start + len < ls->size){
-				memcpy(&nb[start + ls2->size], &ls->vals[start + len],
-					sizeof(sink_val) * (ls->size - len - start));
-			}
-			mem_free(ls->vals);
-			ls->vals = nb;
-			ls->size = tot;
+		sink_list ls2 = var_castlist(ctx, d);
+		if (sl.len <= 0 && ls2->size <= 0)
+			return;
+		int tot = ls->size - sl.len + ls2->size;
+		if (tot > ls->count){
+			ls->vals = mem_realloc(ls->vals, sizeof(sink_val) * tot);
 			ls->count = tot;
 		}
-	}
-}
-
-static inline sink_val opi_str_splice(context ctx, sink_val a, sink_val b, sink_val c, sink_val d){
-	sink_str s = var_caststr(ctx, a);
-	int start = b.f;
-	int len = c.f;
-	if (start < 0)
-		start += s->size;
-	if (start < 0){ // TODO: build tests for this because JavaScript does it automatically
-		if (!sink_isnil(c))
-			len += start;
-		start = 0;
-	}
-	if (!sink_isnil(c) && len < 0)
-		len = 0;
-	if (sink_isnil(c) || start + len > s->size)
-		len = s->size - start;
-	if (sink_isnil(d)){
-		// remove b:c
-		if (start >= s->size || len <= 0)
-			return a;
-		int size = s->size - len;
-		if (size <= 0)
-			return sink_str_newblobgive(ctx, 0, NULL);
-		uint8_t *bytes = mem_alloc(sizeof(uint8_t) * (size + 1));
-		if (start > 0)
-			memcpy(bytes, s->bytes, sizeof(uint8_t) * start);
-		if (size > start)
-			memcpy(&bytes[start], &s->bytes[start + len], sizeof(uint8_t) * (size - start));
-		bytes[size] = 0;
-		return sink_str_newblobgive(ctx, size, bytes);
-	}
-	else{
-		// replace b:c
-		if (start >= s->size){
-			start = s->size;
-			len = 0;
+		if (ls->size > sl.start + sl.len){
+			memmove(&ls->vals[sl.start + ls2->size], &ls->vals[sl.start + sl.len],
+				sizeof(sink_val) * (ls->size - sl.start - sl.len));
 		}
-		sink_str s2 = var_caststr(ctx, d);
-		int size = s->size + s2->size - len;
-		if (size <= 0)
-			return sink_str_newblobgive(ctx, 0, NULL);
-		uint8_t *bytes = mem_alloc(sizeof(uint8_t) * (size + 1));
-		if (start > 0)
-			memcpy(bytes, s->bytes, sizeof(uint8_t) * start);
-		if (s2->size > 0)
-			memcpy(&bytes[start], s2->bytes, sizeof(uint8_t) * s2->size);
-		if (size > start - s2->size){
-			memcpy(&bytes[start + s2->size], &s->bytes[start + len],
-				sizeof(uint8_t) * (size - s2->size - start));
-		}
-		bytes[size] = 0;
-		return sink_str_newblobgive(ctx, size, bytes);
+		if (ls2->size > 0)
+			memcpy(&ls->vals[sl.start], ls2->vals, sizeof(sink_val) * ls2->size);
+		ls->size = tot;
 	}
 }
 

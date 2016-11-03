@@ -5742,6 +5742,39 @@ function opi_abortstr(ctx, str){
 	return crr_exitfail(ctx);
 }
 
+function fix_slice(start, len, objsize){
+	start = Math.round(start);
+	if (len === null){
+		if (start < 0)
+			start += objsize;
+		if (start < 0)
+			start = 0;
+		if (start >= objsize)
+			return [0, 0];
+		return [start, objsize - start];
+	}
+	else{
+		len = Math.round(len);
+		var wasneg = start < 0;
+		if (len < 0){
+			wasneg = start <= 0;
+			start += len;
+			len = -len;
+		}
+		if (wasneg)
+			start += objsize;
+		if (start < 0){
+			len += start;
+			start = 0;
+		}
+		if (len <= 0)
+			return [0, 0];
+		if (start + len > objsize)
+			len = objsize - start;
+		return [start, len];
+	}
+}
+
 function context_run(ctx){
 	if (ctx.passed)
 		return crr_exitpass(ctx);
@@ -6078,42 +6111,20 @@ function context_run(ctx){
 					G > ctx.lex_index)
 					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				if (sink_islist(X)){
-					Y = var_get(ctx, E, F);
-					Z = var_get(ctx, G, H);
-					if (!sink_isnum(Y) || (Z !== null && !sink_isnum(Z)))
-						return opi_abortstr(ctx, 'Expecting slice values to be numbers');
-					if (X.length <= 0)
-						var_set(ctx, A, B, []);
-					else{
-						if (Y < 0)
-							Y += X.length;
-						if (Y < 0)
-							Y = 0;
-						if (Z == null || Y + Z > X.length)
-							Z = X.length - Y;
-						var_set(ctx, A, B, X.slice(Y, Y + Z));
-					}
-				}
-				else if (sink_isstr(X)){
-					Y = var_get(ctx, E, F);
-					Z = var_get(ctx, G, H);
-					if (!sink_isnum(Y) || (Z !== null && !sink_isnum(Z)))
-						return opi_abortstr(ctx, 'Expecting slice values to be numbers');
-					if (X.length <= 0)
-						var_set(ctx, A, B, '');
-					else{
-						if (Y < 0)
-							Y += X.length;
-						if (Y < 0)
-							Y = 0;
-						if (Z === null || Y + Z > X.length)
-							Z = X.length - Y;
-						var_set(ctx, A, B, X.substr(Y, Z));
-					}
-				}
-				else
+				if (!sink_islist(X) && !sink_isstr(X))
 					return opi_abortstr(ctx, 'Expecting list or string when slicing');
+				Y = var_get(ctx, E, F);
+				Z = var_get(ctx, G, H);
+				if (!sink_isnum(Y) || (Z !== null && !sink_isnum(Z)))
+					return opi_abortstr(ctx, 'Expecting slice values to be numbers');
+				if (sink_islist(X)){
+					var sl = fix_slice(Y, Z, X.length);
+					var_set(ctx, A, B, X.slice(sl[0], sl[0] + sl[1]));
+				}
+				else{
+					var sl = fix_slice(Y, Z, X.length);
+					var_set(ctx, A, B, X.substr(sl[0], sl[1]));
+				}
 			} break;
 
 			case OP_SETAT          : { // [SRC1], [SRC2], [SRC3]
@@ -6146,35 +6157,29 @@ function context_run(ctx){
 				Z = var_get(ctx, E, F);
 				if (!sink_isnum(Y) || (Z !== null && !sink_isnum(Z)))
 					return opi_abortstr(ctx, 'Expecting splice values to be numbers');
-				if (Y < 0)
-					Y += X.length;
-				if (Z === null || Y + Z > X.length)
-					Z = X.length - Y;
 				W = var_get(ctx, G, H);
-				if (W == null){
-					// remove Y:Z
-					if (sink_islist(X)){
-						if (Y >= 0 && Y < X.length)
-							X.splice(Y, Z);
-					}
-					else // X is string
-						var_set(ctx, A, B, X.substr(0, Y) + X.substr(Y + Z));
-				}
-				else if (sink_islist(X) && sink_islist(W)){
-					// replace Y:Z
-					if (Y >= 0 && Y < X.length){
+				if (sink_islist(X)){
+					var sl = fix_slice(Y, Z, X.length);
+					if (W == null)
+						X.splice(sl[0], sl[1]);
+					else if (sink_islist(W)){
 						var args = W.concat();
-						args.unshift(Z);
-						args.unshift(Y);
+						args.unshift(sl[1]);
+						args.unshift(sl[0]);
 						X.splice.apply(X, args);
 					}
+					else
+						return opi_abortstr(ctx, 'Expecting spliced value to be a list');
 				}
-				else if (sink_isstr(X) && sink_isstr(W)){
-					// replace Y:Z
-					var_set(ctx, A, B, X.substr(0, Y) + W + X.substr(Y + Z));
+				else{
+					var sl = fix_slice(Y, Z, X.length);
+					if (W == null)
+						var_set(ctx, A, B, X.substr(0, sl[0]) + X.substr(sl[0] + sl[1]));
+					else if (sink_isstr(W))
+						var_set(ctx, A, B, X.substr(0, sl[0]) + W + X.substr(sl[0] + sl[1]));
+					else
+						return opi_abortstr(ctx, 'Expecting spliced value to be a string');
 				}
-				else
-					return opi_abortstr(ctx, 'Expecting spliced value to be same as target');
 			} break;
 
 			case OP_JUMP           : { // [[LOCATION]]
