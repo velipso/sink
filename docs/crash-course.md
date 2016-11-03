@@ -196,7 +196,7 @@ Strings
 -------
 
 Strings are binary-safe arrays of bytes, that can be any length, and include any value from 0 to
-255.  Strings have no concept of unicode (though there are basic helper functions in the standard
+255.  Strings have no concept of unicode (though there are basic helper commands in the standard
 library for dealing specifically with UTF-8 strings).
 
 Strings can be specified with single quotes `'` or double quotes `"`.  Single quoted strings do not
