@@ -229,6 +229,13 @@ say "a + b is ${a + b}"      # expression subtitution
 say "hi: ${str.lower "HI"}"  # nested strings are valid
 ```
 
+The unary `&` operator returns the string length:
+
+```
+var x = 'hello'
+say &x # 5
+```
+
 Concatenation is via `~` (not `+`):
 
 ```
@@ -271,6 +278,13 @@ say {1, 2, 3} + {4, 5, 6} # {5, 7, 9}
 say {1} + {2, 5}          # {3, 5}
 say {1} * {2, 5}          # {2, 0}
 say num.abs {-1, -2}      # {1, 2}
+```
+
+The unary `&` operator returns the list size:
+
+```
+var x = {1, 2, 3, 4}
+say &x # 4
 ```
 
 Lists are modified using the commands:
