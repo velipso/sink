@@ -1153,13 +1153,7 @@ function lex_process(lx, tks){
 		case LEX_STR_BASIC:
 			if (ch1 == '\r' || ch1 == '\n')
 				tks.push(tok_error('Missing end of string'));
-			else if (ch1 == '\''){
-				lx.state = LEX_START;
-				tks.push(tok_ks(KS_LPAREN));
-				tks.push(tok_str(lx.str));
-				tks.push(tok_ks(KS_RPAREN));
-			}
-			else if (ch1 == '\\')
+			else if (ch1 == '\'')
 				lx.state = LEX_STR_BASIC_ESC;
 			else{
 				if (ch1.charCodeAt(0) < 0 || ch1.charCodeAt(0) >= 256)
@@ -1170,12 +1164,17 @@ function lex_process(lx, tks){
 			break;
 
 		case LEX_STR_BASIC_ESC:
-			if (ch1 == '\\' || ch1 == '\''){
+			if (ch1 == '\''){
 				lx.str += ch1;
 				lx.state = LEX_STR_BASIC;
 			}
-			else
-				tks.push(tok_error('Invalid escape sequence: \\' + ch1));
+			else{
+				lx.state = LEX_START;
+				tks.push(tok_ks(KS_LPAREN));
+				tks.push(tok_str(lx.str));
+				tks.push(tok_ks(KS_RPAREN));
+				lex_process(lx, tks);
+			}
 			break;
 
 		case LEX_STR_INTERP:
