@@ -4529,13 +4529,15 @@ function program_eval(prg, sym, mode, intoVlc, ex){
 
 			var binop = ks_toBinaryOp(ex.k);
 			if (binop >= 0){
-				var pe = program_eval(prg, sym, PEM_INTO, intoVlc, ex.left);
+				var pe = program_eval(prg, sym, PEM_CREATE, null, ex.left);
 				if (pe.type == PER_ERROR)
 					return pe;
+				var left = pe.vlc;
 				pe = program_eval(prg, sym, PEM_CREATE, null, ex.right);
 				if (pe.type == PER_ERROR)
 					return pe;
-				op_binop(prg.ops, binop, intoVlc, intoVlc, pe.vlc);
+				op_binop(prg.ops, binop, intoVlc, left, pe.vlc);
+				symtbl_clearTemp(sym, left);
 				symtbl_clearTemp(sym, pe.vlc);
 			}
 			else if (ex.k == KS_AT){

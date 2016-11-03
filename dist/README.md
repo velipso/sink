@@ -2,7 +2,7 @@
 
 This build is a SNAPSHOT and not an official release.  You might not want to use it.
 
-Built on: Thu Nov  3 16:41:17 UTC 2016
+Built on: Thu Nov  3 17:41:37 UTC 2016
 
 * `sink.js`: Browser version of Sink
 * `sink/*`: NPM/Node.js version of Sink
