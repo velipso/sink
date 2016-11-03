@@ -437,9 +437,6 @@ var KS_INCLUDE    = 'KS_INCLUDE';
 var KS_NAMESPACE  = 'KS_NAMESPACE';
 var KS_NIL        = 'KS_NIL';
 var KS_RETURN     = 'KS_RETURN';
-var KS_TYPENUM    = 'KS_TYPENUM';
-var KS_TYPESTR    = 'KS_TYPESTR';
-var KS_TYPELIST   = 'KS_TYPELIST';
 var KS_USING      = 'KS_USING';
 var KS_VAR        = 'KS_VAR';
 var KS_WHILE      = 'KS_WHILE';
@@ -511,9 +508,6 @@ function ks_str(s){
 	else if (s == 'namespace') return KS_NAMESPACE;
 	else if (s == 'nil'      ) return KS_NIL;
 	else if (s == 'return'   ) return KS_RETURN;
-	else if (s == 'typenum'  ) return KS_TYPENUM;
-	else if (s == 'typestr'  ) return KS_TYPESTR;
-	else if (s == 'typelist' ) return KS_TYPELIST;
 	else if (s == 'using'    ) return KS_USING;
 	else if (s == 'var'      ) return KS_VAR;
 	else if (s == 'while'    ) return KS_WHILE;
@@ -527,9 +521,6 @@ function ks_toUnaryOp(k){
 	else if (k == KS_UNMINUS   ) return OP_NUM_NEG;
 	else if (k == KS_AMP       ) return OP_SIZE;
 	else if (k == KS_BANG      ) return OP_NOT;
-	else if (k == KS_TYPENUM   ) return OP_ISNUM;
-	else if (k == KS_TYPESTR   ) return OP_ISSTR;
-	else if (k == KS_TYPELIST  ) return OP_ISLIST;
 	return -1;
 }
 
@@ -609,16 +600,13 @@ function tok_isPre(tk){
 	if (tk.type != TOK_KS)
 		return false;
 	return false ||
-		tk.k == KS_PLUS       ||
-		tk.k == KS_UNPLUS     ||
-		tk.k == KS_MINUS      ||
-		tk.k == KS_UNMINUS    ||
-		tk.k == KS_AMP        ||
-		tk.k == KS_BANG       ||
-		tk.k == KS_PERIOD3    ||
-		tk.k == KS_TYPENUM    ||
-		tk.k == KS_TYPESTR    ||
-		tk.k == KS_TYPELIST;
+		tk.k == KS_PLUS    ||
+		tk.k == KS_UNPLUS  ||
+		tk.k == KS_MINUS   ||
+		tk.k == KS_UNMINUS ||
+		tk.k == KS_AMP     ||
+		tk.k == KS_BANG    ||
+		tk.k == KS_PERIOD3;
 }
 
 function tok_isMid(tk, allowComma, allowPipe){
@@ -3211,6 +3199,9 @@ function symtbl_loadStdlib(sym){
 	SAC(sym, 'ask'           , OP_ASK           , -1);
 	SAC(sym, 'exit'          , OP_EXIT          , -1);
 	SAC(sym, 'abort'         , OP_ABORT         , -1);
+	SAC(sym, 'isnum'         , OP_ISNUM         ,  1);
+	SAC(sym, 'isstr'         , OP_ISSTR         ,  1);
+	SAC(sym, 'islist'        , OP_ISLIST        ,  1);
 	symtbl_pushNamespace(sym, ['num']);
 		SAC(sym, 'abs'       , OP_NUM_ABS       ,  1);
 		SAC(sym, 'sign'      , OP_NUM_SIGN      ,  1);
@@ -5751,6 +5742,39 @@ function opi_abortstr(ctx, str){
 	return crr_exitfail(ctx);
 }
 
+function fix_slice(start, len, objsize){
+	start = Math.round(start);
+	if (len === null){
+		if (start < 0)
+			start += objsize;
+		if (start < 0)
+			start = 0;
+		if (start >= objsize)
+			return [0, 0];
+		return [start, objsize - start];
+	}
+	else{
+		len = Math.round(len);
+		var wasneg = start < 0;
+		if (len < 0){
+			wasneg = start <= 0;
+			start += len;
+			len = -len;
+		}
+		if (wasneg)
+			start += objsize;
+		if (start < 0){
+			len += start;
+			start = 0;
+		}
+		if (len <= 0)
+			return [0, 0];
+		if (start + len > objsize)
+			len = objsize - start;
+		return [start, len];
+	}
+}
+
 function context_run(ctx){
 	if (ctx.passed)
 		return crr_exitpass(ctx);
@@ -6087,42 +6111,20 @@ function context_run(ctx){
 					G > ctx.lex_index)
 					return crr_invalid(ctx);
 				X = var_get(ctx, C, D);
-				if (sink_islist(X)){
-					Y = var_get(ctx, E, F);
-					Z = var_get(ctx, G, H);
-					if (!sink_isnum(Y) || (Z !== null && !sink_isnum(Z)))
-						return opi_abortstr(ctx, 'Expecting slice values to be numbers');
-					if (X.length <= 0)
-						var_set(ctx, A, B, []);
-					else{
-						if (Y < 0)
-							Y += X.length;
-						if (Y < 0)
-							Y = 0;
-						if (Z == null || Y + Z > X.length)
-							Z = X.length - Y;
-						var_set(ctx, A, B, X.slice(Y, Y + Z));
-					}
-				}
-				else if (sink_isstr(X)){
-					Y = var_get(ctx, E, F);
-					Z = var_get(ctx, G, H);
-					if (!sink_isnum(Y) || (Z !== null && !sink_isnum(Z)))
-						return opi_abortstr(ctx, 'Expecting slice values to be numbers');
-					if (X.length <= 0)
-						var_set(ctx, A, B, '');
-					else{
-						if (Y < 0)
-							Y += X.length;
-						if (Y < 0)
-							Y = 0;
-						if (Z === null || Y + Z > X.length)
-							Z = X.length - Y;
-						var_set(ctx, A, B, X.substr(Y, Z));
-					}
-				}
-				else
+				if (!sink_islist(X) && !sink_isstr(X))
 					return opi_abortstr(ctx, 'Expecting list or string when slicing');
+				Y = var_get(ctx, E, F);
+				Z = var_get(ctx, G, H);
+				if (!sink_isnum(Y) || (Z !== null && !sink_isnum(Z)))
+					return opi_abortstr(ctx, 'Expecting slice values to be numbers');
+				if (sink_islist(X)){
+					var sl = fix_slice(Y, Z, X.length);
+					var_set(ctx, A, B, X.slice(sl[0], sl[0] + sl[1]));
+				}
+				else{
+					var sl = fix_slice(Y, Z, X.length);
+					var_set(ctx, A, B, X.substr(sl[0], sl[1]));
+				}
 			} break;
 
 			case OP_SETAT          : { // [SRC1], [SRC2], [SRC3]
@@ -6155,35 +6157,29 @@ function context_run(ctx){
 				Z = var_get(ctx, E, F);
 				if (!sink_isnum(Y) || (Z !== null && !sink_isnum(Z)))
 					return opi_abortstr(ctx, 'Expecting splice values to be numbers');
-				if (Y < 0)
-					Y += X.length;
-				if (Z === null || Y + Z > X.length)
-					Z = X.length - Y;
 				W = var_get(ctx, G, H);
-				if (W == null){
-					// remove Y:Z
-					if (sink_islist(X)){
-						if (Y >= 0 && Y < X.length)
-							X.splice(Y, Z);
-					}
-					else // X is string
-						var_set(ctx, A, B, X.substr(0, Y) + X.substr(Y + Z));
-				}
-				else if (sink_islist(X) && sink_islist(W)){
-					// replace Y:Z
-					if (Y >= 0 && Y < X.length){
+				if (sink_islist(X)){
+					var sl = fix_slice(Y, Z, X.length);
+					if (W == null)
+						X.splice(sl[0], sl[1]);
+					else if (sink_islist(W)){
 						var args = W.concat();
-						args.unshift(Z);
-						args.unshift(Y);
+						args.unshift(sl[1]);
+						args.unshift(sl[0]);
 						X.splice.apply(X, args);
 					}
+					else
+						return opi_abortstr(ctx, 'Expecting spliced value to be a list');
 				}
-				else if (sink_isstr(X) && sink_isstr(W)){
-					// replace Y:Z
-					var_set(ctx, A, B, X.substr(0, Y) + W + X.substr(Y + Z));
+				else{
+					var sl = fix_slice(Y, Z, X.length);
+					if (W == null)
+						var_set(ctx, A, B, X.substr(0, sl[0]) + X.substr(sl[0] + sl[1]));
+					else if (sink_isstr(W))
+						var_set(ctx, A, B, X.substr(0, sl[0]) + W + X.substr(sl[0] + sl[1]));
+					else
+						return opi_abortstr(ctx, 'Expecting spliced value to be a string');
 				}
-				else
-					return opi_abortstr(ctx, 'Expecting spliced value to be same as target');
 			} break;
 
 			case OP_JUMP           : { // [[LOCATION]]
