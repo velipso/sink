@@ -163,30 +163,32 @@ static int main_repl(){
 			const char *err = sink_scr_write(scr, bufsize, (uint8_t *)buf);
 			if (err)
 				fprintf(stderr, "Error: %s\n", err);
-			switch (sink_ctx_run(ctx)){
-				case SINK_RUN_PASS:
-					done = true;
-					res = 0;
-					break;
-				case SINK_RUN_FAIL:
-					done = true;
-					res = 1;
-					break;
-				case SINK_RUN_ASYNC:
-					fprintf(stderr, "TODO: REPL invoked async function\n");
-					done = true;
-					break;
-				case SINK_RUN_TIMEOUT:
-					fprintf(stderr, "REPL returned timeout (impossible)\n");
-					done = true;
-					break;
-				case SINK_RUN_REPLMORE:
-					// do nothing
-					break;
-				case SINK_RUN_INVALID:
-					fprintf(stderr, "Invalid code generation\n");
-					done = true;
-					break;
+			if (sink_scr_level(scr) <= 0){
+				switch (sink_ctx_run(ctx)){
+					case SINK_RUN_PASS:
+						done = true;
+						res = 0;
+						break;
+					case SINK_RUN_FAIL:
+						done = true;
+						res = 1;
+						break;
+					case SINK_RUN_ASYNC:
+						fprintf(stderr, "TODO: REPL invoked async function\n");
+						done = true;
+						break;
+					case SINK_RUN_TIMEOUT:
+						fprintf(stderr, "REPL returned timeout (impossible)\n");
+						done = true;
+						break;
+					case SINK_RUN_REPLMORE:
+						// do nothing
+						break;
+					case SINK_RUN_INVALID:
+						fprintf(stderr, "Invalid code generation\n");
+						done = true;
+						break;
+				}
 			}
 			if (!done)
 				printline(++line, sink_scr_level(scr));
