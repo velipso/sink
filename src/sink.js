@@ -3591,7 +3591,7 @@ function lval_clearTemps(lv, sym){
 	throw new Error('Invalid LVR in lval_clearTemps');
 }
 
-function program_evalLval(prg, sym, mode, intoVlc, lv, mutop, valueVlc){
+function program_evalLval(prg, sym, mode, intoVlc, lv, mutop, valueVlc, clearTemps){
 	// first, perform the assignment of valueVlc into lv
 	switch (lv.type){
 		case LVR_VAR:
@@ -3621,7 +3621,7 @@ function program_evalLval(prg, sym, mode, intoVlc, lv, mutop, valueVlc){
 				if (pe.type == PER_ERROR)
 					return pe;
 				pe = program_evalLval(prg, sym, PEM_EMPTY, null,
-					lvr_var(lv.flp, lv.vlc), mutop, valueVlc);
+					lvr_var(lv.flp, lv.vlc), mutop, valueVlc, true);
 				if (pe.type == PER_ERROR)
 					return pe;
 				var ts = symtbl_addTemp(sym);
@@ -3646,12 +3646,11 @@ function program_evalLval(prg, sym, mode, intoVlc, lv, mutop, valueVlc){
 				op_setat(prg.ops, lv.obj, lv.key, pe.vlc);
 			}
 			else{
-				throw new Error('TODO: This');
-				var pe = program_lvalGetIndex(prg, sym, lv);
+				var pe = program_lvalGet(prg, sym, PLM_CREATE, null, lv);
 				if (pe.type == PER_ERROR)
 					return pe;
 				pe = program_evalLval(prg, sym, PEM_EMPTY, null,
-					lvr_var(lv.flp, lv.vlc), mutop, valueVlc);
+					lvr_var(lv.flp, lv.vlc), mutop, valueVlc, true);
 				if (pe.type == PER_ERROR)
 					return pe;
 				var ts = symtbl_addTemp(sym);
@@ -3660,9 +3659,12 @@ function program_evalLval(prg, sym, mode, intoVlc, lv, mutop, valueVlc){
 				var t = ts.vlc;
 				op_num(prg.ops, t, 0);
 				op_slice(prg.ops, t, lv.vlc, t, lv.len);
-				op_splice(prg.ops, lv.obj, lv.start, lv.len, t);
+				op_splice(prg.ops, lv.indexvlc, lv.start, lv.len, t);
 				symtbl_clearTemp(sym, t);
-				lv.vlc = null; // clear out the lval VLC, since it has changed
+				symtbl_clearTemp(sym, lv.indexvlc);
+				symtbl_clearTemp(sym, lv.vlc);
+				lv.indexvlc = null; // clear out the lval VLC, since it has changed
+				lv.vlc = null;
 			}
 		} break;
 
@@ -3675,7 +3677,7 @@ function program_evalLval(prg, sym, mode, intoVlc, lv, mutop, valueVlc){
 			for (var i = 0; i < lv.body.length; i++){
 				op_num(prg.ops, t, i);
 				op_getat(prg.ops, t, valueVlc, t);
-				var pe = program_evalLval(prg, sym, PEM_EMPTY, null, lv.body[i], mutop, t);
+				var pe = program_evalLval(prg, sym, PEM_EMPTY, null, lv.body[i], mutop, t, false);
 				if (pe.type == PER_ERROR)
 					return pe;
 			}
@@ -3690,7 +3692,7 @@ function program_evalLval(prg, sym, mode, intoVlc, lv, mutop, valueVlc){
 				op_nil(prg.ops, t2);
 				op_slice(prg.ops, t, valueVlc, t, t2);
 				symtbl_clearTemp(sym, t2);
-				var pe = program_evalLval(prg, sym, PEM_EMPTY, null, lv.rest, mutop, t);
+				var pe = program_evalLval(prg, sym, PEM_EMPTY, null, lv.rest, mutop, t, false);
 				if (pe.type == PER_ERROR)
 					return pe;
 			}
@@ -3700,7 +3702,8 @@ function program_evalLval(prg, sym, mode, intoVlc, lv, mutop, valueVlc){
 
 	// now, see if we need to put the result into anything
 	if (mode == PEM_EMPTY){
-		lval_clearTemps(lv, sym);
+		if (clearTemps)
+			lval_clearTemps(lv, sym);
 		return per_ok(null);
 	}
 	else if (mode == PEM_CREATE){
@@ -3713,7 +3716,8 @@ function program_evalLval(prg, sym, mode, intoVlc, lv, mutop, valueVlc){
 	var pe = program_lvalGet(prg, sym, PLM_INTO, intoVlc, lv);
 	if (pe.type == PER_ERROR)
 		return pe;
-	lval_clearTemps(lv, sym);
+	if (clearTemps)
+		lval_clearTemps(lv, sym);
 	return per_ok(intoVlc);
 }
 
@@ -4162,7 +4166,7 @@ function program_lvalCondAssignPart(prg, sym, lv, jumpFalse, valueVlc){
 			else
 				label_jumpTrue(skip, prg.ops, pe.vlc);
 			symtbl_clearTemp(sym, pe.vlc);
-			pe = program_evalLval(prg, sym, PEM_EMPTY, null, lv, -1, valueVlc);
+			pe = program_evalLval(prg, sym, PEM_EMPTY, null, lv, -1, valueVlc, true);
 			if (pe.type == PER_ERROR)
 				return pe;
 			label_declare(skip, prg.ops);
@@ -4268,7 +4272,7 @@ function program_lvalCondAssign(prg, sym, lv, jumpFalse, valueVlc){
 	switch (lv.type){
 		case LVR_VAR:
 		case LVR_INDEX: {
-			var pe = program_evalLval(prg, sym, PEM_EMPTY, null, lv, -1, valueVlc);
+			var pe = program_evalLval(prg, sym, PEM_EMPTY, null, lv, -1, valueVlc, true);
 			if (pe.type == PER_ERROR)
 				return pe;
 		} break;
@@ -4523,7 +4527,7 @@ function program_eval(prg, sym, mode, intoVlc, ex){
 				var pe = program_eval(prg, sym, PEM_CREATE, null, ex.right);
 				if (pe.type == PER_ERROR)
 					return pe;
-				return program_evalLval(prg, sym, mode, intoVlc, lp.lv, mutop, pe.vlc);
+				return program_evalLval(prg, sym, mode, intoVlc, lp.lv, mutop, pe.vlc, true);
 			}
 
 			if (mode == PEM_EMPTY || mode == PEM_CREATE){
@@ -4809,14 +4813,14 @@ function program_gen(prg, sym, stmt, pst, sayexpr){
 							label_jump(passinit, prg.ops);
 							label_declare(doneinit, prg.ops);
 							var pe = program_evalLval(prg, sym, PEM_EMPTY, null, lr.lv, -1,
-								pr.vlc);
+								pr.vlc, true);
 							if (pe.type == PER_ERROR)
 								return pgr_error(pe.flp, pe.msg);
 							label_jump(finish, prg.ops);
 							label_declare(passinit, prg.ops);
 						}
 
-						var pe = program_evalLval(prg, sym, PEM_EMPTY, null, lr.lv, -1, t);
+						var pe = program_evalLval(prg, sym, PEM_EMPTY, null, lr.lv, -1, t, true);
 						if (pe.type == PER_ERROR)
 							return pgr_error(pe.flp, pe.msg);
 
@@ -5115,7 +5119,7 @@ function program_gen(prg, sym, stmt, pst, sayexpr){
 				if (lr.type == LVP_ERROR)
 					return pgr_error(lr.flp, lr.msg);
 				if (ex.right != null){
-					var pe = program_evalLval(prg, sym, PEM_EMPTY, null, lr.lv, -1, pr.vlc);
+					var pe = program_evalLval(prg, sym, PEM_EMPTY, null, lr.lv, -1, pr.vlc, true);
 					if (pe.type == PER_ERROR)
 						return pgr_error(pe.flp, pe.msg);
 					symtbl_clearTemp(sym, pr.vlc);

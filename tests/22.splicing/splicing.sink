@@ -54,3 +54,16 @@ say x
 x = {'hello'}
 x[0][2:2] = nil
 say x
+
+x = {1, {1, 2, 3, 4}, 2}
+x[1][1:2] += {5, 6, 7}
+say x # {1, {1, 7, 9, 4}, 2}
+
+x = {1, 'hello', 2}
+{x[1][2:2], y} = {'LL', 5}
+say x # {1, 'heLLo', 2}
+say y # 5
+
+x = 'hello'
+say ({x[2:2]} = {'LL'}) # {'LL'}
+say x # heLLo
