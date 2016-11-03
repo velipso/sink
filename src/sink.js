@@ -4552,18 +4552,24 @@ function program_eval(prg, sym, mode, intoVlc, ex){
 					return pe;
 			}
 			else if (ex.k == KS_AMP2 || ex.k == KS_PIPE2){
-				var pe = program_eval(prg, sym, PEM_INTO, intoVlc, ex.left);
+				var pe = program_eval(prg, sym, PEM_CREATE, null, ex.left);
 				if (pe.type == PER_ERROR)
 					return pe;
-				var finish = label_new('^finish');
+				var left = pe.vlc;
+				var useleft = label_new('^useleft');
 				if (ex.k == KS_AMP2)
-					label_jumpFalse(finish, prg.ops, intoVlc);
+					label_jumpFalse(useleft, prg.ops, left);
 				else
-					label_jumpTrue(finish, prg.ops, intoVlc);
+					label_jumpTrue(useleft, prg.ops, left);
 				pe = program_eval(prg, sym, PEM_INTO, intoVlc, ex.right);
 				if (pe.type == PER_ERROR)
 					return pe;
+				var finish = label_new('^finish');
+				label_jump(finish, prg.ops);
+				label_declare(useleft, prg.ops);
+				op_move(prg.ops, intoVlc, left);
 				label_declare(finish, prg.ops);
+				symtbl_clearTemp(sym, left);
 			}
 			else
 				return per_error(ex.flp, 'Invalid operation');

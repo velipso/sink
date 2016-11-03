@@ -6885,20 +6885,27 @@ static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st int
 					return pe;
 			}
 			else if (ex->u.infix.k == KS_AMP2 || ex->u.infix.k == KS_PIPE2){
-				per_st pe = program_eval(prg, sym, PEM_INTO, intoVlc, ex->u.infix.left);
+				per_st pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, ex->u.infix.left);
 				if (pe.type == PER_ERROR)
 					return pe;
-				label finish = label_newStr("^finish");
+				varloc_st left = pe.u.vlc;
+				label useleft = label_newStr("^useleft");
 				if (ex->u.infix.k == KS_AMP2)
-					label_jumpFalse(finish, prg->ops, intoVlc);
+					label_jumpFalse(useleft, prg->ops, left);
 				else
-					label_jumpTrue(finish, prg->ops, intoVlc);
+					label_jumpTrue(useleft, prg->ops, left);
 				pe = program_eval(prg, sym, PEM_INTO, intoVlc, ex->u.infix.right);
 				if (pe.type == PER_ERROR){
-					label_free(finish);
+					label_free(useleft);
 					return pe;
 				}
+				label finish = label_newStr("^finish");
+				label_jump(finish, prg->ops);
+				label_declare(useleft, prg->ops);
+				op_move(prg->ops, intoVlc, left);
 				label_declare(finish, prg->ops);
+				symtbl_clearTemp(sym, left);
+				label_free(useleft);
 				label_free(finish);
 			}
 			else
