@@ -437,9 +437,6 @@ var KS_INCLUDE    = 'KS_INCLUDE';
 var KS_NAMESPACE  = 'KS_NAMESPACE';
 var KS_NIL        = 'KS_NIL';
 var KS_RETURN     = 'KS_RETURN';
-var KS_TYPENUM    = 'KS_TYPENUM';
-var KS_TYPESTR    = 'KS_TYPESTR';
-var KS_TYPELIST   = 'KS_TYPELIST';
 var KS_USING      = 'KS_USING';
 var KS_VAR        = 'KS_VAR';
 var KS_WHILE      = 'KS_WHILE';
@@ -511,9 +508,6 @@ function ks_str(s){
 	else if (s == 'namespace') return KS_NAMESPACE;
 	else if (s == 'nil'      ) return KS_NIL;
 	else if (s == 'return'   ) return KS_RETURN;
-	else if (s == 'typenum'  ) return KS_TYPENUM;
-	else if (s == 'typestr'  ) return KS_TYPESTR;
-	else if (s == 'typelist' ) return KS_TYPELIST;
 	else if (s == 'using'    ) return KS_USING;
 	else if (s == 'var'      ) return KS_VAR;
 	else if (s == 'while'    ) return KS_WHILE;
@@ -527,9 +521,6 @@ function ks_toUnaryOp(k){
 	else if (k == KS_UNMINUS   ) return OP_NUM_NEG;
 	else if (k == KS_AMP       ) return OP_SIZE;
 	else if (k == KS_BANG      ) return OP_NOT;
-	else if (k == KS_TYPENUM   ) return OP_ISNUM;
-	else if (k == KS_TYPESTR   ) return OP_ISSTR;
-	else if (k == KS_TYPELIST  ) return OP_ISLIST;
 	return -1;
 }
 
@@ -609,16 +600,13 @@ function tok_isPre(tk){
 	if (tk.type != TOK_KS)
 		return false;
 	return false ||
-		tk.k == KS_PLUS       ||
-		tk.k == KS_UNPLUS     ||
-		tk.k == KS_MINUS      ||
-		tk.k == KS_UNMINUS    ||
-		tk.k == KS_AMP        ||
-		tk.k == KS_BANG       ||
-		tk.k == KS_PERIOD3    ||
-		tk.k == KS_TYPENUM    ||
-		tk.k == KS_TYPESTR    ||
-		tk.k == KS_TYPELIST;
+		tk.k == KS_PLUS    ||
+		tk.k == KS_UNPLUS  ||
+		tk.k == KS_MINUS   ||
+		tk.k == KS_UNMINUS ||
+		tk.k == KS_AMP     ||
+		tk.k == KS_BANG    ||
+		tk.k == KS_PERIOD3;
 }
 
 function tok_isMid(tk, allowComma, allowPipe){
@@ -3211,6 +3199,9 @@ function symtbl_loadStdlib(sym){
 	SAC(sym, 'ask'           , OP_ASK           , -1);
 	SAC(sym, 'exit'          , OP_EXIT          , -1);
 	SAC(sym, 'abort'         , OP_ABORT         , -1);
+	SAC(sym, 'isnum'         , OP_ISNUM         ,  1);
+	SAC(sym, 'isstr'         , OP_ISSTR         ,  1);
+	SAC(sym, 'islist'        , OP_ISLIST        ,  1);
 	symtbl_pushNamespace(sym, ['num']);
 		SAC(sym, 'abs'       , OP_NUM_ABS       ,  1);
 		SAC(sym, 'sign'      , OP_NUM_SIGN      ,  1);

@@ -1033,9 +1033,6 @@ typedef enum {
 	KS_NAMESPACE,
 	KS_NIL,
 	KS_RETURN,
-	KS_TYPENUM,
-	KS_TYPESTR,
-	KS_TYPELIST,
 	KS_USING,
 	KS_VAR,
 	KS_WHILE
@@ -1101,9 +1098,6 @@ static const char *ks_name(ks_enum k){
 		case KS_NAMESPACE:  return "KS_NAMESPACE";
 		case KS_NIL:        return "KS_NIL";
 		case KS_RETURN:     return "KS_RETURN";
-		case KS_TYPENUM:    return "KS_TYPENUM";
-		case KS_TYPESTR:    return "KS_TYPESTR";
-		case KS_TYPELIST:   return "KS_TYPELIST";
 		case KS_USING:      return "KS_USING";
 		case KS_VAR:        return "KS_VAR";
 		case KS_WHILE:      return "KS_WHILE";
@@ -1180,9 +1174,6 @@ static inline ks_enum ks_str(list_byte s){
 	else if (byteequ(s, "namespace")) return KS_NAMESPACE;
 	else if (byteequ(s, "nil"      )) return KS_NIL;
 	else if (byteequ(s, "return"   )) return KS_RETURN;
-	else if (byteequ(s, "typenum"  )) return KS_TYPENUM;
-	else if (byteequ(s, "typestr"  )) return KS_TYPESTR;
-	else if (byteequ(s, "typelist" )) return KS_TYPELIST;
 	else if (byteequ(s, "using"    )) return KS_USING;
 	else if (byteequ(s, "var"      )) return KS_VAR;
 	else if (byteequ(s, "while"    )) return KS_WHILE;
@@ -1196,9 +1187,6 @@ static inline op_enum ks_toUnaryOp(ks_enum k){
 	else if (k == KS_UNMINUS   ) return OP_NUM_NEG;
 	else if (k == KS_AMP       ) return OP_SIZE;
 	else if (k == KS_BANG      ) return OP_NOT;
-	else if (k == KS_TYPENUM   ) return OP_ISNUM;
-	else if (k == KS_TYPESTR   ) return OP_ISSTR;
-	else if (k == KS_TYPELIST  ) return OP_ISLIST;
 	return OP_INVALID;
 }
 
@@ -1368,16 +1356,13 @@ static inline bool tok_isPre(tok tk){
 		return false;
 	ks_enum k = tk->u.k;
 	return false ||
-		k == KS_PLUS       ||
-		k == KS_UNPLUS     ||
-		k == KS_MINUS      ||
-		k == KS_UNMINUS    ||
-		k == KS_AMP        ||
-		k == KS_BANG       ||
-		k == KS_PERIOD3    ||
-		k == KS_TYPENUM    ||
-		k == KS_TYPESTR    ||
-		k == KS_TYPELIST;
+		k == KS_PLUS    ||
+		k == KS_UNPLUS  ||
+		k == KS_MINUS   ||
+		k == KS_UNMINUS ||
+		k == KS_AMP     ||
+		k == KS_BANG    ||
+		k == KS_PERIOD3;
 }
 
 static inline bool tok_isMid(tok tk, bool allowComma, bool allowPipe){
@@ -5292,6 +5277,9 @@ static inline void symtbl_loadStdlib(symtbl sym){
 	SAC(sym, "ask"           , OP_ASK           , -1);
 	SAC(sym, "exit"          , OP_EXIT          , -1);
 	SAC(sym, "abort"         , OP_ABORT         , -1);
+	SAC(sym, "isnum"         , OP_ISNUM         ,  1);
+	SAC(sym, "isstr"         , OP_ISSTR         ,  1);
+	SAC(sym, "islist"        , OP_ISLIST        ,  1);
 	nss = NSS("num"); symtbl_pushNamespace(sym, nss); list_ptr_free(nss);
 		SAC(sym, "abs"       , OP_NUM_ABS       ,  1);
 		SAC(sym, "sign"      , OP_NUM_SIGN      ,  1);

@@ -182,32 +182,14 @@ Numbers can also be treated as 32-bit signed or unsigned integers in the standar
 on the library call.  This is no problem because a 64-bit floating point number can store a 52-bit
 integer losslessly.
 
-Testing for a number is done via `typenum`:
+Testing for a number is done via the `isnum` command:
 
 ```
-if typenum x
+if isnum x
   say 'x is a number'
 else
   say 'x isn''t a number'
 end
-```
-
-Note that `typenum` is a unary operator, not a command.  Therefore:
-
-```
-say typenum x, y
-```
-
-is processed:
-
-```
-say (typenum x), y
-```
-
-Not like a command would be:
-
-```
-say (typenum x, y)
 ```
 
 Strings
@@ -254,7 +236,24 @@ say "a" ~ 'b'  # ab
 say 1 ~ 2      # 12
 ```
 
-Strings are detected via `typestr`, in the same vein as `typenum` described above.
+Strings are detected via the `isstr` command.
+
+String Slicing
+--------------
+
+Strings support slicing, in the format of `s[start:length]`:
+
+```
+var x = 'hello world'
+say x[3:5] # lo wo
+```
+
+Slicing can also be used for assignment:
+
+```
+x[2:2] = 'LL'
+say x # heLLo world
+```
 
 Lists
 -----
@@ -294,8 +293,10 @@ say x      # {1}
 say y      # {2}
 ```
 
-Slicing
--------
+Lists are detected via the `islist` command.
+
+List Slicing
+------------
 
 Lists support slicing, in the format of `ls[start:length]`:
 
@@ -311,7 +312,74 @@ x[1:2] = {5, 6, 7}
 say x  # {1, 5, 6, 7, 4}
 ```
 
-TODO: slicing strings?
+Variables and Scope
+-------------------
+
+Variables are declared with the `var` keyword, and are lexically scoped:
+
+```
+var x = 1, y = 2
+
+def test
+  var y
+  x = 10
+  y = 20
+end
+
+test
+say x, y # 10 2
+```
+
+Commands have their own scope, with a set of variables created at time of execution:
+
+```
+def test1 base
+  def test2
+    test1 base + 10
+  end
+
+  if base < 5
+    test2
+  end
+
+  say 'base:', base
+end
+
+test1 3
+# output:
+#  base: 13
+#  base: 3
+```
+
+Destructuring Assignment
+------------------------
+
+Lists of variables can be used for assignment or variable creation.  This allows for parallel
+assignment and can help with commands returning multiple values:
+
+```
+var {x, y} = {1, 2}
+say x, y # 1 2
+
+{x, y} = {y, x}
+say x, y # 2 1
+
+def test
+  return {1, {3, 4}}
+end
+
+var {a, {b, c, d}, e} = test
+say a, b, c, d, e # 1 3 4 nil nil
+```
+
+Destrucring assignment also allows for variable length assignment using `...`:
+
+```
+var {first, second, ...rest} = {1, 2, 3, 4, 5}
+say first  # 1
+say second # 2
+say rest   # {3, 4, 5}
+```
 
 If-Elseif
 ---------
@@ -429,17 +497,17 @@ Variable Arguments
 Commands can accept variable arguments using `...` in the definition:
 
 ```
-def printargs prefix, ...x
-  for var a: x
+def printargs prefix, ...rest
+  for var a: rest
     say prefix, a
   end
 end
 
 printargs 'test:', 5, 6, 7
 # output:
-#   test: 5
-#   test: 6
-#   test: 7
+#  test: 5
+#  test: 6
+#  test: 7
 ```
 
 Piping

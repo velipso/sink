@@ -85,7 +85,7 @@ while x > 0
 	x -= 1
 end
 
-if typenum x
+if isnum x
 	say 'x is num'
 end
 

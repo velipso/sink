@@ -20,6 +20,7 @@ CodeMirror.defineMode('sink', function(config, parserConfig) {
 
   var libs = {
     'nil': true, 'pick': true, 'say': true, 'warn': true, 'ask': true, 'exit': true, 'abort': true,
+    'isnum': true, 'isstr': true, 'islist': true,
     'num': [
       'abs', 'sign', 'max', 'min', 'clamp', 'floor', 'ceil', 'round', 'trunc', 'nan', 'inf',
       'isnan', 'isfinite', 'e', 'pi', 'tau', 'sin', 'cos', 'tan', 'asin', 'acos', 'atan',
@@ -56,7 +57,7 @@ CodeMirror.defineMode('sink', function(config, parserConfig) {
 
   var keywords = [
     'break', 'continue', 'declare', 'def', 'do', 'else', 'elseif', 'end', 'for', 'goto', 'if',
-    'include', 'namespace', 'return', 'typenum', 'typestr', 'typelist', 'using', 'var', 'while'
+    'include', 'namespace', 'return', 'using', 'var', 'while'
   ];
 
   function ident(id){

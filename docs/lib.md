@@ -13,6 +13,9 @@ results.
 | `ask a, ...`      | Prompt the user for input from stdin; returns the inputted string           |
 | `exit a, ...`     | Output arguments to stdout and terminate execution in success               |
 | `abort a, ...`    | Output arguments to stderr and terminate execution in failure               |
+| `isnum a`         | Returns true if `a` is a number; otherwise false                            |
+| `isstr a`         | Returns true if `a` is a string; otherwise false                            |
+| `islist a`        | Returns true if `a` is a list; otherwise false                              |
 | `pick cond, a, b` | If `cond` is true, return `a`, otherwise return `b` (short-circuited)       |
 
 Number
