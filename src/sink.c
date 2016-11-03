@@ -6862,13 +6862,15 @@ static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st int
 
 			op_enum binop = ks_toBinaryOp(ex->u.infix.k);
 			if (binop != OP_INVALID){
-				per_st pe = program_eval(prg, sym, PEM_INTO, intoVlc, ex->u.infix.left);
+				per_st pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, ex->u.infix.left);
 				if (pe.type == PER_ERROR)
 					return pe;
+				varloc_st left = pe.u.vlc;
 				pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, ex->u.infix.right);
 				if (pe.type == PER_ERROR)
 					return pe;
-				op_binop(prg->ops, binop, intoVlc, intoVlc, pe.u.vlc);
+				op_binop(prg->ops, binop, intoVlc, left, pe.u.vlc);
+				symtbl_clearTemp(sym, left);
 				symtbl_clearTemp(sym, pe.u.vlc);
 			}
 			else if (ex->u.infix.k == KS_AT){
