@@ -133,7 +133,7 @@ x = x || 5  # set x to 5 only if x is nil
 x ||= 5     # or, more compactly
 ```
 
-Checking if a value is `nil` is done via `x == nil`.
+Checking if a value is `nil` is done via `x == nil` (or more simply `!x`).
 
 Number
 ------
