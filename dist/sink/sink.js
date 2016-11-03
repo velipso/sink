@@ -7427,15 +7427,17 @@ var Sink = {
 		function process(data){
 			var cm = compiler_write(cmp, UTF8.encode(data));
 			if (cm.type == CMA_OK){
-				var cr = context_run(ctx);
-				if (cr == SINK_RUN_REPLMORE)
-					/* do nothing */;
-				else if (cr == SINK_RUN_PASS || cr == SINK_RUN_FAIL)
-					return cr == SINK_RUN_PASS; // true/false means script finished
-				else{
-					// SINK_RUN_ASYNC, SINK_RUN_TIMEOUT, SINK_RUN_INVALID
-					console.log('cr', cr);
-					throw 'TODO: deal with a different cr';
+				if (compiler_level(cmp) <= 0){
+					var cr = context_run(ctx);
+					if (cr == SINK_RUN_REPLMORE)
+						/* do nothing */;
+					else if (cr == SINK_RUN_PASS || cr == SINK_RUN_FAIL)
+						return cr == SINK_RUN_PASS; // true/false means script finished
+					else{
+						// SINK_RUN_ASYNC, SINK_RUN_TIMEOUT, SINK_RUN_INVALID
+						console.log('cr', cr);
+						throw 'TODO: deal with a different cr';
+					}
 				}
 			}
 			else if (cm.type == CMA_ERROR){
