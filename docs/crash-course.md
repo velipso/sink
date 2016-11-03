@@ -491,6 +491,16 @@ say 'result:', add 1, 2
 #  result: 3
 ```
 
+Commands can be called with a variable argument list using `@`:
+
+```
+var nums = {5, 6}
+say add @ nums
+# output:
+#  adding 5 + 6: 11
+#  11
+```
+
 Variable Arguments
 ------------------
 
@@ -550,4 +560,54 @@ var ls = {1, 2} | list.push 3 | list.unshift 0 | list.rev
 # same as:
 # var ls = list.rev (list.unshift (list.push ({1, 2}), 3), 0)
 say ls # {3, 2, 1, 0}
+```
+
+Namespaces
+----------
+
+Namespaces only exist at compile-time and can be created freely:
+
+```
+namespace foo
+  def test
+    say 'inside test'
+  end
+end
+
+foo.test # inside test
+```
+
+Namespaces can be created and added to as needed without the `namespace` keyword:
+
+```
+# define command 'test' inside namespace 'foo'
+def foo.test
+  say 'inside test'
+end
+
+# declare variable 'c' inside namespace 'a.b'
+var a.b.c = 10
+
+# include everything in './file' in the namespace 'foo'
+include foo './file'
+```
+
+Using
+-----
+
+The `using` keyword can be used to expand the search for identifiers across multiple namespaces:
+
+```
+using num
+say round 1.3 # 1
+```
+
+However, the local namespace has priority over anything inside `using`:
+
+```
+using num
+def round a
+  return a + 10
+end
+say round 1.3 # 11.3
 ```
