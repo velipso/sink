@@ -10962,8 +10962,11 @@ sink_val sink_tostr(sink_ctx ctx, sink_val v){
 void     sink_say(sink_ctx ctx, int size, sink_val *vals);
 void     sink_warn(sink_ctx ctx, int size, sink_val *vals);
 sink_val sink_ask(sink_ctx ctx, int size, sink_val *vals);
-void     sink_exit(sink_ctx ctx, int size, sink_val *vals);
 */
+void sink_exit(sink_ctx ctx, int size, sink_val *vals){
+	opi_exit(ctx, size, vals);
+}
+
 void sink_abort(sink_ctx ctx, int size, sink_val *vals){
 	opi_abort(ctx, size, vals);
 }
