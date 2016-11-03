@@ -1956,26 +1956,25 @@ static void lex_process(lex lx, list_ptr tks){
 		case LEX_STR_BASIC:
 			if (ch1 == '\r' || ch1 == '\n')
 				list_ptr_push(tks, tok_error(sink_format("Missing end of string")));
-			else if (ch1 == '\''){
-				lx->state = LEX_START;
-				list_ptr_push(tks, tok_ks(KS_LPAREN));
-				list_ptr_push(tks, tok_str(lx->str));
-				list_ptr_push(tks, tok_ks(KS_RPAREN));
-				lx->str = NULL;
-			}
-			else if (ch1 == '\\')
+			else if (ch1 == '\'')
 				lx->state = LEX_STR_BASIC_ESC;
 			else
 				list_byte_push(lx->str, ch1);
 			break;
 
 		case LEX_STR_BASIC_ESC:
-			if (ch1 == '\\' || ch1 == '\''){
+			if (ch1 == '\'' || ch1 == '\''){
 				list_byte_push(lx->str, ch1);
 				lx->state = LEX_STR_BASIC;
 			}
-			else
-				list_ptr_push(tks, tok_error(sink_format("Invalid escape sequence: \\%c", ch1)));
+			else{
+				lx->state = LEX_START;
+				list_ptr_push(tks, tok_ks(KS_LPAREN));
+				list_ptr_push(tks, tok_str(lx->str));
+				list_ptr_push(tks, tok_ks(KS_RPAREN));
+				lx->str = NULL;
+				lex_process(lx, tks);
+			}
 			break;
 
 		case LEX_STR_INTERP:

@@ -188,7 +188,7 @@ Testing for a number is done via `typenum`:
 if typenum x
   say 'x is a number'
 else
-  say 'x isn\'t a number'
+  say 'x isn''t a number'
 end
 ```
 
@@ -218,7 +218,8 @@ Strings are binary-safe arrays of bytes, that can be any length, and include any
 library for dealing specifically with UTF-8 strings).
 
 Strings can be specified with single quotes `'` or double quotes `"`.  Single quoted strings do not
-perform any substitution, and only have `'\\'` and `'\''` escape sequences.
+perform any substitution and only have one escape sequence `''` (two single quotes) to indicate a
+single quote character (i.e., `'it''s like this'`).
 
 Double quoted strings perform substitution via `$`, and have the escape sequences:
 

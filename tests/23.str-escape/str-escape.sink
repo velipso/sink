@@ -1,0 +1,4 @@
+
+var x = 'how''s it going'
+say x
+
