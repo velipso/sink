@@ -8822,6 +8822,7 @@ static inline sink_val opi_list_unshift(context ctx, sink_val a, sink_val b){
 	if (ls->size > 0)
 		memmove(&ls->vals[1], ls->vals, sizeof(sink_val) * ls->size);
 	ls->vals[0] = b;
+	ls->size++;
 	return a;
 }
 
