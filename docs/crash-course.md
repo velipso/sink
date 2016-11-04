@@ -531,6 +531,11 @@ test2    # 20
 Commands can be called with a variable argument list using `@`:
 
 ```
+def add a, b
+  say "adding $a + $b: ${a + b}"
+  return a + b
+end
+
 var nums = {5, 6}
 say add @ nums
 # output:
