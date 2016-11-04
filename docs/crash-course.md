@@ -570,6 +570,11 @@ printargs 'test:', 5, 6, 7
 Command results can be piped to each other, in order to simplify syntax:
 
 ```
+def add a, b
+  say "adding $a + $b: ${a + b}"
+  return a + b
+end
+
 def mul a, b
   say "multiplying $a * $b: ${a * b}"
   return a * b
