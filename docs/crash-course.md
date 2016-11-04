@@ -505,6 +505,8 @@ say 'result:', add 1, 2
 #  result: 3
 ```
 
+### Default Arguments
+
 Commands can have default values for arguments, which are expressions that get evaluated if the
 passed in argument isn't specified (or `nil`):
 
@@ -528,6 +530,8 @@ x = 20
 test2    # 20
 ```
 
+### Dynamic Arguments
+
 Commands can be called with a variable argument list using `@`:
 
 ```
@@ -543,8 +547,7 @@ say add @ nums
 #  11
 ```
 
-Variable Arguments
-------------------
+### Variable Arguments
 
 Commands can accept variable arguments using `...` in the definition:
 
@@ -562,8 +565,7 @@ printargs 'test:', 5, 6, 7
 #  test: 7
 ```
 
-Piping
-------
+### Piping
 
 Command results can be piped to each other, in order to simplify syntax:
 
@@ -634,8 +636,7 @@ var a.b.c = 10
 include foo './file'
 ```
 
-Using
------
+### Using
 
 The `using` keyword can be used to expand the search for identifiers across multiple namespaces:
 
