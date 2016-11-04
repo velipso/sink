@@ -104,15 +104,12 @@ Keywords and Symbols
 --------------------
 
 ```
-break       goto
-continue    if
-declare     include
-def         namespace
-do          nil
-else        return
-elseif      using
-end         var
-for         while
+break       elseif     namespace
+continue    end        nil
+declare     for        return
+def         goto       using
+do          if         var
+else        include    while
 ```
 
 ```
