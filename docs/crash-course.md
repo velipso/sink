@@ -505,6 +505,29 @@ say 'result:', add 1, 2
 #  result: 3
 ```
 
+Commands can have default values for arguments, which are expressions that get evaluated if the
+passed in argument isn't specified (or `nil`):
+
+```
+def test a = 1, b = 2
+  say a, b
+end
+
+test        # 1 2
+test nil, 5 # 1 5
+test 7      # 7 2
+
+var x = 10
+def test2 y = x
+  say y
+end
+
+test2    # 10
+test2 13 # 13
+x = 20
+test2    # 20
+```
+
 Commands can be called with a variable argument list using `@`:
 
 ```

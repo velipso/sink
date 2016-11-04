@@ -1192,29 +1192,29 @@ static inline ks_enum ks_str(list_byte s){
 }
 
 static inline op_enum ks_toUnaryOp(ks_enum k){
-	if      (k == KS_PLUS      ) return OP_TONUM;
-	else if (k == KS_UNPLUS    ) return OP_TONUM;
-	else if (k == KS_MINUS     ) return OP_NUM_NEG;
-	else if (k == KS_UNMINUS   ) return OP_NUM_NEG;
-	else if (k == KS_AMP       ) return OP_SIZE;
-	else if (k == KS_BANG      ) return OP_NOT;
+	if      (k == KS_PLUS   ) return OP_TONUM;
+	else if (k == KS_UNPLUS ) return OP_TONUM;
+	else if (k == KS_MINUS  ) return OP_NUM_NEG;
+	else if (k == KS_UNMINUS) return OP_NUM_NEG;
+	else if (k == KS_AMP    ) return OP_SIZE;
+	else if (k == KS_BANG   ) return OP_NOT;
 	return OP_INVALID;
 }
 
 static inline op_enum ks_toBinaryOp(ks_enum k){
-	if      (k == KS_PLUS      ) return OP_NUM_ADD;
-	else if (k == KS_MINUS     ) return OP_NUM_SUB;
-	else if (k == KS_PERCENT   ) return OP_NUM_MOD;
-	else if (k == KS_STAR      ) return OP_NUM_MUL;
-	else if (k == KS_SLASH     ) return OP_NUM_DIV;
-	else if (k == KS_CARET     ) return OP_NUM_POW;
-	else if (k == KS_LT        ) return OP_LT;
-	else if (k == KS_GT        ) return OP_GT;
-	else if (k == KS_TILDE     ) return OP_CAT;
-	else if (k == KS_LTEQU     ) return OP_LTE;
-	else if (k == KS_GTEQU     ) return OP_GTE;
-	else if (k == KS_BANGEQU   ) return OP_NEQ;
-	else if (k == KS_EQU2      ) return OP_EQU;
+	if      (k == KS_PLUS   ) return OP_NUM_ADD;
+	else if (k == KS_MINUS  ) return OP_NUM_SUB;
+	else if (k == KS_PERCENT) return OP_NUM_MOD;
+	else if (k == KS_STAR   ) return OP_NUM_MUL;
+	else if (k == KS_SLASH  ) return OP_NUM_DIV;
+	else if (k == KS_CARET  ) return OP_NUM_POW;
+	else if (k == KS_LT     ) return OP_LT;
+	else if (k == KS_GT     ) return OP_GT;
+	else if (k == KS_TILDE  ) return OP_CAT;
+	else if (k == KS_LTEQU  ) return OP_LTE;
+	else if (k == KS_GTEQU  ) return OP_GTE;
+	else if (k == KS_BANGEQU) return OP_NEQ;
+	else if (k == KS_EQU2   ) return OP_EQU;
 	return OP_INVALID;
 }
 
