@@ -237,6 +237,7 @@ Double quoted strings perform substitution via `$`, and have the escape sequence
 | `"\v"`   | Vertical tab (byte 11)                |
 | `"\f"`   | Form feed (byte 12)                   |
 | `"\r"`   | Carriage return (byte 13)             |
+| `"\e"`   | Escape (byte 27)                      |
 | `"\\"`   | Backslash                             |
 | `"\'"`   | Single quote                          |
 | `"\""`   | Double quote                          |

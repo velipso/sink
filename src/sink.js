@@ -1275,6 +1275,10 @@ function lex_process(lx, tks){
 				lx.str += '\r';
 				lx.state = LEX_STR_INTERP;
 			}
+			else if (ch1 == 'e'){
+				lx.str += String.fromCharCode(27);
+				lx.state = LEX_STR_INTERP;
+			}
 			else if (ch1 == '\\' || ch1 == '\'' || ch1 == '"' || ch1 == '$'){
 				lx.str += ch1;
 				lx.state = LEX_STR_INTERP;

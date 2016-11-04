@@ -2075,6 +2075,10 @@ static void lex_process(lex lx, list_ptr tks){
 				list_byte_push(lx->str, 13);
 				lx->state = LEX_STR_INTERP;
 			}
+			else if (ch1 == 'e'){
+				list_byte_push(lx->str, 27);
+				lx->state = LEX_STR_INTERP;
+			}
 			else if (ch1 == '\\' || ch1 == '\'' || ch1 == '"' || ch1 == '$'){
 				list_byte_push(lx->str, ch1);
 				lx->state = LEX_STR_INTERP;
