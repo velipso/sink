@@ -245,8 +245,7 @@ say 1 ~ 2      # 12
 
 Strings are detected via the `isstr` command.
 
-String Slicing
---------------
+### String Slicing
 
 Strings support slicing, in the format of `s[start:length]`:
 
@@ -309,8 +308,7 @@ say y      # {2}
 
 Lists are detected via the `islist` command.
 
-List Slicing
-------------
+### List Slicing
 
 Lists support slicing, in the format of `ls[start:length]`:
 
