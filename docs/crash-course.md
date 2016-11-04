@@ -100,6 +100,31 @@ x- 1    # subtract
 x -1    # call `x` with a single argument, -1
 ```
 
+Keywords and Symbols
+--------------------
+
+```
+break       goto
+continue    if
+declare     include
+def         namespace
+do          nil
+else        return
+elseif      using
+end         var
+for         while
+```
+
+```
++    +=    <     <=     (    )
+-    -=    >     >=     [    ]
+%    %=    !     !=     {    }
+*    *=    =     ==     ,    .
+/    /=    ||    ||=    |    @
+^    ^=    &&    &&=    &    :
+~    ~=    ...
+```
+
 Types
 -----
 
