@@ -507,6 +507,18 @@ end
 
 The `continue` and `break` statements operate as expected inside the for loops.
 
+Goto
+----
+
+Labels are unique per command, and declared via `labelname:`.  The `goto labelname` statement will
+cause execution to jump to the label.
+
+```
+goto skip
+say 'won''t see this'
+skip:
+```
+
 Commands
 --------
 
