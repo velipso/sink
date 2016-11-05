@@ -355,6 +355,17 @@ static inline sink_val sink_user_new(sink_ctx ctx, sink_user usertype, void *use
 	return ls;
 }
 
+static inline bool sink_isuser(sink_ctx ctx, sink_val v, sink_user usertype, void **user){
+	if (!sink_islist(v))
+		return false;
+	sink_list ls = sink_castlist(ctx, v);
+	if (ls->usertype != usertype)
+		return false;
+	if (user)
+		*user = ls->user;
+	return true;
+}
+
 // pickle
 bool     sink_pickle_valid(sink_ctx ctx, sink_val a);
 sink_val sink_pickle_str(sink_ctx ctx, sink_val a);
