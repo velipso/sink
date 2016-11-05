@@ -1,4 +1,4 @@
-Sink Crash Course
+Crash Course
 =================
 
 Sink is a minimal programming language specifically designed to be embedded in larger programs,
@@ -51,7 +51,7 @@ end
 What Sink Isn't
 ---------------
 
-In many ways, Sink is defined by the features it *doesn't* have:
+In many ways, sink is defined by the features it *doesn't* have:
 
 1. No classes, inheritence, mixins, interfaces, prototypes, etc
 2. No tables, objects, hashes, dictionaries, etc
@@ -287,7 +287,7 @@ say x # heLLo world
 Lists
 -----
 
-Lists are the only compound data structure in Sink.  They are created with curly braces
+Lists are the only compound data structure in sink.  They are created with curly braces
 `{ <contents> }`.  Elements are accessed using `ls[0]`, `ls[1]`, etc.  Negative indicies will wrap
 around the end.  Indicies outside the range will return `nil`.
 
