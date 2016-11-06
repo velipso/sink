@@ -5682,7 +5682,7 @@ function unop_num_neg(a){
 }
 
 function unop_tonum(a){
-	if (var_isnum(a))
+	if (sink_isnum(a))
 		return a;
 	throw 'TODO: parse number';
 }
