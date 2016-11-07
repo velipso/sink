@@ -16,7 +16,7 @@ results.
 | `isnum a`         | Returns true if `a` is a number; otherwise false                            |
 | `isstr a`         | Returns true if `a` is a string; otherwise false                            |
 | `islist a`        | Returns true if `a` is a list; otherwise false                              |
-| `range [start,] stop [, step]` | Returns a list of numbers in the interval [`start`, `stop`)    |
+| `range [start,] stop[, step]` | Returns a list of numbers in the interval [`start`, `stop`)     |
 | `pick cond, a, b` | If `cond` is true, return `a`, otherwise return `b` (short-circuited)       |
 
 ### Range Examples
@@ -39,10 +39,9 @@ Note that special optimizations are performed when using `range` in a for loop, 
 arguments are specified:
 
 ```
-# temporary list not actually created because `range` is called with 1-3 arguments:
-var start = 10
-var stop = 10000
-var step = 0.001
+# temporary list not actually created because `range` is called with 1-3
+# arguments:
+var start = 10, stop = 10000, step = 0.001
 for var v, i: range stop * 3  # does *not* create a list of 30000 items!
   say v, i
 end
