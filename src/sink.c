@@ -8962,6 +8962,8 @@ static inline sink_val opi_list_rev(context ctx, sink_val a){
 
 static inline sink_val opi_range(context ctx, double start, double stop, double step){
 	int count = ceil((stop - start) / step);
+	if (count > 10000000)
+		return SINK_NIL;
 	if (count <= 0)
 		return sink_list_newblob(ctx, 0, NULL);
 	sink_val *ret = mem_alloc(sizeof(sink_val) * count);
@@ -9441,16 +9443,18 @@ static sink_run context_run(context ctx){
 						Z = sink_num(1);
 					if (!sink_isnum(Z))
 						RETURN_FAIL("Expecting number for range step");
-					var_set(ctx, A, B, opi_range(ctx,
-						sink_castnum(X), sink_castnum(Y), sink_castnum(Z)));
+					X = opi_range(ctx, sink_castnum(X), sink_castnum(Y), sink_castnum(Z));
 				}
 				else if (sink_isnil(Y)){
 					if (!sink_isnil(Z))
 						RETURN_FAIL("Expecting number for range stop");
-					var_set(ctx, A, B, opi_range(ctx, 0, sink_castnum(X), 1));
+					X = opi_range(ctx, 0, sink_castnum(X), 1);
 				}
 				else
 					RETURN_FAIL("Expecting number for range stop");
+				if (sink_isnil(X))
+					RETURN_FAIL("Range too large (over 10000000)");
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_SAY            : { // [TGT], [SRC...]
@@ -10900,12 +10904,12 @@ bool sink_arg_user(sink_ctx ctx, int size, sink_val *args, int index, sink_user 
 	return true;
 }
 
-static sink_val sinkhelp_tostr(context ctx, sink_val v, bool first){
+static sink_str_st sinkhelp_tostr(context ctx, sink_val v, bool first){
 	switch (sink_typeof(v)){
 		case SINK_TYPE_NIL: {
 			uint8_t *bytes = mem_alloc(sizeof(uint8_t) * 4);
 			bytes[0] = 'n'; bytes[1] = 'i'; bytes[2] = 'l'; bytes[3] = 0;
-			return sink_str_newblobgive(ctx, 3, bytes);
+			return (sink_str_st){ .bytes = bytes, .size = 3 };
 		} break;
 
 		case SINK_TYPE_NUM: {
@@ -10913,25 +10917,32 @@ static sink_val sinkhelp_tostr(context ctx, sink_val v, bool first){
 				if (v.f < 0){
 					uint8_t *bytes = mem_alloc(sizeof(uint8_t) * 5);
 					bytes[0] = '-'; bytes[1] = 'i'; bytes[2] = 'n'; bytes[3] = 'f'; bytes[4] = 0;
-					return sink_str_newblobgive(ctx, 4, bytes);
+					return (sink_str_st){ .bytes = bytes, .size = 4 };
 				}
 				uint8_t *bytes = mem_alloc(sizeof(uint8_t) * 4);
 				bytes[0] = 'i'; bytes[1] = 'n'; bytes[2] = 'f'; bytes[3] = 0;
-				return sink_str_newblobgive(ctx, 3, bytes);
+				return (sink_str_st){ .bytes = bytes, .size = 3 };
 			}
-			char *fmt = sink_format("%.15g", v.f);
-			if (fmt[0] == '-' && fmt[1] == '0' && fmt[2] == 0){ // fix negative zero silliness
-				fmt[0] = '0';
-				fmt[1] = 0;
+			char buf[100];
+			int size = snprintf(buf, sizeof(buf), "%.15g", v.f);
+			if (buf[0] == '-' && buf[1] == '0' && buf[2] == 0){ // fix negative zero silliness
+				buf[0] = '0';
+				buf[1] = 0;
+				size = 1;
 			}
-			return sink_str_newblobgive(ctx, strlen(fmt), (uint8_t *)fmt);
+			uint8_t *bytes = mem_alloc(sizeof(uint8_t) * (size + 1));
+			memcpy(bytes, buf, sizeof(uint8_t) * (size + 1));
+			return (sink_str_st){ .bytes = bytes, .size = size };
 		} break;
 
 		case SINK_TYPE_STR: {
-			if (first)
-				return v;
-			int tot = 2;
 			sink_str s = var_caststr(ctx, v);
+			if (first){
+				uint8_t *bytes = mem_alloc(sizeof(uint8_t) * (s->size + 1));
+				memcpy(bytes, s->bytes, sizeof(uint8_t) * (s->size + 1));
+				return (sink_str_st){ .bytes = bytes, .size = s->size };
+			}
+			int tot = 2;
 			for (int i = 0; i < s->size; i++){
 				if (s->bytes[i] == '\'' || s->bytes[i] == '\\')
 					tot++;
@@ -10947,7 +10958,7 @@ static sink_val sinkhelp_tostr(context ctx, sink_val v, bool first){
 			}
 			bytes[p++] = '\'';
 			bytes[tot] = 0;
-			return sink_str_newblobgive(ctx, tot, bytes);
+			return (sink_str_st){ .bytes = bytes, .size = tot };
 		} break;
 
 		case SINK_TYPE_LIST: {
@@ -10956,38 +10967,37 @@ static sink_val sinkhelp_tostr(context ctx, sink_val v, bool first){
 				bytes[0] = '{'; bytes[1] = 'c'; bytes[2] = 'i'; bytes[3] = 'r'; bytes[4] = 'c';
 				bytes[5] = 'u'; bytes[6] = 'l'; bytes[7] = 'a'; bytes[8] = 'r'; bytes[9] = '}';
 				bytes[10] = 0;
-				return sink_str_newblobgive(ctx, 10, bytes);
+				return (sink_str_st){ .bytes = bytes, .size = 10 };
 			}
 			sink_list ls = var_castlist(ctx, v);
 			int tot = 2;
-			list_double db = list_double_new();
+			sink_str_st *strs = mem_alloc(sizeof(sink_str_st) * ls->size);
 			for (int i = 0; i < ls->size; i++){
-				sink_val v = sinkhelp_tostr(ctx, ls->vals[i], false);
-				sink_str s = var_caststr(ctx, v);
-				tot += (i == 0 ? 0 : 2) + s->size;
-				list_double_push(db, v.f);
+				sink_str_st s = sinkhelp_tostr(ctx, ls->vals[i], false);
+				strs[i] = s;
+				tot += (i == 0 ? 0 : 2) + s.size;
 			}
 			uint8_t *bytes = mem_alloc(sizeof(uint8_t) * (tot + 1));
 			bytes[0] = '{';
 			int p = 1;
 			for (int i = 0; i < ls->size; i++){
-				sink_str s = var_caststr(ctx, (sink_val){ .f = db->vals[i] });
 				if (i > 0){
 					bytes[p++] = ',';
 					bytes[p++] = ' ';
 				}
-				memcpy(&bytes[p], s->bytes, sizeof(uint8_t) * s->size);
-				p += s->size;
+				memcpy(&bytes[p], strs[i].bytes, sizeof(uint8_t) * strs[i].size);
+				mem_free(strs[i].bytes);
+				p += strs[i].size;
 			}
+			mem_free(strs);
 			bytes[p] = '}';
-			list_double_free(db);
 			bytes[tot] = 0;
-			return sink_str_newblobgive(ctx, tot, bytes);
+			return (sink_str_st){ .bytes = bytes, .size = tot };
 		} break;
 
 		case SINK_TYPE_ASYNC: {
 			opi_abortcstr(ctx, "Cannot convert invalid value (SINK_ASYNC) to string");
-			return sink_str_newblob(ctx, 0, NULL);
+			return (sink_str_st){ .bytes = mem_alloc(0), .size = 0 };
 		} break;
 	}
 }
@@ -10995,7 +11005,8 @@ static sink_val sinkhelp_tostr(context ctx, sink_val v, bool first){
 sink_val sink_tostr(sink_ctx ctx, sink_val v){
 	if (sink_islist(v))
 		list_cleartick(ctx);
-	return sinkhelp_tostr(ctx, v, true);
+	sink_str_st s = sinkhelp_tostr(ctx, v, true);
+	return sink_str_newblobgive(ctx, s.size, s.bytes);
 }
 
 /*
