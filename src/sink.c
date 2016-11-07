@@ -625,114 +625,115 @@ typedef enum {
 	OP_NATIVE        = 0x1D, // [TGT], [SRC], [INDEX]
 	OP_RETURN        = 0x1E, // [SRC]
 	OP_RETURNTAIL    = 0x1F, // [SRC], [[LOCATION]]
-	OP_SAY           = 0x20, // [TGT], [SRC...]
-	OP_WARN          = 0x21, // [TGT], [SRC...]
-	OP_ASK           = 0x22, // [TGT], [SRC...]
-	OP_EXIT          = 0x23, // [TGT], [SRC...]
-	OP_ABORT         = 0x24, // [TGT], [SRC...]
-	OP_NUM_NEG       = 0x25, // [TGT], [SRC]
-	OP_NUM_ADD       = 0x26, // [TGT], [SRC1], [SRC2]
-	OP_NUM_SUB       = 0x27, // [TGT], [SRC1], [SRC2]
-	OP_NUM_MUL       = 0x28, // [TGT], [SRC1], [SRC2]
-	OP_NUM_DIV       = 0x29, // [TGT], [SRC1], [SRC2]
-	OP_NUM_MOD       = 0x2A, // [TGT], [SRC1], [SRC2]
-	OP_NUM_POW       = 0x2B, // [TGT], [SRC1], [SRC2]
-	OP_NUM_ABS       = 0x2C, // [TGT], [SRC]
-	OP_NUM_SIGN      = 0x2D, // [TGT], [SRC]
-	OP_NUM_MAX       = 0x2E, // [TGT], [SRC...]
-	OP_NUM_MIN       = 0x2F, // [TGT], [SRC...]
-	OP_NUM_CLAMP     = 0x30, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_NUM_FLOOR     = 0x31, // [TGT], [SRC]
-	OP_NUM_CEIL      = 0x32, // [TGT], [SRC]
-	OP_NUM_ROUND     = 0x33, // [TGT], [SRC]
-	OP_NUM_TRUNC     = 0x34, // [TGT], [SRC]
-	OP_NUM_NAN       = 0x35, // [TGT]
-	OP_NUM_INF       = 0x36, // [TGT]
-	OP_NUM_ISNAN     = 0x37, // [TGT], [SRC]
-	OP_NUM_ISFINITE  = 0x38, // [TGT], [SRC]
-	OP_NUM_E         = 0x39, // [TGT]
-	OP_NUM_PI        = 0x3A, // [TGT]
-	OP_NUM_TAU       = 0x3B, // [TGT]
-	OP_NUM_SIN       = 0x3C, // [TGT], [SRC]
-	OP_NUM_COS       = 0x3D, // [TGT], [SRC]
-	OP_NUM_TAN       = 0x3E, // [TGT], [SRC]
-	OP_NUM_ASIN      = 0x3F, // [TGT], [SRC]
-	OP_NUM_ACOS      = 0x40, // [TGT], [SRC]
-	OP_NUM_ATAN      = 0x41, // [TGT], [SRC]
-	OP_NUM_ATAN2     = 0x42, // [TGT], [SRC1], [SRC2]
-	OP_NUM_LOG       = 0x43, // [TGT], [SRC]
-	OP_NUM_LOG2      = 0x44, // [TGT], [SRC]
-	OP_NUM_LOG10     = 0x45, // [TGT], [SRC]
-	OP_NUM_EXP       = 0x46, // [TGT], [SRC]
-	OP_NUM_LERP      = 0x47, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_NUM_HEX       = 0x48, // [TGT], [SRC1], [SRC2]
-	OP_NUM_OCT       = 0x49, // [TGT], [SRC1], [SRC2]
-	OP_NUM_BIN       = 0x4A, // [TGT], [SRC1], [SRC2]
-	OP_INT_NEW       = 0x4B, // [TGT], [SRC]
-	OP_INT_NOT       = 0x4C, // [TGT], [SRC]
-	OP_INT_AND       = 0x4D, // [TGT], [SRC1], [SRC2]
-	OP_INT_OR        = 0x4E, // [TGT], [SRC1], [SRC2]
-	OP_INT_XOR       = 0x4F, // [TGT], [SRC1], [SRC2]
-	OP_INT_SHL       = 0x50, // [TGT], [SRC1], [SRC2]
-	OP_INT_SHR       = 0x51, // [TGT], [SRC1], [SRC2]
-	OP_INT_SAR       = 0x52, // [TGT], [SRC1], [SRC2]
-	OP_INT_ADD       = 0x53, // [TGT], [SRC1], [SRC2]
-	OP_INT_SUB       = 0x54, // [TGT], [SRC1], [SRC2]
-	OP_INT_MUL       = 0x55, // [TGT], [SRC1], [SRC2]
-	OP_INT_DIV       = 0x56, // [TGT], [SRC1], [SRC2]
-	OP_INT_MOD       = 0x57, // [TGT], [SRC1], [SRC2]
-	OP_INT_CLZ       = 0x58, // [TGT], [SRC]
-	OP_RAND_SEED     = 0x59, // [TGT], [SRC]
-	OP_RAND_SEEDAUTO = 0x5A, // [TGT]
-	OP_RAND_INT      = 0x5B, // [TGT]
-	OP_RAND_NUM      = 0x5C, // [TGT]
-	OP_RAND_GETSTATE = 0x5D, // [TGT]
-	OP_RAND_SETSTATE = 0x5E, // [TGT], [SRC]
-	OP_RAND_PICK     = 0x5F, // [TGT], [SRC]
-	OP_RAND_SHUFFLE  = 0x60, // [TGT], [SRC]
-	OP_STR_NEW       = 0x61, // [TGT], [SRC...]
-	OP_STR_SPLIT     = 0x62, // [TGT], [SRC1], [SRC2]
-	OP_STR_REPLACE   = 0x63, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_STR_BEGINS    = 0x64, // [TGT], [SRC1], [SRC2]
-	OP_STR_ENDS      = 0x65, // [TGT], [SRC1], [SRC2]
-	OP_STR_PAD       = 0x66, // [TGT], [SRC1], [SRC2]
-	OP_STR_FIND      = 0x67, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_STR_RFIND     = 0x68, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_STR_LOWER     = 0x69, // [TGT], [SRC]
-	OP_STR_UPPER     = 0x6A, // [TGT], [SRC]
-	OP_STR_TRIM      = 0x6B, // [TGT], [SRC]
-	OP_STR_REV       = 0x6C, // [TGT], [SRC]
-	OP_STR_REP       = 0x6D, // [TGT], [SRC]
-	OP_STR_LIST      = 0x6E, // [TGT], [SRC]
-	OP_STR_BYTE      = 0x6F, // [TGT], [SRC1], [SRC2]
-	OP_STR_HASH      = 0x70, // [TGT], [SRC1], [SRC2]
-	OP_UTF8_VALID    = 0x71, // [TGT], [SRC]
-	OP_UTF8_LIST     = 0x72, // [TGT], [SRC]
-	OP_UTF8_STR      = 0x73, // [TGT], [SRC]
-	OP_STRUCT_SIZE   = 0x74, // [TGT], [SRC]
-	OP_STRUCT_STR    = 0x75, // [TGT], [SRC1], [SRC2]
-	OP_STRUCT_LIST   = 0x76, // [TGT], [SRC1], [SRC2]
-	OP_LIST_NEW      = 0x77, // [TGT], [SRC1], [SRC2]
-	OP_LIST_SHIFT    = 0x78, // [TGT], [SRC]
-	OP_LIST_POP      = 0x79, // [TGT], [SRC]
-	OP_LIST_PUSH     = 0x7A, // [TGT], [SRC1], [SRC2]
-	OP_LIST_UNSHIFT  = 0x7B, // [TGT], [SRC1], [SRC2]
-	OP_LIST_APPEND   = 0x7C, // [TGT], [SRC1], [SRC2]
-	OP_LIST_PREPEND  = 0x7D, // [TGT], [SRC1], [SRC2]
-	OP_LIST_FIND     = 0x7E, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_LIST_RFIND    = 0x7F, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_LIST_JOIN     = 0x80, // [TGT], [SRC1], [SRC2]
-	OP_LIST_REV      = 0x81, // [TGT], [SRC]
-	OP_LIST_STR      = 0x82, // [TGT], [SRC]
-	OP_LIST_SORT     = 0x83, // [TGT], [SRC]
-	OP_LIST_RSORT    = 0x84, // [TGT], [SRC]
-	OP_LIST_SORTCMP  = 0x85, // [TGT], [SRC1], [SRC2]
-	OP_PICKLE_VALID  = 0x86, // [TGT], [SRC]
-	OP_PICKLE_STR    = 0x87, // [TGT], [SRC]
-	OP_PICKLE_VAL    = 0x88, // [TGT], [SRC]
-	OP_GC_GET        = 0x89, // [TGT]
-	OP_GC_SET        = 0x8A, // [TGT], [SRC]
-	OP_GC_RUN        = 0x8B, // [TGT]
+	OP_RANGE         = 0x20, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_SAY           = 0x21, // [TGT], [SRC...]
+	OP_WARN          = 0x22, // [TGT], [SRC...]
+	OP_ASK           = 0x23, // [TGT], [SRC...]
+	OP_EXIT          = 0x24, // [TGT], [SRC...]
+	OP_ABORT         = 0x25, // [TGT], [SRC...]
+	OP_NUM_NEG       = 0x26, // [TGT], [SRC]
+	OP_NUM_ADD       = 0x27, // [TGT], [SRC1], [SRC2]
+	OP_NUM_SUB       = 0x28, // [TGT], [SRC1], [SRC2]
+	OP_NUM_MUL       = 0x29, // [TGT], [SRC1], [SRC2]
+	OP_NUM_DIV       = 0x2A, // [TGT], [SRC1], [SRC2]
+	OP_NUM_MOD       = 0x2B, // [TGT], [SRC1], [SRC2]
+	OP_NUM_POW       = 0x2C, // [TGT], [SRC1], [SRC2]
+	OP_NUM_ABS       = 0x2D, // [TGT], [SRC]
+	OP_NUM_SIGN      = 0x2E, // [TGT], [SRC]
+	OP_NUM_MAX       = 0x2F, // [TGT], [SRC...]
+	OP_NUM_MIN       = 0x30, // [TGT], [SRC...]
+	OP_NUM_CLAMP     = 0x31, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_NUM_FLOOR     = 0x32, // [TGT], [SRC]
+	OP_NUM_CEIL      = 0x33, // [TGT], [SRC]
+	OP_NUM_ROUND     = 0x34, // [TGT], [SRC]
+	OP_NUM_TRUNC     = 0x35, // [TGT], [SRC]
+	OP_NUM_NAN       = 0x36, // [TGT]
+	OP_NUM_INF       = 0x37, // [TGT]
+	OP_NUM_ISNAN     = 0x38, // [TGT], [SRC]
+	OP_NUM_ISFINITE  = 0x39, // [TGT], [SRC]
+	OP_NUM_E         = 0x3A, // [TGT]
+	OP_NUM_PI        = 0x3B, // [TGT]
+	OP_NUM_TAU       = 0x3C, // [TGT]
+	OP_NUM_SIN       = 0x3D, // [TGT], [SRC]
+	OP_NUM_COS       = 0x3E, // [TGT], [SRC]
+	OP_NUM_TAN       = 0x3F, // [TGT], [SRC]
+	OP_NUM_ASIN      = 0x40, // [TGT], [SRC]
+	OP_NUM_ACOS      = 0x41, // [TGT], [SRC]
+	OP_NUM_ATAN      = 0x42, // [TGT], [SRC]
+	OP_NUM_ATAN2     = 0x43, // [TGT], [SRC1], [SRC2]
+	OP_NUM_LOG       = 0x44, // [TGT], [SRC]
+	OP_NUM_LOG2      = 0x45, // [TGT], [SRC]
+	OP_NUM_LOG10     = 0x46, // [TGT], [SRC]
+	OP_NUM_EXP       = 0x47, // [TGT], [SRC]
+	OP_NUM_LERP      = 0x48, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_NUM_HEX       = 0x49, // [TGT], [SRC1], [SRC2]
+	OP_NUM_OCT       = 0x4A, // [TGT], [SRC1], [SRC2]
+	OP_NUM_BIN       = 0x4B, // [TGT], [SRC1], [SRC2]
+	OP_INT_NEW       = 0x4C, // [TGT], [SRC]
+	OP_INT_NOT       = 0x4D, // [TGT], [SRC]
+	OP_INT_AND       = 0x4E, // [TGT], [SRC1], [SRC2]
+	OP_INT_OR        = 0x4F, // [TGT], [SRC1], [SRC2]
+	OP_INT_XOR       = 0x50, // [TGT], [SRC1], [SRC2]
+	OP_INT_SHL       = 0x51, // [TGT], [SRC1], [SRC2]
+	OP_INT_SHR       = 0x52, // [TGT], [SRC1], [SRC2]
+	OP_INT_SAR       = 0x53, // [TGT], [SRC1], [SRC2]
+	OP_INT_ADD       = 0x54, // [TGT], [SRC1], [SRC2]
+	OP_INT_SUB       = 0x55, // [TGT], [SRC1], [SRC2]
+	OP_INT_MUL       = 0x56, // [TGT], [SRC1], [SRC2]
+	OP_INT_DIV       = 0x57, // [TGT], [SRC1], [SRC2]
+	OP_INT_MOD       = 0x58, // [TGT], [SRC1], [SRC2]
+	OP_INT_CLZ       = 0x59, // [TGT], [SRC]
+	OP_RAND_SEED     = 0x5A, // [TGT], [SRC]
+	OP_RAND_SEEDAUTO = 0x5B, // [TGT]
+	OP_RAND_INT      = 0x5C, // [TGT]
+	OP_RAND_NUM      = 0x5D, // [TGT]
+	OP_RAND_GETSTATE = 0x5E, // [TGT]
+	OP_RAND_SETSTATE = 0x5F, // [TGT], [SRC]
+	OP_RAND_PICK     = 0x60, // [TGT], [SRC]
+	OP_RAND_SHUFFLE  = 0x61, // [TGT], [SRC]
+	OP_STR_NEW       = 0x62, // [TGT], [SRC...]
+	OP_STR_SPLIT     = 0x63, // [TGT], [SRC1], [SRC2]
+	OP_STR_REPLACE   = 0x64, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_STR_BEGINS    = 0x65, // [TGT], [SRC1], [SRC2]
+	OP_STR_ENDS      = 0x66, // [TGT], [SRC1], [SRC2]
+	OP_STR_PAD       = 0x67, // [TGT], [SRC1], [SRC2]
+	OP_STR_FIND      = 0x68, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_STR_RFIND     = 0x69, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_STR_LOWER     = 0x6A, // [TGT], [SRC]
+	OP_STR_UPPER     = 0x6B, // [TGT], [SRC]
+	OP_STR_TRIM      = 0x6C, // [TGT], [SRC]
+	OP_STR_REV       = 0x6D, // [TGT], [SRC]
+	OP_STR_REP       = 0x6E, // [TGT], [SRC]
+	OP_STR_LIST      = 0x6F, // [TGT], [SRC]
+	OP_STR_BYTE      = 0x70, // [TGT], [SRC1], [SRC2]
+	OP_STR_HASH      = 0x71, // [TGT], [SRC1], [SRC2]
+	OP_UTF8_VALID    = 0x72, // [TGT], [SRC]
+	OP_UTF8_LIST     = 0x73, // [TGT], [SRC]
+	OP_UTF8_STR      = 0x74, // [TGT], [SRC]
+	OP_STRUCT_SIZE   = 0x75, // [TGT], [SRC]
+	OP_STRUCT_STR    = 0x76, // [TGT], [SRC1], [SRC2]
+	OP_STRUCT_LIST   = 0x77, // [TGT], [SRC1], [SRC2]
+	OP_LIST_NEW      = 0x78, // [TGT], [SRC1], [SRC2]
+	OP_LIST_SHIFT    = 0x79, // [TGT], [SRC]
+	OP_LIST_POP      = 0x7A, // [TGT], [SRC]
+	OP_LIST_PUSH     = 0x7B, // [TGT], [SRC1], [SRC2]
+	OP_LIST_UNSHIFT  = 0x7C, // [TGT], [SRC1], [SRC2]
+	OP_LIST_APPEND   = 0x7D, // [TGT], [SRC1], [SRC2]
+	OP_LIST_PREPEND  = 0x7E, // [TGT], [SRC1], [SRC2]
+	OP_LIST_FIND     = 0x7F, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_LIST_RFIND    = 0x80, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_LIST_JOIN     = 0x81, // [TGT], [SRC1], [SRC2]
+	OP_LIST_REV      = 0x82, // [TGT], [SRC]
+	OP_LIST_STR      = 0x83, // [TGT], [SRC]
+	OP_LIST_SORT     = 0x84, // [TGT], [SRC]
+	OP_LIST_RSORT    = 0x85, // [TGT], [SRC]
+	OP_LIST_SORTCMP  = 0x86, // [TGT], [SRC1], [SRC2]
+	OP_PICKLE_VALID  = 0x87, // [TGT], [SRC]
+	OP_PICKLE_STR    = 0x88, // [TGT], [SRC]
+	OP_PICKLE_VAL    = 0x89, // [TGT], [SRC]
+	OP_GC_GET        = 0x8A, // [TGT]
+	OP_GC_SET        = 0x8B, // [TGT], [SRC]
+	OP_GC_RUN        = 0x8C, // [TGT]
 
 	// fake ops
 	OP_GT            = 0x1F0,
@@ -5303,6 +5304,7 @@ static inline void symtbl_loadStdlib(symtbl sym){
 	SAC(sym, "isnum"         , OP_ISNUM         ,  1);
 	SAC(sym, "isstr"         , OP_ISSTR         ,  1);
 	SAC(sym, "islist"        , OP_ISLIST        ,  1);
+	SAC(sym, "range"         , OP_RANGE         ,  3);
 	nss = NSS("num"); symtbl_pushNamespace(sym, nss); list_ptr_free(nss);
 		SAC(sym, "abs"       , OP_NUM_ABS       ,  1);
 		SAC(sym, "sign"      , OP_NUM_SIGN      ,  1);
@@ -8958,6 +8960,16 @@ static inline sink_val opi_list_rev(context ctx, sink_val a){
 	return a;
 }
 
+static inline sink_val opi_range(context ctx, double start, double stop, double step){
+	int count = ceil((stop - start) / step);
+	if (count <= 0)
+		return sink_list_newblob(ctx, 0, NULL);
+	sink_val *ret = mem_alloc(sizeof(sink_val) * count);
+	for (int i = 0; i < count; i++)
+		ret[i] = sink_num(start + (double)i * step);
+	return sink_list_newblobgive(ctx, count, count, ret);
+}
+
 static sink_run context_run(context ctx){
 	if (ctx->passed)
 		return crr_exitpass(ctx);
@@ -9415,6 +9427,30 @@ static sink_run context_run(context ctx){
 				lxs_free(lx);
 				ctx->lex_stk->ptrs[ctx->lex_index] = lxs_new(X, ctx->lex_stk->ptrs[ctx->lex_index]);
 				ctx->pc = C;
+			} break;
+
+			case OP_RANGE          : { // [TGT], [SRC1], [SRC2], [SRC3]
+				LOAD_ABCDEFGH();
+				X = var_get(ctx, C, D);
+				Y = var_get(ctx, E, F);
+				Z = var_get(ctx, G, H);
+				if (!sink_isnum(X))
+					RETURN_FAIL("Expecting number for range");
+				if (sink_isnum(Y)){
+					if (sink_isnil(Z))
+						Z = sink_num(1);
+					if (!sink_isnum(Z))
+						RETURN_FAIL("Expecting number for range step");
+					var_set(ctx, A, B, opi_range(ctx,
+						sink_castnum(X), sink_castnum(Y), sink_castnum(Z)));
+				}
+				else if (sink_isnil(Y)){
+					if (!sink_isnil(Z))
+						RETURN_FAIL("Expecting number for range stop");
+					var_set(ctx, A, B, opi_range(ctx, 0, sink_castnum(X), 1));
+				}
+				else
+					RETURN_FAIL("Expecting number for range stop");
 			} break;
 
 			case OP_SAY            : { // [TGT], [SRC...]
