@@ -345,7 +345,7 @@ static inline void list_byte_push10(list_byte b, int v1, int v2, int v3, int v4,
 	b->bytes[b->size++] = (uint8_t)v10;
 }
 
-static bool byteequ(list_byte b, const char *str){
+static inline bool byteequ(list_byte b, const char *str){
 	int i;
 	for (i = 0; str[i] != 0; i++){
 		if (b->size <= i)
@@ -356,7 +356,7 @@ static bool byteequ(list_byte b, const char *str){
 	return b->size == i;
 }
 
-static bool list_byte_equ(list_byte b1, list_byte b2){
+static inline bool list_byte_equ(list_byte b1, list_byte b2){
 	if (b1->size != b2->size)
 		return false;
 	return memcmp(b1->bytes, b2->bytes, sizeof(uint8_t) * b1->size) == 0;
@@ -7039,7 +7039,8 @@ typedef enum {
 	PGR_OK,
 	PGR_PUSH,
 	PGR_POP,
-	PGR_ERROR
+	PGR_ERROR,
+	PGR_FORVARS
 } pgr_enum;
 
 typedef struct {
@@ -7052,6 +7053,10 @@ typedef struct {
 			filepos_st flp;
 			char *msg;
 		} error;
+		struct {
+			varloc_st val_vlc;
+			varloc_st idx_vlc;
+		} forvars;
 	} u;
 } pgr_st;
 
@@ -7069,6 +7074,11 @@ static inline pgr_st pgr_pop(){
 
 static inline pgr_st pgr_error(filepos_st flp, char *msg){
 	return (pgr_st){ .type = PGR_ERROR, .u.error.flp = flp, .u.error.msg = msg };
+}
+
+static inline pgr_st pgr_forvars(varloc_st val_vlc, varloc_st idx_vlc){
+	return (pgr_st){ .type = PGR_FORVARS, .u.forvars.val_vlc = val_vlc,
+		.u.forvars.idx_vlc = idx_vlc };
 }
 
 typedef struct {
@@ -7097,9 +7107,10 @@ typedef struct {
 	label top;
 	label inc;
 	label finish;
-	varloc_st t;
-	varloc_st exp_vlc;
-	varloc_st val_vlc;
+	varloc_st t1;
+	varloc_st t2;
+	varloc_st t3;
+	varloc_st t4;
 	varloc_st idx_vlc;
 } pgs_for_st, *pgs_for;
 
@@ -7110,12 +7121,13 @@ static inline void pgs_for_free(pgs_for pst){
 	mem_free(pst);
 }
 
-static inline pgs_for pgs_for_new(varloc_st t, varloc_st exp_vlc, varloc_st val_vlc,
+static inline pgs_for pgs_for_new(varloc_st t1, varloc_st t2, varloc_st t3, varloc_st t4,
 	varloc_st idx_vlc, label top, label inc, label finish){
 	pgs_for pst = mem_alloc(sizeof(pgs_for_st));
-	pst->t = t;
-	pst->exp_vlc = exp_vlc;
-	pst->val_vlc = val_vlc;
+	pst->t1 = t1;
+	pst->t2 = t2;
+	pst->t3 = t3;
+	pst->t4 = t4;
 	pst->idx_vlc = idx_vlc;
 	pst->top = top;
 	pst->inc = inc;
@@ -7158,6 +7170,168 @@ static inline pgs_if pgs_if_new(label nextcond, label ifdone){
 	pst->nextcond = nextcond;
 	pst->ifdone = ifdone;
 	return pst;
+}
+
+static pgr_st program_forVars(symtbl sym, ast stmt){
+	varloc_st val_vlc;
+	varloc_st idx_vlc;
+
+	// load VLC's for the value and index
+	if (stmt->u.for1.forVar){
+		sta_st sr = symtbl_addVar(sym, stmt->u.for1.names1);
+		if (sr.type == STA_ERROR)
+			return pgr_error(stmt->flp, sr.u.msg);
+		val_vlc = sr.u.vlc;
+
+		if (stmt->u.for1.names2 == NULL){
+			sta_st ts = symtbl_addTemp(sym);
+			if (ts.type == STA_ERROR)
+				return pgr_error(stmt->flp, ts.u.msg);
+			idx_vlc = ts.u.vlc;
+		}
+		else{
+			sr = symtbl_addVar(sym, stmt->u.for1.names2);
+			if (sr.type == STA_ERROR)
+				return pgr_error(stmt->flp, sr.u.msg);
+			idx_vlc = sr.u.vlc;
+		}
+	}
+	else{
+		stl_st sl = symtbl_lookup(sym, stmt->u.for1.names1);
+		if (sl.type == STL_ERROR)
+			return pgr_error(stmt->flp, sl.u.msg);
+		if (sl.u.nsn->type != NSN_VAR)
+			return pgr_error(stmt->flp, sink_format("Cannot use non-variable in for loop"));
+		val_vlc = varloc_new(frame_diff(sl.u.nsn->u.var.fr, sym->fr), sl.u.nsn->u.var.index);
+
+		if (stmt->u.for1.names2 == NULL){
+			sta_st ts = symtbl_addTemp(sym);
+			if (ts.type == STA_ERROR)
+				return pgr_error(stmt->flp, ts.u.msg);
+			idx_vlc = ts.u.vlc;
+		}
+		else{
+			sl = symtbl_lookup(sym, stmt->u.for1.names2);
+			if (sl.type == STL_ERROR)
+				return pgr_error(stmt->flp, sl.u.msg);
+			if (sl.u.nsn->type != NSN_VAR){
+				return pgr_error(stmt->flp,
+					sink_format("Cannot use non-variable in for loop"));
+			}
+			idx_vlc = varloc_new(frame_diff(sl.u.nsn->u.var.fr, sym->fr), sl.u.nsn->u.var.index);
+		}
+	}
+	return pgr_forvars(val_vlc, idx_vlc);
+}
+
+static pgr_st program_genForRange(program prg, symtbl sym, ast stmt, varloc_st p1, varloc_st p2,
+	varloc_st p3){
+	bool zerostart = false;
+	if (varloc_isnull(p2)){
+		zerostart = true;
+		p2 = p1;
+		sta_st ts = symtbl_addTemp(sym);
+		if (ts.type == STA_ERROR)
+			return pgr_error(stmt->flp, ts.u.msg);
+		p1 = ts.u.vlc;
+		op_num(prg->ops, p1, 0);
+	}
+
+	symtbl_pushScope(sym);
+	pgr_st pgi = program_forVars(sym, stmt);
+	if (pgi.type != PGR_FORVARS)
+		return pgi;
+	varloc_st val_vlc = pgi.u.forvars.val_vlc;
+	varloc_st idx_vlc = pgi.u.forvars.idx_vlc;
+
+	// clear the index
+	op_num(prg->ops, idx_vlc, 0);
+
+	// calculate count
+	if (!zerostart)
+		op_binop(prg->ops, OP_NUM_SUB, p2, p2, p1);
+	if (!varloc_isnull(p3))
+		op_binop(prg->ops, OP_NUM_DIV, p2, p2, p3);
+
+	label top    = label_newStr("^forR_top");
+	label inc    = label_newStr("^forR_inc");
+	label finish = label_newStr("^forR_finish");
+
+	sta_st ts = symtbl_addTemp(sym);
+	if (ts.type == STA_ERROR){
+		label_free(top);
+		label_free(inc);
+		label_free(finish);
+		return pgr_error(stmt->flp, ts.u.msg);
+	}
+	varloc_st t = ts.u.vlc;
+
+	label_declare(top, prg->ops);
+
+	op_binop(prg->ops, OP_LT, t, idx_vlc, p2);
+	label_jumpFalse(finish, prg->ops, t);
+
+	if (varloc_isnull(p3)){
+		if (!zerostart)
+			op_binop(prg->ops, OP_NUM_ADD, val_vlc, p1, idx_vlc);
+		else
+			op_move(prg->ops, val_vlc, idx_vlc);
+	}
+	else{
+		op_binop(prg->ops, OP_NUM_MUL, val_vlc, idx_vlc, p3);
+		if (!zerostart)
+			op_binop(prg->ops, OP_NUM_ADD, val_vlc, p1, val_vlc);
+	}
+
+	sym->sc->lblBreak = finish;
+	sym->sc->lblContinue = inc;
+
+	return pgr_push(pgs_for_new(p1, p2, p3, t, idx_vlc, top, inc, finish), (free_func)pgs_for_free);
+}
+
+static pgr_st program_genForGeneric(program prg, symtbl sym, ast stmt){
+	per_st pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, stmt->u.for1.ex);
+	if (pe.type == PER_ERROR)
+		return pgr_error(pe.u.error.flp, pe.u.error.msg);
+
+	symtbl_pushScope(sym);
+
+	varloc_st exp_vlc = pe.u.vlc;
+
+	pgr_st pgi = program_forVars(sym, stmt);
+	if (pgi.type != PGR_FORVARS)
+		return pgi;
+	varloc_st val_vlc = pgi.u.forvars.val_vlc;
+	varloc_st idx_vlc = pgi.u.forvars.idx_vlc;
+
+	// clear the index
+	op_num(prg->ops, idx_vlc, 0);
+
+	label top    = label_newStr("^forG_top");
+	label inc    = label_newStr("^forG_inc");
+	label finish = label_newStr("^forG_finish");
+
+	sta_st ts = symtbl_addTemp(sym);
+	if (ts.type == STA_ERROR){
+		label_free(top);
+		label_free(inc);
+		label_free(finish);
+		return pgr_error(stmt->flp, ts.u.msg);
+	}
+	varloc_st t = ts.u.vlc;
+
+	label_declare(top, prg->ops);
+
+	op_unop(prg->ops, OP_SIZE, t, exp_vlc);
+	op_binop(prg->ops, OP_LT, t, idx_vlc, t);
+	label_jumpFalse(finish, prg->ops, t);
+
+	op_getat(prg->ops, val_vlc, exp_vlc, idx_vlc);
+	sym->sc->lblBreak = finish;
+	sym->sc->lblContinue = inc;
+
+	return pgr_push(pgs_for_new(t, exp_vlc, val_vlc, VARLOC_NULL, idx_vlc, top, inc, finish),
+		(free_func)pgs_for_free);
 }
 
 static inline pgr_st program_gen(program prg, symtbl sym, ast stmt, void *state, bool sayexpr){
@@ -7418,92 +7592,35 @@ static inline pgr_st program_gen(program prg, symtbl sym, ast stmt, void *state,
 		} break;
 
 		case AST_FOR1: {
-			per_st pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, stmt->u.for1.ex);
-			if (pe.type == PER_ERROR)
-				return pgr_error(pe.u.error.flp, pe.u.error.msg);
-
-			symtbl_pushScope(sym);
-
-			varloc_st exp_vlc = pe.u.vlc;
-			varloc_st val_vlc;
-			varloc_st idx_vlc;
-
-			// load VLC's for the value and index
-			if (stmt->u.for1.forVar){
-				sta_st sr = symtbl_addVar(sym, stmt->u.for1.names1);
-				if (sr.type == STA_ERROR)
-					return pgr_error(stmt->flp, sr.u.msg);
-				val_vlc = sr.u.vlc;
-
-				if (stmt->u.for1.names2 == NULL){
-					sta_st ts = symtbl_addTemp(sym);
-					if (ts.type == STA_ERROR)
-						return pgr_error(stmt->flp, ts.u.msg);
-					idx_vlc = ts.u.vlc;
-				}
-				else{
-					sr = symtbl_addVar(sym, stmt->u.for1.names2);
-					if (sr.type == STA_ERROR)
-						return pgr_error(stmt->flp, sr.u.msg);
-					idx_vlc = sr.u.vlc;
-				}
-			}
-			else{
-				stl_st sl = symtbl_lookup(sym, stmt->u.for1.names1);
-				if (sl.type == STL_ERROR)
-					return pgr_error(stmt->flp, sl.u.msg);
-				if (sl.u.nsn->type != NSN_VAR)
-					return pgr_error(stmt->flp, sink_format("Cannot use non-variable in for loop"));
-				val_vlc = varloc_new(frame_diff(sl.u.nsn->u.var.fr, sym->fr),
-					sl.u.nsn->u.var.index);
-
-				if (stmt->u.for1.names2 == NULL){
-					sta_st ts = symtbl_addTemp(sym);
-					if (ts.type == STA_ERROR)
-						return pgr_error(stmt->flp, ts.u.msg);
-					idx_vlc = ts.u.vlc;
-				}
-				else{
-					sl = symtbl_lookup(sym, stmt->u.for1.names2);
-					if (sl.type == STL_ERROR)
-						return pgr_error(stmt->flp, sl.u.msg);
-					if (sl.u.nsn->type != NSN_VAR){
-						return pgr_error(stmt->flp,
-							sink_format("Cannot use non-variable in for loop"));
+			if (stmt->u.for1.ex->type == EXPR_CALL){
+				expr c = stmt->u.for1.ex;
+				if (c->u.call.cmd->type == EXPR_NAMES){
+					expr n = c->u.call.cmd;
+					if (n->u.names->size == 1 && byteequ(n->u.names->ptrs[0], "range")){
+						expr p = c->u.call.params;
+						varloc_st rp[3] = { VARLOC_NULL, VARLOC_NULL, VARLOC_NULL };
+						if (p->type != EXPR_GROUP){
+							per_st pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, p);
+							if (pe.type == PER_ERROR)
+								return pgr_error(pe.u.error.flp, pe.u.error.msg);
+							rp[0] = pe.u.vlc;
+						}
+						else{
+							for (int i = 0; i < p->u.group->size; i++){
+								per_st pe = program_eval(prg, sym,
+									i < 3 ? PEM_CREATE : PEM_EMPTY,
+									VARLOC_NULL, p->u.group->ptrs[i]);
+								if (pe.type == PER_ERROR)
+									return pgr_error(pe.u.error.flp, pe.u.error.msg);
+								if (i < 3)
+									rp[i] = pe.u.vlc;
+							}
+						}
+						return program_genForRange(prg, sym, stmt, rp[0], rp[1], rp[2]);
 					}
-					idx_vlc = varloc_new(frame_diff(sl.u.nsn->u.var.fr, sym->fr),
-						sl.u.nsn->u.var.index);
 				}
 			}
-
-			// clear the index
-			op_num(prg->ops, idx_vlc, 0);
-
-			label top    = label_newStr("^for_top");
-			label inc    = label_newStr("^for_inc");
-			label finish = label_newStr("^for_finish");
-
-			sta_st ts = symtbl_addTemp(sym);
-			if (ts.type == STA_ERROR){
-				label_free(top);
-				label_free(inc);
-				label_free(finish);
-				return pgr_error(stmt->flp, ts.u.msg);
-			}
-			varloc_st t = ts.u.vlc;
-
-			label_declare(top, prg->ops);
-
-			op_unop(prg->ops, OP_SIZE, t, exp_vlc);
-			op_binop(prg->ops, OP_LT, t, idx_vlc, t);
-			label_jumpFalse(finish, prg->ops, t);
-
-			op_getat(prg->ops, val_vlc, exp_vlc, idx_vlc);
-			sym->sc->lblBreak = finish;
-			sym->sc->lblContinue = inc;
-
-			return pgr_push(pgs_for_new(t, exp_vlc, val_vlc, idx_vlc, top, inc, finish),
-				(free_func)pgs_for_free);
+			return program_genForGeneric(prg, sym, stmt);
 		} break;
 
 		case AST_FOR2: {
@@ -7514,9 +7631,12 @@ static inline pgr_st program_gen(program prg, symtbl sym, ast stmt, void *state,
 			label_jump(pst->top, prg->ops);
 
 			label_declare(pst->finish, prg->ops);
-			symtbl_clearTemp(sym, pst->t);
-			symtbl_clearTemp(sym, pst->exp_vlc);
-			symtbl_clearTemp(sym, pst->val_vlc);
+			symtbl_clearTemp(sym, pst->t1);
+			symtbl_clearTemp(sym, pst->t2);
+			if (!varloc_isnull(pst->t3))
+				symtbl_clearTemp(sym, pst->t3);
+			if (!varloc_isnull(pst->t4))
+				symtbl_clearTemp(sym, pst->t4);
 			symtbl_clearTemp(sym, pst->idx_vlc);
 			symtbl_popScope(sym);
 			return pgr_pop();
@@ -10531,6 +10651,9 @@ static char *compiler_process(compiler cmp){
 						mem_free(pg.u.error.msg);
 						list_ptr_free(stmts);
 						return cmp->msg;
+					case PGR_FORVARS:
+						// impossible
+						break;
 				}
 			}
 			ast_free(stmt);
