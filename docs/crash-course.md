@@ -407,7 +407,7 @@ var {a, {b, c, d}, e} = test
 say a, b, c, d, e # 1 3 4 nil nil
 ```
 
-Destrucring assignment also allows for variable length assignment using `...`:
+Destructuring assignment also allows for variable length assignment using `...`:
 
 ```
 var {first, second, ...rest} = {1, 2, 3, 4, 5}
@@ -507,6 +507,35 @@ end
 ```
 
 The `continue` and `break` statements operate as expected inside the for loops.
+
+### Range
+
+Use `range` to loop over a range of numbers:
+
+```
+for var i: range 3
+  say i
+end
+# output:
+#  0
+#  1
+#  2
+
+for var i: range 3, 5
+  say i
+end
+# output:
+#  3
+#  4
+
+for var i: range 0, 9, 3
+  say i
+end
+# output:
+#  0
+#  3
+#  6
+```
 
 Goto
 ----
