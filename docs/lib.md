@@ -197,7 +197,7 @@ Strings are 8-bit clean, and interpreted as binary data.
 
 | Function                | Description                                                           |
 |-------------------------|-----------------------------------------------------------------------|
-| `str.new a, ...`        | Convert arguments to a string (using space as a separator)            )
+| `str.new a, ...`        | Convert arguments to a string (using space as a separator)            |
 | `str.split a, b`        | Split `a` into an array of strings based on separator `b`             |
 | `str.replace a, b, c`   | Replace all occurrences of `b` in string `a` with `c`                 |
 | `str.begins a, b`       | True if string `a` begins with string `b`; false otherwise            |

@@ -8386,7 +8386,7 @@ static sink_val opi_num_base(context ctx, double num, int len, int base){
 	if (len > 256)
 		len = 256;
 	const char *digits = "0123456789ABCDEF";
-	char buf[500];
+	char buf[100];
 	int p = 0;
 
 	if (num < 0){
@@ -8404,16 +8404,16 @@ static sink_val opi_num_base(context ctx, double num, int len, int base){
 	else
 		assert(false);
 
-	char buf2[500];
+	char buf2[100];
 	int bodysize = 0;
 	double nint = floor(num);
 	double nfra = num - nint;
-	while (nint > 0 && bodysize < 400){
+	while (nint > 0 && bodysize < 50){
 		buf2[bodysize++] = digits[(int)fmod(nint, base)];
 		nint = floor(nint / base);
 	}
 	int bi = 0;
-	while (bodysize + bi < len && p < 400){
+	while (bodysize + bi < len && bodysize + bi < 32 && p < 50){
 		buf[p++] = '0';
 		bi++;
 	}
@@ -8626,6 +8626,74 @@ static sink_val triop_num_clamp(context ctx, sink_val a, sink_val b, sink_val c)
 
 static sink_val triop_num_lerp(context ctx, sink_val a, sink_val b, sink_val c){
 	return sink_num(a.f + (b.f - a.f) * c.f);
+}
+
+static inline int32_t toint(sink_val v){
+	return (int32_t)(uint32_t)sink_castnum(v);
+}
+
+static inline sink_val intnum(int32_t v){
+	return sink_num(v);
+}
+
+static sink_val unop_int_new(context ctx, sink_val a){
+	return intnum(toint(a));
+}
+
+static sink_val unop_int_not(context ctx, sink_val a){
+	return intnum(~toint(a));
+}
+
+static sink_val unop_int_clz(context ctx, sink_val a){
+	#ifdef BITSCAN_FFSLL
+		return sink_num(32 - fls(toint(a)));
+	#else
+	#	error Don't know how to implement bmp_alloc
+	#endif
+}
+
+static sink_val binop_int_and(context ctx, sink_val a, sink_val b){
+	return intnum(toint(a) + toint(b));
+}
+
+static sink_val binop_int_or(context ctx, sink_val a, sink_val b){
+	return intnum(toint(a) | toint(b));
+}
+
+static sink_val binop_int_xor(context ctx, sink_val a, sink_val b){
+	return intnum(toint(a) ^ toint(b));
+}
+
+static sink_val binop_int_shl(context ctx, sink_val a, sink_val b){
+	return intnum(toint(a) << toint(b));
+}
+
+static sink_val binop_int_shr(context ctx, sink_val a, sink_val b){
+	return intnum(((uint32_t)toint(a)) >> toint(b));
+}
+
+static sink_val binop_int_sar(context ctx, sink_val a, sink_val b){
+	return intnum(toint(a) >> toint(b));
+}
+
+static sink_val binop_int_add(context ctx, sink_val a, sink_val b){
+	return intnum(toint(a) + toint(b));
+}
+
+static sink_val binop_int_sub(context ctx, sink_val a, sink_val b){
+	return intnum(toint(a) - toint(b));
+}
+
+static sink_val binop_int_mul(context ctx, sink_val a, sink_val b){
+	return intnum(toint(a) * toint(b));
+}
+
+static sink_val binop_int_div(context ctx, sink_val a, sink_val b){
+	return intnum(toint(a) / toint(b));
+}
+
+static sink_val binop_int_mod(context ctx, sink_val a, sink_val b){
+	return intnum(toint(a) % toint(b));
 }
 
 // inline operators
@@ -9804,94 +9872,63 @@ static sink_run context_run(context ctx){
 			case OP_NUM_BIN        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_num_bin, "converting to bin")
 			} break;
-/*
+
 			case OP_INT_NEW        : { // [TGT], [SRC]
-				var iu = inline_unop(function(a){ return a | 0; }, 'casting to int');
-				if (iu !== false)
-					return iu;
+				INLINE_UNOP(unop_int_new, "casting to int")
 			} break;
 
 			case OP_INT_NOT        : { // [TGT], [SRC]
-				var iu = inline_unop(function(a){ return ~a; }, 'NOTing');
-				if (iu !== false)
-					return iu;
+				INLINE_UNOP(unop_int_not, "NOTing")
 			} break;
 
 			case OP_INT_AND        : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return a & b; }, 'ANDing');
-				if (ib !== false)
-					return ib;
+				INLINE_BINOP(binop_int_and, "ANDing")
 			} break;
 
 			case OP_INT_OR         : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return a | b; }, 'ORing');
-				if (ib !== false)
-					return ib;
+				INLINE_BINOP(binop_int_or, "ORing")
 			} break;
 
 			case OP_INT_XOR        : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return a ^ b; }, 'XORing');
-				if (ib !== false)
-					return ib;
+				INLINE_BINOP(binop_int_xor, "XORing")
 			} break;
 
 			case OP_INT_SHL        : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return a << b; }, 'shifting left');
-				if (ib !== false)
-					return ib;
+				INLINE_BINOP(binop_int_shl, "shifting left")
 			} break;
 
 			case OP_INT_SHR        : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return a >>> b; }, 'shifting right');
-				if (ib !== false)
-					return ib;
+				INLINE_BINOP(binop_int_shr, "shifting right")
 			} break;
 
 			case OP_INT_SAR        : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return a >> b; }, 'shifting right');
-				if (ib !== false)
-					return ib;
+				INLINE_BINOP(binop_int_sar, "shifting right")
 			} break;
 
 			case OP_INT_ADD        : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return ((a|0) + (b|0)) | 0; }, 'adding');
-				if (ib !== false)
-					return ib;
+				INLINE_BINOP(binop_int_add, "adding")
 			} break;
 
 			case OP_INT_SUB        : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return ((a|0) - (b|0)) | 0; }, 'subtracting');
-				if (ib !== false)
-					return ib;
+				INLINE_BINOP(binop_int_sub, "subtracting");
 			} break;
 
 			case OP_INT_MUL        : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return polyfill.Math_imul(a, b); },
-					'multiplying');
-				if (ib !== false)
-					return ib;
+				INLINE_BINOP(binop_int_mul, "multiplying")
 			} break;
 
 			case OP_INT_DIV        : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return ((a|0) / (b|0)) | 0; }, 'dividing');
-				if (ib !== false)
-					return ib;
+				INLINE_BINOP(binop_int_div, "dividing")
 			} break;
 
 			case OP_INT_MOD        : { // [TGT], [SRC1], [SRC2]
-				var ib = inline_binop(function(a, b){ return ((a|0) % (b|0)) | 0; },
-					'taking modular');
-				if (ib !== false)
-					return ib;
+				INLINE_BINOP(binop_int_mod, "taking modular")
 			} break;
 
 			case OP_INT_CLZ        : { // [TGT], [SRC]
-				var iu = inline_unop(function(a){ return polyfill.Math_clz32(a); },
-					'counting leading zeros');
-				if (iu !== false)
-					return iu;
+				INLINE_UNOP(unop_int_clz, "counting leading zeros")
 			} break;
-*/
+
 			case OP_RAND_SEED      : { // [TGT], [SRC]
 				LOAD_ABCD();
 				X = var_get(ctx, C, D);
@@ -10200,21 +10237,6 @@ static sink_run context_run(context ctx){
 			case OP_GC_RUN         : { // [TGT]
 				THROW("OP_GC_RUN");
 			} break;
-
-			case OP_INT_NEW: THROW("OP_INT_NEW"); break;
-			case OP_INT_NOT: THROW("OP_INT_NOT"); break;
-			case OP_INT_AND: THROW("OP_INT_AND"); break;
-			case OP_INT_OR : THROW("OP_INT_OR" ); break;
-			case OP_INT_XOR: THROW("OP_INT_XOR"); break;
-			case OP_INT_SHL: THROW("OP_INT_SHL"); break;
-			case OP_INT_SHR: THROW("OP_INT_SHR"); break;
-			case OP_INT_SAR: THROW("OP_INT_SAR"); break;
-			case OP_INT_ADD: THROW("OP_INT_ADD"); break;
-			case OP_INT_SUB: THROW("OP_INT_SUB"); break;
-			case OP_INT_MUL: THROW("OP_INT_MUL"); break;
-			case OP_INT_DIV: THROW("OP_INT_DIV"); break;
-			case OP_INT_MOD: THROW("OP_INT_MOD"); break;
-			case OP_INT_CLZ: THROW("OP_INT_CLZ"); break;
 
 			default:
 				debugf("invalid opcode %02X", ops->bytes[ctx->pc]);
@@ -11047,7 +11069,7 @@ static sink_str_st sinkhelp_tostr(context ctx, sink_val v, bool first){
 				return (sink_str_st){ .bytes = bytes, .size = 3 };
 			}
 			char buf[100];
-			int size = snprintf(buf, sizeof(buf), "%.15g", v.f);
+			int size = snprintf(buf, sizeof(buf), "%.16g", v.f);
 			if (buf[0] == '-' && buf[1] == '0' && buf[2] == 0){ // fix negative zero silliness
 				buf[0] = '0';
 				buf[1] = 0;

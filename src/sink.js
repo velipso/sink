@@ -5475,6 +5475,8 @@ function sink_tostr(v){
 				return 'inf';
 			else if (v == -Infinity)
 				return '-inf';
+			else if (isNaN(v))
+				return 'nan';
 			return '' + v;
 		}
 		else if (sink_isstr(v))
@@ -5701,7 +5703,7 @@ function opi_num_base(num, len, base){
 		body = digits.charAt(nint % base) + body;
 		nint = Math.floor(nint / base);
 	}
-	while (body.length < len)
+	while (body.length < len && body.length < 32)
 		body = '0' + body;
 	if (body == '')
 		body = '0';
@@ -6671,7 +6673,7 @@ function context_run(ctx){
 			} break;
 
 			case OP_NUM_TRUNC      : { // [TGT], [SRC]
-				var iu = INLINE_UNOP(unop_num_truc, 'truncating');
+				var iu = INLINE_UNOP(unop_num_trunc, 'truncating');
 				if (iu !== false)
 					return iu;
 			} break;
