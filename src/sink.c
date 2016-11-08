@@ -10938,6 +10938,8 @@ static sink_str_st sinkhelp_tostr(context ctx, sink_val v, bool first){
 		case SINK_TYPE_STR: {
 			sink_str s = var_caststr(ctx, v);
 			if (first){
+				if (s->size == 0)
+					return (sink_str_st){ .bytes = NULL, .size = 0 };
 				uint8_t *bytes = mem_alloc(sizeof(uint8_t) * (s->size + 1));
 				memcpy(bytes, s->bytes, sizeof(uint8_t) * (s->size + 1));
 				return (sink_str_st){ .bytes = bytes, .size = s->size };
@@ -10985,8 +10987,10 @@ static sink_str_st sinkhelp_tostr(context ctx, sink_val v, bool first){
 					bytes[p++] = ',';
 					bytes[p++] = ' ';
 				}
-				memcpy(&bytes[p], strs[i].bytes, sizeof(uint8_t) * strs[i].size);
-				mem_free(strs[i].bytes);
+				if (strs[i].bytes){
+					memcpy(&bytes[p], strs[i].bytes, sizeof(uint8_t) * strs[i].size);
+					mem_free(strs[i].bytes);
+				}
 				p += strs[i].size;
 			}
 			mem_free(strs);
@@ -10997,7 +11001,7 @@ static sink_str_st sinkhelp_tostr(context ctx, sink_val v, bool first){
 
 		case SINK_TYPE_ASYNC: {
 			opi_abortcstr(ctx, "Cannot convert invalid value (SINK_ASYNC) to string");
-			return (sink_str_st){ .bytes = mem_alloc(0), .size = 0 };
+			return (sink_str_st){ .bytes = NULL, .size = 0 };
 		} break;
 	}
 }
