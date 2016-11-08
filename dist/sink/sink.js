@@ -5806,6 +5806,8 @@ function opi_abortstr(ctx, str){
 
 function opi_range(start, stop, step){
 	var count = Math.ceil((stop - start) / step);
+	if (count > 10000000)
+		return false;
 	var ret = [];
 	for (var i = 0; i < count; i++)
 		ret.push(start + i * step);
@@ -6386,15 +6388,18 @@ function context_run(ctx){
 						Z = 1;
 					if (!sink_isnum(Z))
 						return opi_abortstr(ctx, 'Expecting number for range step');
-					var_set(ctx, A, B, opi_range(X, Y, Z));
+					X = opi_range(X, Y, Z);
 				}
 				else if (Y === null){
 					if (Z !== null)
 						return opi_abortstr(ctx, 'Expecting number for range stop');
-					var_set(ctx, A, B, opi_range(0, X, 1));
+					X = opi_range(0, X, 1);
 				}
 				else
 					return opi_abortstr(ctx, 'Expecting number for range stop');
+				if (X === false)
+					return opi_abortstr(ctx, 'Range too large (over 10000000)');
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_SAY            : { // [TGT], [SRC...]
