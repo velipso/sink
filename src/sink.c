@@ -731,9 +731,8 @@ typedef enum {
 	OP_PICKLE_VALID  = 0x87, // [TGT], [SRC]
 	OP_PICKLE_STR    = 0x88, // [TGT], [SRC]
 	OP_PICKLE_VAL    = 0x89, // [TGT], [SRC]
-	OP_GC_GET        = 0x8A, // [TGT]
-	OP_GC_SET        = 0x8B, // [TGT], [SRC]
-	OP_GC_RUN        = 0x8C, // [TGT]
+	OP_GC_LEVEL      = 0x8A, // [TGT]
+	OP_GC_RUN        = 0x8B, // [TGT]
 
 	// fake ops
 	OP_GT            = 0x1F0,
@@ -5415,8 +5414,7 @@ static inline void symtbl_loadStdlib(symtbl sym){
 		SAC(sym, "val"       , OP_PICKLE_VAL    ,  1);
 	symtbl_popNamespace(sym);
 	nss = NSS("gc"); symtbl_pushNamespace(sym, nss); list_ptr_free(nss);
-		SAC(sym, "get"       , OP_GC_GET        ,  0);
-		SAC(sym, "set"       , OP_GC_SET        ,  1);
+		SAC(sym, "level"     , OP_GC_LEVEL      ,  1);
 		SAC(sym, "run"       , OP_GC_RUN        ,  0);
 	symtbl_popNamespace(sym);
 }
@@ -8503,6 +8501,39 @@ static inline void opi_rand_shuffle(context ctx, sink_val a){
 	}
 }
 
+static inline sink_val opi_str_new(context ctx, sink_val a){
+	sink_list ls = var_castlist(ctx, a);
+	return sink_list_joinplain(ctx, ls->size, ls->vals, 1, (const uint8_t *)" ");
+}
+
+static inline sink_val opi_list_push(context ctx, sink_val a, sink_val b);
+static inline sink_val opi_str_split(context ctx, sink_val a, sink_val b){
+	sink_str haystack = sink_caststr(ctx, a);
+	sink_str needle = sink_caststr(ctx, b);
+	sink_val result = sink_list_newblob(ctx, 0, NULL);
+
+	int delta[256];
+	int nlen = needle->size;
+	for (int i = 0; i < 256; i++)
+		delta[i] = nlen + 1;
+	for (int i = 0; i < nlen; i++)
+		delta[needle->bytes[i]] = nlen - i;
+	int hx = 0;
+	int lastmatch = 0;
+	int hlen = haystack->size;
+	while (hx + nlen <= hlen){
+		if (memcmp(needle->bytes, &haystack->bytes[hx], sizeof(uint8_t) * needle->size) == 0){
+			opi_list_push(ctx, result,
+				sink_str_newblob(ctx, hx - lastmatch, &haystack->bytes[lastmatch]));
+			lastmatch = hx + needle->size; // + 1?
+		}
+		hx += delta[haystack->bytes[hx + nlen]];
+	}
+	opi_list_push(ctx, result,
+		sink_str_newblob(ctx, haystack->size - lastmatch, &haystack->bytes[lastmatch]));
+	return result;
+}
+
 // operators
 static sink_val unop_num_neg(context ctx, sink_val a){
 	return sink_num(-a.f);
@@ -8653,7 +8684,7 @@ static sink_val unop_int_clz(context ctx, sink_val a){
 }
 
 static sink_val binop_int_and(context ctx, sink_val a, sink_val b){
-	return intnum(toint(a) + toint(b));
+	return intnum(toint(a) & toint(b));
 }
 
 static sink_val binop_int_or(context ctx, sink_val a, sink_val b){
@@ -9989,11 +10020,18 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_STR_NEW        : { // [TGT], [SRC...]
-				THROW("OP_STR_NEW");
+				LOAD_ABCD();
+				X = var_get(ctx, C, D);
+				if (!sink_islist(X))
+					RETURN_FAIL("Expecting list when calling say");
+				var_set(ctx, A, B, opi_str_new(ctx, X));
 			} break;
 
 			case OP_STR_SPLIT      : { // [TGT], [SRC1], [SRC2]
-				THROW("OP_STR_SPLIT");
+				LOAD_ABCDEF();
+				X = sink_tostr(ctx, var_get(ctx, C, D));
+				Y = sink_tostr(ctx, var_get(ctx, E, F));
+				var_set(ctx, A, B, opi_str_split(ctx, X, Y));
 			} break;
 
 			case OP_STR_REPLACE    : { // [TGT], [SRC1], [SRC2], [SRC3]
@@ -10226,12 +10264,8 @@ static sink_run context_run(context ctx){
 				THROW("OP_PICKLE_VAL");
 			} break;
 
-			case OP_GC_GET         : { // [TGT]
-				THROW("OP_GC_GET");
-			} break;
-
-			case OP_GC_SET         : { // [TGT], [SRC]
-				THROW("OP_GC_SET");
+			case OP_GC_LEVEL       : { // [TGT]
+				THROW("OP_GC_LEVEL");
 			} break;
 
 			case OP_GC_RUN         : { // [TGT]
@@ -11049,7 +11083,7 @@ bool sink_arg_user(sink_ctx ctx, int size, sink_val *args, int index, sink_user 
 	return true;
 }
 
-static sink_str_st sinkhelp_tostr(context ctx, sink_val v, bool first){
+static sink_str_st sinkhelp_tostr(context ctx, sink_val v){
 	switch (sink_typeof(v)){
 		case SINK_TYPE_NIL: {
 			uint8_t *bytes = mem_alloc(sizeof(uint8_t) * 4);
@@ -11082,13 +11116,6 @@ static sink_str_st sinkhelp_tostr(context ctx, sink_val v, bool first){
 
 		case SINK_TYPE_STR: {
 			sink_str s = var_caststr(ctx, v);
-			if (first){
-				if (s->size == 0)
-					return (sink_str_st){ .bytes = NULL, .size = 0 };
-				uint8_t *bytes = mem_alloc(sizeof(uint8_t) * (s->size + 1));
-				memcpy(bytes, s->bytes, sizeof(uint8_t) * (s->size + 1));
-				return (sink_str_st){ .bytes = bytes, .size = s->size };
-			}
 			int tot = 2;
 			for (int i = 0; i < s->size; i++){
 				if (s->bytes[i] == '\'' || s->bytes[i] == '\\')
@@ -11120,7 +11147,7 @@ static sink_str_st sinkhelp_tostr(context ctx, sink_val v, bool first){
 			int tot = 2;
 			sink_str_st *strs = mem_alloc(sizeof(sink_str_st) * ls->size);
 			for (int i = 0; i < ls->size; i++){
-				sink_str_st s = sinkhelp_tostr(ctx, ls->vals[i], false);
+				sink_str_st s = sinkhelp_tostr(ctx, ls->vals[i]);
 				strs[i] = s;
 				tot += (i == 0 ? 0 : 2) + s.size;
 			}
@@ -11152,9 +11179,11 @@ static sink_str_st sinkhelp_tostr(context ctx, sink_val v, bool first){
 }
 
 sink_val sink_tostr(sink_ctx ctx, sink_val v){
+	if (sink_isstr(v))
+		return v;
 	if (sink_islist(v))
 		list_cleartick(ctx);
-	sink_str_st s = sinkhelp_tostr(ctx, v, true);
+	sink_str_st s = sinkhelp_tostr(ctx, v);
 	return sink_str_newblobgive(ctx, s.size, s.bytes);
 }
 
@@ -11311,12 +11340,9 @@ void sink_str_hashplain(int size, const uint8_t *str, uint32_t seed, uint32_t *o
 	// MurmurHash3 was written by Austin Appleby, and is placed in the public
 	// domain. The author hereby disclaims copyright to this source code.
 	// https://github.com/aappleby/smhasher
-
 	uint64_t nblocks = size >> 4;
-
 	uint64_t h1 = seed;
 	uint64_t h2 = seed;
-
 	uint64_t c1 = UINT64_C(0x87C37B91114253D5);
 	uint64_t c2 = UINT64_C(0x4CF5AD432745937F);
 

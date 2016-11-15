@@ -156,9 +156,8 @@ var OP_LIST_SORTCMP  = 0x86; // [TGT], [SRC1], [SRC2]
 var OP_PICKLE_VALID  = 0x87; // [TGT], [SRC]
 var OP_PICKLE_STR    = 0x88; // [TGT], [SRC]
 var OP_PICKLE_VAL    = 0x89; // [TGT], [SRC]
-var OP_GC_GET        = 0x8A; // [TGT]
-var OP_GC_SET        = 0x8B; // [TGT], [SRC]
-var OP_GC_RUN        = 0x8C; // [TGT]
+var OP_GC_LEVEL      = 0x8A; // [TGT]
+var OP_GC_RUN        = 0x8B; // [TGT]
 
 var ABORT_LISTFUNC   = 0x01;
 
@@ -3335,8 +3334,7 @@ function symtbl_loadStdlib(sym){
 		SAC(sym, 'val'       , OP_PICKLE_VAL    ,  1);
 	symtbl_popNamespace(sym);
 	symtbl_pushNamespace(sym, ['gc']);
-		SAC(sym, 'get'       , OP_GC_GET        ,  0);
-		SAC(sym, 'set'       , OP_GC_SET        ,  1);
+		SAC(sym, 'level'     , OP_GC_LEVEL      ,  1);
 		SAC(sym, 'run'       , OP_GC_RUN        ,  0);
 	symtbl_popNamespace(sym);
 }
@@ -5466,8 +5464,10 @@ function sink_isfalse(v){
 
 var sink_tostr_marker = 0;
 function sink_tostr(v){
+	if (typeof v === 'string')
+		return v;
 	var m = sink_tostr_marker++;
-	function tos(v, first){
+	function tos(v){
 		if (v == null)
 			return 'nil';
 		else if (sink_isnum(v)){
@@ -5480,7 +5480,7 @@ function sink_tostr(v){
 			return '' + v;
 		}
 		else if (sink_isstr(v))
-			return first ? v : '\'' + v.replace(/([\'\\])/g, '\\$1') + '\'';
+			return '\'' + v.replace(/([\'\\])/g, '\\$1') + '\'';
 		// otherwise, list
 		if (v.tostr_marker == m)
 			return '{circular}';
@@ -5490,7 +5490,7 @@ function sink_tostr(v){
 			out.push(tos(v[i], false));
 		return '{' + out.join(', ') + '}';
 	}
-	return tos(v, true);
+	return tos(v);
 }
 
 function sink_list_join(ls, sep){
@@ -5749,7 +5749,7 @@ function opi_rand_num(ctx){
 	var M1 = opi_rand_int(ctx);
 	var M2 = opi_rand_int(ctx);
 	var view = new DataView(new ArrayBuffer(8));
-	view.setInt32(0, (M1 << 20) | (M2 >> 12), true);
+	view.setInt32(0, (M1 << 20) | (M2 >>> 12), true);
 	view.setInt32(4, 0x3FF00000 | (M1 >>> 12), true);
 	return view.getFloat64(0, true) - 1;
 }
@@ -6984,11 +6984,22 @@ function context_run(ctx){
 			} break;
 
 			case OP_STR_NEW        : { // [TGT], [SRC...]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				LOAD_abcd();
+				if (A > ctx.lex_index || C > ctx.lex_index)
+					return crr_invalid(ctx);
+				X = var_get(ctx, C, D);
+				if (!sink_islist(X))
+					return opi_abortstr(ctx, 'Expecting list when calling say');
+				var_set(ctx, A, B, sink_list_join(X, ' '));
 			} break;
 
 			case OP_STR_SPLIT      : { // [TGT], [SRC1], [SRC2]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				LOAD_abcdef();
+				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
+					return crr_invalid(ctx);
+				X = sink_tostr(var_get(ctx, C, D));
+				Y = sink_tostr(var_get(ctx, E, F));
+				var_set(ctx, A, B, X.split(Y));
 			} break;
 
 			case OP_STR_REPLACE    : { // [TGT], [SRC1], [SRC2], [SRC3]
@@ -7293,11 +7304,7 @@ function context_run(ctx){
 				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
 			} break;
 
-			case OP_GC_GET         : { // [TGT]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
-			} break;
-
-			case OP_GC_SET         : { // [TGT], [SRC]
+			case OP_GC_LEVEL       : { // [TGT]
 				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
 			} break;
 

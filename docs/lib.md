@@ -468,11 +468,10 @@ GC
 Note: garbage collection manipulation is only available in certain environments, but the commands
 always exist and execute without error.
 
-| Function   | Description                                                                        |
-|------------|------------------------------------------------------------------------------------|
-| `gc.get`   | Get the garbage collection level (see below)                                       |
-| `gc.set a` | Set the garbage collection level                                                   |
-| `gc.run`   | Run a full cycle of garbage collection right now                                   |
+| Function       | Description                                                                    |
+|----------------|--------------------------------------------------------------------------------|
+| `gc.level [a]` | Get/set the garbage collection level (see below)                               |
+| `gc.run`       | Run a full cycle of garbage collection right now                               |
 
 ### GC Level
 
