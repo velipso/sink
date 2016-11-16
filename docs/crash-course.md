@@ -601,6 +601,9 @@ end
 #  6
 ```
 
+Special optimizations exist in the compiler so that using `range` in a for loop will skip creating
+the actual list.
+
 Goto
 ----
 
