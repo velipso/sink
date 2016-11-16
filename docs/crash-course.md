@@ -382,13 +382,23 @@ For example, a host environment might have a way to create shape objects:
 
 ```
 var x = circle {0, 0}, 50
-say x        # {'circle'}
-say radius x # 50
+say x           # {'circle'}
+if iscircle x
+  say radius x  # 50
+end
 ```
 
 Notice that there is no way for sink scripts to access the object properties without going through
 the host commands.  The host has the ability to read the hidden data attached to the list, verify it
 is a circle object, and return the correct value.
+
+Typically, the sink script can do whatever it wants with the contents of the list, including
+emptying the list, pushing different values, etc.  That's considered free-reign for the sink script.
+Having `'circle'` inside the list has no real meaning -- it is just convenience.
+
+Modifying the list does not change the object type and data hidden behind it.  Host environments
+should provide an `is<foo>` command for testing the hidden type, like `iscircle` in the example
+above.
 
 
 Variables and Scope
