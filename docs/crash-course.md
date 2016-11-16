@@ -519,6 +519,16 @@ while <condition>
 end
 ```
 
+The combined do-while loop might look strange at first, but it's a natural extension and useful:
+
+```
+do
+  var x = ask 'What is the password?'
+while x != 'hunter2'
+  say 'Wrong password'
+end
+```
+
 For
 ---
 
