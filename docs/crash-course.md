@@ -347,6 +347,50 @@ x[1:2] = {5, 6, 7}
 say x  # {1, 5, 6, 7, 4}
 ```
 
+### List Identity and User Data
+
+Lists are the only values that have *identity*.  Nil, strings, and numbers do not have an identity.
+
+```
+var x, y
+
+x = 'hello'
+y = 'hello'
+x == y # true (1)
+
+x = {}
+y = {}
+x == y # false (nil)
+```
+
+List identity means that lists passed to commands can be mutated.
+
+```
+def test x
+  x[0] = 5
+end
+
+var y = {3}
+test y
+say y # {5}
+```
+
+List identity is important for binding host objects to sink scripts.  The host environment can
+create lists with hidden data attached to it, that sink scripts cannot access directly.
+
+For example, a host environment might have a way to create shape objects:
+
+```
+var x = circle {0, 0}, 50
+say x        # {'circle'}
+say radius x # 50
+```
+
+Notice that there is no way for sink scripts to access the object properties without going through
+the host commands.  The host has the ability to read the hidden data attached to the list, verify it
+is a circle object, and return the correct value.
+
+
 Variables and Scope
 -------------------
 

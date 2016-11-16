@@ -8525,7 +8525,7 @@ static inline sink_val opi_str_split(context ctx, sink_val a, sink_val b){
 		if (memcmp(needle->bytes, &haystack->bytes[hx], sizeof(uint8_t) * needle->size) == 0){
 			opi_list_push(ctx, result,
 				sink_str_newblob(ctx, hx - lastmatch, &haystack->bytes[lastmatch]));
-			lastmatch = hx + needle->size; // + 1?
+			lastmatch = hx + needle->size;
 		}
 		hx += delta[haystack->bytes[hx + nlen]];
 	}
