@@ -394,7 +394,7 @@ is a circle object, and return the correct value.
 
 Typically, the sink script can do whatever it wants with the contents of the list, including
 emptying the list, pushing different values, etc.  That's considered free-reign for the sink script.
-Having `'circle'` inside the list has no real meaning -- it is just convenience.
+Having `'circle'` inside the list has no real meaning; it is just convenience.
 
 Modifying the list does not change the object type and data hidden behind it.  Host environments
 should provide an `is<foo>` command for testing the hidden type, like `iscircle` in the example
