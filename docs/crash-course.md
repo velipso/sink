@@ -393,7 +393,7 @@ the host commands.  The host has the ability to read the hidden data attached to
 is a circle object, and return the correct value.
 
 Typically, the sink script can do whatever it wants with the contents of the list, including
-emptying the list, pushing different values, etc.  That's considered free-reign for the sink script.
+emptying the list, pushing different values, etc.  That's considered free rein for the sink script.
 Having `'circle'` inside the list has no real meaning; it is just convenience.
 
 Modifying the list does not change the object type and data hidden behind it.  Host environments
