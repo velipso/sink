@@ -9602,6 +9602,8 @@ static sink_run context_run(context ctx){
 						found = true;
 						ls = var_castlist(ctx, X);
 						X = nat->f_native(ctx, ls->size, ls->vals, nat->natuser);
+						if (ctx->failed)
+							return crr_exitfail(ctx);
 						if (sink_isasync(X)){
 							ctx->async_fdiff = A;
 							ctx->async_index = B;
