@@ -5381,6 +5381,8 @@ function context_new(prg, say, warn, ask, natives, maxticks){
 		pc: 0,
 		timeout: 0,
 		timeout_left: 0,
+		async_fdiff: 0,
+		async_index: 0,
 		rand_seed: 0,
 		rand_i: 0,
 		maxticks: maxticks,
@@ -5861,28 +5863,22 @@ function triop_num_lerp(a, b, c){
 	return a + (b - a) * c;
 }
 
-function opi_say(ctx, args, fdiff, index){
-	var r = ctx.say(sink_list_join(args, ' '));
-	if (isPromise(r))
-		throw 'TODO: deal with async say';
-	var_set(ctx, fdiff, index, null);
-	return false;
+function opi_say(ctx, args){
+	if (typeof ctx.say === 'function')
+		return ctx.say(sink_list_join(args, ' '));
+	return null;
 }
 
-function opi_warn(ctx, args, fdiff, index){
-	var r = ctx.warn(sink_list_join(args, ' '));
-	if (isPromise(r))
-		throw 'TODO: deal with async warn';
-	var_set(ctx, fdiff, index, null);
-	return false;
+function opi_warn(ctx, args){
+	if (typeof ctx.warn === 'function')
+		return ctx.warn(sink_list_join(args, ' '));
+	return null;
 }
 
-function opi_ask(ctx, args, fdiff, index){
-	var r = ctx.ask(sink_list_join(args, ' '));
-	if (isPromise(r))
-		throw 'TODO: deal with async ask';
-	var_set(ctx, fdiff, index, r);
-	return false;
+function opi_ask(ctx, args){
+	if (typeof ctx.ask === 'function')
+		return ctx.ask(sink_list_join(args, ' '));
+	return null;
 }
 
 function opi_exit(ctx, args){
@@ -6444,7 +6440,7 @@ function context_run(ctx){
 					return opi_abortstr(ctx, '' + e);
 				}
 				if (isPromise(X))
-					throw new Error('TODO: handle async results from native call');
+					return X.then(function(v){ var_set(ctx, A, B, v); });
 				if (typeof X === 'undefined')
 					X = null;
 				if (X === true || X === false)
@@ -6521,9 +6517,10 @@ function context_run(ctx){
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X))
 					return opi_abortstr(ctx, 'Expecting list when calling say');
-				var r = opi_say(ctx, X, A, B);
-				if (r !== false)
-					return r;
+				var r = opi_say(ctx, X);
+				if (isPromise(r))
+					return r.then(function(v){ var_set(ctx, A, B, null); });
+				var_set(ctx, A, B, r);
 			} break;
 
 			case OP_WARN           : { // [TGT], [SRC...]
@@ -6533,9 +6530,10 @@ function context_run(ctx){
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X))
 					return opi_abortstr(ctx, 'Expecting list when calling warn');
-				var r = opi_warn(ctx, X, A, B);
-				if (r !== false)
-					return r;
+				var r = opi_warn(ctx, X);
+				if (isPromise(r))
+					return r.then(function(v){ var_set(ctx, A, B, null); });
+				var_set(ctx, A, B, r);
 			} break;
 
 			case OP_ASK            : { // [TGT], [SRC...]
@@ -6545,9 +6543,10 @@ function context_run(ctx){
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X))
 					return opi_abortstr(ctx, 'Expecting list when calling ask');
-				var r = opi_ask(ctx, X, A, B);
-				if (r !== false)
-					return r;
+				var r = opi_ask(ctx, X);
+				if (isPromise(r))
+					return r.then(function(v){ var_set(ctx, A, B, v); });
+				var_set(ctx, A, B, r);
 			} break;
 
 			case OP_EXIT           : { // [TGT], [SRC...]
@@ -7666,7 +7665,9 @@ var Sink = {
 			if (cm.type == CMA_OK){
 				if (compiler_level(cmp) <= 0){
 					var cr = context_run(ctx);
-					if (cr == SINK_RUN_REPLMORE)
+					if (isPromise(cr))
+						return cr;
+					else if (cr == SINK_RUN_REPLMORE)
 						/* do nothing */;
 					else if (cr == SINK_RUN_PASS || cr == SINK_RUN_FAIL)
 						return cr == SINK_RUN_PASS; // true/false means script finished
@@ -7684,19 +7685,27 @@ var Sink = {
 			return null; // null means read more
 		}
 
+		function readsync(data){
+			if (data === false || data === null) // eof
+				return true; // exit the REPL and pass
+			var pp = process(data);
+			if (pp === null)
+				return read();
+			else if (isPromise(pp))
+				return pp.then(function(){ return readsync(''); });
+			return pp;
+		}
+
 		function read(){
 			var p = prompt(compiler_level(cmp));
 			if (isPromise(p)){
 				return p.then(function(data){
-					var pp = process(data);
-					if (pp === null)
-						return read();
-					return pp;
+					return readsync(data);
 				});
 			}
-			process(p);
-			return read();
+			return readsync(p);
 		}
+
 		return read();
 	},
 	run: function(startFile, fstype, fsread, say, warn, ask, libs, paths, error, maxticks){

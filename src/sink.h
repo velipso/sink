@@ -113,7 +113,7 @@ typedef struct {
 	sink_fixpath_func f_fixpath;
 	sink_fstype_func f_fstype;
 	sink_fsread_func f_fsread;
-	void *user; // passed as incuser to funcions
+	void *user; // passed as incuser to functions
 } sink_inc_st;
 
 typedef enum {
@@ -396,10 +396,15 @@ static void sink_stdio_warn(sink_ctx ctx, sink_str str, void *iouser){
 
 static sink_val sink_stdio_ask(sink_ctx ctx, sink_str str, void *iouser){
 	printf("%.*s", str->size, str->bytes);
-	// TODO: implement default ask
-	fprintf(stderr, "TODO: sink_stdio_ask\n");
-	abort();
-	return SINK_NIL;
+	char buf[1000];
+	if (fgets(buf, sizeof(buf), stdin) == NULL)
+		return SINK_NIL;
+	int sz = strlen(buf);
+	if (sz <= 0)
+		return sink_str_newcstr(ctx, "");
+	if (buf[sz - 1] == '\n')
+		buf[--sz] = 0; // TODO: do I need to check for \r as well..? test on windows
+	return sink_str_newblob(ctx, sz, (const uint8_t *)buf);
 }
 
 static sink_io_st sink_stdio = (sink_io_st){
