@@ -10,12 +10,12 @@ var path = require('path');
 var readline = require('readline');
 
 function replPrompt(){
-	var rl = readline.createInterface({
-		input: process.stdin,
-		output: process.stdout
-	});
 	var line = 1;
 	return function(levels){
+		var rl = readline.createInterface({
+			input: process.stdin,
+			output: process.stdout
+		});
 		return new Promise(function(resolve, reject){
 			var p = ': ';
 			if (levels > 0)
@@ -26,6 +26,7 @@ function replPrompt(){
 				p = line + p;
 			rl.question(p, function(ans){
 				line++;
+				rl.close();
 				resolve(ans + '\n');
 			});
 		});
@@ -65,7 +66,16 @@ function warn(str){
 }
 
 function ask(str){
-	throw 'TODO: ask';
+	var rl = readline.createInterface({
+		input: process.stdin,
+		output: process.stdout
+	});
+	return new Promise(function(resolve, reject){
+		rl.question(str, function(ans){
+			rl.close();
+			resolve(ans);
+		});
+	});
 }
 
 function printVersion(){
