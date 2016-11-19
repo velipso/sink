@@ -2207,8 +2207,14 @@ static void lex_close(lex lx, list_ptr tks){
 			}
 			break;
 
-		case LEX_STR_BASIC:
 		case LEX_STR_BASIC_ESC:
+			list_ptr_push(tks, tok_ks(KS_LPAREN));
+			list_ptr_push(tks, tok_str(lx->str));
+			list_ptr_push(tks, tok_ks(KS_RPAREN));
+			lx->str = NULL;
+			break;
+
+		case LEX_STR_BASIC:
 		case LEX_STR_INTERP:
 		case LEX_STR_INTERP_DLR:
 		case LEX_STR_INTERP_DLR_ID:

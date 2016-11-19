@@ -1398,8 +1398,13 @@ function lex_close(lx, tks){
 			}
 			break;
 
-		case LEX_STR_BASIC:
 		case LEX_STR_BASIC_ESC:
+			tks.push(tok_ks(KS_LPAREN));
+			tks.push(tok_str(lx.str));
+			tks.push(tok_ks(KS_RPAREN));
+			break;
+
+		case LEX_STR_BASIC:
 		case LEX_STR_INTERP:
 		case LEX_STR_INTERP_DLR:
 		case LEX_STR_INTERP_DLR_ID:
@@ -5341,7 +5346,6 @@ function program_gen(prg, sym, stmt, pst, sayexpr){
 
 var SINK_RUN_PASS     = 'SINK_RUN_PASS';
 var SINK_RUN_FAIL     = 'SINK_RUN_FAIL';
-var SINK_RUN_ASYNC    = 'SINK_RUN_ASYNC';
 var SINK_RUN_TIMEOUT  = 'SINK_RUN_TIMEOUT';
 var SINK_RUN_REPLMORE = 'SINK_RUN_REPLMORE';
 var SINK_RUN_INVALID  = 'SINK_RUN_INVALID';
@@ -5381,8 +5385,6 @@ function context_new(prg, say, warn, ask, natives, maxticks){
 		pc: 0,
 		timeout: 0,
 		timeout_left: 0,
-		async_fdiff: 0,
-		async_index: 0,
 		rand_seed: 0,
 		rand_i: 0,
 		maxticks: maxticks,
@@ -5414,10 +5416,6 @@ function crr_exitfail(ctx){
 	}
 	ctx.failed = true;
 	return SINK_RUN_FAIL;
-}
-
-function crr_async(){
-	return SINK_RUN_ASYNC;
 }
 
 function crr_timeout(){
@@ -7665,14 +7663,14 @@ var Sink = {
 			if (cm.type == CMA_OK){
 				if (compiler_level(cmp) <= 0){
 					var cr = context_run(ctx);
-					if (isPromise(cr))
+					if (isPromise(cr)) // async is communicated via Promises
 						return cr;
 					else if (cr == SINK_RUN_REPLMORE)
 						/* do nothing */;
 					else if (cr == SINK_RUN_PASS || cr == SINK_RUN_FAIL)
 						return cr == SINK_RUN_PASS; // true/false means script finished
 					else{
-						// SINK_RUN_ASYNC, SINK_RUN_TIMEOUT, SINK_RUN_INVALID
+						// SINK_RUN_TIMEOUT, SINK_RUN_INVALID
 						console.log('cr', cr);
 						throw 'TODO: deal with a different cr';
 					}
@@ -7728,15 +7726,24 @@ var Sink = {
 
 		// run the finished program
 		var ctx = context_new(prg, say, warn, ask, libs_getNatives(libs), maxticks);
-		while (true){
-			var cr = context_run(ctx);
-			if (cr == SINK_RUN_PASS || cr == SINK_RUN_FAIL)
-				return cr == SINK_RUN_PASS;
-			else{
-				console.log('cr', cr);
-				throw 'TODO: deal with a different cr';
+		function run(){
+			while (true){
+				var cr = context_run(ctx);
+				if (isPromise(cr)){
+					return cr.then(function(){
+						return run();
+					});
+				}
+				else if (cr == SINK_RUN_PASS || cr == SINK_RUN_FAIL)
+					return cr == SINK_RUN_PASS;
+				else{
+					// cr could be a Promise to indicate async
+					console.log('cr', cr);
+					throw 'TODO: deal with a different cr';
+				}
 			}
 		}
+		return run();
 	}
 };
 
