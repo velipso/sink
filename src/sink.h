@@ -91,6 +91,12 @@ typedef enum {
 	SINK_FSTYPE_DIR
 } sink_fstype;
 
+typedef enum {
+	SINK_GC_NONE,
+	SINK_GC_DEFAULT,
+	SINK_GC_LOWMEM
+} sink_gc_level;
+
 typedef void (*sink_output_func)(sink_ctx ctx, sink_str str, void *iouser);
 typedef sink_val (*sink_input_func)(sink_ctx ctx, sink_str str, void *iouser);
 typedef void (*sink_free_func)(void *user);
@@ -372,9 +378,9 @@ sink_val sink_pickle_str(sink_ctx ctx, sink_val a);
 sink_val sink_pickle_val(sink_ctx ctx, sink_val a);
 
 // gc
-double sink_gc_get(sink_ctx ctx);
-void   sink_gc_set(sink_ctx ctx, sink_val a);
-void   sink_gc_run(sink_ctx ctx);
+sink_gc_level sink_gc_getlevel(sink_ctx ctx);
+void          sink_gc_setlevel(sink_ctx ctx, sink_gc_level level);
+void          sink_gc_run(sink_ctx ctx);
 
 // helpers
 char *sink_format(const char *fmt, ...);

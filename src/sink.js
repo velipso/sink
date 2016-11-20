@@ -6437,8 +6437,12 @@ function context_run(ctx){
 				catch (e){
 					return opi_abortstr(ctx, '' + e);
 				}
-				if (isPromise(X))
-					return X.then(function(v){ var_set(ctx, A, B, v); });
+				if (isPromise(X)){
+					return X.then(
+						function(v){ var_set(ctx, A, B, v); },
+						function(e){ opi_abortstr(ctx, '' + e); }
+					);
+				}
 				if (typeof X === 'undefined')
 					X = null;
 				if (X === true || X === false)
@@ -6516,8 +6520,12 @@ function context_run(ctx){
 				if (!sink_islist(X))
 					return opi_abortstr(ctx, 'Expecting list when calling say');
 				var r = opi_say(ctx, X);
-				if (isPromise(r))
-					return r.then(function(v){ var_set(ctx, A, B, null); });
+				if (isPromise(r)){
+					return r.then(
+						function(v){ var_set(ctx, A, B, null); },
+						function(e){ opi_abortstr(ctx, '' + e); }
+					);
+				}
 				var_set(ctx, A, B, r);
 			} break;
 
@@ -6529,8 +6537,12 @@ function context_run(ctx){
 				if (!sink_islist(X))
 					return opi_abortstr(ctx, 'Expecting list when calling warn');
 				var r = opi_warn(ctx, X);
-				if (isPromise(r))
-					return r.then(function(v){ var_set(ctx, A, B, null); });
+				if (isPromise(r)){
+					return r.then(
+						function(v){ var_set(ctx, A, B, null); },
+						function(e){ opi_abortstr(ctx, '' + e); }
+					);
+				}
 				var_set(ctx, A, B, r);
 			} break;
 
@@ -6542,8 +6554,12 @@ function context_run(ctx){
 				if (!sink_islist(X))
 					return opi_abortstr(ctx, 'Expecting list when calling ask');
 				var r = opi_ask(ctx, X);
-				if (isPromise(r))
-					return r.then(function(v){ var_set(ctx, A, B, v); });
+				if (isPromise(r)){
+					return r.then(
+						function(v){ var_set(ctx, A, B, v); },
+						function(e){ opi_abortstr(ctx, '' + e); }
+					);
+				}
 				var_set(ctx, A, B, r);
 			} break;
 

@@ -226,7 +226,7 @@ static inline list_byte list_byte_new(){
 	return b;
 }
 
-static inline list_byte list_byte_newCopy(list_byte b){
+static inline list_byte list_byte_newcopy(list_byte b){
 	list_byte b2 = mem_alloc(sizeof(list_byte_st));
 	b2->size = b->size;
 	b2->count = b->size;
@@ -236,7 +236,7 @@ static inline list_byte list_byte_newCopy(list_byte b){
 	return b2;
 }
 
-static inline list_byte list_byte_newStr(const char *data){
+static inline list_byte list_byte_newstr(const char *data){
 	list_byte b = mem_alloc(sizeof(list_byte_st));
 	b->size = strlen(data);
 	b->count = b->size;
@@ -445,7 +445,7 @@ static list_ptr list_ptr_new(free_func f_free){
 	return ls;
 }
 
-static inline list_ptr list_ptr_newSingle(free_func f_free, void *p){
+static inline list_ptr list_ptr_newsingle(free_func f_free, void *p){
 	list_ptr ls = mem_alloc(sizeof(list_ptr_st));
 	ls->size = 1;
 	ls->count = 1;
@@ -4592,7 +4592,7 @@ static inline label label_new(list_byte name){
 }
 
 static inline label label_newStr(const char *str){
-	return label_new(list_byte_newStr(str));
+	return label_new(list_byte_newstr(str));
 }
 
 static void label_refresh(label lbl, list_byte ops, int start){
@@ -4783,7 +4783,7 @@ static void nsname_print(nsname nsn){
 
 static inline nsname nsname_var(list_byte name, frame fr, int index){
 	nsname nsn = mem_alloc(sizeof(nsname_st));
-	nsn->name = list_byte_newCopy(name);
+	nsn->name = list_byte_newcopy(name);
 	nsn->type = NSN_VAR;
 	nsn->u.var.fr = fr;
 	nsn->u.var.index = index;
@@ -4792,7 +4792,7 @@ static inline nsname nsname_var(list_byte name, frame fr, int index){
 
 static inline nsname nsname_cmdLocal(list_byte name, frame fr, label lbl){
 	nsname nsn = mem_alloc(sizeof(nsname_st));
-	nsn->name = list_byte_newCopy(name);
+	nsn->name = list_byte_newcopy(name);
 	nsn->type = NSN_CMD_LOCAL;
 	nsn->u.cmdLocal.fr = fr;
 	nsn->u.cmdLocal.lbl = lbl;
@@ -4801,7 +4801,7 @@ static inline nsname nsname_cmdLocal(list_byte name, frame fr, label lbl){
 
 static inline nsname nsname_cmdNative(list_byte name, int index){
 	nsname nsn = mem_alloc(sizeof(nsname_st));
-	nsn->name = list_byte_newCopy(name);
+	nsn->name = list_byte_newcopy(name);
 	nsn->type = NSN_CMD_NATIVE;
 	nsn->u.index = index;
 	return nsn;
@@ -4818,7 +4818,7 @@ static inline nsname nsname_cmdOpcode(list_byte name, op_enum opcode, int params
 
 static inline nsname nsname_namespace(list_byte name, namespace ns){
 	nsname nsn = mem_alloc(sizeof(nsname_st));
-	nsn->name = list_byte_newCopy(name);
+	nsn->name = list_byte_newcopy(name);
 	nsn->type = NSN_NAMESPACE;
 	nsn->u.ns = ns;
 	return nsn;
@@ -5291,11 +5291,11 @@ static sta_st symtbl_addCmdNative(symtbl sym, list_ptr names, int index){
 // symtbl_addCmdOpcode
 // can simplify this function because it is only called internally
 static inline void SAC(symtbl sym, const char *name, op_enum opcode, int params){
-	list_ptr_push(sym->sc->ns->names, nsname_cmdOpcode(list_byte_newStr(name), opcode, params));
+	list_ptr_push(sym->sc->ns->names, nsname_cmdOpcode(list_byte_newstr(name), opcode, params));
 }
 
 static inline list_ptr NSS(const char *str){
-	return list_ptr_newSingle((free_func)list_byte_free, list_byte_newStr(str));
+	return list_ptr_newsingle((free_func)list_byte_free, list_byte_newstr(str));
 }
 
 static inline void symtbl_loadStdlib(symtbl sym){
@@ -8039,6 +8039,7 @@ typedef struct {
 	int timeout_left;
 	int async_fdiff;
 	int async_index;
+	sink_gc_level gc_level;
 
 	uint32_t rand_seed;
 	uint32_t rand_i;
@@ -8099,13 +8100,54 @@ static inline void context_sweep(context ctx){
 	context_sweephelp(ctx, ctx->list_size, ctx->list_aloc, ctx->list_ref, context_sweepfree_list);
 }
 
+static inline int var_index(sink_val v){
+	return (int)(v.u & UINT64_C(0x000000007FFFFFFF));
+}
+
+static void context_markvals(context ctx, int size, sink_val *vals){
+	for (int i = 0; i < size; i++){
+		if (sink_isstr(vals[i])){
+			int idx = var_index(vals[i]);
+			bmp_setbit(ctx->str_ref, idx);
+		}
+		else if (sink_islist(vals[i])){
+			int idx = var_index(vals[i]);
+			if (!bmp_hasbit(ctx->list_ref, idx)){
+				bmp_setbit(ctx->list_ref, idx);
+				sink_list ls = &ctx->list_tbl[idx];
+				context_markvals(ctx, ls->size, ls->vals);
+			}
+		}
+	}
+}
+
+static inline void context_clearref(context ctx){
+	memset(ctx->str_ref, 0, sizeof(uint64_t) * (ctx->str_size / 64));
+	memset(ctx->list_ref, 0, sizeof(uint64_t) * (ctx->list_size / 64));
+}
+
+static inline void context_mark(context ctx){
+	for (int i = 0; i < ctx->lex_stk->size; i++){
+		lxs here = ctx->lex_stk->ptrs[i];
+		while (here){
+			context_markvals(ctx, 256, here->vals);
+			here = here->next;
+		}
+	}
+}
+
+static inline void context_gc(context ctx){
+	context_clearref(ctx);
+	context_mark(ctx);
+	context_sweep(ctx);
+}
+
 static inline void context_free(context ctx){
 	cleanup_free(ctx->cup);
 	if (ctx->user && ctx->f_freeuser)
 		ctx->f_freeuser(ctx->user);
 	list_ptr_free(ctx->natives);
-	memset(ctx->str_ref, 0, sizeof(uint64_t) * (ctx->str_size / 64));
-	memset(ctx->list_ref, 0, sizeof(uint64_t) * (ctx->list_size / 64));
+	context_clearref(ctx);
 	context_sweep(ctx);
 	list_ptr_free(ctx->call_stk);
 	list_ptr_free(ctx->lex_stk);
@@ -8158,6 +8200,7 @@ static inline context context_new(program prg, sink_io_st io){
 	ctx->pc = 0;
 	ctx->timeout = 0;
 	ctx->timeout_left = 0;
+	ctx->gc_level = SINK_GC_DEFAULT;
 	ctx->rand_seed = 0;
 	ctx->rand_i = 0;
 
@@ -8224,10 +8267,6 @@ static inline sink_val var_get(context ctx, int fdiff, int index){
 
 static inline void var_set(context ctx, int fdiff, int index, sink_val val){
 	((lxs)ctx->lex_stk->ptrs[ctx->lex_index - fdiff])->vals[index] = val;
-}
-
-static inline int var_index(sink_val v){
-	return (int)(v.u & UINT64_C(0x000000007FFFFFFF));
 }
 
 static inline sink_str var_caststr(context ctx, sink_val a){
@@ -10277,7 +10316,9 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_GC_RUN         : { // [TGT]
-				THROW("OP_GC_RUN");
+				LOAD_AB();
+				context_gc(ctx);
+				var_set(ctx, A, B, SINK_NIL);
 			} break;
 
 			default:
@@ -11556,7 +11597,13 @@ sink_val  sink_list_sortcmp(sink_ctx ctx, sink_val a, sink_val b);
 bool      sink_pickle_valid(sink_ctx ctx, sink_val a);
 sink_val  sink_pickle_str(sink_ctx ctx, sink_val a);
 sink_val  sink_pickle_val(sink_ctx ctx, sink_val a);
+
+sink_gc_level sink_gc_getlevel(sink_ctx ctx);
+void          sink_gc_setlevel(sink_ctx ctx, sink_gc_level level);
 */
+void sink_gc_run(sink_ctx ctx){
+	context_gc((context)ctx);
+}
 
 sink_val sink_abortformat(sink_ctx ctx, const char *fmt, ...){
 	va_list args, args2;
