@@ -504,6 +504,7 @@ The commands that take files or paths as input can usually accept a list of file
 
 | Function       | Description                                                                    |
 |----------------|--------------------------------------------------------------------------------|
+| `args`         | Returns the arguments passed into the script from the command line             |
 | `cat a`        | Returns the contents of file `a`                                               |
 | `cd a`         | Change directory to `a` (home directory if `a` is nil)                         |
 | `cp opt, a, b` | Copy files `a` to directory `b`                                                |

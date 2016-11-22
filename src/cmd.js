@@ -163,7 +163,7 @@ switch (mode){
 	case 'repl':
 	case 'rest':
 		return Sink
-			.repl(replPrompt(), fstype, fsread, say, warn, ask, [SinkShell], getpaths(true))
+			.repl(replPrompt(), fstype, fsread, say, warn, ask, [SinkShell(args)], getpaths(true))
 			.then(sinkExit);
 	case 'version':
 		return printVersion();
@@ -175,10 +175,10 @@ switch (mode){
 		if (evalLine === false)
 			return printHelp();
 		return sinkExit(Sink.run(makeabs('<eval>'), fstype, fsreadEval(evalLine), say, warn, ask,
-			[SinkShell], getpaths(false), function(err){ warn('Error: ' + err); }));
+			[SinkShell(args)], getpaths(false), function(err){ warn('Error: ' + err); }));
 	case 'run':
 		if (inFile === false)
 			return printHelp();
-		return sinkExit(Sink.run(makeabs(inFile), fstype, fsread, say, warn, ask, [SinkShell],
+		return sinkExit(Sink.run(makeabs(inFile), fstype, fsread, say, warn, ask, [SinkShell(args)],
 			getpaths(false), function(err){ warn('Error: ' + err); }));
 }

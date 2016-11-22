@@ -129,7 +129,7 @@ static int main_repl(){
 	addpath(scr, true);
 	sink_shell_scr(scr);
 	sink_ctx ctx = sink_ctx_new(scr, sink_stdio);
-	sink_shell_ctx(ctx);
+	sink_shell_ctx(ctx, 0, NULL);
 	int line = 1;
 	int bufsize = 0;
 	int bufcount = 200;
@@ -262,7 +262,7 @@ int main_run(const char *inFile, char *const *argv, int argc){
 	}
 
 	sink_ctx ctx = sink_ctx_new(scr, sink_stdio);
-	sink_shell_ctx(ctx);
+	sink_shell_ctx(ctx, argc, argv);
 	sink_run res = sink_ctx_run(ctx);
 	sink_ctx_free(ctx);
 	sink_scr_free(scr);
@@ -306,7 +306,7 @@ int main_eval(const char *eval, char *const *argv, int argc){
 	}
 
 	sink_ctx ctx = sink_ctx_new(scr, sink_stdio);
-	sink_shell_ctx(ctx);
+	sink_shell_ctx(ctx, argc, argv);
 	sink_run res = sink_ctx_run(ctx);
 	sink_ctx_free(ctx);
 	sink_scr_free(scr);
