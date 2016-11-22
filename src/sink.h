@@ -218,6 +218,7 @@ void     sink_warn(sink_ctx ctx, int size, sink_val *vals);
 sink_val sink_ask(sink_ctx ctx, int size, sink_val *vals);
 void     sink_exit(sink_ctx ctx, int size, sink_val *vals);
 void     sink_abort(sink_ctx ctx, int size, sink_val *vals);
+sink_val sink_range(sink_ctx ctx, double start, double stop, double step);
 
 // nil
 static inline sink_val sink_nil(){ return SINK_NIL; }

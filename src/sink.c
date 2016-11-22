@@ -731,8 +731,9 @@ typedef enum {
 	OP_PICKLE_VALID  = 0x87, // [TGT], [SRC]
 	OP_PICKLE_STR    = 0x88, // [TGT], [SRC]
 	OP_PICKLE_VAL    = 0x89, // [TGT], [SRC]
-	OP_GC_LEVEL      = 0x8A, // [TGT]
-	OP_GC_RUN        = 0x8B, // [TGT]
+	OP_GC_GETLEVEL   = 0x8A, // [TGT]
+	OP_GC_SETLEVEL   = 0x8B, // [TGT], [SRC]
+	OP_GC_RUN        = 0x8C, // [TGT]
 
 	// fake ops
 	OP_GT            = 0x1F0,
@@ -5420,7 +5421,8 @@ static inline void symtbl_loadStdlib(symtbl sym){
 		SAC(sym, "val"       , OP_PICKLE_VAL    ,  1);
 	symtbl_popNamespace(sym);
 	nss = NSS("gc"); symtbl_pushNamespace(sym, nss); list_ptr_free(nss);
-		SAC(sym, "level"     , OP_GC_LEVEL      ,  1);
+		SAC(sym, "getlevel"  , OP_GC_GETLEVEL   ,  0);
+		SAC(sym, "setlevel"  , OP_GC_SETLEVEL   ,  1);
 		SAC(sym, "run"       , OP_GC_RUN        ,  0);
 	symtbl_popNamespace(sym);
 }
@@ -8137,18 +8139,30 @@ static inline void context_mark(context ctx){
 	}
 }
 
-static inline void context_gcleft(context ctx){
-	if (ctx->gc_level == SINK_GC_DEFAULT)
-		ctx->gc_left = 10000;
-	else if (ctx->gc_level == SINK_GC_LOWMEM)
-		ctx->gc_left = 1000;
+static inline void context_gcleft(context ctx, bool set){
+	if (set){
+		if (ctx->gc_level == SINK_GC_DEFAULT)
+			ctx->gc_left = 10000;
+		else if (ctx->gc_level == SINK_GC_LOWMEM)
+			ctx->gc_left = 1000;
+	}
+	else{
+		if (ctx->gc_level == SINK_GC_DEFAULT){
+			if (ctx->gc_left > 10000)
+				ctx->gc_left = 10000;
+		}
+		else if (ctx->gc_level == SINK_GC_LOWMEM){
+			if (ctx->gc_left > 1000)
+				ctx->gc_left = 1000;
+		}
+	}
 }
 
 static inline void context_gc(context ctx){
 	context_clearref(ctx);
 	context_mark(ctx);
 	context_sweep(ctx);
-	context_gcleft(ctx);
+	context_gcleft(ctx, true);
 	ctx->timeout_left -= 100; // GC counts as 100 "ticks" I suppose
 }
 
@@ -8219,7 +8233,7 @@ static inline context context_new(program prg, sink_io_st io){
 	ctx->invalid = false;
 	ctx->async = false;
 
-	context_gcleft(ctx);
+	context_gcleft(ctx, true);
 	opi_rand_seedauto(ctx);
 	return ctx;
 }
@@ -10252,7 +10266,7 @@ static sink_run context_run(context ctx){
 				Z = var_get(ctx, G, H);
 				if (!sink_isnil(Z) && !sink_isnum(Z))
 					RETURN_FAIL("Expecting number for list.rfind");
-				var_set(ctx, A, B, opi_list_find(ctx, X, Y, Z));
+				var_set(ctx, A, B, opi_list_rfind(ctx, X, Y, Z));
 			} break;
 
 			case OP_LIST_JOIN      : { // [TGT], [SRC1], [SRC2]
@@ -10322,8 +10336,40 @@ static sink_run context_run(context ctx){
 				THROW("OP_PICKLE_VAL");
 			} break;
 
-			case OP_GC_LEVEL       : { // [TGT]
-				THROW("OP_GC_LEVEL");
+			case OP_GC_GETLEVEL    : { // [TGT]
+				LOAD_AB();
+				switch (ctx->gc_level){
+					case SINK_GC_NONE:
+						var_set(ctx, A, B, sink_str_newcstr(ctx, "none"));
+						break;
+					case SINK_GC_DEFAULT:
+						var_set(ctx, A, B, sink_str_newcstr(ctx, "default"));
+						break;
+					case SINK_GC_LOWMEM:
+						var_set(ctx, A, B, sink_str_newcstr(ctx, "lowmem"));
+						break;
+				}
+			} break;
+
+			case OP_GC_SETLEVEL    : { // [TGT], [SRC]
+				LOAD_ABCD();
+				X = var_get(ctx, C, D);
+				if (!sink_isstr(X))
+					RETURN_FAIL("Expecting one of 'none', 'default', or 'lowmem'");
+				str = sink_caststr(ctx, X);
+				if (strcmp((const char *)str->bytes, "none") == 0)
+					ctx->gc_level = SINK_GC_NONE;
+				else if (strcmp((const char *)str->bytes, "default") == 0){
+					ctx->gc_level = SINK_GC_DEFAULT;
+					context_gcleft(ctx, false);
+				}
+				else if (strcmp((const char *)str->bytes, "lowmem") == 0){
+					ctx->gc_level = SINK_GC_LOWMEM;
+					context_gcleft(ctx, false);
+				}
+				else
+					RETURN_FAIL("Expecting one of 'none', 'default', or 'lowmem'");
+				var_set(ctx, A, B, SINK_NIL);
 			} break;
 
 			case OP_GC_RUN         : { // [TGT]

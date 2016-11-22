@@ -156,8 +156,9 @@ var OP_LIST_SORTCMP  = 0x86; // [TGT], [SRC1], [SRC2]
 var OP_PICKLE_VALID  = 0x87; // [TGT], [SRC]
 var OP_PICKLE_STR    = 0x88; // [TGT], [SRC]
 var OP_PICKLE_VAL    = 0x89; // [TGT], [SRC]
-var OP_GC_LEVEL      = 0x8A; // [TGT]
-var OP_GC_RUN        = 0x8B; // [TGT]
+var OP_GC_GETLEVEL   = 0x8A; // [TGT]
+var OP_GC_SETLEVEL   = 0x8B; // [TGT], [SRC]
+var OP_GC_RUN        = 0x8C; // [TGT]
 
 var ABORT_LISTFUNC   = 0x01;
 
@@ -3339,7 +3340,8 @@ function symtbl_loadStdlib(sym){
 		SAC(sym, 'val'       , OP_PICKLE_VAL    ,  1);
 	symtbl_popNamespace(sym);
 	symtbl_pushNamespace(sym, ['gc']);
-		SAC(sym, 'level'     , OP_GC_LEVEL      ,  1);
+		SAC(sym, 'getlevel'  , OP_GC_GETLEVEL   ,  0);
+		SAC(sym, 'setlevel'  , OP_GC_SETLEVEL   ,  1);
 		SAC(sym, 'run'       , OP_GC_RUN        ,  0);
 	symtbl_popNamespace(sym);
 }
@@ -5385,6 +5387,7 @@ function context_new(prg, say, warn, ask, natives, maxticks){
 		pc: 0,
 		timeout: 0,
 		timeout_left: 0,
+		gc_level: 'default',
 		rand_seed: 0,
 		rand_i: 0,
 		maxticks: maxticks,
@@ -7317,12 +7320,32 @@ function context_run(ctx){
 				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
 			} break;
 
-			case OP_GC_LEVEL       : { // [TGT]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+			case OP_GC_GETLEVEL    : { // [TGT]
+				LOAD_ab();
+				if (A > ctx.lex_index)
+					return crr_invalid(ctx);
+				var_set(ctx, A, B, ctx.gc_level);
+			} break;
+
+			case OP_GC_SETLEVEL    : { // [TGT], [SRC]
+				LOAD_abcd();
+				if (A > ctx.lex_index || C > ctx.lex_index)
+					return crr_invalid(ctx);
+				X = var_get(ctx, C, D);
+				if (X === 'none' || X === 'default' || X === 'lowmem')
+					ctx.gc_level = X;
+				else{
+					return opi_abortstr(ctx,
+						'Expecting one of \'none\', \'default\', or \'lowmem\'');
+				}
+				var_set(ctx, A, B, null);
 			} break;
 
 			case OP_GC_RUN         : { // [TGT]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				LOAD_ab();
+				if (A > ctx.lex_index)
+					return crr_invalid(ctx);
+				var_set(ctx, A, B, null);
 			} break;
 
 			default:

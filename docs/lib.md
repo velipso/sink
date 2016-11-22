@@ -468,23 +468,19 @@ GC
 Note: garbage collection manipulation is only available in certain environments, but the commands
 always exist and execute without error.
 
-| Function       | Description                                                                    |
-|----------------|--------------------------------------------------------------------------------|
-| `gc.level [a]` | Get/set the garbage collection level (see below)                               |
-| `gc.run`       | Run a full cycle of garbage collection right now                               |
+| Function        | Description                                                                   |
+|-----------------|-------------------------------------------------------------------------------|
+| `gc.getlevel`   | Get the garbage collection level (see below)                                  |
+| `gc.setlevel a` | Set the garbage collection level (see below)                                  |
+| `gc.run`        | Run a full cycle of garbage collection right now                              |
 
 ### GC Level
 
-The garbage collection level is a number between 0 and 1 (inclusive).
+The garbage collection (GC) level is one of the strings:
 
-A value of 0 represents no automatic garbage collection, intended for high speed execution at the
-cost of memory use.
-
-A value of 1 represents the most aggressive garbage collection strategy, intended for memory
-constrained environments, at the cost of speed.
-
-A value of 0.5 is the default, and represents a reasonable balance between speed and memory
-consumption.
+* `'none'` - Do not perform automatic GC
+* `'default'` - Perform automatic GC at a reasonable frequency for most applications
+* `'lowmem'` - Perform automatic GC at a high frequency for lower memory applications
 
 No matter what the level is set to, running `gc.run` will always peform a full collection.
 
