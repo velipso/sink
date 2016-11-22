@@ -482,7 +482,7 @@ The garbage collection (GC) level is one of the strings:
 * `'default'` - Perform automatic GC at a reasonable frequency for most applications
 * `'lowmem'` - Perform automatic GC at a high frequency for lower memory applications
 
-No matter what the level is set to, running `gc.run` will always peform a full collection.
+No matter what the level is set to, running `gc.run` will always perform a full collection.
 
 Shell Library Extension
 =======================
