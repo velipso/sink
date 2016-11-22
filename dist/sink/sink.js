@@ -10,6 +10,9 @@ function isPromise(obj){
 		typeof obj.then === 'function';
 }
 
+// used to mark lists to check for circular lists
+var sink_list_marker = 0;
+
 //
 // opcodes
 //
@@ -5465,11 +5468,10 @@ function sink_isfalse(v){
 	return v === null;
 }
 
-var sink_tostr_marker = 0;
 function sink_tostr(v){
 	if (typeof v === 'string')
 		return v;
-	var m = sink_tostr_marker++;
+	var m = sink_list_marker++;
 	function tos(v){
 		if (v == null)
 			return 'nil';
@@ -5485,9 +5487,9 @@ function sink_tostr(v){
 		else if (sink_isstr(v))
 			return '\'' + v.replace(/([\'\\])/g, '\\$1') + '\'';
 		// otherwise, list
-		if (v.tostr_marker == m)
+		if (v.sink_list_marker == m)
 			return '{circular}';
-		v.tostr_marker = m;
+		v.sink_list_marker = m;
 		var out = [];
 		for (var i = 0; i < v.length; i++)
 			out.push(tos(v[i], false));
@@ -5911,6 +5913,86 @@ function opi_abortstr(ctx, str){
 	if (isPromise(r))
 		throw 'TODO: deal with async warn2';
 	return crr_exitfail(ctx);
+}
+
+function sortboth(ctx, a, b, mul, m){
+	if (a === b)
+		return 0;
+	if (a === null && b !== null)
+		return -mul;
+	else if (a !== null && b === null)
+		return mul;
+
+	if (typeof a !== typeof b){
+		if (typeof a === 'number')
+			return -mul;
+		else if (typeof a === 'string')
+			return typeof b === 'number' ? mul : -mul;
+		return mul;
+	}
+
+	if (typeof a === 'number')
+		return a < b ? -mul : mul;
+	else if (typeof a === 'string'){
+		if (a.length === 0){
+			if (b.length === 0)
+				return 0;
+			return -mul;
+		}
+		else if (b.length === 0)
+			return mul;
+		var minsize = Math.min(a.length, b.length);
+		for (var i = 0; i < minsize; i++){
+			var res = a.charCodeAt(i) - b.charCodeAt(i);
+			if (res < 0)
+				return -mul;
+			else if (res > 0)
+				return mul;
+		}
+		return a.length < b.length ? -mul : mul;
+	}
+	// otherwise, comparing two lists
+	if (a.sink_list_marker === m || b.sink_list_marker === m){
+		opi_abortstr(ctx, 'Cannot sort circular lists');
+		return -1;
+	}
+	a.sink_list_marker = m;
+	b.sink_list_marker = m;
+	if (a.length === 0){
+		if (b.length === 0)
+			return 0;
+		return -mul;
+	}
+	else if (b.length === 0)
+		return mul;
+	var minsize = Math.min(a.length, b.length);
+	for (var i = 0; i < minsize; i++){
+		var res = sortboth(ctx, a[i], b[i], mul, m);
+		if (res < 0)
+			return -mul;
+		else if (res > 0)
+			return mul;
+	}
+	return a.length == b.length ? 0 : (a.length < b.length ? -mul : mul);
+}
+
+function opi_list_sort(ctx, a){
+	var m = sink_list_marker++;
+	a.sort(function(A, B){
+		return sortboth(ctx, A, B, 1, m);
+	});
+}
+
+function opi_list_rsort(ctx, a){
+	var m = sink_list_marker++;
+	a.sort(function(A, B){
+		return sortboth(ctx, A, B, -1, m);
+	});
+}
+
+function opi_list_sortcmp(ctx, a, b){
+	var m = sink_list_marker++;
+	return sortboth(ctx, a, b, 1, m);
 }
 
 function opi_range(start, stop, step){
@@ -7297,15 +7379,34 @@ function context_run(ctx){
 			} break;
 
 			case OP_LIST_SORT      : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				LOAD_abcd();
+				if (A > ctx.lex_index || C > ctx.lex_index)
+					return crr_invalid(ctx);
+				X = var_get(ctx, C, D);
+				if (!sink_islist(X))
+					return opi_abortstr(ctx, 'Expecting list for list.sort');
+				opi_list_sort(ctx, X);
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_LIST_RSORT     : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				LOAD_abcd();
+				if (A > ctx.lex_index || C > ctx.lex_index)
+					return crr_invalid(ctx);
+				X = var_get(ctx, C, D);
+				if (!sink_islist(X))
+					return opi_abortstr(ctx, 'Expecting list for list.sort');
+				opi_list_rsort(ctx, X);
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_LIST_SORTCMP   : { // [TGT], [SRC1], [SRC2]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				LOAD_abcdef();
+				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
+					return crr_invalid(ctx);
+				X = var_get(ctx, C, D);
+				Y = var_get(ctx, E, F);
+				var_set(ctx, A, B, opi_list_sortcmp(ctx, X, Y));
 			} break;
 
 			case OP_PICKLE_VALID   : { // [TGT], [SRC]
