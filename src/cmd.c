@@ -244,7 +244,7 @@ int main_run(const char *inFile, char *const *argv, int argc){
 	char buf[1000];
 	while (!feof(fp)){
 		int sz = fread(buf, 1, sizeof(buf), fp);
-		const char *err = sink_scr_write(scr, sz, (uint8_t *)buf);
+		const char *err = sink_scr_write(scr, sz, (const uint8_t *)buf);
 		if (err){
 			fclose(fp);
 			fprintf(stderr, "Error: %s\n", err);
@@ -255,6 +255,50 @@ int main_run(const char *inFile, char *const *argv, int argc){
 	fclose(fp);
 
 	const char *err = sink_scr_close(scr);
+	if (err){
+		fprintf(stderr, "Error: %s\n", err);
+		sink_scr_free(scr);
+		return 1;
+	}
+
+	sink_ctx ctx = sink_ctx_new(scr, sink_stdio);
+	sink_shell_ctx(ctx);
+	sink_run res = sink_ctx_run(ctx);
+	sink_ctx_free(ctx);
+	sink_scr_free(scr);
+	switch (res){
+		case SINK_RUN_PASS:
+			return 0;
+		case SINK_RUN_FAIL:
+			return 1;
+		case SINK_RUN_ASYNC:
+		case SINK_RUN_TIMEOUT:
+		case SINK_RUN_REPLMORE:
+			fprintf(stderr, "Invalid return value from running context\n");
+			return 1;
+		case SINK_RUN_INVALID:
+			fprintf(stderr, "Invalid file\n");
+			return 1;
+	}
+}
+
+int main_eval(const char *eval, char *const *argv, int argc){
+	char *fullfile = makeabs("<eval>");
+	if (fullfile == NULL)
+		return 1;
+	sink_scr scr = sink_scr_new(inc, fullfile, false);
+	free(fullfile);
+	addpath(scr, false);
+	sink_shell_scr(scr);
+
+	const char *err = sink_scr_write(scr, strlen(eval), (const uint8_t *)eval);
+	if (err){
+		fprintf(stderr, "Error: %s\n", err);
+		sink_scr_free(scr);
+		return 1;
+	}
+
+	err = sink_scr_close(scr);
 	if (err){
 		fprintf(stderr, "Error: %s\n", err);
 		sink_scr_free(scr);
@@ -390,9 +434,10 @@ int main(int argc, char **argv){
 				printHelp();
 				return 1;
 			}
-			printf("TODO: eval\n");
-			abort();
-			return 1;
+			int res = main_eval(evalLine, args, argsSize);
+			if (args)
+				free(args);
+			return res;
 		case 4: // rest
 			return main_repl();
 		case 5: { // run

@@ -151,6 +151,14 @@ function makeabs(file){
 	return path.join(process.cwd(), file);
 }
 
+function fsreadEval(line){
+	return function(file){
+		if (file.substr(-6) === '<eval>')
+			return line;
+		return fsread(file);
+	};
+}
+
 switch (mode){
 	case 'repl':
 	case 'rest':
@@ -166,7 +174,8 @@ switch (mode){
 	case 'eval':
 		if (evalLine === false)
 			return printHelp();
-		throw 'TODO: eval ' + evalLine;
+		return sinkExit(Sink.run(makeabs('<eval>'), fstype, fsreadEval(evalLine), say, warn, ask,
+			[SinkShell], getpaths(false), function(err){ warn('Error: ' + err); }));
 	case 'run':
 		if (inFile === false)
 			return printHelp();

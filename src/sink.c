@@ -8039,6 +8039,7 @@ typedef struct {
 	int timeout_left;
 	int async_fdiff;
 	int async_index;
+	int gc_left;
 	sink_gc_level gc_level;
 
 	uint32_t rand_seed;
@@ -8136,10 +8137,19 @@ static inline void context_mark(context ctx){
 	}
 }
 
+static inline void context_gcleft(context ctx){
+	if (ctx->gc_level == SINK_GC_DEFAULT)
+		ctx->gc_left = 10000;
+	else if (ctx->gc_level == SINK_GC_LOWMEM)
+		ctx->gc_left = 1000;
+}
+
 static inline void context_gc(context ctx){
 	context_clearref(ctx);
 	context_mark(ctx);
 	context_sweep(ctx);
+	context_gcleft(ctx);
+	ctx->timeout_left -= 100; // GC counts as 100 "ticks" I suppose
 }
 
 static inline void context_free(context ctx){
@@ -8209,6 +8219,7 @@ static inline context context_new(program prg, sink_io_st io){
 	ctx->invalid = false;
 	ctx->async = false;
 
+	context_gcleft(ctx);
 	opi_rand_seedauto(ctx);
 	return ctx;
 }
@@ -10325,6 +10336,11 @@ static sink_run context_run(context ctx){
 				debugf("invalid opcode %02X", ops->bytes[ctx->pc]);
 				return crr_invalid(ctx);
 		}
+		if (ctx->gc_level != SINK_GC_NONE){
+			ctx->gc_left--;
+			if (ctx->gc_left <= 0)
+				context_gc(ctx);
+		}
 		if (ctx->timeout > 0){
 			ctx->timeout_left--;
 			if (ctx->timeout_left <= 0){
@@ -11597,10 +11613,16 @@ sink_val  sink_list_sortcmp(sink_ctx ctx, sink_val a, sink_val b);
 bool      sink_pickle_valid(sink_ctx ctx, sink_val a);
 sink_val  sink_pickle_str(sink_ctx ctx, sink_val a);
 sink_val  sink_pickle_val(sink_ctx ctx, sink_val a);
-
-sink_gc_level sink_gc_getlevel(sink_ctx ctx);
-void          sink_gc_setlevel(sink_ctx ctx, sink_gc_level level);
 */
+
+sink_gc_level sink_gc_getlevel(sink_ctx ctx){
+	return ((context)ctx)->gc_level;
+}
+
+void sink_gc_setlevel(sink_ctx ctx, sink_gc_level level){
+	((context)ctx)->gc_level = level;
+}
+
 void sink_gc_run(sink_ctx ctx){
 	context_gc((context)ctx);
 }
