@@ -151,11 +151,19 @@ function makeabs(file){
 	return path.join(process.cwd(), file);
 }
 
+function fsreadEval(line){
+	return function(file){
+		if (file.substr(-6) === '<eval>')
+			return line;
+		return fsread(file);
+	};
+}
+
 switch (mode){
 	case 'repl':
 	case 'rest':
 		return Sink
-			.repl(replPrompt(), fstype, fsread, say, warn, ask, [SinkShell], getpaths(true))
+			.repl(replPrompt(), fstype, fsread, say, warn, ask, [SinkShell(args)], getpaths(true))
 			.then(sinkExit);
 	case 'version':
 		return printVersion();
@@ -166,10 +174,11 @@ switch (mode){
 	case 'eval':
 		if (evalLine === false)
 			return printHelp();
-		throw 'TODO: eval ' + evalLine;
+		return sinkExit(Sink.run(makeabs('<eval>'), fstype, fsreadEval(evalLine), say, warn, ask,
+			[SinkShell(args)], getpaths(false), function(err){ warn('Error: ' + err); }));
 	case 'run':
 		if (inFile === false)
 			return printHelp();
-		return sinkExit(Sink.run(makeabs(inFile), fstype, fsread, say, warn, ask, [SinkShell],
+		return sinkExit(Sink.run(makeabs(inFile), fstype, fsread, say, warn, ask, [SinkShell(args)],
 			getpaths(false), function(err){ warn('Error: ' + err); }));
 }
