@@ -8801,14 +8801,13 @@ static sink_val binop_int_mod(context ctx, sink_val a, sink_val b){
 static inline void opi_abortcstr(context ctx, const char *msg);
 
 static inline bool opi_equ(context ctx, sink_val a, sink_val b){
-	if (sink_isnil(a) && sink_isnil(b))
+	if (a.u == b.u){
+		if (sink_isnum(a))
+			return a.f == b.f;
 		return true;
-	else if (sink_isstr(a) && sink_isstr(b))
+	}
+	if (sink_isstr(a) && sink_isstr(b))
 		return str_cmp(var_caststr(ctx, a), var_caststr(ctx, b)) == 0;
-	else if (sink_islist(a) && sink_islist(b))
-		return a.u == b.u;
-	else if (sink_isnum(a) && sink_isnum(b))
-		return a.f == b.f;
 	return false;
 }
 
@@ -9258,6 +9257,9 @@ static inline int sortboth(context ctx, const sink_val *a, const sink_val *b, in
 		return -1;
 	}
 
+	if (a->u == b->u)
+		return 0;
+
 	if (atype != btype){
 		if (atype == SINK_TYPE_NIL)
 			return -mul;
@@ -9268,12 +9270,8 @@ static inline int sortboth(context ctx, const sink_val *a, const sink_val *b, in
 		return mul;
 	}
 
-	if (atype == SINK_TYPE_NIL)
-		return 0;
-	else if (atype == SINK_TYPE_NUM){
-		return (sink_castnum(*a) == sink_castnum(*b)) ? 0 :
-			(sink_castnum(*a) < sink_castnum(*b) ? -mul : mul);
-	}
+	if (atype == SINK_TYPE_NUM)
+		return sink_castnum(*a) < sink_castnum(*b) ? -mul : mul;
 	else if (atype == SINK_TYPE_STR){
 		sink_str s1 = sink_caststr(ctx, *a);
 		sink_str s2 = sink_caststr(ctx, *b);
@@ -9291,8 +9289,6 @@ static inline int sortboth(context ctx, const sink_val *a, const sink_val *b, in
 		return res < 0 ? -mul : mul;
 	}
 	// otherwise, comparing two lists
-	if (a->u == b->u)
-		return 0;
 	if (list_hastick(ctx, var_index(*a)) || list_hastick(ctx, var_index(*b))){
 		opi_abortcstr(ctx, "Cannot sort circular lists");
 		return -1;
