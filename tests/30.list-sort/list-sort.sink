@@ -1,0 +1,46 @@
+say list.sortcmp nil, 0        # -1
+say list.sortcmp nil, ''       # -1
+say list.sortcmp nil, {}       # -1
+
+say list.sortcmp 0, nil        # 1
+say list.sortcmp 0, ''         # -1
+say list.sortcmp 0, {}         # -1
+
+say list.sortcmp '', nil       # 1
+say list.sortcmp '', 0         # 1
+say list.sortcmp '', {}        # -1
+
+say list.sortcmp {}, nil       # 1
+say list.sortcmp {}, 0         # 1
+say list.sortcmp {}, ''        # 1
+
+say list.sortcmp nil, nil      # 0
+
+say list.sortcmp 0, 0          # 0
+say list.sortcmp 5, 0          # 1
+say list.sortcmp 0, 5          # -1
+
+say list.sortcmp '', ''        # 0
+say list.sortcmp '', 'a'       # -1
+say list.sortcmp 'a', ''       # 1
+
+say list.sortcmp 'abc', 'abc'  # 0
+say list.sortcmp 'abcd', 'abc' # 1
+say list.sortcmp 'abc', 'abcd' # -1
+say list.sortcmp 'ab', 'ac'    # -1
+say list.sortcmp 'ac', 'ab'    # 1
+
+var x = {1, 2, 3, 4}
+list.push x, x
+say list.sortcmp x, x          # 0
+
+say list.sortcmp {}, {}        # 0
+say list.sortcmp {}, {1}       # -1
+say list.sortcmp {1}, {}       # 1
+
+say list.sortcmp {1, 5}, {1, nil}  # 1
+say list.sortcmp {1, nil}, {1, 5}  # -1
+
+say list.sortcmp {1}, {1, 5}   # -1
+say list.sortcmp {1, 5}, {1}   # 1
+say list.sortcmp {1}, {1}      # 0

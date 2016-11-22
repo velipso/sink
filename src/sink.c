@@ -9249,6 +9249,105 @@ static inline sink_val opi_list_rev(context ctx, sink_val a){
 	return a;
 }
 
+static inline int sortboth(context ctx, const sink_val *a, const sink_val *b, int mul){
+	sink_type atype = sink_typeof(*a);
+	sink_type btype = sink_typeof(*b);
+
+	if (atype == SINK_TYPE_ASYNC || btype == SINK_TYPE_ASYNC){
+		opi_abortcstr(ctx, "Invalid value inside list during sort");
+		return -1;
+	}
+
+	if (atype != btype){
+		if (atype == SINK_TYPE_NIL)
+			return -mul;
+		else if (atype == SINK_TYPE_NUM)
+			return btype == SINK_TYPE_NIL ? mul : -mul;
+		else if (atype == SINK_TYPE_STR)
+			return btype == SINK_TYPE_LIST ? -mul : mul;
+		return mul;
+	}
+
+	if (atype == SINK_TYPE_NIL)
+		return 0;
+	else if (atype == SINK_TYPE_NUM){
+		return (sink_castnum(*a) == sink_castnum(*b)) ? 0 :
+			(sink_castnum(*a) < sink_castnum(*b) ? -mul : mul);
+	}
+	else if (atype == SINK_TYPE_STR){
+		sink_str s1 = sink_caststr(ctx, *a);
+		sink_str s2 = sink_caststr(ctx, *b);
+		if (s1->size == 0){
+			if (s2->size == 0)
+				return 0;
+			return -mul;
+		}
+		else if (s2->size == 0)
+			return mul;
+		int res = memcmp(s1->bytes, s2->bytes,
+			sizeof(uint8_t) * (s1->size < s2->size ? s1->size : s2->size));
+		if (res == 0)
+			return s1->size == s2->size ? 0 : (s1->size < s2->size ? -mul : mul);
+		return res < 0 ? -mul : mul;
+	}
+	// otherwise, comparing two lists
+	if (a->u == b->u)
+		return 0;
+	if (list_hastick(ctx, var_index(*a)) || list_hastick(ctx, var_index(*b))){
+		opi_abortcstr(ctx, "Cannot sort circular lists");
+		return -1;
+	}
+	sink_list ls1 = sink_castlist(ctx, *a);
+	sink_list ls2 = sink_castlist(ctx, *b);
+	if (ls1->size == 0){
+		if (ls2->size == 0)
+			return 0;
+		return -mul;
+	}
+	else if (ls2->size == 0)
+		return mul;
+	int minsize = ls1->size < ls2->size ? ls1->size : ls2->size;
+	for (int i = 0; i < minsize; i++){
+		int res = sortboth(ctx, &ls1->vals[i], &ls2->vals[i], 1);
+		if (res < 0)
+			return -mul;
+		else if (res > 0)
+			return mul;
+	}
+	if (ls1->size < ls2->size)
+		return -mul;
+	else if (ls1->size > ls2->size)
+		return mul;
+	return 0;
+}
+
+static int sortfwd(context ctx, const sink_val *a, const sink_val *b){
+	return sortboth(ctx, a, b, 1);
+}
+
+static int sortrev(context ctx, const sink_val *a, const sink_val *b){
+	return sortboth(ctx, a, b, -1);
+}
+
+static inline void opi_list_sort(context ctx, sink_val a){
+	sink_list ls = sink_castlist(ctx, a);
+	list_cleartick(ctx);
+	qsort_r(ls->vals, ls->size, sizeof(sink_val), ctx,
+		(int (*)(void *, const void *, const void *))sortfwd);
+}
+
+static inline void opi_list_rsort(context ctx, sink_val a){
+	list_cleartick(ctx);
+	sink_list ls = sink_castlist(ctx, a);
+	qsort_r(ls->vals, ls->size, sizeof(sink_val), ctx,
+		(int (*)(void *, const void *, const void *))sortrev);
+}
+
+static inline int opi_list_sortcmp(context ctx, sink_val a, sink_val b){
+	list_cleartick(ctx);
+	return sortboth(ctx, &a, &b, 1);
+}
+
 static inline sink_val opi_range(context ctx, double start, double stop, double step){
 	int count = ceil((stop - start) / step);
 	if (count > 10000000)
@@ -10313,15 +10412,32 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_LIST_SORT      : { // [TGT], [SRC]
-				THROW("OP_LIST_SORT");
+				LOAD_ABCD();
+				X = var_get(ctx, C, D);
+				if (!sink_islist(X))
+					RETURN_FAIL("Expecting list for list.sort");
+				opi_list_sort(ctx, X);
+				if (ctx->failed)
+					return crr_exitfail(ctx);
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_LIST_RSORT     : { // [TGT], [SRC]
-				THROW("OP_LIST_RSORT");
+				LOAD_ABCD();
+				X = var_get(ctx, C, D);
+				if (!sink_islist(X))
+					RETURN_FAIL("Expecting list for list.sort");
+				opi_list_rsort(ctx, X);
+				if (ctx->failed)
+					return crr_exitfail(ctx);
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_LIST_SORTCMP   : { // [TGT], [SRC1], [SRC2]
-				THROW("OP_LIST_SORTCMP");
+				LOAD_ABCDEF();
+				X = var_get(ctx, C, D);
+				Y = var_get(ctx, E, F);
+				var_set(ctx, A, B, sink_num(opi_list_sortcmp(ctx, X, Y)));
 			} break;
 
 			case OP_PICKLE_VALID   : { // [TGT], [SRC]
