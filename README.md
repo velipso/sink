@@ -9,7 +9,8 @@ implementations.
 
 ### Documents
 
-* [Crash Course](https://github.com/voidqk/sink/blob/master/docs/crash-course.md) (Tutorial) &larr; Read This
+* [Crash Course](https://github.com/voidqk/sink/blob/master/docs/crash-course.md) (Tutorial)
+  &larr; Read This
 * [Online Demo](https://rawgit.com/voidqk/sink/master/src/repl.html) (REPL)
 * [Standard Library](https://github.com/voidqk/sink/blob/master/docs/lib.md)
 * [Example Code](https://github.com/voidqk/sink/blob/master/tests/0.sanity/sanity.sink)
@@ -24,6 +25,7 @@ Language design:
 * Garbage collected
 * Lexical scoping
 * Static binding with robust namespacing
+* A mixture between shell scripts, Lua, and a bit of Lisp
 
 Both implementations:
 
