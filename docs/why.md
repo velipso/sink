@@ -73,11 +73,7 @@ I feel like creating a new language, I will do just that -- and leave sink alone
 Languages usually wear their features like a badge of honor.  One feature that I wear proudly is
 that *sink doesn't have many features*.
 
-Closures? Nope.
-
-Exceptions? Nope.
-
-Coroutines? Nope.
+Closures? Nope. Exceptions? Nope. Coroutines? Nope.
 
 Every feature has a real *cost*:
 
