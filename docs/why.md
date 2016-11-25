@@ -39,7 +39,7 @@ Surely someone could make a lot of complaints about sink too.  No language is pe
 
 But sink was created to scratch my particular itch.
 
-### Need JavaScript + C Implementation
+### Need JavaScript + C99 Implementation
 
 Embedding languages typically think of JavaScript as an afterthought, perhaps accomplished via
 Emscripten or a third-party port.
@@ -52,8 +52,8 @@ creating resources for my games.
 
 The idea that a simple variable lookup results in a hash table search is a bit sickening to me.
 
-Sink's symbols (variables and commands) only exist at compile-time.  All name resolution happens at
-compile-time.
+Sink's symbols (variable names, command names, namespaces) only exist at compile-time.  All name
+resolution happens at compile-time.
 
 Even native commands are stored as 64-bit hashes, so all symbols can be stripped out of the final
 bytecode.
@@ -67,3 +67,27 @@ I really wish people would stop changing languages so much.
 
 Once sink hits 1.0, I won't be changing it, with the exception of bug fixes and security issues.  If
 I feel like creating a new language, I will do just that -- and leave sink alone.
+
+### Most Features Aren't Worth It
+
+Languages usually wear their features like a badge of honor.  One feature that I wear proudly is
+that *sink doesn't have many features*.
+
+Closures? Nope.
+
+Exceptions? Nope.
+
+Coroutines? Nope.
+
+Every feature has a real *cost*:
+
+* Developing and maintaining each feature
+* Teaching each feature
+* Deciding which feature to use when scripting
+* Reading someone else's code who uses a feature that you don't typically use
+
+Features are not badges of honor, they are *concessions* -- we should be apoloigizing for each
+feature because they represent a failure to solve a problem with something that already exists.
+
+I've tried very hard to make sink as small as I possibly could, while still having the bare-bone
+features necessary to accomplish real work.
