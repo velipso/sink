@@ -1,7 +1,8 @@
 sink
 ====
 
-Minimal programming language for embedding small scripts in larger programs.
+Minimal programming language for embedding small scripts in larger programs, with JavaScript and C99
+implementations.
 
 ### Note: Development in progress, use at your own risk
 
@@ -12,3 +13,5 @@ Minimal programming language for embedding small scripts in larger programs.
 [Standard Library](https://github.com/voidqk/sink/blob/master/docs/lib.md)
 
 [Example Code](https://github.com/voidqk/sink/blob/master/tests/0.sanity/sanity.sink)
+
+[Why Another Language](https://github.com/voidqk/sink/blob/master/docs/why.md)
