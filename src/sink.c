@@ -5482,9 +5482,9 @@ static inline per_st per_error(filepos_st flp, char *msg){
 }
 
 typedef enum {
-	PEM_EMPTY,
-	PEM_CREATE,
-	PEM_INTO
+	PEM_EMPTY,  // I don't need the value
+	PEM_CREATE, // I need to read the value
+	PEM_INTO    // I need to own the register
 } pem_enum;
 
 static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st intoVlc, expr ex);
@@ -7606,20 +7606,28 @@ static inline pgr_st program_gen(program prg, symtbl sym, ast stmt, void *state,
 						expr p = c->u.call.params;
 						varloc_st rp[3] = { VARLOC_NULL, VARLOC_NULL, VARLOC_NULL };
 						if (p->type != EXPR_GROUP){
-							per_st pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, p);
+							sta_st ts = symtbl_addTemp(sym);
+							if (ts.type == STA_ERROR)
+								return pgr_error(stmt->flp, ts.u.msg);
+							rp[0] = ts.u.vlc;
+							per_st pe = program_eval(prg, sym, PEM_INTO, rp[0], p);
 							if (pe.type == PER_ERROR)
 								return pgr_error(pe.u.error.flp, pe.u.error.msg);
-							rp[0] = pe.u.vlc;
 						}
 						else{
 							for (int i = 0; i < p->u.group->size; i++){
+								if (i < 3){
+									sta_st ts = symtbl_addTemp(sym);
+									if (ts.type == STA_ERROR)
+										return pgr_error(stmt->flp, ts.u.msg);
+									rp[i] = ts.u.vlc;
+								}
 								per_st pe = program_eval(prg, sym,
-									i < 3 ? PEM_CREATE : PEM_EMPTY,
-									VARLOC_NULL, p->u.group->ptrs[i]);
+									i < 3 ? PEM_INTO : PEM_EMPTY,
+									i < 3 ? rp[i] : VARLOC_NULL,
+									p->u.group->ptrs[i]);
 								if (pe.type == PER_ERROR)
 									return pgr_error(pe.u.error.flp, pe.u.error.msg);
-								if (i < 3)
-									rp[i] = pe.u.vlc;
 							}
 						}
 						return program_genForRange(prg, sym, stmt, rp[0], rp[1], rp[2]);

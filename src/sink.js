@@ -5099,20 +5099,28 @@ function program_gen(prg, sym, stmt, pst, sayexpr){
 						var p = c.params;
 						var rp = [null, null, null];
 						if (p.type != EXPR_GROUP){
-							var pe = program_eval(prg, sym, PEM_CREATE, null, p);
+							var ts = symtbl_addTemp(sym);
+							if (ts.type == STA_ERROR)
+								return pgr_error(stmt.flp, ts.msg);
+							rp[0] = ts.vlc;
+							var pe = program_eval(prg, sym, PEM_INTO, rp[0], p);
 							if (pe.type == PER_ERROR)
 								return pgr_error(pe.flp, pe.msg);
-							rp[0] = pe.vlc;
 						}
 						else{
 							for (var i = 0; i < p.group.length; i++){
+								if (i < 3){
+									var ts = symtbl_addTemp(sym);
+									if (ts.type == STA_ERROR)
+										return pgr_error(stmt.flp, ts.msg);
+									rp[i] = ts.vlc;
+								}
 								var pe = program_eval(prg, sym,
-									i < 3 ? PEM_CREATE : PEM_EMPTY,
-									null, p.group[i]);
+									i < 3 ? PEM_INTO : PEM_EMPTY,
+									i < 3 ? rp[i] : null,
+									p.group[i]);
 								if (pe.type == PER_ERROR)
 									return pgr_error(pe.flp, pe.msg);
-								if (i < 3)
-									rp[i] = pe.vlc;
 							}
 						}
 						return program_genForRange(prg, sym, stmt, rp[0], rp[1], rp[2]);

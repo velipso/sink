@@ -7,7 +7,7 @@ similar in spirit to Lua (but more simple).
 It has JavaScript and C99 implementations, which compile and execute the same source code with
 exactly the same results.  Sink can also be compiled to bytecode.
 
-The API allows the host environment to define native functions, and includes support for a REPL,
+The API allows the host environment to define native commands, and includes support for a REPL,
 which is great for embedding debug consoles.
 
 Examples
