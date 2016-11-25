@@ -73,16 +73,16 @@ I feel like creating a new language, I will do just that -- and leave sink alone
 Languages usually wear their features like a badge of honor.  One feature that I wear proudly is
 that *sink doesn't have many features*.
 
-Closures? Nope. Exceptions? Nope. Coroutines? Nope.
+Classes? Nope. Closures? Nope. Exceptions? Nope. Coroutines? Nope.
 
 Every feature has a real *cost*:
 
 * Developing and maintaining each feature
-* Teaching each feature
+* Documenting, teaching, and learning each feature
 * Deciding which feature to use when scripting
 * Reading someone else's code who uses a feature that you don't typically use
 
-Features are not badges of honor, they are *concessions* -- we should be apoloigizing for each
+Features are not badges of honor, they are *concessions* -- we should be apologizing for each
 feature because they represent a failure to solve a problem with something that already exists.
 
 I've tried very hard to make sink as small as I possibly could, while still having the bare-bone
