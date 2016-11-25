@@ -1359,8 +1359,8 @@ static inline bool tok_isKS(tok tk, ks_enum k){
 }
 
 static inline bool tok_isMidStmt(tok tk){
-	return tok_isKS(tk, KS_END) || tok_isKS(tk, KS_ELSE) || tok_isKS(tk, KS_ELSEIF) ||
-		tok_isKS(tk, KS_WHILE);
+	return tk->type == TOK_KS &&
+		(tk->u.k == KS_END || tk->u.k == KS_ELSE || tk->u.k == KS_ELSEIF || tk->u.k == KS_WHILE);
 }
 
 static inline bool tok_isPre(tok tk){

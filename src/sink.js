@@ -606,8 +606,8 @@ function tok_isKS(tk, k){
 }
 
 function tok_isMidStmt(tk){
-	return tok_isKS(tk, KS_END) || tok_isKS(tk, KS_ELSE) || tok_isKS(tk, KS_ELSEIF) ||
-		tok_isKS(tk, KS_WHILE);
+	return tk.type == TOK_KS &&
+		(tk.k == KS_END || tk.k == KS_ELSE || tk.k == KS_ELSEIF || tk.k == KS_WHILE);
 }
 
 function tok_isPre(tk){

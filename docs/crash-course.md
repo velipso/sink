@@ -333,7 +333,7 @@ Lists are detected via the `islist` command.
 
 ### List Slicing
 
-Lists support slicing, in the format of `ls[start:length]`:
+Lists support slicing, which creates a copy, in the format of `ls[start:length]`:
 
 ```
 var x = {1, 2, 3, 4}
@@ -345,6 +345,15 @@ Slicing can also be used for assignment:
 ```
 x[1:2] = {5, 6, 7}
 say x  # {1, 5, 6, 7, 4}
+```
+
+An empty slice is the same as a shallow copy:
+
+```
+var x = {1, 2, 3}
+var y = list.push x[:], 4
+say x  # {1, 2, 3}
+say y  # {1, 2, 3, 4}
 ```
 
 ### List Identity and User Data
