@@ -4,9 +4,11 @@ Why Another Language
 
 Why bother creating sink?
 
+(Warning: Rant ahead)
+
 ### It's Fun!
 
-Creating languages is *fun*.  Once you know the different techniques that go into making a
+Creating a language is *fun*.  Once you know the different techniques that go into making a
 language (lexer, parser, code generator, virtual machine, garbage collector), it's pretty damn
 fun to create new ones.
 
@@ -31,5 +33,37 @@ Languages designed for embedding into host programs are a little more slim:
   * Very C++ like syntax
 3. [Tcl](http://wiki.tcl.tk/) - Older popular embedding language
   * Syntax is a mess
-  * Semantics is a mess
+  * Semantics are a mess
 
+Surely someone could make a lot of complaints about sink too.  No language is perfect.
+
+But sink was created to scratch my particular itch.
+
+### Need JavaScript + C Implementation
+
+Embedding languages typically think of JavaScript as an afterthought, perhaps accomplished via
+Emscripten or a third-party port.
+
+Having a JavaScript implementation is really nice because I can build web applications that use the
+same language, with the same standard library.  That means I can create cross-platform tools for
+creating resources for my games.
+
+### Compile-Time Symbol Table
+
+The idea that a simple variable lookup results in a hash table search is a bit sickening to me.
+
+Sink's symbols (variables and commands) only exist at compile-time.  All name resolution happens at
+compile-time.
+
+Even native commands are stored as 64-bit hashes, so all symbols can be stripped out of the final
+bytecode.
+
+### No Feature Creep
+
+The most annoying thing about other languages is that *they keep changing*.
+
+Programming languages are foundational technology.  Adding a new feature *creates a new language*.
+I really wish people would stop changing languages so much.
+
+Once sink hits 1.0, I won't be changing it, with the exception of bug fixes and security issues.  If
+I feel like creating a new language, I will do just that -- and leave sink alone.
