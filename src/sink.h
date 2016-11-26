@@ -148,6 +148,7 @@ static const sink_val SINK_ASYNC      = { .u = UINT64_C(0x7FF8000200000000) };
 static const uint64_t SINK_TAG_STR    =        UINT64_C(0x7FF8000300000000);
 static const uint64_t SINK_TAG_LIST   =        UINT64_C(0x7FF8000400000000);
 static const uint64_t SINK_TAG_MASK   =        UINT64_C(0xFFFFFFFF80000000);
+static const uint64_t SINK_NAN_MASK   =        UINT64_C(0x7FFFFFFF80000000);
 
 // script
 sink_scr    sink_scr_new(sink_inc_st inc, const char *fullfile, bool repl);
@@ -243,7 +244,7 @@ sink_val sink_num_round(sink_ctx ctx, sink_val a);
 sink_val sink_num_trunc(sink_ctx ctx, sink_val a);
 static inline sink_val sink_num_nan(){ return SINK_QNAN; }
 static inline sink_val sink_num_inf(){ return sink_num(INFINITY); }
-static inline bool     sink_num_isnan(sink_val v){ return v.u == SINK_QNAN.u; }
+static inline bool     sink_num_isnan(sink_val v){ return (v.u & SINK_NAN_MASK) == SINK_QNAN.u; }
 static inline bool     sink_num_isfinite(sink_val v){ return isfinite(v.f); }
 static inline sink_val sink_num_e(){ return sink_num(M_E); }
 static inline sink_val sink_num_pi(){ return sink_num(M_PI); }
