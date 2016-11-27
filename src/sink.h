@@ -131,24 +131,24 @@ typedef enum {
 	SINK_RUN_INVALID
 } sink_run;
 
-// Values are jammed into NaNs, like so:
+// Values are jammed into sNaNs, like so:
 //
 // NaN (64 bit):
-// 01111111 11111000 00000000 TTTTTTTT  0FFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF
+//  01111111 1111Q000 00000000 TTTTTTTT  0FFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF
 //
-// QNAN :  T = 0, F = 0
-// NIL  :  T = 1, F = 0
-// ASYNC:  T = 2, F = 0
-// STR  :  T = 3, F = table index
-// LIST :  T = 4, F = table index
+// NAN  :  Q = 1, T = 0, F = 0
+// NIL  :  Q = 0, T = 1, F = 0
+// ASYNC:  Q = 0, T = 2, F = 0
+// STR  :  Q = 0, T = 3, F = table index (31 bits)
+// LIST :  Q = 0, T = 4, F = table index (31 bits)
 
-static const sink_val SINK_QNAN       = { .u = UINT64_C(0x7FF8000000000000) };
-static const sink_val SINK_NIL        = { .u = UINT64_C(0x7FF8000100000000) };
-static const sink_val SINK_ASYNC      = { .u = UINT64_C(0x7FF8000200000000) };
-static const uint64_t SINK_TAG_STR    =        UINT64_C(0x7FF8000300000000);
-static const uint64_t SINK_TAG_LIST   =        UINT64_C(0x7FF8000400000000);
+static const sink_val SINK_NAN        = { .u = UINT64_C(0x7FF8000000000000) };
+static const sink_val SINK_NIL        = { .u = UINT64_C(0x7FF0000100000000) };
+static const sink_val SINK_ASYNC      = { .u = UINT64_C(0x7FF0000200000000) };
+static const uint64_t SINK_TAG_STR    =        UINT64_C(0x7FF0000300000000);
+static const uint64_t SINK_TAG_LIST   =        UINT64_C(0x7FF0000400000000);
 static const uint64_t SINK_TAG_MASK   =        UINT64_C(0xFFFFFFFF80000000);
-static const uint64_t SINK_NAN_MASK   =        UINT64_C(0x7FFFFFFF80000000);
+static const uint64_t SINK_NAN_MASK   =        UINT64_C(0x7FF8000000000000);
 
 // script
 sink_scr    sink_scr_new(sink_inc_st inc, const char *fullfile, bool repl);
@@ -242,9 +242,9 @@ sink_val sink_num_floor(sink_ctx ctx, sink_val a);
 sink_val sink_num_ceil(sink_ctx ctx, sink_val a);
 sink_val sink_num_round(sink_ctx ctx, sink_val a);
 sink_val sink_num_trunc(sink_ctx ctx, sink_val a);
-static inline sink_val sink_num_nan(){ return SINK_QNAN; }
+static inline sink_val sink_num_nan(){ return SINK_NAN; }
 static inline sink_val sink_num_inf(){ return sink_num(INFINITY); }
-static inline bool     sink_num_isnan(sink_val v){ return (v.u & SINK_NAN_MASK) == SINK_QNAN.u; }
+static inline bool     sink_num_isnan(sink_val v){ return (v.u & SINK_NAN_MASK) == SINK_NAN_MASK; }
 static inline bool     sink_num_isfinite(sink_val v){ return isfinite(v.f); }
 static inline sink_val sink_num_e(){ return sink_num(M_E); }
 static inline sink_val sink_num_pi(){ return sink_num(M_PI); }
