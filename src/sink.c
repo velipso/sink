@@ -8041,6 +8041,8 @@ typedef struct {
 
 	uint64_t *list_tick;
 
+	sink_list_st pinned;
+
 	int lex_index;
 	int pc;
 	int str_size;
@@ -8138,6 +8140,7 @@ static inline void context_clearref(context ctx){
 }
 
 static inline void context_mark(context ctx){
+	context_markvals(ctx, ctx->pinned.size, ctx->pinned.vals);
 	for (int i = 0; i < ctx->lex_stk->size; i++){
 		lxs here = ctx->lex_stk->ptrs[i];
 		while (here){
@@ -8174,6 +8177,34 @@ static inline void context_gc(context ctx){
 	ctx->timeout_left -= 100; // GC counts as 100 "ticks" I suppose
 }
 
+static const int sink_pin_grow = 50;
+static inline void context_gcpin(context ctx, sink_val v){
+	if (!sink_isstr(v) && !sink_islist(v))
+		return;
+	if (ctx->pinned.size >= ctx->pinned.count){
+		ctx->pinned.count += sink_pin_grow;
+		ctx->pinned.vals = mem_realloc(ctx->pinned.vals, sizeof(sink_val) * ctx->pinned.count);
+	}
+	ctx->pinned.vals[ctx->pinned.size++] = v;
+}
+
+static inline void context_gcunpin(context ctx, sink_val v){
+	if (!sink_isstr(v) && !sink_islist(v))
+		return;
+	// only remove the value once, even if it appears multiple times, so that the user can use
+	// pin/unpin as a stack-like operation
+	for (int i = 0; i < ctx->pinned.size; i++){
+		if (ctx->pinned.vals[i].u == v.u){
+			if (i < ctx->pinned.size - 1){
+				memmove(&ctx->pinned.vals[i], &ctx->pinned.vals[i + 1],
+					sizeof(sink_val) * (ctx->pinned.size - 1 - i));
+			}
+			ctx->pinned.size--;
+			return;
+		}
+	}
+}
+
 static inline void context_free(context ctx){
 	cleanup_free(ctx->cup);
 	if (ctx->user && ctx->f_freeuser)
@@ -8192,6 +8223,7 @@ static inline void context_free(context ctx){
 	mem_free(ctx->list_ref);
 	mem_free(ctx->str_ref);
 	mem_free(ctx->list_tick);
+	mem_free(ctx->pinned.vals);
 	mem_free(ctx);
 }
 
@@ -8227,6 +8259,10 @@ static inline context context_new(program prg, sink_io_st io){
 	ctx->list_ref = mem_alloc(sizeof(uint64_t) * (ctx->list_size / 64));
 
 	ctx->list_tick = mem_alloc(sizeof(uint64_t) * (ctx->list_size / 64));
+
+	ctx->pinned.size = 0;
+	ctx->pinned.count = 50;
+	ctx->pinned.vals = mem_alloc(sizeof(sink_val) * ctx->pinned.count);
 
 	ctx->lex_index = 0;
 	ctx->pc = 0;
@@ -11780,6 +11816,14 @@ bool      sink_pickle_valid(sink_ctx ctx, sink_val a);
 sink_val  sink_pickle_str(sink_ctx ctx, sink_val a);
 sink_val  sink_pickle_val(sink_ctx ctx, sink_val a);
 */
+
+void sink_gc_pin(sink_ctx ctx, sink_val v){
+	context_gcpin((context)ctx, v);
+}
+
+void sink_gc_unpin(sink_ctx ctx, sink_val v){
+	context_gcunpin((context)ctx, v);
+}
 
 sink_gc_level sink_gc_getlevel(sink_ctx ctx){
 	return ((context)ctx)->gc_level;

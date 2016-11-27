@@ -380,6 +380,8 @@ sink_val sink_pickle_str(sink_ctx ctx, sink_val a);
 sink_val sink_pickle_val(sink_ctx ctx, sink_val a);
 
 // gc
+void          sink_gc_pin(sink_ctx ctx, sink_val v);   // prevent a value from being GC'ed
+void          sink_gc_unpin(sink_ctx ctx, sink_val v); // remove a previous pin
 sink_gc_level sink_gc_getlevel(sink_ctx ctx);
 void          sink_gc_setlevel(sink_ctx ctx, sink_gc_level level);
 void          sink_gc_run(sink_ctx ctx);
