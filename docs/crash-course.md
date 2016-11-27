@@ -20,10 +20,10 @@ Examples
 # outputs 'hello, world' to stdout, automatically inserting newline
 say 'hello, world'
 
-say 1 + 2  # 3
-say 1 ~ 2  # 12 (tilde is string concat)
-say 5^2    # 25 (caret is power)
-say 25^0.5 # 5
+say 1 + 2   # 3
+say 1 ~ 2   # 12 (tilde is string concat)
+say 5^2     # 25 (caret is power)
+say 25^0.5  # 5
 
 # commands are defined via `def`
 def add a, b
@@ -32,13 +32,13 @@ def add a, b
   return a + b
 end
 
-say add 1, 2                 # 3
-say add (add 1, 2), add 4, 5 # 12
+say add 1, 2                  # 3
+say add (add 1, 2), add 4, 5  # 12
 
 # commands can be declared ahead of time
 declare factorial
 
-say factorial 10 # 3628800
+say factorial 10  # 3628800
 
 def factorial a
   if a <= 1
@@ -81,13 +81,13 @@ define the end of statements.  At any point a backslash `\` can be used to ignor
 semicolon `;` can be used to separate statements on a single line.
 
 ```
-1      # single statement, 1
-+ 2    # single statement, + 2
+1       # single statement, 1
++ 2     # single statement, + 2
 
-1 \    # awaiting end of statement...
-+ 2    # statement processed is 1 + 2
+1 \     # awaiting end of statement...
++ 2     # statement processed is 1 + 2
 
-1; + 2 # two statements
+1; + 2  # two statements
 ```
 
 Note that `+` and `-` have special sensitivity to whitespace in order to determine whether you mean
@@ -256,7 +256,7 @@ The unary `&` operator returns the string length:
 
 ```
 var x = 'hello'
-say &x # 5
+say &x  # 5
 ```
 
 Concatenation is via `~` (not `+`):
@@ -274,14 +274,14 @@ Strings support slicing, in the format of `s[start:length]`:
 
 ```
 var x = 'hello world'
-say x[3:5] # lo wo
+say x[3:5]  # lo wo
 ```
 
 Slicing can also be used for assignment:
 
 ```
 x[2:2] = 'LL'
-say x # heLLo world
+say x  # heLLo world
 ```
 
 Lists
@@ -295,18 +295,18 @@ Most operations on numbers also work on lists, by performing the operation acros
 (defaulting values to `0` if outside the range):
 
 ```
-say {1, 2, 3} * 2         # {2, 4, 6}
-say {1, 2, 3} + {4, 5, 6} # {5, 7, 9}
-say {1} + {2, 5}          # {3, 5}
-say {1} * {2, 5}          # {2, 0}
-say num.abs {-1, -2}      # {1, 2}
+say {1, 2, 3} * 2          # {2, 4, 6}
+say {1, 2, 3} + {4, 5, 6}  # {5, 7, 9}
+say {1} + {2, 5}           # {3, 5}
+say {1} * {2, 5}           # {2, 0}
+say num.abs {-1, -2}       # {1, 2}
 ```
 
 The unary `&` operator returns the list size:
 
 ```
 var x = {1, 2, 3, 4}
-say &x # 4
+say &x  # 4
 ```
 
 Lists are modified using the commands:
@@ -337,7 +337,7 @@ Lists support slicing, which creates a copy, in the format of `ls[start:length]`
 
 ```
 var x = {1, 2, 3, 4}
-say x[1:2] # {2, 3}
+say x[1:2]  # {2, 3}
 ```
 
 Slicing can also be used for assignment:
@@ -365,11 +365,11 @@ var x, y
 
 x = 'hello'
 y = 'hello'
-x == y # true (1)
+x == y  # true (1)
 
 x = {}
 y = {}
-x == y # false (nil)
+x == y  # false (nil)
 ```
 
 List identity means that lists passed to commands can be mutated.
@@ -381,7 +381,7 @@ end
 
 var y = {3}
 test y
-say y # {5}
+say y  # {5}
 ```
 
 List identity is important for binding host objects to sink scripts.  The host environment can
@@ -425,7 +425,7 @@ def test
 end
 
 test
-say x, y # 10 2
+say x, y  # 10 2
 ```
 
 Commands have their own scope, with a set of variables created at time of execution:
@@ -457,26 +457,26 @@ assignment and can help with commands returning multiple values:
 
 ```
 var {x, y} = {1, 2}
-say x, y # 1 2
+say x, y  # 1 2
 
 {x, y} = {y, x}
-say x, y # 2 1
+say x, y  # 2 1
 
 def test
   return {1, {3, 4}}
 end
 
 var {a, {b, c, d}, e} = test
-say a, b, c, d, e # 1 3 4 nil nil
+say a, b, c, d, e  # 1 3 4 nil nil
 ```
 
 Destructuring assignment also allows for variable length assignment using `...`:
 
 ```
 var {first, second, ...rest} = {1, 2, 3, 4, 5}
-say first  # 1
-say second # 2
-say rest   # {3, 4, 5}
+say first   # 1
+say second  # 2
+say rest    # {3, 4, 5}
 ```
 
 If-Elseif
@@ -505,26 +505,26 @@ The do-while loop can express three kinds of looping:
 # normal while loop:
 do while <condition>
   stuff
-  continue # jump to do
-  break    # jump out of loop
+  continue  # jump to do
+  break     # jump out of loop
 end
 
 # normal do loop:
 do
   stuff
-  continue # jump to condition
-  break    # jump out of loop
+  continue  # jump to condition
+  break     # jump out of loop
 while <condition> end
 
 # combined do-while loop:
 do
   stuff
-  continue # jump to condition
-  break    # jump out of loop
+  continue  # jump to condition
+  break     # jump out of loop
 while <condition>
   stuff
-  continue # jump to do
-  break    # jump out of loop
+  continue  # jump to do
+  break     # jump out of loop
 end
 ```
 
@@ -653,19 +653,19 @@ def test a = 1, b = 2
   say a, b
 end
 
-test        # 1 2
-test nil, 5 # 1 5
-test 7      # 7 2
+test         # 1 2
+test nil, 5  # 1 5
+test 7       # 7 2
 
 var x = 10
 def test2 y = x
   say y
 end
 
-test2    # 10
-test2 13 # 13
+test2     # 10
+test2 13  # 13
 x = 20
-test2    # 20
+test2     # 20
 ```
 
 ### Dynamic Arguments
@@ -746,7 +746,7 @@ and return the object so it can be used for chaining.
 var ls = {1, 2} | list.push 3 | list.unshift 0 | list.rev
 # same as:
 # var ls = list.rev (list.unshift (list.push ({1, 2}), 3), 0)
-say ls # {3, 2, 1, 0}
+say ls  # {3, 2, 1, 0}
 ```
 
 Namespaces
@@ -761,7 +761,7 @@ namespace foo
   end
 end
 
-foo.test # inside test
+foo.test  # inside test
 ```
 
 Namespaces can be created and added to as needed without the `namespace` keyword:
@@ -785,7 +785,7 @@ The `using` keyword can be used to expand the search for identifiers across mult
 
 ```
 using num
-say round 1.3 # 1
+say round 1.3  # 1
 ```
 
 However, the local namespace has priority over anything inside `using`:
@@ -795,5 +795,5 @@ using num
 def round a
   return a + 10
 end
-say round 1.3 # 11.3
+say round 1.3  # 11.3
 ```
