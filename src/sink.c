@@ -345,6 +345,25 @@ static inline void list_byte_push10(list_byte b, int v1, int v2, int v3, int v4,
 	b->bytes[b->size++] = (uint8_t)v10;
 }
 
+static inline void list_byte_push11(list_byte b, int v1, int v2, int v3, int v4, int v5, int v6,
+	int v7, int v8, int v9, int v10, int v11){
+	if (b->size + 11 > b->count){
+		b->count += list_byte_grow;
+		b->bytes = mem_realloc(b->bytes, sizeof(uint8_t) * b->count);
+	}
+	b->bytes[b->size++] = (uint8_t)v1;
+	b->bytes[b->size++] = (uint8_t)v2;
+	b->bytes[b->size++] = (uint8_t)v3;
+	b->bytes[b->size++] = (uint8_t)v4;
+	b->bytes[b->size++] = (uint8_t)v5;
+	b->bytes[b->size++] = (uint8_t)v6;
+	b->bytes[b->size++] = (uint8_t)v7;
+	b->bytes[b->size++] = (uint8_t)v8;
+	b->bytes[b->size++] = (uint8_t)v9;
+	b->bytes[b->size++] = (uint8_t)v10;
+	b->bytes[b->size++] = (uint8_t)v11;
+}
+
 static inline bool byteequ(list_byte b, const char *str){
 	int i;
 	for (i = 0; str[i] != 0; i++){
@@ -503,35 +522,6 @@ static void list_ptr_free(list_ptr ls){
 	mem_free(ls);
 }
 
-typedef struct {
-	double *vals;
-	int size;
-	int count;
-} list_double_st, *list_double;
-
-static const int list_double_grow = 200;
-
-static inline void list_double_free(list_double ls){
-	mem_free(ls->vals);
-	mem_free(ls);
-}
-
-static inline list_double list_double_new(){
-	list_double ls = mem_alloc(sizeof(list_double_st));
-	ls->size = 0;
-	ls->count = list_double_grow;
-	ls->vals = mem_alloc(sizeof(double) * ls->count);
-	return ls;
-}
-
-static inline void list_double_push(list_double ls, double v){
-	if (ls->size >= ls->count){
-		ls->count += list_double_grow;
-		ls->vals = mem_realloc(ls->vals, sizeof(double) * ls->count);
-	}
-	ls->vals[ls->size++] = v;
-}
-
 // cleanup helper
 typedef struct {
 	list_ptr cuser;
@@ -604,7 +594,7 @@ typedef enum {
 	OP_NUMN16        = 0x08, // [TGT], [VALUE]
 	OP_NUMP32        = 0x09, // [TGT], [[VALUE]]
 	OP_NUMN32        = 0x0A, // [TGT], [[VALUE]]
-	OP_NUMTBL        = 0x0B, // [TGT], [INDEX]
+	OP_NUMDBL        = 0x0B, // [TGT], [[[[VALUE]]]]
 	OP_STR           = 0x0C, // [TGT], [INDEX]
 	OP_LIST          = 0x0D, // [TGT], HINT
 	OP_ISNUM         = 0x0E, // [TGT], [SRC]
@@ -772,8 +762,8 @@ static inline void op_nil(list_byte b, varloc_st tgt){
 	list_byte_push3(b, OP_NIL, tgt.fdiff, tgt.index);
 }
 
-static inline void op_num(list_byte b, varloc_st tgt, int64_t num){
-	oplogf("NUM %d:%d, %lld", tgt.fdiff, tgt.index, num);
+static inline void op_numint(list_byte b, varloc_st tgt, int64_t num){
+	oplogf("NUMINT %d:%d, %lld", tgt.fdiff, tgt.index, num);
 	if (num < 0){
 		if (num >= -256){
 			num += 256;
@@ -801,9 +791,12 @@ static inline void op_num(list_byte b, varloc_st tgt, int64_t num){
 	}
 }
 
-static inline void op_numtbl(list_byte b, varloc_st tgt, int index){
-	oplogf("NUMTBL %d:%d, %d", tgt.fdiff, tgt.index, index);
-	list_byte_push5(b, OP_NUMTBL, tgt.fdiff, tgt.index, index % 256, index >> 8);
+static inline void op_numdbl(list_byte b, varloc_st tgt, sink_val num){
+	// TODO: this code assumes a little endian architecture
+	oplogf("NUMDBL %d:%d, %g", tgt.fdiff, tgt.index, num.f);
+	list_byte_push11(b, OP_NUMDBL, tgt.fdiff, tgt.index,
+		num.u & 0xFF, (num.u >> 8) & 0xFF, (num.u >> 16) & 0xFF, (num.u >> 24) & 0xFF,
+		(num.u >> 32) & 0xFF, (num.u >> 40) & 0xFF, (num.u >> 48) & 0xFF, (num.u >> 56) & 0xFF);
 }
 
 static inline void op_str(list_byte b, varloc_st tgt, int index){
@@ -5456,7 +5449,6 @@ static inline void symtbl_loadStdlib(symtbl sym){
 
 typedef struct {
 	list_ptr strTable;
-	list_double numTable;
 	list_u64 keyTable;
 	list_byte ops;
 	bool repl;
@@ -5464,7 +5456,6 @@ typedef struct {
 
 static inline void program_free(program prg){
 	list_ptr_free(prg->strTable);
-	list_double_free(prg->numTable);
 	list_u64_free(prg->keyTable);
 	list_byte_free(prg->ops);
 	mem_free(prg);
@@ -5473,7 +5464,6 @@ static inline void program_free(program prg){
 static inline program program_new(bool repl){
 	program prg = mem_alloc(sizeof(program_st));
 	prg->strTable = list_ptr_new((free_func)list_byte_free);
-	prg->numTable = list_double_new();
 	prg->keyTable = list_u64_new();
 	prg->ops = list_byte_new();
 	prg->repl = repl;
@@ -5901,7 +5891,7 @@ static per_st program_evalLval(program prg, symtbl sym, pem_enum mode, varloc_st
 				if (ts.type == STA_ERROR)
 					return per_error(lv->flp, ts.u.msg);
 				varloc_st t = ts.u.vlc;
-				op_num(prg->ops, t, 0);
+				op_numint(prg->ops, t, 0);
 				op_slice(prg->ops, t, lv->vlc, t, lv->u.slice.len);
 				op_splice(prg->ops, lv->u.slice.obj, lv->u.slice.start, lv->u.slice.len, t);
 				symtbl_clearTemp(sym, t);
@@ -5932,7 +5922,7 @@ static per_st program_evalLval(program prg, symtbl sym, pem_enum mode, varloc_st
 				if (ts.type == STA_ERROR)
 					return per_error(lv->flp, ts.u.msg);
 				varloc_st t = ts.u.vlc;
-				op_num(prg->ops, t, 0);
+				op_numint(prg->ops, t, 0);
 				op_slice(prg->ops, t, lv->vlc, t, lv->u.sliceindex.len);
 				op_splice(prg->ops, lv->u.sliceindex.indexvlc, lv->u.sliceindex.start,
 					lv->u.sliceindex.len, t);
@@ -5951,7 +5941,7 @@ static per_st program_evalLval(program prg, symtbl sym, pem_enum mode, varloc_st
 			varloc_st t = ts.u.vlc;
 
 			for (int i = 0; i < lv->u.list.body->size; i++){
-				op_num(prg->ops, t, i);
+				op_numint(prg->ops, t, i);
 				op_getat(prg->ops, t, valueVlc, t);
 				per_st pe = program_evalLval(prg, sym, PEM_EMPTY, VARLOC_NULL,
 					lv->u.list.body->ptrs[i], mutop, t, false);
@@ -5965,7 +5955,7 @@ static per_st program_evalLval(program prg, symtbl sym, pem_enum mode, varloc_st
 					return per_error(lv->flp, ts.u.msg);
 				varloc_st t2 = ts.u.vlc;
 
-				op_num(prg->ops, t, lv->u.list.body->size);
+				op_numint(prg->ops, t, lv->u.list.body->size);
 				op_nil(prg->ops, t2);
 				op_slice(prg->ops, t, valueVlc, t, t2);
 				symtbl_clearTemp(sym, t2);
@@ -6006,7 +5996,7 @@ static psr_st program_slice(program prg, symtbl sym, expr ex){
 		if (ts.type == STA_ERROR)
 			return psr_error(ex->flp, ts.u.msg);
 		start = ts.u.vlc;
-		op_num(prg->ops, start, 0);
+		op_numint(prg->ops, start, 0);
 	}
 	else{
 		per_st pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, ex->u.slice.start);
@@ -6253,7 +6243,7 @@ static per_st program_evalCall(program prg, symtbl sym, pem_enum mode, varloc_st
 				if (ts.type == STA_ERROR)
 					return per_error(flp, ts.u.msg);
 				p1 = ts.u.vlc;
-				op_num(prg->ops, p1, 0);
+				op_numint(prg->ops, p1, 0);
 				op_getat(prg->ops, p1, args, p1);
 
 				if (nsn->u.cmdOpcode.params >= 2){
@@ -6261,7 +6251,7 @@ static per_st program_evalCall(program prg, symtbl sym, pem_enum mode, varloc_st
 					if (ts.type == STA_ERROR)
 						return per_error(flp, ts.u.msg);
 					p2 = ts.u.vlc;
-					op_num(prg->ops, p2, 1);
+					op_numint(prg->ops, p2, 1);
 					op_getat(prg->ops, p2, args, p2);
 
 					if (nsn->u.cmdOpcode.params >= 3){
@@ -6269,7 +6259,7 @@ static per_st program_evalCall(program prg, symtbl sym, pem_enum mode, varloc_st
 						if (ts.type == STA_ERROR)
 							return per_error(flp, ts.u.msg);
 						p3 = ts.u.vlc;
-						op_num(prg->ops, p3, 2);
+						op_numint(prg->ops, p3, 2);
 						op_getat(prg->ops, p3, args, p3);
 					}
 				}
@@ -6422,7 +6412,7 @@ static per_st program_lvalCheckNil(program prg, symtbl sym, lvr lv, bool jumpFal
 				return per_error(lv->flp, ts.u.msg);
 			varloc_st t = ts.u.vlc;
 
-			op_num(prg->ops, idx, 0);
+			op_numint(prg->ops, idx, 0);
 
 			label next = label_newStr("^condslicenext");
 
@@ -6532,7 +6522,7 @@ static per_st program_lvalCondAssignPart(program prg, symtbl sym, lvr lv, bool j
 				return per_error(lv->flp, ts.u.msg);
 			varloc_st t2 = ts.u.vlc;
 
-			op_num(prg->ops, idx, 0);
+			op_numint(prg->ops, idx, 0);
 
 			label next = label_newStr("^condpartslicenext");
 
@@ -6579,7 +6569,7 @@ static per_st program_lvalCondAssignPart(program prg, symtbl sym, lvr lv, bool j
 				return per_error(lv->flp, ts.u.msg);
 			varloc_st t = ts.u.vlc;
 			for (int i = 0; i < lv->u.list.body->size; i++){
-				op_num(prg->ops, t, i);
+				op_numint(prg->ops, t, i);
 				op_getat(prg->ops, t, valueVlc, t);
 				per_st pe = program_lvalCondAssignPart(prg, sym, lv->u.list.body->ptrs[i],
 					jumpFalse, t);
@@ -6591,7 +6581,7 @@ static per_st program_lvalCondAssignPart(program prg, symtbl sym, lvr lv, bool j
 				if (ts.type == STA_ERROR)
 					return per_error(lv->flp, ts.u.msg);
 				varloc_st t2 = ts.u.vlc;
-				op_num(prg->ops, t, lv->u.list.body->size);
+				op_numint(prg->ops, t, lv->u.list.body->size);
 				op_nil(prg->ops, t2);
 				op_slice(prg->ops, t, valueVlc, t, t2);
 				symtbl_clearTemp(sym, t2);
@@ -6651,22 +6641,10 @@ static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st int
 			}
 			if (floor(ex->u.num) == ex->u.num &&
 				ex->u.num >= -4294967296.0 && ex->u.num < 4294967296.0){
-				op_num(prg->ops, intoVlc, (int64_t)ex->u.num);
+				op_numint(prg->ops, intoVlc, (int64_t)ex->u.num);
 				return per_ok(intoVlc);
 			}
-			bool found = false;
-			int index;
-			for (index = 0; index < prg->numTable->size; index++){
-				found = prg->numTable->vals[index] == ex->u.num;
-				if (found)
-					break;
-			}
-			if (!found){
-				if (index >= 65536)
-					return per_error(ex->flp, sink_format("Too many number constants"));
-				list_double_push(prg->numTable, ex->u.num);
-			}
-			op_numtbl(prg->ops, intoVlc, index);
+			op_numdbl(prg->ops, intoVlc, (sink_val){ .f = ex->u.num });
 			return per_ok(intoVlc);
 		} break;
 
@@ -7264,7 +7242,7 @@ static pgr_st program_genForRange(program prg, symtbl sym, ast stmt, varloc_st p
 		if (ts.type == STA_ERROR)
 			return pgr_error(stmt->flp, ts.u.msg);
 		p1 = ts.u.vlc;
-		op_num(prg->ops, p1, 0);
+		op_numint(prg->ops, p1, 0);
 	}
 
 	symtbl_pushScope(sym);
@@ -7275,7 +7253,7 @@ static pgr_st program_genForRange(program prg, symtbl sym, ast stmt, varloc_st p
 	varloc_st idx_vlc = pgi.u.forvars.idx_vlc;
 
 	// clear the index
-	op_num(prg->ops, idx_vlc, 0);
+	op_numint(prg->ops, idx_vlc, 0);
 
 	// calculate count
 	if (!zerostart)
@@ -7335,7 +7313,7 @@ static pgr_st program_genForGeneric(program prg, symtbl sym, ast stmt){
 	varloc_st idx_vlc = pgi.u.forvars.idx_vlc;
 
 	// clear the index
-	op_num(prg->ops, idx_vlc, 0);
+	op_numint(prg->ops, idx_vlc, 0);
 
 	label top    = label_newStr("^forG_top");
 	label inc    = label_newStr("^forG_inc");
@@ -7491,7 +7469,7 @@ static inline pgr_st program_gen(program prg, symtbl sym, ast stmt, void *state,
 						}
 
 						// and grab the appropriate value from the args
-						op_num(prg->ops, t, i);
+						op_numint(prg->ops, t, i);
 						op_getat(prg->ops, t, args, t); // 0:0 are passed in arguments
 
 						label finish = NULL;
@@ -7547,7 +7525,7 @@ static inline pgr_st program_gen(program prg, symtbl sym, ast stmt, void *state,
 							return pgr_error(stmt->flp, ts.u.msg);
 						}
 						varloc_st t2 = ts.u.vlc;
-						op_num(prg->ops, t, i);
+						op_numint(prg->ops, t, i);
 						op_nil(prg->ops, t2);
 						op_slice(prg->ops, lr.u.lv->vlc, args, t, t2);
 						lvr_free(lr.u.lv);
@@ -9434,7 +9412,7 @@ static sink_run context_run(context ctx){
 	if (ctx->async)
 		return crr_async(ctx);
 
-	int A, B, C, D, E, F, G, H, I;
+	int A, B, C, D, E, F, G, H, I, J;
 	sink_val X, Y, Z, W;
 	sink_list ls, ls2;
 	sink_str str, str2;
@@ -9503,6 +9481,15 @@ static sink_run context_run(context ctx){
 		LOAD_abcdefgh();                                                                   \
 		I = ops->bytes[ctx->pc++];                                                         \
 		if (A > ctx->lex_index || C > ctx->lex_index || E > ctx->lex_index)                \
+			return crr_invalid(ctx);
+
+	#define LOAD_abcdefghij()                                                              \
+		LOAD_abcdefgh();                                                                   \
+		I = ops->bytes[ctx->pc++]; J = ops->bytes[ctx->pc++];
+
+	#define LOAD_ABcdefghij()                                                              \
+		LOAD_abcdefghij();                                                                 \
+		if (A > ctx->lex_index)                                                            \
 			return crr_invalid(ctx);
 
 	#define INLINE_UNOP(func, erop)                                                        \
@@ -9605,12 +9592,20 @@ static sink_run context_run(context ctx){
 				));
 			} break;
 
-			case OP_NUMTBL         : { // [TGT], [INDEX]
-				LOAD_ABcd();
-				C = C | (D << 8);
-				if (C >= ctx->prg->numTable->size)
-					return crr_invalid(ctx);
-				var_set(ctx, A, B, sink_num(ctx->prg->numTable->vals[C]));
+			case OP_NUMDBL         : { // [TGT], [[[[VALUE]]]]
+				// TODO: this code assumes a little endian architecture
+				LOAD_ABcdefghij();
+				X.u = ((uint64_t)C) |
+					(((uint64_t)D) << 8) |
+					(((uint64_t)E) << 16) |
+					(((uint64_t)F) << 24) |
+					(((uint64_t)G) << 32) |
+					(((uint64_t)H) << 40) |
+					(((uint64_t)I) << 48) |
+					(((uint64_t)J) << 56);
+				if (isnan(X.f)) // make sure no screwy NaN's come in
+					X = sink_num_nan();
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_STR            : { // [TGT], [INDEX]
@@ -10615,6 +10610,8 @@ static sink_run context_run(context ctx){
 	#undef LOAD_abcdefgh
 	#undef LOAD_ABCDEFGH
 	#undef LOAD_ABCDefghi
+	#undef LOAD_abcdefghij
+	#undef LOAD_ABcdefghij
 	#undef INLINE_UNOP
 	#undef INLINE_BINOP
 	#undef INLINE_TRIOP

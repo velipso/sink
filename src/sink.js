@@ -32,7 +32,7 @@ var OP_NUMP16        = 0x07; // [TGT], [VALUE]
 var OP_NUMN16        = 0x08; // [TGT], [VALUE]
 var OP_NUMP32        = 0x09; // [TGT], [[VALUE]]
 var OP_NUMN32        = 0x0A; // [TGT], [[VALUE]]
-var OP_NUMTBL        = 0x0B; // [TGT], [INDEX]
+var OP_NUMDBL        = 0x0B; // [TGT], [[[[VALUE]]]]
 var OP_STR           = 0x0C; // [TGT], [INDEX]
 var OP_LIST          = 0x0D; // [TGT], HINT
 var OP_ISNUM         = 0x0E; // [TGT], [SRC]
@@ -203,8 +203,8 @@ function op_nil(b, tgt){
 	b.push(OP_NIL, tgt.fdiff, tgt.index);
 }
 
-function op_num(b, tgt, num){
-	oplog('NUM', tgt, num);
+function op_numint(b, tgt, num){
+	oplog('NUMINT', tgt, num);
 	if (num < 0){
 		if (num >= -256){
 			num += 256;
@@ -232,9 +232,14 @@ function op_num(b, tgt, num){
 	}
 }
 
-function op_numtbl(b, tgt, index){
-	oplog('NUMTBL', tgt, index);
-	b.push(OP_NUMTBL, tgt.fdiff, tgt.index, index % 256, Math.floor(index / 256));
+var ond_a = new ArrayBuffer(8);
+var ond_dv = new DataView(ond_a);
+function op_numdbl(b, tgt, num){
+	oplog('NUMDBL', tgt, num);
+	ond_dv.setFloat64(0, num, true);
+	b.push(OP_NUMDBL, tgt.fdiff, tgt.index,
+		ond_dv.getUint8(0), ond_dv.getUint8(1), ond_dv.getUint8(2), ond_dv.getUint8(3),
+		ond_dv.getUint8(4), ond_dv.getUint8(5), ond_dv.getUint8(6), ond_dv.getUint8(7));
 }
 
 function op_str(b, tgt, index){
@@ -3380,7 +3385,6 @@ function program_new(repl){
 	return {
 		repl: repl,
 		strTable: [],
-		numTable: [],
 		keyTable: [],
 		ops: []
 	};
@@ -3672,7 +3676,7 @@ function program_evalLval(prg, sym, mode, intoVlc, lv, mutop, valueVlc, clearTem
 				if (ts.type == STA_ERROR)
 					return per_error(lv.flp, ts.msg);
 				var t = ts.vlc;
-				op_num(prg.ops, t, 0);
+				op_numint(prg.ops, t, 0);
 				op_slice(prg.ops, t, lv.vlc, t, lv.len);
 				op_splice(prg.ops, lv.obj, lv.start, lv.len, t);
 				symtbl_clearTemp(sym, t);
@@ -3701,7 +3705,7 @@ function program_evalLval(prg, sym, mode, intoVlc, lv, mutop, valueVlc, clearTem
 				if (ts.type == STA_ERROR)
 					return per_error(lv.flp, ts.msg);
 				var t = ts.vlc;
-				op_num(prg.ops, t, 0);
+				op_numint(prg.ops, t, 0);
 				op_slice(prg.ops, t, lv.vlc, t, lv.len);
 				op_splice(prg.ops, lv.indexvlc, lv.start, lv.len, t);
 				symtbl_clearTemp(sym, t);
@@ -3719,7 +3723,7 @@ function program_evalLval(prg, sym, mode, intoVlc, lv, mutop, valueVlc, clearTem
 			var t = ts.vlc;
 
 			for (var i = 0; i < lv.body.length; i++){
-				op_num(prg.ops, t, i);
+				op_numint(prg.ops, t, i);
 				op_getat(prg.ops, t, valueVlc, t);
 				var pe = program_evalLval(prg, sym, PEM_EMPTY, null, lv.body[i], mutop, t, false);
 				if (pe.type == PER_ERROR)
@@ -3732,7 +3736,7 @@ function program_evalLval(prg, sym, mode, intoVlc, lv, mutop, valueVlc, clearTem
 					return per_error(lv.flp, ts.msg);
 				var t2 = ts.vlc;
 
-				op_num(prg.ops, t, lv.body.length);
+				op_numint(prg.ops, t, lv.body.length);
 				op_nil(prg.ops, t2);
 				op_slice(prg.ops, t, valueVlc, t, t2);
 				symtbl_clearTemp(sym, t2);
@@ -3772,7 +3776,7 @@ function program_slice(prg, sym, ex){
 		if (ts.type == STA_ERROR)
 			return psr_error(ex.flp, ts.msg);
 		start = ts.vlc;
-		op_num(prg.ops, start, 0);
+		op_numint(prg.ops, start, 0);
 	}
 	else{
 		var pe = program_eval(prg, sym, PEM_CREATE, null, ex.start);
@@ -3997,7 +4001,7 @@ function program_evalCall(prg, sym, mode, intoVlc, flp, nsn, paramsAt, params){
 				if (ts.type == STA_ERROR)
 					return per_error(flp, ts.msg);
 				p1 = ts.vlc;
-				op_num(prg.ops, p1, 0);
+				op_numint(prg.ops, p1, 0);
 				op_getat(prg.ops, p1, args, p1);
 
 				if (nsn.params >= 2){
@@ -4005,7 +4009,7 @@ function program_evalCall(prg, sym, mode, intoVlc, flp, nsn, paramsAt, params){
 					if (ts.type == STA_ERROR)
 						return per_error(flp, ts.msg);
 					p2 = ts.vlc;
-					op_num(prg.ops, p2, 1);
+					op_numint(prg.ops, p2, 1);
 					op_getat(prg.ops, p2, args, p2);
 
 					if (nsn.params >= 3){
@@ -4013,7 +4017,7 @@ function program_evalCall(prg, sym, mode, intoVlc, flp, nsn, paramsAt, params){
 						if (ts.type == STA_ERROR)
 							return per_error(flp, ts.msg);
 						p3 = ts.vlc;
-						op_num(prg.ops, p3, 2);
+						op_numint(prg.ops, p3, 2);
 						op_getat(prg.ops, p3, args, p3);
 					}
 				}
@@ -4151,7 +4155,7 @@ function program_lvalCheckNil(prg, sym, lv, jumpFalse, inverted, skip){
 				return per_error(lv.flp, ts.msg);
 			var t = ts.vlc;
 
-			op_num(prg.ops, idx, 0);
+			op_numint(prg.ops, idx, 0);
 
 			var next = label_new('^condslicenext');
 
@@ -4243,7 +4247,7 @@ function program_lvalCondAssignPart(prg, sym, lv, jumpFalse, valueVlc){
 				return per_error(lv.flp, ts.msg);
 			var t2 = ts.vlc;
 
-			op_num(prg.ops, idx, 0);
+			op_numint(prg.ops, idx, 0);
 
 			var next = label_new('^condpartslicenext');
 
@@ -4287,7 +4291,7 @@ function program_lvalCondAssignPart(prg, sym, lv, jumpFalse, valueVlc){
 				return per_error(lv.flp, ts.msg);
 			var t = ts.vlc;
 			for (var i = 0; i < lv.body.length; i++){
-				op_num(prg.ops, t, i);
+				op_numint(prg.ops, t, i);
 				op_getat(prg.ops, t, valueVlc, t);
 				var pe = program_lvalCondAssignPart(prg, sym, lv.body[i], jumpFalse, t);
 				if (pe.type == PER_ERROR)
@@ -4298,7 +4302,7 @@ function program_lvalCondAssignPart(prg, sym, lv, jumpFalse, valueVlc){
 				if (ts.type == STA_ERROR)
 					return per_error(lv.flp, ts.msg);
 				var t2 = ts.vlc;
-				op_num(prg.ops, t, lv.body.length);
+				op_numint(prg.ops, t, lv.body.length);
 				op_nil(prg.ops, t2);
 				op_slice(prg.ops, t, valueVlc, t, t2);
 				symtbl_clearTemp(sym, t2);
@@ -4356,22 +4360,10 @@ function program_eval(prg, sym, mode, intoVlc, ex){
 			}
 			if (Math.floor(ex.num) == ex.num &&
 				ex.num >= -2147483648 && ex.num < 2147483648){
-				op_num(prg.ops, intoVlc, ex.num);
+				op_numint(prg.ops, intoVlc, ex.num);
 				return per_ok(intoVlc);
 			}
-			var found = false;
-			var index;
-			for (index = 0; index < prg.numTable.length; index++){
-				found = prg.numTable[index] == ex.num;
-				if (found)
-					break;
-			}
-			if (!found){
-				if (index >= 65536)
-					return per_error(ex.flp, 'Too many number constants');
-				prg.numTable.push(ex.num);
-			}
-			op_numtbl(prg.ops, intoVlc, index);
+			op_numdbl(prg.ops, intoVlc, ex.num);
 			return per_ok(intoVlc);
 		} break;
 
@@ -4818,7 +4810,7 @@ function program_genForRange(prg, sym, stmt, p1, p2, p3){
 		if (ts.type == STA_ERROR)
 			return pgr_error(stmt.flp, ts.msg);
 		p1 = ts.vlc;
-		op_num(prg.ops, p1, 0);
+		op_numint(prg.ops, p1, 0);
 	}
 
 	symtbl_pushScope(sym);
@@ -4829,7 +4821,7 @@ function program_genForRange(prg, sym, stmt, p1, p2, p3){
 	var idx_vlc = pgi.idx_vlc;
 
 	// clear the index
-	op_num(prg.ops, idx_vlc, 0);
+	op_numint(prg.ops, idx_vlc, 0);
 
 	// calculate count
 	if (!zerostart)
@@ -4884,7 +4876,7 @@ function program_genForGeneric(prg, sym, stmt){
 	var idx_vlc = pgi.idx_vlc;
 
 	// clear the index
-	op_num(prg.ops, idx_vlc, 0);
+	op_numint(prg.ops, idx_vlc, 0);
 
 	var top    = label_new('^forG_top');
 	var inc    = label_new('^forG_inc');
@@ -5010,7 +5002,7 @@ function program_gen(prg, sym, stmt, pst, sayexpr){
 							return pgr_error(lr.flp, lr.msg);
 
 						// and grab the appropriate value from the args
-						op_num(prg.ops, t, i);
+						op_numint(prg.ops, t, i);
 						op_getat(prg.ops, t, args, t); // 0:0 are passed in arguments
 
 						var finish = null;
@@ -5045,7 +5037,7 @@ function program_gen(prg, sym, stmt, pst, sayexpr){
 						if (ts.type == STA_ERROR)
 							return pgr_error(stmt.flp, ts.msg);
 						var t2 = ts.vlc;
-						op_num(prg.ops, t, i);
+						op_numint(prg.ops, t, i);
 						op_nil(prg.ops, t2);
 						op_slice(prg.ops, lr.lv.vlc, args, t, t2);
 						symtbl_clearTemp(sym, t2);
@@ -6078,7 +6070,7 @@ function context_run(ctx){
 	if (ctx.invalid)
 		return crr_invalid(ctx);
 
-	var A, B, C, D, E, F, G, H, I; // ints
+	var A, B, C, D, E, F, G, H, I, J; // ints
 	var X, Y, Z, W; // values
 
 	var ops = ctx.prg.ops;
@@ -6122,6 +6114,15 @@ function context_run(ctx){
 		E = ops[ctx.pc++]; F = ops[ctx.pc++];
 		G = ops[ctx.pc++]; H = ops[ctx.pc++];
 		I = ops[ctx.pc++];
+	}
+
+	function LOAD_abcdefghij(){
+		ctx.pc++;
+		A = ops[ctx.pc++]; B = ops[ctx.pc++];
+		C = ops[ctx.pc++]; D = ops[ctx.pc++];
+		E = ops[ctx.pc++]; F = ops[ctx.pc++];
+		G = ops[ctx.pc++]; H = ops[ctx.pc++];
+		I = ops[ctx.pc++]; J = ops[ctx.pc++];
 	}
 
 	function INLINE_UNOP(func, erop){
@@ -6266,14 +6267,19 @@ function context_run(ctx){
 				var_set(ctx, A, B, C - 4294967296);
 			} break;
 
-			case OP_NUMTBL         : { // [TGT], [INDEX]
-				LOAD_abcd();
+			case OP_NUMDBL         : { // [TGT], [[[[INDEX]]]]
+				LOAD_abcdefghij();
 				if (A > ctx.lex_index)
 					return crr_invalid(ctx);
-				C = C | (D << 8);
-				if (C >= ctx.prg.numTable.length)
-					return crr_invalid(ctx);
-				var_set(ctx, A, B, ctx.prg.numTable[C]);
+				ond_dv.setUint8(0, C);
+				ond_dv.setUint8(1, D);
+				ond_dv.setUint8(2, E);
+				ond_dv.setUint8(3, F);
+				ond_dv.setUint8(4, G);
+				ond_dv.setUint8(5, H);
+				ond_dv.setUint8(6, I);
+				ond_dv.setUint8(7, J);
+				var_set(ctx, A, B, ond_dv.getFloat64(0, true));
 			} break;
 
 			case OP_STR            : { // [TGT], [INDEX]
