@@ -792,7 +792,6 @@ static inline void op_numint(list_byte b, varloc_st tgt, int64_t num){
 }
 
 static inline void op_numdbl(list_byte b, varloc_st tgt, sink_val num){
-	// TODO: this code assumes a little endian architecture
 	oplogf("NUMDBL %d:%d, %g", tgt.fdiff, tgt.index, num.f);
 	list_byte_push11(b, OP_NUMDBL, tgt.fdiff, tgt.index,
 		num.u & 0xFF, (num.u >> 8) & 0xFF, (num.u >> 16) & 0xFF, (num.u >> 24) & 0xFF,
@@ -9593,7 +9592,6 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_NUMDBL         : { // [TGT], [[[[VALUE]]]]
-				// TODO: this code assumes a little endian architecture
 				LOAD_ABcdefghij();
 				X.u = ((uint64_t)C) |
 					(((uint64_t)D) << 8) |
