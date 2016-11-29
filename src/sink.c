@@ -800,7 +800,7 @@ static inline void op_numdbl(list_byte b, varloc_st tgt, sink_val num){
 
 static inline void op_str(list_byte b, varloc_st tgt, int index){
 	oplogf("STR %d:%d, %d", tgt.fdiff, tgt.index, index);
-	list_byte_push5(b, OP_STR, tgt.fdiff, tgt.index, index % 256, index >> 8);
+	list_byte_push5(b, OP_STR, tgt.fdiff, tgt.index, index & 0xFF, index >> 8);
 }
 
 static inline void op_list(list_byte b, varloc_st tgt, int hint){

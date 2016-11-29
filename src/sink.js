@@ -232,19 +232,18 @@ function op_numint(b, tgt, num){
 	}
 }
 
-var ond_a = new ArrayBuffer(8);
-var ond_dv = new DataView(ond_a);
+var dview = new DataView(new ArrayBuffer(8));
 function op_numdbl(b, tgt, num){
 	oplog('NUMDBL', tgt, num);
-	ond_dv.setFloat64(0, num, true);
+	dview.setFloat64(0, num, true);
 	b.push(OP_NUMDBL, tgt.fdiff, tgt.index,
-		ond_dv.getUint8(0), ond_dv.getUint8(1), ond_dv.getUint8(2), ond_dv.getUint8(3),
-		ond_dv.getUint8(4), ond_dv.getUint8(5), ond_dv.getUint8(6), ond_dv.getUint8(7));
+		dview.getUint8(0), dview.getUint8(1), dview.getUint8(2), dview.getUint8(3),
+		dview.getUint8(4), dview.getUint8(5), dview.getUint8(6), dview.getUint8(7));
 }
 
 function op_str(b, tgt, index){
 	oplog('STR', tgt, index);
-	b.push(OP_STR, tgt.fdiff, tgt.index, index % 256, Math.floor(index / 256));
+	b.push(OP_STR, tgt.fdiff, tgt.index, index & 0xFF, index >> 8);
 }
 
 function op_list(b, tgt, hint){
@@ -6271,15 +6270,15 @@ function context_run(ctx){
 				LOAD_abcdefghij();
 				if (A > ctx.lex_index)
 					return crr_invalid(ctx);
-				ond_dv.setUint8(0, C);
-				ond_dv.setUint8(1, D);
-				ond_dv.setUint8(2, E);
-				ond_dv.setUint8(3, F);
-				ond_dv.setUint8(4, G);
-				ond_dv.setUint8(5, H);
-				ond_dv.setUint8(6, I);
-				ond_dv.setUint8(7, J);
-				var_set(ctx, A, B, ond_dv.getFloat64(0, true));
+				dview.setUint8(0, C);
+				dview.setUint8(1, D);
+				dview.setUint8(2, E);
+				dview.setUint8(3, F);
+				dview.setUint8(4, G);
+				dview.setUint8(5, H);
+				dview.setUint8(6, I);
+				dview.setUint8(7, J);
+				var_set(ctx, A, B, dview.getFloat64(0, true));
 			} break;
 
 			case OP_STR            : { // [TGT], [INDEX]
