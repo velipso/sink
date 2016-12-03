@@ -763,28 +763,35 @@ static inline void op_nil(list_byte b, varloc_st tgt){
 }
 
 static inline void op_numint(list_byte b, varloc_st tgt, int64_t num){
-	oplogf("NUMINT %d:%d, %lld", tgt.fdiff, tgt.index, num);
 	if (num < 0){
 		if (num >= -256){
+			oplogf("NUMN8 %d:%d, %lld", tgt.fdiff, tgt.index, num);
 			num += 256;
 			list_byte_push4(b, OP_NUMN8, tgt.fdiff, tgt.index, num & 0xFF);
 		}
 		else if (num >= -65536){
+			oplogf("NUMN16 %d:%d, %lld", tgt.fdiff, tgt.index, num);
 			num += 65536;
 			list_byte_push5(b, OP_NUMN16, tgt.fdiff, tgt.index, num & 0xFF, num >> 8);
 		}
 		else{
+			oplogf("NUMN32 %d:%d, %lld", tgt.fdiff, tgt.index, num);
 			num += 4294967296;
 			list_byte_push7(b, OP_NUMN32, tgt.fdiff, tgt.index,
 				num & 0xFF, (num >> 8) & 0xFF, (num >> 16) & 0xFF, (num >> 24) & 0xFF);
 		}
 	}
 	else{
-		if (num < 256)
+		if (num < 256){
+			oplogf("NUMP8 %d:%d, %lld", tgt.fdiff, tgt.index, num);
 			list_byte_push4(b, OP_NUMP8, tgt.fdiff, tgt.index, num & 0xFF);
-		else if (num < 65536)
+		}
+		else if (num < 65536){
+			oplogf("NUMP16 %d:%d, %lld", tgt.fdiff, tgt.index, num);
 			list_byte_push5(b, OP_NUMP16, tgt.fdiff, tgt.index, num & 0xFF, num >> 8);
+		}
 		else{
+			oplogf("NUMP32 %d:%d, %lld", tgt.fdiff, tgt.index, num);
 			list_byte_push7(b, OP_NUMP32, tgt.fdiff, tgt.index,
 				num & 0xFF, (num >> 8) & 0xFF, (num >> 16) & 0xFF, (num >> 24) & 0xFF);
 		}

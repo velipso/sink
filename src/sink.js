@@ -10,6 +10,10 @@ function isPromise(obj){
 		typeof obj.then === 'function';
 }
 
+function has(obj, key){
+	return Object.prototype.hasOwnProperty.call(obj, key);
+}
+
 // used to mark lists to check for circular lists
 var sink_list_marker = 0;
 
@@ -204,28 +208,35 @@ function op_nil(b, tgt){
 }
 
 function op_numint(b, tgt, num){
-	oplog('NUMINT', tgt, num);
 	if (num < 0){
 		if (num >= -256){
+			oplog('NUMN8', tgt, num);
 			num += 256;
 			b.push(OP_NUMN8, tgt.fdiff, tgt.index, num & 0xFF);
 		}
 		else if (num >= -65536){
+			oplog('NUMN16', tgt, num);
 			num += 65536;
 			b.push(OP_NUMN16, tgt.fdiff, tgt.index, num & 0xFF, num >> 8);
 		}
 		else{
+			oplog('NUMN32', tgt, num);
 			num += 4294967296;
 			b.push(OP_NUMN32, tgt.fdiff, tgt.index,
 				num & 0xFF, (num >> 8) & 0xFF, (num >> 16) & 0xFF, (num >> 24) & 0xFF);
 		}
 	}
 	else{
-		if (num < 256)
+		if (num < 256){
+			oplog('NUMP8', tgt, num);
 			b.push(OP_NUMP8, tgt.fdiff, tgt.index, num & 0xFF);
-		else if (num < 65536)
+		}
+		else if (num < 65536){
+			oplog('NUMP16', tgt, num);
 			b.push(OP_NUMP16, tgt.fdiff, tgt.index, num & 0xFF, num >> 8);
+		}
 		else{
+			oplog('NUMP32', tgt, num);
 			b.push(OP_NUMP32, tgt.fdiff, tgt.index,
 				num & 0xFF, (num >> 8) & 0xFF, (num >> 16) & 0xFF, (num >> 24) & 0xFF);
 		}
@@ -6585,7 +6596,7 @@ function context_run(ctx){
 				if (E < 0 || E >= ctx.prg.keyTable.length)
 					return opi_abortstr(ctx, 'Invalid native call');
 				E = ctx.prg.keyTable[E];
-				if (!ctx.natives.hasOwnProperty(E))
+				if (!has(ctx.natives, E))
 					return opi_abortstr(ctx, 'Invalid native call');
 				try{
 					X = ctx.natives[E].apply(void 0, X);
@@ -7726,7 +7737,7 @@ function compiler_process(cmp){
 			if (stmt.type == AST_INCLUDE){
 				for (var i = 0; i < stmt.incls.length; i++){
 					var inc = stmt.incls[i];
-					if (cmp.includes.hasOwnProperty(inc.file)){
+					if (has(cmp.includes, inc.file)){
 						var res = compiler_staticinc(cmp, inc.names, inc.file,
 							cmp.includes[inc.file]);
 						if (res.type == CMA_ERROR)
@@ -7839,9 +7850,9 @@ function libs_getIncludes(libs){
 	var out = {};
 	libs.forEach(function(lib){
 		for (var k in lib.includes){
-			if (!lib.includes.hasOwnProperty(k))
+			if (!has(lib.includes, k))
 				continue;
-			if (out.hasOwnProperty(k))
+			if (has(out, k))
 				throw new Error('Cannot have multiple static includes for name: "' + k + '"');
 			out[k] = UTF8.encode(lib.includes[k]);
 		}
@@ -7853,9 +7864,9 @@ function libs_getNatives(libs){
 	var out = {};
 	libs.forEach(function(lib){
 		for (var k in lib.natives){
-			if (!lib.natives.hasOwnProperty(k))
+			if (!has(lib.natives, k))
 				continue;
-			if (out.hasOwnProperty(k))
+			if (has(out, k))
 				throw new Error('Cannot have multiple native functions for key: "' + k + '"');
 			out[k] = lib.natives[k];
 		}

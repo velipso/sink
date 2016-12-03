@@ -12,6 +12,9 @@
 })(function(CodeMirror){
 
 CodeMirror.defineMode('sink', function(config, parserConfig) {
+  function has(obj, key){
+    return Object.prototype.hasOwnProperty.call(obj, key);
+  }
   var specials = [
     '+', '-', '%', '*', '/', '^', '@', '&', '<', '>', '!', '=', '~', ':', ',', '.', '|', '(',
     '[', '{', ')', ']', '}', '+=', '-=', '%=', '*=', '/=', '^=', '<=', '>=', '!=', '==', '~=',
@@ -189,7 +192,7 @@ CodeMirror.defineMode('sink', function(config, parserConfig) {
                 break;
               ch = stream.next();
             }
-            if (libs.hasOwnProperty(id)){
+            if (has(libs, id)){
               if (libs[id] === true){
                 st.state = 'start';
                 return 'builtin';
