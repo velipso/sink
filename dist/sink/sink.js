@@ -3,6 +3,9 @@
 // Project Home: https://github.com/voidqk/sink
 
 (function(){
+'use strict';
+
+test = 1;
 
 // used for detecting async objects
 function isPromise(obj){
@@ -5384,9 +5387,7 @@ function program_gen(prg, sym, stmt, pst, sayexpr){
 
 var SINK_RUN_PASS     = 'SINK_RUN_PASS';
 var SINK_RUN_FAIL     = 'SINK_RUN_FAIL';
-var SINK_RUN_TIMEOUT  = 'SINK_RUN_TIMEOUT';
 var SINK_RUN_REPLMORE = 'SINK_RUN_REPLMORE';
-var SINK_RUN_INVALID  = 'SINK_RUN_INVALID';
 
 //
 // context
@@ -5457,16 +5458,12 @@ function crr_exitfail(ctx){
 	return SINK_RUN_FAIL;
 }
 
-function crr_timeout(){
-	return SINK_RUN_TIMEOUT;
-}
-
 function crr_replmore(){
 	return SINK_RUN_REPLMORE;
 }
 
 function crr_invalid(ctx){
-	return SINK_RUN_INVALID;
+	return opi_abortstr(ctx, 'Invalid bytecode');
 }
 
 function var_get(ctx, fdiff, index){
@@ -5918,34 +5915,31 @@ function opi_ask(ctx, args){
 }
 
 function opi_exit(ctx, args){
-	if (args.length > 0){
-		var r = ctx.say(sink_list_join(args, ' '));
-		if (isPromise(r))
-			throw 'TODO: deal with async say';
+	function done(){
+		return crr_exitpass(ctx);
 	}
-	return crr_exitpass(ctx);
+	if (args.length > 0)
+		return withResult(ctx.say(sink_list_join(args, ' ')), done);
+	return done();
 }
 
 function opi_abort(ctx, args, force){
-	if (args.length > 0){
-		var r = ctx.warn(sink_list_join(args, ' '));
-		if (isPromise(r))
-			throw 'TODO: deal with async warn';
+	function done(){
+		if (force){
+			ctx.failed = true;
+			return SINK_RUN_FAIL;
+		}
+		return crr_exitfail(ctx);
 	}
-	if (force){
-		ctx.failed = true;
-		return SINK_RUN_FAIL;
-	}
-	return crr_exitfail(ctx);
+	if (args.length > 0)
+		return withResult(ctx.warn(sink_list_join(args, ' ')), done);
+	return done();
 }
 
 function opi_abortstr(ctx, str){
 	// TODO: maybe save previous PC's, and map them back to line numbers? then return the actual
 	// error message with the flp?
-	var r = ctx.warn(str);
-	if (isPromise(r))
-		throw 'TODO: deal with async warn2';
-	return crr_exitfail(ctx);
+	return withResult(ctx.warn(str), function(){ return crr_exitfail(ctx); });
 }
 
 function sortboth(ctx, a, b, mul, m){
@@ -6276,7 +6270,7 @@ function context_run(ctx){
 				var_set(ctx, A, B, C - 4294967296);
 			} break;
 
-			case OP_NUMDBL         : { // [TGT], [[[[INDEX]]]]
+			case OP_NUMDBL         : { // [TGT], [[[[VALUE]]]]
 				LOAD_abcdefghij();
 				if (A > ctx.lex_index)
 					return crr_invalid(ctx);
@@ -6605,8 +6599,11 @@ function context_run(ctx){
 				}
 				if (isPromise(X)){
 					return X.then(
-						function(v){ var_set(ctx, A, B, v); },
-						function(e){ opi_abortstr(ctx, '' + e); }
+						function(v){
+							var_set(ctx, A, B, v);
+							return context_run(ctx);
+						},
+						function(e){ return opi_abortstr(ctx, '' + e); }
 					);
 				}
 				if (typeof X === 'undefined')
@@ -6688,8 +6685,11 @@ function context_run(ctx){
 				var r = opi_say(ctx, X);
 				if (isPromise(r)){
 					return r.then(
-						function(v){ var_set(ctx, A, B, null); },
-						function(e){ opi_abortstr(ctx, '' + e); }
+						function(v){
+							var_set(ctx, A, B, null);
+							return context_run(ctx);
+						},
+						function(e){ return opi_abortstr(ctx, '' + e); }
 					);
 				}
 				var_set(ctx, A, B, r);
@@ -6705,8 +6705,11 @@ function context_run(ctx){
 				var r = opi_warn(ctx, X);
 				if (isPromise(r)){
 					return r.then(
-						function(v){ var_set(ctx, A, B, null); },
-						function(e){ opi_abortstr(ctx, '' + e); }
+						function(v){
+							var_set(ctx, A, B, null);
+							return context_run(ctx);
+						},
+						function(e){ return opi_abortstr(ctx, '' + e); }
 					);
 				}
 				var_set(ctx, A, B, r);
@@ -6722,8 +6725,11 @@ function context_run(ctx){
 				var r = opi_ask(ctx, X);
 				if (isPromise(r)){
 					return r.then(
-						function(v){ var_set(ctx, A, B, v); },
-						function(e){ opi_abortstr(ctx, '' + e); }
+						function(v){
+							var_set(ctx, A, B, v);
+							return context_run(ctx);
+						},
+						function(e){ return opi_abortstr(ctx, '' + e); }
 					);
 				}
 				var_set(ctx, A, B, r);
@@ -7936,23 +7942,16 @@ var Sink = {
 					return withResult(
 						compiler_write(cmp, js_utf8enc(data)),
 						function(cm){
-							if (cm.type == CMA_OK){
-								if (compiler_level(cmp) <= 0){
-									return withResult(
-										context_run(ctx),
-										function(cr){
-											if (cr == SINK_RUN_REPLMORE)
-												return nextLine();
-											else if (cr == SINK_RUN_PASS || cr == SINK_RUN_FAIL)
-												return cr == SINK_RUN_PASS;
-											else{
-												// SINK_RUN_TIMEOUT, SINK_RUN_INVALID
-												console.log('cr', cr);
-												throw 'TODO: deal with a different cr';
-											}
-										}
-									);
-								}
+							if (cm.type == CMA_OK && compiler_level(cmp) <= 0){
+								// successfully compiled a top-level statement, so resume running
+								return withResult(
+									context_run(ctx),
+									function(cr){
+										if (cr == SINK_RUN_REPLMORE)
+											return nextLine();
+										return cr == SINK_RUN_PASS;
+									}
+								);
 							}
 							else if (cm.type == CMA_ERROR){
 								warn('Error: ' + cm.msg);
@@ -7990,13 +7989,7 @@ var Sink = {
 						return withResult(
 							context_run(ctx),
 							function(cr){
-								if (cr == SINK_RUN_PASS || cr == SINK_RUN_FAIL)
-									return cr == SINK_RUN_PASS;
-								else{
-									// SINK_RUN_TIMEOUT, SINK_RUN_INVALID
-									console.log('cr', cr);
-									throw 'TODO: deal with a different cr';
-								}
+								return cr == SINK_RUN_PASS;
 							}
 						);
 					}
