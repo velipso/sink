@@ -38,18 +38,30 @@ function sinkExit(pass){
 }
 
 function fstype(file){ // must return 'file', 'dir', or 'none'
-	if (!fs.existsSync(file))
-		return 'none';
-	var stat = fs.statSync(file);
-	if (stat.isFile())
-		return 'file';
-	else if (stat.isDirectory())
-		return 'dir';
-	return 'none';
+	return new Promise(function(resolve, reject){
+		fs.stat(file, function(err, st){
+			if (err){
+				if (err.code == 'ENOENT')
+					return resolve('none');
+				return reject(err);
+			}
+			if (st.isFile())
+				return resolve('file');
+			else if (st.isDirectory())
+				return resolve('dir');
+			resolve('none');
+		});
+	});
 }
 
 function fsread(file){
-	return fs.readFileSync(file, 'utf8');
+	return new Promise(function(resolve, reject){
+		fs.readFile(file, 'utf8', function(err, data){
+			if (err)
+				return reject(err);
+			resolve(data);
+		});
+	});
 }
 
 function getpaths(repl){
@@ -174,11 +186,25 @@ switch (mode){
 	case 'eval':
 		if (evalLine === false)
 			return printHelp();
-		return sinkExit(Sink.run(makeabs('<eval>'), fstype, fsreadEval(evalLine), say, warn, ask,
-			[SinkShell(args)], getpaths(false), function(err){ warn('Error: ' + err); }));
+		return Sink.run(
+			makeabs('<eval>'),
+			fstype,
+			fsreadEval(evalLine),
+			say, warn, ask,
+			[SinkShell(args)],
+			getpaths(false),
+			function(err){ warn('Error: ' + err); }
+		).then(sinkExit);
 	case 'run':
 		if (inFile === false)
 			return printHelp();
-		return sinkExit(Sink.run(makeabs(inFile), fstype, fsread, say, warn, ask, [SinkShell(args)],
-			getpaths(false), function(err){ warn('Error: ' + err); }));
+		return Sink.run(
+			makeabs(inFile),
+			fstype,
+			fsread,
+			say, warn, ask,
+			[SinkShell(args)],
+			getpaths(false),
+			function(err){ warn('Error: ' + err); }
+		).then(sinkExit);
 }
