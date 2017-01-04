@@ -7931,6 +7931,8 @@ var Sink = {
 		var prg = program_new(true);
 		var cmp = compiler_new(prg, null, fstype, fsread, libs_getIncludes(libs), paths);
 		var ctx = context_new(prg, say, warn, ask, libs_getNatives(libs), maxticks);
+		// note: this can technically overflow the stack because JavaScript doesn't implement
+		// tail call optimizations (yet) >:-(
 		function nextLine(){
 			return withResult(
 				prompt(compiler_level(cmp)),
