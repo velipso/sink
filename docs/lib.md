@@ -357,6 +357,9 @@ encoding and decoding.
 | `utf8.list a`  | Converts string `a` (UTF-8 bytes) to a list of codepoints (integers)           |
 | `utf8.str a`   | Converts a list of codepoints (integers) `a` to a string (UTF-8 bytes)         |
 
+Codepoints U+0000 to U+10FFFF are considered valid, with the sole exception of the surrogate
+characters (U+D800 to U+DFFF).
+
 Structured Data
 ---------------
 

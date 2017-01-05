@@ -8645,24 +8645,35 @@ static inline sink_val opi_str_split(context ctx, sink_val a, sink_val b){
 	sink_str needle = sink_caststr(ctx, b);
 	sink_val result = sink_list_newblob(ctx, 0, NULL);
 
-	int delta[256];
 	int nlen = needle->size;
+	int hlen = haystack->size;
+	if (nlen <= 0){
+		// split on every character
+		for (int i = 0; i < hlen; i++)
+			opi_list_push(ctx, result, sink_str_newblob(ctx, 1, &haystack->bytes[i]));
+		return result;
+	}
+
+	int delta[256];
 	for (int i = 0; i < 256; i++)
 		delta[i] = nlen + 1;
 	for (int i = 0; i < nlen; i++)
 		delta[needle->bytes[i]] = nlen - i;
 	int hx = 0;
 	int lastmatch = 0;
-	int hlen = haystack->size;
 	while (hx + nlen <= hlen){
-		if (memcmp(needle->bytes, &haystack->bytes[hx], sizeof(uint8_t) * needle->size) == 0){
+		if (memcmp(needle->bytes, &haystack->bytes[hx], sizeof(uint8_t) * nlen) == 0){
 			opi_list_push(ctx, result,
 				sink_str_newblob(ctx, hx - lastmatch, &haystack->bytes[lastmatch]));
 			lastmatch = hx + needle->size;
 			hx += needle->size;
 		}
-		else
+		else{
+			// note: in all these search string functions we use the same basic algorithm, and we
+			// are allowed to access hx+nlen because all sink strings are guaranteed to be NULL
+			// terminated
 			hx += delta[haystack->bytes[hx + nlen]];
+		}
 	}
 	opi_list_push(ctx, result,
 		sink_str_newblob(ctx, haystack->size - lastmatch, &haystack->bytes[lastmatch]));
@@ -8673,6 +8684,72 @@ static inline sink_val opi_list_join(context ctx, sink_val a, sink_val b);
 static inline sink_val opi_str_replace(context ctx, sink_val a, sink_val b, sink_val c){
 	sink_val ls = opi_str_split(ctx, a, b);
 	return opi_list_join(ctx, ls, c);
+}
+
+static inline sink_val opi_str_find(context ctx, sink_val a, sink_val b, int hx){
+	a = sink_tostr(ctx, a);
+	b = sink_tostr(ctx, b);
+	sink_str haystack = sink_caststr(ctx, a);
+	sink_str needle = sink_caststr(ctx, b);
+
+	int nlen = needle->size;
+	if (nlen <= 0)
+		return sink_num(0);
+
+	int hlen = haystack->size;
+	int delta[256];
+	for (int i = 0; i < 256; i++)
+		delta[i] = nlen + 1;
+	for (int i = 0; i < nlen; i++)
+		delta[needle->bytes[i]] = nlen - i;
+	if (hx < 0)
+		hx += hlen;
+	if (hx < 0)
+		hx = 0;
+	while (hx + nlen <= hlen){
+		if (memcmp(needle->bytes, &haystack->bytes[hx], sizeof(uint8_t) * nlen) == 0)
+			return sink_num(hx);
+		hx += delta[haystack->bytes[hx + nlen]];
+	}
+	return SINK_NIL;
+}
+
+static inline sink_val opi_str_rfind(context ctx, sink_val a, sink_val b, sink_val c){
+	a = sink_tostr(ctx, a);
+	b = sink_tostr(ctx, b);
+	sink_str haystack = sink_caststr(ctx, a);
+	sink_str needle = sink_caststr(ctx, b);
+
+	int nlen = needle->size;
+	int hlen = haystack->size;
+	if (nlen <= 0)
+		return sink_num(hlen);
+
+	int delta[256];
+	for (int i = 0; i < 256; i++)
+		delta[i] = nlen + 1;
+	for (int i = nlen - 1; i >= 0; i--)
+		delta[needle->bytes[i]] = i + 1;
+	int hx;
+	if (sink_isnil(c))
+		hx = hlen - nlen;
+	else
+		hx = c.f;
+	if (hx < 0)
+		hx += hlen;
+	if (hx > hlen - nlen)
+		hx = hlen - nlen;
+	while (hx >= 0){
+		if (memcmp(needle->bytes, &haystack->bytes[hx], sizeof(uint8_t) * nlen) == 0)
+			return sink_num(hx);
+		if (hx <= 0){
+			// searching backwards we can't access bytes[-1] because we aren't "reverse" NULL
+			// terminated... we would just crash
+			return SINK_NIL;
+		}
+		hx -= delta[haystack->bytes[hx - 1]];
+	}
+	return SINK_NIL;
 }
 
 static inline sink_val opi_str_begins(context ctx, sink_val a, sink_val b){
@@ -10408,11 +10485,25 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_STR_FIND       : { // [TGT], [SRC1], [SRC2], [SRC3]
-				THROW("OP_STR_FIND");
+				LOAD_ABCDEFGH();
+				X = var_get(ctx, C, D);
+				Y = var_get(ctx, E, F);
+				Z = var_get(ctx, G, H);
+				if (sink_isnil(Z))
+					Z.f = 0;
+				else if (!sink_isnum(Z))
+					RETURN_FAIL("Expecting number");
+				var_set(ctx, A, B, opi_str_find(ctx, X, Y, Z.f));
 			} break;
 
 			case OP_STR_RFIND      : { // [TGT], [SRC1], [SRC2], [SRC3]
-				THROW("OP_STR_RFIND");
+				LOAD_ABCDEFGH();
+				X = var_get(ctx, C, D);
+				Y = var_get(ctx, E, F);
+				Z = var_get(ctx, G, H);
+				if (!sink_isnil(Z) && !sink_isnum(Z))
+					RETURN_FAIL("Expecting number");
+				var_set(ctx, A, B, opi_str_rfind(ctx, X, Y, Z));
 			} break;
 
 			case OP_STR_LOWER      : { // [TGT], [SRC]

@@ -7232,11 +7232,35 @@ function context_run(ctx){
 			} break;
 
 			case OP_STR_FIND       : { // [TGT], [SRC1], [SRC2], [SRC3]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				LOAD_abcdefgh();
+				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index ||
+					G > ctx.lex_index)
+					return opi_invalid(ctx);
+				X = sink_tostr(var_get(ctx, C, D));
+				Y = sink_tostr(var_get(ctx, E, F));
+				Z = var_get(ctx, G, H);
+				if (Z === null)
+					Z = 0;
+				else if (!sink_isnum(Z))
+					return opi_abort(ctx, 'Expecting number');
+				Z = X.indexOf(Y, Z < 0 ? Z + X.length : Z);
+				var_set(ctx, A, B, Z < 0 ? null : Z);
 			} break;
 
 			case OP_STR_RFIND      : { // [TGT], [SRC1], [SRC2], [SRC3]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				LOAD_abcdefgh();
+				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index ||
+					G > ctx.lex_index)
+					return opi_invalid(ctx);
+				X = sink_tostr(var_get(ctx, C, D));
+				Y = sink_tostr(var_get(ctx, E, F));
+				Z = var_get(ctx, G, H);
+				if (Z === null)
+					Z = X.length;
+				else if (!sink_isnum(Z))
+					return opi_abort(ctx, 'Expecting number');
+				Z = X.lastIndexOf(Y, Z < 0 ? Z + X.length : Z);
+				var_set(ctx, A, B, Z < 0 ? null : Z);
 			} break;
 
 			case OP_STR_LOWER      : { // [TGT], [SRC]
