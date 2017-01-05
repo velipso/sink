@@ -127,8 +127,7 @@ typedef enum {
 	SINK_RUN_FAIL,
 	SINK_RUN_ASYNC,
 	SINK_RUN_TIMEOUT,
-	SINK_RUN_REPLMORE,
-	SINK_RUN_INVALID
+	SINK_RUN_REPLMORE
 } sink_run;
 
 // Values are jammed into sNaNs, like so:
@@ -180,6 +179,7 @@ void           sink_ctx_settimeout(sink_ctx ctx, int timeout);
 int            sink_ctx_gettimeout(sink_ctx ctx);
 void           sink_ctx_forcetimeout(sink_ctx ctx);
 sink_run       sink_ctx_run(sink_ctx ctx);
+const char *   sink_ctx_err(sink_ctx ctx);
 void           sink_ctx_free(sink_ctx ctx);
 
 // value

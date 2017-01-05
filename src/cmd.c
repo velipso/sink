@@ -162,7 +162,7 @@ static int main_repl(){
 		if (ch == '\n'){
 			const char *err = sink_scr_write(scr, bufsize, (uint8_t *)buf);
 			if (err)
-				fprintf(stderr, "Error: %s\n", err);
+				fprintf(stderr, "%s\n", err);
 			if (sink_scr_level(scr) <= 0){
 				switch (sink_ctx_run(ctx)){
 					case SINK_RUN_PASS:
@@ -170,8 +170,9 @@ static int main_repl(){
 						res = 0;
 						break;
 					case SINK_RUN_FAIL:
-						done = true;
-						res = 1;
+						err = sink_ctx_err(ctx);
+						if (err)
+							fprintf(stderr, "%s\n", err);
 						break;
 					case SINK_RUN_ASYNC:
 						fprintf(stderr, "TODO: REPL invoked async function\n");
@@ -183,10 +184,6 @@ static int main_repl(){
 						break;
 					case SINK_RUN_REPLMORE:
 						// do nothing
-						break;
-					case SINK_RUN_INVALID:
-						fprintf(stderr, "Invalid code generation\n");
-						done = true;
 						break;
 				}
 			}
@@ -276,9 +273,6 @@ int main_run(const char *inFile, char *const *argv, int argc){
 		case SINK_RUN_REPLMORE:
 			fprintf(stderr, "Invalid return value from running context\n");
 			return 1;
-		case SINK_RUN_INVALID:
-			fprintf(stderr, "Invalid file\n");
-			return 1;
 	}
 }
 
@@ -319,9 +313,6 @@ int main_eval(const char *eval, char *const *argv, int argc){
 		case SINK_RUN_TIMEOUT:
 		case SINK_RUN_REPLMORE:
 			fprintf(stderr, "Invalid return value from running context\n");
-			return 1;
-		case SINK_RUN_INVALID:
-			fprintf(stderr, "Invalid file\n");
 			return 1;
 	}
 }

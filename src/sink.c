@@ -5456,6 +5456,7 @@ static inline void symtbl_loadStdlib(symtbl sym){
 typedef struct {
 	list_ptr strTable;
 	list_u64 keyTable;
+	list_ptr flpTable;
 	list_byte ops;
 	bool repl;
 } program_st, *program;
@@ -5463,6 +5464,7 @@ typedef struct {
 static inline void program_free(program prg){
 	list_ptr_free(prg->strTable);
 	list_u64_free(prg->keyTable);
+	list_ptr_free(prg->flpTable);
 	list_byte_free(prg->ops);
 	mem_free(prg);
 }
@@ -5471,9 +5473,30 @@ static inline program program_new(bool repl){
 	program prg = mem_alloc(sizeof(program_st));
 	prg->strTable = list_ptr_new((free_func)list_byte_free);
 	prg->keyTable = list_u64_new();
+	prg->flpTable = list_ptr_new(mem_free_func);
 	prg->ops = list_byte_new();
 	prg->repl = repl;
 	return prg;
+}
+
+typedef struct {
+	int pc;
+	filepos_st flp;
+} prgflp_st, *prgflp;
+
+static inline void program_flp(program prg, filepos_st flp){
+	int i = prg->flpTable->size - 1;
+	if (i >= 0){
+		prgflp p = prg->flpTable->ptrs[i];
+		if (p->pc == prg->ops->size){
+			p->flp = flp;
+			return;
+		}
+	}
+	prgflp p = mem_alloc(sizeof(prgflp_st));
+	p->pc = prg->ops->size;
+	p->flp = flp;
+	list_ptr_push(prg->flpTable, p);
 }
 
 typedef enum {
@@ -6622,6 +6645,7 @@ static per_st program_lvalCondAssign(program prg, symtbl sym, lvr lv, bool jumpF
 }
 
 static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st intoVlc, expr ex){
+	program_flp(prg, ex->flp);
 	switch (ex->type){
 		case EXPR_NIL: {
 			if (mode == PEM_EMPTY)
@@ -7349,6 +7373,7 @@ static pgr_st program_genForGeneric(program prg, symtbl sym, ast stmt){
 }
 
 static inline pgr_st program_gen(program prg, symtbl sym, ast stmt, void *state, bool sayexpr){
+	program_flp(prg, stmt->flp);
 	switch (stmt->type){
 		case AST_BREAK: {
 			if (sym->sc->lblBreak == NULL)
@@ -8053,6 +8078,7 @@ typedef struct {
 
 	int lex_index;
 	int pc;
+	int lastpc;
 	int str_size;
 	int list_size;
 	int timeout;
@@ -8065,9 +8091,9 @@ typedef struct {
 	uint32_t rand_seed;
 	uint32_t rand_i;
 
+	char *err;
 	bool passed;
 	bool failed;
-	bool invalid;
 	bool async;
 } context_st, *context;
 
@@ -8224,6 +8250,8 @@ static inline void context_free(context ctx){
 	list_ptr_free(ctx->lex_stk);
 	list_ptr_free(ctx->f_finalize);
 	list_ptr_free(ctx->user_hint);
+	if (ctx->err)
+		mem_free(ctx->err);
 	mem_free(ctx->list_tbl);
 	mem_free(ctx->str_tbl);
 	mem_free(ctx->list_aloc);
@@ -8280,9 +8308,9 @@ static inline context context_new(program prg, sink_io_st io){
 	ctx->rand_seed = 0;
 	ctx->rand_i = 0;
 
+	ctx->err = NULL;
 	ctx->passed = false;
 	ctx->failed = false;
-	ctx->invalid = false;
 	ctx->async = false;
 
 	context_gcleft(ctx, true);
@@ -8290,41 +8318,22 @@ static inline context context_new(program prg, sink_io_st io){
 	return ctx;
 }
 
-static inline bool context_done(context ctx){
-	return ctx->passed || ctx->failed || ctx->invalid;
-}
-
-static inline sink_run crr_exitpass(context ctx){
-	ctx->passed = true;
-	return SINK_RUN_PASS;
-}
-
-static inline sink_run crr_exitfail(context ctx){
-	if (ctx->prg->repl){
-		ctx->failed = false;
-		ctx->pc = ctx->prg->ops->size;
-		return SINK_RUN_REPLMORE;
+static inline void context_reset(context ctx){
+	// return to the top level
+	while (ctx->call_stk->size > 0){
+		ccs s = list_ptr_pop(ctx->call_stk);
+		lxs lx = ctx->lex_stk->ptrs[ctx->lex_index];
+		ctx->lex_stk->ptrs[ctx->lex_index] = lx->next;
+		lxs_free(lx);
+		ctx->lex_index = s->lex_index;
+		ctx->pc = s->pc;
+		ccs_free(s);
 	}
-	ctx->failed = true;
-	return SINK_RUN_FAIL;
-}
-
-static inline sink_run crr_async(context ctx){
-	ctx->async = true;
-	return SINK_RUN_ASYNC;
-}
-
-static inline sink_run crr_timeout(){
-	return SINK_RUN_TIMEOUT;
-}
-
-static inline sink_run crr_replmore(){
-	return SINK_RUN_REPLMORE;
-}
-
-static inline sink_run crr_invalid(context ctx){
-	ctx->invalid = true;
-	return SINK_RUN_INVALID;
+	// reset variables and fast-forward to the end of the current program
+	ctx->passed = false;
+	ctx->failed = false;
+	ctx->pc = ctx->prg->ops->size;
+	ctx->timeout_left = ctx->timeout;
 }
 
 static inline void list_cleartick(context ctx){
@@ -8915,22 +8924,39 @@ static inline sink_val opi_ask(context ctx, int size, sink_val *vals){
 	return SINK_NIL;
 }
 
-static inline void opi_exit(context ctx, int size, sink_val *vals){
-	if (size > 0)
-		opi_say(ctx, size, vals);
+static inline sink_run opi_exit(context ctx){
 	ctx->passed = true;
+	return SINK_RUN_PASS;
 }
 
-static inline void opi_abort(context ctx, int size, sink_val *vals){
-	if (size > 0)
-		opi_warn(ctx, size, vals);
+static inline sink_run opi_abort(context ctx, char *err){
+	if (err){
+		filepos_st flp = (filepos_st){ .line = -1 };
+		for (int i = 0; i < ctx->prg->flpTable->size; i++){
+			prgflp p = ctx->prg->flpTable->ptrs[i];
+			if (p->pc > ctx->lastpc)
+				break;
+			flp = p->flp;
+		}
+		if (flp.line >= 0){
+			char *err2 = filepos_err(flp, err);
+			mem_free(err);
+			err = err2;
+		}
+		ctx->err = sink_format("Error: %s", err);
+		mem_free(err);
+	}
 	ctx->failed = true;
+	return SINK_RUN_FAIL;
 }
 
 static inline void opi_abortcstr(context ctx, const char *msg){
-	sink_val a = sink_str_newcstr(ctx, msg);
-	opi_warn(ctx, 1, &a);
-	ctx->failed = true;
+	opi_abort(ctx, sink_format("%s", msg));
+}
+
+static inline sink_run opi_invalid(context ctx){
+	opi_abortcstr(ctx, "Invalid bytecode");
+	return SINK_RUN_FAIL;
 }
 
 static inline sink_val opi_abortformat(context ctx, const char *fmt, ...){
@@ -8942,9 +8968,7 @@ static inline sink_val opi_abortformat(context ctx, const char *fmt, ...){
 	vsprintf(buf, fmt, args2);
 	va_end(args);
 	va_end(args2);
-	sink_val a = sink_str_newblobgive(ctx, s, (uint8_t *)buf);
-	opi_warn(ctx, 1, &a);
-	ctx->failed = true;
+	opi_abort(ctx, buf);
 	return SINK_NIL;
 }
 
@@ -9408,15 +9432,13 @@ static inline sink_val opi_range(context ctx, double start, double stop, double 
 	return sink_list_newblobgive(ctx, count, count, ret);
 }
 
+static inline uint8_t *opi_list_joinplain(sink_ctx ctx, int size, sink_val *vals, int sepz,
+	const uint8_t *sep, int *totv);
+
 static sink_run context_run(context ctx){
-	if (ctx->passed)
-		return crr_exitpass(ctx);
-	if (ctx->failed)
-		return crr_exitfail(ctx);
-	if (ctx->invalid)
-		return crr_invalid(ctx);
-	if (ctx->async)
-		return crr_async(ctx);
+	if (ctx->passed) return SINK_RUN_PASS;
+	if (ctx->failed) return SINK_RUN_FAIL;
+	if (ctx->async ) return SINK_RUN_ASYNC;
 
 	int A, B, C, D, E, F, G, H, I, J;
 	sink_val X, Y, Z, W;
@@ -9432,13 +9454,13 @@ static sink_run context_run(context ctx){
 	#define LOAD_AB()                                                                      \
 		LOAD_ab();                                                                         \
 		if (A > ctx->lex_index)                                                            \
-			return crr_invalid(ctx);
+			return opi_invalid(ctx);
 
 	#define LOAD_ABc()                                                                     \
 		LOAD_ab();                                                                         \
 		C = ops->bytes[ctx->pc++];                                                         \
 		if (A > ctx->lex_index)                                                            \
-			return crr_invalid(ctx);
+			return opi_invalid(ctx);
 
 	#define LOAD_abcd()                                                                    \
 		LOAD_ab();                                                                         \
@@ -9447,12 +9469,12 @@ static sink_run context_run(context ctx){
 	#define LOAD_ABcd()                                                                    \
 		LOAD_abcd();                                                                       \
 		if (A > ctx->lex_index)                                                            \
-			return crr_invalid(ctx);
+			return opi_invalid(ctx);
 
 	#define LOAD_ABCD()                                                                    \
 		LOAD_abcd();                                                                       \
 		if (A > ctx->lex_index || C > ctx->lex_index)                                      \
-			return crr_invalid(ctx);
+			return opi_invalid(ctx);
 
 	#define LOAD_abcdef()                                                                  \
 		LOAD_abcd();                                                                       \
@@ -9461,17 +9483,17 @@ static sink_run context_run(context ctx){
 	#define LOAD_ABcdef()                                                                  \
 		LOAD_abcdef();                                                                     \
 		if (A > ctx->lex_index)                                                            \
-			return crr_invalid(ctx);
+			return opi_invalid(ctx);
 
 	#define LOAD_ABCDef()                                                                  \
 		LOAD_abcdef();                                                                     \
 		if (A > ctx->lex_index || C > ctx->lex_index)                                      \
-			return crr_invalid(ctx);
+			return opi_invalid(ctx);
 
 	#define LOAD_ABCDEF()                                                                  \
 		LOAD_abcdef();                                                                     \
 		if (A > ctx->lex_index || C > ctx->lex_index || E > ctx->lex_index)                \
-			return crr_invalid(ctx);
+			return opi_invalid(ctx);
 
 	#define LOAD_abcdefgh()                                                                \
 		LOAD_abcdef();                                                                     \
@@ -9481,13 +9503,13 @@ static sink_run context_run(context ctx){
 		LOAD_abcdefgh();                                                                   \
 		if (A > ctx->lex_index || C > ctx->lex_index || E > ctx->lex_index ||              \
 			G > ctx->lex_index)                                                            \
-			return crr_invalid(ctx);                                                       \
+			return opi_invalid(ctx);                                                       \
 
 	#define LOAD_ABCDefghi()                                                               \
 		LOAD_abcdefgh();                                                                   \
 		I = ops->bytes[ctx->pc++];                                                         \
 		if (A > ctx->lex_index || C > ctx->lex_index || E > ctx->lex_index)                \
-			return crr_invalid(ctx);
+			return opi_invalid(ctx);
 
 	#define LOAD_abcdefghij()                                                              \
 		LOAD_abcdefgh();                                                                   \
@@ -9496,20 +9518,20 @@ static sink_run context_run(context ctx){
 	#define LOAD_ABcdefghij()                                                              \
 		LOAD_abcdefghij();                                                                 \
 		if (A > ctx->lex_index)                                                            \
-			return crr_invalid(ctx);
+			return opi_invalid(ctx);
 
 	#define INLINE_UNOP(func, erop)                                                        \
 		LOAD_ABCD();                                                                       \
 		var_set(ctx, A, B, opi_unop(ctx, var_get(ctx, C, D), func, erop));                 \
 		if (ctx->failed)                                                                   \
-			return crr_exitfail(ctx);
+			return SINK_RUN_FAIL;
 
 	#define INLINE_BINOP(func, erop)                                                       \
 		LOAD_ABCDEF();                                                                     \
 		var_set(ctx, A, B,                                                                 \
 			opi_binop(ctx, var_get(ctx, C, D), var_get(ctx, E, F), func, erop));           \
 		if (ctx->failed)                                                                   \
-			return crr_exitfail(ctx);
+			return SINK_RUN_FAIL;
 
 	#define INLINE_TRIOP(func, erop)                                                       \
 		LOAD_ABCDEFGH();                                                                   \
@@ -9517,17 +9539,19 @@ static sink_run context_run(context ctx){
 			opi_triop(ctx, var_get(ctx, C, D), var_get(ctx, E, F), var_get(ctx, G, H),     \
 				func, erop));                                                              \
 		if (ctx->failed)                                                                   \
-			return crr_exitfail(ctx);
+			return SINK_RUN_FAIL;
 
 	#define RETURN_FAIL(msg)   do{           \
 			opi_abortcstr(ctx, msg);         \
-			return crr_exitfail(ctx);        \
+			ctx->failed = true;              \
+			return SINK_RUN_FAIL;            \
 		} while(false)
 
 	// TODO: remove
 	#define THROW(str)  do{ fprintf(stderr, "TODO: %s\n", str); abort(); } while(false)
 
 	while (ctx->pc < ops->size){
+		ctx->lastpc = ctx->pc;
 		switch ((op_enum)ops->bytes[ctx->pc]){
 			case OP_NOP            : { //
 				ctx->pc++;
@@ -9539,9 +9563,7 @@ static sink_run context_run(context ctx){
 				const char *errmsg = "Unknown error";
 				if (A == 1)
 					errmsg = "Expecting list when calling function";
-				X = sink_str_newcstr(ctx, errmsg);
-				opi_abort(ctx, 1, &X);
-				return crr_exitfail(ctx);
+				RETURN_FAIL(errmsg);
 			} break;
 
 			case OP_MOVE           : { // [TGT], [SRC]
@@ -9617,7 +9639,7 @@ static sink_run context_run(context ctx){
 				LOAD_ABcd();
 				C = C | (D << 8);
 				if (C >= ctx->prg->strTable->size)
-					return crr_invalid(ctx);
+					return opi_invalid(ctx);
 				list_byte s = ctx->prg->strTable->ptrs[C];
 				var_set(ctx, A, B, sink_str_newblob(ctx, s->size, s->bytes));
 			} break;
@@ -9658,7 +9680,7 @@ static sink_run context_run(context ctx){
 				LOAD_ABCD();
 				var_set(ctx, A, B, sink_num(opi_size(ctx, var_get(ctx, C, D))));
 				if (ctx->failed)
-					return crr_exitfail(ctx);
+					return SINK_RUN_FAIL;
 			} break;
 
 			case OP_TONUM          : { // [TGT], [SRC]
@@ -9675,7 +9697,7 @@ static sink_run context_run(context ctx){
 				else{
 					var_set(ctx, A, B, opi_str_cat(ctx, X, Y));
 					if (ctx->failed)
-						return crr_exitfail(ctx);
+						return SINK_RUN_FAIL;
 				}
 			} break;
 
@@ -9796,7 +9818,7 @@ static sink_run context_run(context ctx){
 				A = A + (B << 8) + (C << 16) + ((D << 23) * 2);
 				if (ctx->prg->repl && A == -1){
 					ctx->pc -= 5;
-					return crr_replmore();
+					return SINK_RUN_REPLMORE;
 				}
 				ctx->pc = A;
 			} break;
@@ -9807,7 +9829,7 @@ static sink_run context_run(context ctx){
 				if (!sink_isnil(var_get(ctx, A, B))){
 					if (ctx->prg->repl && C == -1){
 						ctx->pc -= 7;
-						return crr_replmore();
+						return SINK_RUN_REPLMORE;
 					}
 					ctx->pc = C;
 				}
@@ -9819,7 +9841,7 @@ static sink_run context_run(context ctx){
 				if (sink_isnil(var_get(ctx, A, B))){
 					if (ctx->prg->repl && C == -1){
 						ctx->pc -= 7;
-						return crr_replmore();
+						return SINK_RUN_REPLMORE;
 					}
 					ctx->pc = C;
 				}
@@ -9828,11 +9850,11 @@ static sink_run context_run(context ctx){
 			case OP_CALL           : { // [TGT], [SRC], LEVEL, [[LOCATION]]
 				LOAD_ABCDefghi();
 				if (E > ctx->lex_index)
-					return crr_invalid(ctx);
+					return opi_invalid(ctx);
 				F = F + (G << 8) + (H << 16) + ((I << 23) * 2);
 				if (ctx->prg->repl && F == -1){
 					ctx->pc -= 10;
-					return crr_replmore();
+					return SINK_RUN_REPLMORE;
 				}
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X))
@@ -9862,12 +9884,13 @@ static sink_run context_run(context ctx){
 						ls = var_castlist(ctx, X);
 						X = nat->f_native(ctx, ls->size, ls->vals, nat->natuser);
 						if (ctx->failed)
-							return crr_exitfail(ctx);
+							return SINK_RUN_FAIL;
 						if (sink_isasync(X)){
 							ctx->async_fdiff = A;
 							ctx->async_index = B;
 							ctx->timeout_left = ctx->timeout;
-							return crr_async(ctx);
+							ctx->async = true;
+							return SINK_RUN_ASYNC;
 						}
 						else{
 							var_set(ctx, A, B, X);
@@ -9881,7 +9904,7 @@ static sink_run context_run(context ctx){
 
 			case OP_RETURN         : { // [SRC]
 				if (ctx->call_stk->size <= 0)
-					return crr_exitpass(ctx);
+					return opi_exit(ctx);
 				LOAD_AB();
 				X = var_get(ctx, A, B);
 				ccs s = list_ptr_pop(ctx->call_stk);
@@ -9899,7 +9922,7 @@ static sink_run context_run(context ctx){
 				C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
 				if (ctx->prg->repl && C == -1){
 					ctx->pc -= 7;
-					return crr_replmore();
+					return SINK_RUN_REPLMORE;
 				}
 				X = var_get(ctx, A, B);
 				if (!sink_islist(X))
@@ -9946,7 +9969,7 @@ static sink_run context_run(context ctx){
 				opi_say(ctx, ls->size, ls->vals);
 				var_set(ctx, A, B, SINK_NIL);
 				if (ctx->failed)
-					return crr_exitfail(ctx);
+					return SINK_RUN_FAIL;
 			} break;
 
 			case OP_WARN           : { // [TGT], [SRC...]
@@ -9958,7 +9981,7 @@ static sink_run context_run(context ctx){
 				opi_warn(ctx, ls->size, ls->vals);
 				var_set(ctx, A, B, SINK_NIL);
 				if (ctx->failed)
-					return crr_exitfail(ctx);
+					return SINK_RUN_FAIL;
 			} break;
 
 			case OP_ASK            : { // [TGT], [SRC...]
@@ -9969,7 +9992,7 @@ static sink_run context_run(context ctx){
 				ls = var_castlist(ctx, X);
 				var_set(ctx, A, B, opi_ask(ctx, ls->size, ls->vals));
 				if (ctx->failed)
-					return crr_exitfail(ctx);
+					return SINK_RUN_FAIL;
 			} break;
 
 			case OP_EXIT           : { // [TGT], [SRC...]
@@ -9978,8 +10001,9 @@ static sink_run context_run(context ctx){
 				if (!sink_islist(X))
 					RETURN_FAIL("Expecting list when calling exit");
 				ls = var_castlist(ctx, X);
-				opi_exit(ctx, ls->size, ls->vals);
-				return crr_exitpass(ctx);
+				if (ls->size > 0)
+					opi_say(ctx, ls->size, ls->vals);
+				return opi_exit(ctx);
 			} break;
 
 			case OP_ABORT          : { // [TGT], [SRC...]
@@ -9988,8 +10012,12 @@ static sink_run context_run(context ctx){
 				if (!sink_islist(X))
 					RETURN_FAIL("Expecting list when calling abort");
 				ls = var_castlist(ctx, X);
-				opi_abort(ctx, ls->size, ls->vals);
-				return SINK_RUN_FAIL; // return this directly so REPL's are affected by `abort`
+				char *err = NULL;
+				if (ls->size > 0){
+					err = (char *)opi_list_joinplain(ctx, ls->size, ls->vals, 1,
+						(const uint8_t *)" ", &A);
+				}
+				return opi_abort(ctx, err);
 			} break;
 
 			case OP_NUM_NEG        : { // [TGT], [SRC]
@@ -10466,7 +10494,7 @@ static sink_run context_run(context ctx){
 				Y = var_get(ctx, E, F);
 				var_set(ctx, A, B, opi_list_join(ctx, X, Y));
 				if (ctx->failed)
-					return crr_exitfail(ctx);
+					return SINK_RUN_FAIL;
 			} break;
 
 			case OP_LIST_REV       : { // [TGT], [SRC]
@@ -10508,7 +10536,7 @@ static sink_run context_run(context ctx){
 					RETURN_FAIL("Expecting list for list.sort");
 				opi_list_sort(ctx, X);
 				if (ctx->failed)
-					return crr_exitfail(ctx);
+					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -10519,7 +10547,7 @@ static sink_run context_run(context ctx){
 					RETURN_FAIL("Expecting list for list.sort");
 				opi_list_rsort(ctx, X);
 				if (ctx->failed)
-					return crr_exitfail(ctx);
+					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -10586,7 +10614,7 @@ static sink_run context_run(context ctx){
 
 			default:
 				debugf("invalid opcode %02X", ops->bytes[ctx->pc]);
-				return crr_invalid(ctx);
+				return opi_invalid(ctx);
 		}
 		if (ctx->gc_level != SINK_GC_NONE){
 			ctx->gc_left--;
@@ -10597,7 +10625,7 @@ static sink_run context_run(context ctx){
 			ctx->timeout_left--;
 			if (ctx->timeout_left <= 0){
 				ctx->timeout_left = ctx->timeout;
-				return crr_timeout();
+				return SINK_RUN_TIMEOUT;
 			}
 		}
 	}
@@ -10623,8 +10651,8 @@ static sink_run context_run(context ctx){
 	#undef RETURN_FAIL
 
 	if (ctx->prg->repl)
-		return crr_replmore();
-	return crr_exitpass(ctx);
+		return SINK_RUN_REPLMORE;
+	return opi_exit(ctx);
 }
 
 //
@@ -11186,12 +11214,9 @@ const char *sink_scr_write(sink_scr scr, int size, const uint8_t *bytes){
 	else{
 		char *err = compiler_write(sc->cmp, size, bytes);
 		if (err && sc->prg->repl){
-			// move ownership of error over to sc
 			if (sc->msg)
 				mem_free(sc->msg);
-			sc->msg = err;
-			sc->cmp->msg = NULL;
-			// reset compiler
+			sc->msg = sink_format("Error: %s", err);
 			compiler_reset(sc->cmp);
 		}
 		return err;
@@ -11307,7 +11332,7 @@ void sink_ctx_asyncresult(sink_ctx ctx, sink_val v){
 
 bool sink_ctx_ready(sink_ctx ctx){
 	context ctx2 = ctx;
-	return !(ctx2->passed || ctx2->failed || ctx2->invalid || ctx2->async);
+	return !(ctx2->passed || ctx2->failed || ctx2->async);
 }
 
 void sink_ctx_settimeout(sink_ctx ctx, int timeout){
@@ -11325,7 +11350,19 @@ void sink_ctx_forcetimeout(sink_ctx ctx){
 }
 
 sink_run sink_ctx_run(sink_ctx ctx){
-	return context_run(ctx);
+	context ctx2 = ctx;
+	if (ctx2->prg->repl && ctx2->err){
+		mem_free(ctx2->err);
+		ctx2->err = NULL;
+	}
+	sink_run r = context_run(ctx2);
+	if (ctx2->failed && ctx2->prg->repl)
+		context_reset(ctx2);
+	return r;
+}
+
+const char *sink_ctx_err(sink_ctx ctx){
+	return ((context)ctx)->err;
 }
 
 void sink_ctx_free(sink_ctx ctx){
@@ -11506,17 +11543,31 @@ sink_val sink_tostr(sink_ctx ctx, sink_val v){
 	return sink_str_newblobgive(ctx, s.size, s.bytes);
 }
 
-/*
-void     sink_say(sink_ctx ctx, int size, sink_val *vals);
-void     sink_warn(sink_ctx ctx, int size, sink_val *vals);
-sink_val sink_ask(sink_ctx ctx, int size, sink_val *vals);
-*/
+void sink_say(sink_ctx ctx, int size, sink_val *vals){
+	opi_say(ctx, size, vals);
+}
+
+void sink_warn(sink_ctx ctx, int size, sink_val *vals){
+	opi_warn(ctx, size, vals);
+}
+
+sink_val sink_ask(sink_ctx ctx, int size, sink_val *vals){
+	return opi_ask(ctx, size, vals);
+}
+
 void sink_exit(sink_ctx ctx, int size, sink_val *vals){
-	opi_exit(ctx, size, vals);
+	if (size > 0)
+		sink_say(ctx, size, vals);
+	opi_exit(ctx);
 }
 
 void sink_abort(sink_ctx ctx, int size, sink_val *vals){
-	opi_abort(ctx, size, vals);
+	uint8_t *bytes = NULL;
+	if (size > 0){
+		int tot;
+		bytes = opi_list_joinplain(ctx, size, vals, 1, (const uint8_t *)" ", &tot);
+	}
+	opi_abort(ctx, (char *)bytes);
 }
 /*
 // numbers
@@ -11829,7 +11880,8 @@ sink_val  sink_list_find(sink_ctx ctx, sink_val ls, sink_val a, sink_val b);
 sink_val  sink_list_rfind(sink_ctx ctx, sink_val ls, sink_val a, sink_val b);
 sink_val  sink_list_join(sink_ctx ctx, sink_val ls, sink_val a);
 */
-sink_val sink_list_joinplain(sink_ctx ctx, int size, sink_val *vals, int sepz, const uint8_t *sep){
+static inline uint8_t *opi_list_joinplain(sink_ctx ctx, int size, sink_val *vals, int sepz,
+	const uint8_t *sep, int *totv){
 	sink_val *strs = mem_alloc(sizeof(sink_val) * size);
 	int tot = 0;
 	for (int i = 0; i < size; i++){
@@ -11854,6 +11906,13 @@ sink_val sink_list_joinplain(sink_ctx ctx, int size, sink_val *vals, int sepz, c
 	}
 	mem_free(strs);
 	bytes[tot] = 0;
+	*totv = tot;
+	return bytes;
+}
+
+sink_val sink_list_joinplain(sink_ctx ctx, int size, sink_val *vals, int sepz, const uint8_t *sep){
+	int tot;
+	uint8_t *bytes = opi_list_joinplain(ctx, size, vals, sepz, sep, &tot);
 	return sink_str_newblobgive(ctx, tot, bytes);
 }
 /*
@@ -11898,7 +11957,6 @@ sink_val sink_abortformat(sink_ctx ctx, const char *fmt, ...){
 	vsprintf(buf, fmt, args2);
 	va_end(args);
 	va_end(args2);
-	sink_val a = sink_str_newblobgive(ctx, s, (uint8_t *)buf);
-	opi_abort(ctx, 1, &a);
+	opi_abort(ctx, buf);
 	return SINK_NIL;
 }
