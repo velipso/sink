@@ -7096,7 +7096,9 @@ function context_run(ctx){
 				if (A > ctx.lex_index || C > ctx.lex_index)
 					return opi_invalid(ctx);
 				X = var_get(ctx, C, D);
-				if (!sink_isnum(X))
+				if (X === null)
+					X = 0;
+				else if (!sink_isnum(X))
 					return opi_abort(ctx, 'Expecting number');
 				opi_rand_seed(ctx, X);
 				var_set(ctx, A, B, null);
@@ -7169,7 +7171,7 @@ function context_run(ctx){
 					return opi_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X))
-					return opi_abort(ctx, 'Expecting list when calling say');
+					return opi_abort(ctx, 'Expecting list when calling str.new');
 				var_set(ctx, A, B, sink_list_join(X, ' '));
 			} break;
 
@@ -7183,19 +7185,50 @@ function context_run(ctx){
 			} break;
 
 			case OP_STR_REPLACE    : { // [TGT], [SRC1], [SRC2], [SRC3]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				LOAD_abcdefgh();
+				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index ||
+					G > ctx.lex_index)
+					return opi_invalid(ctx);
+				X = sink_tostr(var_get(ctx, C, D));
+				Y = sink_tostr(var_get(ctx, E, F));
+				Z = sink_tostr(var_get(ctx, G, H));
+				var_set(ctx, A, B, X.split(Y).join(Z));
 			} break;
 
 			case OP_STR_BEGINS     : { // [TGT], [SRC1], [SRC2]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				LOAD_abcdef();
+				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
+					return opi_invalid(ctx);
+				X = sink_tostr(var_get(ctx, C, D));
+				Y = sink_tostr(var_get(ctx, E, F));
+				var_set(ctx, A, B, sink_bool(X.substr(0, Y.length) == Y));
 			} break;
 
 			case OP_STR_ENDS       : { // [TGT], [SRC1], [SRC2]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				LOAD_abcdef();
+				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
+					return opi_invalid(ctx);
+				X = sink_tostr(var_get(ctx, C, D));
+				Y = sink_tostr(var_get(ctx, E, F));
+				var_set(ctx, A, B, sink_bool(X.substr(X.length - Y.length) == Y));
 			} break;
 
 			case OP_STR_PAD        : { // [TGT], [SRC1], [SRC2]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				LOAD_abcdef();
+				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
+					return opi_invalid(ctx);
+				X = sink_tostr(var_get(ctx, C, D));
+				Y = var_get(ctx, E, F);
+				if (Y === null)
+					Y = 0;
+				else if (!sink_isnum(Y))
+					return opi_abort(ctx, 'Expecting number');
+				Y = unop_num_trunc(Y);
+				if (Y < 0) // left pad
+					X = (new Array(Math.max(0, -Y - X.length + 1))).join(' ') + X;
+				else // right pad
+					X += (new Array(Math.max(0, Y - X.length + 1))).join(' ');
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_STR_FIND       : { // [TGT], [SRC1], [SRC2], [SRC3]

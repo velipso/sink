@@ -1,0 +1,4 @@
+
+say str.replace 'hello world', 'l', 'A'
+say str.replace 'asdf', 'A', 'B'
+say str.replace 'AAAAAA', 'AA', 'B'

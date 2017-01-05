@@ -8639,6 +8639,8 @@ static inline sink_val opi_str_new(context ctx, sink_val a){
 
 static inline sink_val opi_list_push(context ctx, sink_val a, sink_val b);
 static inline sink_val opi_str_split(context ctx, sink_val a, sink_val b){
+	a = sink_tostr(ctx, a);
+	b = sink_tostr(ctx, b);
 	sink_str haystack = sink_caststr(ctx, a);
 	sink_str needle = sink_caststr(ctx, b);
 	sink_val result = sink_list_newblob(ctx, 0, NULL);
@@ -8657,12 +8659,59 @@ static inline sink_val opi_str_split(context ctx, sink_val a, sink_val b){
 			opi_list_push(ctx, result,
 				sink_str_newblob(ctx, hx - lastmatch, &haystack->bytes[lastmatch]));
 			lastmatch = hx + needle->size;
+			hx += needle->size;
 		}
-		hx += delta[haystack->bytes[hx + nlen]];
+		else
+			hx += delta[haystack->bytes[hx + nlen]];
 	}
 	opi_list_push(ctx, result,
 		sink_str_newblob(ctx, haystack->size - lastmatch, &haystack->bytes[lastmatch]));
 	return result;
+}
+
+static inline sink_val opi_list_join(context ctx, sink_val a, sink_val b);
+static inline sink_val opi_str_replace(context ctx, sink_val a, sink_val b, sink_val c){
+	sink_val ls = opi_str_split(ctx, a, b);
+	return opi_list_join(ctx, ls, c);
+}
+
+static inline sink_val opi_str_begins(context ctx, sink_val a, sink_val b){
+	sink_str s1 = var_caststr(ctx, sink_tostr(ctx, a));
+	sink_str s2 = var_caststr(ctx, sink_tostr(ctx, b));
+	return sink_bool(s1->size >= s2->size &&
+		memcmp(s1->bytes, s2->bytes, sizeof(uint8_t) * s2->size) == 0);
+}
+
+static inline sink_val opi_str_ends(context ctx, sink_val a, sink_val b){
+	sink_str s1 = var_caststr(ctx, sink_tostr(ctx, a));
+	sink_str s2 = var_caststr(ctx, sink_tostr(ctx, b));
+	return sink_bool(s1->size >= s2->size &&
+		memcmp(&s1->bytes[s1->size - s2->size], s2->bytes, sizeof(uint8_t) * s2->size) == 0);
+}
+
+static inline sink_val opi_str_pad(context ctx, sink_val a, int b){
+	sink_str s = var_caststr(ctx, sink_tostr(ctx, a));
+	if (b < 0){ // left pad
+		b = -b;
+		if (s->size >= b)
+			return a;
+		uint8_t *ns = mem_alloc(sizeof(uint8_t) * (b + 1));
+		memset(ns, 32, sizeof(uint8_t) * (b - s->size));
+		if (s->size > 0)
+			memcpy(&ns[b - s->size], s->bytes, sizeof(uint8_t) * s->size);
+		ns[b] = 0;
+		return sink_str_newblobgive(ctx, b, ns);
+	}
+	else{ // right pad
+		if (s->size >= b)
+			return a;
+		uint8_t *ns = mem_alloc(sizeof(uint8_t) * (b + 1));
+		if (s->size > 0)
+			memcpy(ns, s->bytes, sizeof(uint8_t) * s->size);
+		memset(&ns[s->size], 32, sizeof(uint8_t) * (b - s->size));
+		ns[b] = 0;
+		return sink_str_newblobgive(ctx, b, ns);
+	}
 }
 
 // operators
@@ -10252,7 +10301,9 @@ static sink_run context_run(context ctx){
 			case OP_RAND_SEED      : { // [TGT], [SRC]
 				LOAD_ABCD();
 				X = var_get(ctx, C, D);
-				if (!sink_isnum(X))
+				if (sink_isnil(X))
+					X.f = 0;
+				else if (!sink_isnum(X))
 					RETURN_FAIL("Expecting number");
 				opi_rand_seed(ctx, X.f);
 				var_set(ctx, A, B, SINK_NIL);
@@ -10312,31 +10363,48 @@ static sink_run context_run(context ctx){
 				LOAD_ABCD();
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X))
-					RETURN_FAIL("Expecting list when calling say");
+					RETURN_FAIL("Expecting list when calling str.new");
 				var_set(ctx, A, B, opi_str_new(ctx, X));
 			} break;
 
 			case OP_STR_SPLIT      : { // [TGT], [SRC1], [SRC2]
 				LOAD_ABCDEF();
-				X = sink_tostr(ctx, var_get(ctx, C, D));
-				Y = sink_tostr(ctx, var_get(ctx, E, F));
+				X = var_get(ctx, C, D);
+				Y = var_get(ctx, E, F);
 				var_set(ctx, A, B, opi_str_split(ctx, X, Y));
 			} break;
 
 			case OP_STR_REPLACE    : { // [TGT], [SRC1], [SRC2], [SRC3]
-				THROW("OP_STR_REPLACE");
+				LOAD_ABCDEFGH();
+				X = var_get(ctx, C, D);
+				Y = var_get(ctx, E, F);
+				Z = var_get(ctx, G, H);
+				var_set(ctx, A, B, opi_str_replace(ctx, X, Y, Z));
 			} break;
 
 			case OP_STR_BEGINS     : { // [TGT], [SRC1], [SRC2]
-				THROW("OP_STR_BEGINS");
+				LOAD_ABCDEF();
+				X = var_get(ctx, C, D);
+				Y = var_get(ctx, E, F);
+				var_set(ctx, A, B, opi_str_begins(ctx, X, Y));
 			} break;
 
 			case OP_STR_ENDS       : { // [TGT], [SRC1], [SRC2]
-				THROW("OP_STR_ENDS");
+				LOAD_ABCDEF();
+				X = var_get(ctx, C, D);
+				Y = var_get(ctx, E, F);
+				var_set(ctx, A, B, opi_str_ends(ctx, X, Y));
 			} break;
 
 			case OP_STR_PAD        : { // [TGT], [SRC1], [SRC2]
-				THROW("OP_STR_PAD");
+				LOAD_ABCDEF();
+				X = var_get(ctx, C, D);
+				Y = var_get(ctx, E, F);
+				if (sink_isnil(Y))
+					Y.f = 0;
+				else if (!sink_isnum(Y))
+					RETURN_FAIL("Expecting number");
+				var_set(ctx, A, B, opi_str_pad(ctx, X, Y.f));
 			} break;
 
 			case OP_STR_FIND       : { // [TGT], [SRC1], [SRC2], [SRC3]
