@@ -34,7 +34,9 @@ function replPrompt(){
 }
 
 function sinkExit(pass){
-	process.exit(pass ? 0 : 1);
+	if (typeof pass === 'string')
+		warn(pass);
+	process.exit(pass === true ? 0 : 1);
 }
 
 function fstype(file){ // must return 'file', 'dir', or 'none'
@@ -174,9 +176,13 @@ function fsreadEval(line){
 switch (mode){
 	case 'repl':
 	case 'rest':
-		return Sink
-			.repl(replPrompt(), fstype, fsread, say, warn, ask, [SinkShell(args)], getpaths(true))
-			.then(sinkExit);
+		return Sink.repl(
+			replPrompt(),
+			fstype, fsread,
+			say, warn, ask,
+			[SinkShell(args)],
+			getpaths(true)
+		).then(sinkExit);
 	case 'version':
 		return printVersion();
 	case 'compile':
@@ -188,23 +194,19 @@ switch (mode){
 			return printHelp();
 		return Sink.run(
 			makeabs('<eval>'),
-			fstype,
-			fsreadEval(evalLine),
+			fstype, fsreadEval(evalLine),
 			say, warn, ask,
 			[SinkShell(args)],
-			getpaths(false),
-			function(err){ warn('Error: ' + err); }
+			getpaths(false)
 		).then(sinkExit);
 	case 'run':
 		if (inFile === false)
 			return printHelp();
 		return Sink.run(
 			makeabs(inFile),
-			fstype,
-			fsread,
+			fstype, fsread,
 			say, warn, ask,
 			[SinkShell(args)],
-			getpaths(false),
-			function(err){ warn('Error: ' + err); }
+			getpaths(false)
 		).then(sinkExit);
 }
