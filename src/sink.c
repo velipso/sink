@@ -11212,14 +11212,16 @@ const char *sink_scr_write(sink_scr scr, int size, const uint8_t *bytes){
 		return NULL;
 	}
 	else{
-		char *err = compiler_write(sc->cmp, size, bytes);
-		if (err && sc->prg->repl){
-			if (sc->msg)
-				mem_free(sc->msg);
-			sc->msg = sink_format("Error: %s", err);
-			compiler_reset(sc->cmp);
+		if (sc->msg){
+			mem_free(sc->msg);
+			sc->msg = NULL;
 		}
-		return err;
+		char *err = compiler_write(sc->cmp, size, bytes);
+		if (err)
+			sc->msg = sink_format("Error: %s", err);
+		if (err && sc->prg->repl)
+			compiler_reset(sc->cmp);
+		return sc->msg;
 	}
 }
 
