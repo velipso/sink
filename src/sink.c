@@ -5405,7 +5405,7 @@ static inline void symtbl_loadStdlib(symtbl sym){
 		SAC(sym, "upper"     , OP_STR_UPPER     ,  1);
 		SAC(sym, "trim"      , OP_STR_TRIM      ,  1);
 		SAC(sym, "rev"       , OP_STR_REV       ,  1);
-		SAC(sym, "rep"       , OP_STR_REV       ,  2);
+		SAC(sym, "rep"       , OP_STR_REP       ,  2);
 		SAC(sym, "list"      , OP_STR_LIST      ,  1);
 		SAC(sym, "byte"      , OP_STR_BYTE      ,  2);
 		SAC(sym, "hash"      , OP_STR_HASH      ,  2);
@@ -8793,8 +8793,7 @@ static inline sink_val opi_str_pad(context ctx, sink_val a, int b){
 }
 
 static inline sink_val opi_str_lower(context ctx, sink_val a){
-	a = sink_tostr(ctx, a);
-	sink_str s = var_caststr(ctx, a);
+	sink_str s = var_caststr(ctx, sink_tostr(ctx, a));
 	uint8_t *b = mem_alloc(sizeof(uint8_t) * (s->size + 1));
 	for (int i = 0; i <= s->size; i++){
 		int ch = s->bytes[i];
@@ -8806,8 +8805,7 @@ static inline sink_val opi_str_lower(context ctx, sink_val a){
 }
 
 static inline sink_val opi_str_upper(context ctx, sink_val a){
-	a = sink_tostr(ctx, a);
-	sink_str s = var_caststr(ctx, a);
+	sink_str s = var_caststr(ctx, sink_tostr(ctx, a));
 	uint8_t *b = mem_alloc(sizeof(uint8_t) * (s->size + 1));
 	for (int i = 0; i <= s->size; i++){
 		int ch = s->bytes[i];
@@ -8816,6 +8814,59 @@ static inline sink_val opi_str_upper(context ctx, sink_val a){
 		b[i] = ch;
 	}
 	return sink_str_newblobgive(ctx, s->size, b);
+}
+
+static inline bool shouldtrim(uint8_t c){
+	return (c >= 9 && c <= 13) || c == 32;
+}
+
+static inline sink_val opi_str_trim(context ctx, sink_val a){
+	a = sink_tostr(ctx, a);
+	sink_str s = var_caststr(ctx, a);
+	int len1 = 0;
+	int len2 = 0;
+	while (len1 < s->size && shouldtrim(s->bytes[len1]))
+		len1++;
+	while (len2 < s->size && shouldtrim(s->bytes[s->size - 1 - len2]))
+		len2++;
+	if (len1 == 0 && len2 == 0)
+		return a;
+	int size = s->size - len1 - len2;
+	uint8_t *b = mem_alloc(sizeof(uint8_t) * (size + 1));
+	if (size > 0)
+		memcpy(b, &s->bytes[len1], sizeof(uint8_t) * size);
+	b[size] = 0;
+	return sink_str_newblobgive(ctx, size, b);
+}
+
+static inline sink_val opi_str_rev(context ctx, sink_val a){
+	a = sink_tostr(ctx, a);
+	sink_str s = var_caststr(ctx, a);
+	if (s->size <= 0)
+		return a;
+	uint8_t *b = mem_alloc(sizeof(uint8_t) * (s->size + 1));
+	for (int i = 0; i < s->size; i++)
+		b[s->size - i - 1] = s->bytes[i];
+	b[s->size] = 0;
+	return sink_str_newblobgive(ctx, s->size, b);
+}
+
+static inline sink_val opi_str_rep(context ctx, sink_val a, int rep){
+	if (rep <= 0)
+		return sink_str_newblobgive(ctx, 0, NULL);
+	a = sink_tostr(ctx, a);
+	if (rep == 1)
+		return a;
+	sink_str s = var_caststr(ctx, a);
+	if (s->size <= 0)
+		return a;
+	int size = s->size * rep;
+	// TODO: max length?
+	uint8_t *b = mem_alloc(sizeof(uint8_t) * (size + 1));
+	for (int i = 0; i < rep; i++)
+		memcpy(&b[i * s->size], s->bytes, sizeof(uint8_t) * s->size);
+	b[size] = 0;
+	return sink_str_newblobgive(ctx, size, b);
 }
 
 static inline sink_val opi_str_list(context ctx, sink_val a){
@@ -10554,15 +10605,26 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_STR_TRIM       : { // [TGT], [SRC]
-				THROW("OP_STR_TRIM");
+				LOAD_ABCD();
+				X = var_get(ctx, C, D);
+				var_set(ctx, A, B, opi_str_trim(ctx, X));
 			} break;
 
 			case OP_STR_REV        : { // [TGT], [SRC]
-				THROW("OP_STR_REV");
+				LOAD_ABCD();
+				X = var_get(ctx, C, D);
+				var_set(ctx, A, B, opi_str_rev(ctx, X));
 			} break;
 
 			case OP_STR_REP        : { // [TGT], [SRC1], [SRC2]
-				THROW("OP_STR_REP");
+				LOAD_ABCDEF();
+				X = var_get(ctx, C, D);
+				Y = var_get(ctx, E, F);
+				if (sink_isnil(Y))
+					Y.f = 0;
+				else if (!sink_isnum(Y))
+					RETURN_FAIL("Expecting number");
+				var_set(ctx, A, B, opi_str_rep(ctx, X, Y.f));
 			} break;
 
 			case OP_STR_LIST       : { // [TGT], [SRC]
@@ -10710,7 +10772,6 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X))
 					RETURN_FAIL("Expecting list for list.str");
-				// TODO: move this to opi_list_str
 				ls = sink_castlist(ctx, X);
 				uint8_t *bytes = mem_alloc(sizeof(uint8_t) * (ls->size + 1));
 				for (I = 0; I < ls->size; I++){

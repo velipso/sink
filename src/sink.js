@@ -3343,7 +3343,7 @@ function symtbl_loadStdlib(sym){
 		SAC(sym, 'upper'     , OP_STR_UPPER     ,  1);
 		SAC(sym, 'trim'      , OP_STR_TRIM      ,  1);
 		SAC(sym, 'rev'       , OP_STR_REV       ,  1);
-		SAC(sym, 'rep'       , OP_STR_REP       ,  1);
+		SAC(sym, 'rep'       , OP_STR_REP       ,  2);
 		SAC(sym, 'list'      , OP_STR_LIST      ,  1);
 		SAC(sym, 'byte'      , OP_STR_BYTE      ,  2);
 		SAC(sym, 'hash'      , OP_STR_HASH      ,  2);
@@ -7243,6 +7243,7 @@ function context_run(ctx){
 					Z = 0;
 				else if (!sink_isnum(Z))
 					return opi_abort(ctx, 'Expecting number');
+				Z = unop_num_trunc(Z);
 				Z = X.indexOf(Y, Z < 0 ? Z + X.length : Z);
 				var_set(ctx, A, B, Z < 0 ? null : Z);
 			} break;
@@ -7259,6 +7260,7 @@ function context_run(ctx){
 					Z = X.length;
 				else if (!sink_isnum(Z))
 					return opi_abort(ctx, 'Expecting number');
+				Z = unop_num_trunc(Z);
 				Z = X.lastIndexOf(Y, Z < 0 ? Z + X.length : Z);
 				var_set(ctx, A, B, Z < 0 ? null : Z);
 			} break;
@@ -7294,15 +7296,35 @@ function context_run(ctx){
 			} break;
 
 			case OP_STR_TRIM       : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				LOAD_abcd();
+				if (A > ctx.lex_index || C > ctx.lex_index)
+					return opi_invalid(ctx);
+				X = sink_tostr(var_get(ctx, C, D));
+				var_set(ctx, A, B, X.replace(/^[ \f\n\r\t\v]*|[ \f\n\r\t\v]*$/g, ''));
 			} break;
 
 			case OP_STR_REV        : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				LOAD_abcd();
+				if (A > ctx.lex_index || C > ctx.lex_index)
+					return opi_invalid(ctx);
+				X = sink_tostr(var_get(ctx, C, D));
+				var_set(ctx, A, B, X.split('').reverse().join(''));
 			} break;
 
 			case OP_STR_REP        : { // [TGT], [SRC1], [SRC2]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				LOAD_abcdef();
+				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
+					return opi_invalid(ctx);
+				X = sink_tostr(var_get(ctx, C, D));
+				Y = var_get(ctx, E, F);
+				if (Y === null)
+					Y = 0;
+				else if (!sink_isnum(Y))
+					return opi_abort(ctx, 'Expecting number');
+				Y = unop_num_trunc(Y);
+				if (Y < 0)
+					Y = 0;
+				var_set(ctx, A, B, (new Array(Y + 1)).join(X));
 			} break;
 
 			case OP_STR_LIST       : { // [TGT], [SRC]
