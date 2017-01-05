@@ -7264,11 +7264,33 @@ function context_run(ctx){
 			} break;
 
 			case OP_STR_LOWER      : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				LOAD_abcd();
+				if (A > ctx.lex_index || C > ctx.lex_index)
+					return opi_invalid(ctx);
+				X = sink_tostr(var_get(ctx, C, D));
+				Y = '';
+				for (var i = 0; i < X.length; i++){
+					var ch = X.charCodeAt(i);
+					if (ch >= 65 && ch <= 90)
+						ch += 32;
+					Y += String.fromCharCode(ch);
+				}
+				var_set(ctx, A, B, Y);
 			} break;
 
 			case OP_STR_UPPER      : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				LOAD_abcd();
+				if (A > ctx.lex_index || C > ctx.lex_index)
+					return opi_invalid(ctx);
+				X = sink_tostr(var_get(ctx, C, D));
+				Y = '';
+				for (var i = 0; i < X.length; i++){
+					var ch = X.charCodeAt(i);
+					if (ch >= 97 && ch <= 122)
+						ch -= 32;
+					Y += String.fromCharCode(ch);
+				}
+				var_set(ctx, A, B, Y);
 			} break;
 
 			case OP_STR_TRIM       : { // [TGT], [SRC]
@@ -7284,7 +7306,14 @@ function context_run(ctx){
 			} break;
 
 			case OP_STR_LIST       : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				LOAD_abcd();
+				if (A > ctx.lex_index || C > ctx.lex_index)
+					return opi_invalid(ctx);
+				X = sink_tostr(var_get(ctx, C, D));
+				Y = [];
+				for (var i = 0; i < X.length; i++)
+					Y.push(X.charCodeAt(i));
+				var_set(ctx, A, B, Y);
 			} break;
 
 			case OP_STR_BYTE       : { // [TGT], [SRC1], [SRC2]

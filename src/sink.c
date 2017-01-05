@@ -8767,7 +8767,8 @@ static inline sink_val opi_str_ends(context ctx, sink_val a, sink_val b){
 }
 
 static inline sink_val opi_str_pad(context ctx, sink_val a, int b){
-	sink_str s = var_caststr(ctx, sink_tostr(ctx, a));
+	a = sink_tostr(ctx, a);
+	sink_str s = var_caststr(ctx, a);
 	if (b < 0){ // left pad
 		b = -b;
 		if (s->size >= b)
@@ -8789,6 +8790,40 @@ static inline sink_val opi_str_pad(context ctx, sink_val a, int b){
 		ns[b] = 0;
 		return sink_str_newblobgive(ctx, b, ns);
 	}
+}
+
+static inline sink_val opi_str_lower(context ctx, sink_val a){
+	a = sink_tostr(ctx, a);
+	sink_str s = var_caststr(ctx, a);
+	uint8_t *b = mem_alloc(sizeof(uint8_t) * (s->size + 1));
+	for (int i = 0; i <= s->size; i++){
+		int ch = s->bytes[i];
+		if (ch >= 'A' && ch <= 'Z')
+			ch = ch - 'A' + 'a';
+		b[i] = ch;
+	}
+	return sink_str_newblobgive(ctx, s->size, b);
+}
+
+static inline sink_val opi_str_upper(context ctx, sink_val a){
+	a = sink_tostr(ctx, a);
+	sink_str s = var_caststr(ctx, a);
+	uint8_t *b = mem_alloc(sizeof(uint8_t) * (s->size + 1));
+	for (int i = 0; i <= s->size; i++){
+		int ch = s->bytes[i];
+		if (ch >= 'a' && ch <= 'z')
+			ch = ch - 'a' + 'A';
+		b[i] = ch;
+	}
+	return sink_str_newblobgive(ctx, s->size, b);
+}
+
+static inline sink_val opi_str_list(context ctx, sink_val a){
+	sink_str s = var_caststr(ctx, sink_tostr(ctx, a));
+	sink_val r = sink_list_newblob(ctx, 0, NULL);
+	for (int i = 0; i < s->size; i++)
+		sink_list_push(ctx, r, sink_num(s->bytes[i]));
+	return r;
 }
 
 // operators
@@ -10507,11 +10542,15 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_STR_LOWER      : { // [TGT], [SRC]
-				THROW("OP_STR_LOWER");
+				LOAD_ABCD();
+				X = var_get(ctx, C, D);
+				var_set(ctx, A, B, opi_str_lower(ctx, X));
 			} break;
 
 			case OP_STR_UPPER      : { // [TGT], [SRC]
-				THROW("OP_STR_UPPER");
+				LOAD_ABCD();
+				X = var_get(ctx, C, D);
+				var_set(ctx, A, B, opi_str_upper(ctx, X));
 			} break;
 
 			case OP_STR_TRIM       : { // [TGT], [SRC]
@@ -10527,7 +10566,9 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_STR_LIST       : { // [TGT], [SRC]
-				THROW("OP_STR_LIST");
+				LOAD_ABCD();
+				X = var_get(ctx, C, D);
+				var_set(ctx, A, B, opi_str_list(ctx, X));
 			} break;
 
 			case OP_STR_BYTE       : { // [TGT], [SRC1], [SRC2]
@@ -10671,7 +10712,7 @@ static sink_run context_run(context ctx){
 					RETURN_FAIL("Expecting list for list.str");
 				// TODO: move this to opi_list_str
 				ls = sink_castlist(ctx, X);
-				uint8_t *bytes = mem_alloc(sizeof(uint8_t) * ls->size);
+				uint8_t *bytes = mem_alloc(sizeof(uint8_t) * (ls->size + 1));
 				for (I = 0; I < ls->size; I++){
 					X = ls->vals[I];
 					if (!sink_isnum(X)){
@@ -10685,6 +10726,7 @@ static sink_run context_run(context ctx){
 						H = 255;
 					bytes[I] = H;
 				}
+				bytes[ls->size] = 0;
 				var_set(ctx, A, B, sink_str_newblobgive(ctx, ls->size, bytes));
 			} break;
 
