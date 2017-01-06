@@ -10234,8 +10234,11 @@ static sink_run context_run(context ctx){
 				if (!sink_islist(X))
 					RETURN_FAIL("Expecting list when calling exit");
 				ls = var_castlist(ctx, X);
-				if (ls->size > 0)
+				if (ls->size > 0){
 					opi_say(ctx, ls->size, ls->vals);
+					if (ctx->failed)
+						return SINK_RUN_FAIL;
+				}
 				return opi_exit(ctx);
 			} break;
 

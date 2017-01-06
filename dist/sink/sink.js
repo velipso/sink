@@ -6675,14 +6675,14 @@ function context_run(ctx){
 				var r = opi_say(ctx, X);
 				if (isPromise(r)){
 					return r.then(
-						function(v){
+						function(){
 							var_set(ctx, A, B, null);
 							return context_run(ctx);
 						},
 						function(e){ return opi_abort(ctx, '' + e); }
 					);
 				}
-				var_set(ctx, A, B, r);
+				var_set(ctx, A, B, null);
 			} break;
 
 			case OP_WARN           : { // [TGT], [SRC...]
@@ -6695,14 +6695,14 @@ function context_run(ctx){
 				var r = opi_warn(ctx, X);
 				if (isPromise(r)){
 					return r.then(
-						function(v){
+						function(){
 							var_set(ctx, A, B, null);
 							return context_run(ctx);
 						},
 						function(e){ return opi_abort(ctx, '' + e); }
 					);
 				}
-				var_set(ctx, A, B, r);
+				var_set(ctx, A, B, null);
 			} break;
 
 			case OP_ASK            : { // [TGT], [SRC...]
@@ -6732,8 +6732,18 @@ function context_run(ctx){
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X))
 					return opi_abort(ctx, 'Expecting list when calling exit');
-				if (X.length > 0)
-					return withResult(opi_say(ctx, X), function(){ return opi_exit(ctx); });
+				if (X.length > 0){
+					var r = opi_say(ctx, X);
+					if (isPromise(r)){
+						return r.then(
+							function(){
+								var_set(ctx, A, B, null);
+								return opi_exit(ctx);
+							},
+							function(e){ return opi_abort(ctx, '' + e); }
+						);
+					}
+				}
 				return opi_exit(ctx);
 			} break;
 
