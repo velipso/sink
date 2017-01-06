@@ -31,4 +31,4 @@ JavaScript implementation:
 
 * Values are stored as JavaScript values `null`, numbers, strings, and arrays
 * Relies on the native JavaScript garbage collector
-* Asynchronous commands via JavaScript Promises
+* Asynchronous commands and I/O via JavaScript Promises
