@@ -1826,7 +1826,6 @@ function prs_new(state, next){
 		exprTerm3: null,            // expr
 		names: null,                // list of strings
 		names2: null,               // list of strings
-		incls: null,                // list of incl's
 		next: next
 	};
 }
