@@ -8877,6 +8877,27 @@ static inline sink_val opi_str_list(context ctx, sink_val a){
 	return r;
 }
 
+static inline sink_val opi_str_byte(context ctx, sink_val a, int b){
+	sink_str s = var_caststr(ctx, sink_tostr(ctx, a));
+	if (b < 0)
+		b += s->size;
+	if (b < 0 || b >= s->size)
+		return SINK_NIL;
+	return sink_num(s->bytes[b]);
+}
+
+static inline sink_val opi_str_hash(context ctx, sink_val a, uint32_t seed){
+	sink_str s = var_caststr(ctx, sink_tostr(ctx, a));
+	uint32_t out[4];
+	sink_str_hashplain(s->size, s->bytes, seed, out);
+	sink_val outv[4];
+	outv[0] = sink_num(out[0]);
+	outv[1] = sink_num(out[1]);
+	outv[2] = sink_num(out[2]);
+	outv[3] = sink_num(out[3]);
+	return sink_list_newblob(ctx, 4, outv);
+}
+
 // operators
 static sink_val unop_num_neg(context ctx, sink_val a){
 	return sink_num(-a.f);
@@ -10634,11 +10655,25 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_STR_BYTE       : { // [TGT], [SRC1], [SRC2]
-				THROW("OP_STR_BYTE");
+				LOAD_ABCDEF();
+				X = var_get(ctx, C, D);
+				Y = var_get(ctx, E, F);
+				if (sink_isnil(Y))
+					Y.f = 0;
+				else if (!sink_isnum(Y))
+					RETURN_FAIL("Expecting number");
+				var_set(ctx, A, B, opi_str_byte(ctx, X, Y.f));
 			} break;
 
 			case OP_STR_HASH       : { // [TGT], [SRC1], [SRC2]
-				THROW("OP_STR_HASH");
+				LOAD_ABCDEF();
+				X = var_get(ctx, C, D);
+				Y = var_get(ctx, E, F);
+				if (sink_isnil(Y))
+					Y.f = 0;
+				else if (!sink_isnum(Y))
+					RETURN_FAIL("Expecting number");
+				var_set(ctx, A, B, opi_str_hash(ctx, X, Y.f));
 			} break;
 
 			case OP_UTF8_VALID     : { // [TGT], [SRC]
@@ -11980,6 +12015,7 @@ void sink_str_hashplain(int size, const uint8_t *str, uint32_t seed, uint32_t *o
 	uint64_t c1 = UINT64_C(0x87C37B91114253D5);
 	uint64_t c2 = UINT64_C(0x4CF5AD432745937F);
 
+	// TODO: this code assumes little-endian
 	const uint64_t *blocks = (const uint64_t *)str;
 
 	for (uint64_t i = 0; i < nblocks; i++){

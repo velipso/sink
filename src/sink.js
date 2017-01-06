@@ -7339,11 +7339,37 @@ function context_run(ctx){
 			} break;
 
 			case OP_STR_BYTE       : { // [TGT], [SRC1], [SRC2]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				LOAD_abcdef();
+				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
+					return opi_invalid(ctx);
+				X = sink_tostr(var_get(ctx, C, D));
+				Y = var_get(ctx, E, F);
+				if (Y === null)
+					Y = 0;
+				else if (!sink_isnum(Y))
+					return opi_abort(ctx, 'Expecting number');
+				Y = unop_num_trunc(Y);
+				if (Y < 0)
+					Y += X.length;
+				if (Y < 0 || Y >= X.length)
+					Y = null;
+				else
+					Y = X.charCodeAt(Y);
+				var_set(ctx, A, B, Y);
 			} break;
 
 			case OP_STR_HASH       : { // [TGT], [SRC1], [SRC2]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				LOAD_abcdef();
+				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
+					return opi_invalid(ctx);
+				X = sink_tostr(var_get(ctx, C, D));
+				Y = var_get(ctx, E, F);
+				if (Y === null)
+					Y = 0;
+				else if (!sink_isnum(Y))
+					return opi_abort(ctx, 'Expecting number');
+				Y = unop_num_trunc(Y) | 0;
+				var_set(ctx, A, B, murmur(X, Y));
 			} break;
 
 			case OP_UTF8_VALID     : { // [TGT], [SRC]
@@ -7959,6 +7985,194 @@ function compiler_close(cmp){
 
 function compiler_level(cmp){
 	return cmp.pr.level;
+}
+
+// JavaScript implementation of Murmur3_x64_128
+function murmur(str, seed){
+	// MurmurHash3 was written by Austin Appleby, and is placed in the public
+	// domain. The author hereby disclaims copyright to this source code.
+	// https://github.com/aappleby/smhasher
+
+	// 64-bit operations store numbers as [low int32_t, high int32_t]
+
+	function x64_add(a, b){
+		var A0 = a[0] & 0xFFFF; // lowest 16 bits
+		var A1 = a[0] >>> 16;   // ...
+		var A2 = a[1] & 0xFFFF; // ...
+		var A3 = a[1] >>> 16;   // highest 16 bits
+		var B0 = b[0] & 0xFFFF;
+		var B1 = b[0] >>> 16;
+		var B2 = b[1] & 0xFFFF;
+		var B3 = b[1] >>> 16;
+		var R0 = A0 + B0;
+		var R1 = A1 + B1 + (R0 >> 16);
+		var R2 = A2 + B2 + (R1 >> 16);
+		var R3 = A3 + B3 + (R2 >> 16);
+		return [(R0 & 0xFFFF) | ((R1 & 0xFFFF) << 16), (R2 & 0xFFFF) | ((R3 & 0xFFFF) << 16)];
+	}
+
+	function x64_mul(a, b){
+		var A0 = a[0] & 0xFFFF; // lowest 16 bits
+		var A1 = a[0] >>> 16;   // ...
+		var A2 = a[1] & 0xFFFF; // ...
+		var A3 = a[1] >>> 16;   // highest 16 bits
+		var B0 = b[0] & 0xFFFF;
+		var B1 = b[0] >>> 16;
+		var B2 = b[1] & 0xFFFF;
+		var B3 = b[1] >>> 16;
+		var T;
+		var R0, R1, R2, R3;
+		T = A0 * B0             ; R0  = T & 0xFFFF;
+		T = A1 * B0 + (T >>> 16); R1  = T & 0xFFFF;
+		T = A2 * B0 + (T >>> 16); R2  = T & 0xFFFF;
+		T = A3 * B0 + (T >>> 16); R3  = T & 0xFFFF;
+		T = A0 * B1             ; R1 += T & 0xFFFF;
+		T = A1 * B1 + (T >>> 16); R2 += T & 0xFFFF;
+		T = A2 * B1 + (T >>> 16); R3 += T & 0xFFFF;
+		T = A0 * B2             ; R2 += T & 0xFFFF;
+		T = A1 * B2 + (T >>> 16); R3 += T & 0xFFFF;
+		T = A0 * B3             ; R3 += T & 0xFFFF;
+		R1 += R0 >>> 16;
+		R2 += R1 >>> 16;
+		R3 += R2 >>> 16;
+		return [(R0 & 0xFFFF) | ((R1 & 0xFFFF) << 16), (R2 & 0xFFFF) | ((R3 & 0xFFFF) << 16)];
+	}
+
+	function x64_rotl(a, b){
+		b %= 64;
+		if (b == 0)
+			return a;
+		else if (b == 32)
+			return [a[1], a[0]];
+		else if (b < 32)
+			return [(a[0] << b) | (a[1] >>> (32 - b)), (a[1] << b) | (a[0] >>> (32 - b))];
+		b -= 32;
+		return [(a[1] << b) | (a[0] >>> (32 - b)), (a[0] << b) | (a[1] >>> (32 - b))];
+	}
+
+	function x64_shl(a, b){
+		if (b <= 0)
+			return a;
+		else if (b >= 64)
+			return [0, 0];
+		else if (b >= 32)
+			return [0, a[0] << (b - 32)];
+		return [a[0] << b, (a[1] << b) | (a[0] >>> (32 - b))];
+	}
+
+	function x64_shr(a, b){
+		if (b <= 0)
+			return a;
+		else if (b >= 64)
+			return [0, 0];
+		else if (b >= 32)
+			return [a[1] >>> (b - 32), 0];
+		return [(a[0] >>> b) | (a[1] << (32 - b)), a[1] >>> b];
+	}
+
+	function x64_xor(a, b){
+		return [a[0] ^ b[0], a[1] ^ b[1]];
+	}
+
+	function x64_fmix(a){
+		a = x64_xor(a, x64_shr(a, 33));
+		a = x64_mul(a, [0xED558CCD, 0xFF51AFD7]);
+		a = x64_xor(a, x64_shr(a, 33));
+		a = x64_mul(a, [0x1A85EC53, 0xC4CEB9FE]);
+		a = x64_xor(a, x64_shr(a, 33));
+		return a;
+	}
+
+	function getblock(i){
+		return [
+			(str.charCodeAt(i + 0)      ) |
+			(str.charCodeAt(i + 1) <<  8) |
+			(str.charCodeAt(i + 2) << 16) |
+			(str.charCodeAt(i + 3) << 24),
+			(str.charCodeAt(i + 4)      ) |
+			(str.charCodeAt(i + 5) <<  8) |
+			(str.charCodeAt(i + 6) << 16) |
+			(str.charCodeAt(i + 7) << 24)
+		];
+	}
+
+	// hash code
+
+	var nblocks = str.length >>> 4;
+	var h1 = [seed, 0];
+	var h2 = [seed, 0];
+	var c1 = [0x114253D5, 0x87C37B91];
+	var c2 = [0x2745937F, 0x4CF5AD43];
+	for (var i = 0; i < nblocks; i++){
+		var k1 = getblock((i * 2 + 0) * 8);
+		var k2 = getblock((i * 2 + 1) * 8);
+
+		k1 = x64_mul(k1, c1);
+		k1 = x64_rotl(k1, 31);
+		k1 = x64_mul(k1, c2);
+		h1 = x64_xor(h1, k1);
+
+		h1 = x64_rotl(h1, 27);
+		h1 = x64_add(h1, h2);
+		h1 = x64_add(x64_mul(h1, [5, 0]), [0x52DCE729, 0]);
+
+		k2 = x64_mul(k2, c2);
+		k2 = x64_rotl(k2, 33);
+		k2 = x64_mul(k2, c1);
+		h2 = x64_xor(h2, k2);
+
+		h2 = x64_rotl(h2, 31);
+		h2 = x64_add(h2, h1);
+		h2 = x64_add(x64_mul(h2, [5, 0]), [0x38495AB5, 0]);
+	}
+
+	var k1 = [0, 0];
+	var k2 = [0, 0];
+	var tail = str.substr(nblocks << 4);
+
+	switch(tail.length) {
+		case 15: k2 = x64_xor(k2, x64_shl([tail.charCodeAt(14), 0], 48));
+		case 14: k2 = x64_xor(k2, x64_shl([tail.charCodeAt(13), 0], 40));
+		case 13: k2 = x64_xor(k2, x64_shl([tail.charCodeAt(12), 0], 32));
+		case 12: k2 = x64_xor(k2, x64_shl([tail.charCodeAt(11), 0], 24));
+		case 11: k2 = x64_xor(k2, x64_shl([tail.charCodeAt(10), 0], 16));
+		case 10: k2 = x64_xor(k2, x64_shl([tail.charCodeAt( 9), 0],  8));
+		case  9: k2 = x64_xor(k2,         [tail.charCodeAt( 8), 0]     );
+
+			k2 = x64_mul(k2, c2);
+			k2 = x64_rotl(k2, 33);
+			k2 = x64_mul(k2, c1);
+			h2 = x64_xor(h2, k2);
+
+		case  8: k1 = x64_xor(k1, x64_shl([tail.charCodeAt( 7), 0], 56));
+		case  7: k1 = x64_xor(k1, x64_shl([tail.charCodeAt( 6), 0], 48));
+		case  6: k1 = x64_xor(k1, x64_shl([tail.charCodeAt( 5), 0], 40));
+		case  5: k1 = x64_xor(k1, x64_shl([tail.charCodeAt( 4), 0], 32));
+		case  4: k1 = x64_xor(k1, x64_shl([tail.charCodeAt( 3), 0], 24));
+		case  3: k1 = x64_xor(k1, x64_shl([tail.charCodeAt( 2), 0], 16));
+		case  2: k1 = x64_xor(k1, x64_shl([tail.charCodeAt( 1), 0],  8));
+		case  1: k1 = x64_xor(k1,         [tail.charCodeAt( 0), 0]     );
+
+			k1 = x64_mul(k1, c1);
+			k1 = x64_rotl(k1, 31);
+			k1 = x64_mul(k1, c2);
+			h1 = x64_xor(h1, k1);
+	}
+
+	h1 = x64_xor(h1, [str.length, 0]);
+	h2 = x64_xor(h2, [str.length, 0]);
+
+	h1 = x64_add(h1, h2);
+	h2 = x64_add(h2, h1);
+
+	h1 = x64_fmix(h1);
+	h2 = x64_fmix(h2);
+
+	h1 = x64_add(h1, h2);
+	h2 = x64_add(h2, h1);
+
+	function uns(n){ return (n < 0 ? 4294967296 : 0) + n; } // make number unsigned
+	return [uns(h1[0]), uns(h1[1]), uns(h2[0]), uns(h2[1])];
 }
 
 //
