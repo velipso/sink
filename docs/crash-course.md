@@ -449,7 +449,7 @@ test1 3
 #  base: 3
 ```
 
-Any statement with a block creates a new scope.  The `do-end` statement doesn't do anything except
+Any statement with a block creates a new scope.  The do-end statement doesn't do anything except
 create a scope:
 
 ```
