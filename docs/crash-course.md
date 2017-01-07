@@ -1,5 +1,5 @@
 Crash Course
-=================
+============
 
 Sink is a minimal programming language specifically designed to be embedded in larger programs,
 similar in spirit to Lua (but more simple).
@@ -447,6 +447,25 @@ test1 3
 # output:
 #  base: 13
 #  base: 3
+```
+
+Any statement with a block creates a new scope.  The `do-end` statement doesn't do anything except
+create a scope:
+
+```
+var x = 1
+if x
+  # new scope
+  var x = 2
+end
+say x    # 1
+do
+  # new scope
+  say x  # 1
+  var x = 3
+  say x  # 3
+end
+say x    # 1
 ```
 
 Destructuring Assignment

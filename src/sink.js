@@ -5819,7 +5819,6 @@ function opi_rand_shuffle(ctx, ls){
 	}
 }
 
-
 // 1   7  U+00000  U+00007F  0xxxxxxx
 // 2  11  U+00080  U+0007FF  110xxxxx  10xxxxxx
 // 3  16  U+00800  U+00FFFF  1110xxxx  10xxxxxx  10xxxxxx
@@ -5960,7 +5959,6 @@ function opi_utf8_str(a){
 	}
 	return bytes;
 }
-
 
 // operators
 function unop_num_neg(a){
