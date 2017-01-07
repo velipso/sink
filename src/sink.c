@@ -9057,6 +9057,318 @@ static inline sink_val opi_utf8_str(context ctx, sink_val a){
 	return sink_str_newblobgive(ctx, tot, bytes);
 }
 
+static inline sink_val opi_struct_size(context ctx, sink_val a){
+	sink_list ls = var_castlist(ctx, a);
+	int tot = 0;
+	for (int i = 0; i < ls->size; i++){
+		sink_val b = ls->vals[i];
+		if (!sink_isstr(b))
+			return SINK_NIL;
+		sink_str t = var_caststr(ctx, b);
+		if (t->size == 2){
+			if      (strcmp((const char *)t->bytes, "U8"  ) == 0) tot += 1;
+			else if (strcmp((const char *)t->bytes, "S8"  ) == 0) tot += 1;
+			else
+				return SINK_NIL;
+		}
+		else if (t->size == 3){
+			if      (strcmp((const char *)t->bytes, "U16" ) == 0) tot += 2;
+			else if (strcmp((const char *)t->bytes, "U32" ) == 0) tot += 4;
+			else if (strcmp((const char *)t->bytes, "S16" ) == 0) tot += 2;
+			else if (strcmp((const char *)t->bytes, "S32" ) == 0) tot += 4;
+			else if (strcmp((const char *)t->bytes, "F32" ) == 0) tot += 4;
+			else if (strcmp((const char *)t->bytes, "F64" ) == 0) tot += 8;
+			else
+				return SINK_NIL;
+		}
+		else if (t->size == 4){
+			if      (strcmp((const char *)t->bytes, "UL16") == 0) tot += 2;
+			else if (strcmp((const char *)t->bytes, "UB16") == 0) tot += 2;
+			else if (strcmp((const char *)t->bytes, "UL32") == 0) tot += 4;
+			else if (strcmp((const char *)t->bytes, "UB32") == 0) tot += 4;
+			else if (strcmp((const char *)t->bytes, "SL16") == 0) tot += 2;
+			else if (strcmp((const char *)t->bytes, "SB16") == 0) tot += 2;
+			else if (strcmp((const char *)t->bytes, "SL32") == 0) tot += 4;
+			else if (strcmp((const char *)t->bytes, "SB32") == 0) tot += 4;
+			else if (strcmp((const char *)t->bytes, "FL32") == 0) tot += 4;
+			else if (strcmp((const char *)t->bytes, "FB32") == 0) tot += 4;
+			else if (strcmp((const char *)t->bytes, "FL64") == 0) tot += 8;
+			else if (strcmp((const char *)t->bytes, "FB64") == 0) tot += 8;
+			else
+				return SINK_NIL;
+		}
+		else
+			return SINK_NIL;
+	}
+	return sink_num(tot);
+}
+
+static inline sink_val opi_struct_str(context ctx, sink_val a, sink_val b){
+	sink_list data = var_castlist(ctx, a);
+	sink_list type = var_castlist(ctx, b);
+	if (data->size != type->size)
+		return SINK_NIL;
+	for (int i = 0; i < data->size; i++){
+		if (!sink_isnum(data->vals[i]))
+			return SINK_NIL;
+	}
+	sink_val sizev = opi_struct_size(ctx, b);
+	if (sink_isnil(sizev))
+		return SINK_NIL;
+	int size = sizev.f;
+	uint8_t *bytes = mem_alloc(sizeof(uint8_t) * (size + 1));
+	int pos = 0;
+	for (int i = 0; i < type->size; i++){
+		sink_val d = data->vals[i];
+		sink_str t = var_caststr(ctx, type->vals[i]);
+		if (t->size == 2){
+			// U8 or S8
+			uint8_t v = d.f;
+			bytes[pos++] = v;
+		}
+		else if (t->size == 3){
+			if (strcmp((const char *)t->bytes, "U16") == 0 ||
+				strcmp((const char *)t->bytes, "S16") == 0){
+				uint16_t v = d.f;
+				uint8_t *vp = (uint8_t *)&v;
+				bytes[pos++] = vp[0]; bytes[pos++] = vp[1];
+			}
+			else if (strcmp((const char *)t->bytes, "U32") == 0 ||
+				strcmp((const char *)t->bytes, "S32") == 0){
+				uint32_t v = d.f;
+				uint8_t *vp = (uint8_t *)&v;
+				bytes[pos++] = vp[0]; bytes[pos++] = vp[1];
+				bytes[pos++] = vp[2]; bytes[pos++] = vp[3];
+			}
+			else if (strcmp((const char *)t->bytes, "F32") == 0){
+				float v = d.f;
+				uint8_t *vp = (uint8_t *)&v;
+				bytes[pos++] = vp[0]; bytes[pos++] = vp[1];
+				bytes[pos++] = vp[2]; bytes[pos++] = vp[3];
+			}
+			else{ // F64
+				double v = d.f;
+				uint8_t *vp = (uint8_t *)&v;
+				bytes[pos++] = vp[0]; bytes[pos++] = vp[1];
+				bytes[pos++] = vp[2]; bytes[pos++] = vp[3];
+				bytes[pos++] = vp[4]; bytes[pos++] = vp[5];
+				bytes[pos++] = vp[6]; bytes[pos++] = vp[7];
+			}
+		}
+		else{ // t->size == 4
+			if (strcmp((const char *)t->bytes, "UL16") == 0 ||
+				strcmp((const char *)t->bytes, "SL16") == 0){
+				uint16_t v = d.f;
+				bytes[pos++] = (v      ) & 0xFF; bytes[pos++] = (v >>  8) & 0xFF;
+			}
+			else if (strcmp((const char *)t->bytes, "UB16") == 0 ||
+				strcmp((const char *)t->bytes, "SB16") == 0){
+				uint16_t v = d.f;
+				bytes[pos++] = (v >>  8) & 0xFF; bytes[pos++] = (v      ) & 0xFF;
+			}
+			else if (strcmp((const char *)t->bytes, "UL32") == 0 ||
+				strcmp((const char *)t->bytes, "SL32") == 0){
+				uint32_t v = d.f;
+				bytes[pos++] = (v      ) & 0xFF; bytes[pos++] = (v >>  8) & 0xFF;
+				bytes[pos++] = (v >> 16) & 0xFF; bytes[pos++] = (v >> 24) & 0xFF;
+			}
+			else if (strcmp((const char *)t->bytes, "UB32") == 0 ||
+				strcmp((const char *)t->bytes, "SB32") == 0){
+				uint32_t v = d.f;
+				bytes[pos++] = (v >> 24) & 0xFF; bytes[pos++] = (v >> 16) & 0xFF;
+				bytes[pos++] = (v >>  8) & 0xFF; bytes[pos++] = (v      ) & 0xFF;
+			}
+			else if (strcmp((const char *)t->bytes, "FL32") == 0){
+				union { float f; uint32_t u; } v = { .f = d.f };
+				bytes[pos++] = (v.u      ) & 0xFF; bytes[pos++] = (v.u >>  8) & 0xFF;
+				bytes[pos++] = (v.u >> 16) & 0xFF; bytes[pos++] = (v.u >> 24) & 0xFF;
+			}
+			else if (strcmp((const char *)t->bytes, "FB32") == 0){
+				union { float f; uint32_t u; } v = { .f = d.f };
+				bytes[pos++] = (v.u >> 24) & 0xFF; bytes[pos++] = (v.u >> 16) & 0xFF;
+				bytes[pos++] = (v.u >>  8) & 0xFF; bytes[pos++] = (v.u      ) & 0xFF;
+			}
+			else if (strcmp((const char *)t->bytes, "FL64") == 0){
+				union { double f; uint64_t u; } v = { .f = d.f };
+				bytes[pos++] = (v.u      ) & 0xFF; bytes[pos++] = (v.u >>  8) & 0xFF;
+				bytes[pos++] = (v.u >> 16) & 0xFF; bytes[pos++] = (v.u >> 24) & 0xFF;
+				bytes[pos++] = (v.u >> 32) & 0xFF; bytes[pos++] = (v.u >> 40) & 0xFF;
+				bytes[pos++] = (v.u >> 48) & 0xFF; bytes[pos++] = (v.u >> 56) & 0xFF;
+			}
+			else{ // FB64
+				union { double f; uint64_t u; } v = { .f = d.f };
+				bytes[pos++] = (v.u >> 56) & 0xFF; bytes[pos++] = (v.u >> 48) & 0xFF;
+				bytes[pos++] = (v.u >> 40) & 0xFF; bytes[pos++] = (v.u >> 32) & 0xFF;
+				bytes[pos++] = (v.u >> 24) & 0xFF; bytes[pos++] = (v.u >> 16) & 0xFF;
+				bytes[pos++] = (v.u >>  8) & 0xFF; bytes[pos++] = (v.u      ) & 0xFF;
+			}
+		}
+	}
+	return sink_str_newblobgive(ctx, size, bytes);
+}
+
+static inline sink_val opi_struct_list(context ctx, sink_val a, sink_val b){
+	sink_str s = var_caststr(ctx, a);
+	sink_val sizev = opi_struct_size(ctx, b);
+	if (sink_isnil(sizev) || s->size != sizev.f)
+		return SINK_NIL;
+	sink_list type = var_castlist(ctx, b);
+	sink_val res = sink_list_newblob(ctx, 0, NULL);
+	int pos = 0;
+	for (int i = 0; i < type->size; i++){
+		sink_str t = var_caststr(ctx, type->vals[i]);
+		if (t->size == 2){
+			if (strcmp((const char *)t->bytes, "U8") == 0)
+				sink_list_push(ctx, res, sink_num(s->bytes[pos++]));
+			else // S8
+				sink_list_push(ctx, res, sink_num((int8_t)s->bytes[pos++]));
+		}
+		else if (t->size == 3){
+			if (strcmp((const char *)t->bytes, "U16") == 0){
+				uint16_t *v = (uint16_t *)&s->bytes[pos];
+				sink_list_push(ctx, res, sink_num(*v));
+				pos += 2;
+			}
+			else if (strcmp((const char *)t->bytes, "U32") == 0){
+				uint32_t *v = (uint32_t *)&s->bytes[pos];
+				sink_list_push(ctx, res, sink_num(*v));
+				pos += 4;
+			}
+			else if (strcmp((const char *)t->bytes, "S16") == 0){
+				int16_t *v = (int16_t *)&s->bytes[pos];
+				sink_list_push(ctx, res, sink_num(*v));
+				pos += 2;
+			}
+			else if (strcmp((const char *)t->bytes, "S32") == 0){
+				int32_t *v = (int32_t *)&s->bytes[pos];
+				sink_list_push(ctx, res, sink_num(*v));
+				pos += 4;
+			}
+			else if (strcmp((const char *)t->bytes, "F32") == 0){
+				float *v = (float *)&s->bytes[pos];
+				sink_list_push(ctx, res, sink_num(*v));
+				pos += 4;
+			}
+			else{ // F64
+				double *v = (double *)&s->bytes[pos];
+				sink_list_push(ctx, res, sink_num(*v));
+				pos += 8;
+			}
+		}
+		else{ // t->size == 4
+			if (strcmp((const char *)t->bytes, "UL16") == 0){
+				uint16_t v = 0;
+				v |= s->bytes[pos++];
+				v |= ((uint16_t)s->bytes[pos++]) << 8;
+				sink_list_push(ctx, res, sink_num(v));
+			}
+			else if (strcmp((const char *)t->bytes, "UB16") == 0){
+				uint16_t v = 0;
+				v |= ((uint16_t)s->bytes[pos++]) << 8;
+				v |= s->bytes[pos++];
+				sink_list_push(ctx, res, sink_num(v));
+			}
+			else if (strcmp((const char *)t->bytes, "UL32") == 0){
+				uint32_t v = 0;
+				v |= s->bytes[pos++];
+				v |= ((uint32_t)s->bytes[pos++]) <<  8;
+				v |= ((uint32_t)s->bytes[pos++]) << 16;
+				v |= ((uint32_t)s->bytes[pos++]) << 24;
+				sink_list_push(ctx, res, sink_num(v));
+			}
+			else if (strcmp((const char *)t->bytes, "UB32") == 0){
+				uint32_t v = 0;
+				v |= ((uint32_t)s->bytes[pos++]) << 24;
+				v |= ((uint32_t)s->bytes[pos++]) << 16;
+				v |= ((uint32_t)s->bytes[pos++]) <<  8;
+				v |= s->bytes[pos++];
+				sink_list_push(ctx, res, sink_num(v));
+			}
+			else if (strcmp((const char *)t->bytes, "SL16") == 0){
+				uint16_t v = 0;
+				v |= s->bytes[pos++];
+				v |= ((uint16_t)s->bytes[pos++]) << 8;
+				sink_list_push(ctx, res, sink_num((int16_t)v));
+			}
+			else if (strcmp((const char *)t->bytes, "SB16") == 0){
+				uint16_t v = 0;
+				v |= ((uint16_t)s->bytes[pos++]) << 8;
+				v |= s->bytes[pos++];
+				sink_list_push(ctx, res, sink_num((int16_t)v));
+			}
+			else if (strcmp((const char *)t->bytes, "SL32") == 0){
+				uint32_t v = 0;
+				v |= s->bytes[pos++];
+				v |= ((uint32_t)s->bytes[pos++]) <<  8;
+				v |= ((uint32_t)s->bytes[pos++]) << 16;
+				v |= ((uint32_t)s->bytes[pos++]) << 24;
+				sink_list_push(ctx, res, sink_num((int32_t)v));
+			}
+			else if (strcmp((const char *)t->bytes, "SB32") == 0){
+				uint32_t v = 0;
+				v |= ((uint32_t)s->bytes[pos++]) << 24;
+				v |= ((uint32_t)s->bytes[pos++]) << 16;
+				v |= ((uint32_t)s->bytes[pos++]) <<  8;
+				v |= s->bytes[pos++];
+				sink_list_push(ctx, res, sink_num((int32_t)v));
+			}
+			else if (strcmp((const char *)t->bytes, "FL32") == 0){
+				union { float f; uint32_t u; } v = { .u = 0 };
+				v.u |= s->bytes[pos++];
+				v.u |= ((uint32_t)s->bytes[pos++]) <<  8;
+				v.u |= ((uint32_t)s->bytes[pos++]) << 16;
+				v.u |= ((uint32_t)s->bytes[pos++]) << 24;
+				if (isnan(v.f))
+					sink_list_push(ctx, res, sink_num_nan());
+				else
+					sink_list_push(ctx, res, sink_num(v.f));
+			}
+			else if (strcmp((const char *)t->bytes, "FB32") == 0){
+				union { float f; uint32_t u; } v = { .u = 0 };
+				v.u |= ((uint32_t)s->bytes[pos++]) << 24;
+				v.u |= ((uint32_t)s->bytes[pos++]) << 16;
+				v.u |= ((uint32_t)s->bytes[pos++]) <<  8;
+				v.u |= s->bytes[pos++];
+				if (isnan(v.f))
+					sink_list_push(ctx, res, sink_num_nan());
+				else
+					sink_list_push(ctx, res, sink_num(v.f));
+			}
+			else if (strcmp((const char *)t->bytes, "FL64") == 0){
+				union { double f; uint64_t u; } v = { .u = 0 };
+				v.u |= s->bytes[pos++];
+				v.u |= ((uint64_t)s->bytes[pos++]) <<  8;
+				v.u |= ((uint64_t)s->bytes[pos++]) << 16;
+				v.u |= ((uint64_t)s->bytes[pos++]) << 24;
+				v.u |= ((uint64_t)s->bytes[pos++]) << 32;
+				v.u |= ((uint64_t)s->bytes[pos++]) << 40;
+				v.u |= ((uint64_t)s->bytes[pos++]) << 48;
+				v.u |= ((uint64_t)s->bytes[pos++]) << 56;
+				if (isnan(v.f))
+					sink_list_push(ctx, res, sink_num_nan());
+				else
+					sink_list_push(ctx, res, sink_num(v.f));
+			}
+			else{ // FB64
+				union { double f; uint64_t u; } v = { .u = 0 };
+				v.u |= ((uint64_t)s->bytes[pos++]) << 56;
+				v.u |= ((uint64_t)s->bytes[pos++]) << 48;
+				v.u |= ((uint64_t)s->bytes[pos++]) << 40;
+				v.u |= ((uint64_t)s->bytes[pos++]) << 32;
+				v.u |= ((uint64_t)s->bytes[pos++]) << 24;
+				v.u |= ((uint64_t)s->bytes[pos++]) << 16;
+				v.u |= ((uint64_t)s->bytes[pos++]) <<  8;
+				v.u |= s->bytes[pos++];
+				if (isnan(v.f))
+					sink_list_push(ctx, res, sink_num_nan());
+				else
+					sink_list_push(ctx, res, sink_num(v.f));
+			}
+		}
+	}
+	return res;
+}
+
 // operators
 static sink_val unop_num_neg(context ctx, sink_val a){
 	return sink_num(-a.f);
@@ -10867,15 +11179,37 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_STRUCT_SIZE    : { // [TGT], [SRC]
-				THROW("OP_STRUCT_SIZE");
+				LOAD_ABCD();
+				X = var_get(ctx, C, D);
+				if (!sink_islist(X))
+					RETURN_FAIL("Expecting list");
+				var_set(ctx, A, B, opi_struct_size(ctx, X));
 			} break;
 
 			case OP_STRUCT_STR     : { // [TGT], [SRC1], [SRC2]
-				THROW("OP_STRUCT_STR");
+				LOAD_ABCDEF();
+				X = var_get(ctx, C, D);
+				Y = var_get(ctx, E, F);
+				if (!sink_islist(X) || !sink_islist(Y))
+					RETURN_FAIL("Expecting list");
+				X = opi_struct_str(ctx, X, Y);
+				if (sink_isnil(X))
+					RETURN_FAIL("Invalid conversion");
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_STRUCT_LIST    : { // [TGT], [SRC1], [SRC2]
-				THROW("OP_STRUCT_LIST");
+				LOAD_ABCDEF();
+				X = var_get(ctx, C, D);
+				Y = var_get(ctx, E, F);
+				if (!sink_isstr(X))
+					RETURN_FAIL("Expecting string");
+				if (!sink_islist(Y))
+					RETURN_FAIL("Expecting list");
+				X = opi_struct_list(ctx, X, Y);
+				if (sink_isnil(X))
+					RETURN_FAIL("Invalid conversion");
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_LIST_NEW       : { // [TGT], [SRC1], [SRC2]

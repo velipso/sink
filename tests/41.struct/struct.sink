@@ -1,0 +1,12 @@
+
+say struct.str {0x41, 0x42}, {'U8', 'U8'}
+say struct.list 'AAAB', {'UL32'}
+say struct.list 'AAAB', {'UB32'}
+say struct.size {'F32', 'U8', 'S16'}
+say struct.size {'hello'}
+
+var s = list.str { 0x7F, 0xF0, 0x00, 0x03, 0x00, 0x00, 0x00, 0x01 }
+say struct.list s, {'FB64'}
+
+say (struct.str {1.5}, {'FL64'} | str.list)
+say (struct.str {1.5}, {'FB64'} | str.list)

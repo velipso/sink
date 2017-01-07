@@ -377,24 +377,24 @@ Structure templates are lists of strings, where each case-sensitive string repre
 | Code     | Size | Signed?  | Endian | C Type     |
 |----------|------|----------|--------|------------|
 | `'U8'`   |    1 | Unsigned | N/A    | `uint8_t`  |
-| `'S8'`   |    1 | Signed   | N/A    | `int8_t`   |
 | `'U16'`  |    2 | Unsigned | Native | `uint16_t` |
-| `'S16'`  |    2 | Signed   | Native | `int16_t`  |
 | `'UL16'` |    2 | Unsigned | Little | `uint16_t` |
-| `'SL16'` |    2 | Signed   | Little | `int16_t`  |
 | `'UB16'` |    2 | Unsigned | Big    | `uint16_t` |
-| `'SB16'` |    2 | Signed   | Big    | `int16_t`  |
 | `'U32'`  |    4 | Unsigned | Native | `uint32_t` |
-| `'S32'`  |    4 | Signed   | Native | `int32_t`  |
 | `'UL32'` |    4 | Unsigned | Little | `uint32_t` |
-| `'SL32'` |    4 | Signed   | Little | `int32_t`  |
 | `'UB32'` |    4 | Unsigned | Big    | `uint32_t` |
+| `'S8'`   |    1 | Signed   | N/A    | `int8_t`   |
+| `'S16'`  |    2 | Signed   | Native | `int16_t`  |
+| `'SL16'` |    2 | Signed   | Little | `int16_t`  |
+| `'SB16'` |    2 | Signed   | Big    | `int16_t`  |
+| `'S32'`  |    4 | Signed   | Native | `int32_t`  |
+| `'SL32'` |    4 | Signed   | Little | `int32_t`  |
 | `'SB32'` |    4 | Signed   | Big    | `int32_t`  |
 | `'F32'`  |    4 | N/A      | Native | `float`    |
-| `'F64'`  |    8 | N/A      | Native | `double`   |
 | `'FL32'` |    4 | N/A      | Little | `float`    |
-| `'FL64'` |    8 | N/A      | Little | `double`   |
 | `'FB32'` |    4 | N/A      | Big    | `float`    |
+| `'F64'`  |    8 | N/A      | Native | `double`   |
+| `'FL64'` |    8 | N/A      | Little | `double`   |
 | `'FB64'` |    8 | N/A      | Big    | `double`   |
 
 ```

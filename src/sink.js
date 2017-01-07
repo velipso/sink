@@ -5960,6 +5960,194 @@ function opi_utf8_str(a){
 	return bytes;
 }
 
+function opi_struct_size(a){
+	var tot = 0;
+	for (var i = 0; i < a.length; i++){
+		var b = a[i];
+		if (!sink_isstr(b))
+			return null;
+		if      (b === 'U8'   || b === 'S8'  ) tot += 1;
+		else if (b === 'U16'  || b === 'S16' ) tot += 2;
+		else if (b === 'UL16' || b === 'SL16') tot += 2;
+		else if (b === 'UB16' || b === 'SB16') tot += 2;
+		else if (b === 'U32'  || b === 'S32' ) tot += 4;
+		else if (b === 'UL32' || b === 'SL32') tot += 4;
+		else if (b === 'UB32' || b === 'SB32') tot += 4;
+		else if (b === 'F32'  || b === 'FL32' || b === 'FB32') tot += 4;
+		else if (b === 'F64'  || b === 'FL64' || b === 'FB64') tot += 8;
+		else
+			return null;
+	}
+	return tot;
+}
+
+var LE = (function(){ // detect native endianness
+	var b = new ArrayBuffer(2);
+	(new DataView(b)).setInt16(0, 1, true);
+	return (new Int16Array(b))[0] === 1;
+})();
+
+function opi_struct_str(a, b){
+	if (a.length !== b.length)
+		return null;
+	var res = '';
+	for (var i = 0; i < b.length; i++){
+		var d = a[i];
+		var t = b[i];
+		if (!sink_isnum(d) || !sink_isstr(t))
+			return null;
+		if (t === 'U8' || t === 'S8')
+			res += String.fromCharCode(d & 0xFF);
+		else if (t === 'UL16' || t === 'SL16' || (LE && (t === 'U16' || t === 'S16'))){
+			dview.setUint16(0, d & 0xFFFF, true);
+			res += String.fromCharCode(dview.getUint8(0));
+			res += String.fromCharCode(dview.getUint8(1));
+		}
+		else if (t === 'UB16' || t === 'SB16' || (!LE && (t === 'U16' || t === 'S16'))){
+			dview.setUint16(0, d & 0xFFFF, false);
+			res += String.fromCharCode(dview.getUint8(0));
+			res += String.fromCharCode(dview.getUint8(1));
+		}
+		else if (t === 'UL32' || t === 'SL32' || (LE && (t === 'U32' || t === 'S32'))){
+			dview.setUint32(0, d & 0xFFFFFFFF, true);
+			res += String.fromCharCode(dview.getUint8(0));
+			res += String.fromCharCode(dview.getUint8(1));
+			res += String.fromCharCode(dview.getUint8(2));
+			res += String.fromCharCode(dview.getUint8(3));
+		}
+		else if (t === 'UB32' || t === 'SB32' || (!LE && (t === 'U32' || t === 'S32'))){
+			dview.setUint32(0, d & 0xFFFFFFFF, false);
+			res += String.fromCharCode(dview.getUint8(0));
+			res += String.fromCharCode(dview.getUint8(1));
+			res += String.fromCharCode(dview.getUint8(2));
+			res += String.fromCharCode(dview.getUint8(3));
+		}
+		else if (t === 'FL32' || (LE && t === 'F32')){
+			dview.setFloat32(0, d, true);
+			res += String.fromCharCode(dview.getUint8(0));
+			res += String.fromCharCode(dview.getUint8(1));
+			res += String.fromCharCode(dview.getUint8(2));
+			res += String.fromCharCode(dview.getUint8(3));
+		}
+		else if (t === 'FB32' || (!LE && t === 'F32')){
+			dview.setFloat32(0, d, false);
+			res += String.fromCharCode(dview.getUint8(0));
+			res += String.fromCharCode(dview.getUint8(1));
+			res += String.fromCharCode(dview.getUint8(2));
+			res += String.fromCharCode(dview.getUint8(3));
+		}
+		else if (t === 'FL64' || (LE && t === 'F64')){
+			dview.setFloat64(0, d, true);
+			res += String.fromCharCode(dview.getUint8(0));
+			res += String.fromCharCode(dview.getUint8(1));
+			res += String.fromCharCode(dview.getUint8(2));
+			res += String.fromCharCode(dview.getUint8(3));
+			res += String.fromCharCode(dview.getUint8(4));
+			res += String.fromCharCode(dview.getUint8(5));
+			res += String.fromCharCode(dview.getUint8(6));
+			res += String.fromCharCode(dview.getUint8(7));
+		}
+		else if (t === 'FB64' || (!LE && t === 'F64')){
+			dview.setFloat64(0, d, false);
+			res += String.fromCharCode(dview.getUint8(0));
+			res += String.fromCharCode(dview.getUint8(1));
+			res += String.fromCharCode(dview.getUint8(2));
+			res += String.fromCharCode(dview.getUint8(3));
+			res += String.fromCharCode(dview.getUint8(4));
+			res += String.fromCharCode(dview.getUint8(5));
+			res += String.fromCharCode(dview.getUint8(6));
+			res += String.fromCharCode(dview.getUint8(7));
+		}
+		else
+			return null;
+	}
+	return res;
+}
+
+function opi_struct_list(a, b){
+	var size = opi_struct_size(b);
+	if (a.length !== size)
+		return null;
+	var res = [];
+	var pos = 0;
+	for (var i = 0; i < b.length; i++){
+		var t = b[i];
+		if (!sink_isstr(t))
+			return null;
+		if (t === 'U8'){
+			dview.setUint8(0, a.charCodeAt(pos++));
+			res.push(dview.getUint8(0));
+		}
+		else if (t === 'S8'){
+			dview.setUint8(0, a.charCodeAt(pos++));
+			res.push(dview.getInt8(0));
+		}
+		else if (t === 'UL16' || (LE && t === 'U16')){
+			dview.setUint8(0, a.charCodeAt(pos++)); dview.setUint8(1, a.charCodeAt(pos++));
+			res.push(dview.getUint16(0, true));
+		}
+		else if (t === 'SL16' || (LE && t === 'S16')){
+			dview.setUint8(0, a.charCodeAt(pos++)); dview.setUint8(1, a.charCodeAt(pos++));
+			res.push(dview.getInt16(0, true));
+		}
+		else if (t === 'UB16' || (!LE && t === 'U16')){
+			dview.setUint8(0, a.charCodeAt(pos++)); dview.setUint8(1, a.charCodeAt(pos++));
+			res.push(dview.getUint16(0, false));
+		}
+		else if (t === 'SB16' || (!LE && t === 'S16')){
+			dview.setUint8(0, a.charCodeAt(pos++)); dview.setUint8(1, a.charCodeAt(pos++));
+			res.push(dview.getInt16(0, false));
+		}
+		else if (t === 'UL32' || (LE && t === 'U32')){
+			dview.setUint8(0, a.charCodeAt(pos++)); dview.setUint8(1, a.charCodeAt(pos++));
+			dview.setUint8(2, a.charCodeAt(pos++)); dview.setUint8(3, a.charCodeAt(pos++));
+			res.push(dview.getUint32(0, true));
+		}
+		else if (t === 'SL32' || (LE && t === 'S32')){
+			dview.setUint8(0, a.charCodeAt(pos++)); dview.setUint8(1, a.charCodeAt(pos++));
+			dview.setUint8(2, a.charCodeAt(pos++)); dview.setUint8(3, a.charCodeAt(pos++));
+			res.push(dview.getInt32(0, true));
+		}
+		else if (t === 'UB32' || (!LE && t === 'U32')){
+			dview.setUint8(0, a.charCodeAt(pos++)); dview.setUint8(1, a.charCodeAt(pos++));
+			dview.setUint8(2, a.charCodeAt(pos++)); dview.setUint8(3, a.charCodeAt(pos++));
+			res.push(dview.getUint32(0, false));
+		}
+		else if (t === 'SB32' || (!LE && t === 'S32')){
+			dview.setUint8(0, a.charCodeAt(pos++)); dview.setUint8(1, a.charCodeAt(pos++));
+			dview.setUint8(2, a.charCodeAt(pos++)); dview.setUint8(3, a.charCodeAt(pos++));
+			res.push(dview.getInt32(0, false));
+		}
+		else if (t === 'FL32' || (LE && t === 'F32')){
+			dview.setUint8(0, a.charCodeAt(pos++)); dview.setUint8(1, a.charCodeAt(pos++));
+			dview.setUint8(2, a.charCodeAt(pos++)); dview.setUint8(3, a.charCodeAt(pos++));
+			res.push(dview.getFloat32(0, true));
+		}
+		else if (t === 'FB32' || (!LE && t === 'F32')){
+			dview.setUint8(0, a.charCodeAt(pos++)); dview.setUint8(1, a.charCodeAt(pos++));
+			dview.setUint8(2, a.charCodeAt(pos++)); dview.setUint8(3, a.charCodeAt(pos++));
+			res.push(dview.getFloat32(0, false));
+		}
+		else if (t === 'FL64' || (LE && t === 'F64')){
+			dview.setUint8(0, a.charCodeAt(pos++)); dview.setUint8(1, a.charCodeAt(pos++));
+			dview.setUint8(2, a.charCodeAt(pos++)); dview.setUint8(3, a.charCodeAt(pos++));
+			dview.setUint8(4, a.charCodeAt(pos++)); dview.setUint8(5, a.charCodeAt(pos++));
+			dview.setUint8(6, a.charCodeAt(pos++)); dview.setUint8(7, a.charCodeAt(pos++));
+			res.push(dview.getFloat64(0, true));
+		}
+		else if (t === 'FB64' || (!LE && t === 'F64')){
+			dview.setUint8(0, a.charCodeAt(pos++)); dview.setUint8(1, a.charCodeAt(pos++));
+			dview.setUint8(2, a.charCodeAt(pos++)); dview.setUint8(3, a.charCodeAt(pos++));
+			dview.setUint8(4, a.charCodeAt(pos++)); dview.setUint8(5, a.charCodeAt(pos++));
+			dview.setUint8(6, a.charCodeAt(pos++)); dview.setUint8(7, a.charCodeAt(pos++));
+			res.push(dview.getFloat64(0, false));
+		}
+		else
+			return null;
+	}
+	return res;
+}
+
 // operators
 function unop_num_neg(a){
 	return -a;
@@ -7557,15 +7745,43 @@ function context_run(ctx){
 			} break;
 
 			case OP_STRUCT_SIZE    : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				LOAD_abcd();
+				if (A > ctx.lex_index || C > ctx.lex_index)
+					return opi_invalid(ctx);
+				X = var_get(ctx, C, D);
+				if (!sink_islist(X))
+					return opi_abort(ctx, 'Expecting list');
+				var_set(ctx, A, B, opi_struct_size(X));
 			} break;
 
 			case OP_STRUCT_STR     : { // [TGT], [SRC1], [SRC2]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				LOAD_abcdef();
+				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
+					return opi_invalid(ctx);
+				X = var_get(ctx, C, D);
+				Y = var_get(ctx, E, F);
+				if (!sink_islist(X) || !sink_islist(Y))
+					return opi_abort(ctx, 'Expecting list');
+				X = opi_struct_str(X, Y);
+				if (X === null)
+					return opi_abort(ctx, 'Invalid conversion');
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_STRUCT_LIST    : { // [TGT], [SRC1], [SRC2]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				LOAD_abcdef();
+				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
+					return opi_invalid(ctx);
+				X = var_get(ctx, C, D);
+				Y = var_get(ctx, E, F);
+				if (!sink_isstr(X))
+					return opi_abort(ctx, 'Expecting string');
+				if (!sink_islist(Y))
+					return opi_abort(ctx, 'Expecting list');
+				X = opi_struct_list(X, Y);
+				if (X === null)
+					return opi_abort(ctx, 'Invalid conversion');
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_LIST_NEW       : { // [TGT], [SRC1], [SRC2]
