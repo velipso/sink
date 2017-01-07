@@ -6076,7 +6076,8 @@ function opi_invalid(ctx){
 }
 
 function sortboth(ctx, a, b, mul, m){
-	if (a === b)
+	if (a === b ||
+		(typeof a === 'number' && typeof b === 'number' && isNaN(a) && isNaN(b)))
 		return 0;
 	if (a === null && b !== null)
 		return -mul;

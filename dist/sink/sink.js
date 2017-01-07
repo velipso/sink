@@ -5819,7 +5819,6 @@ function opi_rand_shuffle(ctx, ls){
 	}
 }
 
-
 // 1   7  U+00000  U+00007F  0xxxxxxx
 // 2  11  U+00080  U+0007FF  110xxxxx  10xxxxxx
 // 3  16  U+00800  U+00FFFF  1110xxxx  10xxxxxx  10xxxxxx
@@ -5961,7 +5960,6 @@ function opi_utf8_str(a){
 	return bytes;
 }
 
-
 // operators
 function unop_num_neg(a){
 	return -a;
@@ -6078,7 +6076,8 @@ function opi_invalid(ctx){
 }
 
 function sortboth(ctx, a, b, mul, m){
-	if (a === b)
+	if (a === b ||
+		(typeof a === 'number' && typeof b === 'number' && isNaN(a) && isNaN(b)))
 		return 0;
 	if (a === null && b !== null)
 		return -mul;
