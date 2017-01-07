@@ -5819,6 +5819,149 @@ function opi_rand_shuffle(ctx, ls){
 	}
 }
 
+
+// 1   7  U+00000  U+00007F  0xxxxxxx
+// 2  11  U+00080  U+0007FF  110xxxxx  10xxxxxx
+// 3  16  U+00800  U+00FFFF  1110xxxx  10xxxxxx  10xxxxxx
+// 4  21  U+10000  U+10FFFF  11110xxx  10xxxxxx  10xxxxxx  10xxxxxx
+
+function opihelp_codepoint(b){
+	return sink_isnum(b) && // must be a number
+		Math.floor(b) == b && // must be an integer
+		b >= 0 && b < 0x110000 && // must be within total range
+		(b < 0xD800 || b >= 0xE000); // must not be a surrogate
+}
+
+function opi_utf8_valid(a){
+	if (sink_isstr(a)){
+		var state = 0;
+		var codepoint = 0;
+		var min = 0;
+		for (var i = 0; i < a.length; i++){
+			var b = a.charCodeAt(i);
+			if (state == 0){
+				if (b < 0x80) // 0x00 to 0x7F
+					continue;
+				else if (b < 0xC0) // 0x80 to 0xBF
+					return sink_bool(false);
+				else if (b < 0xE0){ // 0xC0 to 0xDF
+					codepoint = b & 0x1F;
+					min = 0x80;
+					state = 1;
+				}
+				else if (b < 0xF0){ // 0xE0 to 0xEF
+					codepoint = b & 0x0F;
+					min = 0x800;
+					state = 2;
+				}
+				else if (b < 0xF8){ // 0xF0 to 0xF7
+					codepoint = b & 0x07;
+					min = 0x10000;
+					state = 3;
+				}
+				else
+					return sink_bool(false);
+			}
+			else{
+				if (b < 0x80 || b >= 0xC0)
+					return sink_bool(false);
+				codepoint = (codepoint << 6) | (b & 0x3F);
+				state--;
+				if (state == 0){ // codepoint finished, check if invalid
+					if (codepoint < min || // no overlong
+						codepoint >= 0x110000 || // no huge
+						(codepoint >= 0xD800 && codepoint < 0xE000)) // no surrogates
+						return sink_bool(false);
+				}
+			}
+		}
+		return sink_bool(state == 0);
+	}
+	else if (sink_islist(a)){
+		for (var i = 0; i < a.length; i++){
+			if (!opihelp_codepoint(a[i]))
+				return sink_bool(false);
+		}
+		return sink_bool(true);
+	}
+	return sink_bool(false);
+}
+
+function opi_utf8_list(a){
+	var res = [];
+	var state = 0;
+	var codepoint = 0;
+	var min = 0;
+	for (var i = 0; i < a.length; i++){
+		var b = a.charCodeAt(i);
+		if (state == 0){
+			if (b < 0x80) // 0x00 to 0x7F
+				res.push(b);
+			else if (b < 0xC0) // 0x80 to 0xBF
+				return null;
+			else if (b < 0xE0){ // 0xC0 to 0xDF
+				codepoint = b & 0x1F;
+				min = 0x80;
+				state = 1;
+			}
+			else if (b < 0xF0){ // 0xE0 to 0xEF
+				codepoint = b & 0x0F;
+				min = 0x800;
+				state = 2;
+			}
+			else if (b < 0xF8){ // 0xF0 to 0xF7
+				codepoint = b & 0x07;
+				min = 0x10000;
+				state = 3;
+			}
+			else
+				return null;
+		}
+		else{
+			if (b < 0x80 || b >= 0xC0)
+				return null;
+			codepoint = (codepoint << 6) | (b & 0x3F);
+			state--;
+			if (state == 0){ // codepoint finished, check if invalid
+				if (codepoint < min || // no overlong
+					codepoint >= 0x110000 || // no huge
+					(codepoint >= 0xD800 && codepoint < 0xE000)) // no surrogates
+					return SINK_NIL;
+				res.push(codepoint);
+			}
+		}
+	}
+	return res;
+}
+
+function opi_utf8_str(a){
+	var bytes = '';
+	for (var i = 0; i < a.length; i++){
+		var b = a[i];
+		if (!opihelp_codepoint(b))
+			return null;
+		if (b < 0x80)
+			bytes += String.fromCharCode(b);
+		else if (b < 0x800){
+			bytes += String.fromCharCode(0xC0 | (b >> 6));
+			bytes += String.fromCharCode(0x80 | (b & 0x3F));
+		}
+		else if (b < 0x10000){
+			bytes += String.fromCharCode(0xE0 | (b >> 12));
+			bytes += String.fromCharCode(0x80 | ((b >> 6) & 0x3F));
+			bytes += String.fromCharCode(0x80 | (b & 0x3F));
+		}
+		else{
+			bytes += String.fromCharCode(0xF0 | (b >> 18));
+			bytes += String.fromCharCode(0x80 | ((b >> 12) & 0x3F));
+			bytes += String.fromCharCode(0x80 | ((b >> 6) & 0x3F));
+			bytes += String.fromCharCode(0x80 | (b & 0x3F));
+		}
+	}
+	return bytes;
+}
+
+
 // operators
 function unop_num_neg(a){
 	return -a;
@@ -7382,15 +7525,36 @@ function context_run(ctx){
 			} break;
 
 			case OP_UTF8_VALID     : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				LOAD_abcd();
+				if (A > ctx.lex_index || C > ctx.lex_index)
+					return opi_invalid(ctx);
+				var_set(ctx, A, B, opi_utf8_valid(var_get(ctx, C, D)));
 			} break;
 
 			case OP_UTF8_LIST      : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				LOAD_abcd();
+				if (A > ctx.lex_index || C > ctx.lex_index)
+					return opi_invalid(ctx);
+				X = var_get(ctx, C, D);
+				if (!sink_isstr(X))
+					return opi_abort(ctx, 'Expecting string');
+				X = opi_utf8_list(X);
+				if (X === null)
+					return opi_abort(ctx, 'Invalid UTF-8 string');
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_UTF8_STR       : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				LOAD_abcd();
+				if (A > ctx.lex_index || C > ctx.lex_index)
+					return opi_invalid(ctx);
+				X = var_get(ctx, C, D);
+				if (!sink_islist(X))
+					return opi_abort(ctx, 'Expecting list');
+				X = opi_utf8_str(X);
+				if (X === null)
+					return opi_abort(ctx, 'Invalid list of codepoints');
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_STRUCT_SIZE    : { // [TGT], [SRC]

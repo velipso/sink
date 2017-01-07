@@ -8873,7 +8873,7 @@ static inline sink_val opi_str_list(context ctx, sink_val a){
 	sink_str s = var_caststr(ctx, sink_tostr(ctx, a));
 	sink_val r = sink_list_newblob(ctx, 0, NULL);
 	for (int i = 0; i < s->size; i++)
-		sink_list_push(ctx, r, sink_num(s->bytes[i]));
+		opi_list_push(ctx, r, sink_num(s->bytes[i]));
 	return r;
 }
 
@@ -8896,6 +8896,165 @@ static inline sink_val opi_str_hash(context ctx, sink_val a, uint32_t seed){
 	outv[2] = sink_num(out[2]);
 	outv[3] = sink_num(out[3]);
 	return sink_list_newblob(ctx, 4, outv);
+}
+
+// 1   7  U+00000  U+00007F  0xxxxxxx
+// 2  11  U+00080  U+0007FF  110xxxxx  10xxxxxx
+// 3  16  U+00800  U+00FFFF  1110xxxx  10xxxxxx  10xxxxxx
+// 4  21  U+10000  U+10FFFF  11110xxx  10xxxxxx  10xxxxxx  10xxxxxx
+
+static inline bool opihelp_codepoint(sink_val b){
+	return sink_isnum(b) && // must be a number
+		floorf(b.f) == b.f && // must be an integer
+		b.f >= 0 && b.f < 0x110000 && // must be within total range
+		(b.f < 0xD800 || b.f >= 0xE000); // must not be a surrogate
+}
+
+static inline sink_val opi_utf8_valid(context ctx, sink_val a){
+	if (sink_isstr(a)){
+		sink_str s = var_caststr(ctx, a);
+		int state = 0;
+		int codepoint = 0;
+		int min = 0;
+		for (int i = 0; i < s->size; i++){
+			uint8_t b = s->bytes[i];
+			if (state == 0){
+				if (b < 0x80) // 0x00 to 0x7F
+					continue;
+				else if (b < 0xC0) // 0x80 to 0xBF
+					return sink_bool(false);
+				else if (b < 0xE0){ // 0xC0 to 0xDF
+					codepoint = b & 0x1F;
+					min = 0x80;
+					state = 1;
+				}
+				else if (b < 0xF0){ // 0xE0 to 0xEF
+					codepoint = b & 0x0F;
+					min = 0x800;
+					state = 2;
+				}
+				else if (b < 0xF8){ // 0xF0 to 0xF7
+					codepoint = b & 0x07;
+					min = 0x10000;
+					state = 3;
+				}
+				else
+					return sink_bool(false);
+			}
+			else{
+				if (b < 0x80 || b >= 0xC0)
+					return sink_bool(false);
+				codepoint = (codepoint << 6) | (b & 0x3F);
+				state--;
+				if (state == 0){ // codepoint finished, check if invalid
+					if (codepoint < min || // no overlong
+						codepoint >= 0x110000 || // no huge
+						(codepoint >= 0xD800 && codepoint < 0xE000)) // no surrogates
+						return sink_bool(false);
+				}
+			}
+		}
+		return sink_bool(state == 0);
+	}
+	else if (sink_islist(a)){
+		sink_list ls = var_castlist(ctx, a);
+		for (int i = 0; i < ls->size; i++){
+			if (!opihelp_codepoint(ls->vals[i]))
+				return sink_bool(false);
+		}
+		return sink_bool(true);
+	}
+	return sink_bool(false);
+}
+
+static inline sink_val opi_utf8_list(context ctx, sink_val a){
+	sink_str s = var_caststr(ctx, a);
+	sink_val res = sink_list_newblob(ctx, 0, NULL);
+	int state = 0;
+	int codepoint = 0;
+	int min = 0;
+	for (int i = 0; i < s->size; i++){
+		uint8_t b = s->bytes[i];
+		if (state == 0){
+			if (b < 0x80) // 0x00 to 0x7F
+				opi_list_push(ctx, res, sink_num(b));
+			else if (b < 0xC0) // 0x80 to 0xBF
+				return SINK_NIL;
+			else if (b < 0xE0){ // 0xC0 to 0xDF
+				codepoint = b & 0x1F;
+				min = 0x80;
+				state = 1;
+			}
+			else if (b < 0xF0){ // 0xE0 to 0xEF
+				codepoint = b & 0x0F;
+				min = 0x800;
+				state = 2;
+			}
+			else if (b < 0xF8){ // 0xF0 to 0xF7
+				codepoint = b & 0x07;
+				min = 0x10000;
+				state = 3;
+			}
+			else
+				return SINK_NIL;
+		}
+		else{
+			if (b < 0x80 || b >= 0xC0)
+				return SINK_NIL;
+			codepoint = (codepoint << 6) | (b & 0x3F);
+			state--;
+			if (state == 0){ // codepoint finished, check if invalid
+				if (codepoint < min || // no overlong
+					codepoint >= 0x110000 || // no huge
+					(codepoint >= 0xD800 && codepoint < 0xE000)) // no surrogates
+					return SINK_NIL;
+				opi_list_push(ctx, res, sink_num(codepoint));
+			}
+		}
+	}
+	return res;
+}
+
+static inline sink_val opi_utf8_str(context ctx, sink_val a){
+	sink_list ls = var_castlist(ctx, a);
+	int tot = 0;
+	for (int i = 0; i < ls->size; i++){
+		sink_val b = ls->vals[i];
+		if (!opihelp_codepoint(b))
+			return SINK_NIL;
+		if (b.f < 0x80)
+			tot++;
+		else if (b.f < 0x800)
+			tot += 2;
+		else if (b.f < 0x10000)
+			tot += 3;
+		else
+			tot += 4;
+	}
+	uint8_t *bytes = mem_alloc(sizeof(uint8_t) * (tot + 1));
+	int pos = 0;
+	for (int i = 0; i < ls->size; i++){
+		int b = ls->vals[i].f;
+		if (b < 0x80)
+			bytes[pos++] = b;
+		else if (b < 0x800){
+			bytes[pos++] = 0xC0 | (b >> 6);
+			bytes[pos++] = 0x80 | (b & 0x3F);
+		}
+		else if (b < 0x10000){
+			bytes[pos++] = 0xE0 | (b >> 12);
+			bytes[pos++] = 0x80 | ((b >> 6) & 0x3F);
+			bytes[pos++] = 0x80 | (b & 0x3F);
+		}
+		else{
+			bytes[pos++] = 0xF0 | (b >> 18);
+			bytes[pos++] = 0x80 | ((b >> 12) & 0x3F);
+			bytes[pos++] = 0x80 | ((b >> 6) & 0x3F);
+			bytes[pos++] = 0x80 | (b & 0x3F);
+		}
+	}
+	bytes[tot] = 0;
+	return sink_str_newblobgive(ctx, tot, bytes);
 }
 
 // operators
@@ -10680,15 +10839,31 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_UTF8_VALID     : { // [TGT], [SRC]
-				THROW("OP_UTF8_VALID");
+				LOAD_ABCD();
+				X = var_get(ctx, C, D);
+				var_set(ctx, A, B, opi_utf8_valid(ctx, X));
 			} break;
 
 			case OP_UTF8_LIST      : { // [TGT], [SRC]
-				THROW("OP_UTF8_LIST");
+				LOAD_ABCD();
+				X = var_get(ctx, C, D);
+				if (!sink_isstr(X))
+					RETURN_FAIL("Expecting string");
+				X = opi_utf8_list(ctx, X);
+				if (sink_isnil(X))
+					RETURN_FAIL("Invalid UTF-8 string");
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_UTF8_STR       : { // [TGT], [SRC]
-				THROW("OP_UTF8_STR");
+				LOAD_ABCD();
+				X = var_get(ctx, C, D);
+				if (!sink_islist(X))
+					RETURN_FAIL("Expecting list");
+				X = opi_utf8_str(ctx, X);
+				if (sink_isnil(X))
+					RETURN_FAIL("Invalid list of codepoints");
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_STRUCT_SIZE    : { // [TGT], [SRC]
