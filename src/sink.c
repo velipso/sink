@@ -9058,6 +9058,8 @@ static inline sink_val opi_utf8_str(context ctx, sink_val a){
 }
 
 static inline sink_val opi_struct_size(context ctx, sink_val a){
+	if (!sink_islist(a))
+		return SINK_NIL;
 	sink_list ls = var_castlist(ctx, a);
 	int tot = 0;
 	for (int i = 0; i < ls->size; i++){
@@ -9100,7 +9102,7 @@ static inline sink_val opi_struct_size(context ctx, sink_val a){
 		else
 			return SINK_NIL;
 	}
-	return sink_num(tot);
+	return tot <= 0 ? SINK_NIL : sink_num(tot);
 }
 
 static inline sink_val opi_struct_str(context ctx, sink_val a, sink_val b){
@@ -11191,8 +11193,6 @@ static sink_run context_run(context ctx){
 			case OP_STRUCT_SIZE    : { // [TGT], [SRC]
 				LOAD_ABCD();
 				X = var_get(ctx, C, D);
-				if (!sink_islist(X))
-					RETURN_FAIL("Expecting list");
 				var_set(ctx, A, B, opi_struct_size(ctx, X));
 			} break;
 

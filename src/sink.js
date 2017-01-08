@@ -5961,6 +5961,8 @@ function opi_utf8_str(a){
 }
 
 function opi_struct_size(a){
+	if (!sink_islist(a))
+		return null;
 	var tot = 0;
 	for (var i = 0; i < a.length; i++){
 		var b = a[i];
@@ -5978,7 +5980,7 @@ function opi_struct_size(a){
 		else
 			return null;
 	}
-	return tot;
+	return tot <= 0 ? null : tot;
 }
 
 var LE = (function(){ // detect native endianness
@@ -7754,8 +7756,6 @@ function context_run(ctx){
 				if (A > ctx.lex_index || C > ctx.lex_index)
 					return opi_invalid(ctx);
 				X = var_get(ctx, C, D);
-				if (!sink_islist(X))
-					return opi_abort(ctx, 'Expecting list');
 				var_set(ctx, A, B, opi_struct_size(X));
 			} break;
 

@@ -15,3 +15,8 @@ say (struct.str {1.5}, {'FB64'} | str.list)
 
 say struct.list 'AAABAAABAAABAAAB', {'UL32', 'UB32'}
 say (struct.str {1, 2, 3, 4, 5, 6, 7, 8}, {'UL16', 'UL32'} | str.list)
+
+say struct.size
+say struct.size 'asdf'
+say struct.size 'U8'
+say struct.size {}
