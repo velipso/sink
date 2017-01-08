@@ -410,8 +410,10 @@ size:
 
 ```
 struct.str {0x41, 0x42, 0x43}, {'U8'}    # => 'ABC'
-struct.list 'ABC', {'U8'}                # => { 0x41, 0x42, 0x43 }
 struct.str {1, 2, 3, 4}, {'U8', 'UL16'}  # => "\x01\x02\x00\x03\x04\x00"
+struct.list 'ABC', {'U8'}                # => { 0x41, 0x42, 0x43 }
+struct.list 'ABCD', {'UL16'}             # => { 0x4241, 0x4443 }
+struct.list 'ABCDEF', {'U8', 'UL16'}     # => { 0x41, 0x4342, 0x44, 0x4645 }
 ```
 
 List
