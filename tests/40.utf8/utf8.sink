@@ -26,7 +26,7 @@ for var test1: {
 	end
 	if valid
 		var ls2 = ls | utf8.str | utf8.list
-		if 0 != list.sortcmp ls, ls2
+		if 0 != order ls, ls2
 			say 'utf8.str/utf8.list fail'
 		end
 	end

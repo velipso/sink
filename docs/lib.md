@@ -17,6 +17,7 @@ results.
 | `isstr a`         | Returns true if `a` is a string; otherwise false                            |
 | `islist a`        | Returns true if `a` is a list; otherwise false                              |
 | `range [start,] stop[, step]` | Returns a list of numbers in the interval [`start`, `stop`)     |
+| `order a, b`      | Compare `a` with `b` according to the sorting precedence (-1, 0, 1)         |
 | `pick cond, a, b` | If `cond` is true, return `a`, otherwise return `b` (short-circuited)       |
 
 ### Range Examples
@@ -66,6 +67,30 @@ end
 for var v, i: (range 5) + (range 6)
   say v, i
 end
+```
+
+### Order
+
+The `order` command performs a deep comparison of two values.  This is used for sorting, but can
+also be used for equality.
+
+Sorting precedence:
+
+1. Nil
+2. Numbers (NaN, negative infinity to positive infinity)
+3. Strings (byte-by-byte comparison; if equal, shorter strings first)
+4. Lists (item by item comparison; if equal, shorter lists first)
+
+```
+order nil, 1            # => -1
+order 55, 5             # =>  1
+order 'a', 'ab'         # => -1
+order {}, ''            # =>  1
+order {1}, {1}          # =>  0
+order num.nan, num.nan  # =>  0
+
+list.sort {3, 2, nil, 4}   # => {nil, 2, 3, 4}
+list.rsort {3, 2, nil, 4}  # => {4, 3, 2, nil}
 ```
 
 Number
@@ -358,8 +383,9 @@ encoding and decoding.
 | `utf8.str a`   | Converts a list of codepoints (integers) `a` to a string (UTF-8 bytes)         |
 
 Codepoints U+0000 to U+10FFFF are considered valid, with the sole exception of the surrogate
-characters (U+D800 to U+DFFF).  [Overlong encodings](https://en.wikipedia.org/wiki/UTF-8#Overlong_encodings)
-are rejected as invalid.
+characters (U+D800 to U+DFFF).
+[Overlong encodings](https://en.wikipedia.org/wiki/UTF-8#Overlong_encodings) are rejected as
+invalid.
 
 Structured Data
 ---------------
@@ -433,29 +459,8 @@ List
 | `list.join ls, a`         | Convert list `ls` to a string by joining elements with string `a`   |
 | `list.rev ls`             | Reverse list `ls` (returns `ls`)                                    |
 | `list.str ls`             | Convert a list of bytes to a string                                 |
-| `list.sort ls`            | Sorts the list `ls` in place (returns `ls`)                         |
-| `list.rsort ls`           | Reverse sorts the list `ls` in place (returns `ls`)                 |
-| `list.sortcmp a, b`       | Compare `a` with `b` according to the sorting precedence (-1, 0, 1) |
-
-### Sorting
-
-Sorting precedence:
-
-1. Nil
-2. Numbers (negative infinity to positive infinity)
-3. Strings (byte-by-byte comparison; if equal, shorter strings first)
-4. Lists (item by item comparison; if equal, shorter lists first)
-
-```
-list.sortcmp nil, 1     # => -1
-list.sortcmp 55, 5      # =>  1
-list.sortcmp 'a', 'ab'  # => -1
-list.sortcmp {}, ''     # =>  1
-list.sortcmp {1}, {1}   # =>  0
-
-list.sort {3, 2, nil, 4}   # => {nil, 2, 3, 4}
-list.rsort {3, 2, nil, 4}  # => {4, 3, 2, nil}
-```
+| `list.sort ls`            | Sorts the list `ls` in place using `order` (returns `ls`)           |
+| `list.rsort ls`           | Reverse sorts the list `ls` in place using `order` (returns `ls`)   |
 
 Pickle
 ------
