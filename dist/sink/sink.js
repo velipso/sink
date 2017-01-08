@@ -5988,162 +5988,167 @@ var LE = (function(){ // detect native endianness
 })();
 
 function opi_struct_str(a, b){
-	if (a.length !== b.length)
+	if (b.length <= 0 || a.length % b.length != 0)
 		return null;
+	var arsize = a.length / b.length;
 	var res = '';
-	for (var i = 0; i < b.length; i++){
-		var d = a[i];
-		var t = b[i];
-		if (!sink_isnum(d) || !sink_isstr(t))
-			return null;
-		if (t === 'U8' || t === 'S8')
-			res += String.fromCharCode(d & 0xFF);
-		else if (t === 'UL16' || t === 'SL16' || (LE && (t === 'U16' || t === 'S16'))){
-			dview.setUint16(0, d & 0xFFFF, true);
-			res += String.fromCharCode(dview.getUint8(0));
-			res += String.fromCharCode(dview.getUint8(1));
+	for (var ar = 0; ar < arsize; ar++){
+		for (var i = 0; i < b.length; i++){
+			var d = a[i + ar * b.length];
+			var t = b[i];
+			if (!sink_isnum(d) || !sink_isstr(t))
+				return null;
+			if (t === 'U8' || t === 'S8')
+				res += String.fromCharCode(d & 0xFF);
+			else if (t === 'UL16' || t === 'SL16' || (LE && (t === 'U16' || t === 'S16'))){
+				dview.setUint16(0, d & 0xFFFF, true);
+				res += String.fromCharCode(dview.getUint8(0));
+				res += String.fromCharCode(dview.getUint8(1));
+			}
+			else if (t === 'UB16' || t === 'SB16' || (!LE && (t === 'U16' || t === 'S16'))){
+				dview.setUint16(0, d & 0xFFFF, false);
+				res += String.fromCharCode(dview.getUint8(0));
+				res += String.fromCharCode(dview.getUint8(1));
+			}
+			else if (t === 'UL32' || t === 'SL32' || (LE && (t === 'U32' || t === 'S32'))){
+				dview.setUint32(0, d & 0xFFFFFFFF, true);
+				res += String.fromCharCode(dview.getUint8(0));
+				res += String.fromCharCode(dview.getUint8(1));
+				res += String.fromCharCode(dview.getUint8(2));
+				res += String.fromCharCode(dview.getUint8(3));
+			}
+			else if (t === 'UB32' || t === 'SB32' || (!LE && (t === 'U32' || t === 'S32'))){
+				dview.setUint32(0, d & 0xFFFFFFFF, false);
+				res += String.fromCharCode(dview.getUint8(0));
+				res += String.fromCharCode(dview.getUint8(1));
+				res += String.fromCharCode(dview.getUint8(2));
+				res += String.fromCharCode(dview.getUint8(3));
+			}
+			else if (t === 'FL32' || (LE && t === 'F32')){
+				dview.setFloat32(0, d, true);
+				res += String.fromCharCode(dview.getUint8(0));
+				res += String.fromCharCode(dview.getUint8(1));
+				res += String.fromCharCode(dview.getUint8(2));
+				res += String.fromCharCode(dview.getUint8(3));
+			}
+			else if (t === 'FB32' || (!LE && t === 'F32')){
+				dview.setFloat32(0, d, false);
+				res += String.fromCharCode(dview.getUint8(0));
+				res += String.fromCharCode(dview.getUint8(1));
+				res += String.fromCharCode(dview.getUint8(2));
+				res += String.fromCharCode(dview.getUint8(3));
+			}
+			else if (t === 'FL64' || (LE && t === 'F64')){
+				dview.setFloat64(0, d, true);
+				res += String.fromCharCode(dview.getUint8(0));
+				res += String.fromCharCode(dview.getUint8(1));
+				res += String.fromCharCode(dview.getUint8(2));
+				res += String.fromCharCode(dview.getUint8(3));
+				res += String.fromCharCode(dview.getUint8(4));
+				res += String.fromCharCode(dview.getUint8(5));
+				res += String.fromCharCode(dview.getUint8(6));
+				res += String.fromCharCode(dview.getUint8(7));
+			}
+			else if (t === 'FB64' || (!LE && t === 'F64')){
+				dview.setFloat64(0, d, false);
+				res += String.fromCharCode(dview.getUint8(0));
+				res += String.fromCharCode(dview.getUint8(1));
+				res += String.fromCharCode(dview.getUint8(2));
+				res += String.fromCharCode(dview.getUint8(3));
+				res += String.fromCharCode(dview.getUint8(4));
+				res += String.fromCharCode(dview.getUint8(5));
+				res += String.fromCharCode(dview.getUint8(6));
+				res += String.fromCharCode(dview.getUint8(7));
+			}
+			else
+				return null;
 		}
-		else if (t === 'UB16' || t === 'SB16' || (!LE && (t === 'U16' || t === 'S16'))){
-			dview.setUint16(0, d & 0xFFFF, false);
-			res += String.fromCharCode(dview.getUint8(0));
-			res += String.fromCharCode(dview.getUint8(1));
-		}
-		else if (t === 'UL32' || t === 'SL32' || (LE && (t === 'U32' || t === 'S32'))){
-			dview.setUint32(0, d & 0xFFFFFFFF, true);
-			res += String.fromCharCode(dview.getUint8(0));
-			res += String.fromCharCode(dview.getUint8(1));
-			res += String.fromCharCode(dview.getUint8(2));
-			res += String.fromCharCode(dview.getUint8(3));
-		}
-		else if (t === 'UB32' || t === 'SB32' || (!LE && (t === 'U32' || t === 'S32'))){
-			dview.setUint32(0, d & 0xFFFFFFFF, false);
-			res += String.fromCharCode(dview.getUint8(0));
-			res += String.fromCharCode(dview.getUint8(1));
-			res += String.fromCharCode(dview.getUint8(2));
-			res += String.fromCharCode(dview.getUint8(3));
-		}
-		else if (t === 'FL32' || (LE && t === 'F32')){
-			dview.setFloat32(0, d, true);
-			res += String.fromCharCode(dview.getUint8(0));
-			res += String.fromCharCode(dview.getUint8(1));
-			res += String.fromCharCode(dview.getUint8(2));
-			res += String.fromCharCode(dview.getUint8(3));
-		}
-		else if (t === 'FB32' || (!LE && t === 'F32')){
-			dview.setFloat32(0, d, false);
-			res += String.fromCharCode(dview.getUint8(0));
-			res += String.fromCharCode(dview.getUint8(1));
-			res += String.fromCharCode(dview.getUint8(2));
-			res += String.fromCharCode(dview.getUint8(3));
-		}
-		else if (t === 'FL64' || (LE && t === 'F64')){
-			dview.setFloat64(0, d, true);
-			res += String.fromCharCode(dview.getUint8(0));
-			res += String.fromCharCode(dview.getUint8(1));
-			res += String.fromCharCode(dview.getUint8(2));
-			res += String.fromCharCode(dview.getUint8(3));
-			res += String.fromCharCode(dview.getUint8(4));
-			res += String.fromCharCode(dview.getUint8(5));
-			res += String.fromCharCode(dview.getUint8(6));
-			res += String.fromCharCode(dview.getUint8(7));
-		}
-		else if (t === 'FB64' || (!LE && t === 'F64')){
-			dview.setFloat64(0, d, false);
-			res += String.fromCharCode(dview.getUint8(0));
-			res += String.fromCharCode(dview.getUint8(1));
-			res += String.fromCharCode(dview.getUint8(2));
-			res += String.fromCharCode(dview.getUint8(3));
-			res += String.fromCharCode(dview.getUint8(4));
-			res += String.fromCharCode(dview.getUint8(5));
-			res += String.fromCharCode(dview.getUint8(6));
-			res += String.fromCharCode(dview.getUint8(7));
-		}
-		else
-			return null;
 	}
 	return res;
 }
 
 function opi_struct_list(a, b){
 	var size = opi_struct_size(b);
-	if (a.length !== size)
+	if (size === null || a.length % size !== 0)
 		return null;
 	var res = [];
 	var pos = 0;
-	for (var i = 0; i < b.length; i++){
-		var t = b[i];
-		if (!sink_isstr(t))
-			return null;
-		if (t === 'U8'){
-			dview.setUint8(0, a.charCodeAt(pos++));
-			res.push(dview.getUint8(0));
+	while (pos < a.length){
+		for (var i = 0; i < b.length; i++){
+			var t = b[i];
+			if (!sink_isstr(t))
+				return null;
+			if (t === 'U8'){
+				dview.setUint8(0, a.charCodeAt(pos++));
+				res.push(dview.getUint8(0));
+			}
+			else if (t === 'S8'){
+				dview.setUint8(0, a.charCodeAt(pos++));
+				res.push(dview.getInt8(0));
+			}
+			else if (t === 'UL16' || (LE && t === 'U16')){
+				dview.setUint8(0, a.charCodeAt(pos++)); dview.setUint8(1, a.charCodeAt(pos++));
+				res.push(dview.getUint16(0, true));
+			}
+			else if (t === 'SL16' || (LE && t === 'S16')){
+				dview.setUint8(0, a.charCodeAt(pos++)); dview.setUint8(1, a.charCodeAt(pos++));
+				res.push(dview.getInt16(0, true));
+			}
+			else if (t === 'UB16' || (!LE && t === 'U16')){
+				dview.setUint8(0, a.charCodeAt(pos++)); dview.setUint8(1, a.charCodeAt(pos++));
+				res.push(dview.getUint16(0, false));
+			}
+			else if (t === 'SB16' || (!LE && t === 'S16')){
+				dview.setUint8(0, a.charCodeAt(pos++)); dview.setUint8(1, a.charCodeAt(pos++));
+				res.push(dview.getInt16(0, false));
+			}
+			else if (t === 'UL32' || (LE && t === 'U32')){
+				dview.setUint8(0, a.charCodeAt(pos++)); dview.setUint8(1, a.charCodeAt(pos++));
+				dview.setUint8(2, a.charCodeAt(pos++)); dview.setUint8(3, a.charCodeAt(pos++));
+				res.push(dview.getUint32(0, true));
+			}
+			else if (t === 'SL32' || (LE && t === 'S32')){
+				dview.setUint8(0, a.charCodeAt(pos++)); dview.setUint8(1, a.charCodeAt(pos++));
+				dview.setUint8(2, a.charCodeAt(pos++)); dview.setUint8(3, a.charCodeAt(pos++));
+				res.push(dview.getInt32(0, true));
+			}
+			else if (t === 'UB32' || (!LE && t === 'U32')){
+				dview.setUint8(0, a.charCodeAt(pos++)); dview.setUint8(1, a.charCodeAt(pos++));
+				dview.setUint8(2, a.charCodeAt(pos++)); dview.setUint8(3, a.charCodeAt(pos++));
+				res.push(dview.getUint32(0, false));
+			}
+			else if (t === 'SB32' || (!LE && t === 'S32')){
+				dview.setUint8(0, a.charCodeAt(pos++)); dview.setUint8(1, a.charCodeAt(pos++));
+				dview.setUint8(2, a.charCodeAt(pos++)); dview.setUint8(3, a.charCodeAt(pos++));
+				res.push(dview.getInt32(0, false));
+			}
+			else if (t === 'FL32' || (LE && t === 'F32')){
+				dview.setUint8(0, a.charCodeAt(pos++)); dview.setUint8(1, a.charCodeAt(pos++));
+				dview.setUint8(2, a.charCodeAt(pos++)); dview.setUint8(3, a.charCodeAt(pos++));
+				res.push(dview.getFloat32(0, true));
+			}
+			else if (t === 'FB32' || (!LE && t === 'F32')){
+				dview.setUint8(0, a.charCodeAt(pos++)); dview.setUint8(1, a.charCodeAt(pos++));
+				dview.setUint8(2, a.charCodeAt(pos++)); dview.setUint8(3, a.charCodeAt(pos++));
+				res.push(dview.getFloat32(0, false));
+			}
+			else if (t === 'FL64' || (LE && t === 'F64')){
+				dview.setUint8(0, a.charCodeAt(pos++)); dview.setUint8(1, a.charCodeAt(pos++));
+				dview.setUint8(2, a.charCodeAt(pos++)); dview.setUint8(3, a.charCodeAt(pos++));
+				dview.setUint8(4, a.charCodeAt(pos++)); dview.setUint8(5, a.charCodeAt(pos++));
+				dview.setUint8(6, a.charCodeAt(pos++)); dview.setUint8(7, a.charCodeAt(pos++));
+				res.push(dview.getFloat64(0, true));
+			}
+			else if (t === 'FB64' || (!LE && t === 'F64')){
+				dview.setUint8(0, a.charCodeAt(pos++)); dview.setUint8(1, a.charCodeAt(pos++));
+				dview.setUint8(2, a.charCodeAt(pos++)); dview.setUint8(3, a.charCodeAt(pos++));
+				dview.setUint8(4, a.charCodeAt(pos++)); dview.setUint8(5, a.charCodeAt(pos++));
+				dview.setUint8(6, a.charCodeAt(pos++)); dview.setUint8(7, a.charCodeAt(pos++));
+				res.push(dview.getFloat64(0, false));
+			}
+			else
+				return null;
 		}
-		else if (t === 'S8'){
-			dview.setUint8(0, a.charCodeAt(pos++));
-			res.push(dview.getInt8(0));
-		}
-		else if (t === 'UL16' || (LE && t === 'U16')){
-			dview.setUint8(0, a.charCodeAt(pos++)); dview.setUint8(1, a.charCodeAt(pos++));
-			res.push(dview.getUint16(0, true));
-		}
-		else if (t === 'SL16' || (LE && t === 'S16')){
-			dview.setUint8(0, a.charCodeAt(pos++)); dview.setUint8(1, a.charCodeAt(pos++));
-			res.push(dview.getInt16(0, true));
-		}
-		else if (t === 'UB16' || (!LE && t === 'U16')){
-			dview.setUint8(0, a.charCodeAt(pos++)); dview.setUint8(1, a.charCodeAt(pos++));
-			res.push(dview.getUint16(0, false));
-		}
-		else if (t === 'SB16' || (!LE && t === 'S16')){
-			dview.setUint8(0, a.charCodeAt(pos++)); dview.setUint8(1, a.charCodeAt(pos++));
-			res.push(dview.getInt16(0, false));
-		}
-		else if (t === 'UL32' || (LE && t === 'U32')){
-			dview.setUint8(0, a.charCodeAt(pos++)); dview.setUint8(1, a.charCodeAt(pos++));
-			dview.setUint8(2, a.charCodeAt(pos++)); dview.setUint8(3, a.charCodeAt(pos++));
-			res.push(dview.getUint32(0, true));
-		}
-		else if (t === 'SL32' || (LE && t === 'S32')){
-			dview.setUint8(0, a.charCodeAt(pos++)); dview.setUint8(1, a.charCodeAt(pos++));
-			dview.setUint8(2, a.charCodeAt(pos++)); dview.setUint8(3, a.charCodeAt(pos++));
-			res.push(dview.getInt32(0, true));
-		}
-		else if (t === 'UB32' || (!LE && t === 'U32')){
-			dview.setUint8(0, a.charCodeAt(pos++)); dview.setUint8(1, a.charCodeAt(pos++));
-			dview.setUint8(2, a.charCodeAt(pos++)); dview.setUint8(3, a.charCodeAt(pos++));
-			res.push(dview.getUint32(0, false));
-		}
-		else if (t === 'SB32' || (!LE && t === 'S32')){
-			dview.setUint8(0, a.charCodeAt(pos++)); dview.setUint8(1, a.charCodeAt(pos++));
-			dview.setUint8(2, a.charCodeAt(pos++)); dview.setUint8(3, a.charCodeAt(pos++));
-			res.push(dview.getInt32(0, false));
-		}
-		else if (t === 'FL32' || (LE && t === 'F32')){
-			dview.setUint8(0, a.charCodeAt(pos++)); dview.setUint8(1, a.charCodeAt(pos++));
-			dview.setUint8(2, a.charCodeAt(pos++)); dview.setUint8(3, a.charCodeAt(pos++));
-			res.push(dview.getFloat32(0, true));
-		}
-		else if (t === 'FB32' || (!LE && t === 'F32')){
-			dview.setUint8(0, a.charCodeAt(pos++)); dview.setUint8(1, a.charCodeAt(pos++));
-			dview.setUint8(2, a.charCodeAt(pos++)); dview.setUint8(3, a.charCodeAt(pos++));
-			res.push(dview.getFloat32(0, false));
-		}
-		else if (t === 'FL64' || (LE && t === 'F64')){
-			dview.setUint8(0, a.charCodeAt(pos++)); dview.setUint8(1, a.charCodeAt(pos++));
-			dview.setUint8(2, a.charCodeAt(pos++)); dview.setUint8(3, a.charCodeAt(pos++));
-			dview.setUint8(4, a.charCodeAt(pos++)); dview.setUint8(5, a.charCodeAt(pos++));
-			dview.setUint8(6, a.charCodeAt(pos++)); dview.setUint8(7, a.charCodeAt(pos++));
-			res.push(dview.getFloat64(0, true));
-		}
-		else if (t === 'FB64' || (!LE && t === 'F64')){
-			dview.setUint8(0, a.charCodeAt(pos++)); dview.setUint8(1, a.charCodeAt(pos++));
-			dview.setUint8(2, a.charCodeAt(pos++)); dview.setUint8(3, a.charCodeAt(pos++));
-			dview.setUint8(4, a.charCodeAt(pos++)); dview.setUint8(5, a.charCodeAt(pos++));
-			dview.setUint8(6, a.charCodeAt(pos++)); dview.setUint8(7, a.charCodeAt(pos++));
-			res.push(dview.getFloat64(0, false));
-		}
-		else
-			return null;
 	}
 	return res;
 }
@@ -8700,7 +8705,7 @@ var Sink = {
 							function(cr){
 								if (cr === SINK_RUN_PASS)
 									return true;
-								return cr.err; // false or string
+								return ctx.err; // false or string
 							}
 						);
 					}
