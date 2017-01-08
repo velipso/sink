@@ -405,6 +405,15 @@ struct.size {'F32', 'U8', 'S16'}       # => 7 (bytes)
 struct.size {'hello'}                  # => nil because template is invalid
 ```
 
+The data can be an array of structures, as long as the data length is a multiple of the template
+size:
+
+```
+struct.str {0x41, 0x42, 0x43}, {'U8'}    # => 'ABC'
+struct.list 'ABC', {'U8'}                # => { 0x41, 0x42, 0x43 }
+struct.str {1, 2, 3, 4}, {'U8', 'UL16'}  # => "\x01\x02\x00\x03\x04\x00"
+```
+
 List
 ----
 

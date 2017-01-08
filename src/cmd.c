@@ -266,8 +266,11 @@ int main_run(const char *inFile, char *const *argv, int argc){
 	switch (res){
 		case SINK_RUN_PASS:
 			return 0;
-		case SINK_RUN_FAIL:
-			return 1;
+		case SINK_RUN_FAIL: {
+			const char *err = sink_ctx_err(ctx);
+			if (err)
+				fprintf(stderr, "%s\n", err);
+		} return 1;
 		case SINK_RUN_ASYNC:
 		case SINK_RUN_TIMEOUT:
 		case SINK_RUN_REPLMORE:
