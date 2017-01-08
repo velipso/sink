@@ -448,7 +448,7 @@ List
 | Function                  | Description                                                         |
 |---------------------------|---------------------------------------------------------------------|
 | `list.new a, b`           | Create a new list of size `a`, with each element set to `b`         |
-| `list.shift ls`           | Remova nd return the value at the start of `ls`                     |
+| `list.shift ls`           | Remove nd return the value at the start of `ls`                     |
 | `list.pop ls`             | Remove and return the value at the end of `ls`                      |
 | `list.push ls, b`         | Push `b` at end of list `ls` (returns `ls`)                         |
 | `list.unshift ls, b`      | Unshift `b` at the start of list `ls` (returns `ls`)                |
