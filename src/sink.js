@@ -22,9 +22,6 @@ function has(obj, key){
 	return Object.prototype.hasOwnProperty.call(obj, key);
 }
 
-// used to mark lists to check for circular lists
-var sink_list_marker = 0;
-
 //
 // opcodes
 //
@@ -2707,6 +2704,7 @@ function parser_process(pr, flp, stmts){
 		case PRS_EXPR_COMMA:
 			if (tk1.type == TOK_NEWLINE && !tk1.soft){
 				parser_rev(pr); // keep the comma in tk1
+				pr.tkR = null; // free the newline
 				return prr_more();
 			}
 			if (!tok_isKS(tk1, KS_RPAREN) && !tok_isKS(tk1, KS_RBRACE)){
@@ -5495,7 +5493,7 @@ function sink_isfalse(v){
 function sink_tostr(v){
 	if (typeof v === 'string')
 		return v;
-	var m = sink_list_marker++;
+	var li = [];
 	function tos(v){
 		if (v == null)
 			return 'nil';
@@ -5511,12 +5509,13 @@ function sink_tostr(v){
 		else if (sink_isstr(v))
 			return '\'' + v.replace(/([\'\\])/g, '\\$1') + '\'';
 		// otherwise, list
-		if (v.sink_list_marker == m)
+		if (li.indexOf(v) >= 0)
 			return '{circular}';
-		v.sink_list_marker = m;
+		li.push(v);
 		var out = [];
 		for (var i = 0; i < v.length; i++)
 			out.push(tos(v[i], false));
+		li.pop();
 		return '{' + out.join(', ') + '}';
 	}
 	return tos(v);
@@ -5668,13 +5667,12 @@ var polyfill = (function(){
 	};
 })();
 
-var opi_num_max_marker = 0;
 function opi_num_max(v){
-	var m = opi_num_max_marker++;
+	var li = [];
 	function mx(v){
-		if (v.opi_num_max_marker == m)
+		if (li.indexOf(v) >= 0)
 			return null;
-		v.opi_num_max_marker = m;
+		li.push(v);
 		var max = null;
 		for (var i = 0; i < v.length; i++){
 			if (sink_isnum(v[i])){
@@ -5687,18 +5685,18 @@ function opi_num_max(v){
 					max = lm;
 			}
 		}
+		li.pop();
 		return max;
 	}
 	return mx(v);
 }
 
-var opi_num_min_marker = 0;
 function opi_num_min(v){
-	var m = opi_num_min_marker++;
+	var li = [];
 	function mn(v){
-		if (v.opi_num_min_marker == m)
+		if (li.indexOf(v) >= 0)
 			return null;
-		v.opi_num_min_marker = m;
+		li.push(v);
 		var min = null;
 		for (var i = 0; i < v.length; i++){
 			if (sink_isnum(v[i])){
@@ -5711,6 +5709,7 @@ function opi_num_min(v){
 					min = lm;
 			}
 		}
+		li.pop();
 		return min;
 	}
 	return mn(v);
@@ -5765,7 +5764,7 @@ function opi_rand_seed(ctx, n){
 
 function opi_rand_int(ctx){
 	var m = 0x5bd1e995;
-	var k = polyfill.Math_imul(ctx.rand_i,  m);
+	var k = polyfill.Math_imul(ctx.rand_i, m);
 	ctx.rand_i = (ctx.rand_i + 1) | 0;
 	ctx.rand_seed = polyfill.Math_imul(k ^ (k >>> 24) ^ polyfill.Math_imul(ctx.rand_seed, m), m);
 	var res = (ctx.rand_seed ^ (ctx.rand_seed >>> 13)) | 0;
@@ -6270,7 +6269,7 @@ function opi_invalid(ctx){
 	return opi_abort(ctx, 'Invalid bytecode');
 }
 
-function sortboth(ctx, a, b, mul, m){
+function sortboth(ctx, li, a, b, mul){
 	if (a === b ||
 		(typeof a === 'number' && typeof b === 'number' && isNaN(a) && isNaN(b)))
 		return 0;
@@ -6316,12 +6315,10 @@ function sortboth(ctx, a, b, mul, m){
 		return a.length < b.length ? -mul : mul;
 	}
 	// otherwise, comparing two lists
-	if (a.sink_list_marker === m || b.sink_list_marker === m){
+	if (li.indexOf(a) >= 0 || li.indexOf(b) >= 0){
 		opi_abort(ctx, 'Cannot sort circular lists');
 		return -1;
 	}
-	a.sink_list_marker = m;
-	b.sink_list_marker = m;
 	if (a.length === 0){
 		if (b.length === 0)
 			return 0;
@@ -6330,33 +6327,42 @@ function sortboth(ctx, a, b, mul, m){
 	else if (b.length === 0)
 		return mul;
 	var minsize = Math.min(a.length, b.length);
+	li.push(a);
+	li.push(b);
 	for (var i = 0; i < minsize; i++){
-		var res = sortboth(ctx, a[i], b[i], mul, m);
-		if (res < 0)
+		var res = sortboth(ctx, li, a[i], b[i], mul);
+		if (res < 0){
+			li.pop();
+			li.pop();
 			return -mul;
-		else if (res > 0)
+		}
+		else if (res > 0){
+			li.pop();
+			li.pop();
 			return mul;
+		}
 	}
+	li.pop();
+	li.pop();
 	return a.length == b.length ? 0 : (a.length < b.length ? -mul : mul);
 }
 
 function opi_list_sort(ctx, a){
-	var m = sink_list_marker++;
+	var li = [];
 	a.sort(function(A, B){
-		return sortboth(ctx, A, B, 1, m);
+		return sortboth(ctx, li, A, B, 1);
 	});
 }
 
 function opi_list_rsort(ctx, a){
-	var m = sink_list_marker++;
+	var li = [];
 	a.sort(function(A, B){
-		return sortboth(ctx, A, B, -1, m);
+		return sortboth(ctx, li, A, B, -1);
 	});
 }
 
 function opi_order(ctx, a, b){
-	var m = sink_list_marker++;
-	return sortboth(ctx, a, b, 1, m);
+	return sortboth(ctx, [], a, b, 1);
 }
 
 function opi_range(start, stop, step){

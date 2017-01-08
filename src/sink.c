@@ -382,7 +382,7 @@ static inline bool list_byte_equ(list_byte b1, list_byte b2){
 }
 
 typedef struct {
-	int_fast32_t *vals;
+	int *vals;
 	int size;
 	int count;
 } list_int_st, *list_int;
@@ -398,14 +398,14 @@ static inline list_int list_int_new(){
 	list_int ls = mem_alloc(sizeof(list_int_st));
 	ls->size = 0;
 	ls->count = list_int_grow;
-	ls->vals = mem_alloc(sizeof(int_fast32_t) * ls->count);
+	ls->vals = mem_alloc(sizeof(int) * ls->count);
 	return ls;
 }
 
-static inline void list_int_push(list_int ls, int_fast32_t v){
+static inline void list_int_push(list_int ls, int v){
 	if (ls->size >= ls->count){
 		ls->count += list_int_grow;
-		ls->vals = mem_realloc(ls->vals, sizeof(int_fast32_t) * ls->count);
+		ls->vals = mem_realloc(ls->vals, sizeof(int) * ls->count);
 	}
 	ls->vals[ls->size++] = v;
 }
@@ -413,6 +413,14 @@ static inline void list_int_push(list_int ls, int_fast32_t v){
 static inline int list_int_pop(list_int ls){
 	ls->size--;
 	return ls->vals[ls->size];
+}
+
+static inline bool list_int_has(list_int ls, int v){
+	for (int i = 0; i < ls->size; i++){
+		if (ls->vals[i] == v)
+			return true;
+	}
+	return false;
 }
 
 typedef struct {
@@ -4469,6 +4477,8 @@ static prr_st parser_process(parser pr, filepos_st flp, list_ptr stmts){
 		case PRS_EXPR_COMMA:
 			if (tk1->type == TOK_NEWLINE && !tk1->u.soft){
 				parser_rev(pr); // keep the comma in tk1
+				tok_free(pr->tkR); // free the newline
+				pr->tkR = NULL;
 				return prr_more();
 			}
 			if (!tok_isKS(tk1, KS_RPAREN) && !tok_isKS(tk1, KS_RBRACE)){
@@ -4596,7 +4606,7 @@ static inline prr_st parser_close(parser pr){
 
 typedef struct {
 	list_byte name;
-	int_fast32_t pos;
+	int pos;
 	list_int rewrites;
 } label_st, *label;
 
@@ -4620,7 +4630,7 @@ static inline label label_newStr(const char *str){
 
 static void label_refresh(label lbl, list_byte ops, int start){
 	for (int i = start; i < lbl->rewrites->size; i++){
-		int_fast32_t index = lbl->rewrites->vals[i];
+		int index = lbl->rewrites->vals[i];
 		ops->bytes[index + 0] = lbl->pos % 256;
 		ops->bytes[index + 1] = (lbl->pos >> 8) % 256;
 		ops->bytes[index + 2] = (lbl->pos >> 16) % 256;
@@ -7959,8 +7969,7 @@ static inline int bmp_alloc(uint64_t *bmp, int count){
 	return -1;
 }
 
-static int bmp_reserve(void **tbl, int *size, uint64_t **aloc, uint64_t **ref, uint64_t **tick,
-	size_t st_size){
+static int bmp_reserve(void **tbl, int *size, uint64_t **aloc, uint64_t **ref, size_t st_size){
 	int index = bmp_alloc(*aloc, *size);
 	if (index >= 0)
 		return index;
@@ -7974,10 +7983,6 @@ static int bmp_reserve(void **tbl, int *size, uint64_t **aloc, uint64_t **ref, u
 	memset(&(*aloc)[*size / 64], 0, sizeof(uint64_t) * (*size / 64));
 	*ref = mem_realloc(*ref, sizeof(uint64_t) * (new_count / 64));
 	memset(&(*ref)[*size / 64], 0, sizeof(uint64_t) * *size / 64);
-	if (tick){
-		*tick = mem_realloc(*tick, sizeof(uint64_t) * (new_count / 64));
-		memset(&(*tick)[*size / 64], 0, sizeof(uint64_t) * (*size / 64));
-	}
 	*size = new_count;
 	(*aloc)[new_count / 128] |= 1;
 	return new_count / 2;
@@ -8071,8 +8076,6 @@ typedef struct {
 
 	uint64_t *str_ref;
 	uint64_t *list_ref;
-
-	uint64_t *list_tick;
 
 	sink_list_st pinned;
 
@@ -8258,7 +8261,6 @@ static inline void context_free(context ctx){
 	mem_free(ctx->str_aloc);
 	mem_free(ctx->list_ref);
 	mem_free(ctx->str_ref);
-	mem_free(ctx->list_tick);
 	mem_free(ctx->pinned.vals);
 	mem_free(ctx);
 }
@@ -8293,8 +8295,6 @@ static inline context context_new(program prg, sink_io_st io){
 
 	ctx->str_ref = mem_alloc(sizeof(uint64_t) * (ctx->str_size / 64));
 	ctx->list_ref = mem_alloc(sizeof(uint64_t) * (ctx->list_size / 64));
-
-	ctx->list_tick = mem_alloc(sizeof(uint64_t) * (ctx->list_size / 64));
 
 	ctx->pinned.size = 0;
 	ctx->pinned.count = 50;
@@ -8334,17 +8334,6 @@ static inline void context_reset(context ctx){
 	ctx->failed = false;
 	ctx->pc = ctx->prg->ops->size;
 	ctx->timeout_left = ctx->timeout;
-}
-
-static inline void list_cleartick(context ctx){
-	memset(ctx->list_tick, 0, sizeof(uint64_t) * (ctx->list_size / 64));
-}
-
-static inline bool list_hastick(context ctx, int index){
-	if (bmp_hasbit(ctx->list_tick, index))
-		return true;
-	bmp_setbit(ctx->list_tick, index);
-	return false;
 }
 
 static inline sink_val var_get(context ctx, int fdiff, int index){
@@ -8463,9 +8452,11 @@ static int str_cmp(sink_str a, sink_str b){
 	return 0;
 }
 
-static sink_val opihelp_num_max(context ctx, sink_val v){
-	if (list_hastick(ctx, var_index(v)))
+static sink_val opihelp_num_max(context ctx, sink_val v, list_int li){
+	int idx = var_index(v);
+	if (list_int_has(li, idx))
 		return SINK_NIL;
+	list_int_push(li, idx);
 	sink_list ls = var_castlist(ctx, v);
 	sink_val max = SINK_NIL;
 	for (int i = 0; i < ls->size; i++){
@@ -8474,22 +8465,27 @@ static sink_val opihelp_num_max(context ctx, sink_val v){
 				max = ls->vals[i];
 		}
 		else if (sink_islist(ls->vals[i])){
-			sink_val lm = opihelp_num_max(ctx, ls->vals[i]);
+			sink_val lm = opihelp_num_max(ctx, ls->vals[i], li);
 			if (!sink_isnil(lm) && (sink_isnil(max) || lm.f > max.f))
 				max = lm;
 		}
 	}
+	list_int_pop(li);
 	return max;
 }
 
 static inline sink_val opi_num_max(context ctx, sink_val v){
-	list_cleartick(ctx);
-	return opihelp_num_max(ctx, v);
+	list_int li = list_int_new();
+	sink_val res = opihelp_num_max(ctx, v, li);
+	list_int_free(li);
+	return res;
 }
 
-static sink_val opihelp_num_min(context ctx, sink_val v){
-	if (list_hastick(ctx, var_index(v)))
+static sink_val opihelp_num_min(context ctx, sink_val v, list_int li){
+	int idx = var_index(v);
+	if (list_int_has(li, idx))
 		return SINK_NIL;
+	list_int_push(li, idx);
 	sink_list ls = var_castlist(ctx, v);
 	sink_val min = SINK_NIL;
 	for (int i = 0; i < ls->size; i++){
@@ -8498,17 +8494,20 @@ static sink_val opihelp_num_min(context ctx, sink_val v){
 				min = ls->vals[i];
 		}
 		else if (sink_islist(ls->vals[i])){
-			sink_val lm = opihelp_num_min(ctx, ls->vals[i]);
+			sink_val lm = opihelp_num_min(ctx, ls->vals[i], li);
 			if (!sink_isnil(lm) && (sink_isnil(min) || lm.f < min.f))
 				min = lm;
 		}
 	}
+	list_int_pop(li);
 	return min;
 }
 
 static inline sink_val opi_num_min(context ctx, sink_val v){
-	list_cleartick(ctx);
-	return opihelp_num_min(ctx, v);
+	list_int li = list_int_new();
+	sink_val res = opihelp_num_min(ctx, v, li);
+	list_int_free(li);
+	return res;
 }
 
 static sink_val opi_num_base(context ctx, double num, int len, int base){
@@ -9211,6 +9210,7 @@ static inline sink_val opi_struct_str(context ctx, sink_val a, sink_val b){
 			}
 		}
 	}
+	bytes[size] = 0;
 	return sink_str_newblobgive(ctx, size, bytes);
 }
 
@@ -9659,6 +9659,8 @@ static inline sink_run opi_abort(context ctx, char *err){
 			mem_free(err);
 			err = err2;
 		}
+		if (ctx->err)
+			mem_free(ctx->err);
 		ctx->err = sink_format("Error: %s", err);
 		mem_free(err);
 	}
@@ -10040,7 +10042,7 @@ static inline sink_val opi_list_rev(context ctx, sink_val a){
 	return a;
 }
 
-static inline int sortboth(context ctx, const sink_val *a, const sink_val *b, int mul){
+static inline int sortboth(context ctx, list_int li, const sink_val *a, const sink_val *b, int mul){
 	sink_type atype = sink_typeof(*a);
 	sink_type btype = sink_typeof(*b);
 
@@ -10089,7 +10091,9 @@ static inline int sortboth(context ctx, const sink_val *a, const sink_val *b, in
 		return res < 0 ? -mul : mul;
 	}
 	// otherwise, comparing two lists
-	if (list_hastick(ctx, var_index(*a)) || list_hastick(ctx, var_index(*b))){
+	int idx1 = var_index(*a);
+	int idx2 = var_index(*b);
+	if (list_int_has(li, idx1) || list_int_has(li, idx2)){
 		opi_abortcstr(ctx, "Cannot sort circular lists");
 		return -1;
 	}
@@ -10103,13 +10107,23 @@ static inline int sortboth(context ctx, const sink_val *a, const sink_val *b, in
 	else if (ls2->size == 0)
 		return mul;
 	int minsize = ls1->size < ls2->size ? ls1->size : ls2->size;
+	list_int_push(li, idx1);
+	list_int_push(li, idx2);
 	for (int i = 0; i < minsize; i++){
-		int res = sortboth(ctx, &ls1->vals[i], &ls2->vals[i], 1);
-		if (res < 0)
+		int res = sortboth(ctx, li, &ls1->vals[i], &ls2->vals[i], 1);
+		if (res < 0){
+			list_int_pop(li);
+			list_int_pop(li);
 			return -mul;
-		else if (res > 0)
+		}
+		else if (res > 0){
+			list_int_pop(li);
+			list_int_pop(li);
 			return mul;
+		}
 	}
+	list_int_pop(li);
+	list_int_pop(li);
 	if (ls1->size < ls2->size)
 		return -mul;
 	else if (ls1->size > ls2->size)
@@ -10117,31 +10131,40 @@ static inline int sortboth(context ctx, const sink_val *a, const sink_val *b, in
 	return 0;
 }
 
-static int sortfwd(context ctx, const sink_val *a, const sink_val *b){
-	return sortboth(ctx, a, b, 1);
+typedef struct {
+	context ctx;
+	list_int li;
+} sortu_st, *sortu;
+
+static int sortfwd(sortu u, const sink_val *a, const sink_val *b){
+	return sortboth(u->ctx, u->li, a, b, 1);
 }
 
-static int sortrev(context ctx, const sink_val *a, const sink_val *b){
-	return sortboth(ctx, a, b, -1);
+static int sortrev(sortu u, const sink_val *a, const sink_val *b){
+	return sortboth(u->ctx, u->li, a, b, -1);
 }
 
 static inline void opi_list_sort(context ctx, sink_val a){
+	sortu_st u = { .ctx = ctx, .li = list_int_new() };
 	sink_list ls = sink_castlist(ctx, a);
-	list_cleartick(ctx);
-	qsort_r(ls->vals, ls->size, sizeof(sink_val), ctx,
+	qsort_r(ls->vals, ls->size, sizeof(sink_val), &u,
 		(int (*)(void *, const void *, const void *))sortfwd);
+	list_int_free(u.li);
 }
 
 static inline void opi_list_rsort(context ctx, sink_val a){
-	list_cleartick(ctx);
+	sortu_st u = { .ctx = ctx, .li = list_int_new() };
 	sink_list ls = sink_castlist(ctx, a);
-	qsort_r(ls->vals, ls->size, sizeof(sink_val), ctx,
+	qsort_r(ls->vals, ls->size, sizeof(sink_val), &u,
 		(int (*)(void *, const void *, const void *))sortrev);
+	list_int_free(u.li);
 }
 
 static inline int opi_order(context ctx, sink_val a, sink_val b){
-	list_cleartick(ctx);
-	return sortboth(ctx, &a, &b, 1);
+	list_int li = list_int_new();
+	int res = sortboth(ctx, li, &a, &b, 1);
+	list_int_free(li);
+	return res;
 }
 
 static inline sink_val opi_range(context ctx, double start, double stop, double step){
@@ -12268,7 +12291,7 @@ bool sink_arg_user(sink_ctx ctx, int size, sink_val *args, int index, sink_user 
 	return true;
 }
 
-static sink_str_st sinkhelp_tostr(context ctx, sink_val v){
+static sink_str_st sinkhelp_tostr(context ctx, list_int li, sink_val v){
 	switch (sink_typeof(v)){
 		case SINK_TYPE_NIL: {
 			uint8_t *bytes = mem_alloc(sizeof(uint8_t) * 4);
@@ -12321,21 +12344,24 @@ static sink_str_st sinkhelp_tostr(context ctx, sink_val v){
 		} break;
 
 		case SINK_TYPE_LIST: {
-			if (list_hastick(ctx, var_index(v))){
+			int idx = var_index(v);
+			if (list_int_has(li, idx)){
 				uint8_t *bytes = mem_alloc(sizeof(uint8_t) * 11);
 				bytes[0] = '{'; bytes[1] = 'c'; bytes[2] = 'i'; bytes[3] = 'r'; bytes[4] = 'c';
 				bytes[5] = 'u'; bytes[6] = 'l'; bytes[7] = 'a'; bytes[8] = 'r'; bytes[9] = '}';
 				bytes[10] = 0;
 				return (sink_str_st){ .bytes = bytes, .size = 10 };
 			}
+			list_int_push(li, idx);
 			sink_list ls = var_castlist(ctx, v);
 			int tot = 2;
 			sink_str_st *strs = mem_alloc(sizeof(sink_str_st) * ls->size);
 			for (int i = 0; i < ls->size; i++){
-				sink_str_st s = sinkhelp_tostr(ctx, ls->vals[i]);
+				sink_str_st s = sinkhelp_tostr(ctx, li, ls->vals[i]);
 				strs[i] = s;
 				tot += (i == 0 ? 0 : 2) + s.size;
 			}
+			list_int_pop(li);
 			uint8_t *bytes = mem_alloc(sizeof(uint8_t) * (tot + 1));
 			bytes[0] = '{';
 			int p = 1;
@@ -12366,9 +12392,12 @@ static sink_str_st sinkhelp_tostr(context ctx, sink_val v){
 sink_val sink_tostr(sink_ctx ctx, sink_val v){
 	if (sink_isstr(v))
 		return v;
+	list_int li = NULL;
 	if (sink_islist(v))
-		list_cleartick(ctx);
-	sink_str_st s = sinkhelp_tostr(ctx, v);
+		li = list_int_new();
+	sink_str_st s = sinkhelp_tostr(ctx, li, v);
+	if (li)
+		list_int_free(li);
 	return sink_str_newblobgive(ctx, s.size, s.bytes);
 }
 
@@ -12484,7 +12513,7 @@ sink_val sink_str_newblobgive(sink_ctx ctx, int size, uint8_t *bytes){
 	}
 	context ctx2 = ctx;
 	int index = bmp_reserve((void **)&ctx2->str_tbl, &ctx2->str_size, &ctx2->str_aloc,
-		&ctx2->str_ref, NULL, sizeof(sink_str_st));
+		&ctx2->str_ref, sizeof(sink_str_st));
 	sink_str s = &ctx2->str_tbl[index];
 	s->bytes = bytes;
 	s->size = size;
@@ -12664,7 +12693,7 @@ sink_val sink_list_newblob(sink_ctx ctx, int size, const sink_val *vals){
 sink_val sink_list_newblobgive(sink_ctx ctx, int size, int count, sink_val *vals){
 	context ctx2 = ctx;
 	int index = bmp_reserve((void **)&ctx2->list_tbl, &ctx2->list_size, &ctx2->list_aloc,
-		&ctx2->list_ref, &ctx2->list_tick, sizeof(sink_list_st));
+		&ctx2->list_ref, sizeof(sink_list_st));
 	sink_list ls = &ctx2->list_tbl[index];
 	ls->vals = vals;
 	ls->size = size;

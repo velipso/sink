@@ -261,22 +261,14 @@ int main_run(const char *inFile, char *const *argv, int argc){
 	sink_ctx ctx = sink_ctx_new(scr, sink_stdio);
 	sink_shell_ctx(ctx, argc, argv);
 	sink_run res = sink_ctx_run(ctx);
+	if (res == SINK_RUN_FAIL){
+		const char *err = sink_ctx_err(ctx);
+		if (err)
+			fprintf(stderr, "%s\n", err);
+	}
 	sink_ctx_free(ctx);
 	sink_scr_free(scr);
-	switch (res){
-		case SINK_RUN_PASS:
-			return 0;
-		case SINK_RUN_FAIL: {
-			const char *err = sink_ctx_err(ctx);
-			if (err)
-				fprintf(stderr, "%s\n", err);
-		} return 1;
-		case SINK_RUN_ASYNC:
-		case SINK_RUN_TIMEOUT:
-		case SINK_RUN_REPLMORE:
-			fprintf(stderr, "Invalid return value from running context\n");
-			return 1;
-	}
+	return res == SINK_RUN_PASS ? 0 : 1;
 }
 
 int main_eval(const char *eval, char *const *argv, int argc){
@@ -305,19 +297,14 @@ int main_eval(const char *eval, char *const *argv, int argc){
 	sink_ctx ctx = sink_ctx_new(scr, sink_stdio);
 	sink_shell_ctx(ctx, argc, argv);
 	sink_run res = sink_ctx_run(ctx);
+	if (res == SINK_RUN_FAIL){
+		const char *err = sink_ctx_err(ctx);
+		if (err)
+			fprintf(stderr, "%s\n", err);
+	}
 	sink_ctx_free(ctx);
 	sink_scr_free(scr);
-	switch (res){
-		case SINK_RUN_PASS:
-			return 0;
-		case SINK_RUN_FAIL:
-			return 1;
-		case SINK_RUN_ASYNC:
-		case SINK_RUN_TIMEOUT:
-		case SINK_RUN_REPLMORE:
-			fprintf(stderr, "Invalid return value from running context\n");
-			return 1;
-	}
+	return res == SINK_RUN_PASS ? 0 : 1;
 }
 
 void printVersion(){
@@ -325,7 +312,6 @@ void printVersion(){
 		"Sink v1.0\n"
 		"Copyright (c) 2016 Sean Connelly (@voidqk), MIT License\n"
 		"https://github.com/voidqk/sink  http://syntheti.cc\n");
-
 }
 
 void printHelp(){
