@@ -266,6 +266,15 @@ say "a" ~ 'b'  # ab
 say 1 ~ 2      # 12
 ```
 
+Converting a string to a number is via unary `+`, which returns `nil` if the conversion fails:
+
+```
+var x = '5'
+say x + 5   # runtime error, cannot add string to number
+say +x + 5  # 10
+say +'foo'  # nil (conversion fails)
+```
+
 Strings are detected via the `isstr` command.
 
 ### String Slicing
