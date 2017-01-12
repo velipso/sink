@@ -5621,7 +5621,11 @@ var polyfill = (function(){
 	}
 
 	function Math_trunc(x){
-		return ~~x;
+		if (isNaN(x))
+			return NaN;
+		if (x > 0)
+			return Math.floor(x);
+		return Math.ceil(x);
 	}
 
 	function Math_log2(x){
