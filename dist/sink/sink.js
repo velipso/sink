@@ -387,7 +387,7 @@ function op_return(b, src){
 	b.push(OP_RETURN, src.fdiff, src.index);
 }
 
-function op_returntail(b, arg, index, hint){
+function op_returnTail(b, arg, index, hint){
 	oplog('RETURNTAIL', arg, hint);
 	b.push(OP_RETURNTAIL, arg.fdiff, arg.index,
 		index % 256,
@@ -2849,8 +2849,8 @@ function label_call(lbl, ops, ret, arg, level){
 		label_refresh(lbl, ops, lbl.rewrites.length - 1);
 }
 
-function label_returntail(lbl, ops, arg){
-	op_returntail(ops, arg, 0xFFFFFFFF, lbl.name);
+function label_returnTail(lbl, ops, arg){
+	op_returnTail(ops, arg, 0xFFFFFFFF, lbl.name);
 	lbl.rewrites.push(ops.length - 4);
 	if (lbl.pos >= 0)
 		label_refresh(lbl, ops, lbl.rewrites.length - 1);
@@ -5296,7 +5296,7 @@ function program_gen(prg, sym, stmt, pst, sayexpr){
 				var pe = program_eval(prg, sym, PEM_CREATE, null, expr_list(ex.flp, params));
 				if (pe.type == PER_ERROR)
 					return pgr_error(pe.flp, pe.msg);
-				label_returntail(nsn.lbl, prg.ops, pe.vlc);
+				label_returnTail(nsn.lbl, prg.ops, pe.vlc);
 				symtbl_clearTemp(sym, pe.vlc);
 				return pgr_ok();
 			}
@@ -5621,7 +5621,11 @@ var polyfill = (function(){
 	}
 
 	function Math_trunc(x){
-		return ~~x;
+		if (isNaN(x))
+			return NaN;
+		if (x > 0)
+			return Math.floor(x);
+		return Math.ceil(x);
 	}
 
 	function Math_log2(x){
@@ -8130,9 +8134,13 @@ function compiler_reset(cmp){
 function compiler_begininc(cmp, names, file){
 	cmp.flpn = flpn_new(file, cmp.flpn);
 	if (names){
-		// TODO: symtbl_pushNamespace can return an error!
-		symtbl_pushNamespace(cmp.sym, names);
+		var st = symtbl_pushNamespace(cmp.sym, names);
+		if (st.type == SPN_ERROR){
+			cmp.flpn = cmp.flpn.next;
+			return cma_error(st.msg);
+		}
 	}
+	return false;
 }
 
 function compiler_endinc(cmp, ns){
@@ -8153,8 +8161,10 @@ function cma_error(msg){
 }
 
 function compiler_staticinc(cmp, names, file, body){
-	compiler_begininc(cmp, names, file);
-	var res = compiler_write(cmp, body);
+	var res = compiler_begininc(cmp, names, file);
+	if (res !== false)
+		return res;
+	res = compiler_write(cmp, body);
 	if (res.type == CMA_ERROR){
 		compiler_endinc(cmp, names !== null);
 		return res;
@@ -8209,7 +8219,9 @@ function compiler_tryinc(cmp, names, file, first){
 					return false;
 			}
 
-			compiler_begininc(cmp, names, file);
+			var res = compiler_begininc(cmp, names, file);
+			if (res !== false)
+				return res;
 			return withResult(
 				cmp.fsread(file),
 				function(data){
