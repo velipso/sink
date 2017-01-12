@@ -9421,6 +9421,8 @@ static sink_val unop_tonum(context ctx, sink_val a){
 					else
 						state = TONUM_BODY;
 				}
+				else if (ch == '.')
+					state = TONUM_FRAC;
 				else
 					return SINK_NIL;
 				break;

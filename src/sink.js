@@ -6193,6 +6193,8 @@ function unop_tonum(a){
 					else
 						state = TONUM_BODY;
 				}
+				else if (ch == '.')
+					state = TONUM_FRAC;
 				else
 					return null;
 				break;
