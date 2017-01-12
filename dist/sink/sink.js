@@ -816,7 +816,7 @@ var LEX_SPECIAL2           = 'LEX_SPECIAL2';
 var LEX_IDENT              = 'LEX_IDENT';
 var LEX_NUM_0              = 'LEX_NUM_0';
 var LEX_NUM_2              = 'LEX_NUM_2';
-var LEX_NUM                = 'LEX_NUM';
+var LEX_NUM_BODY           = 'LEX_NUM_BODY';
 var LEX_NUM_FRAC           = 'LEX_NUM_FRAC';
 var LEX_NUM_EXP            = 'LEX_NUM_EXP';
 var LEX_NUM_EXP_BODY       = 'LEX_NUM_EXP_BODY';
@@ -828,6 +828,30 @@ var LEX_STR_INTERP_DLR_ID  = 'LEX_STR_INTERP_DLR_ID';
 var LEX_STR_INTERP_ESC     = 'LEX_STR_INTERP_ESC';
 var LEX_STR_INTERP_ESC_HEX = 'LEX_STR_INTERP_ESC_HEX';
 
+function numpart_new(info){
+	info.sign  =  1; // value sign -1 or 1
+	info.val   =  0; // integer part
+	info.base  = 10; // number base 2, 8, 10, or 16
+	info.frac  =  0; // fractional part >= 0
+	info.flen  =  0; // number of fractional digits
+	info.esign =  1; // exponent sign -1 or 1
+	info.eval  =  0; // exponent value >= 0
+}
+
+function numpart_calc(info){
+	var val = info.val;
+	var e = 1;
+	if (info.eval > 0){
+		e = Math.pow(info.base == 10.0 ? 10.0 : 2.0, info.esign * info.eval);
+		val *= e;
+	}
+	if (info.flen > 0){
+		var d = Math.pow(info.base, info.flen);
+		val = (val * d + info.frac * e) / d;
+	}
+	return info.sign * val;
+}
+
 function lex_reset(lx){
 	lx.state = LEX_START;
 	lx.chR = 0;
@@ -836,16 +860,11 @@ function lex_reset(lx){
 	lx.ch3 = 0;
 	lx.ch4 = 0;
 	lx.str = '';
-	lx.num_val = 0;
-	lx.num_base = 0;
-	lx.num_frac = 0;
-	lx.num_flen = 0;
-	lx.num_esign = 0;
-	lx.num_eval = 0;
-	lx.num_elen = 0;
+	lx.npi = {};
 	lx.braces = [0];
 	lx.str_hexval = 0;
 	lx.str_hexleft = 0;
+	lx.numexp = false;
 }
 
 function lex_new(){
@@ -902,12 +921,13 @@ function lex_process(lx, tks){
 				lx.state = LEX_IDENT;
 			}
 			else if (isNum(ch1)){
-				lx.num_val = toHex(ch1);
-				lx.num_base = 10;
-				if (lx.num_val == 0)
+				numpart_new(lx.npi);
+				lx.npi.val = toHex(ch1);
+				lx.npi.base = 10;
+				if (lx.npi.val == 0)
 					lx.state = LEX_NUM_0;
 				else
-					lx.state = LEX_NUM;
+					lx.state = LEX_NUM_BODY;
 			}
 			else if (ch1 == '\''){
 				lx.str = '';
@@ -1046,32 +1066,23 @@ function lex_process(lx, tks){
 
 		case LEX_NUM_0:
 			if (ch1 == 'b'){
-				lx.num_base = 2;
+				lx.npi.base = 2;
 				lx.state = LEX_NUM_2;
 			}
 			else if (ch1 == 'c'){
-				lx.num_base = 8;
+				lx.npi.base = 8;
 				lx.state = LEX_NUM_2;
 			}
 			else if (ch1 == 'x'){
-				lx.num_base = 16;
+				lx.npi.base = 16;
 				lx.state = LEX_NUM_2;
 			}
 			else if (ch1 == '_')
-				lx.state = LEX_NUM;
-			else if (ch1 == '.'){
-				lx.num_frac = 0;
-				lx.num_flen = 0;
+				lx.state = LEX_NUM_BODY;
+			else if (ch1 == '.')
 				lx.state = LEX_NUM_FRAC;
-			}
-			else if (ch1 == 'e' || ch1 == 'E'){
-				lx.num_frac = 0;
-				lx.num_flen = 0;
-				lx.num_esign = 0;
-				lx.num_eval = 0;
-				lx.num_elen = 0;
+			else if (ch1 == 'e' || ch1 == 'E')
 				lx.state = LEX_NUM_EXP;
-			}
 			else if (!isIdentStart(ch1)){
 				tks.push(tok_num(0));
 				lx.state = LEX_START;
@@ -1083,42 +1094,33 @@ function lex_process(lx, tks){
 
 		case LEX_NUM_2:
 			if (isHex(ch1)){
-				lx.num_val = toHex(ch1);
-				if (lx.num_val > lx.num_base)
+				lx.npi.val = toHex(ch1);
+				if (lx.npi.val >= lx.npi.base)
 					tks.push(tok_error('Invalid number'));
 				else
-					lx.state = LEX_NUM;
+					lx.state = LEX_NUM_BODY;
 			}
 			else if (ch1 != '_')
 				tks.push(tok_error('Invalid number'));
 			break;
 
-		case LEX_NUM:
+		case LEX_NUM_BODY:
 			if (ch1 == '_')
 				/* do nothing */;
-			else if (ch1 == '.'){
-				lx.num_frac = 0;
-				lx.num_flen = 0;
+			else if (ch1 == '.')
 				lx.state = LEX_NUM_FRAC;
-			}
-			else if ((lx.num_base == 10 && (ch1 == 'e' || ch1 == 'E')) ||
-				(lx.num_base != 10 && (ch1 == 'p' || ch1 == 'P'))){
-				lx.num_frac = 0;
-				lx.num_flen = 0;
-				lx.num_esign = 0;
-				lx.num_eval = 0;
-				lx.num_elen = 0;
+			else if ((lx.npi.base == 10 && (ch1 == 'e' || ch1 == 'E')) ||
+				(lx.npi.base != 10 && (ch1 == 'p' || ch1 == 'P')))
 				lx.state = LEX_NUM_EXP;
-			}
 			else if (isHex(ch1)){
 				var v = toHex(ch1);
-				if (v > lx.num_base)
+				if (v >= lx.npi.base)
 					tks.push(tok_error('Invalid number'));
 				else
-					lx.num_val = lx.num_val * lx.num_base + v;
+					lx.npi.val = lx.npi.val * lx.npi.base + v;
 			}
 			else if (!isAlpha(ch1)){
-				tks.push(tok_num(lx.num_val));
+				tks.push(tok_num(numpart_calc(lx.npi)));
 				lx.state = LEX_START;
 				lex_process(lx, tks);
 			}
@@ -1129,29 +1131,23 @@ function lex_process(lx, tks){
 		case LEX_NUM_FRAC:
 			if (ch1 == '_')
 				/* do nothing */;
-			else if ((lx.num_base == 10 && (ch1 == 'e' || ch1 == 'E')) ||
-				(lx.num_base != 10 && (ch1 == 'p' || ch1 == 'P'))){
-				lx.num_esign = 0;
-				lx.num_eval = 0;
-				lx.num_elen = 0;
+			else if ((lx.npi.base == 10 && (ch1 == 'e' || ch1 == 'E')) ||
+				(lx.npi.base != 10 && (ch1 == 'p' || ch1 == 'P')))
 				lx.state = LEX_NUM_EXP;
-			}
 			else if (isHex(ch1)){
 				var v = toHex(ch1);
-				if (v > lx.num_base)
+				if (v >= lx.npi.base)
 					tks.push(tok_error('Invalid number'));
 				else{
-					lx.num_frac = lx.num_frac * lx.num_base + v;
-					lx.num_flen++;
+					lx.npi.frac = lx.npi.frac * lx.npi.base + v;
+					lx.npi.flen++;
 				}
 			}
 			else if (!isAlpha(ch1)){
-				if (lx.num_flen <= 0)
+				if (lx.npi.flen <= 0)
 					tks.push(tok_error('Invalid number'));
 				else{
-					var d = Math.pow(lx.num_base, lx.num_flen);
-					lx.num_val = (lx.num_val * d + lx.num_frac) / d;
-					tks.push(tok_num(lx.num_val));
+					tks.push(tok_num(numpart_calc(lx.npi)));
 					lx.state = LEX_START;
 					lex_process(lx, tks);
 				}
@@ -1162,8 +1158,9 @@ function lex_process(lx, tks){
 
 		case LEX_NUM_EXP:
 			if (ch1 != '_'){
-				lx.num_esign = ch1 == '-' ? -1 : 1;
+				lx.npi.esign = ch1 == '-' ? -1 : 1;
 				lx.state = LEX_NUM_EXP_BODY;
+				lx.numexp = false;
 				if (ch1 != '+' && ch1 != '-')
 					lex_process(lx, tks);
 			}
@@ -1173,20 +1170,14 @@ function lex_process(lx, tks){
 			if (ch1 == '_')
 				/* do nothing */;
 			else if (isNum(ch1)){
-				lx.num_eval = lx.num_eval * 10 + toHex(ch1);
-				lx.num_elen++;
+				lx.npi.eval = lx.npi.eval * 10 + toHex(ch1);
+				lx.numexp = true;
 			}
 			else if (!isAlpha(ch1)){
-				if (lx.num_elen <= 0)
+				if (!lx.numexp)
 					tks.push(tok_error('Invalid number'));
 				else{
-					var e = Math.pow(lx.num_base == 10 ? 10 : 2, lx.num_esign * lx.num_eval);
-					lx.num_val *= e;
-					if (lx.num_flen > 0){
-						var d = Math.pow(lx.num_base, lx.num_flen);
-						lx.num_val = (lx.num_val * d + lx.num_frac * e) / d;
-					}
-					tks.push(tok_num(lx.num_val));
+					tks.push(tok_num(numpart_calc(lx.npi)));
 					lx.state = LEX_START;
 					lex_process(lx, tks);
 				}
@@ -1413,18 +1404,15 @@ function lex_close(lx, tks){
 			tks.push(tok_error('Invalid number'));
 			break;
 
-		case LEX_NUM:
-			tks.push(tok_num(lx.num_val));
+		case LEX_NUM_BODY:
+			tks.push(tok_num(numpart_calc(lx.npi)));
 			break;
 
 		case LEX_NUM_FRAC:
-			if (lx.num_flen <= 0)
+			if (lx.npi.flen <= 0)
 				tks.push(tok_error('Invalid number'));
-			else{
-				var d = Math.pow(lx.num_base, lx.num_flen);
-				lx.num_val = (lx.num_val * d + lx.num_frac) / d;
-				tks.push(tok_num(lx.num_val));
-			}
+			else
+				tks.push(tok_num(numpart_calc(lx.npi)));
 			break;
 
 		case LEX_NUM_EXP:
@@ -1432,17 +1420,10 @@ function lex_close(lx, tks){
 			break;
 
 		case LEX_NUM_EXP_BODY:
-			if (lx.num_elen <= 0)
+			if (!lx.numexp)
 				tks.push(tok_error('Invalid number'));
-			else{
-				var e = Math.pow(lx.num_base == 10 ? 10 : 2, lx.num_esign * lx.num_eval);
-				lx.num_val *= e;
-				if (lx.num_flen > 0){
-					var d = Math.pow(lx.num_base, lx.num_flen);
-					lx.num_val = (lx.num_val * d + lx.num_frac * e) / d;
-				}
-				tks.push(tok_num(lx.num_val));
-			}
+			else
+				tks.push(tok_num(numpart_calc(lx.npi)));
 			break;
 
 		case LEX_STR_BASIC_ESC:
@@ -5928,7 +5909,7 @@ function opi_utf8_list(a){
 				if (codepoint < min || // no overlong
 					codepoint >= 0x110000 || // no huge
 					(codepoint >= 0xD800 && codepoint < 0xE000)) // no surrogates
-					return SINK_NIL;
+					return null;
 				res.push(codepoint);
 			}
 		}
@@ -6166,7 +6147,155 @@ function unop_num_neg(a){
 function unop_tonum(a){
 	if (sink_isnum(a))
 		return a;
-	throw 'TODO: parse number';
+	if (!sink_isstr(a))
+		return null;
+	var npi = {};
+	numpart_new(npi);
+
+	var TONUM_START    = 'TONUM_START';
+	var TONUM_NEG      = 'TONUM_NEG';
+	var TONUM_0        = 'TONUM_0';
+	var TONUM_2        = 'TONUM_2';
+	var TONUM_BODY     = 'TONUM_BODY';
+	var TONUM_FRAC     = 'TONUM_FRAC';
+	var TONUM_EXP      = 'TONUM_EXP';
+	var TONUM_EXP_BODY = 'TONUM_EXP_BODY';
+	var state = TONUM_START;
+	var hasval = false;
+	for (var i = 0; i < a.length; i++){
+		var ch = a.charAt(i);
+		switch (state){
+			case TONUM_START:
+				if (isNum(ch)){
+					hasval = true;
+					npi.val = toHex(ch);
+					if (npi.val == 0)
+						state = TONUM_0;
+					else
+						state = TONUM_BODY;
+				}
+				else if (ch == '-'){
+					npi.sign = -1;
+					state = TONUM_NEG;
+				}
+				else if (ch == '.')
+					state = TONUM_FRAC;
+				else if (!isSpace(ch))
+					return null;
+				break;
+
+			case TONUM_NEG:
+				if (isNum(ch)){
+					hasval = true;
+					npi.val = toHex(ch);
+					if (npi.val == 0)
+						state = TONUM_0;
+					else
+						state = TONUM_BODY;
+				}
+				else
+					return null;
+				break;
+
+			case TONUM_0:
+				if (ch == 'b'){
+					npi.base = 2;
+					state = TONUM_2;
+				}
+				else if (ch == 'c'){
+					npi.base = 8;
+					state = TONUM_2;
+				}
+				else if (ch == 'x'){
+					npi.base = 16;
+					state = TONUM_2;
+				}
+				else if (ch == '_')
+					state = TONUM_BODY;
+				else if (ch == '.')
+					state = TONUM_FRAC;
+				else if (ch == 'e' || ch == 'E')
+					state = TONUM_EXP;
+				else if (isNum(ch)){
+					// number has a leading zero, so just ignore it
+					// (not valid in sink, but valid at runtime for flexibility)
+					npi.val = toHex(ch);
+					state = TONUM_BODY;
+				}
+				else
+					return 0;
+				break;
+
+			case TONUM_2:
+				if (isHex(ch)){
+					npi.val = toHex(ch);
+					if (npi.val >= npi.base)
+						return 0;
+					state = TONUM_BODY;
+				}
+				else if (ch != '_')
+					return 0;
+				break;
+
+			case TONUM_BODY:
+				if (ch == '_')
+					/* do nothing */;
+				else if (ch == '.')
+					state = TONUM_FRAC;
+				else if ((npi.base == 10 && (ch == 'e' || ch == 'E')) ||
+					(npi.base != 10 && (ch == 'p' || ch == 'P')))
+					state = TONUM_EXP;
+				else if (isHex(ch)){
+					var v = toHex(ch);
+					if (v >= npi.base)
+						return numpart_calc(npi);
+					else
+						npi.val = npi.val * npi.base + v;
+				}
+				else
+					return numpart_calc(npi);
+				break;
+
+			case TONUM_FRAC:
+				if (ch == '_')
+					/* do nothing */;
+				else if (hasval && ((npi.base == 10 && (ch == 'e' || ch == 'E')) ||
+					(npi.base != 10 && (ch == 'p' || ch == 'P'))))
+					state = TONUM_EXP;
+				else if (isHex(ch)){
+					hasval = true;
+					var v = toHex(ch);
+					if (v >= npi.base)
+						return numpart_calc(npi);
+					npi.frac = npi.frac * npi.base + v;
+					npi.flen++;
+				}
+				else
+					return numpart_calc(npi);
+				break;
+
+			case TONUM_EXP:
+				if (ch != '_'){
+					npi.esign = ch == '-' ? -1 : 1;
+					state = TONUM_EXP_BODY;
+					if (ch != '+' && ch != '-')
+						i--;
+				}
+				break;
+
+			case TONUM_EXP_BODY:
+				if (ch == '_')
+					/* do nothing */;
+				else if (isNum(ch))
+					npi.eval = npi.eval * 10.0 + toHex(ch);
+				else
+					return numpart_calc(npi);
+				break;
+		}
+	}
+	if (state == TONUM_START || state == TONUM_NEG || (state == TONUM_FRAC && !hasval))
+		return null;
+	return numpart_calc(npi);
 }
 
 var unop_num_abs   = Math.abs;

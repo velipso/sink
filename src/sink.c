@@ -1560,7 +1560,7 @@ typedef enum {
 	LEX_IDENT,
 	LEX_NUM_0,
 	LEX_NUM_2,
-	LEX_NUM,
+	LEX_NUM_BODY,
 	LEX_NUM_FRAC,
 	LEX_NUM_EXP,
 	LEX_NUM_EXP_BODY,
@@ -1574,23 +1574,52 @@ typedef enum {
 } lex_enum;
 
 typedef struct {
+	double sign;  // value sign -1 or 1
+	double val;   // integer part
+	double base;  // number base 2, 8, 10, or 16
+	double frac;  // fractional part >= 0
+	double flen;  // number of fractional digits
+	double esign; // exponent sign -1 or 1
+	double eval;  // exponent value >= 0
+} numpart_info;
+
+static inline void numpart_new(numpart_info *info){
+	info->sign = 1;
+	info->val = 0;
+	info->base = 10;
+	info->frac = 0;
+	info->flen = 0;
+	info->esign = 1;
+	info->eval = 0;
+}
+
+static inline double numpart_calc(numpart_info info){
+	double val = info.val;
+	double e = 1;
+	if (info.eval > 0){
+		e = pow(info.base == 10.0 ? 10.0 : 2.0, info.esign * info.eval);
+		val *= e;
+	}
+	if (info.flen > 0){
+		double d = pow(info.base, info.flen);
+		val = (val * d + info.frac * e) / d;
+	}
+	return info.sign * val;
+}
+
+typedef struct {
 	list_byte str;
 	list_int braces;
 	lex_enum state;
+	numpart_info npi;
 	char chR;
 	char ch1;
 	char ch2;
 	char ch3;
 	char ch4;
-	double num_val;
-	double num_base;
-	double num_frac;
-	double num_flen;
-	double num_esign;
-	double num_eval;
-	double num_elen;
 	int str_hexval;
 	int str_hexleft;
+	bool numexp;
 } lex_st, *lex;
 
 static inline void lex_free(lex lx){
@@ -1610,13 +1639,6 @@ static void lex_reset(lex lx){
 	if (lx->str)
 		list_byte_free(lx->str);
 	lx->str = NULL;
-	lx->num_val = 0;
-	lx->num_base = 0;
-	lx->num_frac = 0;
-	lx->num_flen = 0;
-	lx->num_esign = 0;
-	lx->num_eval = 0;
-	lx->num_elen = 0;
 	if (lx->braces)
 		list_int_free(lx->braces);
 	lx->braces = list_int_new();
@@ -1682,12 +1704,13 @@ static void lex_process(lex lx, list_ptr tks){
 				lx->state = LEX_IDENT;
 			}
 			else if (isNum(ch1)){
-				lx->num_val = toHex(ch1);
-				lx->num_base = 10;
-				if (lx->num_val == 0)
+				numpart_new(&lx->npi);
+				lx->npi.val = toHex(ch1);
+				lx->npi.base = 10;
+				if (lx->npi.val == 0)
 					lx->state = LEX_NUM_0;
 				else
-					lx->state = LEX_NUM;
+					lx->state = LEX_NUM_BODY;
 			}
 			else if (ch1 == '\''){
 				lx->str = list_byte_new();
@@ -1831,32 +1854,23 @@ static void lex_process(lex lx, list_ptr tks){
 
 		case LEX_NUM_0:
 			if (ch1 == 'b'){
-				lx->num_base = 2;
+				lx->npi.base = 2;
 				lx->state = LEX_NUM_2;
 			}
 			else if (ch1 == 'c'){
-				lx->num_base = 8;
+				lx->npi.base = 8;
 				lx->state = LEX_NUM_2;
 			}
 			else if (ch1 == 'x'){
-				lx->num_base = 16;
+				lx->npi.base = 16;
 				lx->state = LEX_NUM_2;
 			}
 			else if (ch1 == '_')
-				lx->state = LEX_NUM;
-			else if (ch1 == '.'){
-				lx->num_frac = 0;
-				lx->num_flen = 0;
+				lx->state = LEX_NUM_BODY;
+			else if (ch1 == '.')
 				lx->state = LEX_NUM_FRAC;
-			}
-			else if (ch1 == 'e' || ch1 == 'E'){
-				lx->num_frac = 0;
-				lx->num_flen = 0;
-				lx->num_esign = 0;
-				lx->num_eval = 0;
-				lx->num_elen = 0;
+			else if (ch1 == 'e' || ch1 == 'E')
 				lx->state = LEX_NUM_EXP;
-			}
 			else if (!isIdentStart(ch1)){
 				list_ptr_push(tks, tok_num(0));
 				lx->state = LEX_START;
@@ -1868,42 +1882,33 @@ static void lex_process(lex lx, list_ptr tks){
 
 		case LEX_NUM_2:
 			if (isHex(ch1)){
-				lx->num_val = toHex(ch1);
-				if (lx->num_val > lx->num_base)
+				lx->npi.val = toHex(ch1);
+				if (lx->npi.val >= lx->npi.base)
 					list_ptr_push(tks, tok_error(sink_format("Invalid number")));
 				else
-					lx->state = LEX_NUM;
+					lx->state = LEX_NUM_BODY;
 			}
 			else if (ch1 != '_')
 				list_ptr_push(tks, tok_error(sink_format("Invalid number")));
 			break;
 
-		case LEX_NUM:
+		case LEX_NUM_BODY:
 			if (ch1 == '_')
 				/* do nothing */;
-			else if (ch1 == '.'){
-				lx->num_frac = 0;
-				lx->num_flen = 0;
+			else if (ch1 == '.')
 				lx->state = LEX_NUM_FRAC;
-			}
-			else if ((lx->num_base == 10 && (ch1 == 'e' || ch1 == 'E')) ||
-				(lx->num_base != 10 && (ch1 == 'p' || ch1 == 'P'))){
-				lx->num_frac = 0;
-				lx->num_flen = 0;
-				lx->num_esign = 0;
-				lx->num_eval = 0;
-				lx->num_elen = 0;
+			else if ((lx->npi.base == 10 && (ch1 == 'e' || ch1 == 'E')) ||
+				(lx->npi.base != 10 && (ch1 == 'p' || ch1 == 'P')))
 				lx->state = LEX_NUM_EXP;
-			}
 			else if (isHex(ch1)){
 				int v = toHex(ch1);
-				if (v > lx->num_base)
+				if (v >= lx->npi.base)
 					list_ptr_push(tks, tok_error(sink_format("Invalid number")));
 				else
-					lx->num_val = lx->num_val * lx->num_base + v;
+					lx->npi.val = lx->npi.val * lx->npi.base + v;
 			}
 			else if (!isAlpha(ch1)){
-				list_ptr_push(tks, tok_num(lx->num_val));
+				list_ptr_push(tks, tok_num(numpart_calc(lx->npi)));
 				lx->state = LEX_START;
 				lex_process(lx, tks);
 			}
@@ -1914,29 +1919,23 @@ static void lex_process(lex lx, list_ptr tks){
 		case LEX_NUM_FRAC:
 			if (ch1 == '_')
 				/* do nothing */;
-			else if ((lx->num_base == 10 && (ch1 == 'e' || ch1 == 'E')) ||
-				(lx->num_base != 10 && (ch1 == 'p' || ch1 == 'P'))){
-				lx->num_esign = 0;
-				lx->num_eval = 0;
-				lx->num_elen = 0;
+			else if ((lx->npi.base == 10 && (ch1 == 'e' || ch1 == 'E')) ||
+				(lx->npi.base != 10 && (ch1 == 'p' || ch1 == 'P')))
 				lx->state = LEX_NUM_EXP;
-			}
 			else if (isHex(ch1)){
 				int v = toHex(ch1);
-				if (v > lx->num_base)
+				if (v >= lx->npi.base)
 					list_ptr_push(tks, tok_error(sink_format("Invalid number")));
 				else{
-					lx->num_frac = lx->num_frac * lx->num_base + v;
-					lx->num_flen++;
+					lx->npi.frac = lx->npi.frac * lx->npi.base + v;
+					lx->npi.flen++;
 				}
 			}
 			else if (!isAlpha(ch1)){
-				if (lx->num_flen <= 0)
+				if (lx->npi.flen <= 0)
 					list_ptr_push(tks, tok_error(sink_format("Invalid number")));
 				else{
-					double d = pow(lx->num_base, lx->num_flen);
-					lx->num_val = (lx->num_val * d + lx->num_frac) / d;
-					list_ptr_push(tks, tok_num(lx->num_val));
+					list_ptr_push(tks, tok_num(numpart_calc(lx->npi)));
 					lx->state = LEX_START;
 					lex_process(lx, tks);
 				}
@@ -1947,8 +1946,9 @@ static void lex_process(lex lx, list_ptr tks){
 
 		case LEX_NUM_EXP:
 			if (ch1 != '_'){
-				lx->num_esign = ch1 == '-' ? -1 : 1;
+				lx->npi.esign = ch1 == '-' ? -1 : 1;
 				lx->state = LEX_NUM_EXP_BODY;
+				lx->numexp = false;
 				if (ch1 != '+' && ch1 != '-')
 					lex_process(lx, tks);
 			}
@@ -1958,20 +1958,14 @@ static void lex_process(lex lx, list_ptr tks){
 			if (ch1 == '_')
 				/* do nothing */;
 			else if (isNum(ch1)){
-				lx->num_eval = lx->num_eval * 10.0 + toHex(ch1);
-				lx->num_elen++;
+				lx->npi.eval = lx->npi.eval * 10.0 + toHex(ch1);
+				lx->numexp = true;
 			}
 			else if (!isAlpha(ch1)){
-				if (lx->num_elen <= 0)
+				if (!lx->numexp)
 					list_ptr_push(tks, tok_error(sink_format("Invalid number")));
 				else{
-					double e = pow(lx->num_base == 10.0 ? 10.0 : 2.0, lx->num_esign * lx->num_eval);
-					lx->num_val *= e;
-					if (lx->num_flen > 0){
-						double d = pow(lx->num_base, lx->num_flen);
-						lx->num_val = (lx->num_val * d + lx->num_frac * e) / d;
-					}
-					list_ptr_push(tks, tok_num(lx->num_val));
+					list_ptr_push(tks, tok_num(numpart_calc(lx->npi)));
 					lx->state = LEX_START;
 					lex_process(lx, tks);
 				}
@@ -2206,18 +2200,15 @@ static void lex_close(lex lx, list_ptr tks){
 			list_ptr_push(tks, tok_error(sink_format("Invalid number")));
 			break;
 
-		case LEX_NUM:
-			list_ptr_push(tks, tok_num(lx->num_val));
+		case LEX_NUM_BODY:
+			list_ptr_push(tks, tok_num(numpart_calc(lx->npi)));
 			break;
 
 		case LEX_NUM_FRAC:
-			if (lx->num_flen <= 0)
+			if (lx->npi.flen <= 0)
 				list_ptr_push(tks, tok_error(sink_format("Invalid number")));
-			else{
-				double d = pow(lx->num_base, lx->num_flen);
-				lx->num_val = (lx->num_val * d + lx->num_frac) / d;
-				list_ptr_push(tks, tok_num(lx->num_val));
-			}
+			else
+				list_ptr_push(tks, tok_num(numpart_calc(lx->npi)));
 			break;
 
 		case LEX_NUM_EXP:
@@ -2225,17 +2216,10 @@ static void lex_close(lex lx, list_ptr tks){
 			break;
 
 		case LEX_NUM_EXP_BODY:
-			if (lx->num_elen <= 0)
+			if (!lx->numexp)
 				list_ptr_push(tks, tok_error(sink_format("Invalid number")));
-			else{
-				double e = pow(lx->num_base == 10.0 ? 10.0 : 2.0, lx->num_esign * lx->num_eval);
-				lx->num_val *= e;
-				if (lx->num_flen > 0){
-					double d = pow(lx->num_base, lx->num_flen);
-					lx->num_val = (lx->num_val * d + lx->num_frac * e) / d;
-				}
-				list_ptr_push(tks, tok_num(lx->num_val));
-			}
+			else
+				list_ptr_push(tks, tok_num(numpart_calc(lx->npi)));
 			break;
 
 		case LEX_STR_BASIC_ESC:
@@ -9389,9 +9373,157 @@ static sink_val unop_num_neg(context ctx, sink_val a){
 static sink_val unop_tonum(context ctx, sink_val a){
 	if (sink_isnum(a))
 		return a;
-	fprintf(stderr, "TODO: unop_tonum; parse `a` into a number\n");
-	abort();
-	return SINK_NIL;
+	if (!sink_isstr(a))
+		return SINK_NIL;
+	sink_str s = var_caststr(ctx, a);
+
+	numpart_info npi;
+	numpart_new(&npi);
+	enum {
+		TONUM_START,
+		TONUM_NEG,
+		TONUM_0,
+		TONUM_2,
+		TONUM_BODY,
+		TONUM_FRAC,
+		TONUM_EXP,
+		TONUM_EXP_BODY
+	} state = TONUM_START;
+	bool hasval = false;
+	for (int i = 0; i < s->size; i++){
+		char ch = (char)s->bytes[i];
+		switch (state){
+			case TONUM_START:
+				if (isNum(ch)){
+					hasval = true;
+					npi.val = toHex(ch);
+					if (npi.val == 0)
+						state = TONUM_0;
+					else
+						state = TONUM_BODY;
+				}
+				else if (ch == '-'){
+					npi.sign = -1;
+					state = TONUM_NEG;
+				}
+				else if (ch == '.')
+					state = TONUM_FRAC;
+				else if (!isSpace(ch))
+					return SINK_NIL;
+				break;
+
+			case TONUM_NEG:
+				if (isNum(ch)){
+					hasval = true;
+					npi.val = toHex(ch);
+					if (npi.val == 0)
+						state = TONUM_0;
+					else
+						state = TONUM_BODY;
+				}
+				else
+					return SINK_NIL;
+				break;
+
+			case TONUM_0:
+				if (ch == 'b'){
+					npi.base = 2;
+					state = TONUM_2;
+				}
+				else if (ch == 'c'){
+					npi.base = 8;
+					state = TONUM_2;
+				}
+				else if (ch == 'x'){
+					npi.base = 16;
+					state = TONUM_2;
+				}
+				else if (ch == '_')
+					state = TONUM_BODY;
+				else if (ch == '.')
+					state = TONUM_FRAC;
+				else if (ch == 'e' || ch == 'E')
+					state = TONUM_EXP;
+				else if (isNum(ch)){
+					// number has a leading zero, so just ignore it
+					// (not valid in sink, but valid at runtime for flexibility)
+					npi.val = toHex(ch);
+					state = TONUM_BODY;
+				}
+				else
+					return sink_num(0);
+				break;
+
+			case TONUM_2:
+				if (isHex(ch)){
+					npi.val = toHex(ch);
+					if (npi.val >= npi.base)
+						return sink_num(0);
+					state = TONUM_BODY;
+				}
+				else if (ch != '_')
+					return sink_num(0);
+				break;
+
+			case TONUM_BODY:
+				if (ch == '_')
+					/* do nothing */;
+				else if (ch == '.')
+					state = TONUM_FRAC;
+				else if ((npi.base == 10 && (ch == 'e' || ch == 'E')) ||
+					(npi.base != 10 && (ch == 'p' || ch == 'P')))
+					state = TONUM_EXP;
+				else if (isHex(ch)){
+					int v = toHex(ch);
+					if (v >= npi.base)
+						return sink_num(numpart_calc(npi));
+					else
+						npi.val = npi.val * npi.base + v;
+				}
+				else
+					return sink_num(numpart_calc(npi));
+				break;
+
+			case TONUM_FRAC:
+				if (ch == '_')
+					/* do nothing */;
+				else if (hasval && ((npi.base == 10 && (ch == 'e' || ch == 'E')) ||
+					(npi.base != 10 && (ch == 'p' || ch == 'P'))))
+					state = TONUM_EXP;
+				else if (isHex(ch)){
+					hasval = true;
+					int v = toHex(ch);
+					if (v >= npi.base)
+						return sink_num(numpart_calc(npi));
+					npi.frac = npi.frac * npi.base + v;
+					npi.flen++;
+				}
+				else
+					return sink_num(numpart_calc(npi));
+				break;
+
+			case TONUM_EXP:
+				if (ch != '_'){
+					npi.esign = ch == '-' ? -1 : 1;
+					state = TONUM_EXP_BODY;
+					if (ch != '+' && ch != '-')
+						i--;
+				}
+				break;
+
+			case TONUM_EXP_BODY:
+				if (ch == '_')
+					/* do nothing */;
+				else if (isNum(ch))
+					npi.eval = npi.eval * 10.0 + toHex(ch);
+				else
+					return sink_num(numpart_calc(npi));
+				break;
+		}
+	}
+	if (state == TONUM_START || state == TONUM_NEG || (state == TONUM_FRAC && !hasval))
+		return SINK_NIL;
+	return sink_num(numpart_calc(npi));
 }
 
 static sink_val unop_num_abs(context ctx, sink_val a){
