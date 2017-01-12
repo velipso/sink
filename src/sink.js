@@ -8116,8 +8116,7 @@ function compiler_new(prg, file, fstype, fsread, includes, paths){
 		fstype: fstype,
 		fsread: fsread,
 		includes: includes,
-		paths: paths,
-		msg: null
+		paths: paths
 	};
 }
 
