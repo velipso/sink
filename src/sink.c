@@ -957,7 +957,7 @@ static inline void op_return(list_byte b, varloc_st src){
 	list_byte_push3(b, OP_RETURN, src.fdiff, src.index);
 }
 
-static inline void op_returntail(list_byte b, varloc_st arg, uint32_t index,
+static inline void op_returnTail(list_byte b, varloc_st arg, uint32_t index,
 	list_byte hint){
 	oplogf("RETURNTAIL %d:%d, %.*s", arg.fdiff, arg.index, hint->size, hint->bytes);
 	list_byte_push7(b, OP_RETURNTAIL, arg.fdiff, arg.index,
@@ -4666,8 +4666,8 @@ static inline void label_call(label lbl, list_byte ops, varloc_st ret, varloc_st
 		label_refresh(lbl, ops, lbl->rewrites->size - 1);
 }
 
-static inline void label_returntail(label lbl, list_byte ops, varloc_st arg){
-	op_returntail(ops, arg, 0xFFFFFFFF, lbl->name);
+static inline void label_returnTail(label lbl, list_byte ops, varloc_st arg){
+	op_returnTail(ops, arg, 0xFFFFFFFF, lbl->name);
 	list_int_push(lbl->rewrites, ops->size - 4);
 	if (lbl->pos >= 0)
 		label_refresh(lbl, ops, lbl->rewrites->size - 1);
@@ -7826,7 +7826,7 @@ static inline pgr_st program_gen(program prg, symtbl sym, ast stmt, void *state,
 				expr_free(x);
 				if (pe.type == PER_ERROR)
 					return pgr_error(pe.u.error.flp, pe.u.error.msg);
-				label_returntail(nsn->u.cmdLocal.lbl, prg->ops, pe.u.vlc);
+				label_returnTail(nsn->u.cmdLocal.lbl, prg->ops, pe.u.vlc);
 				symtbl_clearTemp(sym, pe.u.vlc);
 				return pgr_ok();
 			}
@@ -11629,12 +11629,19 @@ static void compiler_reset(compiler cmp){
 	cmp->flpn->pgstate = list_ptr_new((free_func)pgst_free);
 }
 
-static void compiler_begininc(compiler cmp, list_ptr names, char *file){
+static bool compiler_begininc(compiler cmp, list_ptr names, char *file){
 	cmp->flpn = flpn_new(file, cmp->flpn);
 	if (names){
-		// TODO: symtbl_pushNamespace can return an error!
-		symtbl_pushNamespace(cmp->sym, names);
+		spn_st st = symtbl_pushNamespace(cmp->sym, names);
+		if (st.type == SPN_ERROR){
+			filepos_node del = cmp->flpn;
+			cmp->flpn = cmp->flpn->next;
+			flpn_free(del);
+			cmp->msg = st.msg;
+			return false;
+		}
 	}
+	return true;
 }
 
 static void compiler_endinc(compiler cmp, bool ns){
@@ -11649,7 +11656,8 @@ static char *compiler_write(compiler cmp, int size, const uint8_t *bytes);
 static char *compiler_closeLexer(compiler cmp);
 
 static bool compiler_staticinc(compiler cmp, list_ptr names, const char *file, const char *body){
-	compiler_begininc(cmp, names, sink_format("%s", file));
+	if (!compiler_begininc(cmp, names, sink_format("%s", file)))
+		return false;
 	char *err = compiler_write(cmp, strlen(body), (const uint8_t *)body);
 	if (err){
 		compiler_endinc(cmp, names != NULL);
@@ -11757,7 +11765,11 @@ static bool compiler_tryinc(compiler cmp, list_ptr names, const char *file, bool
 		}
 	}
 
-	compiler_begininc(cmp, names, sink_format("%s", fix));
+	if (!compiler_begininc(cmp, names, sink_format("%s", fix))){
+		if (freefix)
+			mem_free(fix);
+		return true;
+	}
 
 	bool success = cmp->inc.f_fsread(cmp->scr, fix, cmp->inc.user);
 
