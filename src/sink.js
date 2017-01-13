@@ -6300,22 +6300,24 @@ function unop_tonum(a){
 	return numpart_calc(npi);
 }
 
-var unop_num_abs   = Math.abs;
-var unop_num_sign  = polyfill.Math_sign;
-var unop_num_floor = Math.floor;
-var unop_num_ceil  = Math.ceil;
-var unop_num_round = Math.round;
-var unop_num_trunc = polyfill.Math_trunc;
-var unop_num_sin   = Math.sin;
-var unop_num_cos   = Math.cos;
-var unop_num_tan   = Math.tan;
-var unop_num_asin  = Math.asin;
-var unop_num_acos  = Math.acos;
-var unop_num_atan  = Math.atan;
-var unop_num_log   = Math.log;
-var unop_num_log2  = polyfill.Math_log2;
-var unop_num_log10 = polyfill.Math_log10;
-var unop_num_exp   = Math.exp;
+var unop_num_abs      = Math.abs;
+var unop_num_sign     = polyfill.Math_sign;
+var unop_num_floor    = Math.floor;
+var unop_num_ceil     = Math.ceil;
+var unop_num_round    = Math.round;
+var unop_num_trunc    = polyfill.Math_trunc;
+var unop_num_isnan    = function(a){ return sink_bool(isNaN(a)); };
+var unop_num_isfinite = function(a){ return sink_bool(isFinite(a)); };
+var unop_num_sin      = Math.sin;
+var unop_num_cos      = Math.cos;
+var unop_num_tan      = Math.tan;
+var unop_num_asin     = Math.asin;
+var unop_num_acos     = Math.acos;
+var unop_num_atan     = Math.atan;
+var unop_num_log      = Math.log;
+var unop_num_log2     = polyfill.Math_log2;
+var unop_num_log10    = polyfill.Math_log10;
+var unop_num_exp      = Math.exp;
 
 function binop_num_add(a, b){
 	return a + b;
@@ -6607,8 +6609,6 @@ function context_run(ctx){
 		if (A > ctx.lex_index || C > ctx.lex_index)
 			return opi_invalid(ctx);
 		X = var_get(ctx, C, D);
-		if (X == null)
-			X = 0;
 		if (!oper_isnum(X))
 			return opi_abort(ctx, 'Expecting number or list of numbers when ' + erop);
 		var_set(ctx, A, B, oper_un(X, func));
@@ -6620,13 +6620,9 @@ function context_run(ctx){
 		if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
 			return opi_invalid(ctx);
 		X = var_get(ctx, C, D);
-		if (X == null)
-			X = 0;
 		if (!oper_isnum(X))
 			return opi_abort(ctx, 'Expecting number or list of numbers when ' + erop);
 		Y = var_get(ctx, E, F);
-		if (Y == null)
-			Y = 0;
 		if (!oper_isnum(Y))
 			return opi_abort(ctx, 'Expecting number or list of numbers when ' + erop);
 		var_set(ctx, A, B, oper_bin(X, Y, func));
@@ -6638,18 +6634,12 @@ function context_run(ctx){
 		if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
 			return opi_invalid(ctx);
 		X = var_get(ctx, C, D);
-		if (X == null)
-			X = 0;
 		if (!oper_isnum(X))
 			return opi_abort(ctx, 'Expecting number or list of numbers when ' + erop);
 		Y = var_get(ctx, E, F);
-		if (Y == null)
-			Y = 0;
 		if (!oper_isnum(Y))
 			return opi_abort(ctx, 'Expecting number or list of numbers when ' + erop);
 		Z = var_get(ctx, G, H);
-		if (Z == null)
-			Z = 0;
 		if (!oper_isnum(Z))
 			return opi_abort(ctx, 'Expecting number or list of numbers when ' + erop);
 		var_set(ctx, A, B, oper_tri(X, Y, Z, func));
@@ -7377,23 +7367,15 @@ function context_run(ctx){
 			} break;
 
 			case OP_NUM_ISNAN      : { // [TGT], [SRC]
-				LOAD_abcd();
-				if (A > ctx.lex_index || C > ctx.lex_index)
-					return opi_invalid(ctx);
-				X = var_get(ctx, C, D);
-				if (!sink_isnum(X))
-					return opi_abort(ctx, 'Expecting number');
-				var_set(ctx, A, B, sink_bool(isNaN(X)));
+				var iu = INLINE_UNOP(unop_num_isnan, 'testing if NaN');
+				if (iu !== false)
+					return iu;
 			} break;
 
 			case OP_NUM_ISFINITE   : { // [TGT], [SRC]
-				LOAD_abcd();
-				if (A > ctx.lex_index || C > ctx.lex_index)
-					return opi_invalid(ctx);
-				X = var_get(ctx, C, D);
-				if (!sink_isnum(X))
-					return opi_abort(ctx, 'Expecting number');
-				var_set(ctx, A, B, sink_bool(isFinite(X)));
+				var iu = INLINE_UNOP(unop_num_isfinite, 'testing if finite');
+				if (iu !== false)
+					return iu;
 			} break;
 
 			case OP_NUM_E          : { // [TGT]

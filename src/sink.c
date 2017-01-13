@@ -9552,6 +9552,14 @@ static sink_val unop_num_trunc(context ctx, sink_val a){
 	return sink_num(trunc(a.f));
 }
 
+static sink_val unop_num_isnan(context ctx, sink_val a){
+	return sink_bool(sink_num_isnan(a));
+}
+
+static sink_val unop_num_isfinite(context ctx, sink_val a){
+	return sink_bool(sink_num_isfinite(a));
+}
+
 static sink_val unop_num_sin(context ctx, sink_val a){
 	return sink_num(sin(a.f));
 }
@@ -9825,8 +9833,6 @@ static inline sink_val opi_abortformat(context ctx, const char *fmt, ...){
 }
 
 static inline sink_val opi_unop(context ctx, sink_val a, unary_func f_unary, const char *erop){
-	if (sink_isnil(a))
-		a.f = 0;
 	if (!oper_isnum(ctx, a))
 		return opi_abortformat(ctx, "Expecting number or list of numbers when %s", erop);
 	return oper_un(ctx, a, f_unary);
@@ -9834,12 +9840,8 @@ static inline sink_val opi_unop(context ctx, sink_val a, unary_func f_unary, con
 
 static inline sink_val opi_binop(context ctx, sink_val a, sink_val b, binary_func f_binary,
 	const char *erop){
-	if (sink_isnil(a))
-		a.f = 0;
 	if (!oper_isnum(ctx, a))
 		return opi_abortformat(ctx, "Expecting number or list of numbers when %s", erop);
-	if (sink_isnil(b))
-		b.f = 0;
 	if (!oper_isnum(ctx, b))
 		return opi_abortformat(ctx, "Expecting number or list of numbers when %s", erop);
 	return oper_bin(ctx, a, b, f_binary);
@@ -9847,16 +9849,10 @@ static inline sink_val opi_binop(context ctx, sink_val a, sink_val b, binary_fun
 
 static inline sink_val opi_triop(context ctx, sink_val a, sink_val b, sink_val c,
 	trinary_func f_trinary, const char *erop){
-	if (sink_isnil(a))
-		a.f = 0;
 	if (!oper_isnum(ctx, a))
 		return opi_abortformat(ctx, "Expecting number or list of numbers when %s", erop);
-	if (sink_isnil(b))
-		b.f = 0;
 	if (!oper_isnum(ctx, b))
 		return opi_abortformat(ctx, "Expecting number or list of numbers when %s", erop);
-	if (sink_isnil(c))
-		c.f = 0;
 	if (!oper_isnum(ctx, c))
 		return opi_abortformat(ctx, "Expecting number or list of numbers when %s", erop);
 	return oper_tri(ctx, a, b, c, f_trinary);
@@ -10994,19 +10990,11 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_NUM_ISNAN      : { // [TGT], [SRC]
-				LOAD_ABCD();
-				X = var_get(ctx, C, D);
-				if (!sink_isnum(X))
-					RETURN_FAIL("Expecting number");
-				var_set(ctx, A, B, sink_bool(sink_num_isnan(X)));
+				INLINE_UNOP(unop_num_isnan, "testing if NaN")
 			} break;
 
 			case OP_NUM_ISFINITE   : { // [TGT], [SRC]
-				LOAD_ABCD();
-				X = var_get(ctx, C, D);
-				if (!sink_isnum(X))
-					RETURN_FAIL("Expecting number");
-				var_set(ctx, A, B, sink_bool(sink_num_isfinite(X)));
+				INLINE_UNOP(unop_num_isfinite, "testing if finite")
 			} break;
 
 			case OP_NUM_E          : { // [TGT]
