@@ -8352,27 +8352,31 @@ static inline int arsize(context ctx, sink_val ar){
 	return 1;
 }
 
-static inline bool oper_isnum(context ctx, sink_val a){
+static const int LT_ALLOWNIL  = 1;
+static const int LT_ALLOWNUM  = 2;
+static const int LT_ALLOWSTR  = 4;
+static const int LT_ALLOWLIST = 8;
+
+static inline bool oper_typemask(sink_val a, int mask){
+	switch (sink_typeof(a)){
+		case SINK_TYPE_NIL   : return (mask & LT_ALLOWNIL ) != 0;
+		case SINK_TYPE_NUM   : return (mask & LT_ALLOWNUM ) != 0;
+		case SINK_TYPE_STR   : return (mask & LT_ALLOWSTR ) != 0;
+		case SINK_TYPE_LIST  : return (mask & LT_ALLOWLIST) != 0;
+		case SINK_TYPE_ASYNC : return false;
+	}
+}
+
+static inline bool oper_typelist(context ctx, sink_val a, int mask){
 	if (sink_islist(a)){
 		sink_list ls = var_castlist(ctx, a);
 		for (int i = 0; i < ls->size; i++){
-			if (!sink_isnum(ls->vals[i]))
+			if (!oper_typemask(ls->vals[i], mask))
 				return false;
 		}
 		return true;
 	}
-	return sink_isnum(a);
-}
-
-static inline bool oper_isnilnumstr(context ctx, sink_val a){
-	if (sink_islist(a)){
-		sink_list ls = var_castlist(ctx, a);
-		for (int i = 0; i < ls->size; i++){
-			if (sink_islist(ls->vals[i]))
-				return false;
-		}
-	}
-	return true;
+	return oper_typemask(a, mask);
 }
 
 typedef sink_val (*unary_func)(context ctx, sink_val v);
@@ -9744,7 +9748,7 @@ static inline int opi_size(context ctx, sink_val a){
 }
 
 static inline sink_val opi_tonum(context ctx, sink_val a){
-	if (!oper_isnilnumstr(ctx, a)){
+	if (!oper_typelist(ctx, a, LT_ALLOWNIL | LT_ALLOWNUM | LT_ALLOWSTR)){
 		opi_abortcstr(ctx, "Expecting string when converting to number");
 		return SINK_NIL;
 	}
@@ -9833,27 +9837,27 @@ static inline sink_val opi_abortformat(context ctx, const char *fmt, ...){
 }
 
 static inline sink_val opi_unop(context ctx, sink_val a, unary_func f_unary, const char *erop){
-	if (!oper_isnum(ctx, a))
+	if (!oper_typelist(ctx, a, LT_ALLOWNUM))
 		return opi_abortformat(ctx, "Expecting number or list of numbers when %s", erop);
 	return oper_un(ctx, a, f_unary);
 }
 
 static inline sink_val opi_binop(context ctx, sink_val a, sink_val b, binary_func f_binary,
 	const char *erop){
-	if (!oper_isnum(ctx, a))
+	if (!oper_typelist(ctx, a, LT_ALLOWNUM))
 		return opi_abortformat(ctx, "Expecting number or list of numbers when %s", erop);
-	if (!oper_isnum(ctx, b))
+	if (!oper_typelist(ctx, b, LT_ALLOWNUM))
 		return opi_abortformat(ctx, "Expecting number or list of numbers when %s", erop);
 	return oper_bin(ctx, a, b, f_binary);
 }
 
 static inline sink_val opi_triop(context ctx, sink_val a, sink_val b, sink_val c,
 	trinary_func f_trinary, const char *erop){
-	if (!oper_isnum(ctx, a))
+	if (!oper_typelist(ctx, a, LT_ALLOWNUM))
 		return opi_abortformat(ctx, "Expecting number or list of numbers when %s", erop);
-	if (!oper_isnum(ctx, b))
+	if (!oper_typelist(ctx, b, LT_ALLOWNUM))
 		return opi_abortformat(ctx, "Expecting number or list of numbers when %s", erop);
-	if (!oper_isnum(ctx, c))
+	if (!oper_typelist(ctx, c, LT_ALLOWNUM))
 		return opi_abortformat(ctx, "Expecting number or list of numbers when %s", erop);
 	return oper_tri(ctx, a, b, c, f_trinary);
 }
@@ -10563,6 +10567,8 @@ static sink_run context_run(context ctx){
 			case OP_TONUM          : { // [TGT], [SRC]
 				LOAD_ABCD();
 				var_set(ctx, A, B, opi_tonum(ctx, var_get(ctx, C, D)));
+				if (ctx->failed)
+					return SINK_RUN_FAIL;
 			} break;
 
 			case OP_CAT            : { // [TGT], [SRC1], [SRC2]

@@ -5521,26 +5521,28 @@ function arsize(ar){
 	return 1;
 }
 
-function oper_isnum(a){
-	if (sink_islist(a)){
-		for (var i = 0; i < a.length; i++){
-			if (!sink_isnum(a[i]))
-				return false;
-		}
-		return true;
-	}
-	return sink_isnum(a);
+var LT_ALLOWNIL  = 1;
+var LT_ALLOWNUM  = 2;
+var LT_ALLOWSTR  = 4;
+var LT_ALLOWLIST = 8;
+
+function oper_typemask(a, mask){
+	if      (a === null    ) return (mask & LT_ALLOWNIL ) != 0;
+	else if (sink_isnum(a) ) return (mask & LT_ALLOWNUM ) != 0;
+	else if (sink_isstr(a) ) return (mask & LT_ALLOWSTR ) != 0;
+	else if (sink_islist(a)) return (mask & LT_ALLOWLIST) != 0;
+	return false;
 }
 
-function oper_isnilnumstr(a){
+function oper_typelist(a, mask){
 	if (sink_islist(a)){
 		for (var i = 0; i < a.length; i++){
-			if (a[i] != null && !sink_isnum(a[i]) && !sink_isstr(a[i]))
+			if (!oper_typemask(a[i], mask))
 				return false;
 		}
 		return true;
 	}
-	return a == null || sink_isnum(a) || sink_isstr(a);
+	return oper_typemask(a, mask);
 }
 
 function oper_un(a, func){
@@ -6609,7 +6611,7 @@ function context_run(ctx){
 		if (A > ctx.lex_index || C > ctx.lex_index)
 			return opi_invalid(ctx);
 		X = var_get(ctx, C, D);
-		if (!oper_isnum(X))
+		if (!oper_typelist(X, LT_ALLOWNUM))
 			return opi_abort(ctx, 'Expecting number or list of numbers when ' + erop);
 		var_set(ctx, A, B, oper_un(X, func));
 		return false;
@@ -6620,10 +6622,10 @@ function context_run(ctx){
 		if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
 			return opi_invalid(ctx);
 		X = var_get(ctx, C, D);
-		if (!oper_isnum(X))
+		if (!oper_typelist(X, LT_ALLOWNUM))
 			return opi_abort(ctx, 'Expecting number or list of numbers when ' + erop);
 		Y = var_get(ctx, E, F);
-		if (!oper_isnum(Y))
+		if (!oper_typelist(Y, LT_ALLOWNUM))
 			return opi_abort(ctx, 'Expecting number or list of numbers when ' + erop);
 		var_set(ctx, A, B, oper_bin(X, Y, func));
 		return false;
@@ -6634,13 +6636,13 @@ function context_run(ctx){
 		if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
 			return opi_invalid(ctx);
 		X = var_get(ctx, C, D);
-		if (!oper_isnum(X))
+		if (!oper_typelist(X, LT_ALLOWNUM))
 			return opi_abort(ctx, 'Expecting number or list of numbers when ' + erop);
 		Y = var_get(ctx, E, F);
-		if (!oper_isnum(Y))
+		if (!oper_typelist(Y, LT_ALLOWNUM))
 			return opi_abort(ctx, 'Expecting number or list of numbers when ' + erop);
 		Z = var_get(ctx, G, H);
-		if (!oper_isnum(Z))
+		if (!oper_typelist(Z, LT_ALLOWNUM))
 			return opi_abort(ctx, 'Expecting number or list of numbers when ' + erop);
 		var_set(ctx, A, B, oper_tri(X, Y, Z, func));
 		return false;
@@ -6814,7 +6816,7 @@ function context_run(ctx){
 				if (A > ctx.lex_index || C > ctx.lex_index)
 					return opi_invalid(ctx);
 				X = var_get(ctx, C, D);
-				if (!oper_isnilnumstr(X))
+				if (!oper_typelist(X, LT_ALLOWNIL | LT_ALLOWNUM | LT_ALLOWSTR))
 					return opi_abort(ctx, 'Expecting string when converting to number');
 				var_set(ctx, A, B, oper_un(X, unop_tonum));
 			} break;
