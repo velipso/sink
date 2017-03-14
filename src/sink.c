@@ -9633,15 +9633,15 @@ static sink_val binop_num_atan2(context ctx, sink_val a, sink_val b){
 }
 
 static sink_val binop_num_hex(context ctx, sink_val a, sink_val b){
-	return opi_num_base(ctx, a.f, b.f, 16);
+	return opi_num_base(ctx, a.f, sink_isnil(b) ? 0 : b.f, 16);
 }
 
 static sink_val binop_num_oct(context ctx, sink_val a, sink_val b){
-	return opi_num_base(ctx, a.f, b.f, 8);
+	return opi_num_base(ctx, a.f, sink_isnil(b) ? 0 : b.f, 8);
 }
 
 static sink_val binop_num_bin(context ctx, sink_val a, sink_val b){
-	return opi_num_base(ctx, a.f, b.f, 2);
+	return opi_num_base(ctx, a.f, sink_isnil(b) ? 0 : b.f, 2);
 }
 
 static sink_val triop_num_clamp(context ctx, sink_val a, sink_val b, sink_val c){
@@ -9843,10 +9843,10 @@ static inline sink_val opi_unop(context ctx, sink_val a, unary_func f_unary, con
 }
 
 static inline sink_val opi_binop(context ctx, sink_val a, sink_val b, binary_func f_binary,
-	const char *erop){
-	if (!oper_typelist(ctx, a, LT_ALLOWNUM))
+	const char *erop, int t1, int t2){
+	if (!oper_typelist(ctx, a, t1))
 		return opi_abortformat(ctx, "Expecting number or list of numbers when %s", erop);
-	if (!oper_typelist(ctx, b, LT_ALLOWNUM))
+	if (!oper_typelist(ctx, b, t2))
 		return opi_abortformat(ctx, "Expecting number or list of numbers when %s", erop);
 	return oper_bin(ctx, a, b, f_binary);
 }
@@ -10407,12 +10407,14 @@ static sink_run context_run(context ctx){
 		if (ctx->failed)                                                                   \
 			return SINK_RUN_FAIL;
 
-	#define INLINE_BINOP(func, erop)                                                       \
+	#define INLINE_BINOP_T(func, erop, t1, t2)                                             \
 		LOAD_ABCDEF();                                                                     \
 		var_set(ctx, A, B,                                                                 \
-			opi_binop(ctx, var_get(ctx, C, D), var_get(ctx, E, F), func, erop));           \
+			opi_binop(ctx, var_get(ctx, C, D), var_get(ctx, E, F), func, erop, t1, t2));   \
 		if (ctx->failed)                                                                   \
 			return SINK_RUN_FAIL;
+
+	#define INLINE_BINOP(func, erop) INLINE_BINOP_T(func, erop, LT_ALLOWNUM, LT_ALLOWNUM)
 
 	#define INLINE_TRIOP(func, erop)                                                       \
 		LOAD_ABCDEFGH();                                                                   \
@@ -11067,15 +11069,18 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_NUM_HEX        : { // [TGT], [SRC1], [SRC2]
-				INLINE_BINOP(binop_num_hex, "converting to hex")
+				INLINE_BINOP_T(binop_num_hex, "converting to hex", LT_ALLOWNUM,
+					LT_ALLOWNUM | LT_ALLOWNIL)
 			} break;
 
 			case OP_NUM_OCT        : { // [TGT], [SRC1], [SRC2]
-				INLINE_BINOP(binop_num_oct, "converting to oct")
+				INLINE_BINOP_T(binop_num_oct, "converting to oct", LT_ALLOWNUM,
+					LT_ALLOWNUM | LT_ALLOWNIL)
 			} break;
 
 			case OP_NUM_BIN        : { // [TGT], [SRC1], [SRC2]
-				INLINE_BINOP(binop_num_bin, "converting to bin")
+				INLINE_BINOP_T(binop_num_bin, "converting to bin", LT_ALLOWNUM,
+					LT_ALLOWNUM | LT_ALLOWNIL)
 			} break;
 
 			case OP_INT_NEW        : { // [TGT], [SRC]

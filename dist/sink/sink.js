@@ -6345,15 +6345,15 @@ var binop_num_pow   = Math.pow;
 var binop_num_atan2 = Math.atan2;
 
 function binop_num_hex(a, b){
-	return opi_num_base(a, b, 16);
+	return opi_num_base(a, b === null ? 0 : b, 16);
 }
 
 function binop_num_oct(a, b){
-	return opi_num_base(a, b, 8);
+	return opi_num_base(a, b === null ? 0 : b, 8);
 }
 
 function binop_num_bin(a, b){
-	return opi_num_base(a, b, 2);
+	return opi_num_base(a, b === null ? 0 : b, 2);
 }
 
 function triop_num_clamp(a, b, c){
@@ -6617,18 +6617,22 @@ function context_run(ctx){
 		return false;
 	}
 
-	function INLINE_BINOP(func, erop){
+	function INLINE_BINOP_T(func, erop, t1, t2){
 		LOAD_abcdef();
 		if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
 			return opi_invalid(ctx);
 		X = var_get(ctx, C, D);
-		if (!oper_typelist(X, LT_ALLOWNUM))
+		if (!oper_typelist(X, t1))
 			return opi_abort(ctx, 'Expecting number or list of numbers when ' + erop);
 		Y = var_get(ctx, E, F);
-		if (!oper_typelist(Y, LT_ALLOWNUM))
+		if (!oper_typelist(Y, t2))
 			return opi_abort(ctx, 'Expecting number or list of numbers when ' + erop);
 		var_set(ctx, A, B, oper_bin(X, Y, func));
 		return false;
+	}
+
+	function INLINE_BINOP(func, erop){
+		return INLINE_BINOP_T(func, erop, LT_ALLOWNUM, LT_ALLOWNUM);
 	}
 
 	function INLINE_TRIOP(func, erop){
@@ -7474,19 +7478,22 @@ function context_run(ctx){
 			} break;
 
 			case OP_NUM_HEX        : { // [TGT], [SRC1], [SRC2]
-				var ib = INLINE_BINOP(binop_num_hex, 'converting to hex');
+				var ib = INLINE_BINOP_T(binop_num_hex, 'converting to hex', LT_ALLOWNUM,
+					LT_ALLOWNUM | LT_ALLOWNIL);
 				if (ib !== false)
 					return ib;
 			} break;
 
 			case OP_NUM_OCT        : { // [TGT], [SRC1], [SRC2]
-				var ib = INLINE_BINOP(binop_num_oct, 'converting to oct');
+				var ib = INLINE_BINOP_T(binop_num_oct, 'converting to oct', LT_ALLOWNUM,
+					LT_ALLOWNUM | LT_ALLOWNIL);
 				if (ib !== false)
 					return ib;
 			} break;
 
 			case OP_NUM_BIN        : { // [TGT], [SRC1], [SRC2]
-				var ib = INLINE_BINOP(binop_num_bin, 'converting to bin');
+				var ib = INLINE_BINOP_T(binop_num_bin, 'converting to bin', LT_ALLOWNUM,
+					LT_ALLOWNUM | LT_ALLOWNIL);
 				if (ib !== false)
 					return ib;
 			} break;
