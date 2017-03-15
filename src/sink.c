@@ -12220,12 +12220,12 @@ const char *sink_scr_write(sink_scr scr, int size, const uint8_t *bytes){
 	}
 }
 
-void sink_scr_resetpos(sink_scr scr){
+void sink_scr_setpos(sink_scr scr, int line, int chr){
 	script sc = scr;
 	if (sc->mode != 2)
 		return;
-	sc->cmp->flpn->flp.line = 1;
-	sc->cmp->flpn->flp.chr = 1;
+	sc->cmp->flpn->flp.line = line;
+	sc->cmp->flpn->flp.chr = chr;
 }
 
 int sink_scr_level(sink_scr scr){
@@ -12353,8 +12353,7 @@ sink_run sink_ctx_run(sink_ctx ctx){
 		ctx2->err = NULL;
 	}
 	sink_run r = context_run(ctx2);
-	if (ctx2->failed && ctx2->prg->repl)
-		context_reset(ctx2);
+	context_reset(ctx2);
 	return r;
 }
 
