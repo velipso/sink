@@ -12353,7 +12353,8 @@ sink_run sink_ctx_run(sink_ctx ctx){
 		ctx2->err = NULL;
 	}
 	sink_run r = context_run(ctx2);
-	context_reset(ctx2);
+	if (r == SINK_RUN_PASS || r == SINK_RUN_FAIL)
+		context_reset(ctx2);
 	return r;
 }
 
