@@ -29,27 +29,27 @@ The format has the following basic sequence:
 
 A sink value (S-Val) can be one of the four basic sink types:
 
-### Nil
+### Nil `0xF0`
 
 | Value  | Description                     |
 |--------|---------------------------------|
 | `0xF0` | A single byte to indicate `nil` |
 
-### Number
+### Number `0xF1`
 
 | Value   | Description                                    |
 |---------|------------------------------------------------|
 | `0xF1`  | A single byte to indicate a number             |
 | 8 bytes | 64-bit `double` raw bytes, little-endian       |
 
-### String
+### String `0xF2`
 
 | Value   | Description                            |
 |---------|----------------------------------------|
 | `0xF2`  | A single byte to indicate a string     |
 | V-Int   | String table index                     |
 
-### New List
+### New List `0xF3 ... 0xF4`
 
 Lists are the only compound type.  Each new list is assigned an index internally, starting with 0
 and increasing by 1, in case it must be referenced later.
@@ -60,7 +60,7 @@ and increasing by 1, in case it must be referenced later.
 | S-Val* | Variable number of S-Val's to be pushed on the end of the new list |
 | `0xF4` | A single byte to end the list                                      |
 
-### Referenced List
+### Referenced List `0xF5`
 
 Circular references are handled by referencing a previously provided new list, using its internal
 index.  Note that referenced lists are not indexed since it's unnecessary.
