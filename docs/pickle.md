@@ -17,15 +17,15 @@ first byte).  This is the basis for the hard limits of the format.
 
 The format has the following basic sequence:
 
-| Value  | Description                                                            |
-|--------|------------------------------------------------------------------------|
-| `0x01` | Single non-printable byte at the start to distinguish from JSON format |
-| V-Int  | Number of strings in the string table                                  |
-|        | (For each string...)                                                   |
-| V-Int  | Number of bytes in the string                                          |
-| Bytes  | Raw bytes of the string                                                |
-|        | (...end string table)                                                  |
-| S-Val  | Single sink value, described below                                     |
+| Value  | Description                                                              |
+|--------|--------------------------------------------------------------------------|
+| `0x01` | A single non-printable byte at the start to distinguish from JSON format |
+| V-Int  | Number of strings in the string table                                    |
+|        | (For each string...)                                                     |
+| V-Int  | Number of bytes in the string                                            |
+| Bytes  | Raw bytes of the string                                                  |
+|        | (...end string table)                                                    |
+| S-Val  | Single sink value, described below                                       |
 
 A sink value (S-Val) can be one of the four basic sink types:
 
