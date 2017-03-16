@@ -465,22 +465,95 @@ List
 Pickle
 ------
 
-The `pickle` namespace implements serialization and deserialization commands for sink values.  The
-serialization format is a strict subset of JSON (using lists, strings, numbers, and null for nil).
+The `pickle` namespace implements serialization and deserialization commands for sink values.
 
-| Function         | Description                                                                  |
-|------------------|------------------------------------------------------------------------------|
-| `pickle.valid a` | Checks whether `a` is a valid serialized string                              |
-| `pickle.str a`   | Converts any sink value `a` to a serialized string                           |
-| `pickle.val a`   | Converts a serialized string `a` to a sink value                             |
+There are two serialization formats: JSON and binary.  The JSON format is possible by mapping lists
+to arrays and `nil` to `null`, but cannot handle circular references and is slightly inefficient.
+The binary format is unprintable but is compact, fast, and handles circular references -- therefore
+it can safely serialize *any* sink value.
+
+| Function            | Description                                                               |
+|---------------------|---------------------------------------------------------------------------|
+| `pickle.json a`     | Converts a *non-circular* sink value `a` to a serialized string in JSON   |
+| `pickle.bin a`      | Converts *any* sink value `a` to a binary serialized string               |
+| `pickle.val a`      | Converts a serialized value `a` (JSON or binary) back to a sink value     |
+| `pickle.valid a`    | Returns `nil` if `a` is invalid, `1` if JSON format, and `2` if binary    |
+| `pickle.circular a` | Tests whether `a` has circular references                                 |
+| `pickle.copy a`     | Performs a deep copy of `a` (pickles then unpickles)                      |
+
 
 ```
-pickle.str {1, nil}     # => '[1,null]'
-pickle.val '[[-1],5]'   # => {{-1}, 5}
-pickle.valid '{}'       # => nil, not all of JSON can be converted to sink
-pickle.valid '"\u1000"' # => nil, only bytes in strings are supported ("\u0000" to "\u00FF")
-pickle.valid 'null'     # => 1, 'null' is nil
+pickle.json {1, nil}     # => '[1,null]'
+pickle.val '[[-1],5]'    # => {{-1}, 5}
+pickle.valid '{}'        # => nil, not all of JSON can be converted to sink
+pickle.valid '"\u1000"'  # => nil, only bytes in strings are supported ("\u0000" to "\u00FF")
+pickle.valid 'null'      # => 1, JSON formatted serialized sink value (`null` maps to `nil`)
 ```
+
+### Binary Format
+
+The binary format is specified explicitly and can be used for interchange with programs that support
+the format.
+
+Variable length integers (V-Int) are used multiple times in the format.  They can either represent a
+value from 0 to 127 using one byte (with the most significant byte cleared), or 0 to
+2<sup>31</sup> - 1 using four bytes (little-endian encoded, with the most significant bit set on the
+first byte).  This is the basis for the hard limits of the format.
+
+The format has the following basic sequence:
+
+| Value  | Description                                                            |
+|--------|------------------------------------------------------------------------|
+| `0x01` | Single non-printable byte at the start to distinguish from JSON format |
+| V-Int  | Number of strings in the string table                                  |
+|        | (For each string...)                                                   |
+| V-Int  | Number of bytes in the string                                          |
+| Bytes  | Raw bytes of the string                                                |
+|        | (...end string table)                                                  |
+| S-Val  | Single sink value, described below                                     |
+
+A sink value (S-Val) can be one of the four basic sink types:
+
+#### Nil
+
+| Value  | Description                     |
+|--------|---------------------------------|
+| `0xF0` | A single byte to indicate `nil` |
+
+#### Number
+
+| Value   | Description                                    |
+|---------|------------------------------------------------|
+| `0xF1`  | A single byte to indicate a number             |
+| 8 bytes | 64-bit `double` raw bytes, little-endian       |
+
+#### String
+
+| Value   | Description                            |
+|---------|----------------------------------------|
+| `0xF2`  | A single byte to indicate a string     |
+| V-Int   | String table index                     |
+
+#### New List
+
+Lists are the only compound type.  Each new list is assigned an index internally, starting with 0
+and increasing by 1, in case it must be referenced later.
+
+| Value  | Description                                                        |
+|--------|--------------------------------------------------------------------|
+| `0xF3` | A single byte to begin new list and assign it an internal index    |
+| S-Val* | Variable number of S-Val's to be pushed on the end of the new list |
+| `0xF4` | A single byte to end the list                                      |
+
+#### Referenced List
+
+Circular references are handled by referencing a previously provided new list, using its internal
+index.  Note that referenced lists are not indexed since it's unnecessary.
+
+| Value  | Description                                          |
+|--------|------------------------------------------------------|
+| `0xF5` | A single byte to indicate a previously provided list |
+| V-Int  | The internal index of the list                       |
 
 GC
 --
