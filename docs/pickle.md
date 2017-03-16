@@ -62,8 +62,8 @@ and increasing by 1, in case it must be referenced later.
 
 ### Referenced List `0xF5`
 
-Circular references are handled by referencing a previously provided new list, using its internal
-index.  Note that referenced lists are not indexed since it's unnecessary.
+Sibling or circular references are handled by referencing a previously provided new list, using its
+internal index.
 
 | Value  | Description                                          |
 |--------|------------------------------------------------------|
