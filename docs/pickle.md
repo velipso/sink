@@ -29,60 +29,60 @@ The format has the following basic sequence:
 
 A sink value (S-Val) can be one of the four basic sink types:
 
-### `0xF0` Nil
-
-| Value  | Description                     |
-|--------|---------------------------------|
-| `0xF0` | A single byte to indicate `nil` |
-
-### `0xF1` Positive 8-bit Number (0 to 255)
+### `0xF0` Positive 8-bit Number (0 to 255)
 
 | Value  | Description                                       |
 |--------|---------------------------------------------------|
-| `0xF1` | A single byte to indicate a positive 8-bit number |
+| `0xF0` | A single byte to indicate a positive 8-bit number |
 | Number | The number (1 byte)                               |
 
-### `0xF2` Negative 8-bit Number (-256 to -1)
+### `0xF1` Negative 8-bit Number (-256 to -1)
 
 | Value  | Description                                       |
 |--------|---------------------------------------------------|
-| `0xF2` | A single byte to indicate a negative 8-bit number |
+| `0xF1` | A single byte to indicate a negative 8-bit number |
 | Number | The number + 256 (1 byte)                         |
 
-### `0xF3` Positive 16-bit Number (0 to 65535)
+### `0xF2` Positive 16-bit Number (0 to 65535)
 
 | Value  | Description                                        |
 |--------|----------------------------------------------------|
-| `0xF3` | A single byte to indicate a positive 16-bit number |
+| `0xF2` | A single byte to indicate a positive 16-bit number |
 | Number | The number in little-endian (2 bytes)              |
 
-### `0xF4` Negative 16-bit Number (-65536 to -1)
+### `0xF3` Negative 16-bit Number (-65536 to -1)
 
 | Value  | Description                                        |
 |--------|----------------------------------------------------|
-| `0xF4` | A single byte to indicate a negative 16-bit number |
+| `0xF3` | A single byte to indicate a negative 16-bit number |
 | Number | The number + 65536 in little-endian (2 bytes)      |
 
-### `0xF5` Positive 32-bit Number (0 to 4294967295)
+### `0xF4` Positive 32-bit Number (0 to 4294967295)
 
 | Value  | Description                                        |
 |--------|----------------------------------------------------|
-| `0xF1` | A single byte to indicate a positive 32-bit number |
+| `0xF4` | A single byte to indicate a positive 32-bit number |
 | Number | The number (4 bytes)                               |
 
-### `0xF6` Negative 32-bit Number (-4294967296 to -1)
+### `0xF5` Negative 32-bit Number (-4294967296 to -1)
 
 | Value  | Description                                        |
 |--------|----------------------------------------------------|
-| `0xF2` | A single byte to indicate a negative 8-bit number  |
+| `0xF5` | A single byte to indicate a negative 8-bit number  |
 | Number | The number + 4294967296 in little-endian (4 bytes) |
 
-### `0xF7` 64-bit Floating-point Number
+### `0xF6` 64-bit Floating-point Number
 
 | Value   | Description                                        |
 |---------|----------------------------------------------------|
-| `0xF7`  | A single byte to indicate a number                 |
+| `0xF6`  | A single byte to indicate a number                 |
 | Number  | The raw 64-bit `double` in little-endian (8 bytes) |
+
+### `0xF7` Nil
+
+| Value  | Description                     |
+|--------|---------------------------------|
+| `0xF7` | A single byte to indicate `nil` |
 
 ### `0xF8` String
 
@@ -119,7 +119,7 @@ Encoding `nil`:
 ```
 0x01   Header
 0x00   String table size
-0xF0   Nil
+0xF7   Nil
 ```
 
 Encoding a list of strings `{'a', {0}, 'abcd', 'a'}`:
@@ -140,7 +140,7 @@ Encoding a list of strings `{'a', {0}, 'abcd', 'a'}`:
 0x00   String[0]
 0xF9   New list (index 1)
 0x01   List size (index 1)
-0xF1   Positive 8-bit number
+0xF0   Positive 8-bit number
 0x00   Zero
 0xF8   String
 0x01   String[1]
@@ -148,7 +148,7 @@ Encoding a list of strings `{'a', {0}, 'abcd', 'a'}`:
 0x00   String[0]
 ```
 
-Encoding of circular list `var a = {{}}; list.push a, a`:
+Encoding of circular list `var a = {{-250}}; list.push a, a`:
 
 ```
 0x01   Header
@@ -156,7 +156,9 @@ Encoding of circular list `var a = {{}}; list.push a, a`:
 0xF9   New list (index 0)
 0x02   List size (index 0)
 0xF9   New list (index 1)
-0x00   List size (index 1)
+0x01   List size (index 1)
+0xF1   Negative 8-bit number
+0x06   -250
 0xFA   Reference list
 0x00   Index 0
 ```
