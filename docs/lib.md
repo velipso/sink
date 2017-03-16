@@ -479,7 +479,7 @@ it can safely serialize *any* sink value.
 | `pickle.val a`      | Converts a serialized value `a` (JSON or binary) back to a sink value     |
 | `pickle.valid a`    | Returns `nil` if `a` is invalid, `1` if JSON format, and `2` if binary    |
 | `pickle.circular a` | Tests whether `a` has circular references                                 |
-| `pickle.copy a`     | Performs a deep copy of `a` (pickles then unpickles)                      |
+| `pickle.copy a`     | Performs a deep copy of `a` (i.e., pickles then unpickles)                |
 
 
 ```
@@ -499,6 +499,11 @@ Variable length integers (V-Int) are used multiple times in the format.  They ca
 value from 0 to 127 using one byte (with the most significant byte cleared), or 0 to
 2<sup>31</sup> - 1 using four bytes (little-endian encoded, with the most significant bit set on the
 first byte).  This is the basis for the hard limits of the format.
+
+| Value(s)                                    | Description                                     |
+|---------------------------------------------|-------------------------------------------------|
+| `0xxxxxxx`                                  | 7-bit V-Int for values 0 to 127                 |
+| `1xxxxxxx` `xxxxxxxx` `xxxxxxxx` `xxxxxxxx` | 31-bit V-Int for values 0 to 2<sup>31</sup> - 1 |
 
 The format has the following basic sequence:
 
