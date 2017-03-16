@@ -1,6 +1,6 @@
 def N a
-	if (pickle.valid a) == 1
-		say "fail: not expecting json\n> \"$a\""
+	if (pickle.valid a) != nil
+		say "fail: expecting invalid\n> \"$a\""
 	end
 end
 
