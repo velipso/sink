@@ -467,10 +467,13 @@ Pickle
 
 The `pickle` namespace implements serialization and deserialization commands for sink values.
 
-There are two serialization formats: JSON and binary.  The JSON format is possible by mapping lists
-to arrays and `nil` to `null`, but cannot handle referencing lists and is slightly inefficient.  The
-binary format is unprintable but is compact, fast, and restores list references -- therefore it can
-safely serialize *any* sink value.
+There are two serialization formats: JSON and binary.
+
+The JSON format is possible by mapping lists to arrays and `nil` to `null`, but cannot handle
+referencing lists and is slightly inefficient.
+
+The binary format is compact, fast, and restores list references -- therefore it can
+safely serialize *any* sink value, and is the recommended format for serialization.
 See: [Pickle Binary Format](https://github.com/voidqk/sink/blob/master/docs/pickle.md).
 
 Note: Pickling completely ignores host user data attached to lists and cannot be used to copy or
