@@ -158,7 +158,7 @@ Encoding of circular list `var a = {{-250}}; list.push a, a`:
 0xF9   New list (index 1)
 0x01   List size (index 1)
 0xF1   Negative 8-bit number
-0x06   -250
+0x06   -250 (0x06 = -250 + 256)
 0xFA   Reference list
 0x00   Index 0
 ```
