@@ -7,8 +7,8 @@ support the format.
 
 Variable length integers (V-Int) are used multiple times in the format.  They can either represent a
 value from 0 to 127 using one byte (with the most significant bit cleared), or 0 to
-2<sup>31</sup> - 1 using four bytes (little-endian encoded, with the most significant bit set on the
-first byte).  This is the basis for the hard limits of the format.
+2<sup>31</sup> - 1 using four bytes (**big**-endian encoded, with the most significant bit set on
+the first byte).  This is the basis for the hard limits of the format.
 
 | Value(s)                                    | Description                                     |
 |---------------------------------------------|-------------------------------------------------|
