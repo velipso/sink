@@ -482,9 +482,9 @@ marshal user objects in the host environment.
 | `pickle.bin a`      | Converts *any* sink value `a` to a binary serialized string               |
 | `pickle.val a`      | Converts a serialized value `a` (JSON or binary) back to a sink value     |
 | `pickle.valid a`    | Returns `nil` if `a` is invalid, `1` if JSON format, and `2` if binary    |
-| `pickle.sibling a`  | Tests whether `a` has sibling references                                  |
-| `pickle.circular a` | Tests whether `a` has circular references                                 |
-| `pickle.copy a`     | Performs a deep copy of `a` (i.e., pickles then unpickles)                |
+| `pickle.sibling a`  | True if `a` has sibling references                                        |
+| `pickle.circular a` | True if `a` has circular references                                       |
+| `pickle.copy a`     | Performs a deep copy of `a` (i.e., binary pickles then unpickles)         |
 
 ```
 pickle.json {1, nil}     # => '[1,null]'
