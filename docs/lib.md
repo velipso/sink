@@ -473,6 +473,9 @@ The binary format is unprintable but is compact, fast, and handles circular refe
 it can safely serialize *any* sink value.
 See: [Pickle Binary Format](https://github.com/voidqk/sink/blob/master/docs/pickle.md).
 
+Note: Pickling completely ignores host user data attached to lists and cannot be used to copy or
+marshal user objects in the host environment.
+
 | Function            | Description                                                               |
 |---------------------|---------------------------------------------------------------------------|
 | `pickle.json a`     | Converts a *non-circular* sink value `a` to a serialized string in JSON   |
@@ -481,7 +484,6 @@ See: [Pickle Binary Format](https://github.com/voidqk/sink/blob/master/docs/pick
 | `pickle.valid a`    | Returns `nil` if `a` is invalid, `1` if JSON format, and `2` if binary    |
 | `pickle.circular a` | Tests whether `a` has circular references                                 |
 | `pickle.copy a`     | Performs a deep copy of `a` (i.e., pickles then unpickles)                |
-
 
 ```
 pickle.json {1, nil}     # => '[1,null]'
