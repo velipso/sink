@@ -468,9 +468,9 @@ Pickle
 The `pickle` namespace implements serialization and deserialization commands for sink values.
 
 There are two serialization formats: JSON and binary.  The JSON format is possible by mapping lists
-to arrays and `nil` to `null`, but cannot handle circular references and is slightly inefficient.
-The binary format is unprintable but is compact, fast, and handles circular references -- therefore
-it can safely serialize *any* sink value.
+to arrays and `nil` to `null`, but cannot handle referencing lists and is slightly inefficient.  The
+binary format is unprintable but is compact, fast, and restores list references -- therefore it can
+safely serialize *any* sink value.
 See: [Pickle Binary Format](https://github.com/voidqk/sink/blob/master/docs/pickle.md).
 
 Note: Pickling completely ignores host user data attached to lists and cannot be used to copy or
@@ -482,6 +482,7 @@ marshal user objects in the host environment.
 | `pickle.bin a`      | Converts *any* sink value `a` to a binary serialized string               |
 | `pickle.val a`      | Converts a serialized value `a` (JSON or binary) back to a sink value     |
 | `pickle.valid a`    | Returns `nil` if `a` is invalid, `1` if JSON format, and `2` if binary    |
+| `pickle.sibling a`  | Tests whether `a` has sibling references                                  |
 | `pickle.circular a` | Tests whether `a` has circular references                                 |
 | `pickle.copy a`     | Performs a deep copy of `a` (i.e., pickles then unpickles)                |
 
@@ -492,6 +493,44 @@ pickle.valid '{}'        # => nil, not all of JSON can be converted to sink
 pickle.valid '"\u1000"'  # => nil, only bytes in strings are supported ("\u0000" to "\u00FF")
 pickle.valid 'null'      # => 1, JSON formatted serialized sink value (`null` maps to `nil`)
 ```
+
+### List References
+
+Pickling lists is complicated because they can contain other lists multiple times, or even include
+themselves recursively:
+
+```
+var a = {'hello'}
+var b = {a, a}
+say b  # {{'hello'}, {'hello'}}
+
+var c = {'world'}
+list.push c, c
+say c  # {{'world'}, {circular}}
+```
+
+List `a` is flat and doesn't contain duplicate references.
+
+List `b` contains a sibling reference.  Sibling references are when there exists multiple
+non-circular references to the same object.
+
+Sibling references can be serialized using JSON, but upon deserializing, the fact that
+`b[0] == b[1]` will be lost:
+
+```
+var b2 = b | pickle.json | pickle.val
+say b[0] == b[1]    # 1 (true)
+say b2[0] == b2[1]  # nil (false)
+```
+
+List `c` contains a circular reference -- this is when a list contains itself somewhere inside of
+it.  Circular references cannot be serialized using JSON and will cause the sink script to abort in
+failure.
+
+The `pickle.sibling` and `pickle.circular` commands can test whether an object has sibling or
+circular references.  To avoid this problem completely, it's recommended to use the binary format
+(via `pickle.bin`) in lieu of the JSON format, since it correctly handles restoring references
+(both sibling and circular).
 
 GC
 --
