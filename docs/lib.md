@@ -560,6 +560,51 @@ index.  Note that referenced lists are not indexed since it's unnecessary.
 | `0xF5` | A single byte to indicate a previously provided list |
 | V-Int  | The internal index of the list                       |
 
+### Examples
+
+Encoding `nil`:
+
+```
+0x01   Header
+0x00   String table size
+0xF0   Nil
+```
+
+Encoding a list of strings `{'a', 'abcd', 'a'}`:
+
+```
+0x01   Header
+0x02   String table size
+0x01   String[0] length
+0x61   'a'
+0x04   String[1] length
+0x61   'a'
+0x62   'b'
+0x63   'c'
+0x64   'd'
+0xF3   New list (index 0)
+0xF2   String
+0x00   String[0]
+0xF2   String
+0x01   String[1]
+0xF2   String
+0x00   String[0]
+0xF4   End of list (index 0)
+```
+
+Encoding of circular list `var a = {{}}; list.push a, a`:
+
+```
+0x01   Header
+0x00   String table size
+0xF3   New list (index 0)
+0xF3   New list (index 1)
+0xF4   End of list (index 1)
+0xF5   Reference list
+0x00   Index 0
+0xF4   End of list (index 0)
+```
+
 GC
 --
 
