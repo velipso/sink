@@ -30,153 +30,157 @@ function varloc_new(fdiff, index){
 	return { fdiff: fdiff, index: index };
 }
 
-var OP_NOP           = 0x00; //
-var OP_ABORTERR      = 0x01; // ERRNO
-var OP_MOVE          = 0x02; // [TGT], [SRC]
-var OP_INC           = 0x03; // [TGT/SRC]
-var OP_NIL           = 0x04; // [TGT]
-var OP_NUMP8         = 0x05; // [TGT], VALUE
-var OP_NUMN8         = 0x06; // [TGT], VALUE
-var OP_NUMP16        = 0x07; // [TGT], [VALUE]
-var OP_NUMN16        = 0x08; // [TGT], [VALUE]
-var OP_NUMP32        = 0x09; // [TGT], [[VALUE]]
-var OP_NUMN32        = 0x0A; // [TGT], [[VALUE]]
-var OP_NUMDBL        = 0x0B; // [TGT], [[[[VALUE]]]]
-var OP_STR           = 0x0C; // [TGT], [INDEX]
-var OP_LIST          = 0x0D; // [TGT], HINT
-var OP_ISNUM         = 0x0E; // [TGT], [SRC]
-var OP_ISSTR         = 0x0F; // [TGT], [SRC]
-var OP_ISLIST        = 0x10; // [TGT], [SRC]
-var OP_NOT           = 0x11; // [TGT], [SRC]
-var OP_SIZE          = 0x12; // [TGT], [SRC]
-var OP_TONUM         = 0x13; // [TGT], [SRC]
-var OP_CAT           = 0x14; // [TGT], [SRC1], [SRC2]
-var OP_LT            = 0x15; // [TGT], [SRC1], [SRC2]
-var OP_LTE           = 0x16; // [TGT], [SRC1], [SRC2]
-var OP_NEQ           = 0x17; // [TGT], [SRC1], [SRC2]
-var OP_EQU           = 0x18; // [TGT], [SRC1], [SRC2]
-var OP_GETAT         = 0x19; // [TGT], [SRC1], [SRC2]
-var OP_SLICE         = 0x1A; // [TGT], [SRC1], [SRC2], [SRC3]
-var OP_SETAT         = 0x1B; // [SRC1], [SRC2], [SRC3]
-var OP_SPLICE        = 0x1C; // [SRC1], [SRC2], [SRC3], [SRC4]
-var OP_JUMP          = 0x1D; // [[LOCATION]]
-var OP_JUMPTRUE      = 0x1E; // [SRC], [[LOCATION]]
-var OP_JUMPFALSE     = 0x1F; // [SRC], [[LOCATION]]
-var OP_CALL          = 0x20; // [TGT], [SRC], LEVEL, [[LOCATION]]
-var OP_NATIVE        = 0x21; // [TGT], [SRC], [INDEX]
-var OP_RETURN        = 0x22; // [SRC]
-var OP_RETURNTAIL    = 0x23; // [SRC], [[LOCATION]]
-var OP_RANGE         = 0x24; // [TGT], [SRC1], [SRC2], [SRC3]
-var OP_ORDER         = 0x25; // [TGT], [SRC1], [SRC2]
-var OP_SAY           = 0x26; // [TGT], [SRC...]
-var OP_WARN          = 0x27; // [TGT], [SRC...]
-var OP_ASK           = 0x28; // [TGT], [SRC...]
-var OP_EXIT          = 0x29; // [TGT], [SRC...]
-var OP_ABORT         = 0x2A; // [TGT], [SRC...]
-var OP_NUM_NEG       = 0x2B; // [TGT], [SRC]
-var OP_NUM_ADD       = 0x2C; // [TGT], [SRC1], [SRC2]
-var OP_NUM_SUB       = 0x2D; // [TGT], [SRC1], [SRC2]
-var OP_NUM_MUL       = 0x2E; // [TGT], [SRC1], [SRC2]
-var OP_NUM_DIV       = 0x2F; // [TGT], [SRC1], [SRC2]
-var OP_NUM_MOD       = 0x30; // [TGT], [SRC1], [SRC2]
-var OP_NUM_POW       = 0x31; // [TGT], [SRC1], [SRC2]
-var OP_NUM_ABS       = 0x32; // [TGT], [SRC]
-var OP_NUM_SIGN      = 0x33; // [TGT], [SRC]
-var OP_NUM_MAX       = 0x34; // [TGT], [SRC...]
-var OP_NUM_MIN       = 0x35; // [TGT], [SRC...]
-var OP_NUM_CLAMP     = 0x36; // [TGT], [SRC1], [SRC2], [SRC3]
-var OP_NUM_FLOOR     = 0x37; // [TGT], [SRC]
-var OP_NUM_CEIL      = 0x38; // [TGT], [SRC]
-var OP_NUM_ROUND     = 0x39; // [TGT], [SRC]
-var OP_NUM_TRUNC     = 0x3A; // [TGT], [SRC]
-var OP_NUM_NAN       = 0x3B; // [TGT]
-var OP_NUM_INF       = 0x3C; // [TGT]
-var OP_NUM_ISNAN     = 0x3D; // [TGT], [SRC]
-var OP_NUM_ISFINITE  = 0x3E; // [TGT], [SRC]
-var OP_NUM_E         = 0x3F; // [TGT]
-var OP_NUM_PI        = 0x40; // [TGT]
-var OP_NUM_TAU       = 0x41; // [TGT]
-var OP_NUM_SIN       = 0x42; // [TGT], [SRC]
-var OP_NUM_COS       = 0x43; // [TGT], [SRC]
-var OP_NUM_TAN       = 0x44; // [TGT], [SRC]
-var OP_NUM_ASIN      = 0x45; // [TGT], [SRC]
-var OP_NUM_ACOS      = 0x46; // [TGT], [SRC]
-var OP_NUM_ATAN      = 0x47; // [TGT], [SRC]
-var OP_NUM_ATAN2     = 0x48; // [TGT], [SRC1], [SRC2]
-var OP_NUM_LOG       = 0x49; // [TGT], [SRC]
-var OP_NUM_LOG2      = 0x4A; // [TGT], [SRC]
-var OP_NUM_LOG10     = 0x4B; // [TGT], [SRC]
-var OP_NUM_EXP       = 0x4C; // [TGT], [SRC]
-var OP_NUM_LERP      = 0x4D; // [TGT], [SRC1], [SRC2], [SRC3]
-var OP_NUM_HEX       = 0x4E; // [TGT], [SRC1], [SRC2]
-var OP_NUM_OCT       = 0x4F; // [TGT], [SRC1], [SRC2]
-var OP_NUM_BIN       = 0x50; // [TGT], [SRC1], [SRC2]
-var OP_INT_NEW       = 0x51; // [TGT], [SRC]
-var OP_INT_NOT       = 0x52; // [TGT], [SRC]
-var OP_INT_AND       = 0x53; // [TGT], [SRC1], [SRC2]
-var OP_INT_OR        = 0x54; // [TGT], [SRC1], [SRC2]
-var OP_INT_XOR       = 0x55; // [TGT], [SRC1], [SRC2]
-var OP_INT_SHL       = 0x56; // [TGT], [SRC1], [SRC2]
-var OP_INT_SHR       = 0x57; // [TGT], [SRC1], [SRC2]
-var OP_INT_SAR       = 0x58; // [TGT], [SRC1], [SRC2]
-var OP_INT_ADD       = 0x59; // [TGT], [SRC1], [SRC2]
-var OP_INT_SUB       = 0x5A; // [TGT], [SRC1], [SRC2]
-var OP_INT_MUL       = 0x5B; // [TGT], [SRC1], [SRC2]
-var OP_INT_DIV       = 0x5C; // [TGT], [SRC1], [SRC2]
-var OP_INT_MOD       = 0x5D; // [TGT], [SRC1], [SRC2]
-var OP_INT_CLZ       = 0x5E; // [TGT], [SRC]
-var OP_RAND_SEED     = 0x5F; // [TGT], [SRC]
-var OP_RAND_SEEDAUTO = 0x60; // [TGT]
-var OP_RAND_INT      = 0x61; // [TGT]
-var OP_RAND_NUM      = 0x62; // [TGT]
-var OP_RAND_GETSTATE = 0x63; // [TGT]
-var OP_RAND_SETSTATE = 0x64; // [TGT], [SRC]
-var OP_RAND_PICK     = 0x65; // [TGT], [SRC]
-var OP_RAND_SHUFFLE  = 0x66; // [TGT], [SRC]
-var OP_STR_NEW       = 0x67; // [TGT], [SRC...]
-var OP_STR_SPLIT     = 0x68; // [TGT], [SRC1], [SRC2]
-var OP_STR_REPLACE   = 0x69; // [TGT], [SRC1], [SRC2], [SRC3]
-var OP_STR_BEGINS    = 0x6A; // [TGT], [SRC1], [SRC2]
-var OP_STR_ENDS      = 0x6B; // [TGT], [SRC1], [SRC2]
-var OP_STR_PAD       = 0x6C; // [TGT], [SRC1], [SRC2]
-var OP_STR_FIND      = 0x6D; // [TGT], [SRC1], [SRC2], [SRC3]
-var OP_STR_RFIND     = 0x6E; // [TGT], [SRC1], [SRC2], [SRC3]
-var OP_STR_LOWER     = 0x6F; // [TGT], [SRC]
-var OP_STR_UPPER     = 0x70; // [TGT], [SRC]
-var OP_STR_TRIM      = 0x71; // [TGT], [SRC]
-var OP_STR_REV       = 0x72; // [TGT], [SRC]
-var OP_STR_REP       = 0x73; // [TGT], [SRC]
-var OP_STR_LIST      = 0x74; // [TGT], [SRC]
-var OP_STR_BYTE      = 0x75; // [TGT], [SRC1], [SRC2]
-var OP_STR_HASH      = 0x76; // [TGT], [SRC1], [SRC2]
-var OP_UTF8_VALID    = 0x77; // [TGT], [SRC]
-var OP_UTF8_LIST     = 0x78; // [TGT], [SRC]
-var OP_UTF8_STR      = 0x79; // [TGT], [SRC]
-var OP_STRUCT_SIZE   = 0x7A; // [TGT], [SRC]
-var OP_STRUCT_STR    = 0x7B; // [TGT], [SRC1], [SRC2]
-var OP_STRUCT_LIST   = 0x7C; // [TGT], [SRC1], [SRC2]
-var OP_LIST_NEW      = 0x7D; // [TGT], [SRC1], [SRC2]
-var OP_LIST_SHIFT    = 0x7E; // [TGT], [SRC]
-var OP_LIST_POP      = 0x7F; // [TGT], [SRC]
-var OP_LIST_PUSH     = 0x80; // [TGT], [SRC1], [SRC2]
-var OP_LIST_UNSHIFT  = 0x81; // [TGT], [SRC1], [SRC2]
-var OP_LIST_APPEND   = 0x82; // [TGT], [SRC1], [SRC2]
-var OP_LIST_PREPEND  = 0x83; // [TGT], [SRC1], [SRC2]
-var OP_LIST_FIND     = 0x84; // [TGT], [SRC1], [SRC2], [SRC3]
-var OP_LIST_RFIND    = 0x85; // [TGT], [SRC1], [SRC2], [SRC3]
-var OP_LIST_JOIN     = 0x86; // [TGT], [SRC1], [SRC2]
-var OP_LIST_REV      = 0x87; // [TGT], [SRC]
-var OP_LIST_STR      = 0x88; // [TGT], [SRC]
-var OP_LIST_SORT     = 0x89; // [TGT], [SRC]
-var OP_LIST_RSORT    = 0x8A; // [TGT], [SRC]
-var OP_PICKLE_VALID  = 0x8B; // [TGT], [SRC]
-var OP_PICKLE_STR    = 0x8C; // [TGT], [SRC]
-var OP_PICKLE_VAL    = 0x8D; // [TGT], [SRC]
-var OP_GC_GETLEVEL   = 0x8E; // [TGT]
-var OP_GC_SETLEVEL   = 0x8F; // [TGT], [SRC]
-var OP_GC_RUN        = 0x90; // [TGT]
+var OP_NOP             = 0x00; //
+var OP_ABORTERR        = 0x01; // ERRNO
+var OP_MOVE            = 0x02; // [TGT], [SRC]
+var OP_INC             = 0x03; // [TGT/SRC]
+var OP_NIL             = 0x04; // [TGT]
+var OP_NUMP8           = 0x05; // [TGT], VALUE
+var OP_NUMN8           = 0x06; // [TGT], VALUE
+var OP_NUMP16          = 0x07; // [TGT], [VALUE]
+var OP_NUMN16          = 0x08; // [TGT], [VALUE]
+var OP_NUMP32          = 0x09; // [TGT], [[VALUE]]
+var OP_NUMN32          = 0x0A; // [TGT], [[VALUE]]
+var OP_NUMDBL          = 0x0B; // [TGT], [[[[VALUE]]]]
+var OP_STR             = 0x0C; // [TGT], [INDEX]
+var OP_LIST            = 0x0D; // [TGT], HINT
+var OP_ISNUM           = 0x0E; // [TGT], [SRC]
+var OP_ISSTR           = 0x0F; // [TGT], [SRC]
+var OP_ISLIST          = 0x10; // [TGT], [SRC]
+var OP_NOT             = 0x11; // [TGT], [SRC]
+var OP_SIZE            = 0x12; // [TGT], [SRC]
+var OP_TONUM           = 0x13; // [TGT], [SRC]
+var OP_CAT             = 0x14; // [TGT], [SRC1], [SRC2]
+var OP_LT              = 0x15; // [TGT], [SRC1], [SRC2]
+var OP_LTE             = 0x16; // [TGT], [SRC1], [SRC2]
+var OP_NEQ             = 0x17; // [TGT], [SRC1], [SRC2]
+var OP_EQU             = 0x18; // [TGT], [SRC1], [SRC2]
+var OP_GETAT           = 0x19; // [TGT], [SRC1], [SRC2]
+var OP_SLICE           = 0x1A; // [TGT], [SRC1], [SRC2], [SRC3]
+var OP_SETAT           = 0x1B; // [SRC1], [SRC2], [SRC3]
+var OP_SPLICE          = 0x1C; // [SRC1], [SRC2], [SRC3], [SRC4]
+var OP_JUMP            = 0x1D; // [[LOCATION]]
+var OP_JUMPTRUE        = 0x1E; // [SRC], [[LOCATION]]
+var OP_JUMPFALSE       = 0x1F; // [SRC], [[LOCATION]]
+var OP_CALL            = 0x20; // [TGT], [SRC], LEVEL, [[LOCATION]]
+var OP_NATIVE          = 0x21; // [TGT], [SRC], [INDEX]
+var OP_RETURN          = 0x22; // [SRC]
+var OP_RETURNTAIL      = 0x23; // [SRC], [[LOCATION]]
+var OP_RANGE           = 0x24; // [TGT], [SRC1], [SRC2], [SRC3]
+var OP_ORDER           = 0x25; // [TGT], [SRC1], [SRC2]
+var OP_SAY             = 0x26; // [TGT], [SRC...]
+var OP_WARN            = 0x27; // [TGT], [SRC...]
+var OP_ASK             = 0x28; // [TGT], [SRC...]
+var OP_EXIT            = 0x29; // [TGT], [SRC...]
+var OP_ABORT           = 0x2A; // [TGT], [SRC...]
+var OP_NUM_NEG         = 0x2B; // [TGT], [SRC]
+var OP_NUM_ADD         = 0x2C; // [TGT], [SRC1], [SRC2]
+var OP_NUM_SUB         = 0x2D; // [TGT], [SRC1], [SRC2]
+var OP_NUM_MUL         = 0x2E; // [TGT], [SRC1], [SRC2]
+var OP_NUM_DIV         = 0x2F; // [TGT], [SRC1], [SRC2]
+var OP_NUM_MOD         = 0x30; // [TGT], [SRC1], [SRC2]
+var OP_NUM_POW         = 0x31; // [TGT], [SRC1], [SRC2]
+var OP_NUM_ABS         = 0x32; // [TGT], [SRC]
+var OP_NUM_SIGN        = 0x33; // [TGT], [SRC]
+var OP_NUM_MAX         = 0x34; // [TGT], [SRC...]
+var OP_NUM_MIN         = 0x35; // [TGT], [SRC...]
+var OP_NUM_CLAMP       = 0x36; // [TGT], [SRC1], [SRC2], [SRC3]
+var OP_NUM_FLOOR       = 0x37; // [TGT], [SRC]
+var OP_NUM_CEIL        = 0x38; // [TGT], [SRC]
+var OP_NUM_ROUND       = 0x39; // [TGT], [SRC]
+var OP_NUM_TRUNC       = 0x3A; // [TGT], [SRC]
+var OP_NUM_NAN         = 0x3B; // [TGT]
+var OP_NUM_INF         = 0x3C; // [TGT]
+var OP_NUM_ISNAN       = 0x3D; // [TGT], [SRC]
+var OP_NUM_ISFINITE    = 0x3E; // [TGT], [SRC]
+var OP_NUM_E           = 0x3F; // [TGT]
+var OP_NUM_PI          = 0x40; // [TGT]
+var OP_NUM_TAU         = 0x41; // [TGT]
+var OP_NUM_SIN         = 0x42; // [TGT], [SRC]
+var OP_NUM_COS         = 0x43; // [TGT], [SRC]
+var OP_NUM_TAN         = 0x44; // [TGT], [SRC]
+var OP_NUM_ASIN        = 0x45; // [TGT], [SRC]
+var OP_NUM_ACOS        = 0x46; // [TGT], [SRC]
+var OP_NUM_ATAN        = 0x47; // [TGT], [SRC]
+var OP_NUM_ATAN2       = 0x48; // [TGT], [SRC1], [SRC2]
+var OP_NUM_LOG         = 0x49; // [TGT], [SRC]
+var OP_NUM_LOG2        = 0x4A; // [TGT], [SRC]
+var OP_NUM_LOG10       = 0x4B; // [TGT], [SRC]
+var OP_NUM_EXP         = 0x4C; // [TGT], [SRC]
+var OP_NUM_LERP        = 0x4D; // [TGT], [SRC1], [SRC2], [SRC3]
+var OP_NUM_HEX         = 0x4E; // [TGT], [SRC1], [SRC2]
+var OP_NUM_OCT         = 0x4F; // [TGT], [SRC1], [SRC2]
+var OP_NUM_BIN         = 0x50; // [TGT], [SRC1], [SRC2]
+var OP_INT_NEW         = 0x51; // [TGT], [SRC]
+var OP_INT_NOT         = 0x52; // [TGT], [SRC]
+var OP_INT_AND         = 0x53; // [TGT], [SRC1], [SRC2]
+var OP_INT_OR          = 0x54; // [TGT], [SRC1], [SRC2]
+var OP_INT_XOR         = 0x55; // [TGT], [SRC1], [SRC2]
+var OP_INT_SHL         = 0x56; // [TGT], [SRC1], [SRC2]
+var OP_INT_SHR         = 0x57; // [TGT], [SRC1], [SRC2]
+var OP_INT_SAR         = 0x58; // [TGT], [SRC1], [SRC2]
+var OP_INT_ADD         = 0x59; // [TGT], [SRC1], [SRC2]
+var OP_INT_SUB         = 0x5A; // [TGT], [SRC1], [SRC2]
+var OP_INT_MUL         = 0x5B; // [TGT], [SRC1], [SRC2]
+var OP_INT_DIV         = 0x5C; // [TGT], [SRC1], [SRC2]
+var OP_INT_MOD         = 0x5D; // [TGT], [SRC1], [SRC2]
+var OP_INT_CLZ         = 0x5E; // [TGT], [SRC]
+var OP_RAND_SEED       = 0x5F; // [TGT], [SRC]
+var OP_RAND_SEEDAUTO   = 0x60; // [TGT]
+var OP_RAND_INT        = 0x61; // [TGT]
+var OP_RAND_NUM        = 0x62; // [TGT]
+var OP_RAND_GETSTATE   = 0x63; // [TGT]
+var OP_RAND_SETSTATE   = 0x64; // [TGT], [SRC]
+var OP_RAND_PICK       = 0x65; // [TGT], [SRC]
+var OP_RAND_SHUFFLE    = 0x66; // [TGT], [SRC]
+var OP_STR_NEW         = 0x67; // [TGT], [SRC...]
+var OP_STR_SPLIT       = 0x68; // [TGT], [SRC1], [SRC2]
+var OP_STR_REPLACE     = 0x69; // [TGT], [SRC1], [SRC2], [SRC3]
+var OP_STR_BEGINS      = 0x6A; // [TGT], [SRC1], [SRC2]
+var OP_STR_ENDS        = 0x6B; // [TGT], [SRC1], [SRC2]
+var OP_STR_PAD         = 0x6C; // [TGT], [SRC1], [SRC2]
+var OP_STR_FIND        = 0x6D; // [TGT], [SRC1], [SRC2], [SRC3]
+var OP_STR_RFIND       = 0x6E; // [TGT], [SRC1], [SRC2], [SRC3]
+var OP_STR_LOWER       = 0x6F; // [TGT], [SRC]
+var OP_STR_UPPER       = 0x70; // [TGT], [SRC]
+var OP_STR_TRIM        = 0x71; // [TGT], [SRC]
+var OP_STR_REV         = 0x72; // [TGT], [SRC]
+var OP_STR_REP         = 0x73; // [TGT], [SRC]
+var OP_STR_LIST        = 0x74; // [TGT], [SRC]
+var OP_STR_BYTE        = 0x75; // [TGT], [SRC1], [SRC2]
+var OP_STR_HASH        = 0x76; // [TGT], [SRC1], [SRC2]
+var OP_UTF8_VALID      = 0x77; // [TGT], [SRC]
+var OP_UTF8_LIST       = 0x78; // [TGT], [SRC]
+var OP_UTF8_STR        = 0x79; // [TGT], [SRC]
+var OP_STRUCT_SIZE     = 0x7A; // [TGT], [SRC]
+var OP_STRUCT_STR      = 0x7B; // [TGT], [SRC1], [SRC2]
+var OP_STRUCT_LIST     = 0x7C; // [TGT], [SRC1], [SRC2]
+var OP_LIST_NEW        = 0x7D; // [TGT], [SRC1], [SRC2]
+var OP_LIST_SHIFT      = 0x7E; // [TGT], [SRC]
+var OP_LIST_POP        = 0x7F; // [TGT], [SRC]
+var OP_LIST_PUSH       = 0x80; // [TGT], [SRC1], [SRC2]
+var OP_LIST_UNSHIFT    = 0x81; // [TGT], [SRC1], [SRC2]
+var OP_LIST_APPEND     = 0x82; // [TGT], [SRC1], [SRC2]
+var OP_LIST_PREPEND    = 0x83; // [TGT], [SRC1], [SRC2]
+var OP_LIST_FIND       = 0x84; // [TGT], [SRC1], [SRC2], [SRC3]
+var OP_LIST_RFIND      = 0x85; // [TGT], [SRC1], [SRC2], [SRC3]
+var OP_LIST_JOIN       = 0x86; // [TGT], [SRC1], [SRC2]
+var OP_LIST_REV        = 0x87; // [TGT], [SRC]
+var OP_LIST_STR        = 0x88; // [TGT], [SRC]
+var OP_LIST_SORT       = 0x89; // [TGT], [SRC]
+var OP_LIST_RSORT      = 0x8A; // [TGT], [SRC]
+var OP_PICKLE_JSON     = 0x8B; // [TGT], [SRC]
+var OP_PICKLE_BIN      = 0x8C; // [TGT], [SRC]
+var OP_PICKLE_VAL      = 0x8D; // [TGT], [SRC]
+var OP_PICKLE_VALID    = 0x8E; // [TGT], [SRC]
+var OP_PICKLE_SIBLING  = 0x8F; // [TGT], [SRC]
+var OP_PICKLE_CIRCULAR = 0x90; // [TGT], [SRC]
+var OP_PICKLE_COPY     = 0x91; // [TGT], [SRC]
+var OP_GC_GETLEVEL     = 0x92; // [TGT]
+var OP_GC_SETLEVEL     = 0x93; // [TGT], [SRC]
+var OP_GC_RUN          = 0x94; // [TGT]
 
-var ABORT_LISTFUNC   = 0x01;
+var ABORT_LISTFUNC     = 0x01;
 
 function oplog(){
 	return;
@@ -3239,129 +3243,133 @@ function symtbl_loadStdlib(sym){
 	function SAC(sym, name, opcode, params){
 		symtbl_addCmdOpcode(sym, name, opcode, params);
 	}
-	SAC(sym, 'pick'          ,                -1,  3);
-	SAC(sym, 'say'           , OP_SAY           , -1);
-	SAC(sym, 'warn'          , OP_WARN          , -1);
-	SAC(sym, 'ask'           , OP_ASK           , -1);
-	SAC(sym, 'exit'          , OP_EXIT          , -1);
-	SAC(sym, 'abort'         , OP_ABORT         , -1);
-	SAC(sym, 'isnum'         , OP_ISNUM         ,  1);
-	SAC(sym, 'isstr'         , OP_ISSTR         ,  1);
-	SAC(sym, 'islist'        , OP_ISLIST        ,  1);
-	SAC(sym, 'range'         , OP_RANGE         ,  3);
-	SAC(sym, 'order'         , OP_ORDER         ,  2);
+	SAC(sym, 'pick'          ,                -1 ,  3);
+	SAC(sym, 'say'           , OP_SAY            , -1);
+	SAC(sym, 'warn'          , OP_WARN           , -1);
+	SAC(sym, 'ask'           , OP_ASK            , -1);
+	SAC(sym, 'exit'          , OP_EXIT           , -1);
+	SAC(sym, 'abort'         , OP_ABORT          , -1);
+	SAC(sym, 'isnum'         , OP_ISNUM          ,  1);
+	SAC(sym, 'isstr'         , OP_ISSTR          ,  1);
+	SAC(sym, 'islist'        , OP_ISLIST         ,  1);
+	SAC(sym, 'range'         , OP_RANGE          ,  3);
+	SAC(sym, 'order'         , OP_ORDER          ,  2);
 	symtbl_pushNamespace(sym, ['num']);
-		SAC(sym, 'abs'       , OP_NUM_ABS       ,  1);
-		SAC(sym, 'sign'      , OP_NUM_SIGN      ,  1);
-		SAC(sym, 'max'       , OP_NUM_MAX       , -1);
-		SAC(sym, 'min'       , OP_NUM_MIN       , -1);
-		SAC(sym, 'clamp'     , OP_NUM_CLAMP     ,  3);
-		SAC(sym, 'floor'     , OP_NUM_FLOOR     ,  1);
-		SAC(sym, 'ceil'      , OP_NUM_CEIL      ,  1);
-		SAC(sym, 'round'     , OP_NUM_ROUND     ,  1);
-		SAC(sym, 'trunc'     , OP_NUM_TRUNC     ,  1);
-		SAC(sym, 'nan'       , OP_NUM_NAN       ,  0);
-		SAC(sym, 'inf'       , OP_NUM_INF       ,  0);
-		SAC(sym, 'isnan'     , OP_NUM_ISNAN     ,  1);
-		SAC(sym, 'isfinite'  , OP_NUM_ISFINITE  ,  1);
-		SAC(sym, 'e'         , OP_NUM_E         ,  0);
-		SAC(sym, 'pi'        , OP_NUM_PI        ,  0);
-		SAC(sym, 'tau'       , OP_NUM_TAU       ,  0);
-		SAC(sym, 'sin'       , OP_NUM_SIN       ,  1);
-		SAC(sym, 'cos'       , OP_NUM_COS       ,  1);
-		SAC(sym, 'tan'       , OP_NUM_TAN       ,  1);
-		SAC(sym, 'asin'      , OP_NUM_ASIN      ,  1);
-		SAC(sym, 'acos'      , OP_NUM_ACOS      ,  1);
-		SAC(sym, 'atan'      , OP_NUM_ATAN      ,  1);
-		SAC(sym, 'atan2'     , OP_NUM_ATAN2     ,  2);
-		SAC(sym, 'log'       , OP_NUM_LOG       ,  1);
-		SAC(sym, 'log2'      , OP_NUM_LOG2      ,  1);
-		SAC(sym, 'log10'     , OP_NUM_LOG10     ,  1);
-		SAC(sym, 'exp'       , OP_NUM_EXP       ,  1);
-		SAC(sym, 'lerp'      , OP_NUM_LERP      ,  3);
-		SAC(sym, 'hex'       , OP_NUM_HEX       ,  2);
-		SAC(sym, 'oct'       , OP_NUM_OCT       ,  2);
-		SAC(sym, 'bin'       , OP_NUM_BIN       ,  2);
+		SAC(sym, 'abs'       , OP_NUM_ABS        ,  1);
+		SAC(sym, 'sign'      , OP_NUM_SIGN       ,  1);
+		SAC(sym, 'max'       , OP_NUM_MAX        , -1);
+		SAC(sym, 'min'       , OP_NUM_MIN        , -1);
+		SAC(sym, 'clamp'     , OP_NUM_CLAMP      ,  3);
+		SAC(sym, 'floor'     , OP_NUM_FLOOR      ,  1);
+		SAC(sym, 'ceil'      , OP_NUM_CEIL       ,  1);
+		SAC(sym, 'round'     , OP_NUM_ROUND      ,  1);
+		SAC(sym, 'trunc'     , OP_NUM_TRUNC      ,  1);
+		SAC(sym, 'nan'       , OP_NUM_NAN        ,  0);
+		SAC(sym, 'inf'       , OP_NUM_INF        ,  0);
+		SAC(sym, 'isnan'     , OP_NUM_ISNAN      ,  1);
+		SAC(sym, 'isfinite'  , OP_NUM_ISFINITE   ,  1);
+		SAC(sym, 'e'         , OP_NUM_E          ,  0);
+		SAC(sym, 'pi'        , OP_NUM_PI         ,  0);
+		SAC(sym, 'tau'       , OP_NUM_TAU        ,  0);
+		SAC(sym, 'sin'       , OP_NUM_SIN        ,  1);
+		SAC(sym, 'cos'       , OP_NUM_COS        ,  1);
+		SAC(sym, 'tan'       , OP_NUM_TAN        ,  1);
+		SAC(sym, 'asin'      , OP_NUM_ASIN       ,  1);
+		SAC(sym, 'acos'      , OP_NUM_ACOS       ,  1);
+		SAC(sym, 'atan'      , OP_NUM_ATAN       ,  1);
+		SAC(sym, 'atan2'     , OP_NUM_ATAN2      ,  2);
+		SAC(sym, 'log'       , OP_NUM_LOG        ,  1);
+		SAC(sym, 'log2'      , OP_NUM_LOG2       ,  1);
+		SAC(sym, 'log10'     , OP_NUM_LOG10      ,  1);
+		SAC(sym, 'exp'       , OP_NUM_EXP        ,  1);
+		SAC(sym, 'lerp'      , OP_NUM_LERP       ,  3);
+		SAC(sym, 'hex'       , OP_NUM_HEX        ,  2);
+		SAC(sym, 'oct'       , OP_NUM_OCT        ,  2);
+		SAC(sym, 'bin'       , OP_NUM_BIN        ,  2);
 	symtbl_popNamespace(sym);
 	symtbl_pushNamespace(sym, ['int']);
-		SAC(sym, 'new'       , OP_INT_NEW       ,  1);
-		SAC(sym, 'not'       , OP_INT_NOT       ,  1);
-		SAC(sym, 'and'       , OP_INT_AND       ,  2);
-		SAC(sym, 'or'        , OP_INT_OR        ,  2);
-		SAC(sym, 'xor'       , OP_INT_XOR       ,  2);
-		SAC(sym, 'shl'       , OP_INT_SHL       ,  2);
-		SAC(sym, 'shr'       , OP_INT_SHR       ,  2);
-		SAC(sym, 'sar'       , OP_INT_SAR       ,  2);
-		SAC(sym, 'add'       , OP_INT_ADD       ,  2);
-		SAC(sym, 'sub'       , OP_INT_SUB       ,  2);
-		SAC(sym, 'mul'       , OP_INT_MUL       ,  2);
-		SAC(sym, 'div'       , OP_INT_DIV       ,  2);
-		SAC(sym, 'mod'       , OP_INT_MOD       ,  2);
-		SAC(sym, 'clz'       , OP_INT_CLZ       ,  1);
+		SAC(sym, 'new'       , OP_INT_NEW        ,  1);
+		SAC(sym, 'not'       , OP_INT_NOT        ,  1);
+		SAC(sym, 'and'       , OP_INT_AND        ,  2);
+		SAC(sym, 'or'        , OP_INT_OR         ,  2);
+		SAC(sym, 'xor'       , OP_INT_XOR        ,  2);
+		SAC(sym, 'shl'       , OP_INT_SHL        ,  2);
+		SAC(sym, 'shr'       , OP_INT_SHR        ,  2);
+		SAC(sym, 'sar'       , OP_INT_SAR        ,  2);
+		SAC(sym, 'add'       , OP_INT_ADD        ,  2);
+		SAC(sym, 'sub'       , OP_INT_SUB        ,  2);
+		SAC(sym, 'mul'       , OP_INT_MUL        ,  2);
+		SAC(sym, 'div'       , OP_INT_DIV        ,  2);
+		SAC(sym, 'mod'       , OP_INT_MOD        ,  2);
+		SAC(sym, 'clz'       , OP_INT_CLZ        ,  1);
 	symtbl_popNamespace(sym);
 	symtbl_pushNamespace(sym, ['rand']);
-		SAC(sym, 'seed'      , OP_RAND_SEED     ,  1);
-		SAC(sym, 'seedauto'  , OP_RAND_SEEDAUTO ,  0);
-		SAC(sym, 'int'       , OP_RAND_INT      ,  0);
-		SAC(sym, 'num'       , OP_RAND_NUM      ,  0);
-		SAC(sym, 'getstate'  , OP_RAND_GETSTATE ,  0);
-		SAC(sym, 'setstate'  , OP_RAND_SETSTATE ,  1);
-		SAC(sym, 'pick'      , OP_RAND_PICK     ,  1);
-		SAC(sym, 'shuffle'   , OP_RAND_SHUFFLE  ,  1);
+		SAC(sym, 'seed'      , OP_RAND_SEED      ,  1);
+		SAC(sym, 'seedauto'  , OP_RAND_SEEDAUTO  ,  0);
+		SAC(sym, 'int'       , OP_RAND_INT       ,  0);
+		SAC(sym, 'num'       , OP_RAND_NUM       ,  0);
+		SAC(sym, 'getstate'  , OP_RAND_GETSTATE  ,  0);
+		SAC(sym, 'setstate'  , OP_RAND_SETSTATE  ,  1);
+		SAC(sym, 'pick'      , OP_RAND_PICK      ,  1);
+		SAC(sym, 'shuffle'   , OP_RAND_SHUFFLE   ,  1);
 	symtbl_popNamespace(sym);
 	symtbl_pushNamespace(sym, ['str']);
-		SAC(sym, 'new'       , OP_STR_NEW       , -1);
-		SAC(sym, 'split'     , OP_STR_SPLIT     ,  2);
-		SAC(sym, 'replace'   , OP_STR_REPLACE   ,  3);
-		SAC(sym, 'begins'    , OP_STR_BEGINS    ,  2);
-		SAC(sym, 'ends'      , OP_STR_ENDS      ,  2);
-		SAC(sym, 'pad'       , OP_STR_PAD       ,  2);
-		SAC(sym, 'find'      , OP_STR_FIND      ,  3);
-		SAC(sym, 'rfind'     , OP_STR_RFIND     ,  3);
-		SAC(sym, 'lower'     , OP_STR_LOWER     ,  1);
-		SAC(sym, 'upper'     , OP_STR_UPPER     ,  1);
-		SAC(sym, 'trim'      , OP_STR_TRIM      ,  1);
-		SAC(sym, 'rev'       , OP_STR_REV       ,  1);
-		SAC(sym, 'rep'       , OP_STR_REP       ,  2);
-		SAC(sym, 'list'      , OP_STR_LIST      ,  1);
-		SAC(sym, 'byte'      , OP_STR_BYTE      ,  2);
-		SAC(sym, 'hash'      , OP_STR_HASH      ,  2);
+		SAC(sym, 'new'       , OP_STR_NEW        , -1);
+		SAC(sym, 'split'     , OP_STR_SPLIT      ,  2);
+		SAC(sym, 'replace'   , OP_STR_REPLACE    ,  3);
+		SAC(sym, 'begins'    , OP_STR_BEGINS     ,  2);
+		SAC(sym, 'ends'      , OP_STR_ENDS       ,  2);
+		SAC(sym, 'pad'       , OP_STR_PAD        ,  2);
+		SAC(sym, 'find'      , OP_STR_FIND       ,  3);
+		SAC(sym, 'rfind'     , OP_STR_RFIND      ,  3);
+		SAC(sym, 'lower'     , OP_STR_LOWER      ,  1);
+		SAC(sym, 'upper'     , OP_STR_UPPER      ,  1);
+		SAC(sym, 'trim'      , OP_STR_TRIM       ,  1);
+		SAC(sym, 'rev'       , OP_STR_REV        ,  1);
+		SAC(sym, 'rep'       , OP_STR_REP        ,  2);
+		SAC(sym, 'list'      , OP_STR_LIST       ,  1);
+		SAC(sym, 'byte'      , OP_STR_BYTE       ,  2);
+		SAC(sym, 'hash'      , OP_STR_HASH       ,  2);
 	symtbl_popNamespace(sym);
 	symtbl_pushNamespace(sym, ['utf8']);
-		SAC(sym, 'valid'     , OP_UTF8_VALID    ,  1);
-		SAC(sym, 'list'      , OP_UTF8_LIST     ,  1);
-		SAC(sym, 'str'       , OP_UTF8_STR      ,  1);
+		SAC(sym, 'valid'     , OP_UTF8_VALID     ,  1);
+		SAC(sym, 'list'      , OP_UTF8_LIST      ,  1);
+		SAC(sym, 'str'       , OP_UTF8_STR       ,  1);
 	symtbl_popNamespace(sym);
 	symtbl_pushNamespace(sym, ['struct']);
-		SAC(sym, 'size'      , OP_STRUCT_SIZE   ,  1);
-		SAC(sym, 'str'       , OP_STRUCT_STR    ,  2);
-		SAC(sym, 'list'      , OP_STRUCT_LIST   ,  2);
+		SAC(sym, 'size'      , OP_STRUCT_SIZE    ,  1);
+		SAC(sym, 'str'       , OP_STRUCT_STR     ,  2);
+		SAC(sym, 'list'      , OP_STRUCT_LIST    ,  2);
 	symtbl_popNamespace(sym);
 	symtbl_pushNamespace(sym, ['list']);
-		SAC(sym, 'new'       , OP_LIST_NEW      ,  2);
-		SAC(sym, 'shift'     , OP_LIST_SHIFT    ,  1);
-		SAC(sym, 'pop'       , OP_LIST_POP      ,  1);
-		SAC(sym, 'push'      , OP_LIST_PUSH     ,  2);
-		SAC(sym, 'unshift'   , OP_LIST_UNSHIFT  ,  2);
-		SAC(sym, 'append'    , OP_LIST_APPEND   ,  2);
-		SAC(sym, 'prepend'   , OP_LIST_PREPEND  ,  2);
-		SAC(sym, 'find'      , OP_LIST_FIND     ,  3);
-		SAC(sym, 'rfind'     , OP_LIST_RFIND    ,  3);
-		SAC(sym, 'join'      , OP_LIST_JOIN     ,  2);
-		SAC(sym, 'rev'       , OP_LIST_REV      ,  1);
-		SAC(sym, 'str'       , OP_LIST_STR      ,  1);
-		SAC(sym, 'sort'      , OP_LIST_SORT     ,  1);
-		SAC(sym, 'rsort'     , OP_LIST_RSORT    ,  1);
+		SAC(sym, 'new'       , OP_LIST_NEW       ,  2);
+		SAC(sym, 'shift'     , OP_LIST_SHIFT     ,  1);
+		SAC(sym, 'pop'       , OP_LIST_POP       ,  1);
+		SAC(sym, 'push'      , OP_LIST_PUSH      ,  2);
+		SAC(sym, 'unshift'   , OP_LIST_UNSHIFT   ,  2);
+		SAC(sym, 'append'    , OP_LIST_APPEND    ,  2);
+		SAC(sym, 'prepend'   , OP_LIST_PREPEND   ,  2);
+		SAC(sym, 'find'      , OP_LIST_FIND      ,  3);
+		SAC(sym, 'rfind'     , OP_LIST_RFIND     ,  3);
+		SAC(sym, 'join'      , OP_LIST_JOIN      ,  2);
+		SAC(sym, 'rev'       , OP_LIST_REV       ,  1);
+		SAC(sym, 'str'       , OP_LIST_STR       ,  1);
+		SAC(sym, 'sort'      , OP_LIST_SORT      ,  1);
+		SAC(sym, 'rsort'     , OP_LIST_RSORT     ,  1);
 	symtbl_popNamespace(sym);
 	symtbl_pushNamespace(sym, ['pickle']);
-		SAC(sym, 'valid'     , OP_PICKLE_VALID  ,  1);
-		SAC(sym, 'str'       , OP_PICKLE_STR    ,  1);
-		SAC(sym, 'val'       , OP_PICKLE_VAL    ,  1);
+		SAC(sym, 'json'      , OP_PICKLE_JSON    ,  1);
+		SAC(sym, 'bin'       , OP_PICKLE_BIN     ,  1);
+		SAC(sym, 'val'       , OP_PICKLE_VAL     ,  1);
+		SAC(sym, 'valid'     , OP_PICKLE_VALID   ,  1);
+		SAC(sym, 'sibling'   , OP_PICKLE_SIBLING ,  1);
+		SAC(sym, 'circular'  , OP_PICKLE_CIRCULAR,  1);
+		SAC(sym, 'copy'      , OP_PICKLE_COPY    ,  1);
 	symtbl_popNamespace(sym);
 	symtbl_pushNamespace(sym, ['gc']);
-		SAC(sym, 'getlevel'  , OP_GC_GETLEVEL   ,  0);
-		SAC(sym, 'setlevel'  , OP_GC_SETLEVEL   ,  1);
-		SAC(sym, 'run'       , OP_GC_RUN        ,  0);
+		SAC(sym, 'getlevel'  , OP_GC_GETLEVEL    ,  0);
+		SAC(sym, 'setlevel'  , OP_GC_SETLEVEL    ,  1);
+		SAC(sym, 'run'       , OP_GC_RUN         ,  0);
 	symtbl_popNamespace(sym);
 }
 
@@ -6500,6 +6508,235 @@ function opi_list_rsort(ctx, a){
 	});
 }
 
+function opi_pickle_json(ctx, a){
+	throw 'TODO: pickle';
+}
+
+function opi_pickle_bin(ctx, a){
+	throw 'TODO: pickle';
+}
+
+function opi_pickle_val(ctx, a){
+	throw 'TODO: pickle';
+}
+
+function opi_pickle_valid(ctx, a){
+	if (!sink_isstr(a))
+		return null;
+	if (s.charCodeAt(0) == 0x01){ // binary validation
+		return 2;
+	}
+	else{ // json validation
+		var PKV_START      = 'PKV_START';
+		var PKV_NULL1      = 'PKV_NULL1';
+		var PKV_NULL2      = 'PKV_NULL2';
+		var PKV_NULL3      = 'PKV_NULL3';
+		var PKV_NUM_0      = 'PKV_NUM_0';
+		var PKV_NUM_NEG    = 'PKV_NUM_NEG';
+		var PKV_NUM_INT    = 'PKV_NUM_INT';
+		var PKV_NUM_FRAC   = 'PKV_NUM_FRAC';
+		var PKV_NUM_FRACE  = 'PKV_NUM_FRACE';
+		var PKV_NUM_FRACE2 = 'PKV_NUM_FRACE2';
+		var PKV_NUM_EXP    = 'PKV_NUM_EXP';
+		var PKV_STR        = 'PKV_STR';
+		var PKV_STR_ESC    = 'PKV_STR_ESC';
+		var PKV_STR_U1     = 'PKV_STR_U1';
+		var PKV_STR_U2     = 'PKV_STR_U2';
+		var PKV_STR_U3     = 'PKV_STR_U3';
+		var PKV_STR_U4     = 'PKV_STR_U4';
+		var PKV_ARRAY      = 'PKV_ARRAY';
+		var PKV_ENDVAL     = 'PKV_ENDVAL';
+		var state = PKV_START;
+		var arrays = 0;
+		for (var i = 0; i < s.length; i++){
+			var b = s.charAt(i);
+			var nb = i < s.length - 1 ? s.charAt(i + 1) : '';
+			switch (state){
+				case PKV_START: // start state
+					if (b == 'n'){
+						if (nb != 'u')
+							return 0;
+						state = PKV_NULL1;
+					}
+					else if (b == '0'){
+						if (nb == '.' || nb == 'e' || nb == 'E')
+							state = PKV_NUM_0;
+						else
+							state = PKV_ENDVAL;
+					}
+					else if (b == '-')
+						state = PKV_NUM_NEG;
+					else if (isNum(b)){
+						if (isNum(nb))
+							state = PKV_NUM_INT;
+						else if (nb == '.' || nb == 'e' || nb == 'E')
+							state = PKV_NUM_0;
+						else
+							state = PKV_ENDVAL;
+					}
+					else if (b == '"')
+						state = PKV_STR;
+					else if (b == '['){
+						arrays++;
+						if (isSpace(nb) || nb == ']')
+							state = PKV_ARRAY;
+					}
+					else if (!isSpace(b))
+						return 0;
+					break;
+				case PKV_NULL1:
+					if (nb != 'l')
+						return 0;
+					state = PKV_NULL2;
+					break;
+				case PKV_NULL2:
+					if (nb != 'l')
+						return 0;
+					state = PKV_NULL3;
+					break;
+				case PKV_NULL3:
+					state = PKV_ENDVAL;
+					break;
+				case PKV_NUM_0:
+					if (b == '.')
+						state = PKV_NUM_FRAC;
+					else if (b == 'e' || b == 'E'){
+						if (nb == '+' || nb == '-')
+							i++;
+						state = PKV_NUM_EXP;
+					}
+					else
+						return 0;
+					break;
+				case PKV_NUM_NEG:
+					if (b == '0'){
+						if (nb == '.' || nb == 'e' || nb == 'E')
+							state = PKV_NUM_0;
+						else
+							state = PKV_ENDVAL;
+					}
+					else if (isNum(b)){
+						if (isNum(nb))
+							state = PKV_NUM_INT;
+						else if (nb == '.' || nb == 'e' || nb == 'E')
+							state = PKV_NUM_0;
+						else
+							state = PKV_ENDVAL;
+					}
+					else
+						return 0;
+					break;
+				case PKV_NUM_INT:
+					if (!isNum(b))
+						return 0;
+					if (nb == '.' || nb == 'e' || nb == 'E')
+						state = PKV_NUM_0;
+					else if (!isNum(nb))
+						state = PKV_ENDVAL;
+					break;
+				case PKV_NUM_FRAC:
+					if (!isNum(b))
+						return 0;
+					if (nb == 'e' || nb == 'E')
+						state = PKV_NUM_FRACE;
+					else if (!isNum(nb))
+						state = PKV_ENDVAL;
+					break;
+				case PKV_NUM_FRACE:
+					state = PKV_NUM_FRACE2;
+					break;
+				case PKV_NUM_FRACE2:
+					if (isNum(b)){
+						if (isNum(nb))
+							state = PKV_NUM_EXP;
+						else
+							state = PKV_ENDVAL;
+					}
+					else if (b == '+' || b == '-')
+						state = PKV_NUM_EXP;
+					else
+						return 0;
+					break;
+				case PKV_NUM_EXP:
+					if (!isNum(b))
+						return 0;
+					if (!isNum(nb))
+						state = PKV_ENDVAL;
+					break;
+				case PKV_STR:
+					if (b == '\\')
+						state = PKV_STR_ESC;
+					else if (b == '"')
+						state = PKV_ENDVAL;
+					else if (b < 0x20)
+						return 0;
+					break;
+				case PKV_STR_ESC:
+					if (b == '"' || b == '\\' || b == '/' || b == 'b' ||
+						b == 'f' || b == 'n' || b == 'r' || b == 't')
+						state = PKV_STR;
+					else if (b == 'u'){
+						if (nb != '0')
+							return 0;
+						state = PKV_STR_U1;
+					}
+					else
+						return 0;
+					break;
+				case PKV_STR_U1:
+					if (nb != '0')
+						return 0;
+					state = PKV_STR_U2;
+					break;
+				case PKV_STR_U2:
+					if (!isHex(nb))
+						return 0;
+					state = PKV_STR_U3;
+					break;
+				case PKV_STR_U3:
+					if (!isHex(nb))
+						return 0;
+					state = PKV_STR_U4;
+					break;
+				case PKV_STR_U4:
+					state = PKV_STR;
+					break;
+				case PKV_ARRAY:
+					if (b == ']')
+						state = PKV_ENDVAL;
+					else if (!isSpace(nb) && nb != ']')
+						state = PKV_START;
+					break;
+				case PKV_ENDVAL:
+					if (arrays > 0){
+						if (b == ',')
+							state = PKV_START;
+						else if (b == ']')
+							arrays--;
+						else if (!isSpace(b))
+							return 0;
+					}
+					else if (!isSpace(b))
+						return 0;
+					break;
+			}
+		}
+		return state == PKV_ENDVAL ? 1 : null;
+	}
+}
+
+function opi_pickle_sibling(ctx, a){
+	throw 'TODO: pickle';
+}
+
+function opi_pickle_circular(ctx, a){
+	throw 'TODO: pickle';
+}
+
+function opi_pickle_copy(ctx, a){
+	throw 'TODO: pickle';
+}
+
 function opi_order(ctx, a, b){
 	return sortboth(ctx, [], a, b, 1);
 }
@@ -8158,16 +8395,59 @@ function context_run(ctx){
 				var_set(ctx, A, B, X);
 			} break;
 
-			case OP_PICKLE_VALID   : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+			case OP_PICKLE_JSON    : { // [TGT], [SRC]
+				LOAD_abcd();
+				if (A > ctx.lex_index || C > ctx.lex_index)
+					return opi_invalid(ctx);
+				X = opi_pickle_json(ctx, var_get(ctx, C, D));
+				if (ctx.failed)
+					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
-			case OP_PICKLE_STR     : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+			case OP_PICKLE_BIN     : { // [TGT], [SRC]
+				LOAD_abcd();
+				if (A > ctx.lex_index || C > ctx.lex_index)
+					return opi_invalid(ctx);
+				var_set(ctx, A, B, opi_pickle_bin(ctx, var_get(ctx, C, D)));
 			} break;
 
 			case OP_PICKLE_VAL     : { // [TGT], [SRC]
-				throw 'TODO: context_run op ' + ops[ctx.pc].toString(16);
+				LOAD_abcd();
+				if (A > ctx.lex_index || C > ctx.lex_index)
+					return opi_invalid(ctx);
+				X = opi_pickle_val(ctx, var_get(ctx, C, D));
+				if (ctx.failed)
+					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
+			} break;
+
+			case OP_PICKLE_VALID   : { // [TGT], [SRC]
+				LOAD_abcd();
+				if (A > ctx.lex_index || C > ctx.lex_index)
+					return opi_invalid(ctx);
+				var_set(ctx, A, B, opi_pickle_valid(ctx, var_get(ctx, C, D)));
+			} break;
+
+			case OP_PICKLE_SIBLING : { // [TGT], [SRC]
+				LOAD_abcd();
+				if (A > ctx.lex_index || C > ctx.lex_index)
+					return opi_invalid(ctx);
+				var_set(ctx, A, B, sink_bool(opi_pickle_sibling(ctx, var_get(ctx, C, D))));
+			} break;
+
+			case OP_PICKLE_CIRCULAR: { // [TGT], [SRC]
+				LOAD_abcd();
+				if (A > ctx.lex_index || C > ctx.lex_index)
+					return opi_invalid(ctx);
+				var_set(ctx, A, B, sink_bool(opi_pickle_circular(ctx, var_get(ctx, C, D))));
+			} break;
+
+			case OP_PICKLE_COPY    : { // [TGT], [SRC]
+				LOAD_abcd();
+				if (A > ctx.lex_index || C > ctx.lex_index)
+					return opi_invalid(ctx);
+				var_set(ctx, A, B, opi_pickle_copy(ctx, var_get(ctx, C, D)));
 			} break;
 
 			case OP_GC_GETLEVEL    : { // [TGT]

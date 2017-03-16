@@ -476,6 +476,9 @@ See: [Pickle Binary Format](https://github.com/voidqk/sink/blob/master/docs/pick
 Note: Pickling completely ignores host user data attached to lists and cannot be used to copy or
 marshal user objects in the host environment.
 
+Note: `pickle.valid` does not validate all possible JSON, just the subset that can be correctly
+deserialized to a sink value.
+
 | Function            | Description                                                               |
 |---------------------|---------------------------------------------------------------------------|
 | `pickle.json a`     | Converts a *non-circular* sink value `a` to a serialized string in JSON   |

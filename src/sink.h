@@ -375,9 +375,13 @@ static inline bool sink_isuser(sink_ctx ctx, sink_val v, sink_user usertype, voi
 }
 
 // pickle
-bool     sink_pickle_valid(sink_ctx ctx, sink_val a);
-sink_val sink_pickle_str(sink_ctx ctx, sink_val a);
+sink_val sink_pickle_json(sink_ctx ctx, sink_val a);
+sink_val sink_pickle_bin(sink_ctx ctx, sink_val a);
 sink_val sink_pickle_val(sink_ctx ctx, sink_val a);
+int      sink_pickle_valid(sink_ctx ctx, sink_val a); // 0 for invalid, 1 for JSON, 2 for binary
+bool     sink_pickle_sibling(sink_ctx ctx, sink_val a);
+bool     sink_pickle_circular(sink_ctx ctx, sink_val a);
+sink_val sink_pickle_copy(sink_ctx ctx, sink_val a);
 
 // gc
 void          sink_gc_pin(sink_ctx ctx, sink_val v);   // prevent a value from being GC'ed
