@@ -25,7 +25,7 @@ The format has the following basic sequence:
 | V-Int  | Number of bytes in the string                                            |
 | Bytes  | Raw bytes of the string                                                  |
 |        | (...end string table)                                                    |
-| S-Val  | Single sink value, described below                                       |
+| S-Val  | The pickled sink value, described below                                  |
 
 A sink value (S-Val) can be one of the four basic sink types:
 
