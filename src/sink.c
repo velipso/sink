@@ -10872,6 +10872,7 @@ static inline sink_val opi_pickle_bin(context ctx, sink_val a){
 
 static inline sink_val opi_pickle_val(context ctx, sink_val a){
 	// TODO: this
+	// TODO: make sure if we decode a NaN to correctly force it to be SINK_NAN
 	return SINK_NIL;
 }
 
@@ -10972,14 +10973,61 @@ static inline int opi_pickle_valid(context ctx, sink_val a){
 	return pkj_isjson(s) ? 1 : 0;
 }
 
+static bool pksib(context ctx, sink_val a, list_int all, list_int parents){
+	int idx = var_index(a);
+	if (list_int_has(parents, idx))
+		return false;
+	if (list_int_has(all, idx))
+		return true;
+	list_int_push(all, idx);
+	list_int_push(parents, idx);
+	sink_list ls = var_castlist(ctx, a);
+	for (int i = 0; i < ls->size; i++){
+		sink_val b = ls->vals[i];
+		if (!sink_islist(b))
+			continue;
+		if (pksib(ctx, b, all, parents))
+			return true;
+	}
+	list_int_pop(parents);
+	return false;
+}
+
 static inline bool opi_pickle_sibling(context ctx, sink_val a){
-	// TODO: this
+	if (!sink_islist(a))
+		return false;
+	list_int all = list_int_new();
+	list_int parents = list_int_new();
+	bool res = pksib(ctx, a, all, parents);
+	list_int_free(all);
+	list_int_free(parents);
+	return res;
+}
+
+static bool pkcir(context ctx, sink_val a, list_int li){
+	int idx = var_index(a);
+	if (list_int_has(li, idx))
+		return true;
+	list_int_push(li, idx);
+	sink_list ls = var_castlist(ctx, a);
+	for (int i = 0; i < ls->size; i++){
+		sink_val b = ls->vals[i];
+		if (!sink_islist(b))
+			continue;
+		if (pkcir(ctx, b, li))
+			return true;
+	}
+	list_int_pop(li);
 	return false;
 }
 
 static inline bool opi_pickle_circular(context ctx, sink_val a){
-	// TODO: this
-	return false;
+	if (!sink_islist(a))
+		return false;
+	list_int ls = list_int_new();
+	bool res = pkcir(ctx, a, ls);
+	list_int_free(ls);
+	return res;
 }
 
 static sink_val pkcopy(context ctx, sink_val a, list_int li_src, list_int li_tgt){
@@ -12269,7 +12317,7 @@ static sink_run context_run(context ctx){
 			case OP_PICKLE_BIN     : { // [TGT], [SRC]
 				LOAD_ABCD();
 				X = opi_pickle_bin(ctx, var_get(ctx, C, D));
-				if (ctx->failed)
+				if (ctx->failed) // can fail in C impl because of SINK_TYPE_ASYNC
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
 			} break;
@@ -12301,7 +12349,7 @@ static sink_run context_run(context ctx){
 			case OP_PICKLE_COPY    : { // [TGT], [SRC]
 				LOAD_ABCD();
 				X = opi_pickle_copy(ctx, var_get(ctx, C, D));
-				if (ctx->failed)
+				if (ctx->failed) // can fail in C impl because of SINK_TYPE_ASYNC
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
 			} break;

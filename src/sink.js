@@ -6530,12 +6530,150 @@ function opi_list_rsort(ctx, a){
 	});
 }
 
+function pkjson(ctx, a, li){
+	if (a === null)
+		return 'null';
+	else if (sink_isnum(a))
+		return JSON.stringify(a);
+	else if (sink_isstr(a)){
+		return '"' + (a
+			.replace(/"/g, '\\"')
+			.replace(/\\/g, '\\\\')
+			.replace(/[\b]/g, '\\b')
+			.replace(/[\f]/g, '\\f')
+			.replace(/[\n]/g, '\\n')
+			.replace(/[\r]/g, '\\r')
+			.replace(/[\t]/g, '\\t')
+			.replace(/[\x00-\x1F]/g,
+				function(n){
+					n = n.charCodeAt(0).toString(16).toUpperCase();
+					return '\\u00' + (n.length < 2 ? '0' : '') + n;
+				})) + '"';
+	}
+	// otherwise, list
+	if (li.indexOf(a) >= 0)
+		return false; // circular
+	li.push(a);
+	var out = [];
+	for (var i = 0; i < a.length; i++)
+		out.push(pkjson(ctx, a[i], li));
+	li.pop();
+	return '[' + out.join(',') + ']';
+}
+
 function opi_pickle_json(ctx, a){
-	throw 'TODO: pickle';
+	var li = null;
+	if (sink_islist(a))
+		li = [];
+	var res = pkjson(ctx, a, li);
+	if (res === false){
+		if (!ctx.failed)
+			opi_abortcstr(ctx, "Cannot pickle circular structure to JSON format");
+		return null;
+	}
+	return res;
+}
+
+function pkbin_pushvint(body, i){
+	if (i < 128)
+		body.push(i);
+	else{
+		body.push(
+			0x80 | (i >> 24),
+			(i >> 16) & 0xFF,
+			(i >>  8) & 0xFF,
+			 i        & 0xFF);
+	}
+}
+
+function pkbin(ctx, a, li, strs, body){
+	if (a === null)
+		body.push(0xF7);
+	else if (sink_isnum(a)){
+		if (Math.floor(a) == a && a >= -2147483648 && a < 2147483648){
+			var num = a;
+			if (num < 0){
+				if (num >= -256){
+					num += 256;
+					body.push(0xF1, num & 0xFF);
+				}
+				else if (num >= -65536){
+					num += 65536;
+					body.push(0xF3, num & 0xFF, num >> 8);
+				}
+				else{
+					num += 4294967296;
+					body.push(0xF5,
+						num & 0xFF, (num >> 8) & 0xFF, (num >> 16) & 0xFF, (num >> 24) & 0xFF);
+				}
+			}
+			else{
+				if (num < 256)
+					body.push(0xF0, num & 0xFF);
+				else if (num < 65536)
+					body.push(0xF2, num & 0xFF, num >> 8);
+				else{
+					body.push(0xF4,
+						num & 0xFF, (num >> 8) & 0xFF, (num >> 16) & 0xFF, (num >> 24) & 0xFF);
+				}
+			}
+		}
+		else{ // floating-point
+			dview.setFloat64(0, a, true);
+			body.push(0xF6,
+				dview.getUint8(0), dview.getUint8(1), dview.getUint8(2), dview.getUint8(3),
+				dview.getUint8(4), dview.getUint8(5), dview.getUint8(6), dview.getUint8(7));
+		}
+	}
+	else if (sink_isstr(a)){
+		var sidx = strs.indexOf(a);
+		if (sidx < 0){
+			sidx = strs.length;
+			strs.push(a);
+		}
+		body.push(0xF8);
+		pkbin_pushvint(body, sidx);
+	}
+	else{ // list
+		var idxat = li.indexOf(a);
+		if (idxat < 0){
+			li.push(a);
+			body.push(0xF9);
+			pkbin_pushvint(body, a.length);
+			for (var i = 0; i < a.length; i++)
+				pkbin(ctx, a[i], li, strs, body);
+		}
+		else{
+			body.push(0xFA);
+			pkbin_pushvint(body, idxat);
+		}
+	}
 }
 
 function opi_pickle_bin(ctx, a){
-	throw 'TODO: pickle';
+	var li = null;
+	if (sink_islist(a))
+		li = [];
+	var strs = [];
+	var body = [];
+	pkbin(ctx, a, li, strs, body);
+	if (ctx.failed)
+		return null;
+	var head = [];
+	head.push(0x01);
+	pkbin_pushvint(head, strs.length);
+	for (var i = 0; i < strs.length; i++){
+		var s = strs[i];
+		pkbin_pushvint(head, s.length);
+		for (var j = 0; j < s.length; j++)
+			head.push(s.charCodeAt(j));
+	}
+	var s = '';
+	for (var i = 0; i < head.length; i++)
+		s += String.fromCharCode(head[i]);
+	for (var i = 0; i < body.length; i++)
+		s += String.fromCharCode(body[i]);
+	return s;
 }
 
 function opi_pickle_val(ctx, a){
@@ -6747,16 +6885,67 @@ function opi_pickle_valid(ctx, a){
 	}
 }
 
+function pksib(ctx, a, all, parents){
+	if (parents.indexOf(a) >= 0)
+		return false;
+	if (all.indexOf(a) >= 0)
+		return true;
+	all.push(a);
+	parents.push(a);
+	for (var i = 0; i < a.length; i++){
+		var b = a[i];
+		if (!sink_islist(b))
+			continue;
+		if (pksib(ctx, b, all, parents))
+			return true;
+	}
+	parents.pop();
+	return false;
+}
+
 function opi_pickle_sibling(ctx, a){
-	throw 'TODO: pickle';
+	if (!sink_islist(a))
+		return false;
+	return pksib(ctx, a, [], []);
+}
+
+function pkcir(ctx, a, li){
+	if (li.indexOf(a) >= 0)
+		return true;
+	li.push(a);
+	for (var i = 0; i < a.length; i++){
+		var b = a[i];
+		if (!sink_islist(b))
+			continue;
+		if (pkcir(ctx, b, li))
+			return true;
+	}
+	li.pop();
+	return false;
 }
 
 function opi_pickle_circular(ctx, a){
-	throw 'TODO: pickle';
+	if (!sink_islist(a))
+		return false;
+	return pkcir(ctx, a, []);
+}
+
+function pkcopy(ctx, a, src, tgt){
+	if (a === null || sink_isnum(a) || sink_isstr(a))
+		return a;
+	var si = src.indexOf(a);
+	if (si >= 0)
+		return tgt[si];
+	var out = [];
+	src.push(a);
+	tgt.push(out);
+	for (var i = 0; i < a.length; i++)
+		out.push(pkcopy(ctx, a[i], src, tgt));
+	return out;
 }
 
 function opi_pickle_copy(ctx, a){
-	throw 'TODO: pickle';
+	return pkcopy(ctx, a, [], []);
 }
 
 function opi_order(ctx, a, b){
@@ -8431,10 +8620,7 @@ function context_run(ctx){
 				LOAD_abcd();
 				if (A > ctx.lex_index || C > ctx.lex_index)
 					return opi_invalid(ctx);
-				X = opi_pickle_bin(ctx, var_get(ctx, C, D));
-				if (ctx.failed)
-					return SINK_RUN_FAIL;
-				var_set(ctx, A, B, X);
+				var_set(ctx, A, B, opi_pickle_bin(ctx, var_get(ctx, C, D)));
 			} break;
 
 			case OP_PICKLE_VAL     : { // [TGT], [SRC]
@@ -8472,10 +8658,7 @@ function context_run(ctx){
 				LOAD_abcd();
 				if (A > ctx.lex_index || C > ctx.lex_index)
 					return opi_invalid(ctx);
-				X = opi_pickle_copy(ctx, var_get(ctx, C, D));
-				if (ctx.failed)
-					return SINK_RUN_FAIL;
-				var_set(ctx, A, B, X);
+				var_set(ctx, A, B, opi_pickle_copy(ctx, var_get(ctx, C, D)));
 			} break;
 
 			case OP_GC_GETLEVEL    : { // [TGT]
