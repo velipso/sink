@@ -364,6 +364,17 @@ static inline void list_byte_push11(list_byte b, int v1, int v2, int v3, int v4,
 	b->bytes[b->size++] = (uint8_t)v11;
 }
 
+static inline void list_byte_append(list_byte b, int size, uint8_t *bytes){
+	if (size <= 0)
+		return;
+	if (b->size + size > b->count){
+		b->count = b->size + size;
+		b->bytes = mem_realloc(b->bytes, sizeof(uint8_t) * b->count);
+	}
+	memcpy(&b->bytes[b->size], bytes, sizeof(uint8_t) * size);
+	b->size += size;
+}
+
 static inline bool byteequ(list_byte b, const char *str){
 	int i;
 	for (i = 0; str[i] != 0; i++){
@@ -415,12 +426,16 @@ static inline int list_int_pop(list_int ls){
 	return ls->vals[ls->size];
 }
 
-static inline bool list_int_has(list_int ls, int v){
+static inline int list_int_at(list_int ls, int v){
 	for (int i = 0; i < ls->size; i++){
 		if (ls->vals[i] == v)
-			return true;
+			return i;
 	}
-	return false;
+	return -1;
+}
+
+static inline bool list_int_has(list_int ls, int v){
+	return list_int_at(ls, v) != -1;
 }
 
 typedef struct {
@@ -1549,6 +1564,14 @@ static inline int toHex(char c){
 	return c - 55;
 }
 
+static inline char toNibble(int n){
+	if (n >= 0 && n <= 9)
+		return '0' + n;
+	else if (n < 16)
+		return 'A' + (n - 10);
+	return '0';
+}
+
 //
 // lexer
 //
@@ -2013,12 +2036,8 @@ static void lex_process(lex lx, list_ptr tks){
 			}
 			else if (ch1 == '$'){
 				lx->state = LEX_STR_INTERP_DLR;
-				if (lx->str->size > 0){
-					list_ptr_push(tks, tok_str(lx->str));
-					list_ptr_push(tks, tok_ks(KS_TILDE));
-				}
-				else
-					list_byte_free(lx->str);
+				list_ptr_push(tks, tok_str(lx->str));
+				list_ptr_push(tks, tok_ks(KS_TILDE));
 				lx->str = NULL;
 			}
 			else if (ch1 == '\\')
@@ -6720,23 +6739,47 @@ static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st int
 			}
 			if (ex->u.ex != NULL){
 				if (ex->u.ex->type == EXPR_GROUP){
-					op_list(prg->ops, intoVlc, ex->u.ex->u.group->size);
+					varloc_st ls = intoVlc;
+					if (mode == PEM_INTO){
+						sta_st ts = symtbl_addTemp(sym);
+						if (ts.type == STA_ERROR)
+							return per_error(ex->flp, ts.u.msg);
+						ls = ts.u.vlc;
+					}
+					op_list(prg->ops, ls, ex->u.ex->u.group->size);
 					for (int i = 0; i < ex->u.ex->u.group->size; i++){
 						per_st pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL,
 							ex->u.ex->u.group->ptrs[i]);
 						if (pe.type == PER_ERROR)
 							return pe;
 						symtbl_clearTemp(sym, pe.u.vlc);
-						op_param2(prg->ops, OP_LIST_PUSH, intoVlc, intoVlc, pe.u.vlc);
+						op_param2(prg->ops, OP_LIST_PUSH, ls, ls, pe.u.vlc);
+					}
+					if (mode == PEM_INTO){
+						symtbl_clearTemp(sym, ls);
+						op_move(prg->ops, intoVlc, ls);
 					}
 				}
 				else{
-					op_list(prg->ops, intoVlc, 1);
 					per_st pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, ex->u.ex);
 					if (pe.type == PER_ERROR)
 						return pe;
-					symtbl_clearTemp(sym, pe.u.vlc);
-					op_param2(prg->ops, OP_LIST_PUSH, intoVlc, intoVlc, pe.u.vlc);
+					// check for `a = {a}`
+					if (intoVlc.fdiff == pe.u.vlc.fdiff && intoVlc.index == pe.u.vlc.index){
+						sta_st ts = symtbl_addTemp(sym);
+						if (ts.type == STA_ERROR)
+							return per_error(ex->flp, ts.u.msg);
+						symtbl_clearTemp(sym, ts.u.vlc);
+						symtbl_clearTemp(sym, pe.u.vlc);
+						op_list(prg->ops, ts.u.vlc, 1);
+						op_param2(prg->ops, OP_LIST_PUSH, ts.u.vlc, ts.u.vlc, pe.u.vlc);
+						op_move(prg->ops, intoVlc, ts.u.vlc);
+					}
+					else{
+						symtbl_clearTemp(sym, pe.u.vlc);
+						op_list(prg->ops, intoVlc, 1);
+						op_param2(prg->ops, OP_LIST_PUSH, intoVlc, intoVlc, pe.u.vlc);
+					}
 				}
 			}
 			else
@@ -8636,8 +8679,8 @@ static inline sink_val opi_list_push(context ctx, sink_val a, sink_val b);
 static inline sink_val opi_str_split(context ctx, sink_val a, sink_val b){
 	a = sink_tostr(ctx, a);
 	b = sink_tostr(ctx, b);
-	sink_str haystack = sink_caststr(ctx, a);
-	sink_str needle = sink_caststr(ctx, b);
+	sink_str haystack = var_caststr(ctx, a);
+	sink_str needle = var_caststr(ctx, b);
 	sink_val result = sink_list_newblob(ctx, 0, NULL);
 
 	int nlen = needle->size;
@@ -8684,8 +8727,8 @@ static inline sink_val opi_str_replace(context ctx, sink_val a, sink_val b, sink
 static inline sink_val opi_str_find(context ctx, sink_val a, sink_val b, int hx){
 	a = sink_tostr(ctx, a);
 	b = sink_tostr(ctx, b);
-	sink_str haystack = sink_caststr(ctx, a);
-	sink_str needle = sink_caststr(ctx, b);
+	sink_str haystack = var_caststr(ctx, a);
+	sink_str needle = var_caststr(ctx, b);
 
 	int nlen = needle->size;
 	if (nlen <= 0)
@@ -8712,8 +8755,8 @@ static inline sink_val opi_str_find(context ctx, sink_val a, sink_val b, int hx)
 static inline sink_val opi_str_rfind(context ctx, sink_val a, sink_val b, sink_val c){
 	a = sink_tostr(ctx, a);
 	b = sink_tostr(ctx, b);
-	sink_str haystack = sink_caststr(ctx, a);
-	sink_str needle = sink_caststr(ctx, b);
+	sink_str haystack = var_caststr(ctx, a);
+	sink_str needle = var_caststr(ctx, b);
 
 	int nlen = needle->size;
 	int hlen = haystack->size;
@@ -10169,7 +10212,11 @@ static inline sink_val opi_list_rfind(context ctx, sink_val a, sink_val b, sink_
 
 static inline sink_val opi_list_join(context ctx, sink_val a, sink_val b){
 	sink_list ls = var_castlist(ctx, a);
-	sink_str str = var_caststr(ctx, sink_tostr(ctx, b));
+	if (sink_isnil(b))
+		b = sink_str_newblobgive(ctx, 0, NULL);
+	else
+		b = sink_tostr(ctx, b);
+	sink_str str = var_caststr(ctx, b);
 	return sink_list_joinplain(ctx, ls->size, ls->vals, str->size, str->bytes);
 }
 
@@ -10217,8 +10264,8 @@ static inline int sortboth(context ctx, list_int li, const sink_val *a, const si
 		return sink_castnum(*a) < sink_castnum(*b) ? -mul : mul;
 	}
 	else if (atype == SINK_TYPE_STR){
-		sink_str s1 = sink_caststr(ctx, *a);
-		sink_str s2 = sink_caststr(ctx, *b);
+		sink_str s1 = var_caststr(ctx, *a);
+		sink_str s2 = var_caststr(ctx, *b);
 		if (s1->size == 0){
 			if (s2->size == 0)
 				return 0;
@@ -10239,8 +10286,8 @@ static inline int sortboth(context ctx, list_int li, const sink_val *a, const si
 		opi_abortcstr(ctx, "Cannot sort circular lists");
 		return -1;
 	}
-	sink_list ls1 = sink_castlist(ctx, *a);
-	sink_list ls2 = sink_castlist(ctx, *b);
+	sink_list ls1 = var_castlist(ctx, *a);
+	sink_list ls2 = var_castlist(ctx, *b);
 	if (ls1->size == 0){
 		if (ls2->size == 0)
 			return 0;
@@ -10288,7 +10335,7 @@ static int sortrev(sortu u, const sink_val *a, const sink_val *b){
 
 static inline void opi_list_sort(context ctx, sink_val a){
 	sortu_st u = { .ctx = ctx, .li = list_int_new() };
-	sink_list ls = sink_castlist(ctx, a);
+	sink_list ls = var_castlist(ctx, a);
 	qsort_r(ls->vals, ls->size, sizeof(sink_val), &u,
 		(int (*)(void *, const void *, const void *))sortfwd);
 	list_int_free(u.li);
@@ -10296,7 +10343,7 @@ static inline void opi_list_sort(context ctx, sink_val a){
 
 static inline void opi_list_rsort(context ctx, sink_val a){
 	sortu_st u = { .ctx = ctx, .li = list_int_new() };
-	sink_list ls = sink_castlist(ctx, a);
+	sink_list ls = var_castlist(ctx, a);
 	qsort_r(ls->vals, ls->size, sizeof(sink_val), &u,
 		(int (*)(void *, const void *, const void *))sortrev);
 	list_int_free(u.li);
@@ -10321,14 +10368,506 @@ static inline sink_val opi_range(context ctx, double start, double stop, double 
 	return sink_list_newblobgive(ctx, count, count, ret);
 }
 
+static inline bool pkj_isjson(sink_str s){
+	enum {
+		PKV_START,
+		PKV_NULL1,
+		PKV_NULL2,
+		PKV_NULL3,
+		PKV_NUM_0,
+		PKV_NUM_NEG,
+		PKV_NUM_INT,
+		PKV_NUM_FRAC,
+		PKV_NUM_FRACE,
+		PKV_NUM_FRACE2,
+		PKV_NUM_EXP,
+		PKV_STR,
+		PKV_STR_ESC,
+		PKV_STR_U1,
+		PKV_STR_U2,
+		PKV_STR_U3,
+		PKV_STR_U4,
+		PKV_ARRAY,
+		PKV_ENDVAL
+	} state = PKV_START;
+	int arrays = 0;
+	for (int i = 0; i < s->size; i++){
+		uint8_t b = s->bytes[i];
+		uint8_t nb = i < s->size - 1 ? s->bytes[i + 1] : 0;
+		switch (state){
+			case PKV_START: // start state
+				if (b == 'n'){
+					if (nb != 'u')
+						return 0;
+					state = PKV_NULL1;
+				}
+				else if (b == '0'){
+					if (nb == '.' || nb == 'e' || nb == 'E')
+						state = PKV_NUM_0;
+					else
+						state = PKV_ENDVAL;
+				}
+				else if (b == '-')
+					state = PKV_NUM_NEG;
+				else if (isNum((char)b)){
+					if (isNum((char)nb))
+						state = PKV_NUM_INT;
+					else if (nb == '.' || nb == 'e' || nb == 'E')
+						state = PKV_NUM_0;
+					else
+						state = PKV_ENDVAL;
+				}
+				else if (b == '"')
+					state = PKV_STR;
+				else if (b == '['){
+					arrays++;
+					if (isSpace((char)nb) || nb == ']')
+						state = PKV_ARRAY;
+				}
+				else if (!isSpace((char)b))
+					return 0;
+				break;
+			case PKV_NULL1:
+				if (nb != 'l')
+					return 0;
+				state = PKV_NULL2;
+				break;
+			case PKV_NULL2:
+				if (nb != 'l')
+					return 0;
+				state = PKV_NULL3;
+				break;
+			case PKV_NULL3:
+				state = PKV_ENDVAL;
+				break;
+			case PKV_NUM_0:
+				if (b == '.')
+					state = PKV_NUM_FRAC;
+				else if (b == 'e' || b == 'E'){
+					if (nb == '+' || nb == '-')
+						i++;
+					state = PKV_NUM_EXP;
+				}
+				else
+					return 0;
+				break;
+			case PKV_NUM_NEG:
+				if (b == '0'){
+					if (nb == '.' || nb == 'e' || nb == 'E')
+						state = PKV_NUM_0;
+					else
+						state = PKV_ENDVAL;
+				}
+				else if (isNum((char)b)){
+					if (isNum((char)nb))
+						state = PKV_NUM_INT;
+					else if (nb == '.' || nb == 'e' || nb == 'E')
+						state = PKV_NUM_0;
+					else
+						state = PKV_ENDVAL;
+				}
+				else
+					return 0;
+				break;
+			case PKV_NUM_INT:
+				if (!isNum((char)b))
+					return 0;
+				if (nb == '.' || nb == 'e' || nb == 'E')
+					state = PKV_NUM_0;
+				else if (!isNum((char)nb))
+					state = PKV_ENDVAL;
+				break;
+			case PKV_NUM_FRAC:
+				if (!isNum((char)b))
+					return 0;
+				if (nb == 'e' || nb == 'E')
+					state = PKV_NUM_FRACE;
+				else if (!isNum((char)nb))
+					state = PKV_ENDVAL;
+				break;
+			case PKV_NUM_FRACE:
+				state = PKV_NUM_FRACE2;
+				break;
+			case PKV_NUM_FRACE2:
+				if (isNum((char)b)){
+					if (isNum((char)nb))
+						state = PKV_NUM_EXP;
+					else
+						state = PKV_ENDVAL;
+				}
+				else if (b == '+' || b == '-')
+					state = PKV_NUM_EXP;
+				else
+					return 0;
+				break;
+			case PKV_NUM_EXP:
+				if (!isNum((char)b))
+					return 0;
+				if (!isNum((char)nb))
+					state = PKV_ENDVAL;
+				break;
+			case PKV_STR:
+				if (b == '\\')
+					state = PKV_STR_ESC;
+				else if (b == '"')
+					state = PKV_ENDVAL;
+				else if (b < 0x20)
+					return 0;
+				break;
+			case PKV_STR_ESC:
+				if (b == '"' || b == '\\' || b == '/' || b == 'b' ||
+					b == 'f' || b == 'n' || b == 'r' || b == 't')
+					state = PKV_STR;
+				else if (b == 'u'){
+					if (nb != '0')
+						return 0;
+					state = PKV_STR_U1;
+				}
+				else
+					return 0;
+				break;
+			case PKV_STR_U1:
+				if (nb != '0')
+					return 0;
+				state = PKV_STR_U2;
+				break;
+			case PKV_STR_U2:
+				if (!isHex((char)nb))
+					return 0;
+				state = PKV_STR_U3;
+				break;
+			case PKV_STR_U3:
+				if (!isHex((char)nb))
+					return 0;
+				state = PKV_STR_U4;
+				break;
+			case PKV_STR_U4:
+				state = PKV_STR;
+				break;
+			case PKV_ARRAY:
+				if (b == ']')
+					state = PKV_ENDVAL;
+				else if (!isSpace((char)nb) && nb != ']')
+					state = PKV_START;
+				break;
+			case PKV_ENDVAL:
+				if (arrays > 0){
+					if (b == ',')
+						state = PKV_START;
+					else if (b == ']')
+						arrays--;
+					else if (!isSpace((char)b))
+						return 0;
+				}
+				else if (!isSpace((char)b))
+					return 0;
+				break;
+		}
+	}
+	return state == PKV_ENDVAL;
+}
+
+static void numtostr(double num, char *buf, size_t bufsize, int *outsize){
+	*outsize = snprintf(buf, bufsize, "%.16g", num);
+	if (buf[0] == '-' && buf[1] == '0' && buf[2] == 0){ // fix negative zero silliness
+		buf[0] = '0';
+		buf[1] = 0;
+		*outsize = 1;
+	}
+}
+
+static bool pkjson(context ctx, sink_val a, list_int li, sink_str s){
+	switch (sink_typeof(a)){
+		case SINK_TYPE_NIL:
+set_null:
+			s->size = 4;
+			s->bytes = mem_alloc(sizeof(uint8_t) * 5);
+			s->bytes[0] = 'n';
+			s->bytes[1] = 'u';
+			s->bytes[2] = 'l';
+			s->bytes[3] = 'l';
+			s->bytes[4] = 0;
+			return true;
+		case SINK_TYPE_NUM: {
+			char buf[64];
+			int sz;
+			numtostr(sink_castnum(a), buf, sizeof(buf), &sz);
+			sink_str_st s2 = { .size = sz, .bytes = (uint8_t *)buf };
+			if (pkj_isjson(&s2)){
+				s->size = sz;
+				s->bytes = mem_alloc(sizeof(uint8_t) * (sz + 1));
+				memcpy(s->bytes, buf, sizeof(uint8_t) * (sz + 1));
+				return true;
+			}
+			// if C's rendering of the number is not valid JSON, then we have a goofy number, so
+			// just set it to null
+			goto set_null;
+		} break;
+		case SINK_TYPE_STR: {
+			int tot = 2;
+			sink_str src = var_caststr(ctx, a);
+			// calculate total size first
+			for (int i = 0; i < src->size; i++){
+				uint8_t b = src->bytes[i];
+				if (b == '"' || b == '\\' || b == '\b' || b == '\f' || b == '\n' || b == '\r' ||
+					b == '\t')
+					tot += 2;
+				else if (b < 0x20) // \u00XX
+					tot += 6;
+				else
+					tot++;
+			}
+			s->size = tot;
+			s->bytes = mem_alloc(sizeof(uint8_t) * (tot + 1));
+			// render string
+			int pos = 0;
+			s->bytes[pos++] = '"';
+			for (int i = 0; i < src->size; i++){
+				uint8_t b = src->bytes[i];
+				if (b == '"' || b == '\\'){
+					s->bytes[pos++] = '\\';
+					s->bytes[pos++] = b;
+				}
+				else if (b == '\b'){
+					s->bytes[pos++] = '\\';
+					s->bytes[pos++] = 'b';
+				}
+				else if (b == '\f'){
+					s->bytes[pos++] = '\\';
+					s->bytes[pos++] = 'f';
+				}
+				else if (b == '\n'){
+					s->bytes[pos++] = '\\';
+					s->bytes[pos++] = 'n';
+				}
+				else if (b == '\r'){
+					s->bytes[pos++] = '\\';
+					s->bytes[pos++] = 'r';
+				}
+				else if (b == '\t'){
+					s->bytes[pos++] = '\\';
+					s->bytes[pos++] = 't';
+				}
+				else if (b < 0x20){ // \u00XX
+					s->bytes[pos++] = '\\';
+					s->bytes[pos++] = 'u';
+					s->bytes[pos++] = '0';
+					s->bytes[pos++] = '0';
+					s->bytes[pos++] = toNibble((b >> 4) & 0x0F);
+					s->bytes[pos++] = toNibble(b & 0x0F);
+				}
+				else
+					s->bytes[pos++] = b;
+			}
+			s->bytes[pos++] = '"';
+			s->bytes[pos] = 0;
+			return true;
+		} break;
+		case SINK_TYPE_LIST: {
+			int idx = var_index(a);
+			if (list_int_has(li, idx))
+				return false; // circular
+			list_int_push(li, idx);
+			sink_list ls = var_castlist(ctx, a);
+			int tot = 2;
+			sink_str_st *strs = mem_alloc(sizeof(sink_str_st) * ls->size);
+			for (int i = 0; i < ls->size; i++){
+				sink_str_st s2;
+				if (!pkjson(ctx, ls->vals[i], li, &s2)){
+					for (int j = 0; j < i; j++)
+						mem_free(strs[j].bytes);
+					mem_free(strs);
+					return false;
+				}
+				strs[i] = s2;
+				tot += (i == 0 ? 0 : 1) + s2.size;
+			}
+			list_int_pop(li);
+			uint8_t *bytes = mem_alloc(sizeof(uint8_t) * (tot + 1));
+			bytes[0] = '[';
+			int p = 1;
+			for (int i = 0; i < ls->size; i++){
+				if (i > 0)
+					bytes[p++] = ',';
+				memcpy(&bytes[p], strs[i].bytes, sizeof(uint8_t) * strs[i].size);
+				mem_free(strs[i].bytes);
+				p += strs[i].size;
+			}
+			mem_free(strs);
+			bytes[p] = ']';
+			bytes[tot] = 0;
+			s->size = tot;
+			s->bytes = bytes;
+			return true;
+		} break;
+		case SINK_TYPE_ASYNC:
+			opi_abortcstr(ctx, "Cannot pickle invalid value (SINK_ASYNC)");
+			return false;
+	}
+}
+
 static inline sink_val opi_pickle_json(context ctx, sink_val a){
-	// TODO: this
-	return SINK_NIL;
+	list_int li = NULL;
+	if (sink_islist(a))
+		li = list_int_new();
+	sink_str_st s = { .size = 0, .bytes = NULL};
+	bool suc = pkjson(ctx, a, li, &s);
+	if (li)
+		list_int_free(li);
+	if (!suc){
+		if (s.bytes)
+			mem_free(s.bytes);
+		if (!ctx->failed)
+			opi_abortcstr(ctx, "Cannot pickle circular structure to JSON format");
+		return SINK_NIL;
+	}
+	return sink_str_newblobgive(ctx, s.size, s.bytes);
+}
+
+static inline void pkbin_pushvint(list_byte body, uint32_t i){
+	if (i < 128)
+		list_byte_push(body, i);
+	else{
+		list_byte_push4(body,
+			0x80 | (i >> 24),
+			(i >> 16) & 0xFF,
+			(i >>  8) & 0xFF,
+			 i        & 0xFF);
+	}
+}
+
+static void pkbin(context ctx, sink_val a, list_int li, uint32_t *str_table_size, list_byte strs,
+	list_byte body){
+	switch (sink_typeof(a)){
+		case SINK_TYPE_NIL:
+			list_byte_push(body, 0xF7);
+			break;
+		case SINK_TYPE_NUM: {
+			if (floor(a.f) == a.f && a.f >= -4294967296.0 && a.f < 4294967296.0){
+				int64_t num = a.f;
+				if (num < 0){
+					if (num >= -256){
+						num += 256;
+						list_byte_push2(body, 0xF1, num & 0xFF);
+					}
+					else if (num >= -65536){
+						num += 65536;
+						list_byte_push3(body, 0xF3, num & 0xFF, num >> 8);
+					}
+					else{
+						num += 4294967296;
+						list_byte_push5(body, 0xF5, num & 0xFF, (num >> 8) & 0xFF,
+							(num >> 16) & 0xFF, (num >> 24) & 0xFF);
+					}
+				}
+				else{
+					if (num < 256)
+						list_byte_push2(body, 0xF0, num & 0xFF);
+					else if (num < 65536)
+						list_byte_push3(body, 0xF2, num & 0xFF, num >> 8);
+					else{
+						list_byte_push5(body, 0xF4, num & 0xFF, (num >> 8) & 0xFF,
+							(num >> 16) & 0xFF, (num >> 24) & 0xFF);
+					}
+				}
+			}
+			else{
+				list_byte_push9(body, 0xF6,
+					a.u & 0xFF, (a.u >> 8) & 0xFF, (a.u >> 16) & 0xFF, (a.u >> 24) & 0xFF,
+					(a.u >> 32) & 0xFF, (a.u >> 40) & 0xFF, (a.u >> 48) & 0xFF, (a.u >> 56) & 0xFF);
+			}
+		} break;
+		case SINK_TYPE_STR: {
+			// search for a previous string
+			sink_str s = var_caststr(ctx, a);
+			int spos = 0;
+			uint32_t sidx = 0;
+			bool found = false;
+			while (!found && sidx < *str_table_size){
+				uint32_t vi = strs->bytes[spos++];
+				if (vi >= 128){
+					vi = ((vi ^ 0x80) << 24) |
+						((uint32_t)strs->bytes[spos    ] << 16) |
+						((uint32_t)strs->bytes[spos + 1] <<  8) |
+						((uint32_t)strs->bytes[spos + 2]      );
+					spos += 3;
+				}
+				if (vi == s->size){
+					found = vi == 0 ||
+						memcmp(&strs->bytes[spos], s->bytes, sizeof(uint8_t) * vi) == 0;
+				}
+				else{
+					spos += vi;
+					sidx++;
+				}
+			}
+			if (!found){
+				pkbin_pushvint(strs, s->size);
+				list_byte_append(strs, s->size, s->bytes);
+				sidx = *str_table_size;
+				(*str_table_size)++;
+			}
+			list_byte_push(body, 0xF8);
+			pkbin_pushvint(body, sidx);
+		} break;
+		case SINK_TYPE_LIST: {
+			int idx = var_index(a);
+			int idxat = list_int_at(li, idx);
+			if (idxat < 0){
+				list_int_push(li, idx);
+				sink_list ls = var_castlist(ctx, a);
+				list_byte_push(body, 0xF9);
+				pkbin_pushvint(body, ls->size);
+				for (int i = 0; i < ls->size; i++)
+					pkbin(ctx, ls->vals[i], li, str_table_size, strs, body);
+			}
+			else{
+				list_byte_push(body, 0xFA);
+				pkbin_pushvint(body, idxat);
+			}
+		} break;
+		case SINK_TYPE_ASYNC:
+			opi_abortcstr(ctx, "Cannot pickle invalid value (SINK_ASYNC)");
+			break;
+	}
 }
 
 static inline sink_val opi_pickle_bin(context ctx, sink_val a){
-	// TODO: this
-	return SINK_NIL;
+	list_int li = NULL;
+	if (sink_islist(a))
+		li = list_int_new();
+	uint32_t str_table_size = 0;
+	list_byte strs = list_byte_new();
+	list_byte body = list_byte_new();
+	pkbin(ctx, a, li, &str_table_size, strs, body);
+	if (li)
+		list_int_free(li);
+	if (ctx->failed){
+		list_byte_free(strs);
+		list_byte_free(body);
+		return SINK_NIL;
+	}
+	int tot = 1 + (str_table_size < 128 ? 1 : 4) + strs->size + body->size;
+	uint8_t *bytes = mem_alloc(sizeof(uint8_t) * (tot + 1));
+	int pos = 0;
+	bytes[pos++] = 0x01;
+	if (str_table_size < 128)
+		bytes[pos++] = str_table_size;
+	else{
+		bytes[pos++] = 0x80 | (str_table_size >> 24);
+		bytes[pos++] = (str_table_size >> 16) & 0xFF;
+		bytes[pos++] = (str_table_size >>  8) & 0xFF;
+		bytes[pos++] =  str_table_size        & 0xFF;
+	}
+	if (strs->size > 0){
+		memcpy(&bytes[pos], strs->bytes, sizeof(uint8_t) * strs->size);
+		pos += strs->size;
+	}
+	memcpy(&bytes[pos], body->bytes, sizeof(uint8_t) * body->size);
+	bytes[tot] = 0;
+	list_byte_free(strs);
+	list_byte_free(body);
+	return sink_str_newblobgive(ctx, tot, bytes);
 }
 
 static inline sink_val opi_pickle_val(context ctx, sink_val a){
@@ -10336,213 +10875,101 @@ static inline sink_val opi_pickle_val(context ctx, sink_val a){
 	return SINK_NIL;
 }
 
+static inline bool pkv_vint(sink_str s, uint64_t *pos, uint32_t *res){
+	if (s->size <= *pos)
+		return false;
+	uint32_t b1 = s->bytes[*pos];
+	(*pos)++;
+	if (b1 < 128){
+		*res = b1;
+		return true;
+	}
+	if (s->size <= *pos + 2)
+		return false;
+	*res = ((b1 ^ 0x80) << 24) |
+		((uint32_t)s->bytes[*pos    ] << 16) |
+		((uint32_t)s->bytes[*pos + 1] <<  8) |
+		((uint32_t)s->bytes[*pos + 2]      );
+	(*pos) += 3;
+	return true;
+}
+
+static inline bool pkv_valid_advance(sink_str s, uint64_t *pos, uint32_t amt){
+	(*pos) += amt;
+	return *pos <= s->size;
+}
+
+static bool pkv_valid_sval(sink_str s, uint64_t *pos, uint32_t *index, uint32_t str_table_size){
+	if (s->size <= *pos)
+		return false;
+	uint8_t cmd = s->bytes[*pos];
+	(*pos)++;
+	switch (cmd){
+		case 0xF0: return pkv_valid_advance(s, pos, 1);
+		case 0xF1: return pkv_valid_advance(s, pos, 1);
+		case 0xF2: return pkv_valid_advance(s, pos, 2);
+		case 0xF3: return pkv_valid_advance(s, pos, 2);
+		case 0xF4: return pkv_valid_advance(s, pos, 4);
+		case 0xF5: return pkv_valid_advance(s, pos, 4);
+		case 0xF6: return pkv_valid_advance(s, pos, 8);
+		case 0xF7: return true;
+		case 0xF8: {
+			uint32_t str_id;
+			if (!pkv_vint(s, pos, &str_id))
+				return false;
+			if (str_id >= str_table_size)
+				return false;
+			return true;
+		} break;
+		case 0xF9: {
+			(*index)++;
+			uint32_t list_size;
+			if (!pkv_vint(s, pos, &list_size))
+				return false;
+			for (uint32_t i = 0; i < list_size; i++){
+				if (!pkv_valid_sval(s, pos, index, str_table_size))
+					return false;
+			}
+			return true;
+		} break;
+		case 0xFA: {
+			uint32_t ref;
+			if (!pkv_vint(s, pos, &ref))
+				return false;
+			if (ref >= *index)
+				return false;
+			return true;
+		} break;
+	}
+	return false;
+}
+
 static inline int opi_pickle_valid(context ctx, sink_val a){
 	if (!sink_isstr(a))
 		return 0;
-	sink_str s = sink_caststr(ctx, a);
+	sink_str s = var_caststr(ctx, a);
 	if (s->bytes == NULL)
 		return 0;
 	if (s->bytes[0] == 0x01){ // binary validation
+		uint64_t pos = 1;
+		uint32_t str_table_size;
+		if (!pkv_vint(s, &pos, &str_table_size))
+			return 0;
+		for (uint32_t i = 0; i < str_table_size; i++){
+			uint32_t str_size;
+			if (!pkv_vint(s, &pos, &str_size))
+				return 0;
+			pos += str_size; // skip over string's raw bytes
+		}
+		uint32_t index = 0;
+		if (!pkv_valid_sval(s, &pos, &index, str_table_size))
+			return 0;
+		if (pos != s->size)
+			return 0;
 		return 2;
 	}
-	else{ // json validation
-		enum {
-			PKV_START,
-			PKV_NULL1,
-			PKV_NULL2,
-			PKV_NULL3,
-			PKV_NUM_0,
-			PKV_NUM_NEG,
-			PKV_NUM_INT,
-			PKV_NUM_FRAC,
-			PKV_NUM_FRACE,
-			PKV_NUM_FRACE2,
-			PKV_NUM_EXP,
-			PKV_STR,
-			PKV_STR_ESC,
-			PKV_STR_U1,
-			PKV_STR_U2,
-			PKV_STR_U3,
-			PKV_STR_U4,
-			PKV_ARRAY,
-			PKV_ENDVAL
-		} state = PKV_START;
-		int arrays = 0;
-		for (int i = 0; i < s->size; i++){
-			uint8_t b = s->bytes[i];
-			uint8_t nb = i < s->size - 1 ? s->bytes[i + 1] : 0;
-			switch (state){
-				case PKV_START: // start state
-					if (b == 'n'){
-						if (nb != 'u')
-							return 0;
-						state = PKV_NULL1;
-					}
-					else if (b == '0'){
-						if (nb == '.' || nb == 'e' || nb == 'E')
-							state = PKV_NUM_0;
-						else
-							state = PKV_ENDVAL;
-					}
-					else if (b == '-')
-						state = PKV_NUM_NEG;
-					else if (isNum((char)b)){
-						if (isNum((char)nb))
-							state = PKV_NUM_INT;
-						else if (nb == '.' || nb == 'e' || nb == 'E')
-							state = PKV_NUM_0;
-						else
-							state = PKV_ENDVAL;
-					}
-					else if (b == '"')
-						state = PKV_STR;
-					else if (b == '['){
-						arrays++;
-						if (isSpace((char)nb) || nb == ']')
-							state = PKV_ARRAY;
-					}
-					else if (!isSpace((char)b))
-						return 0;
-					break;
-				case PKV_NULL1:
-					if (nb != 'l')
-						return 0;
-					state = PKV_NULL2;
-					break;
-				case PKV_NULL2:
-					if (nb != 'l')
-						return 0;
-					state = PKV_NULL3;
-					break;
-				case PKV_NULL3:
-					state = PKV_ENDVAL;
-					break;
-				case PKV_NUM_0:
-					if (b == '.')
-						state = PKV_NUM_FRAC;
-					else if (b == 'e' || b == 'E'){
-						if (nb == '+' || nb == '-')
-							i++;
-						state = PKV_NUM_EXP;
-					}
-					else
-						return 0;
-					break;
-				case PKV_NUM_NEG:
-					if (b == '0'){
-						if (nb == '.' || nb == 'e' || nb == 'E')
-							state = PKV_NUM_0;
-						else
-							state = PKV_ENDVAL;
-					}
-					else if (isNum((char)b)){
-						if (isNum((char)nb))
-							state = PKV_NUM_INT;
-						else if (nb == '.' || nb == 'e' || nb == 'E')
-							state = PKV_NUM_0;
-						else
-							state = PKV_ENDVAL;
-					}
-					else
-						return 0;
-					break;
-				case PKV_NUM_INT:
-					if (!isNum((char)b))
-						return 0;
-					if (nb == '.' || nb == 'e' || nb == 'E')
-						state = PKV_NUM_0;
-					else if (!isNum((char)nb))
-						state = PKV_ENDVAL;
-					break;
-				case PKV_NUM_FRAC:
-					if (!isNum((char)b))
-						return 0;
-					if (nb == 'e' || nb == 'E')
-						state = PKV_NUM_FRACE;
-					else if (!isNum((char)nb))
-						state = PKV_ENDVAL;
-					break;
-				case PKV_NUM_FRACE:
-					state = PKV_NUM_FRACE2;
-					break;
-				case PKV_NUM_FRACE2:
-					if (isNum((char)b)){
-						if (isNum((char)nb))
-							state = PKV_NUM_EXP;
-						else
-							state = PKV_ENDVAL;
-					}
-					else if (b == '+' || b == '-')
-						state = PKV_NUM_EXP;
-					else
-						return 0;
-					break;
-				case PKV_NUM_EXP:
-					if (!isNum((char)b))
-						return 0;
-					if (!isNum((char)nb))
-						state = PKV_ENDVAL;
-					break;
-				case PKV_STR:
-					if (b == '\\')
-						state = PKV_STR_ESC;
-					else if (b == '"')
-						state = PKV_ENDVAL;
-					else if (b < 0x20)
-						return 0;
-					break;
-				case PKV_STR_ESC:
-					if (b == '"' || b == '\\' || b == '/' || b == 'b' ||
-						b == 'f' || b == 'n' || b == 'r' || b == 't')
-						state = PKV_STR;
-					else if (b == 'u'){
-						if (nb != '0')
-							return 0;
-						state = PKV_STR_U1;
-					}
-					else
-						return 0;
-					break;
-				case PKV_STR_U1:
-					if (nb != '0')
-						return 0;
-					state = PKV_STR_U2;
-					break;
-				case PKV_STR_U2:
-					if (!isHex((char)nb))
-						return 0;
-					state = PKV_STR_U3;
-					break;
-				case PKV_STR_U3:
-					if (!isHex((char)nb))
-						return 0;
-					state = PKV_STR_U4;
-					break;
-				case PKV_STR_U4:
-					state = PKV_STR;
-					break;
-				case PKV_ARRAY:
-					if (b == ']')
-						state = PKV_ENDVAL;
-					else if (!isSpace((char)nb) && nb != ']')
-						state = PKV_START;
-					break;
-				case PKV_ENDVAL:
-					if (arrays > 0){
-						if (b == ',')
-							state = PKV_START;
-						else if (b == ']')
-							arrays--;
-						else if (!isSpace((char)b))
-							return 0;
-					}
-					else if (!isSpace((char)b))
-						return 0;
-					break;
-			}
-		}
-		return state == PKV_ENDVAL ? 1 : 0;
-	}
+	// otherwise, json validation
+	return pkj_isjson(s) ? 1 : 0;
 }
 
 static inline bool opi_pickle_sibling(context ctx, sink_val a){
@@ -10555,9 +10982,55 @@ static inline bool opi_pickle_circular(context ctx, sink_val a){
 	return false;
 }
 
+static sink_val pkcopy(context ctx, sink_val a, list_int li_src, list_int li_tgt){
+	switch (sink_typeof(a)){
+		case SINK_TYPE_NIL:
+		case SINK_TYPE_NUM:
+		case SINK_TYPE_STR:
+			return a;
+		case SINK_TYPE_LIST: {
+			int idx = var_index(a);
+			int idxat = list_int_at(li_src, idx);
+			if (idxat < 0){
+				sink_list ls = var_castlist(ctx, a);
+				if (ls->size <= 0){
+					sink_val b = sink_list_newblob(ctx, 0, NULL);
+					list_int_push(li_src, idx);
+					list_int_push(li_tgt, var_index(b));
+					return b;
+				}
+				else{
+					sink_val *m = mem_alloc(sizeof(sink_val) * ls->size);
+					memset(m, 0, sizeof(sink_val) * ls->size);
+					sink_val b = sink_list_newblobgive(ctx, ls->size, ls->size, m);
+					list_int_push(li_src, idx);
+					list_int_push(li_tgt, var_index(b));
+					for (int i = 0; i < ls->size; i++)
+						m[i] = pkcopy(ctx, ls->vals[i], li_src, li_tgt);
+					return b;
+				}
+			}
+			// otherwise, use the last generated list
+			return (sink_val){ .u = SINK_TAG_LIST | li_tgt->vals[idxat] };
+		} break;
+		case SINK_TYPE_ASYNC:
+			opi_abortcstr(ctx, "Cannot pickle invalid value (SINK_ASYNC)");
+			return SINK_NIL;
+	}
+}
+
 static inline sink_val opi_pickle_copy(context ctx, sink_val a){
-	// TODO: this
-	return SINK_NIL;
+	list_int li_src = NULL, li_tgt = NULL;
+	if (sink_islist(a)){
+		li_src = list_int_new();
+		li_tgt = list_int_new();
+	}
+	a = pkcopy(ctx, a, li_src, li_tgt);
+	if (li_src){
+		list_int_free(li_src);
+		list_int_free(li_tgt);
+	}
+	return a;
 }
 
 static inline uint8_t *opi_list_joinplain(sink_ctx ctx, int size, sink_val *vals, int sepz,
@@ -11744,7 +12217,7 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X))
 					RETURN_FAIL("Expecting list for list.str");
-				ls = sink_castlist(ctx, X);
+				ls = var_castlist(ctx, X);
 				uint8_t *bytes = mem_alloc(sizeof(uint8_t) * (ls->size + 1));
 				for (I = 0; I < ls->size; I++){
 					X = ls->vals[I];
@@ -11795,7 +12268,10 @@ static sink_run context_run(context ctx){
 
 			case OP_PICKLE_BIN     : { // [TGT], [SRC]
 				LOAD_ABCD();
-				var_set(ctx, A, B, opi_pickle_bin(ctx, var_get(ctx, C, D)));
+				X = opi_pickle_bin(ctx, var_get(ctx, C, D));
+				if (ctx->failed)
+					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_PICKLE_VAL     : { // [TGT], [SRC]
@@ -11824,7 +12300,10 @@ static sink_run context_run(context ctx){
 
 			case OP_PICKLE_COPY    : { // [TGT], [SRC]
 				LOAD_ABCD();
-				var_set(ctx, A, B, opi_pickle_copy(ctx, var_get(ctx, C, D)));
+				X = opi_pickle_copy(ctx, var_get(ctx, C, D));
+				if (ctx->failed)
+					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_GC_GETLEVEL    : { // [TGT]
@@ -11847,7 +12326,7 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				if (!sink_isstr(X))
 					RETURN_FAIL("Expecting one of 'none', 'default', or 'lowmem'");
-				str = sink_caststr(ctx, X);
+				str = var_caststr(ctx, X);
 				if (strcmp((const char *)str->bytes, "none") == 0)
 					ctx->gc_level = SINK_GC_NONE;
 				else if (strcmp((const char *)str->bytes, "default") == 0){
@@ -12672,7 +13151,7 @@ bool sink_arg_str(sink_ctx ctx, int size, sink_val *args, int index, sink_str *s
 		sink_abortformat(ctx, "Expecting string for argument %d", index + 1);
 		return false;
 	}
-	*str = sink_caststr(ctx, args[index]);
+	*str = var_caststr(ctx, args[index]);
 	return true;
 }
 
@@ -12729,13 +13208,9 @@ static sink_str_st sinkhelp_tostr(context ctx, list_int li, sink_val v){
 				bytes[0] = 'i'; bytes[1] = 'n'; bytes[2] = 'f'; bytes[3] = 0;
 				return (sink_str_st){ .bytes = bytes, .size = 3 };
 			}
-			char buf[100];
-			int size = snprintf(buf, sizeof(buf), "%.16g", v.f);
-			if (buf[0] == '-' && buf[1] == '0' && buf[2] == 0){ // fix negative zero silliness
-				buf[0] = '0';
-				buf[1] = 0;
-				size = 1;
-			}
+			char buf[64];
+			int size;
+			numtostr(v.f, buf, sizeof(buf), &size);
 			uint8_t *bytes = mem_alloc(sizeof(uint8_t) * (size + 1));
 			memcpy(bytes, buf, sizeof(uint8_t) * (size + 1));
 			return (sink_str_st){ .bytes = bytes, .size = size };

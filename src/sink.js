@@ -1227,10 +1227,8 @@ function lex_process(lx, tks){
 			}
 			else if (ch1 == '$'){
 				lx.state = LEX_STR_INTERP_DLR;
-				if (lx.str.length > 0){
-					tks.push(tok_str(lx.str));
-					tks.push(tok_ks(KS_TILDE));
-				}
+				tks.push(tok_str(lx.str));
+				tks.push(tok_ks(KS_TILDE));
 			}
 			else if (ch1 == '\\')
 				lx.state = LEX_STR_INTERP_ESC;
@@ -4416,22 +4414,46 @@ function program_eval(prg, sym, mode, intoVlc, ex){
 			}
 			if (ex.ex != null){
 				if (ex.ex.type == EXPR_GROUP){
-					op_list(prg.ops, intoVlc, ex.ex.group.length);
+					var ls = intoVlc;
+					if (mode == PEM_INTO){
+						var ts = symtbl_addTemp(sym);
+						if (ts.type == STA_ERROR)
+							return per_error(ex.flp, ts.msg);
+						ls = ts.vlc;
+					}
+					op_list(prg.ops, ls, ex.ex.group.length);
 					for (var i = 0; i < ex.ex.group.length; i++){
 						var pe = program_eval(prg, sym, PEM_CREATE, null, ex.ex.group[i]);
 						if (pe.type == PER_ERROR)
 							return pe;
 						symtbl_clearTemp(sym, pe.vlc);
-						op_param2(prg.ops, OP_LIST_PUSH, intoVlc, intoVlc, pe.vlc);
+						op_param2(prg.ops, OP_LIST_PUSH, ls, ls, pe.vlc);
+					}
+					if (mode == PEM_INTO){
+						symtbl_clearTemp(sym, ls);
+						op_move(prg.ops, intoVlc, ls);
 					}
 				}
 				else{
-					op_list(prg.ops, intoVlc, 1);
 					var pe = program_eval(prg, sym, PEM_CREATE, null, ex.ex);
 					if (pe.type == PER_ERROR)
 						return pe;
-					symtbl_clearTemp(sym, pe.vlc);
-					op_param2(prg.ops, OP_LIST_PUSH, intoVlc, intoVlc, pe.vlc);
+					// check for `a = {a}`
+					if (intoVlc.fdiff == pe.vlc.fdiff && intoVlc.index == pe.vlc.index){
+						var ts = symtbl_addTemp(sym);
+						if (ts.type == STA_ERROR)
+							return per_error(ex.flp, ts.msg);
+						symtbl_clearTemp(sym, ts.vlc);
+						symtbl_clearTemp(sym, pe.vlc);
+						op_list(prg.ops, ts.vlc, 1);
+						op_param2(prg.ops, OP_LIST_PUSH, ts.vlc, ts.vlc, pe.vlc);
+						op_move(prg.ops, intoVlc, ts.vlc);
+					}
+					else{
+						symtbl_clearTemp(sym, pe.vlc);
+						op_list(prg.ops, intoVlc, 1);
+						op_param2(prg.ops, OP_LIST_PUSH, intoVlc, intoVlc, pe.vlc);
+					}
 				}
 			}
 			else
@@ -8409,7 +8431,10 @@ function context_run(ctx){
 				LOAD_abcd();
 				if (A > ctx.lex_index || C > ctx.lex_index)
 					return opi_invalid(ctx);
-				var_set(ctx, A, B, opi_pickle_bin(ctx, var_get(ctx, C, D)));
+				X = opi_pickle_bin(ctx, var_get(ctx, C, D));
+				if (ctx.failed)
+					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_PICKLE_VAL     : { // [TGT], [SRC]
@@ -8447,7 +8472,10 @@ function context_run(ctx){
 				LOAD_abcd();
 				if (A > ctx.lex_index || C > ctx.lex_index)
 					return opi_invalid(ctx);
-				var_set(ctx, A, B, opi_pickle_copy(ctx, var_get(ctx, C, D)));
+				X = opi_pickle_copy(ctx, var_get(ctx, C, D));
+				if (ctx.failed)
+					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_GC_GETLEVEL    : { // [TGT]

@@ -27,3 +27,4 @@ list.rev b
 say "b: $b"
 
 say list.join b, '_'
+say list.join {'a', 'b'}
