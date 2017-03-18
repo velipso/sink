@@ -8435,6 +8435,8 @@ typedef sink_val (*unary_func)(context ctx, sink_val v);
 static sink_val oper_un(context ctx, sink_val a, unary_func f_unary){
 	if (sink_islist(a)){
 		sink_list ls = var_castlist(ctx, a);
+		if (ls->size <= 0)
+			return sink_list_newblob(ctx, 0, NULL);
 		sink_val *ret = mem_alloc(sizeof(sink_val) * ls->size);
 		for (int i = 0; i < ls->size; i++)
 			ret[i] = f_unary(ctx, ls->vals[i]);
@@ -8450,6 +8452,8 @@ static sink_val oper_bin(context ctx, sink_val a, sink_val b, binary_func f_bina
 		int ma = arsize(ctx, a);
 		int mb = arsize(ctx, b);
 		int m = ma > mb ? ma : mb;
+		if (m <= 0)
+			return sink_list_newblob(ctx, 0, NULL);
 		sink_val *ret = mem_alloc(sizeof(sink_val) * m);
 		for (int i = 0; i < m; i++)
 			ret[i] = f_binary(ctx, arget(ctx, a, i), arget(ctx, b, i));
@@ -8466,6 +8470,8 @@ static sink_val oper_tri(context ctx, sink_val a, sink_val b, sink_val c, trinar
 		int mb = arsize(ctx, b);
 		int mc = arsize(ctx, c);
 		int m = ma > mb ? (ma > mc ? ma : mc) : (mb > mc ? mb : mc);
+		if (m <= 0)
+			return sink_list_newblob(ctx, 0, NULL);
 		sink_val *ret = mem_alloc(sizeof(sink_val) * m);
 		for (int i = 0; i < m; i++)
 			ret[i] = f_trinary(ctx, arget(ctx, a, i), arget(ctx, b, i), arget(ctx, c, i));
@@ -10870,12 +10876,6 @@ static inline sink_val opi_pickle_bin(context ctx, sink_val a){
 	return sink_str_newblobgive(ctx, tot, bytes);
 }
 
-static inline sink_val opi_pickle_val(context ctx, sink_val a){
-	// TODO: this
-	// TODO: make sure if we decode a NaN to correctly force it to be SINK_NAN
-	return SINK_NIL;
-}
-
 static inline bool pkv_vint(sink_str s, uint64_t *pos, uint32_t *res){
 	if (s->size <= *pos)
 		return false;
@@ -10893,6 +10893,169 @@ static inline bool pkv_vint(sink_str s, uint64_t *pos, uint32_t *res){
 		((uint32_t)s->bytes[*pos + 2]      );
 	(*pos) += 3;
 	return true;
+}
+
+static bool pkv_sval(context ctx, sink_str s, uint64_t *pos, uint32_t str_table_size,
+	sink_val *strs, list_int li, sink_val *res){
+	if (*pos >= s->size)
+		return false;
+	uint8_t cmd = s->bytes[*pos];
+	(*pos)++;
+	switch (cmd){
+		case 0xF0: {
+			if (*pos >= s->size)
+				return false;
+			*res = sink_num(s->bytes[*pos]);
+			(*pos)++;
+			return true;
+		} break;
+		case 0xF1: {
+			if (*pos >= s->size)
+				return false;
+			*res = sink_num((int)s->bytes[*pos] - 256);
+			(*pos)++;
+			return true;
+		} break;
+		case 0xF2: {
+			if (*pos + 1 >= s->size)
+				return false;
+			*res = sink_num(
+				(int)s->bytes[*pos] |
+				((int)s->bytes[*pos + 1] << 8));
+			(*pos) += 2;
+			return true;
+		} break;
+		case 0xF3: {
+			if (*pos + 1 >= s->size)
+				return false;
+			*res = sink_num(
+				((int)s->bytes[*pos] |
+				((int)s->bytes[*pos + 1] << 8)) - 65536);
+			(*pos) += 2;
+			return true;
+		} break;
+		case 0xF4: {
+			if (*pos + 3 >= s->size)
+				return false;
+			*res = sink_num(
+				(int)s->bytes[*pos] |
+				((int)s->bytes[*pos + 1] <<  8) |
+				((int)s->bytes[*pos + 2] << 16) |
+				((int)s->bytes[*pos + 3] << 24));
+			(*pos) += 4;
+			return true;
+		} break;
+		case 0xF5: {
+			if (*pos + 3 >= s->size)
+				return false;
+			*res = sink_num(
+				((double)((uint32_t)s->bytes[*pos] |
+				((uint32_t)s->bytes[*pos + 1] <<  8) |
+				((uint32_t)s->bytes[*pos + 2] << 16) |
+				((uint32_t)s->bytes[*pos + 3] << 24))) - 4294967296.0);
+			(*pos) += 4;
+			return true;
+		} break;
+		case 0xF6: {
+			if (*pos + 7 >= s->size)
+				return false;
+			res->u = ((uint64_t)s->bytes[*pos]) |
+				(((uint64_t)s->bytes[*pos + 1]) <<  8) |
+				(((uint64_t)s->bytes[*pos + 2]) << 16) |
+				(((uint64_t)s->bytes[*pos + 3]) << 24) |
+				(((uint64_t)s->bytes[*pos + 4]) << 32) |
+				(((uint64_t)s->bytes[*pos + 5]) << 40) |
+				(((uint64_t)s->bytes[*pos + 6]) << 48) |
+				(((uint64_t)s->bytes[*pos + 7]) << 56);
+			if (isnan(res->f)) // make sure no screwy NaN's come in
+				*res = sink_num_nan();
+			return true;
+		} break;
+		case 0xF7: {
+			*res = SINK_NIL;
+			return true;
+		} break;
+		case 0xF8: {
+			uint32_t id;
+			if (!pkv_vint(s, pos, &id) || id >= str_table_size)
+				return false;
+			*res = strs[id];
+			return true;
+		} break;
+		case 0xF9: {
+			uint32_t sz;
+			if (!pkv_vint(s, pos, &sz))
+				return false;
+			if (sz <= 0)
+				*res = sink_list_newblob(ctx, 0, NULL);
+			else{
+				sink_val *vals = mem_alloc(sizeof(sink_val) * sz);
+				memset(vals, 0, sizeof(sink_val) * sz);
+				*res = sink_list_newblobgive(ctx, sz, sz, vals);
+				list_int_push(li, var_index(*res));
+				for (uint32_t i = 0; i < sz; i++){
+					if (!pkv_sval(ctx, s, pos, str_table_size, strs, li, &vals[i]))
+						return false;
+				}
+			}
+			return true;
+		} break;
+		case 0xFA: {
+			uint32_t id;
+			if (!pkv_vint(s, pos, &id) || id >= li->size)
+				return false;
+			*res = (sink_val){ .u = SINK_TAG_LIST | li->vals[id] };
+			return true;
+		} break;
+	}
+	return false;
+}
+
+static inline sink_val opi_pickle_val(context ctx, sink_val a){
+	if (!sink_isstr(a)){
+		opi_abortcstr(ctx, "Invalid pickle data");
+		return SINK_NIL;
+	}
+	sink_str s = var_caststr(ctx, a);
+	if (s->size < 1){
+		opi_abortcstr(ctx, "Invalid pickle data");
+		return SINK_NIL;
+	}
+	if (s->bytes[0] == 0x01){ // binary decode
+		uint64_t pos = 1;
+		uint32_t str_table_size;
+		if (!pkv_vint(s, &pos, &str_table_size)){
+			opi_abortcstr(ctx, "Invalid pickle data");
+			return SINK_NIL;
+		}
+		sink_val *strs = NULL;
+		if (str_table_size > 0)
+			strs = mem_alloc(sizeof(sink_val) * str_table_size);
+		for (uint32_t i = 0; i < str_table_size; i++){
+			uint32_t str_size;
+			if (!pkv_vint(s, &pos, &str_size) || pos + str_size > s->size){
+				mem_free(strs);
+				opi_abortcstr(ctx, "Invalid pickle data");
+				return SINK_NIL;
+			}
+			strs[i] = sink_str_newblob(ctx, str_size, &s->bytes[pos]);
+			pos += str_size;
+		}
+		sink_val res;
+		list_int li = list_int_new();
+		if (!pkv_sval(ctx, s, &pos, str_table_size, strs, li, &res)){
+			mem_free(strs);
+			list_int_free(li);
+			opi_abortcstr(ctx, "Invalid pickle data");
+			return SINK_NIL;
+		}
+		mem_free(strs);
+		list_int_free(li);
+		return res;
+	}
+	// otherwise, json decode
+	// TODO: this
+	return SINK_NIL;
 }
 
 static inline bool pkv_valid_advance(sink_str s, uint64_t *pos, uint32_t amt){
@@ -11294,10 +11457,12 @@ static sink_run context_run(context ctx){
 
 			case OP_LIST           : { // [TGT], HINT
 				LOAD_ABc();
-				sink_val *vals = NULL;
-				if (C > 0)
-					vals = mem_alloc(sizeof(sink_val) * C);
-				var_set(ctx, A, B, sink_list_newblobgive(ctx, 0, C, vals));
+				if (C <= 0)
+					var_set(ctx, A, B, sink_list_newblob(ctx, 0, NULL));
+				else{
+					var_set(ctx, A, B,
+						sink_list_newblobgive(ctx, 0, C, mem_alloc(sizeof(sink_val) * C)));
+				}
 			} break;
 
 			case OP_ISNUM          : { // [TGT], [SRC]
@@ -13633,6 +13798,14 @@ sink_val sink_list_newblob(sink_ctx ctx, int size, const sink_val *vals){
 }
 
 sink_val sink_list_newblobgive(sink_ctx ctx, int size, int count, sink_val *vals){
+	if (vals == NULL || count == 0){
+		sink_abortcstr(ctx,
+			"Native run-time error: sink_list_newblobgive() must be given a buffer with some "
+			"positive count");
+		if (vals)
+			mem_free(vals);
+		return SINK_NIL;
+	}
 	context ctx2 = ctx;
 	int index = bmp_reserve((void **)&ctx2->list_tbl, &ctx2->list_size, &ctx2->list_aloc,
 		&ctx2->list_ref, sizeof(sink_list_st));
