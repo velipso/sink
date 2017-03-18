@@ -222,3 +222,6 @@ do
 	a = 'hello'
 	say &a
 end
+
+say 10^-1
+say -10^-1

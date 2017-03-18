@@ -218,6 +218,16 @@ static inline void list_byte_free(list_byte b){
 	mem_free(b);
 }
 
+static inline sink_str_st list_byte_freetostr(list_byte b){
+	if (b->size <= 0){
+		list_byte_free(b);
+		return (sink_str_st){ .size = 0, .bytes = NULL };
+	}
+	sink_str_st res = { .size = b->size, .bytes = b->bytes };
+	mem_free(b);
+	return res;
+}
+
 static inline list_byte list_byte_new(){
 	list_byte b = mem_alloc(sizeof(list_byte_st));
 	b->size = 0;
@@ -4553,12 +4563,30 @@ static prr_st parser_process(parser pr, filepos_st flp, list_ptr stmts){
 
 		case PRS_EXPR_FINISH:
 			while (true){
-				// fight between the Pre and the Mid
+				// apply any outstanding Pre's
+				while (st->exprPreStack != NULL){
+					st->exprTerm = expr_prefix(flp, st->exprPreStack->tk->u.k, st->exprTerm);
+					ets next = st->exprPreStack->next;
+					ets_free(st->exprPreStack);
+					st->exprPreStack = next;
+				}
+
+				// grab left side's Pre's
+				if (st->exprPreStackStack != NULL){
+					st->exprPreStack = st->exprPreStackStack->e;
+					st->exprPreStackStack->e = NULL;
+					eps next2 = st->exprPreStackStack->next;
+					eps_free(st->exprPreStackStack);
+					st->exprPreStackStack = next2;
+				}
+
+				// fight between the left Pre and the Mid
 				while (st->exprPreStack != NULL &&
 					(st->exprMidStack == NULL ||
 						tok_isPreBeforeMid(st->exprPreStack->tk, st->exprMidStack->tk))){
-					// apply the Pre
-					st->exprTerm = expr_prefix(flp, st->exprPreStack->tk->u.k, st->exprTerm);
+					// apply the Pre to the left side
+					st->exprStack->ex = expr_prefix(flp, st->exprPreStack->tk->u.k,
+						st->exprStack->ex);
 					ets next = st->exprPreStack->next;
 					ets_free(st->exprPreStack);
 					st->exprPreStack = next;
@@ -4578,11 +4606,6 @@ static prr_st parser_process(parser pr, filepos_st flp, list_ptr stmts){
 				exs next = st->exprStack->next;
 				exs_free(st->exprStack);
 				st->exprStack = next;
-				st->exprPreStack = st->exprPreStackStack->e;
-				st->exprPreStackStack->e = NULL;
-				eps next2 = st->exprPreStackStack->next;
-				eps_free(st->exprPreStackStack);
-				st->exprPreStackStack = next2;
 				ets next3 = st->exprMidStack->next;
 				ets_free(st->exprMidStack);
 				st->exprMidStack = next3;
@@ -10618,7 +10641,7 @@ set_null:
 				if (b == '"' || b == '\\' || b == '\b' || b == '\f' || b == '\n' || b == '\r' ||
 					b == '\t')
 					tot += 2;
-				else if (b < 0x20) // \u00XX
+				else if (b < 0x20 || b >= 0x80) // \u00XX
 					tot += 6;
 				else
 					tot++;
@@ -10654,7 +10677,7 @@ set_null:
 					s->bytes[pos++] = '\\';
 					s->bytes[pos++] = 't';
 				}
-				else if (b < 0x20){ // \u00XX
+				else if (b < 0x20 || b >= 0x80){ // \u00XX
 					s->bytes[pos++] = '\\';
 					s->bytes[pos++] = 'u';
 					s->bytes[pos++] = '0';
@@ -10802,7 +10825,7 @@ static void pkbin(context ctx, sink_val a, list_int li, uint32_t *str_table_size
 					found = vi == 0 ||
 						memcmp(&strs->bytes[spos], s->bytes, sizeof(uint8_t) * vi) == 0;
 				}
-				else{
+				if (!found){
 					spos += vi;
 					sidx++;
 				}
@@ -10969,6 +10992,7 @@ static bool pkv_sval(context ctx, sink_str s, uint64_t *pos, uint32_t str_table_
 				(((uint64_t)s->bytes[*pos + 7]) << 56);
 			if (isnan(res->f)) // make sure no screwy NaN's come in
 				*res = sink_num_nan();
+			(*pos) += 8;
 			return true;
 		} break;
 		case 0xF7: {
@@ -11007,6 +11031,168 @@ static bool pkv_sval(context ctx, sink_str s, uint64_t *pos, uint32_t str_table_
 			*res = (sink_val){ .u = SINK_TAG_LIST | li->vals[id] };
 			return true;
 		} break;
+	}
+	return false;
+}
+
+static bool pkv_json(context ctx, sink_str s, int *pos, sink_val *res){
+	while (*pos < s->size && isSpace((char)s->bytes[*pos]))
+		(*pos)++;
+	if (*pos >= s->size)
+		return false;
+	uint8_t b = s->bytes[*pos];
+	(*pos)++;
+	if (b == 'n'){
+		if (*pos + 2 >= s->size)
+			return false;
+		if (s->bytes[*pos] != 'u' ||
+			s->bytes[*pos + 1] != 'l' ||
+			s->bytes[*pos + 2] != 'l')
+			return false;
+		(*pos) += 3;
+		*res = SINK_NIL;
+		return true;
+	}
+	else if (isNum((char)b) || b == '-'){
+		double num_sign = 1;
+		double num_int = 0;
+		double num_frac = 0;
+		double num_base = 1;
+		double num_exp_sign = 1;
+		double num_exp = 0;
+		if (b == '-'){
+			if (*pos >= s->size)
+				return false;
+			num_sign = -1;
+			b = s->bytes[*pos];
+			(*pos)++;
+			if (!isNum((char)b))
+				return false;
+		}
+		if (b >= '1' && b <= '9'){
+			num_int = b - '0';
+			while (*pos < s->size && isNum((char)s->bytes[*pos])){
+				num_int = 10 * num_int + (s->bytes[*pos] - '0');
+				(*pos)++;
+			}
+		}
+		if (s->bytes[*pos] == '.'){
+			(*pos)++;
+			if (*pos >= s->size || !isNum((char)s->bytes[*pos]))
+				return false;
+			while (*pos < s->size && isNum((char)s->bytes[*pos])){
+				num_frac = num_frac * 10 + s->bytes[*pos] - '0';
+				num_base = num_base * 10;
+				(*pos)++;
+			}
+		}
+		if (s->bytes[*pos] == 'e' || s->bytes[*pos] == 'E'){
+			(*pos)++;
+			if (*pos >= s->size)
+				return false;
+			if (s->bytes[*pos] == '-' || s->bytes[*pos] == '+'){
+				num_exp_sign = s->bytes[*pos] == '-' ? -1 : 1;
+				(*pos)++;
+				if (*pos >= s->size)
+					return false;
+			}
+			if (!isNum((char)s->bytes[*pos]))
+				return false;
+			while (*pos < s->size && isNum((char)s->bytes[*pos])){
+				num_exp = num_exp * 10 + s->bytes[*pos] - '0';
+				(*pos)++;
+			}
+		}
+		num_exp = pow(10.0, num_exp_sign * num_exp);
+		*res = sink_num(num_sign * num_int * num_exp + num_sign * num_frac * num_exp / num_base);
+		return true;
+	}
+	else if (b == '"'){
+		list_byte str = list_byte_new();
+		while (*pos < s->size){
+			b = s->bytes[*pos];
+			if (b == '"'){
+				(*pos)++;
+				list_byte_push(str, 0);
+				sink_str_st bstr = list_byte_freetostr(str);
+				*res = sink_str_newblobgive(ctx, bstr.size - 1, bstr.bytes);
+				return true;
+			}
+			else if (b == '\\'){
+				(*pos)++;
+				if (*pos >= s->size){
+					list_byte_free(str);
+					return false;
+				}
+				b = s->bytes[*pos];
+				if (b == '"' || b == '\\')
+					list_byte_push(str, b);
+				else if (b == 'b')
+					list_byte_push(str, '\b');
+				else if (b == 'f')
+					list_byte_push(str, '\f');
+				else if (b == 'n')
+					list_byte_push(str, '\n');
+				else if (b == 'r')
+					list_byte_push(str, '\r');
+				else if (b == 't')
+					list_byte_push(str, '\t');
+				else if (b == 'u'){
+					if (*pos + 4 >= s->size ||
+						s->bytes[*pos + 1] != '0' || s->bytes[*pos + 2] != '0' ||
+						!isHex(s->bytes[*pos + 3]) || !isHex(s->bytes[*pos + 4])){
+						list_byte_free(str);
+						return false;
+					}
+					list_byte_push(str,
+						(toHex(s->bytes[*pos + 3]) << 4) | toHex(s->bytes[*pos + 4]));
+					(*pos) += 4;
+				}
+				else{
+					list_byte_free(str);
+					return false;
+				}
+			}
+			else if (b < 0x20){
+				list_byte_free(str);
+				return false;
+			}
+			else
+				list_byte_push(str, b);
+			(*pos)++;
+		}
+		list_byte_free(str);
+		return false;
+	}
+	else if (b == '['){
+		while (*pos < s->size && isSpace((char)s->bytes[*pos]))
+			(*pos)++;
+		if (*pos >= s->size)
+			return false;
+		if (s->bytes[*pos] == ']'){
+			(*pos)++;
+			*res = sink_list_newblob(ctx, 0, NULL);
+			return true;
+		}
+		*res = sink_list_newblob(ctx, 0, NULL);
+		while (true){
+			sink_val item;
+			if (!pkv_json(ctx, s, pos, &item))
+				return false;
+			sink_list_push(ctx, *res, item);
+			while (*pos < s->size && isSpace((char)s->bytes[*pos]))
+				(*pos)++;
+			if (*pos >= s->size)
+				return false;
+			if (s->bytes[*pos] == ']'){
+				(*pos)++;
+				return true;
+			}
+			else if (s->bytes[*pos] == ',')
+				(*pos)++;
+			else
+				return false;
+		}
 	}
 	return false;
 }
@@ -11054,8 +11240,20 @@ static inline sink_val opi_pickle_val(context ctx, sink_val a){
 		return res;
 	}
 	// otherwise, json decode
-	// TODO: this
-	return SINK_NIL;
+	int pos = 0;
+	sink_val res;
+	if (!pkv_json(ctx, s, &pos, &res)){
+		opi_abortcstr(ctx, "Invalid pickle data");
+		return SINK_NIL;
+	}
+	while (pos < s->size){
+		if (!isSpace(s->bytes[pos])){
+			opi_abortcstr(ctx, "Invalid pickle data");
+			return SINK_NIL;
+		}
+		pos++;
+	}
+	return res;
 }
 
 static inline bool pkv_valid_advance(sink_str s, uint64_t *pos, uint32_t amt){

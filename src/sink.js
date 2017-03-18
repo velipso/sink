@@ -2742,12 +2742,23 @@ function parser_process(pr, flp, stmts){
 
 		case PRS_EXPR_FINISH:
 			while (true){
-				// fight between the Pre and the Mid
-				while (st.exprPreStack != null &&
-					(st.exprMidStack == null ||
-						tok_isPreBeforeMid(st.exprPreStack.tk, st.exprMidStack.tk))){
-					// apply the Pre
+				// apply any outstanding Pre's
+				while (st.exprPreStack != null){
 					st.exprTerm = expr_prefix(flp, st.exprPreStack.tk.k, st.exprTerm);
+					st.exprPreStack = st.exprPreStack.next;
+				}
+
+				// grab left side's Pre's
+				if (st.exprPreStackStack !== null){
+					st.exprPreStack = st.exprPreStackStack.ets;
+					st.exprPreStackStack = st.exprPreStackStack.next;
+				}
+
+				// fight between the left Pre and the Mid
+				while (st.exprPreStack != null &&
+					tok_isPreBeforeMid(st.exprPreStack.tk, st.exprMidStack.tk)){
+					// apply the Pre to the left side
+					st.exprStack.ex = expr_prefix(flp, st.exprPreStack.tk.k, st.exprStack.ex);
 					st.exprPreStack = st.exprPreStack.next;
 				}
 
@@ -2760,8 +2771,6 @@ function parser_process(pr, flp, stmts){
 					return prr_error(pri.msg);
 				st.exprTerm = pri.ex;
 				st.exprStack = st.exprStack.next;
-				st.exprPreStack = st.exprPreStackStack.ets;
-				st.exprPreStackStack = st.exprPreStackStack.next;
 				st.exprMidStack = st.exprMidStack.next;
 			}
 			// everything has been applied, and exprTerm has been set!
