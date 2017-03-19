@@ -1611,13 +1611,13 @@ typedef enum {
 } lex_enum;
 
 typedef struct {
-	double sign;  // value sign -1 or 1
+	int    sign;  // value sign -1 or 1
 	double val;   // integer part
-	double base;  // number base 2, 8, 10, or 16
+	int    base;  // number base 2, 8, 10, or 16
 	double frac;  // fractional part >= 0
-	double flen;  // number of fractional digits
-	double esign; // exponent sign -1 or 1
-	double eval;  // exponent value >= 0
+	int    flen;  // number of fractional digits
+	int    esign; // exponent sign -1 or 1
+	int    eval;  // exponent value >= 0
 } numpart_info;
 
 static inline void numpart_new(numpart_info *info){
@@ -1634,7 +1634,7 @@ static inline double numpart_calc(numpart_info info){
 	double val = info.val;
 	double e = 1;
 	if (info.eval > 0){
-		e = pow(info.base == 10.0 ? 10.0 : 2.0, info.esign * info.eval);
+		e = pow(info.base == 10 ? 10.0 : 2.0, info.esign * info.eval);
 		val *= e;
 	}
 	if (info.flen > 0){
@@ -10397,7 +10397,16 @@ static inline sink_val opi_range(context ctx, double start, double stop, double 
 	return sink_list_newblobgive(ctx, count, count, ret);
 }
 
-static inline bool pkj_isjson(sink_str s){
+static inline void numtostr(double num, char *buf, size_t bufsize, int *outsize){
+	*outsize = snprintf(buf, bufsize, "%.16g", num);
+	if (buf[0] == '-' && buf[1] == '0' && buf[2] == 0){ // fix negative zero silliness
+		buf[0] = '0';
+		buf[1] = 0;
+		*outsize = 1;
+	}
+}
+
+static inline bool pk_isjson(sink_str s){
 	enum {
 		PKV_START,
 		PKV_NULL1,
@@ -10596,19 +10605,10 @@ static inline bool pkj_isjson(sink_str s){
 	return state == PKV_ENDVAL;
 }
 
-static void numtostr(double num, char *buf, size_t bufsize, int *outsize){
-	*outsize = snprintf(buf, bufsize, "%.16g", num);
-	if (buf[0] == '-' && buf[1] == '0' && buf[2] == 0){ // fix negative zero silliness
-		buf[0] = '0';
-		buf[1] = 0;
-		*outsize = 1;
-	}
-}
-
-static bool pkjson(context ctx, sink_val a, list_int li, sink_str s){
+static bool pk_tojson(context ctx, sink_val a, list_int li, sink_str s){
 	switch (sink_typeof(a)){
 		case SINK_TYPE_NIL:
-set_null:
+			set_null:
 			s->size = 4;
 			s->bytes = mem_alloc(sizeof(uint8_t) * 5);
 			s->bytes[0] = 'n';
@@ -10622,7 +10622,7 @@ set_null:
 			int sz;
 			numtostr(sink_castnum(a), buf, sizeof(buf), &sz);
 			sink_str_st s2 = { .size = sz, .bytes = (uint8_t *)buf };
-			if (pkj_isjson(&s2)){
+			if (pk_isjson(&s2)){
 				s->size = sz;
 				s->bytes = mem_alloc(sizeof(uint8_t) * (sz + 1));
 				memcpy(s->bytes, buf, sizeof(uint8_t) * (sz + 1));
@@ -10702,7 +10702,7 @@ set_null:
 			sink_str_st *strs = mem_alloc(sizeof(sink_str_st) * ls->size);
 			for (int i = 0; i < ls->size; i++){
 				sink_str_st s2;
-				if (!pkjson(ctx, ls->vals[i], li, &s2)){
+				if (!pk_tojson(ctx, ls->vals[i], li, &s2)){
 					for (int j = 0; j < i; j++)
 						mem_free(strs[j].bytes);
 					mem_free(strs);
@@ -10740,7 +10740,7 @@ static inline sink_val opi_pickle_json(context ctx, sink_val a){
 	if (sink_islist(a))
 		li = list_int_new();
 	sink_str_st s = { .size = 0, .bytes = NULL};
-	bool suc = pkjson(ctx, a, li, &s);
+	bool suc = pk_tojson(ctx, a, li, &s);
 	if (li)
 		list_int_free(li);
 	if (!suc){
@@ -10753,7 +10753,7 @@ static inline sink_val opi_pickle_json(context ctx, sink_val a){
 	return sink_str_newblobgive(ctx, s.size, s.bytes);
 }
 
-static inline void pkbin_pushvint(list_byte body, uint32_t i){
+static inline void pk_tobin_vint(list_byte body, uint32_t i){
 	if (i < 128)
 		list_byte_push(body, i);
 	else{
@@ -10765,7 +10765,7 @@ static inline void pkbin_pushvint(list_byte body, uint32_t i){
 	}
 }
 
-static void pkbin(context ctx, sink_val a, list_int li, uint32_t *str_table_size, list_byte strs,
+static void pk_tobin(context ctx, sink_val a, list_int li, uint32_t *str_table_size, list_byte strs,
 	list_byte body){
 	switch (sink_typeof(a)){
 		case SINK_TYPE_NIL:
@@ -10831,13 +10831,13 @@ static void pkbin(context ctx, sink_val a, list_int li, uint32_t *str_table_size
 				}
 			}
 			if (!found){
-				pkbin_pushvint(strs, s->size);
+				pk_tobin_vint(strs, s->size);
 				list_byte_append(strs, s->size, s->bytes);
 				sidx = *str_table_size;
 				(*str_table_size)++;
 			}
 			list_byte_push(body, 0xF8);
-			pkbin_pushvint(body, sidx);
+			pk_tobin_vint(body, sidx);
 		} break;
 		case SINK_TYPE_LIST: {
 			int idx = var_index(a);
@@ -10846,13 +10846,13 @@ static void pkbin(context ctx, sink_val a, list_int li, uint32_t *str_table_size
 				list_int_push(li, idx);
 				sink_list ls = var_castlist(ctx, a);
 				list_byte_push(body, 0xF9);
-				pkbin_pushvint(body, ls->size);
+				pk_tobin_vint(body, ls->size);
 				for (int i = 0; i < ls->size; i++)
-					pkbin(ctx, ls->vals[i], li, str_table_size, strs, body);
+					pk_tobin(ctx, ls->vals[i], li, str_table_size, strs, body);
 			}
 			else{
 				list_byte_push(body, 0xFA);
-				pkbin_pushvint(body, idxat);
+				pk_tobin_vint(body, idxat);
 			}
 		} break;
 		case SINK_TYPE_ASYNC:
@@ -10868,7 +10868,7 @@ static inline sink_val opi_pickle_bin(context ctx, sink_val a){
 	uint32_t str_table_size = 0;
 	list_byte strs = list_byte_new();
 	list_byte body = list_byte_new();
-	pkbin(ctx, a, li, &str_table_size, strs, body);
+	pk_tobin(ctx, a, li, &str_table_size, strs, body);
 	if (li)
 		list_int_free(li);
 	if (ctx->failed){
@@ -10899,18 +10899,18 @@ static inline sink_val opi_pickle_bin(context ctx, sink_val a){
 	return sink_str_newblobgive(ctx, tot, bytes);
 }
 
-static inline bool pkv_vint(sink_str s, uint64_t *pos, uint32_t *res){
+static inline bool pk_fmbin_vint(sink_str s, uint64_t *pos, uint32_t *res){
 	if (s->size <= *pos)
 		return false;
-	uint32_t b1 = s->bytes[*pos];
+	uint32_t v = s->bytes[*pos];
 	(*pos)++;
-	if (b1 < 128){
-		*res = b1;
+	if (v < 128){
+		*res = v;
 		return true;
 	}
 	if (s->size <= *pos + 2)
 		return false;
-	*res = ((b1 ^ 0x80) << 24) |
+	*res = ((v ^ 0x80) << 24) |
 		((uint32_t)s->bytes[*pos    ] << 16) |
 		((uint32_t)s->bytes[*pos + 1] <<  8) |
 		((uint32_t)s->bytes[*pos + 2]      );
@@ -10918,7 +10918,7 @@ static inline bool pkv_vint(sink_str s, uint64_t *pos, uint32_t *res){
 	return true;
 }
 
-static bool pkv_sval(context ctx, sink_str s, uint64_t *pos, uint32_t str_table_size,
+static bool pk_fmbin(context ctx, sink_str s, uint64_t *pos, uint32_t str_table_size,
 	sink_val *strs, list_int li, sink_val *res){
 	if (*pos >= s->size)
 		return false;
@@ -11001,24 +11001,26 @@ static bool pkv_sval(context ctx, sink_str s, uint64_t *pos, uint32_t str_table_
 		} break;
 		case 0xF8: {
 			uint32_t id;
-			if (!pkv_vint(s, pos, &id) || id >= str_table_size)
+			if (!pk_fmbin_vint(s, pos, &id) || id >= str_table_size)
 				return false;
 			*res = strs[id];
 			return true;
 		} break;
 		case 0xF9: {
 			uint32_t sz;
-			if (!pkv_vint(s, pos, &sz))
+			if (!pk_fmbin_vint(s, pos, &sz))
 				return false;
-			if (sz <= 0)
+			if (sz <= 0){
 				*res = sink_list_newblob(ctx, 0, NULL);
+				list_int_push(li, var_index(*res));
+			}
 			else{
 				sink_val *vals = mem_alloc(sizeof(sink_val) * sz);
 				memset(vals, 0, sizeof(sink_val) * sz);
 				*res = sink_list_newblobgive(ctx, sz, sz, vals);
 				list_int_push(li, var_index(*res));
 				for (uint32_t i = 0; i < sz; i++){
-					if (!pkv_sval(ctx, s, pos, str_table_size, strs, li, &vals[i]))
+					if (!pk_fmbin(ctx, s, pos, str_table_size, strs, li, &vals[i]))
 						return false;
 				}
 			}
@@ -11026,7 +11028,7 @@ static bool pkv_sval(context ctx, sink_str s, uint64_t *pos, uint32_t str_table_
 		} break;
 		case 0xFA: {
 			uint32_t id;
-			if (!pkv_vint(s, pos, &id) || id >= li->size)
+			if (!pk_fmbin_vint(s, pos, &id) || id >= li->size)
 				return false;
 			*res = (sink_val){ .u = SINK_TAG_LIST | li->vals[id] };
 			return true;
@@ -11035,7 +11037,7 @@ static bool pkv_sval(context ctx, sink_str s, uint64_t *pos, uint32_t str_table_
 	return false;
 }
 
-static bool pkv_json(context ctx, sink_str s, int *pos, sink_val *res){
+static bool pk_fmjson(context ctx, sink_str s, int *pos, sink_val *res){
 	while (*pos < s->size && isSpace((char)s->bytes[*pos]))
 		(*pos)++;
 	if (*pos >= s->size)
@@ -11054,25 +11056,21 @@ static bool pkv_json(context ctx, sink_str s, int *pos, sink_val *res){
 		return true;
 	}
 	else if (isNum((char)b) || b == '-'){
-		double num_sign = 1;
-		double num_int = 0;
-		double num_frac = 0;
-		double num_base = 1;
-		double num_exp_sign = 1;
-		double num_exp = 0;
+		numpart_info npi;
+		numpart_new(&npi);
 		if (b == '-'){
 			if (*pos >= s->size)
 				return false;
-			num_sign = -1;
+			npi.sign = -1;
 			b = s->bytes[*pos];
 			(*pos)++;
 			if (!isNum((char)b))
 				return false;
 		}
 		if (b >= '1' && b <= '9'){
-			num_int = b - '0';
+			npi.val = b - '0';
 			while (*pos < s->size && isNum((char)s->bytes[*pos])){
-				num_int = 10 * num_int + (s->bytes[*pos] - '0');
+				npi.val = 10 * npi.val + (s->bytes[*pos] - '0');
 				(*pos)++;
 			}
 		}
@@ -11081,8 +11079,8 @@ static bool pkv_json(context ctx, sink_str s, int *pos, sink_val *res){
 			if (*pos >= s->size || !isNum((char)s->bytes[*pos]))
 				return false;
 			while (*pos < s->size && isNum((char)s->bytes[*pos])){
-				num_frac = num_frac * 10 + s->bytes[*pos] - '0';
-				num_base = num_base * 10;
+				npi.frac = npi.frac * 10 + s->bytes[*pos] - '0';
+				npi.flen++;
 				(*pos)++;
 			}
 		}
@@ -11091,7 +11089,7 @@ static bool pkv_json(context ctx, sink_str s, int *pos, sink_val *res){
 			if (*pos >= s->size)
 				return false;
 			if (s->bytes[*pos] == '-' || s->bytes[*pos] == '+'){
-				num_exp_sign = s->bytes[*pos] == '-' ? -1 : 1;
+				npi.esign = s->bytes[*pos] == '-' ? -1 : 1;
 				(*pos)++;
 				if (*pos >= s->size)
 					return false;
@@ -11099,12 +11097,11 @@ static bool pkv_json(context ctx, sink_str s, int *pos, sink_val *res){
 			if (!isNum((char)s->bytes[*pos]))
 				return false;
 			while (*pos < s->size && isNum((char)s->bytes[*pos])){
-				num_exp = num_exp * 10 + s->bytes[*pos] - '0';
+				npi.eval = npi.eval * 10 + s->bytes[*pos] - '0';
 				(*pos)++;
 			}
 		}
-		num_exp = pow(10.0, num_exp_sign * num_exp);
-		*res = sink_num(num_sign * num_int * num_exp + num_sign * num_frac * num_exp / num_base);
+		*res = sink_num(numpart_calc(npi));
 		return true;
 	}
 	else if (b == '"'){
@@ -11177,7 +11174,7 @@ static bool pkv_json(context ctx, sink_str s, int *pos, sink_val *res){
 		*res = sink_list_newblob(ctx, 0, NULL);
 		while (true){
 			sink_val item;
-			if (!pkv_json(ctx, s, pos, &item))
+			if (!pk_fmjson(ctx, s, pos, &item))
 				return false;
 			sink_list_push(ctx, *res, item);
 			while (*pos < s->size && isSpace((char)s->bytes[*pos]))
@@ -11210,7 +11207,7 @@ static inline sink_val opi_pickle_val(context ctx, sink_val a){
 	if (s->bytes[0] == 0x01){ // binary decode
 		uint64_t pos = 1;
 		uint32_t str_table_size;
-		if (!pkv_vint(s, &pos, &str_table_size)){
+		if (!pk_fmbin_vint(s, &pos, &str_table_size)){
 			opi_abortcstr(ctx, "Invalid pickle data");
 			return SINK_NIL;
 		}
@@ -11219,7 +11216,7 @@ static inline sink_val opi_pickle_val(context ctx, sink_val a){
 			strs = mem_alloc(sizeof(sink_val) * str_table_size);
 		for (uint32_t i = 0; i < str_table_size; i++){
 			uint32_t str_size;
-			if (!pkv_vint(s, &pos, &str_size) || pos + str_size > s->size){
+			if (!pk_fmbin_vint(s, &pos, &str_size) || pos + str_size > s->size){
 				mem_free(strs);
 				opi_abortcstr(ctx, "Invalid pickle data");
 				return SINK_NIL;
@@ -11229,7 +11226,7 @@ static inline sink_val opi_pickle_val(context ctx, sink_val a){
 		}
 		sink_val res;
 		list_int li = list_int_new();
-		if (!pkv_sval(ctx, s, &pos, str_table_size, strs, li, &res)){
+		if (!pk_fmbin(ctx, s, &pos, str_table_size, strs, li, &res)){
 			mem_free(strs);
 			list_int_free(li);
 			opi_abortcstr(ctx, "Invalid pickle data");
@@ -11242,7 +11239,7 @@ static inline sink_val opi_pickle_val(context ctx, sink_val a){
 	// otherwise, json decode
 	int pos = 0;
 	sink_val res;
-	if (!pkv_json(ctx, s, &pos, &res)){
+	if (!pk_fmjson(ctx, s, &pos, &res)){
 		opi_abortcstr(ctx, "Invalid pickle data");
 		return SINK_NIL;
 	}
@@ -11256,28 +11253,28 @@ static inline sink_val opi_pickle_val(context ctx, sink_val a){
 	return res;
 }
 
-static inline bool pkv_valid_advance(sink_str s, uint64_t *pos, uint32_t amt){
+static inline bool pk_isbin_adv(sink_str s, uint64_t *pos, uint32_t amt){
 	(*pos) += amt;
 	return *pos <= s->size;
 }
 
-static bool pkv_valid_sval(sink_str s, uint64_t *pos, uint32_t *index, uint32_t str_table_size){
+static bool pk_isbin(sink_str s, uint64_t *pos, uint32_t *index, uint32_t str_table_size){
 	if (s->size <= *pos)
 		return false;
 	uint8_t cmd = s->bytes[*pos];
 	(*pos)++;
 	switch (cmd){
-		case 0xF0: return pkv_valid_advance(s, pos, 1);
-		case 0xF1: return pkv_valid_advance(s, pos, 1);
-		case 0xF2: return pkv_valid_advance(s, pos, 2);
-		case 0xF3: return pkv_valid_advance(s, pos, 2);
-		case 0xF4: return pkv_valid_advance(s, pos, 4);
-		case 0xF5: return pkv_valid_advance(s, pos, 4);
-		case 0xF6: return pkv_valid_advance(s, pos, 8);
+		case 0xF0: return pk_isbin_adv(s, pos, 1);
+		case 0xF1: return pk_isbin_adv(s, pos, 1);
+		case 0xF2: return pk_isbin_adv(s, pos, 2);
+		case 0xF3: return pk_isbin_adv(s, pos, 2);
+		case 0xF4: return pk_isbin_adv(s, pos, 4);
+		case 0xF5: return pk_isbin_adv(s, pos, 4);
+		case 0xF6: return pk_isbin_adv(s, pos, 8);
 		case 0xF7: return true;
 		case 0xF8: {
 			uint32_t str_id;
-			if (!pkv_vint(s, pos, &str_id))
+			if (!pk_fmbin_vint(s, pos, &str_id))
 				return false;
 			if (str_id >= str_table_size)
 				return false;
@@ -11286,17 +11283,17 @@ static bool pkv_valid_sval(sink_str s, uint64_t *pos, uint32_t *index, uint32_t 
 		case 0xF9: {
 			(*index)++;
 			uint32_t list_size;
-			if (!pkv_vint(s, pos, &list_size))
+			if (!pk_fmbin_vint(s, pos, &list_size))
 				return false;
 			for (uint32_t i = 0; i < list_size; i++){
-				if (!pkv_valid_sval(s, pos, index, str_table_size))
+				if (!pk_isbin(s, pos, index, str_table_size))
 					return false;
 			}
 			return true;
 		} break;
 		case 0xFA: {
 			uint32_t ref;
-			if (!pkv_vint(s, pos, &ref))
+			if (!pk_fmbin_vint(s, pos, &ref))
 				return false;
 			if (ref >= *index)
 				return false;
@@ -11315,26 +11312,26 @@ static inline int opi_pickle_valid(context ctx, sink_val a){
 	if (s->bytes[0] == 0x01){ // binary validation
 		uint64_t pos = 1;
 		uint32_t str_table_size;
-		if (!pkv_vint(s, &pos, &str_table_size))
+		if (!pk_fmbin_vint(s, &pos, &str_table_size))
 			return 0;
 		for (uint32_t i = 0; i < str_table_size; i++){
 			uint32_t str_size;
-			if (!pkv_vint(s, &pos, &str_size))
+			if (!pk_fmbin_vint(s, &pos, &str_size))
 				return 0;
 			pos += str_size; // skip over string's raw bytes
 		}
 		uint32_t index = 0;
-		if (!pkv_valid_sval(s, &pos, &index, str_table_size))
+		if (!pk_isbin(s, &pos, &index, str_table_size))
 			return 0;
 		if (pos != s->size)
 			return 0;
 		return 2;
 	}
 	// otherwise, json validation
-	return pkj_isjson(s) ? 1 : 0;
+	return pk_isjson(s) ? 1 : 0;
 }
 
-static bool pksib(context ctx, sink_val a, list_int all, list_int parents){
+static bool pk_sib(context ctx, sink_val a, list_int all, list_int parents){
 	int idx = var_index(a);
 	if (list_int_has(parents, idx))
 		return false;
@@ -11347,7 +11344,7 @@ static bool pksib(context ctx, sink_val a, list_int all, list_int parents){
 		sink_val b = ls->vals[i];
 		if (!sink_islist(b))
 			continue;
-		if (pksib(ctx, b, all, parents))
+		if (pk_sib(ctx, b, all, parents))
 			return true;
 	}
 	list_int_pop(parents);
@@ -11359,13 +11356,13 @@ static inline bool opi_pickle_sibling(context ctx, sink_val a){
 		return false;
 	list_int all = list_int_new();
 	list_int parents = list_int_new();
-	bool res = pksib(ctx, a, all, parents);
+	bool res = pk_sib(ctx, a, all, parents);
 	list_int_free(all);
 	list_int_free(parents);
 	return res;
 }
 
-static bool pkcir(context ctx, sink_val a, list_int li){
+static bool pk_cir(context ctx, sink_val a, list_int li){
 	int idx = var_index(a);
 	if (list_int_has(li, idx))
 		return true;
@@ -11375,7 +11372,7 @@ static bool pkcir(context ctx, sink_val a, list_int li){
 		sink_val b = ls->vals[i];
 		if (!sink_islist(b))
 			continue;
-		if (pkcir(ctx, b, li))
+		if (pk_cir(ctx, b, li))
 			return true;
 	}
 	list_int_pop(li);
@@ -11386,12 +11383,12 @@ static inline bool opi_pickle_circular(context ctx, sink_val a){
 	if (!sink_islist(a))
 		return false;
 	list_int ls = list_int_new();
-	bool res = pkcir(ctx, a, ls);
+	bool res = pk_cir(ctx, a, ls);
 	list_int_free(ls);
 	return res;
 }
 
-static sink_val pkcopy(context ctx, sink_val a, list_int li_src, list_int li_tgt){
+static sink_val pk_copy(context ctx, sink_val a, list_int li_src, list_int li_tgt){
 	switch (sink_typeof(a)){
 		case SINK_TYPE_NIL:
 		case SINK_TYPE_NUM:
@@ -11415,7 +11412,7 @@ static sink_val pkcopy(context ctx, sink_val a, list_int li_src, list_int li_tgt
 					list_int_push(li_src, idx);
 					list_int_push(li_tgt, var_index(b));
 					for (int i = 0; i < ls->size; i++)
-						m[i] = pkcopy(ctx, ls->vals[i], li_src, li_tgt);
+						m[i] = pk_copy(ctx, ls->vals[i], li_src, li_tgt);
 					return b;
 				}
 			}
@@ -11434,7 +11431,7 @@ static inline sink_val opi_pickle_copy(context ctx, sink_val a){
 		li_src = list_int_new();
 		li_tgt = list_int_new();
 	}
-	a = pkcopy(ctx, a, li_src, li_tgt);
+	a = pk_copy(ctx, a, li_src, li_tgt);
 	if (li_src){
 		list_int_free(li_src);
 		list_int_free(li_tgt);

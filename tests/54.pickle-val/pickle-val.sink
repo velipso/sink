@@ -2,6 +2,7 @@ def JB a
 	var j = pickle.json a
 	var b = pickle.bin a
 	if (order (pickle.val j), a) != 0
+		say a
 		say 'fail'
 	end
 	if (order (pickle.val b), a) != 0
