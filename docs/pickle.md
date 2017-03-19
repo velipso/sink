@@ -68,7 +68,7 @@ A sink value (S-Val) can be one of the four basic sink types:
 
 | Value  | Description                                        |
 |--------|----------------------------------------------------|
-| `0xF5` | A single byte to indicate a negative 8-bit number  |
+| `0xF5` | A single byte to indicate a negative 32-bit number |
 | Number | The number + 4294967296 in little-endian (4 bytes) |
 
 ### `0xF6` 64-bit Floating-point Number
