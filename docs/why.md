@@ -20,20 +20,20 @@ a beast in one form or another.
 Languages designed for embedding into host programs are a little more slim:
 
 1. [Lua](http://lua.org) - Overall excellent and one I've used quite a lot, but a few annoyances
-  * Starts counting from one
-  * Everything is a hash table
-  * Variables can be used without declaring them
-  * No `continue` statement
-  * API is stack based
-  * Syntax is sometimes a bit goofy for my taste
-  * They keep adding more crap... I wish they would just stop
+    * Starts counting from one
+    * Everything is a hash table
+    * Variables can be used without declaring them
+    * No `continue` statement
+    * API is stack based
+    * Syntax is sometimes a bit goofy for my taste
+    * They keep adding more crap... I wish they would just stop
 2. [Squirrel](http://squirrel-lang.org/) - Popular, haven't really used it
-  * Object-oriented
-  * Similar hash table to Lua
-  * Very C++ like syntax
+    * Object-oriented
+    * Similar hash table to Lua
+    * Very C++ like syntax
 3. [Tcl](http://wiki.tcl.tk/) - Older popular embedding language
-  * Syntax is a mess
-  * Semantics are a mess
+    * Syntax is a mess
+    * Semantics are a mess
 
 Surely someone could make a lot of complaints about sink too.  No language is perfect.
 
