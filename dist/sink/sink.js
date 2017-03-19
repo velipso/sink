@@ -6860,8 +6860,12 @@ function pk_tojson(ctx, a, li){
 		return false; // circular
 	li.push(a);
 	var out = [];
-	for (var i = 0; i < a.length; i++)
-		out.push(pk_tojson(ctx, a[i], li));
+	for (var i = 0; i < a.length; i++){
+		var item = pk_tojson(ctx, a[i], li);
+		if (item === false)
+			return false;
+		out.push(item);
+	}
 	li.pop();
 	return '[' + out.join(',') + ']';
 }

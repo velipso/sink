@@ -502,8 +502,8 @@ pickle.valid 'null'      # => 1, JSON formatted serialized sink value (`null` ma
 
 ### List References
 
-Pickling lists is complicated because they can contain other lists multiple times, or even include
-themselves recursively:
+Pickling lists is complicated because they can contain the same list multiple times, or even have
+recursive lists:
 
 ```
 var a = {'hello'}
