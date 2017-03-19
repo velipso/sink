@@ -7284,7 +7284,7 @@ function opi_pickle_val(ctx, s){
 	var res = pk_fmjson(ctx, s, pos);
 	if (res === false){
 		opi_abort(ctx, 'Invalid pickle data');
-		return SINK_NIL;
+		return null;
 	}
 	while (pos[0] < s.length){
 		if (!isSpace(s.charAt(pos))){
