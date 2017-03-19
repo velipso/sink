@@ -7347,7 +7347,7 @@ function pk_isbin(s, pos, index, str_table_size){
 }
 
 function opi_pickle_valid(ctx, s){
-	if (!sink_isstr(a))
+	if (!sink_isstr(s))
 		return null;
 	if (s.charCodeAt(0) == 0x01){ // binary validation
 		var pos = [1];
