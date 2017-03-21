@@ -10861,7 +10861,7 @@ static void pk_tobin(context ctx, sink_val a, list_int li, uint32_t *str_table_s
 	}
 }
 
-static inline sink_val opi_pickle_bin(context ctx, sink_val a){
+static inline bool opi_pickle_binstr(context ctx, sink_val a, sink_str_st *out){
 	list_int li = NULL;
 	if (sink_islist(a))
 		li = list_int_new();
@@ -10874,7 +10874,7 @@ static inline sink_val opi_pickle_bin(context ctx, sink_val a){
 	if (ctx->failed){
 		list_byte_free(strs);
 		list_byte_free(body);
-		return SINK_NIL;
+		return false;
 	}
 	int tot = 1 + (str_table_size < 128 ? 1 : 4) + strs->size + body->size;
 	uint8_t *bytes = mem_alloc(sizeof(uint8_t) * (tot + 1));
@@ -10896,7 +10896,15 @@ static inline sink_val opi_pickle_bin(context ctx, sink_val a){
 	bytes[tot] = 0;
 	list_byte_free(strs);
 	list_byte_free(body);
-	return sink_str_newblobgive(ctx, tot, bytes);
+	*out = (sink_str_st){ .size = tot, .bytes = bytes };
+	return true;
+}
+
+static inline sink_val opi_pickle_bin(context ctx, sink_val a){
+	sink_str_st str;
+	if (!opi_pickle_binstr(ctx, a, &str))
+		return SINK_NIL;
+	return sink_str_newblobgive(ctx, str.size, str.bytes);
 }
 
 static inline bool pk_fmbin_vint(sink_str s, uint64_t *pos, uint32_t *res){
@@ -11194,6 +11202,36 @@ static bool pk_fmjson(context ctx, sink_str s, int *pos, sink_val *res){
 	return false;
 }
 
+static inline bool opi_pickle_valstr(context ctx, sink_str s, sink_val *res){
+	if (s->size < 1 || s->bytes[0] != 0x01)
+		return false;
+	uint64_t pos = 1;
+	uint32_t str_table_size;
+	if (!pk_fmbin_vint(s, &pos, &str_table_size))
+		return false;
+	sink_val *strs = NULL;
+	if (str_table_size > 0)
+		strs = mem_alloc(sizeof(sink_val) * str_table_size);
+	for (uint32_t i = 0; i < str_table_size; i++){
+		uint32_t str_size;
+		if (!pk_fmbin_vint(s, &pos, &str_size) || pos + str_size > s->size){
+			mem_free(strs);
+			return false;
+		}
+		strs[i] = sink_str_newblob(ctx, str_size, &s->bytes[pos]);
+		pos += str_size;
+	}
+	list_int li = list_int_new();
+	if (!pk_fmbin(ctx, s, &pos, str_table_size, strs, li, res)){
+		mem_free(strs);
+		list_int_free(li);
+		return false;
+	}
+	mem_free(strs);
+	list_int_free(li);
+	return true;
+}
+
 static inline sink_val opi_pickle_val(context ctx, sink_val a){
 	if (!sink_isstr(a)){
 		opi_abortcstr(ctx, "Invalid pickle data");
@@ -11205,35 +11243,11 @@ static inline sink_val opi_pickle_val(context ctx, sink_val a){
 		return SINK_NIL;
 	}
 	if (s->bytes[0] == 0x01){ // binary decode
-		uint64_t pos = 1;
-		uint32_t str_table_size;
-		if (!pk_fmbin_vint(s, &pos, &str_table_size)){
-			opi_abortcstr(ctx, "Invalid pickle data");
-			return SINK_NIL;
-		}
-		sink_val *strs = NULL;
-		if (str_table_size > 0)
-			strs = mem_alloc(sizeof(sink_val) * str_table_size);
-		for (uint32_t i = 0; i < str_table_size; i++){
-			uint32_t str_size;
-			if (!pk_fmbin_vint(s, &pos, &str_size) || pos + str_size > s->size){
-				mem_free(strs);
-				opi_abortcstr(ctx, "Invalid pickle data");
-				return SINK_NIL;
-			}
-			strs[i] = sink_str_newblob(ctx, str_size, &s->bytes[pos]);
-			pos += str_size;
-		}
 		sink_val res;
-		list_int li = list_int_new();
-		if (!pk_fmbin(ctx, s, &pos, str_table_size, strs, li, &res)){
-			mem_free(strs);
-			list_int_free(li);
+		if (!opi_pickle_valstr(ctx, s, &res)){
 			opi_abortcstr(ctx, "Invalid pickle data");
 			return SINK_NIL;
 		}
-		mem_free(strs);
-		list_int_free(li);
 		return res;
 	}
 	// otherwise, json decode
@@ -14090,16 +14104,49 @@ sink_val  sink_list_str(sink_ctx ctx, sink_val ls);
 void      sink_list_sort(sink_ctx ctx, sink_val ls);
 void      sink_list_rsort(sink_ctx ctx, sink_val ls);
 sink_val  sink_order(sink_ctx ctx, sink_val a, sink_val b);
+*/
 
 // pickle
-sink_val sink_pickle_json(sink_ctx ctx, sink_val a);
-sink_val sink_pickle_bin(sink_ctx ctx, sink_val a);
-sink_val sink_pickle_val(sink_ctx ctx, sink_val a);
-int      sink_pickle_valid(sink_ctx ctx, sink_val a); // 0 for invalid, 1 for JSON, 2 for binary
-bool     sink_pickle_sibling(sink_ctx ctx, sink_val a);
-bool     sink_pickle_circular(sink_ctx ctx, sink_val a);
-sink_val sink_pickle_copy(sink_ctx ctx, sink_val a);
-*/
+sink_val sink_pickle_json(sink_ctx ctx, sink_val a){
+	return opi_pickle_json(ctx, a);
+}
+
+sink_val sink_pickle_bin(sink_ctx ctx, sink_val a){
+	return opi_pickle_bin(ctx, a);
+}
+
+sink_val sink_pickle_val(sink_ctx ctx, sink_val a){
+	return opi_pickle_val(ctx, a);
+}
+
+int sink_pickle_valid(sink_ctx ctx, sink_val a){
+	return opi_pickle_valid(ctx, a);
+}
+
+bool sink_pickle_sibling(sink_ctx ctx, sink_val a){
+	return opi_pickle_sibling(ctx, a);
+}
+
+bool sink_pickle_circular(sink_ctx ctx, sink_val a){
+	return opi_pickle_circular(ctx, a);
+}
+
+sink_val sink_pickle_copy(sink_ctx ctx, sink_val a){
+	return opi_pickle_copy(ctx, a);
+}
+
+bool sink_pickle_binstr(sink_ctx ctx, sink_val a, sink_str_st *out){
+	return opi_pickle_binstr(ctx, a, out);
+}
+
+void sink_pickle_binstrfree(sink_str_st str){
+	if (str.size >= 0 && str.bytes)
+		mem_free(str.bytes);
+}
+
+bool sink_pickle_valstr(sink_ctx ctx, sink_str_st str, sink_val *out){
+	return opi_pickle_valstr(ctx, &str, out);
+}
 
 void sink_gc_pin(sink_ctx ctx, sink_val v){
 	context_gcpin((context)ctx, v);

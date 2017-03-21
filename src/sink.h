@@ -382,6 +382,24 @@ int      sink_pickle_valid(sink_ctx ctx, sink_val a); // 0 for invalid, 1 for JS
 bool     sink_pickle_sibling(sink_ctx ctx, sink_val a);
 bool     sink_pickle_circular(sink_ctx ctx, sink_val a);
 sink_val sink_pickle_copy(sink_ctx ctx, sink_val a);
+// the following pickle functions can be used to marshal sink values between sink contexts, ex:
+//   sink_str_st str;
+//   // convert value into independant serialized buffer that exists without a sink context
+//   if (!sink_pickle_binstr(ctx1, v1, &str)){
+//     failed to pickle value; should never happen under normal use
+//     abort();
+//   }
+//   // deserialize buffer into a value that can be passed around inside a different context
+//   sink_val v2;
+//   if (!sink_pickle_valstr(ctx2, str, &v2)){
+//     failed to unpickle value; the buffer was corrupted..?
+//     abort();
+//   }
+//   // don't forget to free the serialized buffer once done
+//   sink_pickle_binstrfree(str);
+bool     sink_pickle_binstr(sink_ctx ctx, sink_val a, sink_str_st *out);
+void     sink_pickle_binstrfree(sink_str_st str);
+bool     sink_pickle_valstr(sink_ctx ctx, sink_str_st str, sink_val *out);
 
 // gc
 void          sink_gc_pin(sink_ctx ctx, sink_val v);   // prevent a value from being GC'ed
