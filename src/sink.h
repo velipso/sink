@@ -389,13 +389,15 @@ sink_val sink_pickle_copy(sink_ctx ctx, sink_val a);
 //     failed to pickle value; should never happen under normal use
 //     abort();
 //   }
+//   // ...
+//   // use str.size/str.bytes however you want, save to file, load from file, send across net, etc
+//   // ...
 //   // deserialize buffer into a value that can be passed around inside a different context
 //   sink_val v2;
 //   if (!sink_pickle_valstr(ctx2, str, &v2)){
 //     failed to unpickle value; the buffer was corrupted..?
-//     abort();
 //   }
-//   // don't forget to free the serialized buffer once done
+//   // don't forget to free the serialized buffer produced by sink_pickle_binstr once done
 //   sink_pickle_binstrfree(str);
 bool     sink_pickle_binstr(sink_ctx ctx, sink_val a, sink_str_st *out);
 void     sink_pickle_binstrfree(sink_str_st str);

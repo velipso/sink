@@ -11566,7 +11566,6 @@ static sink_run context_run(context ctx){
 
 	#define RETURN_FAIL(msg)   do{           \
 			opi_abortcstr(ctx, msg);         \
-			ctx->failed = true;              \
 			return SINK_RUN_FAIL;            \
 		} while(false)
 
