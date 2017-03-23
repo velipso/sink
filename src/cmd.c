@@ -1,4 +1,4 @@
-// (c) Copyright 2016, Sean Connelly (@voidqk), http://syntheti.cc
+// (c) Copyright 2016-2017, Sean Connelly (@voidqk), http://syntheti.cc
 // MIT License
 // Project Home: https://github.com/voidqk/sink
 
@@ -310,7 +310,7 @@ int main_eval(const char *eval, char *const *argv, int argc){
 void printVersion(){
 	printf(
 		"Sink v1.0\n"
-		"Copyright (c) 2016 Sean Connelly (@voidqk), MIT License\n"
+		"Copyright (c) 2016-2017 Sean Connelly (@voidqk), MIT License\n"
 		"https://github.com/voidqk/sink  http://syntheti.cc\n");
 }
 
