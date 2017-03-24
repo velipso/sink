@@ -13412,6 +13412,10 @@ const char *sink_scr_getfile(sink_scr scr){
 	return ((script)scr)->file;
 }
 
+const char *sink_scr_getcwd(sink_scr scr){
+	return ((script)scr)->curdir;
+}
+
 bool sink_scr_write(sink_scr scr, int size, const uint8_t *bytes){
 	if (size <= 0)
 		return true;

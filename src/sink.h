@@ -216,6 +216,7 @@ void        sink_scr_inc(sink_scr scr, const char *name, const char *body);
 void        sink_scr_cleanup(sink_scr scr, void *cuser, sink_free_func f_free);
 bool        sink_scr_loadfile(sink_scr scr, const char *file);
 const char *sink_scr_getfile(sink_scr scr);
+const char *sink_scr_getcwd(sink_scr scr);
 bool        sink_scr_write(sink_scr scr, int size, const uint8_t *bytes);
 const char *sink_scr_err(sink_scr scr);
 void        sink_scr_setpos(sink_scr scr, int line, int chr);
