@@ -13405,7 +13405,9 @@ bool sink_scr_loadfile(sink_scr scr, const char *file){
 	}
 	bool read = fileres_read(scr, sc->inc, file, sc->curdir, sc->paths,
 		(f_fileres_begin_func)sfr_begin, (f_fileres_end_func)sfr_end, sc);
-	return read && sc->err == NULL;
+	if (!read && sc->err == NULL)
+		sc->err = sink_format("Error: Failed to read file: %s", file);
+	return sc->err == NULL;
 }
 
 const char *sink_scr_getfile(sink_scr scr){
