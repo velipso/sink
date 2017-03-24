@@ -47,6 +47,10 @@ static bool isdir(const char *dir){
 	return S_ISDIR(buf.st_mode);
 }
 
+#else
+#	error Don't know how to perform includes for other platforms
+#endif
+
 static bool isfile(const char *file){
 	FILE *fp = fopen(file, "rb");
 	if (fp == NULL)
@@ -66,23 +70,16 @@ static sink_fstype fstype(const char *file, void *user){
 static bool fsread(sink_scr scr, const char *file, void *user){
 	FILE *fp = fopen(file, "rb");
 	if (fp == NULL)
-		return false;
+		return false; // `false` indicates that the file couldn't be read
 	char buf[5000];
 	while (!feof(fp)){
 		size_t sz = fread(buf, 1, sizeof(buf), fp);
-		const char *err = sink_scr_write(scr, sz, (const uint8_t *)buf);
-		if (err){
-			fprintf(stderr, "Error: %s\n", err);
+		if (!sink_scr_write(scr, sz, (const uint8_t *)buf))
 			break;
-		}
 	}
 	fclose(fp);
-	return true;
+	return true; // `true` indicates that the file was read
 }
-
-#else
-#	error Don't know how to perform includes for other platforms
-#endif
 
 static sink_inc_st inc = {
 	.f_fixpath = FIXPATH,
@@ -91,21 +88,37 @@ static sink_inc_st inc = {
 	.user = NULL
 };
 
-static void addpath(sink_scr scr, bool repl){
+static inline sink_scr newscr(sink_scr_type type){
+	// create the script with the current working directory
+	char *cwd = getcwd(NULL, 0);
+	sink_scr scr = sink_scr_new(inc, cwd, type);
+	free(cwd);
+
+	// add the appropriate paths
 	const char *sp = getenv("SINK_PATH");
 	if (sp == NULL){
 		// if no environment variable, then add a default path of the current directory
-		if (repl){
-			char *cwd = getcwd(NULL, 0);
-			sink_scr_addpath(scr, cwd);
-			free(cwd);
-		}
-		else
-			sink_scr_addpath(scr, ".");
-		return;
+		sink_scr_addpath(scr, ".");
 	}
-	fprintf(stderr, "TODO: process SINK_PATH\n");
-	abort();
+	else{
+		fprintf(stderr, "TODO: process SINK_PATH\n");
+		abort();
+	}
+
+	// add any libraries
+	sink_shell_scr(scr);
+
+	return scr;
+}
+
+static inline sink_ctx newctx(sink_scr scr){
+	// create the context with the standard I/O
+	sink_ctx ctx = sink_ctx_new(scr, sink_stdio);
+
+	// add any libraries
+	sink_shell_ctx(ctx, 0, NULL);
+
+	return ctx;
 }
 
 static inline void printline(int line, int level){
@@ -123,13 +136,26 @@ static inline void printline(int line, int level){
 	}
 }
 
+static inline void printscrerr(sink_scr scr){
+	const char *err = sink_scr_err(scr);
+	if (err)
+		fprintf(stderr, "%s\n", err);
+	else
+		fprintf(stderr, "Error: Unknown error\n");
+}
+
+static inline void printctxerr(sink_ctx ctx){
+	const char *err = sink_ctx_err(ctx);
+	if (err)
+		fprintf(stderr, "%s\n", err);
+	else
+		fprintf(stderr, "Error: Unknown error\n");
+}
+
 static int main_repl(){
 	int res = 0;
-	sink_scr scr = sink_scr_new(inc, NULL, true);
-	addpath(scr, true);
-	sink_shell_scr(scr);
-	sink_ctx ctx = sink_ctx_new(scr, sink_stdio);
-	sink_shell_ctx(ctx, 0, NULL);
+	sink_scr scr = newscr(SINK_SCR_REPL);
+	sink_ctx ctx = newctx(scr);
 	int line = 1;
 	int bufsize = 0;
 	int bufcount = 200;
@@ -160,9 +186,8 @@ static int main_repl(){
 		}
 		buf[bufsize++] = ch;
 		if (ch == '\n'){
-			const char *err = sink_scr_write(scr, bufsize, (uint8_t *)buf);
-			if (err)
-				fprintf(stderr, "%s\n", err);
+			if (!sink_scr_write(scr, bufsize, (uint8_t *)buf))
+				printscrerr(scr);
 			if (sink_scr_level(scr) <= 0){
 				switch (sink_ctx_run(ctx)){
 					case SINK_RUN_PASS:
@@ -170,9 +195,7 @@ static int main_repl(){
 						res = 0;
 						break;
 					case SINK_RUN_FAIL:
-						err = sink_ctx_err(ctx);
-						if (err)
-							fprintf(stderr, "%s\n", err);
+						printctxerr(ctx);
 						break;
 					case SINK_RUN_ASYNC:
 						fprintf(stderr, "TODO: REPL invoked async function\n");
@@ -212,96 +235,33 @@ static char *format(const char *fmt, ...){
 	return buf;
 }
 
-static char *makeabs(const char *file){
-	if (file[0] == '/')
-		return strdup(file);
-	char *cwd = getcwd(NULL, 0);
-	if (cwd == NULL)
-		return NULL;
-	char *out = format("%s/%s", cwd, file);
-	free(cwd);
-	return out;
-}
-
-int main_run(const char *inFile, char *const *argv, int argc){
-	FILE *fp = fopen(inFile, "rb");
-	if (fp == NULL){
-		fprintf(stderr, "Failed to open file: %s\n", inFile);
-		return 1;
-	}
-
-	char *fullfile = makeabs(inFile);
-	if (fullfile == NULL)
-		return 1;
-	sink_scr scr = sink_scr_new(inc, fullfile, false);
-	free(fullfile);
-	addpath(scr, false);
-	sink_shell_scr(scr);
-
-	char buf[1000];
-	while (!feof(fp)){
-		int sz = fread(buf, 1, sizeof(buf), fp);
-		const char *err = sink_scr_write(scr, sz, (const uint8_t *)buf);
-		if (err){
-			fclose(fp);
-			fprintf(stderr, "Error: %s\n", err);
-			sink_scr_free(scr);
-			return 1;
-		}
-	}
-	fclose(fp);
-
-	const char *err = sink_scr_close(scr);
-	if (err){
-		fprintf(stderr, "Error: %s\n", err);
+int main_run(const char *file, char *const *argv, int argc){
+	sink_scr scr = newscr(SINK_SCR_FILE);
+	if (!sink_scr_loadfile(scr, file)){
+		printscrerr(scr);
 		sink_scr_free(scr);
 		return 1;
 	}
-
-	sink_ctx ctx = sink_ctx_new(scr, sink_stdio);
-	sink_shell_ctx(ctx, argc, argv);
+	sink_ctx ctx = newctx(scr);
 	sink_run res = sink_ctx_run(ctx);
-	if (res == SINK_RUN_FAIL){
-		const char *err = sink_ctx_err(ctx);
-		if (err)
-			fprintf(stderr, "%s\n", err);
-	}
+	if (res == SINK_RUN_FAIL)
+		printctxerr(ctx);
 	sink_ctx_free(ctx);
 	sink_scr_free(scr);
 	return res == SINK_RUN_PASS ? 0 : 1;
 }
 
 int main_eval(const char *eval, char *const *argv, int argc){
-	char *fullfile = makeabs("<eval>");
-	if (fullfile == NULL)
-		return 1;
-	sink_scr scr = sink_scr_new(inc, fullfile, false);
-	free(fullfile);
-	addpath(scr, false);
-	sink_shell_scr(scr);
-
-	const char *err = sink_scr_write(scr, strlen(eval), (const uint8_t *)eval);
-	if (err){
-		fprintf(stderr, "Error: %s\n", err);
+	sink_scr scr = newscr(SINK_SCR_EVAL);
+	if (!sink_scr_write(scr, strlen(eval), (const uint8_t *)eval)){
+		printscrerr(scr);
 		sink_scr_free(scr);
 		return 1;
 	}
-
-	err = sink_scr_close(scr);
-	if (err){
-		fprintf(stderr, "Error: %s\n", err);
-		sink_scr_free(scr);
-		return 1;
-	}
-
-	sink_ctx ctx = sink_ctx_new(scr, sink_stdio);
-	sink_shell_ctx(ctx, argc, argv);
+	sink_ctx ctx = newctx(scr);
 	sink_run res = sink_ctx_run(ctx);
-	if (res == SINK_RUN_FAIL){
-		const char *err = sink_ctx_err(ctx);
-		if (err)
-			fprintf(stderr, "%s\n", err);
-	}
+	if (res == SINK_RUN_FAIL)
+		printctxerr(ctx);
 	sink_ctx_free(ctx);
 	sink_scr_free(scr);
 	return res == SINK_RUN_PASS ? 0 : 1;

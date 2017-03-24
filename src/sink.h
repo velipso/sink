@@ -149,15 +149,80 @@ static const uint64_t SINK_TAG_LIST   =        UINT64_C(0x7FF0000400000000);
 static const uint64_t SINK_TAG_MASK   =        UINT64_C(0xFFFFFFFF80000000);
 static const uint64_t SINK_NAN_MASK   =        UINT64_C(0x7FF8000000000000);
 
+typedef enum {
+	SINK_SCR_FILE,
+	SINK_SCR_REPL,
+	SINK_SCR_EVAL
+} sink_scr_type;
+
 // script
-sink_scr    sink_scr_new(sink_inc_st inc, const char *fullfile, bool repl);
+// three kinds of scripts, each with different expectations:
+//
+// 1. SINK_SCR_FILE: script loaded from a file via the include system
+//     sink_scr scr = sink_scr_newfile(inc, currentAbsoluteWorkingDirectory, SINK_SCR_FILE);
+//     // intialize using `sink_scr_addpath`, `sink_scr_inc`, and `sink_scr_cleanup`
+//     // note: `sink_scr_loadfile` will end up calling the file functions provided by `inc`, which
+//     //   means the `f_fsread` function should call `sink_scr_write` with the file contents and
+//     //   check for error at that point too
+//     if (!sink_scr_loadfile(scr, "thefile")){
+//         // the file failed to load
+//         const char *err = sink_scr_err(scr);
+//         if (err)
+//             fprintf(stderr, "%s\n", err);
+//         else
+//             fprintf(stderr, "Error: Unknown error\n");
+//     }
+//     // if desired, use `sink_scr_dump` here to output the bytecode to a buffer
+//     // or you can use `sink_ctx_run` to run the context associated with this scr
+//     sink_scr_free(scr);
+//
+// 2. SINK_SCR_REPL: script is interactively entered via a REPL
+//     sink_scr scr = sink_scr_newrepl(inc, currentAbsoluteWorkingDirectory, SINK_SCR_REPL);
+//     // intialize using `sink_scr_addpath`, `sink_scr_inc`, and `sink_scr_cleanup`
+//     while (replLinesBeingEntered){
+//         char buf[1000];
+//         readinput(buf, sink_scr_level(scr)); // use `sink_scr_level` to detect nesting level
+//         if (!sink_scr_write(scr, strlen(buf), (const uint8_t *)buf)){
+//             // the line failed to compile
+//             const char *err = sink_scr_err(scr);
+//             if (err)
+//                 fprintf(stderr, "%s\n", err);
+//             else
+//                 fprintf(stderr, "Error: Unknown error\n");
+//             // don't worry, you can keep entering more REPL lines, the compiler fixes itself
+//         }
+//         if (sink_scr_level(scr) <= 0){
+//             // if the level is <= 0 that means there is no nesting and an entire statement has
+//             // been entered... so it's a good time to run the context via `sink_ctx_run` to
+//             // advance the machine to the latest point
+//         }
+//     }
+//     // it's not recommended to call `sink_scr_dump` to get the bytecode; this is REPL afterall
+//     sink_scr_free(scr);
+//
+// 3. SINK_SCR_EVAL: script loaded via a buffer
+//     sink_scr scr = sink_scr_new(inc, currentAbsoluteWorkingDirectory, SINK_SCR_EVAL);
+//     // intialize using `sink_scr_addpath`, `sink_scr_inc`, and `sink_scr_cleanup`
+//     if (!sink_scr_write(scr, rawBufferSize, rawBuffer)){
+//         // the buffer failed to compile
+//         const char *err = sink_scr_err(scr);
+//         if (err)
+//             fprintf(stderr, "%s\n", err);
+//         else
+//             fprintf(stderr, "Error: Unknown error\n");
+//     }
+//     // if desired, use `sink_scr_dump` here to output the bytecode to a buffer
+//     // or you can use `sink_ctx_run` to run the context associated with this scr
+//     sink_scr_free(scr);
+sink_scr    sink_scr_new(sink_inc_st inc, const char *curdir, sink_scr_type type);
 void        sink_scr_addpath(sink_scr scr, const char *path);
 void        sink_scr_inc(sink_scr scr, const char *name, const char *body);
 void        sink_scr_cleanup(sink_scr scr, void *cuser, sink_free_func f_free);
-const char *sink_scr_write(sink_scr scr, int size, const uint8_t *bytes);
+bool        sink_scr_loadfile(sink_scr scr, const char *file);
+bool        sink_scr_write(sink_scr scr, int size, const uint8_t *bytes);
+const char *sink_scr_err(sink_scr scr);
 void        sink_scr_setpos(sink_scr scr, int line, int chr);
 int         sink_scr_level(sink_scr scr);
-const char *sink_scr_close(sink_scr scr);
 void        sink_scr_dump(sink_scr scr, void *user, sink_dump_func f_dump);
 void        sink_scr_free(sink_scr scr);
 
@@ -174,7 +239,6 @@ sink_user      sink_ctx_addusertype(sink_ctx ctx, const char *hint, sink_free_fu
 sink_free_func sink_ctx_getuserfree(sink_ctx ctx, sink_user usertype);
 const char *   sink_ctx_getuserhint(sink_ctx ctx, sink_user usertype);
 void           sink_ctx_asyncresult(sink_ctx ctx, sink_val v);
-bool           sink_ctx_ready(sink_ctx ctx);
 void           sink_ctx_settimeout(sink_ctx ctx, int timeout);
 int            sink_ctx_gettimeout(sink_ctx ctx);
 void           sink_ctx_forcetimeout(sink_ctx ctx);

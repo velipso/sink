@@ -12813,6 +12813,129 @@ static sink_run context_run(context ctx){
 }
 
 //
+// file resolver
+//
+
+typedef bool (*f_fileres_begin_func)(const char *file, void *fuser);
+typedef void (*f_fileres_end_func)(bool success, const char *file, void *fuser);
+
+static void pathjoin_apply(char *res, int *r, int len, const char *buf){
+	if (len <= 0 || (len == 1 && buf[0] == '.'))
+		return;
+	if (len == 2 && buf[0] == '.' && buf[1] == '.'){
+		for (int i = *r - 1; i >= 0; i--){
+			if (res[i] == '/'){
+				*r = i;
+				return;
+			}
+		}
+		return;
+	}
+	res[(*r)++] = '/';
+	for (int i = 0; i < len; i++)
+		res[(*r)++] = buf[i];
+}
+
+static void pathjoin_helper(char *res, int *r, int len, const char *buf){
+	for (int i = 0; i < len; i++){
+		if (buf[i] == '/')
+			continue;
+		int start = i;
+		while (i < len && buf[i] != '/')
+			i++;
+		pathjoin_apply(res, r, i - start, &buf[start]);
+	}
+}
+
+static char *pathjoin(const char *prev, const char *next){
+	int prev_len = strlen(prev);
+	int next_len = strlen(next);
+	int len = prev_len + next_len + 2;
+	char *res = mem_alloc(sizeof(char) * len);
+	int r = 0;
+	pathjoin_helper(res, &r, prev_len, prev);
+	pathjoin_helper(res, &r, next_len, next);
+	res[r++] = 0;
+	return res;
+}
+
+static bool fileres_try(sink_scr scr, sink_inc_st inc, const char *file, bool first,
+	f_fileres_begin_func f_begin, f_fileres_end_func f_end, void *fuser){
+	char *fix = (char *)file;
+	bool freefix = false;
+	if (inc.f_fixpath){
+		fix = inc.f_fixpath(file, inc.user);
+		freefix = true;
+	}
+	if (fix == NULL)
+		return false;
+	sink_fstype fst = inc.f_fstype(fix, inc.user);
+	bool result = false;
+	switch (inc.f_fstype(fix, inc.user)){
+		case SINK_FSTYPE_FILE: {
+			result = true;
+			if (f_begin(fix, fuser))
+				f_end(inc.f_fsread(scr, fix, inc.user), fix, fuser);
+		} break;
+		case SINK_FSTYPE_NONE: {
+			if (!first)
+				break;
+			// try adding a .sink extension
+			int len = strlen(file);
+			if (len < 5 || strcmp(&file[len - 5], ".sink") != 0){
+				char *cat = mem_alloc(sizeof(char) * (len + 6));
+				memcpy(cat, file, sizeof(char) * len);
+				cat[len + 0] = '.';
+				cat[len + 1] = 's';
+				cat[len + 2] = 'i';
+				cat[len + 3] = 'n';
+				cat[len + 4] = 'k';
+				cat[len + 5] = 0;
+				result = fileres_try(scr, inc, cat, false, f_begin, f_end, fuser);
+				mem_free(cat);
+			}
+		} break;
+		case SINK_FSTYPE_DIR: {
+			if (!first)
+				break;
+			// try looking for index.sink inside the directory
+			char *join = pathjoin(file, "index.sink");
+			result = fileres_try(scr, inc, join, false, f_begin, f_end, fuser);
+			mem_free(join);
+		} break;
+	}
+	if (freefix)
+		mem_free(fix);
+	return result;
+}
+
+static bool fileres_read(sink_scr scr, sink_inc_st inc, const char *file, const char *cwd,
+	list_ptr paths, f_fileres_begin_func f_begin, f_fileres_end_func f_end, void *fuser){
+	// if an absolute path, there is no searching, so just try to read it directly
+	if (file[0] == '/')
+		return fileres_try(scr, inc, file, true, f_begin, f_end, fuser);
+	// otherwise, we have a relative path, so we need to go through our search list
+	for (int i = 0; i < paths->size; i++){
+		char *path = paths->ptrs[i];
+		char *join;
+		if (path[0] == '/') // search path is absolute
+			join = pathjoin(path, file);
+		else{ // search path is relative
+			if (cwd == NULL)
+				continue;
+			char *tmp = pathjoin(cwd, path);
+			join = pathjoin(tmp, file);
+			mem_free(tmp);
+		}
+		bool found = fileres_try(scr, inc, join, true, f_begin, f_end, fuser);
+		mem_free(join);
+		if (found)
+			return true;
+	}
+	return false;
+}
+
+//
 // compiler
 //
 
@@ -12919,12 +13042,14 @@ static compiler compiler_new(script scr, program prg, staticinc sinc, sink_inc_s
 	return cmp;
 }
 
-static void compiler_reset(compiler cmp){
-	if (cmp->msg){
+static inline void compiler_setmsg(compiler cmp, char *msg){
+	if (cmp->msg)
 		mem_free(cmp->msg);
-		cmp->msg = NULL;
-	}
+	cmp->msg = msg;
+}
 
+static void compiler_reset(compiler cmp){
+	compiler_setmsg(cmp, NULL);
 	lex_reset(cmp->flpn->lx);
 	parser_free(cmp->pr);
 	cmp->pr = parser_new();
@@ -12936,6 +13061,9 @@ static void compiler_reset(compiler cmp){
 	cmp->flpn->pgstate = list_ptr_new((free_func)pgst_free);
 }
 
+static char *compiler_write(compiler cmp, int size, const uint8_t *bytes);
+static char *compiler_closeLexer(compiler cmp);
+
 static bool compiler_begininc(compiler cmp, list_ptr names, char *file){
 	cmp->flpn = flpn_new(file, cmp->flpn);
 	if (names){
@@ -12944,11 +13072,20 @@ static bool compiler_begininc(compiler cmp, list_ptr names, char *file){
 			filepos_node del = cmp->flpn;
 			cmp->flpn = cmp->flpn->next;
 			flpn_free(del);
-			cmp->msg = st.msg;
+			compiler_setmsg(cmp, st.msg);
 			return false;
 		}
 	}
 	return true;
+}
+
+typedef struct {
+	compiler cmp;
+	list_ptr names;
+} compiler_fileres_user_st, *compiler_fileres_user;
+
+static bool compiler_begininc_cfu(const char *file, compiler_fileres_user cfu){
+	return compiler_begininc(cfu->cmp, cfu->names, sink_format("%s", file));
 }
 
 static void compiler_endinc(compiler cmp, bool ns){
@@ -12959,8 +13096,13 @@ static void compiler_endinc(compiler cmp, bool ns){
 	flpn_free(del);
 }
 
-static char *compiler_write(compiler cmp, int size, const uint8_t *bytes);
-static char *compiler_closeLexer(compiler cmp);
+static void compiler_endinc_cfu(bool success, const char *file, compiler_fileres_user cfu){
+	if (success)
+		compiler_closeLexer(cfu->cmp);
+	compiler_endinc(cfu->cmp, cfu->names != NULL);
+	if (!success && cfu->cmp->msg == NULL)
+		compiler_setmsg(cfu->cmp, sink_format("Failed to read file: %s", file));
+}
 
 static bool compiler_staticinc(compiler cmp, list_ptr names, const char *file, const char *body){
 	if (!compiler_begininc(cmp, names, sink_format("%s", file)))
@@ -12977,156 +13119,18 @@ static bool compiler_staticinc(compiler cmp, list_ptr names, const char *file, c
 	return true;
 }
 
-static void pathjoin_apply(char *res, int *r, int len, const char *buf){
-	if (len <= 0 || (len == 1 && buf[0] == '.'))
-		return;
-	if (len == 2 && buf[0] == '.' && buf[1] == '.'){
-		for (int i = *r - 1; i >= 0; i--){
-			if (res[i] == '/'){
-				*r = i;
-				return;
-			}
-		}
-		return;
-	}
-	res[(*r)++] = '/';
-	for (int i = 0; i < len; i++)
-		res[(*r)++] = buf[i];
-}
-
-static void pathjoin_helper(char *res, int *r, int len, const char *buf){
-	for (int i = 0; i < len; i++){
-		if (buf[i] == '/')
-			continue;
-		int start = i;
-		while (i < len && buf[i] != '/')
-			i++;
-		pathjoin_apply(res, r, i - start, &buf[start]);
-	}
-}
-
-static char *pathjoin(const char *prev, const char *next){
-	int prev_len = strlen(prev);
-	int next_len = strlen(next);
-	int len = prev_len + next_len + 2;
-	char *res = mem_alloc(sizeof(char) * len);
-	int r = 0;
-	pathjoin_helper(res, &r, prev_len, prev);
-	pathjoin_helper(res, &r, next_len, next);
-	res[r++] = 0;
-	return res;
-}
-
-static bool compiler_tryinc(compiler cmp, list_ptr names, const char *file, bool first){
-	char *fix = (char *)file;
-	bool freefix = false;
-	if (cmp->inc.f_fixpath){
-		fix = cmp->inc.f_fixpath(file, cmp->inc.user);
-		freefix = true;
-	}
-	if (fix == NULL)
-		return false;
-
-	sink_fstype fst = cmp->inc.f_fstype(fix, cmp->inc.user);
-	if (fst != SINK_FSTYPE_FILE){
-		if (first){
-			if (fst == SINK_FSTYPE_NONE){
-				// try adding a .sink extension
-				int len = strlen(file);
-				if (len < 5 || strcmp(&file[len - 5], ".sink") != 0){
-					char *cat = mem_alloc(sizeof(char) * (len + 6));
-					memcpy(cat, file, sizeof(char) * len);
-					cat[len + 0] = '.';
-					cat[len + 1] = 's';
-					cat[len + 2] = 'i';
-					cat[len + 3] = 'n';
-					cat[len + 4] = 'k';
-					cat[len + 5] = 0;
-					bool res = compiler_tryinc(cmp, names, cat, false);
-					mem_free(cat);
-					if (freefix)
-						mem_free(fix);
-					return res;
-				}
-				else{
-					// already has .sink extension, so abort
-					if (freefix)
-						mem_free(fix);
-					return false;
-				}
-			}
-			else{ // fst == SINK_FSTYPE_DIR
-				// try looking for index.sink inside the directory
-				char *join = pathjoin(file, "index.sink");
-				bool res = compiler_tryinc(cmp, names, join, false);
-				mem_free(join);
-				if (freefix)
-					mem_free(fix);
-				return res;
-			}
-		}
-		else{
-			if (freefix)
-				mem_free(fix);
-			return false;
-		}
-	}
-
-	if (!compiler_begininc(cmp, names, sink_format("%s", fix))){
-		if (freefix)
-			mem_free(fix);
-		return true;
-	}
-
-	bool success = cmp->inc.f_fsread(cmp->scr, fix, cmp->inc.user);
-
-	if (freefix)
-		mem_free(fix);
-
-	if (!success){
-		compiler_endinc(cmp, names != NULL);
-		if (cmp->msg == NULL)
-			cmp->msg = sink_format("Failed to read file: %s", fix);
-		return true;
-	}
-
-	compiler_closeLexer(cmp);
-	compiler_endinc(cmp, names != NULL);
-	return true;
-}
-
 static bool compiler_dynamicinc(compiler cmp, list_ptr names, const char *file, const char *from){
-	if (file[0] == '/'){
-		// if an absolute path, there is no searching, so just try to include it directly
-		return compiler_tryinc(cmp, names, file, true);
-	}
-	// otherwise, we have a relative path, so we need to go through our search list
+	compiler_fileres_user_st cfu;
+	cfu.cmp = cmp;
+	cfu.names = names;
 	char *cwd = NULL;
-	for (int i = 0; i < cmp->paths->size; i++){
-		char *path = cmp->paths->ptrs[i];
-		char *join;
-		if (path[0] == '/') // search path is absolute
-			join = pathjoin(path, file);
-		else{ // search path is relative
-			if (from == NULL)
-				continue;
-			if (cwd == NULL)
-				cwd = pathjoin(from, ".."); // remove trailing filename
-			char *tmp = pathjoin(cwd, path);
-			join = pathjoin(tmp, file);
-			mem_free(tmp);
-		}
-		bool found = compiler_tryinc(cmp, names, join, true);
-		mem_free(join);
-		if (found || cmp->msg){
-			if (cwd)
-				mem_free(cwd);
-			return true;
-		}
-	}
+	if (from)
+		cwd = pathjoin(from, "..");
+	bool res = fileres_read(cmp->scr, cmp->inc, file, cwd, cmp->paths,
+		(f_fileres_begin_func)compiler_begininc_cfu, (f_fileres_end_func)compiler_endinc_cfu, &cfu);
 	if (cwd)
 		mem_free(cwd);
-	return false;
+	return res;
 }
 
 static char *compiler_process(compiler cmp){
@@ -13140,14 +13144,14 @@ static char *compiler_process(compiler cmp){
 				tok tk = list_ptr_shift(tf->tks);
 				tok_print(tk);
 				if (tk->type == TOK_ERROR){
-					cmp->msg = filepos_err(tf->flp, tk->u.msg);
+					compiler_setmsg(cmp, filepos_err(tf->flp, tk->u.msg));
 					tok_free(tk);
 					list_ptr_free(stmts);
 					return cmp->msg;
 				}
 				prr_st pp = parser_add(cmp->pr, tk, tf->flp, stmts);
 				if (pp.type == PRR_ERROR){
-					cmp->msg = filepos_err(tf->flp, pp.msg);
+					compiler_setmsg(cmp, filepos_err(tf->flp, pp.msg));
 					mem_free(pp.msg);
 					list_ptr_free(stmts);
 					return cmp->msg;
@@ -13193,7 +13197,7 @@ static char *compiler_process(compiler cmp){
 					if (!internal){
 						bool found = compiler_dynamicinc(cmp, inc->names, file, stmt->flp.file);
 						if (!found && cmp->msg == NULL)
-							cmp->msg = sink_format("Failed to include: %s", file);
+							compiler_setmsg(cmp, sink_format("Failed to include: %s", file));
 						if (cmp->msg){
 							ast_free(stmt);
 							list_ptr_free(stmts);
@@ -13218,7 +13222,7 @@ static char *compiler_process(compiler cmp){
 						pgst_free(list_ptr_pop(pgsl));
 						break;
 					case PGR_ERROR:
-						cmp->msg = filepos_err(stmt->flp, pg.u.error.msg);
+						compiler_setmsg(cmp, filepos_err(stmt->flp, pg.u.error.msg));
 						ast_free(stmt);
 						mem_free(pg.u.error.msg);
 						list_ptr_free(stmts);
@@ -13286,7 +13290,7 @@ static char *compiler_close(compiler cmp){
 
 	prr_st pr = parser_close(cmp->pr);
 	if (pr.type == PRR_ERROR){
-		cmp->msg = filepos_err(cmp->flpn->flp, pr.msg);
+		compiler_setmsg(cmp, filepos_err(cmp->flpn->flp, pr.msg));
 		mem_free(pr.msg);
 		return cmp->msg;
 	}
@@ -13325,25 +13329,34 @@ struct script_struct {
 	cleanup cup;
 	list_ptr paths;
 	sink_inc_st inc;
-	char *fullfile;
-	char *msg;
-	int mode; // 0 = unsure, 1 = load binary, 2 = compile text
+	char *curdir;
+	char *file;
+	char *err;
+	sink_scr_type type;
+	enum {
+		SCM_UNKNOWN,
+		SCM_BINARY,
+		SCM_TEXT
+	} mode;
 };
 
-sink_scr sink_scr_new(sink_inc_st inc, const char *fullfile, bool repl){
-	if (fullfile != NULL && fullfile[0] != '/')
-		fprintf(stderr, "Warning: sink script \"%s\" is not an absolute path\n", fullfile);
+sink_scr sink_scr_new(sink_inc_st inc, const char *curdir, sink_scr_type type){
+	if (curdir != NULL && curdir[0] != '/')
+		fprintf(stderr, "Warning: sink current directory \"%s\" is not an absolute path\n", curdir);
 	script sc = mem_alloc(sizeof(script_st));
-	sc->prg = program_new(repl);
+	sc->prg = program_new(type == SINK_SCR_REPL);
 	sc->cmp = NULL;
 	sc->sinc = staticinc_new();
 	sc->cup = cleanup_new();
 	sc->paths = list_ptr_new(mem_free_func);
 	sc->inc = inc;
-	sc->fullfile = fullfile ? sink_format("%s", fullfile) : NULL;
-	sc->msg = NULL;
-	sc->mode = 0;
+	sc->curdir = curdir ? sink_format("%s", curdir) : NULL;
+	sc->file = NULL;
+	sc->err = NULL;
+	sc->type = type;
+	sc->mode = SCM_UNKNOWN;
 	return sc;
+
 }
 
 void sink_scr_addpath(sink_scr scr, const char *path){
@@ -13358,40 +13371,89 @@ void sink_scr_cleanup(sink_scr scr, void *cuser, sink_free_func f_free){
 	cleanup_add(((script)scr)->cup, cuser, f_free);
 }
 
-const char *sink_scr_write(sink_scr scr, int size, const uint8_t *bytes){
+static bool sfr_begin(const char *file, script sc){
+	if (sc->file){
+		mem_free(sc->file);
+		sc->file = NULL;
+	}
+	if (file)
+		sc->file = sink_format("%s", file);
+	return true;
+}
+
+static void sfr_end(bool success, const char *file, script sc){
+	if (!success){
+		if (sc->err)
+			mem_free(sc->err);
+		sc->err = sink_format("Error: %s", sc->cmp->msg);
+	}
+	else{
+		char *err = compiler_close(sc->cmp);
+		if (err){
+			if (sc->err)
+				mem_free(sc->err);
+			sc->err = sink_format("Error: %s", err);
+		}
+	}
+}
+
+bool sink_scr_loadfile(sink_scr scr, const char *file){
+	script sc = scr;
+	if (sc->err){
+		mem_free(sc->err);
+		sc->err = NULL;
+	}
+	bool read = fileres_read(scr, sc->inc, file, sc->curdir, sc->paths,
+		(f_fileres_begin_func)sfr_begin, (f_fileres_end_func)sfr_end, sc);
+	return read && sc->err == NULL;
+}
+
+bool sink_scr_write(sink_scr scr, int size, const uint8_t *bytes){
 	if (size <= 0)
-		return NULL;
+		return true;
 	script sc = scr;
 
 	// sink binary files start with 0xFC (invalid UTF8 start byte), so we can tell if we're binary
 	// just by looking at the first byte
-	if (sc->mode == 0){
+	if (sc->mode == SCM_UNKNOWN){
 		if (bytes[0] == 0xFC)
-			sc->mode = 1;
+			sc->mode = SCM_BINARY;
 		else{
-			sc->mode = 2;
-			sc->cmp = compiler_new(sc, sc->prg, sc->sinc, sc->inc, sc->fullfile, sc->paths);
-			sc->fullfile = NULL; // ownership passes to compiler
+			sc->mode = SCM_TEXT;
+			sc->cmp = compiler_new(sc, sc->prg, sc->sinc, sc->inc, sc->file, sc->paths);
+			sc->file = NULL; // ownership passes to compiler
 		}
 	}
 
-	if (sc->mode == 1){
+	if (sc->mode == SCM_BINARY){
 		fprintf(stderr, "TODO: read/write binary sink file\n");
 		abort();
-		return NULL;
+		return false;
 	}
 	else{
-		if (sc->msg){
-			mem_free(sc->msg);
-			sc->msg = NULL;
+		if (sc->err){
+			mem_free(sc->err);
+			sc->err = NULL;
 		}
 		char *err = compiler_write(sc->cmp, size, bytes);
 		if (err)
-			sc->msg = sink_format("Error: %s", err);
+			sc->err = sink_format("Error: %s", err);
 		if (err && sc->prg->repl)
 			compiler_reset(sc->cmp);
-		return sc->msg;
+		if (sc->type == SINK_SCR_EVAL){
+			char *err2 = compiler_close(sc->cmp);
+			if (err2){
+				if (sc->err)
+					mem_free(sc->err);
+				sc->err = sink_format("Error: %s", err2);
+			}
+		}
+		return sc->err == NULL;
 	}
+}
+
+const char *sink_scr_err(sink_scr scr){
+	return ((script)scr)->err;
 }
 
 void sink_scr_setpos(sink_scr scr, int line, int chr){
@@ -13408,19 +13470,6 @@ int sink_scr_level(sink_scr scr){
 	return ((script)scr)->cmp->pr->level;
 }
 
-const char *sink_scr_close(sink_scr scr){
-	script sc = scr;
-	if (sc->mode == 0)
-		return NULL;
-	else if (sc->mode == 1){
-		fprintf(stderr, "TODO: close binary sink file\n");
-		abort();
-		return NULL;
-	}
-	else
-		return compiler_close(sc->cmp);
-}
-
 void sink_scr_dump(sink_scr scr, void *user, sink_dump_func f_dump){
 	fprintf(stderr, "TODO: write sc->prg to f_dump\n");
 	abort();
@@ -13434,10 +13483,12 @@ void sink_scr_free(sink_scr scr){
 	cleanup_free(sc->cup);
 	if (sc->cmp)
 		compiler_free(sc->cmp);
-	if (sc->fullfile)
-		mem_free(sc->fullfile);
-	if (sc->msg)
-		mem_free(sc->msg);
+	if (sc->curdir)
+		mem_free(sc->curdir);
+	if (sc->file)
+		mem_free(sc->file);
+	if (sc->err)
+		mem_free(sc->err);
 	mem_free(sc);
 	#ifdef SINK_MEMTEST
 	mem_done();
@@ -13499,11 +13550,6 @@ void sink_ctx_asyncresult(sink_ctx ctx, sink_val v){
 	}
 	var_set(ctx2, ctx2->async_fdiff, ctx2->async_index, v);
 	ctx2->async = false;
-}
-
-bool sink_ctx_ready(sink_ctx ctx){
-	context ctx2 = ctx;
-	return !(ctx2->passed || ctx2->failed || ctx2->async);
 }
 
 void sink_ctx_settimeout(sink_ctx ctx, int timeout){
