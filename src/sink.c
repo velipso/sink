@@ -13408,6 +13408,10 @@ bool sink_scr_loadfile(sink_scr scr, const char *file){
 	return read && sc->err == NULL;
 }
 
+const char *sink_scr_getfile(sink_scr scr){
+	return ((script)scr)->file;
+}
+
 bool sink_scr_write(sink_scr scr, int size, const uint8_t *bytes){
 	if (size <= 0)
 		return true;

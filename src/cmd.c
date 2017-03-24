@@ -138,18 +138,12 @@ static inline void printline(int line, int level){
 
 static inline void printscrerr(sink_scr scr){
 	const char *err = sink_scr_err(scr);
-	if (err)
-		fprintf(stderr, "%s\n", err);
-	else
-		fprintf(stderr, "Error: Unknown error\n");
+	fprintf(stderr, "%s\n", err ? err : "Error: Unknown");
 }
 
 static inline void printctxerr(sink_ctx ctx){
 	const char *err = sink_ctx_err(ctx);
-	if (err)
-		fprintf(stderr, "%s\n", err);
-	else
-		fprintf(stderr, "Error: Unknown error\n");
+	fprintf(stderr, "%s\n", err ? err : "Error: Unknown");
 }
 
 static int main_repl(){

@@ -159,7 +159,7 @@ typedef enum {
 // three kinds of scripts, each with different expectations:
 //
 // 1. SINK_SCR_FILE: script loaded from a file via the include system
-//     sink_scr scr = sink_scr_newfile(inc, currentAbsoluteWorkingDirectory, SINK_SCR_FILE);
+//     sink_scr scr = sink_scr_new(inc, currentAbsoluteWorkingDirectory, SINK_SCR_FILE);
 //     // intialize using `sink_scr_addpath`, `sink_scr_inc`, and `sink_scr_cleanup`
 //     // note: `sink_scr_loadfile` will end up calling the file functions provided by `inc`, which
 //     //   means the `f_fsread` function should call `sink_scr_write` with the file contents and
@@ -167,17 +167,17 @@ typedef enum {
 //     if (!sink_scr_loadfile(scr, "thefile")){
 //         // the file failed to load
 //         const char *err = sink_scr_err(scr);
-//         if (err)
-//             fprintf(stderr, "%s\n", err);
-//         else
-//             fprintf(stderr, "Error: Unknown error\n");
+//         fprintf(stderr, "%s\n", err ? err : "Error: Unknown");
+//         sink_scr_free(scr);
+//         return;
 //     }
+//     // the resolved filename can be used via `sink_scr_getfile(scr)`
 //     // if desired, use `sink_scr_dump` here to output the bytecode to a buffer
 //     // or you can use `sink_ctx_run` to run the context associated with this scr
 //     sink_scr_free(scr);
 //
 // 2. SINK_SCR_REPL: script is interactively entered via a REPL
-//     sink_scr scr = sink_scr_newrepl(inc, currentAbsoluteWorkingDirectory, SINK_SCR_REPL);
+//     sink_scr scr = sink_scr_new(inc, currentAbsoluteWorkingDirectory, SINK_SCR_REPL);
 //     // intialize using `sink_scr_addpath`, `sink_scr_inc`, and `sink_scr_cleanup`
 //     while (replLinesBeingEntered){
 //         char buf[1000];
@@ -185,10 +185,7 @@ typedef enum {
 //         if (!sink_scr_write(scr, strlen(buf), (const uint8_t *)buf)){
 //             // the line failed to compile
 //             const char *err = sink_scr_err(scr);
-//             if (err)
-//                 fprintf(stderr, "%s\n", err);
-//             else
-//                 fprintf(stderr, "Error: Unknown error\n");
+//             fprintf(stderr, "%s\n", err ? err : "Error: Unknown");
 //             // don't worry, you can keep entering more REPL lines, the compiler fixes itself
 //         }
 //         if (sink_scr_level(scr) <= 0){
@@ -206,10 +203,9 @@ typedef enum {
 //     if (!sink_scr_write(scr, rawBufferSize, rawBuffer)){
 //         // the buffer failed to compile
 //         const char *err = sink_scr_err(scr);
-//         if (err)
-//             fprintf(stderr, "%s\n", err);
-//         else
-//             fprintf(stderr, "Error: Unknown error\n");
+//         fprintf(stderr, "%s\n", err ? err : "Error: Unknown");
+//         sink_scr_free(scr);
+//         return;
 //     }
 //     // if desired, use `sink_scr_dump` here to output the bytecode to a buffer
 //     // or you can use `sink_ctx_run` to run the context associated with this scr
@@ -219,6 +215,7 @@ void        sink_scr_addpath(sink_scr scr, const char *path);
 void        sink_scr_inc(sink_scr scr, const char *name, const char *body);
 void        sink_scr_cleanup(sink_scr scr, void *cuser, sink_free_func f_free);
 bool        sink_scr_loadfile(sink_scr scr, const char *file);
+const char *sink_scr_getfile(sink_scr scr);
 bool        sink_scr_write(sink_scr scr, int size, const uint8_t *bytes);
 const char *sink_scr_err(sink_scr scr);
 void        sink_scr_setpos(sink_scr scr, int line, int chr);
