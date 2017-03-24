@@ -13430,8 +13430,8 @@ bool sink_scr_write(sink_scr scr, int size, const uint8_t *bytes){
 			sc->mode = SCM_BINARY;
 		else{
 			sc->mode = SCM_TEXT;
-			sc->cmp = compiler_new(sc, sc->prg, sc->sinc, sc->inc, sc->file, sc->paths);
-			sc->file = NULL; // ownership passes to compiler
+			sc->cmp = compiler_new(sc, sc->prg, sc->sinc, sc->inc,
+				sc->file ? sink_format("%s", sc->file) : NULL, sc->paths);
 		}
 	}
 
