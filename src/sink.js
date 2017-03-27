@@ -5159,14 +5159,18 @@ function program_gen(prg, sym, stmt, pst, sayexpr){
 						if (lr.type == LVP_ERROR)
 							return pgr_error(lr.flp, lr.msg);
 						//assert(lr.lv.type == LVR_VAR)
-						ts = symtbl_addTemp(sym);
-						if (ts.type == STA_ERROR)
-							return pgr_error(stmt.flp, ts.msg);
-						var t2 = ts.vlc;
-						op_numint(prg.ops, t, i);
-						op_nil(prg.ops, t2);
-						op_slice(prg.ops, lr.lv.vlc, args, t, t2);
-						symtbl_clearTemp(sym, t2);
+						if (i == 0)
+							op_move(prg.ops, lr.lv.vlc, args);
+						else{
+							ts = symtbl_addTemp(sym);
+							if (ts.type == STA_ERROR)
+								return pgr_error(stmt.flp, ts.msg);
+							var t2 = ts.vlc;
+							op_numint(prg.ops, t, i);
+							op_nil(prg.ops, t2);
+							op_slice(prg.ops, lr.lv.vlc, args, t, t2);
+							symtbl_clearTemp(sym, t2);
+						}
 					}
 					else
 						throw new Error('Unknown lvalue type in def (this shouldn\'t happen)');

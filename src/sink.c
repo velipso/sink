@@ -7618,17 +7618,21 @@ static inline pgr_st program_gen(program prg, symtbl sym, ast stmt, void *state,
 							return pgr_error(lr.u.error.flp, lr.u.error.msg);
 						}
 						assert(lr.u.lv->type == LVR_VAR);
-						ts = symtbl_addTemp(sym);
-						if (ts.type == STA_ERROR){
-							label_free(skip);
-							return pgr_error(stmt->flp, ts.u.msg);
+						if (i == 0)
+							op_move(prg->ops, lr.u.lv->vlc, args);
+						else{
+							ts = symtbl_addTemp(sym);
+							if (ts.type == STA_ERROR){
+								label_free(skip);
+								return pgr_error(stmt->flp, ts.u.msg);
+							}
+							varloc_st t2 = ts.u.vlc;
+							op_numint(prg->ops, t, i);
+							op_nil(prg->ops, t2);
+							op_slice(prg->ops, lr.u.lv->vlc, args, t, t2);
+							symtbl_clearTemp(sym, t2);
 						}
-						varloc_st t2 = ts.u.vlc;
-						op_numint(prg->ops, t, i);
-						op_nil(prg->ops, t2);
-						op_slice(prg->ops, lr.u.lv->vlc, args, t, t2);
 						lvr_free(lr.u.lv);
-						symtbl_clearTemp(sym, t2);
 					}
 					else
 						assert(false);
