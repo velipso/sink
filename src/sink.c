@@ -11465,6 +11465,11 @@ static sink_run context_run(context ctx){
 	if (ctx->failed) return SINK_RUN_FAIL;
 	if (ctx->async ) return SINK_RUN_ASYNC;
 
+	if (ctx->timeout > 0 && ctx->timeout_left <= 0){
+		ctx->timeout_left = ctx->timeout;
+		return SINK_RUN_TIMEOUT;
+	}
+
 	int A, B, C, D, E, F, G, H, I, J;
 	sink_val X, Y, Z, W;
 	sink_list ls, ls2;
