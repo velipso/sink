@@ -13513,6 +13513,17 @@ sink_ctx sink_ctx_new(sink_scr scr, sink_io_st io){
 	return context_new(((script)scr)->prg, io);
 }
 
+sink_ctx_status sink_ctx_getstatus(sink_ctx ctx){
+	context ctx2 = ctx;
+	if (ctx2->passed)
+		return SINK_CTX_PASSED;
+	else if (ctx2->failed)
+		return SINK_CTX_FAILED;
+	else if (ctx2->async)
+		return SINK_CTX_WAITING;
+	return SINK_CTX_READY;
+}
+
 void sink_ctx_native(sink_ctx ctx, const char *name, void *natuser, sink_native_func f_native){
 	context_native(ctx, native_hash(strlen(name), (const uint8_t *)name), natuser, f_native);
 }

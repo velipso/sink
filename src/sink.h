@@ -130,6 +130,19 @@ typedef enum {
 	SINK_RUN_REPLMORE
 } sink_run;
 
+typedef enum {
+	SINK_SCR_FILE,
+	SINK_SCR_REPL,
+	SINK_SCR_EVAL
+} sink_scr_type;
+
+typedef enum {
+	SINK_CTX_READY,
+	SINK_CTX_WAITING, // waiting for an async result
+	SINK_CTX_PASSED,
+	SINK_CTX_FAILED,
+} sink_ctx_status;
+
 // Values are jammed into sNaNs, like so:
 //
 // NaN (64 bit):
@@ -148,12 +161,6 @@ static const uint64_t SINK_TAG_STR    =        UINT64_C(0x7FF0000300000000);
 static const uint64_t SINK_TAG_LIST   =        UINT64_C(0x7FF0000400000000);
 static const uint64_t SINK_TAG_MASK   =        UINT64_C(0xFFFFFFFF80000000);
 static const uint64_t SINK_NAN_MASK   =        UINT64_C(0x7FF8000000000000);
-
-typedef enum {
-	SINK_SCR_FILE,
-	SINK_SCR_REPL,
-	SINK_SCR_EVAL
-} sink_scr_type;
 
 // script
 // three kinds of scripts, each with different expectations:
@@ -225,24 +232,25 @@ void        sink_scr_dump(sink_scr scr, void *user, sink_dump_func f_dump);
 void        sink_scr_free(sink_scr scr);
 
 // context
-sink_ctx       sink_ctx_new(sink_scr scr, sink_io_st io);
-void           sink_ctx_native(sink_ctx ctx, const char *name, void *natuser,
+sink_ctx        sink_ctx_new(sink_scr scr, sink_io_st io);
+sink_ctx_status sink_ctx_getstatus(sink_ctx ctx);
+void            sink_ctx_native(sink_ctx ctx, const char *name, void *natuser,
 	sink_native_func f_native);
-void           sink_ctx_nativehash(sink_ctx ctx, uint64_t hash, void *natuser,
+void            sink_ctx_nativehash(sink_ctx ctx, uint64_t hash, void *natuser,
 	sink_native_func f_native);
-void           sink_ctx_cleanup(sink_ctx ctx, void *cuser, sink_free_func f_cleanup);
-void           sink_ctx_setuser(sink_ctx ctx, void *user, sink_free_func f_free);
-void *         sink_ctx_getuser(sink_ctx ctx);
-sink_user      sink_ctx_addusertype(sink_ctx ctx, const char *hint, sink_free_func f_free);
-sink_free_func sink_ctx_getuserfree(sink_ctx ctx, sink_user usertype);
-const char *   sink_ctx_getuserhint(sink_ctx ctx, sink_user usertype);
-void           sink_ctx_asyncresult(sink_ctx ctx, sink_val v);
-void           sink_ctx_settimeout(sink_ctx ctx, int timeout);
-int            sink_ctx_gettimeout(sink_ctx ctx);
-void           sink_ctx_forcetimeout(sink_ctx ctx);
-sink_run       sink_ctx_run(sink_ctx ctx);
-const char *   sink_ctx_err(sink_ctx ctx);
-void           sink_ctx_free(sink_ctx ctx);
+void            sink_ctx_cleanup(sink_ctx ctx, void *cuser, sink_free_func f_cleanup);
+void            sink_ctx_setuser(sink_ctx ctx, void *user, sink_free_func f_free);
+void *          sink_ctx_getuser(sink_ctx ctx);
+sink_user       sink_ctx_addusertype(sink_ctx ctx, const char *hint, sink_free_func f_free);
+sink_free_func  sink_ctx_getuserfree(sink_ctx ctx, sink_user usertype);
+const char *    sink_ctx_getuserhint(sink_ctx ctx, sink_user usertype);
+void            sink_ctx_asyncresult(sink_ctx ctx, sink_val v);
+void            sink_ctx_settimeout(sink_ctx ctx, int timeout);
+int             sink_ctx_gettimeout(sink_ctx ctx);
+void            sink_ctx_forcetimeout(sink_ctx ctx);
+sink_run        sink_ctx_run(sink_ctx ctx);
+const char *    sink_ctx_err(sink_ctx ctx);
+void            sink_ctx_free(sink_ctx ctx);
 
 // value
 static inline sink_val sink_bool(bool f){ return f ? (sink_val){ .f = 1 } : SINK_NIL; }
