@@ -11738,8 +11738,12 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				if (sink_isstr(X) && sink_isstr(Y)){
-					var_set(ctx, A, B,
-						sink_bool(str_cmp(var_caststr(ctx, X), var_caststr(ctx, Y)) < 0));
+					if (X.u == Y.u)
+						var_set(ctx, A, B, sink_bool(false));
+					else{
+						var_set(ctx, A, B,
+							sink_bool(str_cmp(var_caststr(ctx, X), var_caststr(ctx, Y)) < 0));
+					}
 				}
 				else if (sink_isnum(X) && sink_isnum(Y))
 					var_set(ctx, A, B, sink_bool(X.f < Y.f));
@@ -11752,8 +11756,12 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				if (sink_isstr(X) && sink_isstr(Y)){
-					var_set(ctx, A, B,
-						sink_bool(str_cmp(var_caststr(ctx, X), var_caststr(ctx, Y)) <= 0));
+					if (X.u == Y.u)
+						var_set(ctx, A, B, sink_bool(true));
+					else{
+						var_set(ctx, A, B,
+							sink_bool(str_cmp(var_caststr(ctx, X), var_caststr(ctx, Y)) <= 0));
+					}
 				}
 				else if (sink_isnum(X) && sink_isnum(Y))
 					var_set(ctx, A, B, sink_bool(X.f <= Y.f));
@@ -13818,6 +13826,15 @@ void sink_abort(sink_ctx ctx, int size, sink_val *vals){
 	}
 	opi_abort(ctx, (char *)bytes);
 }
+
+sink_val sink_range(sink_ctx ctx, double start, double stop, double step){
+	return opi_range(ctx, start, stop, step);
+}
+
+int sink_order(sink_ctx ctx, sink_val a, sink_val b){
+	return opi_order(ctx, a, b);
+}
+
 /*
 // numbers
 sink_val  sink_num_neg(sink_ctx ctx, sink_val a);
@@ -14178,7 +14195,6 @@ void      sink_list_rev(sink_ctx ctx, sink_val ls);
 sink_val  sink_list_str(sink_ctx ctx, sink_val ls);
 void      sink_list_sort(sink_ctx ctx, sink_val ls);
 void      sink_list_rsort(sink_ctx ctx, sink_val ls);
-sink_val  sink_order(sink_ctx ctx, sink_val a, sink_val b);
 */
 
 // pickle
