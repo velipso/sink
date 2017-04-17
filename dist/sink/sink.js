@@ -6472,19 +6472,19 @@ var binop_num_pow   = Math.pow;
 var binop_num_atan2 = Math.atan2;
 
 function binop_num_hex(a, b){
-	return opi_num_base(a, b === null ? 0 : b, 16);
+	return isNaN(a) ? NaN : opi_num_base(a, b === null ? 0 : b, 16);
 }
 
 function binop_num_oct(a, b){
-	return opi_num_base(a, b === null ? 0 : b, 8);
+	return isNaN(a) ? NaN : opi_num_base(a, b === null ? 0 : b, 8);
 }
 
 function binop_num_bin(a, b){
-	return opi_num_base(a, b === null ? 0 : b, 2);
+	return isNaN(a) ? NaN : opi_num_base(a, b === null ? 0 : b, 2);
 }
 
 function triop_num_clamp(a, b, c){
-	return a < b ? b : (a > c ? c : a);
+	return isNaN(a) || isNaN(b) || isNaN(c) ? NaN : (a < b ? b : (a > c ? c : a));
 }
 
 function triop_num_lerp(a, b, c){
