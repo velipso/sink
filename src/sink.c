@@ -9621,7 +9621,7 @@ static sink_val unop_num_abs(context ctx, sink_val a){
 }
 
 static sink_val unop_num_sign(context ctx, sink_val a){
-	return sink_num(a.f < 0 ? -1 : (a.f > 0 ? 1 : 0));
+	return isnan(a.f) ? SINK_NAN : sink_num(a.f < 0 ? -1 : (a.f > 0 ? 1 : 0));
 }
 
 static sink_val unop_num_floor(context ctx, sink_val a){
@@ -9717,19 +9717,20 @@ static sink_val binop_num_atan2(context ctx, sink_val a, sink_val b){
 }
 
 static sink_val binop_num_hex(context ctx, sink_val a, sink_val b){
-	return opi_num_base(ctx, a.f, sink_isnil(b) ? 0 : b.f, 16);
+	return isnan(a.f) ? SINK_NAN : opi_num_base(ctx, a.f, sink_isnil(b) ? 0 : b.f, 16);
 }
 
 static sink_val binop_num_oct(context ctx, sink_val a, sink_val b){
-	return opi_num_base(ctx, a.f, sink_isnil(b) ? 0 : b.f, 8);
+	return isnan(a.f) ? SINK_NAN : opi_num_base(ctx, a.f, sink_isnil(b) ? 0 : b.f, 8);
 }
 
 static sink_val binop_num_bin(context ctx, sink_val a, sink_val b){
-	return opi_num_base(ctx, a.f, sink_isnil(b) ? 0 : b.f, 2);
+	return isnan(a.f) ? SINK_NAN : opi_num_base(ctx, a.f, sink_isnil(b) ? 0 : b.f, 2);
 }
 
 static sink_val triop_num_clamp(context ctx, sink_val a, sink_val b, sink_val c){
-	return sink_num(a.f < b.f ? b.f : (a.f > c.f ? c.f : a.f));
+	return isnan(a.f) || isnan(b.f) || isnan(c.f) ? SINK_NAN :
+		sink_num(a.f < b.f ? b.f : (a.f > c.f ? c.f : a.f));
 }
 
 static sink_val triop_num_lerp(context ctx, sink_val a, sink_val b, sink_val c){
