@@ -287,11 +287,26 @@ void str_hash(const uint8_t *str, uint64_t len, uint32_t seed, uint32_t *out){
   uint64_t c1 = UINT64_C(0x87C37B91114253D5);
   uint64_t c2 = UINT64_C(0x4CF5AD432745937F);
 
-  const uint64_t *blocks = (const uint64_t *)str;
-
   for (uint64_t i = 0; i < nblocks; i++){
-    uint64_t k1 = blocks[i * 2 + 0];
-    uint64_t k2 = blocks[i * 2 + 1];
+    uint64_t ki = i * 16;
+    uint64_t k1 =
+      ((uint64_t)str[ki +  0]      ) |
+      ((uint64_t)str[ki +  1] <<  8) |
+      ((uint64_t)str[ki +  2] << 16) |
+      ((uint64_t)str[ki +  3] << 24) |
+      ((uint64_t)str[ki +  4] << 32) |
+      ((uint64_t)str[ki +  5] << 40) |
+      ((uint64_t)str[ki +  6] << 48) |
+      ((uint64_t)str[ki +  7] << 56);
+    uint64_t k2 =
+      ((uint64_t)str[ki +  8]      ) |
+      ((uint64_t)str[ki +  9] <<  8) |
+      ((uint64_t)str[ki + 10] << 16) |
+      ((uint64_t)str[ki + 11] << 24) |
+      ((uint64_t)str[ki + 12] << 32) |
+      ((uint64_t)str[ki + 13] << 40) |
+      ((uint64_t)str[ki + 14] << 48) |
+      ((uint64_t)str[ki + 15] << 56);
 
     k1 *= c1;
     k1 = rotl64(k1, 31);

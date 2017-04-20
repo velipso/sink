@@ -8351,10 +8351,15 @@ static inline context context_new(program prg, sink_io_st io){
 
 	ctx->io = io;
 
-	ctx->str_prealloc_size = ctx->prg->strTable->size;
-
-	ctx->str_size = ctx->str_prealloc_size + 64;
-	ctx->str_size += 64 - (ctx->str_size % 64); // round up to number divisible by 64
+	if (prg->repl){
+		ctx->str_prealloc_size = 0;
+		ctx->str_size = 64;
+	}
+	else{
+		ctx->str_prealloc_size = ctx->prg->strTable->size;
+		ctx->str_size = ctx->str_prealloc_size + 64;
+		ctx->str_size += 64 - (ctx->str_size % 64); // round up to number divisible by 64
+	}
 	ctx->list_size = 64;
 
 	ctx->str_tbl = mem_alloc(sizeof(sink_str_st) * ctx->str_size);
@@ -8385,19 +8390,25 @@ static inline context context_new(program prg, sink_io_st io){
 	ctx->failed = false;
 	ctx->async = false;
 
-	// reserve locations for the string table, such that string table index == var_index
-	for (int i = 0; i < ctx->prg->strTable->size; i++){
-		list_byte s = ctx->prg->strTable->ptrs[i];
-		sink_str_newblob(ctx, s->size, s->bytes);
+	if (prg->repl){
+		ctx->str_prealloc_memset = 0;
+		ctx->str_prealloc_lastmask = 0;
 	}
+	else{
+		// reserve locations for the string table, such that string table index == var_index
+		for (int i = 0; i < ctx->prg->strTable->size; i++){
+			list_byte s = ctx->prg->strTable->ptrs[i];
+			sink_str_newblob(ctx, s->size, s->bytes);
+		}
 
-	// precalculate the values needed to mark the prealloc'ed string table quickly
-	ctx->str_prealloc_memset = ctx->str_prealloc_size / 64;
-	int str_left = ctx->str_prealloc_size % 64;
-	ctx->str_prealloc_lastmask = 0;
-	while (str_left > 0){
-		ctx->str_prealloc_lastmask = (ctx->str_prealloc_lastmask << 1) | 1;
-		str_left--;
+		// precalculate the values needed to mark the prealloc'ed string table quickly
+		ctx->str_prealloc_memset = ctx->str_prealloc_size / 64;
+		int str_left = ctx->str_prealloc_size % 64;
+		ctx->str_prealloc_lastmask = 0;
+		while (str_left > 0){
+			ctx->str_prealloc_lastmask = (ctx->str_prealloc_lastmask << 1) | 1;
+			str_left--;
+		}
 	}
 
 	context_gcleft(ctx, true);
@@ -11692,9 +11703,17 @@ static sink_run context_run(context ctx){
 			case OP_STR            : { // [TGT], [INDEX]
 				LOAD_ABcd();
 				C = C | (D << 8);
-				if (C >= ctx->str_prealloc_size)
-					return opi_invalid(ctx);
-				var_set(ctx, A, B, (sink_val){ .u = SINK_TAG_STR | C });
+				if (ctx->prg->repl){
+					if (C >= ctx->prg->strTable->size)
+						return opi_invalid(ctx);
+					list_byte s = ctx->prg->strTable->ptrs[C];
+					var_set(ctx, A, B, sink_str_newblob(ctx, s->size, s->bytes));
+				}
+				else{
+					if (C >= ctx->str_prealloc_size)
+						return opi_invalid(ctx);
+					var_set(ctx, A, B, (sink_val){ .u = SINK_TAG_STR | C });
+				}
 			} break;
 
 			case OP_LIST           : { // [TGT], HINT
@@ -14007,12 +14026,26 @@ void sink_str_hashplain(int size, const uint8_t *str, uint32_t seed, uint32_t *o
 	uint64_t c1 = UINT64_C(0x87C37B91114253D5);
 	uint64_t c2 = UINT64_C(0x4CF5AD432745937F);
 
-	// TODO: this code assumes little-endian
-	const uint64_t *blocks = (const uint64_t *)str;
-
 	for (uint64_t i = 0; i < nblocks; i++){
-		uint64_t k1 = blocks[i * 2 + 0];
-		uint64_t k2 = blocks[i * 2 + 1];
+		uint64_t ki = i * 16;
+		uint64_t k1 =
+			((uint64_t)str[ki +  0]      ) |
+			((uint64_t)str[ki +  1] <<  8) |
+			((uint64_t)str[ki +  2] << 16) |
+			((uint64_t)str[ki +  3] << 24) |
+			((uint64_t)str[ki +  4] << 32) |
+			((uint64_t)str[ki +  5] << 40) |
+			((uint64_t)str[ki +  6] << 48) |
+			((uint64_t)str[ki +  7] << 56);
+		uint64_t k2 =
+			((uint64_t)str[ki +  8]      ) |
+			((uint64_t)str[ki +  9] <<  8) |
+			((uint64_t)str[ki + 10] << 16) |
+			((uint64_t)str[ki + 11] << 24) |
+			((uint64_t)str[ki + 12] << 32) |
+			((uint64_t)str[ki + 13] << 40) |
+			((uint64_t)str[ki + 14] << 48) |
+			((uint64_t)str[ki + 15] << 56);
 
 		k1 *= c1;
 		k1 = rotl64(k1, 31);
