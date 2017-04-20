@@ -248,130 +248,131 @@ static inline list_byte list_byte_newcopy(list_byte b){
 
 static inline list_byte list_byte_newstr(const char *data){
 	list_byte b = mem_alloc(sizeof(list_byte_st));
-	b->size = strlen(data);
+	b->size = (int)strlen(data);
 	b->count = b->size;
 	b->bytes = mem_alloc(sizeof(uint8_t) * b->count);
 	memcpy(b->bytes, data, sizeof(uint8_t) * b->count);
 	return b;
 }
 
-static inline void list_byte_push(list_byte b, int v){
+static inline void list_byte_push(list_byte b, uint8_t v){
 	if (b->size + 1 > b->count){
 		b->count += list_byte_grow;
 		b->bytes = mem_realloc(b->bytes, sizeof(uint8_t) * b->count);
 	}
-	b->bytes[b->size++] = (uint8_t)v;
+	b->bytes[b->size++] = v;
 }
 
-static inline void list_byte_push2(list_byte b, int v1, int v2){
+static inline void list_byte_push2(list_byte b, uint8_t v1, uint8_t v2){
 	if (b->size + 2 > b->count){
 		b->count += list_byte_grow;
 		b->bytes = mem_realloc(b->bytes, sizeof(uint8_t) * b->count);
 	}
-	b->bytes[b->size++] = (uint8_t)v1;
-	b->bytes[b->size++] = (uint8_t)v2;
+	b->bytes[b->size++] = v1;
+	b->bytes[b->size++] = v2;
 }
 
-static inline void list_byte_push3(list_byte b, int v1, int v2, int v3){
+static inline void list_byte_push3(list_byte b, uint8_t v1, uint8_t v2, uint8_t v3){
 	if (b->size + 3 > b->count){
 		b->count += list_byte_grow;
 		b->bytes = mem_realloc(b->bytes, sizeof(uint8_t) * b->count);
 	}
-	b->bytes[b->size++] = (uint8_t)v1;
-	b->bytes[b->size++] = (uint8_t)v2;
-	b->bytes[b->size++] = (uint8_t)v3;
+	b->bytes[b->size++] = v1;
+	b->bytes[b->size++] = v2;
+	b->bytes[b->size++] = v3;
 }
 
-static inline void list_byte_push4(list_byte b, int v1, int v2, int v3, int v4){
+static inline void list_byte_push4(list_byte b, uint8_t v1, uint8_t v2, uint8_t v3, uint8_t v4){
 	if (b->size + 4 > b->count){
 		b->count += list_byte_grow;
 		b->bytes = mem_realloc(b->bytes, sizeof(uint8_t) * b->count);
 	}
-	b->bytes[b->size++] = (uint8_t)v1;
-	b->bytes[b->size++] = (uint8_t)v2;
-	b->bytes[b->size++] = (uint8_t)v3;
-	b->bytes[b->size++] = (uint8_t)v4;
+	b->bytes[b->size++] = v1;
+	b->bytes[b->size++] = v2;
+	b->bytes[b->size++] = v3;
+	b->bytes[b->size++] = v4;
 }
 
-static inline void list_byte_push5(list_byte b, int v1, int v2, int v3, int v4, int v5){
+static inline void list_byte_push5(list_byte b, uint8_t v1, uint8_t v2, uint8_t v3, uint8_t v4,
+	uint8_t v5){
 	if (b->size + 5 > b->count){
 		b->count += list_byte_grow;
 		b->bytes = mem_realloc(b->bytes, sizeof(uint8_t) * b->count);
 	}
-	b->bytes[b->size++] = (uint8_t)v1;
-	b->bytes[b->size++] = (uint8_t)v2;
-	b->bytes[b->size++] = (uint8_t)v3;
-	b->bytes[b->size++] = (uint8_t)v4;
-	b->bytes[b->size++] = (uint8_t)v5;
+	b->bytes[b->size++] = v1;
+	b->bytes[b->size++] = v2;
+	b->bytes[b->size++] = v3;
+	b->bytes[b->size++] = v4;
+	b->bytes[b->size++] = v5;
 }
 
-static inline void list_byte_push7(list_byte b, int v1, int v2, int v3, int v4, int v5, int v6,
-	int v7){
+static inline void list_byte_push7(list_byte b, uint8_t v1, uint8_t v2, uint8_t v3, uint8_t v4,
+	uint8_t v5, uint8_t v6, uint8_t v7){
 	if (b->size + 7 > b->count){
 		b->count += list_byte_grow;
 		b->bytes = mem_realloc(b->bytes, sizeof(uint8_t) * b->count);
 	}
-	b->bytes[b->size++] = (uint8_t)v1;
-	b->bytes[b->size++] = (uint8_t)v2;
-	b->bytes[b->size++] = (uint8_t)v3;
-	b->bytes[b->size++] = (uint8_t)v4;
-	b->bytes[b->size++] = (uint8_t)v5;
-	b->bytes[b->size++] = (uint8_t)v6;
-	b->bytes[b->size++] = (uint8_t)v7;
+	b->bytes[b->size++] = v1;
+	b->bytes[b->size++] = v2;
+	b->bytes[b->size++] = v3;
+	b->bytes[b->size++] = v4;
+	b->bytes[b->size++] = v5;
+	b->bytes[b->size++] = v6;
+	b->bytes[b->size++] = v7;
 }
 
-static inline void list_byte_push9(list_byte b, int v1, int v2, int v3, int v4, int v5, int v6,
-	int v7, int v8, int v9){
+static inline void list_byte_push9(list_byte b, uint8_t v1, uint8_t v2, uint8_t v3, uint8_t v4,
+	uint8_t v5, uint8_t v6, uint8_t v7, uint8_t v8, uint8_t v9){
 	if (b->size + 9 > b->count){
 		b->count += list_byte_grow;
 		b->bytes = mem_realloc(b->bytes, sizeof(uint8_t) * b->count);
 	}
-	b->bytes[b->size++] = (uint8_t)v1;
-	b->bytes[b->size++] = (uint8_t)v2;
-	b->bytes[b->size++] = (uint8_t)v3;
-	b->bytes[b->size++] = (uint8_t)v4;
-	b->bytes[b->size++] = (uint8_t)v5;
-	b->bytes[b->size++] = (uint8_t)v6;
-	b->bytes[b->size++] = (uint8_t)v7;
-	b->bytes[b->size++] = (uint8_t)v8;
-	b->bytes[b->size++] = (uint8_t)v9;
+	b->bytes[b->size++] = v1;
+	b->bytes[b->size++] = v2;
+	b->bytes[b->size++] = v3;
+	b->bytes[b->size++] = v4;
+	b->bytes[b->size++] = v5;
+	b->bytes[b->size++] = v6;
+	b->bytes[b->size++] = v7;
+	b->bytes[b->size++] = v8;
+	b->bytes[b->size++] = v9;
 }
 
-static inline void list_byte_push10(list_byte b, int v1, int v2, int v3, int v4, int v5, int v6,
-	int v7, int v8, int v9, int v10){
+static inline void list_byte_push10(list_byte b, uint8_t v1, uint8_t v2, uint8_t v3, uint8_t v4,
+	uint8_t v5, uint8_t v6, uint8_t v7, uint8_t v8, uint8_t v9, uint8_t v10){
 	if (b->size + 10 > b->count){
 		b->count += list_byte_grow;
 		b->bytes = mem_realloc(b->bytes, sizeof(uint8_t) * b->count);
 	}
-	b->bytes[b->size++] = (uint8_t)v1;
-	b->bytes[b->size++] = (uint8_t)v2;
-	b->bytes[b->size++] = (uint8_t)v3;
-	b->bytes[b->size++] = (uint8_t)v4;
-	b->bytes[b->size++] = (uint8_t)v5;
-	b->bytes[b->size++] = (uint8_t)v6;
-	b->bytes[b->size++] = (uint8_t)v7;
-	b->bytes[b->size++] = (uint8_t)v8;
-	b->bytes[b->size++] = (uint8_t)v9;
-	b->bytes[b->size++] = (uint8_t)v10;
+	b->bytes[b->size++] = v1;
+	b->bytes[b->size++] = v2;
+	b->bytes[b->size++] = v3;
+	b->bytes[b->size++] = v4;
+	b->bytes[b->size++] = v5;
+	b->bytes[b->size++] = v6;
+	b->bytes[b->size++] = v7;
+	b->bytes[b->size++] = v8;
+	b->bytes[b->size++] = v9;
+	b->bytes[b->size++] = v10;
 }
 
-static inline void list_byte_push11(list_byte b, int v1, int v2, int v3, int v4, int v5, int v6,
-	int v7, int v8, int v9, int v10, int v11){
+static inline void list_byte_push11(list_byte b, uint8_t v1, uint8_t v2, uint8_t v3, uint8_t v4,
+	uint8_t v5, uint8_t v6, uint8_t v7, uint8_t v8, uint8_t v9, uint8_t v10, uint8_t v11){
 	if (b->size + 11 > b->count){
 		b->count += list_byte_grow;
 		b->bytes = mem_realloc(b->bytes, sizeof(uint8_t) * b->count);
 	}
-	b->bytes[b->size++] = (uint8_t)v1;
-	b->bytes[b->size++] = (uint8_t)v2;
-	b->bytes[b->size++] = (uint8_t)v3;
-	b->bytes[b->size++] = (uint8_t)v4;
-	b->bytes[b->size++] = (uint8_t)v5;
-	b->bytes[b->size++] = (uint8_t)v6;
-	b->bytes[b->size++] = (uint8_t)v7;
-	b->bytes[b->size++] = (uint8_t)v8;
-	b->bytes[b->size++] = (uint8_t)v9;
-	b->bytes[b->size++] = (uint8_t)v10;
-	b->bytes[b->size++] = (uint8_t)v11;
+	b->bytes[b->size++] = v1;
+	b->bytes[b->size++] = v2;
+	b->bytes[b->size++] = v3;
+	b->bytes[b->size++] = v4;
+	b->bytes[b->size++] = v5;
+	b->bytes[b->size++] = v6;
+	b->bytes[b->size++] = v7;
+	b->bytes[b->size++] = v8;
+	b->bytes[b->size++] = v9;
+	b->bytes[b->size++] = v10;
+	b->bytes[b->size++] = v11;
 }
 
 static inline void list_byte_append(list_byte b, int size, uint8_t *bytes){
@@ -777,7 +778,7 @@ typedef enum {
 	ABORT_LISTFUNC = 0x01
 } abort_enum;
 
-static inline void op_aborterr(list_byte b, int errno){
+static inline void op_aborterr(list_byte b, uint8_t errno){
 	oplogf("ABORTERR %d", errno);
 	list_byte_push2(b, OP_ABORTERR, errno);
 }
@@ -1032,10 +1033,6 @@ typedef struct {
 	int chr;
 } filepos_st;
 
-static inline filepos_st filepos_new(char *file, int line, int chr){
-	return (filepos_st){ .file = file, .line = line, .chr = chr };
-}
-
 static char *filepos_err(filepos_st flp, char *msg){
 	if (flp.file == NULL)
 		return sink_format("%d:%d: %s", flp.line, flp.chr, msg);
@@ -1109,8 +1106,8 @@ typedef enum {
 	KS_WHILE
 } ks_enum;
 
+#ifdef SINK_DEBUG
 static const char *ks_name(ks_enum k){
-	#ifdef SINK_DEBUG
 	switch (k){
 		case KS_INVALID:    return "KS_INVALID";
 		case KS_PLUS:       return "KS_PLUS";
@@ -1173,10 +1170,8 @@ static const char *ks_name(ks_enum k){
 		case KS_VAR:        return "KS_VAR";
 		case KS_WHILE:      return "KS_WHILE";
 	}
-	#else
-	return "";
-	#endif
 }
+#endif
 
 static inline ks_enum ks_char(char c){
 	if      (c == '+') return KS_PLUS;
@@ -2284,7 +2279,6 @@ typedef enum {
 	EXPR_STR,
 	EXPR_LIST,
 	EXPR_NAMES,
-	EXPR_VAR,
 	EXPR_PAREN,
 	EXPR_GROUP,
 	EXPR_PREFIX,
@@ -2351,9 +2345,6 @@ static void expr_free(expr ex){
 				list_ptr_free(ex->u.names);
 			break;
 
-		case EXPR_VAR:
-			break;
-
 		case EXPR_PAREN:
 			if (ex->u.ex)
 				expr_free(ex->u.ex);
@@ -2402,8 +2393,8 @@ static void expr_free(expr ex){
 	mem_free(ex);
 }
 
+#ifdef SINK_DEBUG
 static void expr_print(expr ex, int depth){
-	#ifdef SINK_DEBUG
 	char *tab = mem_alloc(sizeof(char) * (depth * 2 + 1));
 	for (int i = 0; i < depth * 2; i++)
 		tab[i] = ' ';
@@ -2443,10 +2434,6 @@ static void expr_print(expr ex, int depth){
 			}
 			else
 				debugf("%sEXPR_NAMES NULL", tab);
-			break;
-
-		case EXPR_VAR:
-			debugf("%sEXPR_VAR", tab);
 			break;
 
 		case EXPR_PAREN:
@@ -2535,8 +2522,8 @@ static void expr_print(expr ex, int depth){
 			break;
 	}
 	mem_free(tab);
-	#endif
 }
+#endif
 
 static inline expr expr_nil(filepos_st flp){
 	expr ex = mem_alloc(sizeof(expr_st));
@@ -2574,14 +2561,6 @@ static inline expr expr_names(filepos_st flp, list_ptr names){
 	ex->flp = flp;
 	ex->type = EXPR_NAMES;
 	ex->u.names = names;
-	return ex;
-}
-
-static inline expr expr_var(filepos_st flp, varloc_st vlc){
-	expr ex = mem_alloc(sizeof(expr_st));
-	ex->flp = flp;
-	ex->type = EXPR_VAR;
-	ex->u.vlc = vlc;
 	return ex;
 }
 
@@ -3644,7 +3623,6 @@ static inline prr_st parser_lookup(parser pr, prs_enum retstate){
 static prr_st parser_process(parser pr, filepos_st flp, list_ptr stmts){
 	tok tk1 = pr->tk1;
 	prs st = pr->state;
-	ast stmt;
 	switch (st->state){
 		case PRS_STATEMENT:
 			if      (tk1->type == TOK_NEWLINE   ) return prr_more();
@@ -4732,8 +4710,8 @@ static inline void frame_free(frame fr){
 	mem_free(fr);
 }
 
+#ifdef SINK_DEBUG
 static void frame_print(frame fr){
-	#ifdef SINK_DEBUG
 	debug("FRAME:");
 	for (int i = 0; i < fr->vars->size; i++){
 		debugf("  %d. %s", i, fr->vars->vals[i] == FVR_VAR ? "VAR" :
@@ -4746,8 +4724,8 @@ static void frame_print(frame fr){
 			debugf("  %.*s", b->size, b->bytes);
 		}
 	}
-	#endif
 }
+#endif
 
 static inline frame frame_new(frame parent){
 	frame fr = mem_alloc(sizeof(frame_st));
@@ -4821,8 +4799,8 @@ static void nsname_free(nsname nsn){
 	mem_free(nsn);
 }
 
+#ifdef SINK_DEBUG
 static void nsname_print(nsname nsn){
-	#ifdef SINK_DEBUG
 	switch (nsn->type){
 		case NSN_VAR:
 			debugf("%.*s NSN_VAR %d", nsn->name->size, nsn->name->bytes, nsn->u.var.index);
@@ -4841,8 +4819,8 @@ static void nsname_print(nsname nsn){
 			debugf("%.*s NSN_NAMESPACE", nsn->name->size, nsn->name->bytes);
 			break;
 	}
-	#endif
 }
+#endif
 
 static inline nsname nsname_var(list_byte name, frame fr, int index){
 	nsname nsn = mem_alloc(sizeof(nsname_st));
@@ -4899,13 +4877,13 @@ static inline void namespace_free(namespace ns){
 	mem_free(ns);
 }
 
+#ifdef SINK_DEBUG
 static void namespace_print(namespace ns){
-	#ifdef SINK_DEBUG
 	debug("NAMESPACE:");
 	for (int i = 0; i < ns->names->size; i++)
 		nsname_print(ns->names->ptrs[i]);
-	#endif
 }
+#endif
 
 static inline namespace namespace_new(frame fr){
 	namespace ns = mem_alloc(sizeof(namespace_st));
@@ -5018,12 +4996,12 @@ static inline void scope_free(scope sc){
 	mem_free(sc);
 }
 
+#ifdef SINK_DEBUG
 static void scope_print(scope sc){
-	#ifdef SINK_DEBUG
 	for (int i = 0; i < sc->nsStack->size; i++)
 		namespace_print(sc->nsStack->ptrs[i]);
-	#endif
 }
+#endif
 
 static inline scope scope_new(frame fr, label lblBreak, label lblContinue, scope parent){
 	scope sc = mem_alloc(sizeof(scope_st));
@@ -5169,15 +5147,6 @@ static inline void symtbl_popScope(symtbl sym){
 static inline void symtbl_pushFrame(symtbl sym){
 	sym->fr = frame_new(sym->fr);
 	sym->sc = scope_new(sym->fr, NULL, NULL, sym->sc);
-}
-
-static inline bool symtbl_frameOpenLabels(symtbl sym){
-	for (int i = 0; i < sym->fr->lbls->size; i++){
-		label lbl = sym->fr->lbls->ptrs[i];
-		if (lbl->pos < 0)
-			return true;
-	}
-	return false;
 }
 
 static inline void symtbl_popFrame(symtbl sym){
@@ -6838,15 +6807,6 @@ static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st int
 			assert(false);
 		} break;
 
-		case EXPR_VAR: {
-			if (mode == PEM_EMPTY)
-				return per_ok(VARLOC_NULL);
-			else if (mode == PEM_CREATE)
-				return per_ok(ex->u.vlc);
-			op_move(prg->ops, intoVlc, ex->u.vlc);
-			return per_ok(intoVlc);
-		} break;
-
 		case EXPR_PAREN:
 			return program_eval(prg, sym, mode, intoVlc, ex->u.ex);
 
@@ -7963,8 +7923,7 @@ static inline pgr_st program_gen(program prg, symtbl sym, ast stmt, void *state,
 		} break;
 
 		case AST_LABEL: {
-			label lbl;
-			bool found = false;
+			label lbl = NULL;
 			for (int i = 0; i < sym->fr->lbls->size; i++){
 				lbl = sym->fr->lbls->ptrs[i];
 				if (list_byte_equ(lbl->name, stmt->u.label.ident)){
@@ -7972,11 +7931,10 @@ static inline pgr_st program_gen(program prg, symtbl sym, ast stmt, void *state,
 						return pgr_error(stmt->flp, sink_format("Cannot redeclare label \"%.*s\"",
 							stmt->u.label.ident->size, stmt->u.label.ident->bytes));
 					}
-					found = true;
 					break;
 				}
 			}
-			if (!found){
+			if (lbl == NULL){
 				lbl = label_new(stmt->u.label.ident);
 				stmt->u.label.ident = NULL;
 				list_ptr_push(sym->fr->lbls, lbl);
@@ -11509,8 +11467,8 @@ static sink_run context_run(context ctx){
 
 	int A, B, C, D, E, F, G, H, I, J;
 	sink_val X, Y, Z, W;
-	sink_list ls, ls2;
-	sink_str str, str2;
+	sink_list ls;
+	sink_str str;
 
 	list_byte ops = ctx->prg->ops;
 
@@ -12909,8 +12867,8 @@ static void pathjoin_helper(char *res, int *r, int len, const char *buf){
 }
 
 static char *pathjoin(const char *prev, const char *next){
-	int prev_len = strlen(prev);
-	int next_len = strlen(next);
+	int prev_len = (int)strlen(prev);
+	int next_len = (int)strlen(next);
 	int len = prev_len + next_len + 2;
 	char *res = mem_alloc(sizeof(char) * len);
 	int r = 0;
@@ -12932,7 +12890,7 @@ static bool fileres_try(sink_scr scr, sink_inc_st inc, const char *file, bool fi
 		return false;
 	sink_fstype fst = inc.f_fstype(fix, inc.user);
 	bool result = false;
-	switch (inc.f_fstype(fix, inc.user)){
+	switch (fst){
 		case SINK_FSTYPE_FILE: {
 			result = true;
 			if (f_begin(fix, fuser))
@@ -12942,7 +12900,7 @@ static bool fileres_try(sink_scr scr, sink_inc_st inc, const char *file, bool fi
 			if (!first)
 				break;
 			// try adding a .sink extension
-			int len = strlen(file);
+			int len = (int)strlen(file);
 			if (len < 5 || strcmp(&file[len - 5], ".sink") != 0){
 				char *cat = mem_alloc(sizeof(char) * (len + 6));
 				memcpy(cat, file, sizeof(char) * len);
@@ -13168,7 +13126,7 @@ static void compiler_endinc_cfu(bool success, const char *file, compiler_fileres
 static bool compiler_staticinc(compiler cmp, list_ptr names, const char *file, const char *body){
 	if (!compiler_begininc(cmp, names, sink_format("%s", file)))
 		return false;
-	char *err = compiler_write(cmp, strlen(body), (const uint8_t *)body);
+	char *err = compiler_write(cmp, (int)strlen(body), (const uint8_t *)body);
 	if (err){
 		compiler_endinc(cmp, names != NULL);
 		return false;
@@ -13586,7 +13544,7 @@ sink_ctx_status sink_ctx_getstatus(sink_ctx ctx){
 }
 
 void sink_ctx_native(sink_ctx ctx, const char *name, void *natuser, sink_native_func f_native){
-	context_native(ctx, native_hash(strlen(name), (const uint8_t *)name), natuser, f_native);
+	context_native(ctx, native_hash((int)strlen(name), (const uint8_t *)name), natuser, f_native);
 }
 
 void sink_ctx_nativehash(sink_ctx ctx, uint64_t hash, void *natuser, sink_native_func f_native){
@@ -13941,7 +13899,7 @@ void      sink_rand_shuffle(sink_ctx ctx, sink_val ls);
 */
 // strings
 sink_val sink_str_newcstr(sink_ctx ctx, const char *str){
-	return sink_str_newblob(ctx, strlen(str), (const uint8_t *)str);
+	return sink_str_newblob(ctx, (int)strlen(str), (const uint8_t *)str);
 }
 
 sink_val sink_str_newblob(sink_ctx ctx, int size, const uint8_t *bytes){
@@ -13981,7 +13939,7 @@ sink_val sink_str_newformat(sink_ctx ctx, const char *fmt, ...){
 	vsprintf(buf, fmt, args2);
 	va_end(args);
 	va_end(args2);
-	return sink_str_newblobgive(ctx, s, (uint8_t *)buf);
+	return sink_str_newblobgive(ctx, (int)s, (uint8_t *)buf);
 }
 /*
 sink_val  sink_str_new(sink_ctx ctx, sink_val a, sink_val b);
