@@ -14207,7 +14207,7 @@ static inline void hash_be(int size, const uint8_t *str, uint32_t seed, uint32_t
 void sink_str_hashplain(int size, const uint8_t *str, uint32_t seed, uint32_t *out){
 	const uint_least16_t v = 1;
 	const uint8_t *vp = (const uint8_t *)&v;
-	if (*vp)
+	if (*vp) // is this machine little-endian?
 		hash_le(size, str, seed, out);
 	else
 		hash_be(size, str, seed, out);
