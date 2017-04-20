@@ -8192,7 +8192,7 @@ static void context_sweepfree_list(context ctx, int index){
 		mem_free(ls->vals);
 }
 
-static void context_sweephelp(context ctx, int size, uint64_t *aloc, uint64_t *ref,
+static inline void context_sweephelp(context ctx, int size, uint64_t *aloc, uint64_t *ref,
 	sweepfree_func f_free){
 	int ms = size / 64;
 	for (int i = 0; i < ms; i++){
