@@ -8146,6 +8146,7 @@ typedef struct {
 	int lastpc;
 	int str_size;
 	int list_size;
+	int str_prealloc_size;
 	int timeout;
 	int timeout_left;
 	int async_fdiff;
@@ -8239,6 +8240,20 @@ static inline void context_clearref(context ctx){
 }
 
 static inline void context_mark(context ctx){
+	// mark the string table
+	int str_memset = ctx->str_prealloc_size / 64;
+	if (str_memset > 0)
+		memset(ctx->str_ref, 0xFF, sizeof(uint64_t) * str_memset);
+	int str_left = ctx->str_prealloc_size % 64;
+	if (str_left > 0){
+		uint64_t mask = 0;
+		while (str_left > 0){
+			mask = (mask << 1) | 1;
+			str_left--;
+		}
+		ctx->str_ref[str_memset] = mask;
+	}
+
 	context_markvals(ctx, ctx->pinned.size, ctx->pinned.vals);
 	for (int i = 0; i < ctx->lex_stk->size; i++){
 		lxs here = ctx->lex_stk->ptrs[i];
@@ -8344,7 +8359,10 @@ static inline context context_new(program prg, sink_io_st io){
 
 	ctx->io = io;
 
-	ctx->str_size = 64;
+	ctx->str_prealloc_size = ctx->prg->strTable->size;
+
+	ctx->str_size = ctx->str_prealloc_size + 64;
+	ctx->str_size += 64 - (ctx->str_size % 64); // round up to number divisible by 64
 	ctx->list_size = 64;
 
 	ctx->str_tbl = mem_alloc(sizeof(sink_str_st) * ctx->str_size);
@@ -8374,6 +8392,12 @@ static inline context context_new(program prg, sink_io_st io){
 	ctx->passed = false;
 	ctx->failed = false;
 	ctx->async = false;
+
+	// reserve locations for the string table, such that string table index == var_index
+	for (int i = 0; i < ctx->prg->strTable->size; i++){
+		list_byte s = ctx->prg->strTable->ptrs[i];
+		sink_str_newblob(ctx, s->size, s->bytes);
+	}
 
 	context_gcleft(ctx, true);
 	opi_rand_seedauto(ctx);
@@ -11667,10 +11691,9 @@ static sink_run context_run(context ctx){
 			case OP_STR            : { // [TGT], [INDEX]
 				LOAD_ABcd();
 				C = C | (D << 8);
-				if (C >= ctx->prg->strTable->size)
+				if (C >= ctx->str_prealloc_size)
 					return opi_invalid(ctx);
-				list_byte s = ctx->prg->strTable->ptrs[C];
-				var_set(ctx, A, B, sink_str_newblob(ctx, s->size, s->bytes));
+				var_set(ctx, A, B, (sink_val){ .u = SINK_TAG_STR | C });
 			} break;
 
 			case OP_LIST           : { // [TGT], HINT
