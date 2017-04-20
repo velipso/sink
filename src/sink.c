@@ -8147,6 +8147,8 @@ typedef struct {
 	int str_size;
 	int list_size;
 	int str_prealloc_size;
+	int str_prealloc_memset;
+	uint64_t str_prealloc_lastmask;
 	int timeout;
 	int timeout_left;
 	int async_fdiff;
@@ -8241,19 +8243,9 @@ static inline void context_clearref(context ctx){
 
 static inline void context_mark(context ctx){
 	// mark the string table
-	int str_memset = ctx->str_prealloc_size / 64;
-	if (str_memset > 0)
-		memset(ctx->str_ref, 0xFF, sizeof(uint64_t) * str_memset);
-	int str_left = ctx->str_prealloc_size % 64;
-	if (str_left > 0){
-		uint64_t mask = 0;
-		while (str_left > 0){
-			mask = (mask << 1) | 1;
-			str_left--;
-		}
-		ctx->str_ref[str_memset] = mask;
-	}
-
+	if (ctx->str_prealloc_memset > 0)
+		memset(ctx->str_ref, 0xFF, sizeof(uint64_t) * ctx->str_prealloc_memset);
+	ctx->str_ref[ctx->str_prealloc_memset] = ctx->str_prealloc_lastmask;
 	context_markvals(ctx, ctx->pinned.size, ctx->pinned.vals);
 	for (int i = 0; i < ctx->lex_stk->size; i++){
 		lxs here = ctx->lex_stk->ptrs[i];
@@ -8397,6 +8389,15 @@ static inline context context_new(program prg, sink_io_st io){
 	for (int i = 0; i < ctx->prg->strTable->size; i++){
 		list_byte s = ctx->prg->strTable->ptrs[i];
 		sink_str_newblob(ctx, s->size, s->bytes);
+	}
+
+	// precalculate the values needed to mark the prealloc'ed string table quickly
+	ctx->str_prealloc_memset = ctx->str_prealloc_size / 64;
+	int str_left = ctx->str_prealloc_size % 64;
+	ctx->str_prealloc_lastmask = 0;
+	while (str_left > 0){
+		ctx->str_prealloc_lastmask = (ctx->str_prealloc_lastmask << 1) | 1;
+		str_left--;
 	}
 
 	context_gcleft(ctx, true);
