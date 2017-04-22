@@ -1,0 +1,13 @@
+
+def add a, b
+	return a + b
+end
+
+var tot = 0
+for var i: range 1000000
+	tot += add rand.int, rand.int
+	if i % 1000 == 0
+		say tot
+	end
+end
+say 'end', tot
