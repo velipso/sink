@@ -2,6 +2,8 @@
 Technical Information
 =====================
 
+Sink development started in March of 2016.
+
 Language design:
 
 * Imperative/procedural
