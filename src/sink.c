@@ -798,10 +798,6 @@ typedef enum {
 	OP_INVALID         = 0x1F3
 } op_enum;
 
-typedef enum {
-	ABORT_LISTFUNC = 0x01
-} abort_enum;
-
 static inline void op_move(list_byte b, varloc_st tgt, varloc_st src){
 	if (tgt.fdiff == src.fdiff && tgt.index == src.index)
 		return;
@@ -4698,14 +4694,14 @@ static inline void label_jump(label lbl, list_byte ops){
 		label_refresh(lbl, ops, lbl->rewrites->size - 1);
 }
 
-static inline void label_jumpTrue(label lbl, list_byte ops, varloc_st src){
+static inline void label_jumptrue(label lbl, list_byte ops, varloc_st src){
 	op_jumptrue(ops, src, 0xFFFFFFFF, lbl->name);
 	list_int_push(lbl->rewrites, ops->size - 4);
 	if (lbl->pos >= 0)
 		label_refresh(lbl, ops, lbl->rewrites->size - 1);
 }
 
-static inline void label_jumpFalse(label lbl, list_byte ops, varloc_st src){
+static inline void label_jumpfalse(label lbl, list_byte ops, varloc_st src){
 	op_jumpfalse(ops, src, 0xFFFFFFFF, lbl->name);
 	list_int_push(lbl->rewrites, ops->size - 4);
 	if (lbl->pos >= 0)
@@ -6256,7 +6252,7 @@ static per_st program_evalCall(program prg, symtbl sym, pem_enum mode, varloc_st
 		label pickfalse = label_newStr("^pickfalse");
 		label finish = label_newStr("^pickfinish");
 
-		label_jumpFalse(pickfalse, prg->ops, pe.u.vlc);
+		label_jumpfalse(pickfalse, prg->ops, pe.u.vlc);
 		symtbl_clearTemp(sym, pe.u.vlc);
 
 		if (mode == PEM_EMPTY)
@@ -6426,9 +6422,9 @@ static per_st program_lvalCheckNil(program prg, symtbl sym, lvr lv, bool jumpFal
 			if (pe.type == PER_ERROR)
 				return pe;
 			if (jumpFalse == !inverted)
-				label_jumpFalse(skip, prg->ops, pe.u.vlc);
+				label_jumpfalse(skip, prg->ops, pe.u.vlc);
 			else
-				label_jumpTrue(skip, prg->ops, pe.u.vlc);
+				label_jumptrue(skip, prg->ops, pe.u.vlc);
 			symtbl_clearTemp(sym, pe.u.vlc);
 		} break;
 
@@ -6467,7 +6463,7 @@ static per_st program_lvalCheckNil(program prg, symtbl sym, lvr lv, bool jumpFal
 
 			op_nil(prg->ops, t);
 			op_binop(prg->ops, OP_EQU, t, t, len);
-			label_jumpFalse(next, prg->ops, t);
+			label_jumpfalse(next, prg->ops, t);
 			op_unop(prg->ops, OP_SIZE, t, obj);
 			op_binop(prg->ops, OP_NUM_SUB, len, t, start);
 
@@ -6476,14 +6472,14 @@ static per_st program_lvalCheckNil(program prg, symtbl sym, lvr lv, bool jumpFal
 			op_binop(prg->ops, OP_LT, t, idx, len);
 
 			label keep = label_newStr("^condslicekeep");
-			label_jumpFalse(inverted ? keep : skip, prg->ops, t);
+			label_jumpfalse(inverted ? keep : skip, prg->ops, t);
 
 			op_binop(prg->ops, OP_NUM_ADD, t, idx, start);
 			op_getat(prg->ops, t, obj, t);
 			if (jumpFalse)
-				label_jumpTrue(inverted ? skip : keep, prg->ops, t);
+				label_jumptrue(inverted ? skip : keep, prg->ops, t);
 			else
-				label_jumpFalse(inverted ? skip : keep, prg->ops, t);
+				label_jumpfalse(inverted ? skip : keep, prg->ops, t);
 
 			op_inc(prg->ops, idx);
 			label_jump(next, prg->ops);
@@ -6524,9 +6520,9 @@ static per_st program_lvalCondAssignPart(program prg, symtbl sym, lvr lv, bool j
 				return pe;
 			label skip = label_newStr("^condskippart");
 			if (jumpFalse)
-				label_jumpFalse(skip, prg->ops, pe.u.vlc);
+				label_jumpfalse(skip, prg->ops, pe.u.vlc);
 			else
-				label_jumpTrue(skip, prg->ops, pe.u.vlc);
+				label_jumptrue(skip, prg->ops, pe.u.vlc);
 			symtbl_clearTemp(sym, pe.u.vlc);
 			pe = program_evalLval(prg, sym, PEM_EMPTY, VARLOC_NULL, lv, OP_INVALID, valueVlc, true);
 			if (pe.type == PER_ERROR){
@@ -6577,7 +6573,7 @@ static per_st program_lvalCondAssignPart(program prg, symtbl sym, lvr lv, bool j
 
 			op_nil(prg->ops, t);
 			op_binop(prg->ops, OP_EQU, t, t, len);
-			label_jumpFalse(next, prg->ops, t);
+			label_jumpfalse(next, prg->ops, t);
 			op_unop(prg->ops, OP_SIZE, t, obj);
 			op_binop(prg->ops, OP_NUM_SUB, len, t, start);
 
@@ -6586,15 +6582,15 @@ static per_st program_lvalCondAssignPart(program prg, symtbl sym, lvr lv, bool j
 			op_binop(prg->ops, OP_LT, t, idx, len);
 
 			label done = label_newStr("^condpartslicedone");
-			label_jumpFalse(done, prg->ops, t);
+			label_jumpfalse(done, prg->ops, t);
 
 			label inc = label_newStr("^condpartsliceinc");
 			op_binop(prg->ops, OP_NUM_ADD, t, idx, start);
 			op_getat(prg->ops, t2, obj, t);
 			if (jumpFalse)
-				label_jumpFalse(inc, prg->ops, t2);
+				label_jumpfalse(inc, prg->ops, t2);
 			else
-				label_jumpTrue(inc, prg->ops, t2);
+				label_jumptrue(inc, prg->ops, t2);
 
 			op_getat(prg->ops, t2, valueVlc, idx);
 			op_setat(prg->ops, obj, t, t2);
@@ -6988,9 +6984,9 @@ static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st int
 				varloc_st left = pe.u.vlc;
 				label useleft = label_newStr("^useleft");
 				if (ex->u.infix.k == KS_AMP2)
-					label_jumpFalse(useleft, prg->ops, left);
+					label_jumpfalse(useleft, prg->ops, left);
 				else
-					label_jumpTrue(useleft, prg->ops, left);
+					label_jumptrue(useleft, prg->ops, left);
 				pe = program_eval(prg, sym, PEM_INTO, intoVlc, ex->u.infix.right);
 				if (pe.type == PER_ERROR){
 					label_free(useleft);
@@ -7342,7 +7338,7 @@ static pgr_st program_genForRange(program prg, symtbl sym, ast stmt, varloc_st p
 	label_declare(top, prg->ops);
 
 	op_binop(prg->ops, OP_LT, t, idx_vlc, p2);
-	label_jumpFalse(finish, prg->ops, t);
+	label_jumpfalse(finish, prg->ops, t);
 
 	if (varloc_isnull(p3)){
 		if (!zerostart)
@@ -7397,7 +7393,7 @@ static pgr_st program_genForGeneric(program prg, symtbl sym, ast stmt){
 
 	op_unop(prg->ops, OP_SIZE, t, exp_vlc);
 	op_binop(prg->ops, OP_LT, t, idx_vlc, t);
-	label_jumpFalse(finish, prg->ops, t);
+	label_jumpfalse(finish, prg->ops, t);
 
 	op_getat(prg->ops, val_vlc, exp_vlc, idx_vlc);
 	sym->sc->lblBreak = finish;
@@ -7519,7 +7515,7 @@ static inline pgr_st program_gen(program prg, symtbl sym, ast stmt, void *state,
 					// `def a x = x` binds the seconds `x` to the outer scope
 					if (ex->u.infix.right != NULL){
 						label argset = label_newStr("^argset");
-						label_jumpTrue(argset, prg->ops, arg);
+						label_jumptrue(argset, prg->ops, arg);
 						per_st pr = program_eval(prg, sym, PEM_INTO, arg, ex->u.infix.right);
 						if (pr.type == PER_ERROR){
 							label_free(skip);
@@ -7598,7 +7594,7 @@ static inline pgr_st program_gen(program prg, symtbl sym, ast stmt, void *state,
 				per_st pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, stmt->u.dowhile2.cond);
 				if (pe.type == PER_ERROR)
 					return pgr_error(pe.u.error.flp, pe.u.error.msg);
-				label_jumpFalse(pst->finish, prg->ops, pe.u.vlc);
+				label_jumpfalse(pst->finish, prg->ops, pe.u.vlc);
 				symtbl_clearTemp(sym, pe.u.vlc);
 				sym->sc->lblContinue = pst->top;
 				return pgr_ok();
@@ -7734,7 +7730,7 @@ static inline pgr_st program_gen(program prg, symtbl sym, ast stmt, void *state,
 			if (pr.type == PER_ERROR)
 				return pgr_error(pr.u.error.flp, pr.u.error.msg);
 
-			label_jumpFalse(pst->nextcond, prg->ops, pr.u.vlc);
+			label_jumpfalse(pst->nextcond, prg->ops, pr.u.vlc);
 			symtbl_clearTemp(sym, pr.u.vlc);
 
 			symtbl_pushScope(sym);
