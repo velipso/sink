@@ -7899,6 +7899,7 @@ static inline pgr_st program_gen(program prg, symtbl sym, ast stmt, void *state,
 
 		case AST_LABEL: {
 			label lbl = NULL;
+			bool found = false;
 			for (int i = 0; i < sym->fr->lbls->size; i++){
 				lbl = sym->fr->lbls->ptrs[i];
 				if (list_byte_equ(lbl->name, stmt->u.label.ident)){
@@ -7906,10 +7907,11 @@ static inline pgr_st program_gen(program prg, symtbl sym, ast stmt, void *state,
 						return pgr_error(stmt->flp, sink_format("Cannot redeclare label \"%.*s\"",
 							stmt->u.label.ident->size, stmt->u.label.ident->bytes));
 					}
+					found = true;
 					break;
 				}
 			}
-			if (lbl == NULL){
+			if (!found){
 				lbl = label_new(stmt->u.label.ident);
 				stmt->u.label.ident = NULL;
 				list_ptr_push(sym->fr->lbls, lbl);
