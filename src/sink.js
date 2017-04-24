@@ -5499,9 +5499,13 @@ function program_gen(prg, sym, stmt, pst, sayexpr){
 				var pr = program_eval(prg, sym, PEM_CREATE, null, stmt.ex);
 				if (pr.type == PER_ERROR)
 					return pgr_error(pr.flp, pr.msg);
-				op_paramcnt(prg.ops, OP_SAYCNT, pr.vlc, 1);
+				var ts = symtbl_addTemp(sym);
+				if (ts.type == STA_ERROR)
+					return pgr_error(stmt.flp, ts.msg);
+				op_paramcnt(prg.ops, OP_SAYCNT, ts.vlc, 1);
 				op_cntarg(prg.ops, pr.vlc);
 				symtbl_clearTemp(sym, pr.vlc);
+				symtbl_clearTemp(sym, ts.vlc);
 			}
 			else{
 				var pr = program_eval(prg, sym, PEM_EMPTY, null, stmt.ex);

@@ -7881,9 +7881,13 @@ static inline pgr_st program_gen(program prg, symtbl sym, ast stmt, void *state,
 				per_st pr = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, stmt->u.eval.ex);
 				if (pr.type == PER_ERROR)
 					return pgr_error(pr.u.error.flp, pr.u.error.msg);
-				op_paramcnt(prg->ops, OP_SAYCNT, pr.u.vlc, 1);
+				sta_st ts = symtbl_addTemp(sym);
+				if (ts.type == STA_ERROR)
+					return pgr_error(stmt->flp, ts.u.msg);
+				op_paramcnt(prg->ops, OP_SAYCNT, ts.u.vlc, 1);
 				op_cntarg(prg->ops, pr.u.vlc);
 				symtbl_clearTemp(sym, pr.u.vlc);
+				symtbl_clearTemp(sym, ts.u.vlc);
 			}
 			else{
 				per_st pr = program_eval(prg, sym, PEM_EMPTY, VARLOC_NULL, stmt->u.eval.ex);
