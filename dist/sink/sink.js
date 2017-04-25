@@ -3268,7 +3268,7 @@ function symtbl_addTemp(sym){
 }
 
 function symtbl_clearTemp(sym, vlc){
-	if (vlc.frame == 0 && sym.fr.vars[vlc.index] == FVR_TEMP_INUSE)
+	if (vlc.frame == sym.fr.level && sym.fr.vars[vlc.index] == FVR_TEMP_INUSE)
 		sym.fr.vars[vlc.index] = FVR_TEMP_AVAIL;
 }
 
