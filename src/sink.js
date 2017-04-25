@@ -6573,10 +6573,6 @@ function opi_abort(ctx, err){
 	return SINK_RUN_FAIL;
 }
 
-function opi_invalid(ctx){
-	return opi_abort(ctx, 'Invalid bytecode');
-}
-
 function sortboth(ctx, li, a, b, mul){
 	if (a === b ||
 		(typeof a === 'number' && typeof b === 'number' && isNaN(a) && isNaN(b)))
@@ -7585,8 +7581,6 @@ function context_run(ctx){
 
 	function INLINE_UNOP(func, erop){
 		LOAD_abcd();
-		if (A > ctx.lex_index || C > ctx.lex_index)
-			return opi_invalid(ctx);
 		X = var_get(ctx, C, D);
 		if (!oper_typelist(X, LT_ALLOWNUM))
 			return opi_abort(ctx, 'Expecting number or list of numbers when ' + erop);
@@ -7596,8 +7590,6 @@ function context_run(ctx){
 
 	function INLINE_BINOP_T(func, erop, t1, t2){
 		LOAD_abcdef();
-		if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
-			return opi_invalid(ctx);
 		X = var_get(ctx, C, D);
 		if (!oper_typelist(X, t1))
 			return opi_abort(ctx, 'Expecting number or list of numbers when ' + erop);
@@ -7614,8 +7606,6 @@ function context_run(ctx){
 
 	function INLINE_TRIOP(func, erop){
 		LOAD_abcdefgh();
-		if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
-			return opi_invalid(ctx);
 		X = var_get(ctx, C, D);
 		if (!oper_typelist(X, LT_ALLOWNUM))
 			return opi_abort(ctx, 'Expecting number or list of numbers when ' + erop);
@@ -7717,15 +7707,11 @@ function context_run(ctx){
 
 			case OP_MOVE           : { // [TGT], [SRC]
 				LOAD_abcd();
-				if (A > ctx.lex_index || C > ctx.lex_index)
-					return opi_invalid(ctx);
 				var_set(ctx, A, B, var_get(ctx, C, D));
 			} break;
 
 			case OP_INC            : { // [TGT/SRC]
 				LOAD_ab();
-				if (A > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = var_get(ctx, A, B);
 				if (!sink_isnum(X))
 					return opi_abort(ctx, 'Expecting number when incrementing');
@@ -7734,43 +7720,31 @@ function context_run(ctx){
 
 			case OP_NIL            : { // [TGT]
 				LOAD_ab();
-				if (A > ctx.lex_index)
-					return opi_invalid(ctx);
 				var_set(ctx, A, B, null);
 			} break;
 
 			case OP_NUMP8          : { // [TGT], VALUE
 				LOAD_abc();
-				if (A > ctx.lex_index)
-					return opi_invalid(ctx);
 				var_set(ctx, A, B, C);
 			} break;
 
 			case OP_NUMN8          : { // [TGT], VALUE
 				LOAD_abc();
-				if (A > ctx.lex_index)
-					return opi_invalid(ctx);
 				var_set(ctx, A, B, C - 256);
 			} break;
 
 			case OP_NUMP16         : { // [TGT], [VALUE]
 				LOAD_abcd();
-				if (A > ctx.lex_index)
-					return opi_invalid(ctx);
 				var_set(ctx, A, B, C | (D << 8));
 			} break;
 
 			case OP_NUMN16         : { // [TGT], [VALUE]
 				LOAD_abcd();
-				if (A > ctx.lex_index)
-					return opi_invalid(ctx);
 				var_set(ctx, A, B, (C | (D << 8)) - 65536);
 			} break;
 
 			case OP_NUMP32         : { // [TGT], [[VALUE]]
 				LOAD_abcdef();
-				if (A > ctx.lex_index)
-					return opi_invalid(ctx);
 				C |= (D << 8) | (E << 16) | (F << 24)
 				if (C < 0)
 					C += 4294967296;
@@ -7779,8 +7753,6 @@ function context_run(ctx){
 
 			case OP_NUMN32         : { // [TGT], [[VALUE]]
 				LOAD_abcdef();
-				if (A > ctx.lex_index)
-					return opi_invalid(ctx);
 				C |= (D << 8) | (E << 16) | (F << 24)
 				if (C < 0)
 					C += 4294967296;
@@ -7789,8 +7761,6 @@ function context_run(ctx){
 
 			case OP_NUMDBL         : { // [TGT], [[[[VALUE]]]]
 				LOAD_abcdefghij();
-				if (A > ctx.lex_index)
-					return opi_invalid(ctx);
 				dview.setUint8(0, C);
 				dview.setUint8(1, D);
 				dview.setUint8(2, E);
@@ -7804,49 +7774,35 @@ function context_run(ctx){
 
 			case OP_STR            : { // [TGT], [INDEX]
 				LOAD_abcd();
-				if (A > ctx.lex_index)
-					return opi_invalid(ctx);
 				C = C | (D << 8);
-				if (C >= ctx.prg.strTable.length)
-					return opi_invalid(ctx);
 				var_set(ctx, A, B, ctx.prg.strTable[C]);
 			} break;
 
 			case OP_LIST           : { // [TGT], HINT
 				LOAD_abc();
-				if (A > ctx.lex_index)
-					return opi_invalid(ctx);
 				var_set(ctx, A, B, []);
 			} break;
 
 			case OP_ISNUM          : { // [TGT], [SRC]
 				LOAD_abcd();
-				if (A > ctx.lex_index || C > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = var_get(ctx, C, D);
 				var_set(ctx, A, B, sink_bool(sink_isnum(X)));
 			} break;
 
 			case OP_ISSTR          : { // [TGT], [SRC]
 				LOAD_abcd();
-				if (A > ctx.lex_index || C > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = var_get(ctx, C, D);
 				var_set(ctx, A, B, sink_bool(sink_isstr(X)));
 			} break;
 
 			case OP_ISLIST         : { // [TGT], [SRC]
 				LOAD_abcd();
-				if (A > ctx.lex_index || C > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = var_get(ctx, C, D);
 				var_set(ctx, A, B, sink_bool(sink_islist(X)));
 			} break;
 
 			case OP_FORCELIST      : { // [SRC]
 				LOAD_ab();
-				if (A > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = var_get(ctx, A, B);
 				if (!sink_islist(X))
 					return opi_abort(ctx, 'Expecting list when calling function');
@@ -7854,16 +7810,12 @@ function context_run(ctx){
 
 			case OP_NOT            : { // [TGT], [SRC]
 				LOAD_abcd();
-				if (A > ctx.lex_index || C > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = var_get(ctx, C, D);
 				var_set(ctx, A, B, sink_bool(sink_isfalse(X)));
 			} break;
 
 			case OP_SIZE           : { // [TGT], [SRC]
 				LOAD_abcd();
-				if (A > ctx.lex_index || C > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X) && !sink_isstr(X))
 					return opi_abort(ctx, 'Expecting string or list for size');
@@ -7872,8 +7824,6 @@ function context_run(ctx){
 
 			case OP_TONUM          : { // [TGT], [SRC]
 				LOAD_abcd();
-				if (A > ctx.lex_index || C > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (!oper_typelist(X, LT_ALLOWNIL | LT_ALLOWNUM | LT_ALLOWSTR))
 					return opi_abort(ctx, 'Expecting string when converting to number');
@@ -7882,8 +7832,6 @@ function context_run(ctx){
 
 			case OP_CAT            : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
-				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				if (sink_islist(X) && sink_islist(Y))
@@ -7894,8 +7842,6 @@ function context_run(ctx){
 
 			case OP_LT             : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
-				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				if (sink_isnum(X) && sink_isnum(Y))
@@ -7908,8 +7854,6 @@ function context_run(ctx){
 
 			case OP_LTE            : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
-				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				if (sink_isnum(X) && sink_isnum(Y))
@@ -7922,8 +7866,6 @@ function context_run(ctx){
 
 			case OP_NEQ            : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
-				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				var_set(ctx, A, B, sink_bool(X !== Y));
@@ -7931,8 +7873,6 @@ function context_run(ctx){
 
 			case OP_EQU            : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
-				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				var_set(ctx, A, B, sink_bool(X === Y));
@@ -7940,8 +7880,6 @@ function context_run(ctx){
 
 			case OP_GETAT          : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
-				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (sink_islist(X)){
 					Y = var_get(ctx, E, F);
@@ -7971,9 +7909,6 @@ function context_run(ctx){
 
 			case OP_SLICE          : { // [TGT], [SRC1], [SRC2], [SRC3]
 				LOAD_abcdefgh();
-				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index ||
-					G > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X) && !sink_isstr(X))
 					return opi_abort(ctx, 'Expecting list or string when slicing');
@@ -7993,8 +7928,6 @@ function context_run(ctx){
 
 			case OP_SETAT          : { // [SRC1], [SRC2], [SRC3]
 				LOAD_abcdef();
-				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = var_get(ctx, A, B);
 				if (!sink_islist(X))
 					return opi_abort(ctx, 'Expecting list when setting index');
@@ -8011,9 +7944,6 @@ function context_run(ctx){
 
 			case OP_SPLICE         : { // [SRC1], [SRC2], [SRC3], [SRC4]
 				LOAD_abcdefgh();
-				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index ||
-					G > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = var_get(ctx, A, B);
 				if (!sink_islist(X) && !sink_isstr(X))
 					return opi_abort(ctx, 'Expecting list or string when splicing');
@@ -8058,8 +7988,6 @@ function context_run(ctx){
 
 			case OP_JUMPTRUE       : { // [SRC], [[LOCATION]]
 				LOAD_abcdef();
-				if (A > ctx.lex_index)
-					return opi_invalid(ctx);
 				C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
 				if (var_get(ctx, A, B) != null){
 					if (ctx.prg.repl && C == 0xFFFFFFFF){
@@ -8072,8 +8000,6 @@ function context_run(ctx){
 
 			case OP_JUMPFALSE      : { // [SRC], [[LOCATION]]
 				LOAD_abcdef();
-				if (A > ctx.lex_index)
-					return opi_invalid(ctx);
 				C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
 				if (var_get(ctx, A, B) == null){
 					if (ctx.prg.repl && C == 0xFFFFFFFF){
@@ -8086,8 +8012,6 @@ function context_run(ctx){
 
 			case OP_CALLCNT        : { // [TGT], LEVEL, [[LOCATION]], ARGCOUNT, [ARGS]...
 				LOAD_abcdefgh();
-				if (A > ctx.lex_index)
-					return opi_invalid(ctx);
 				D = D + (E << 8) + (F << 16) + ((G << 23) * 2);
 				if (ctx.prg.repl && D == 0xFFFFFFFF){
 					ctx.pc -= 9;
@@ -8096,8 +8020,6 @@ function context_run(ctx){
 				var p = new Array(255);
 				for (I = 0; I < H; I++){
 					E = ops[ctx.pc++]; F = ops[ctx.pc++];
-					if (E > ctx.lex_index)
-						return opi_invalid(ctx);
 					p[I] = var_get(ctx, E, F);
 				}
 				for (I = H; I < 255; I++)
@@ -8107,8 +8029,6 @@ function context_run(ctx){
 
 			case OP_CALLVAR        : { // [TGT], LEVEL, [[LOCATION]], [ARGLIST]
 				LOAD_abcdefghi();
-				if (A > ctx.lex_index || H > ctx.lex_index)
-					return opi_invalid(ctx);
 				D = D + (E << 8) + (F << 16) + ((G << 23) * 2);
 				if (ctx.prg.repl && D == 0xFFFFFFFF){
 					ctx.pc -= 10;
@@ -8126,13 +8046,9 @@ function context_run(ctx){
 
 			case OP_NATIVECNT      : { // [TGT], [INDEX], ARGCOUNT, [ARGS]...
 				LOAD_abcde();
-				if (A > ctx.lex_index)
-					return opi_invalid(ctx);
 				var p = new Array(E);
 				for (I = 0; I < E; I++){
 					G = ops[ctx.pc++]; H = ops[ctx.pc++];
-					if (E > ctx.lex_index)
-						return opi_invalid(ctx);
 					p[I] = var_get(ctx, G, H);
 				}
 				E = performNative(A, B, C, D, p);
@@ -8142,8 +8058,6 @@ function context_run(ctx){
 
 			case OP_NATIVEVAR      : { // [TGT], [INDEX], [ARGLIST]
 				LOAD_abcdef();
-				if (A > ctx.lex_index || E > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = var_get(ctx, E, F);
 				if (!sink_islist(X))
 					return opi_abort(ctx, 'Expecting list when calling function');
@@ -8156,8 +8070,6 @@ function context_run(ctx){
 				if (ctx.call_stk.length <= 0)
 					return opi_exit(ctx);
 				LOAD_ab();
-				if (A > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = var_get(ctx, A, B);
 				var s = ctx.call_stk.pop();
 				ctx.lex_stk[ctx.lex_index] = ctx.lex_stk[ctx.lex_index].next;
@@ -8176,8 +8088,6 @@ function context_run(ctx){
 				var p = new Array(255);
 				for (I = 0; I < E; I++){
 					G = ops[ctx.pc++]; H = ops[ctx.pc++];
-					if (G > ctx.lex_index)
-						return opi_invalid(ctx);
 					p[I] = var_get(ctx, G, H);
 				}
 				for (I = E; I < 255; I++)
@@ -8187,8 +8097,6 @@ function context_run(ctx){
 
 			case OP_RETURNTAILVAR  : { // [[LOCATION]], [ARGLIST]
 				LOAD_abcdef();
-				if (E > ctx.lex_index)
-					return opi_invalid(ctx);
 				A = A + (B << 8) + (C << 16) + ((D << 23) * 2);
 				if (ctx.prg.repl && A == 0xFFFFFFFF){
 					ctx.pc -= 7;
@@ -8207,9 +8115,6 @@ function context_run(ctx){
 
 			case OP_RANGE          : { // [TGT], [SRC1], [SRC2], [SRC3]
 				LOAD_abcdefgh();
-				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index ||
-					G > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
@@ -8236,8 +8141,6 @@ function context_run(ctx){
 
 			case OP_ORDER          : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
-				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				var_set(ctx, A, B, opi_order(ctx, X, Y));
@@ -8245,15 +8148,9 @@ function context_run(ctx){
 
 			case OP_SAYCNT         : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
-				if (A > ctx.lex_index)
-					return opi_invalid(ctx);
-				if (C == 255)
-					return opi_invalid(ctx);
 				var p = new Array(C);
 				for (D = 0; D < C; D++){
 					E = ops[ctx.pc++]; F = ops[ctx.pc++];
-					if (E > ctx.lex_index)
-						return opi_invalid(ctx);
 					p[D] = var_get(ctx, E, F);
 				}
 				var r = opi_say(ctx, p);
@@ -8271,8 +8168,6 @@ function context_run(ctx){
 
 			case OP_SAYVAR         : { // [TGT], [ARGLIST]
 				LOAD_abcd();
-				if (A > ctx.lex_index || C > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X))
 					return opi_abort(ctx, 'Expecting list when calling say');
@@ -8291,15 +8186,9 @@ function context_run(ctx){
 
 			case OP_WARNCNT        : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
-				if (A > ctx.lex_index)
-					return opi_invalid(ctx);
-				if (C == 255)
-					return opi_invalid(ctx);
 				var p = new Array(C);
 				for (D = 0; D < C; D++){
 					E = ops[ctx.pc++]; F = ops[ctx.pc++];
-					if (E > ctx.lex_index)
-						return opi_invalid(ctx);
 					p[D] = var_get(ctx, E, F);
 				}
 				var r = opi_warn(ctx, p);
@@ -8317,8 +8206,6 @@ function context_run(ctx){
 
 			case OP_WARNVAR        : { // [TGT], [ARGLIST]
 				LOAD_abcd();
-				if (A > ctx.lex_index || C > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X))
 					return opi_abort(ctx, 'Expecting list when calling warn');
@@ -8337,13 +8224,9 @@ function context_run(ctx){
 
 			case OP_ASKCNT         : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
-				if (A > ctx.lex_index)
-					return opi_invalid(ctx);
 				var p = new Array(C);
 				for (D = 0; D < C; D++){
 					E = ops[ctx.pc++]; F = ops[ctx.pc++];
-					if (E > ctx.lex_index)
-						return opi_invalid(ctx);
 					p[D] = var_get(ctx, E, F);
 				}
 				var r = opi_ask(ctx, p);
@@ -8361,8 +8244,6 @@ function context_run(ctx){
 
 			case OP_ASKVAR         : { // [TGT], [ARGLIST]
 				LOAD_abcd();
-				if (A > ctx.lex_index || C > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X))
 					return opi_abort(ctx, 'Expecting list when calling ask');
@@ -8381,13 +8262,9 @@ function context_run(ctx){
 
 			case OP_EXITCNT        : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
-				if (A > ctx.lex_index || C > ctx.lex_index)
-					return opi_invalid(ctx);
 				var p = new Array(C);
 				for (D = 0; D < C; D++){
 					E = ops[ctx.pc++]; F = ops[ctx.pc++];
-					if (E > ctx.lex_index)
-						return opi_invalid(ctx);
 					p[D] = var_get(ctx, E, F);
 				}
 				if (p.length > 0){
@@ -8407,8 +8284,6 @@ function context_run(ctx){
 
 			case OP_EXITVAR        : { // [TGT], [ARGLIST]
 				LOAD_abcd();
-				if (A > ctx.lex_index || C > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X))
 					return opi_abort(ctx, 'Expecting list when calling exit');
@@ -8429,13 +8304,9 @@ function context_run(ctx){
 
 			case OP_ABORTCNT       : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
-				if (A > ctx.lex_index)
-					return opi_invalid(ctx);
 				var p = new Array(C);
 				for (D = 0; D < C; D++){
 					E = ops[ctx.pc++]; F = ops[ctx.pc++];
-					if (E > ctx.lex_index)
-						return opi_invalid(ctx);
 					p[D] = var_get(ctx, E, F);
 				}
 				var err = false;
@@ -8446,8 +8317,6 @@ function context_run(ctx){
 
 			case OP_ABORTVAR       : { // [TGT], [ARGLIST]
 				LOAD_abcd();
-				if (A > ctx.lex_index || C > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X))
 					return opi_abort(ctx, 'Expecting list when calling abort');
@@ -8513,13 +8382,9 @@ function context_run(ctx){
 
 			case OP_NUM_MAXCNT     : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
-				if (A > ctx.lex_index)
-					return opi_invalid(ctx);
 				var p = new Array(C);
 				for (D = 0; D < C; D++){
 					E = ops[ctx.pc++]; F = ops[ctx.pc++];
-					if (E > ctx.lex_index)
-						return opi_invalid(ctx);
 					p[D] = var_get(ctx, E, F);
 				}
 				var_set(ctx, A, B, opi_num_max(p));
@@ -8527,8 +8392,6 @@ function context_run(ctx){
 
 			case OP_NUM_MAXVAR     : { // [TGT], [ARGLIST]
 				LOAD_abcd();
-				if (A > ctx.lex_index || C > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X)){
 					ctx.failed = true;
@@ -8539,13 +8402,9 @@ function context_run(ctx){
 
 			case OP_NUM_MINCNT     : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
-				if (A > ctx.lex_index)
-					return opi_invalid(ctx);
 				var p = new Array(C);
 				for (D = 0; D < C; D++){
 					E = ops[ctx.pc++]; F = ops[ctx.pc++];
-					if (E > ctx.lex_index)
-						return opi_invalid(ctx);
 					p[D] = var_get(ctx, E, F);
 				}
 				var_set(ctx, A, B, opi_num_min(p));
@@ -8553,8 +8412,6 @@ function context_run(ctx){
 
 			case OP_NUM_MINVAR     : { // [TGT], [ARGLIST]
 				LOAD_abcd();
-				if (A > ctx.lex_index || C > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X)){
 					ctx.failed = true;
@@ -8595,15 +8452,11 @@ function context_run(ctx){
 
 			case OP_NUM_NAN        : { // [TGT]
 				LOAD_ab();
-				if (A > ctx.lex_index)
-					return opi_invalid(ctx);
 				var_set(ctx, A, B, NaN);
 			} break;
 
 			case OP_NUM_INF        : { // [TGT]
 				LOAD_ab();
-				if (A > ctx.lex_index)
-					return opi_invalid(ctx);
 				var_set(ctx, A, B, Infinity);
 			} break;
 
@@ -8621,22 +8474,16 @@ function context_run(ctx){
 
 			case OP_NUM_E          : { // [TGT]
 				LOAD_ab();
-				if (A > ctx.lex_index)
-					return opi_invalid(ctx);
 				var_set(ctx, A, B, Math.E);
 			} break;
 
 			case OP_NUM_PI         : { // [TGT]
 				LOAD_ab();
-				if (A > ctx.lex_index)
-					return opi_invalid(ctx);
 				var_set(ctx, A, B, Math.PI);
 			} break;
 
 			case OP_NUM_TAU        : { // [TGT]
 				LOAD_ab();
-				if (A > ctx.lex_index)
-					return opi_invalid(ctx);
 				var_set(ctx, A, B, Math.PI * 2);
 			} break;
 
@@ -8823,8 +8670,6 @@ function context_run(ctx){
 
 			case OP_RAND_SEED      : { // [TGT], [SRC]
 				LOAD_abcd();
-				if (A > ctx.lex_index || C > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (X === null)
 					X = 0;
@@ -8836,37 +8681,27 @@ function context_run(ctx){
 
 			case OP_RAND_SEEDAUTO  : { // [TGT]
 				LOAD_ab();
-				if (A > ctx.lex_index)
-					return opi_invalid(ctx);
 				opi_rand_seedauto(ctx);
 				var_set(ctx, A, B, null);
 			} break;
 
 			case OP_RAND_INT       : { // [TGT]
 				LOAD_ab();
-				if (A > ctx.lex_index)
-					return opi_invalid(ctx);
 				var_set(ctx, A, B, opi_rand_int(ctx));
 			} break;
 
 			case OP_RAND_NUM       : { // [TGT]
 				LOAD_ab();
-				if (A > ctx.lex_index)
-					return opi_invalid(ctx);
 				var_set(ctx, A, B, opi_rand_num(ctx));
 			} break;
 
 			case OP_RAND_GETSTATE  : { // [TGT]
 				LOAD_ab();
-				if (A > ctx.lex_index)
-					return opi_invalid(ctx);
 				var_set(ctx, A, B, opi_rand_getstate(ctx));
 			} break;
 
 			case OP_RAND_SETSTATE  : { // [TGT], [SRC]
 				LOAD_abcd();
-				if (A > ctx.lex_index || C > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X) || X.length < 2 || !sink_isnum(X[0]) || !sink_isnum(X[1]))
 					return opi_abort(ctx, 'Expecting list of two integers');
@@ -8876,8 +8711,6 @@ function context_run(ctx){
 
 			case OP_RAND_PICK      : { // [TGT], [SRC]
 				LOAD_abcd();
-				if (A > ctx.lex_index || C > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X))
 					return opi_abort(ctx, 'Expecting list');
@@ -8886,8 +8719,6 @@ function context_run(ctx){
 
 			case OP_RAND_SHUFFLE   : { // [TGT], [SRC]
 				LOAD_abcd();
-				if (A > ctx.lex_index || C > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X))
 					return opi_abort(ctx, 'Expecting list');
@@ -8897,13 +8728,9 @@ function context_run(ctx){
 
 			case OP_STR_NEWCNT     : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
-				if (A > ctx.lex_index)
-					return opi_invalid(ctx);
 				var p = new Array(C);
 				for (D = 0; D < C; D++){
 					E = ops[ctx.pc++]; F = ops[ctx.pc++];
-					if (E > ctx.lex_index)
-						return opi_invalid(ctx);
 					p[D] = var_get(ctx, E, F);
 				}
 				var_set(ctx, A, B, sink_list_join(p, ' '));
@@ -8911,8 +8738,6 @@ function context_run(ctx){
 
 			case OP_STR_NEWVAR     : { // [TGT], [ARGLIST]
 				LOAD_abcd();
-				if (A > ctx.lex_index || C > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X))
 					return opi_abort(ctx, 'Expecting list when calling str.new');
@@ -8921,8 +8746,6 @@ function context_run(ctx){
 
 			case OP_STR_SPLIT      : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
-				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = sink_tostr(var_get(ctx, C, D));
 				Y = sink_tostr(var_get(ctx, E, F));
 				var_set(ctx, A, B, X.split(Y));
@@ -8930,9 +8753,6 @@ function context_run(ctx){
 
 			case OP_STR_REPLACE    : { // [TGT], [SRC1], [SRC2], [SRC3]
 				LOAD_abcdefgh();
-				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index ||
-					G > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = sink_tostr(var_get(ctx, C, D));
 				Y = sink_tostr(var_get(ctx, E, F));
 				Z = sink_tostr(var_get(ctx, G, H));
@@ -8941,8 +8761,6 @@ function context_run(ctx){
 
 			case OP_STR_BEGINS     : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
-				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = sink_tostr(var_get(ctx, C, D));
 				Y = sink_tostr(var_get(ctx, E, F));
 				var_set(ctx, A, B, sink_bool(X.substr(0, Y.length) == Y));
@@ -8950,8 +8768,6 @@ function context_run(ctx){
 
 			case OP_STR_ENDS       : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
-				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = sink_tostr(var_get(ctx, C, D));
 				Y = sink_tostr(var_get(ctx, E, F));
 				var_set(ctx, A, B, sink_bool(X.substr(X.length - Y.length) == Y));
@@ -8959,8 +8775,6 @@ function context_run(ctx){
 
 			case OP_STR_PAD        : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
-				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = sink_tostr(var_get(ctx, C, D));
 				Y = var_get(ctx, E, F);
 				if (Y === null)
@@ -8977,9 +8791,6 @@ function context_run(ctx){
 
 			case OP_STR_FIND       : { // [TGT], [SRC1], [SRC2], [SRC3]
 				LOAD_abcdefgh();
-				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index ||
-					G > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = sink_tostr(var_get(ctx, C, D));
 				Y = sink_tostr(var_get(ctx, E, F));
 				Z = var_get(ctx, G, H);
@@ -8994,9 +8805,6 @@ function context_run(ctx){
 
 			case OP_STR_RFIND      : { // [TGT], [SRC1], [SRC2], [SRC3]
 				LOAD_abcdefgh();
-				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index ||
-					G > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = sink_tostr(var_get(ctx, C, D));
 				Y = sink_tostr(var_get(ctx, E, F));
 				Z = var_get(ctx, G, H);
@@ -9011,8 +8819,6 @@ function context_run(ctx){
 
 			case OP_STR_LOWER      : { // [TGT], [SRC]
 				LOAD_abcd();
-				if (A > ctx.lex_index || C > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = sink_tostr(var_get(ctx, C, D));
 				Y = '';
 				for (var i = 0; i < X.length; i++){
@@ -9026,8 +8832,6 @@ function context_run(ctx){
 
 			case OP_STR_UPPER      : { // [TGT], [SRC]
 				LOAD_abcd();
-				if (A > ctx.lex_index || C > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = sink_tostr(var_get(ctx, C, D));
 				Y = '';
 				for (var i = 0; i < X.length; i++){
@@ -9041,24 +8845,18 @@ function context_run(ctx){
 
 			case OP_STR_TRIM       : { // [TGT], [SRC]
 				LOAD_abcd();
-				if (A > ctx.lex_index || C > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = sink_tostr(var_get(ctx, C, D));
 				var_set(ctx, A, B, X.replace(/^[ \f\n\r\t\v]*|[ \f\n\r\t\v]*$/g, ''));
 			} break;
 
 			case OP_STR_REV        : { // [TGT], [SRC]
 				LOAD_abcd();
-				if (A > ctx.lex_index || C > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = sink_tostr(var_get(ctx, C, D));
 				var_set(ctx, A, B, X.split('').reverse().join(''));
 			} break;
 
 			case OP_STR_REP        : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
-				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = sink_tostr(var_get(ctx, C, D));
 				Y = var_get(ctx, E, F);
 				if (Y === null)
@@ -9073,8 +8871,6 @@ function context_run(ctx){
 
 			case OP_STR_LIST       : { // [TGT], [SRC]
 				LOAD_abcd();
-				if (A > ctx.lex_index || C > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = sink_tostr(var_get(ctx, C, D));
 				Y = [];
 				for (var i = 0; i < X.length; i++)
@@ -9084,8 +8880,6 @@ function context_run(ctx){
 
 			case OP_STR_BYTE       : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
-				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = sink_tostr(var_get(ctx, C, D));
 				Y = var_get(ctx, E, F);
 				if (Y === null)
@@ -9104,8 +8898,6 @@ function context_run(ctx){
 
 			case OP_STR_HASH       : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
-				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = sink_tostr(var_get(ctx, C, D));
 				Y = var_get(ctx, E, F);
 				if (Y === null)
@@ -9118,15 +8910,11 @@ function context_run(ctx){
 
 			case OP_UTF8_VALID     : { // [TGT], [SRC]
 				LOAD_abcd();
-				if (A > ctx.lex_index || C > ctx.lex_index)
-					return opi_invalid(ctx);
 				var_set(ctx, A, B, opi_utf8_valid(var_get(ctx, C, D)));
 			} break;
 
 			case OP_UTF8_LIST      : { // [TGT], [SRC]
 				LOAD_abcd();
-				if (A > ctx.lex_index || C > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (!sink_isstr(X))
 					return opi_abort(ctx, 'Expecting string');
@@ -9138,8 +8926,6 @@ function context_run(ctx){
 
 			case OP_UTF8_STR       : { // [TGT], [SRC]
 				LOAD_abcd();
-				if (A > ctx.lex_index || C > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X))
 					return opi_abort(ctx, 'Expecting list');
@@ -9151,16 +8937,12 @@ function context_run(ctx){
 
 			case OP_STRUCT_SIZE    : { // [TGT], [SRC]
 				LOAD_abcd();
-				if (A > ctx.lex_index || C > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = var_get(ctx, C, D);
 				var_set(ctx, A, B, opi_struct_size(X));
 			} break;
 
 			case OP_STRUCT_STR     : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
-				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				if (!sink_islist(X) || !sink_islist(Y))
@@ -9173,8 +8955,6 @@ function context_run(ctx){
 
 			case OP_STRUCT_LIST    : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
-				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				if (!sink_isstr(X))
@@ -9189,8 +8969,6 @@ function context_run(ctx){
 
 			case OP_LIST_NEW       : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
-				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (X == null)
 					X = 0;
@@ -9205,8 +8983,6 @@ function context_run(ctx){
 
 			case OP_LIST_SHIFT     : { // [TGT], [SRC]
 				LOAD_abcd();
-				if (A > ctx.lex_index || C > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X))
 					return opi_abort(ctx, 'Expecting list when shifting');
@@ -9218,8 +8994,6 @@ function context_run(ctx){
 
 			case OP_LIST_POP       : { // [TGT], [SRC]
 				LOAD_abcd();
-				if (A > ctx.lex_index || C > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X))
 					return opi_abort(ctx, 'Expecting list when popping');
@@ -9231,8 +9005,6 @@ function context_run(ctx){
 
 			case OP_LIST_PUSH      : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
-				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X))
 					return opi_abort(ctx, 'Expecting list when pushing');
@@ -9244,8 +9016,6 @@ function context_run(ctx){
 
 			case OP_LIST_UNSHIFT   : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
-				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X))
 					return opi_abort(ctx, 'Expecting list when unshifting');
@@ -9257,8 +9027,6 @@ function context_run(ctx){
 
 			case OP_LIST_APPEND    : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
-				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				if (!sink_islist(X) || !sink_islist(Y))
@@ -9270,8 +9038,6 @@ function context_run(ctx){
 
 			case OP_LIST_PREPEND   : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
-				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				if (!sink_islist(X) || !sink_islist(Y))
@@ -9283,9 +9049,6 @@ function context_run(ctx){
 
 			case OP_LIST_FIND      : { // [TGT], [SRC1], [SRC2], [SRC3]
 				LOAD_abcdefgh();
-				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index ||
-					G > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X))
 					return opi_abort(ctx, 'Expecting list for list.find');
@@ -9311,9 +9074,6 @@ function context_run(ctx){
 
 			case OP_LIST_RFIND     : { // [TGT], [SRC1], [SRC2], [SRC3]
 				LOAD_abcdefgh();
-				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index ||
-					G > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X))
 					return opi_abort(ctx, 'Expecting list for list.rfind');
@@ -9339,8 +9099,6 @@ function context_run(ctx){
 
 			case OP_LIST_JOIN      : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
-				if (A > ctx.lex_index || C > ctx.lex_index || E > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X))
 					return opi_abort(ctx, 'Expecting list for list.join');
@@ -9355,8 +9113,6 @@ function context_run(ctx){
 
 			case OP_LIST_REV       : { // [TGT], [SRC]
 				LOAD_abcd();
-				if (A > ctx.lex_index || C > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X))
 					return opi_abort(ctx, 'Expecting list for list.rev');
@@ -9366,8 +9122,6 @@ function context_run(ctx){
 
 			case OP_LIST_STR       : { // [TGT], [SRC]
 				LOAD_abcd();
-				if (A > ctx.lex_index || C > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X))
 					return opi_abort(ctx, 'Expecting list for list.str');
@@ -9387,8 +9141,6 @@ function context_run(ctx){
 
 			case OP_LIST_SORT      : { // [TGT], [SRC]
 				LOAD_abcd();
-				if (A > ctx.lex_index || C > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X))
 					return opi_abort(ctx, 'Expecting list for list.sort');
@@ -9398,8 +9150,6 @@ function context_run(ctx){
 
 			case OP_LIST_RSORT     : { // [TGT], [SRC]
 				LOAD_abcd();
-				if (A > ctx.lex_index || C > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X))
 					return opi_abort(ctx, 'Expecting list for list.sort');
@@ -9409,8 +9159,6 @@ function context_run(ctx){
 
 			case OP_PICKLE_JSON    : { // [TGT], [SRC]
 				LOAD_abcd();
-				if (A > ctx.lex_index || C > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = opi_pickle_json(ctx, var_get(ctx, C, D));
 				if (ctx.failed)
 					return SINK_RUN_FAIL;
@@ -9419,15 +9167,11 @@ function context_run(ctx){
 
 			case OP_PICKLE_BIN     : { // [TGT], [SRC]
 				LOAD_abcd();
-				if (A > ctx.lex_index || C > ctx.lex_index)
-					return opi_invalid(ctx);
 				var_set(ctx, A, B, opi_pickle_bin(ctx, var_get(ctx, C, D)));
 			} break;
 
 			case OP_PICKLE_VAL     : { // [TGT], [SRC]
 				LOAD_abcd();
-				if (A > ctx.lex_index || C > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = opi_pickle_val(ctx, var_get(ctx, C, D));
 				if (ctx.failed)
 					return SINK_RUN_FAIL;
@@ -9436,43 +9180,31 @@ function context_run(ctx){
 
 			case OP_PICKLE_VALID   : { // [TGT], [SRC]
 				LOAD_abcd();
-				if (A > ctx.lex_index || C > ctx.lex_index)
-					return opi_invalid(ctx);
 				var_set(ctx, A, B, opi_pickle_valid(ctx, var_get(ctx, C, D)));
 			} break;
 
 			case OP_PICKLE_SIBLING : { // [TGT], [SRC]
 				LOAD_abcd();
-				if (A > ctx.lex_index || C > ctx.lex_index)
-					return opi_invalid(ctx);
 				var_set(ctx, A, B, sink_bool(opi_pickle_sibling(ctx, var_get(ctx, C, D))));
 			} break;
 
 			case OP_PICKLE_CIRCULAR: { // [TGT], [SRC]
 				LOAD_abcd();
-				if (A > ctx.lex_index || C > ctx.lex_index)
-					return opi_invalid(ctx);
 				var_set(ctx, A, B, sink_bool(opi_pickle_circular(ctx, var_get(ctx, C, D))));
 			} break;
 
 			case OP_PICKLE_COPY    : { // [TGT], [SRC]
 				LOAD_abcd();
-				if (A > ctx.lex_index || C > ctx.lex_index)
-					return opi_invalid(ctx);
 				var_set(ctx, A, B, opi_pickle_copy(ctx, var_get(ctx, C, D)));
 			} break;
 
 			case OP_GC_GETLEVEL    : { // [TGT]
 				LOAD_ab();
-				if (A > ctx.lex_index)
-					return opi_invalid(ctx);
 				var_set(ctx, A, B, ctx.gc_level);
 			} break;
 
 			case OP_GC_SETLEVEL    : { // [TGT], [SRC]
 				LOAD_abcd();
-				if (A > ctx.lex_index || C > ctx.lex_index)
-					return opi_invalid(ctx);
 				X = var_get(ctx, C, D);
 				if (X === 'none' || X === 'default' || X === 'lowmem')
 					ctx.gc_level = X;
@@ -9485,13 +9217,8 @@ function context_run(ctx){
 
 			case OP_GC_RUN         : { // [TGT]
 				LOAD_ab();
-				if (A > ctx.lex_index)
-					return opi_invalid(ctx);
 				var_set(ctx, A, B, null);
 			} break;
-
-			default:
-				return opi_invalid(ctx);
 		}
 		ctx.ticks++;
 		if ((ctx.ticks % 1000) == 0){

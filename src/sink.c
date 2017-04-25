@@ -9880,11 +9880,6 @@ static inline void opi_abortcstr(context ctx, const char *msg){
 	opi_abort(ctx, sink_format("%s", msg));
 }
 
-static inline sink_run opi_invalid(context ctx){
-	opi_abortcstr(ctx, "Invalid bytecode");
-	return SINK_RUN_FAIL;
-}
-
 static inline sink_val opi_abortformat(context ctx, const char *fmt, ...){
 	va_list args, args2;
 	va_start(args, fmt);
@@ -11456,117 +11451,46 @@ static sink_run context_run(context ctx){
 
 	list_byte ops = ctx->prg->ops;
 
-	// TODO: none of these definitions take into account that the PC could run off the end of
-	// the bytes array :-(
-
 	#define LOAD_ab()                                                                      \
 		ctx->pc++;                                                                         \
 		A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
 
-	#define LOAD_AB()                                                                      \
+	#define LOAD_abc()                                                                     \
 		LOAD_ab();                                                                         \
-		if (A > ctx->lex_index)                                                            \
-			return opi_invalid(ctx);
-
-	#define LOAD_ABc()                                                                     \
-		LOAD_ab();                                                                         \
-		C = ops->bytes[ctx->pc++];                                                         \
-		if (A > ctx->lex_index)                                                            \
-			return opi_invalid(ctx);
+		C = ops->bytes[ctx->pc++];
 
 	#define LOAD_abcd()                                                                    \
 		LOAD_ab();                                                                         \
 		C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
 
-	#define LOAD_ABcd()                                                                    \
-		LOAD_abcd();                                                                       \
-		if (A > ctx->lex_index)                                                            \
-			return opi_invalid(ctx);
-
-	#define LOAD_ABCD()                                                                    \
-		LOAD_abcd();                                                                       \
-		if (A > ctx->lex_index || C > ctx->lex_index)                                      \
-			return opi_invalid(ctx);
-
 	#define LOAD_abcde()                                                                   \
 		LOAD_abcd();                                                                       \
 		E = ops->bytes[ctx->pc++];                                                         \
-
-	#define LOAD_ABcde()                                                                   \
-		LOAD_abcde();                                                                      \
-		if (A > ctx->lex_index)                                                            \
-			return opi_invalid(ctx);
 
 	#define LOAD_abcdef()                                                                  \
 		LOAD_abcd();                                                                       \
 		E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
 
-	#define LOAD_ABcdef()                                                                  \
-		LOAD_abcdef();                                                                     \
-		if (A > ctx->lex_index)                                                            \
-			return opi_invalid(ctx);
-
-	#define LOAD_abcdEF()                                                                  \
-		LOAD_abcdef();                                                                     \
-		if (E > ctx->lex_index)                                                            \
-			return opi_invalid(ctx);
-
-	#define LOAD_ABcdEF()                                                                  \
-		LOAD_abcdef();                                                                     \
-		if (A > ctx->lex_index || E > ctx->lex_index)                                      \
-			return opi_invalid(ctx);
-
-	#define LOAD_ABCDef()                                                                  \
-		LOAD_abcdef();                                                                     \
-		if (A > ctx->lex_index || C > ctx->lex_index)                                      \
-			return opi_invalid(ctx);
-
-	#define LOAD_ABCDEF()                                                                  \
-		LOAD_abcdef();                                                                     \
-		if (A > ctx->lex_index || C > ctx->lex_index || E > ctx->lex_index)                \
-			return opi_invalid(ctx);
-
 	#define LOAD_abcdefgh()                                                                \
 		LOAD_abcdef();                                                                     \
 		G = ops->bytes[ctx->pc++]; H = ops->bytes[ctx->pc++];
-
-	#define LOAD_ABCDEFGH()                                                                \
-		LOAD_abcdefgh();                                                                   \
-		if (A > ctx->lex_index || C > ctx->lex_index || E > ctx->lex_index ||              \
-			G > ctx->lex_index)                                                            \
-			return opi_invalid(ctx);                                                       \
-
-	#define LOAD_ABcdefgh()                                                                \
-		LOAD_abcdefgh();                                                                   \
-		if (A > ctx->lex_index)                                                            \
-			return opi_invalid(ctx);
 
 	#define LOAD_abcdefghi()                                                               \
 		LOAD_abcdefgh();                                                                   \
 		I = ops->bytes[ctx->pc++];
 
-	#define LOAD_ABcdefgHI()                                                               \
-		LOAD_abcdefghi();                                                                  \
-		if (A > ctx->lex_index || H > ctx->lex_index)                                      \
-			return opi_invalid(ctx);
-
 	#define LOAD_abcdefghij()                                                              \
 		LOAD_abcdefgh();                                                                   \
 		I = ops->bytes[ctx->pc++]; J = ops->bytes[ctx->pc++];
 
-	#define LOAD_ABcdefghij()                                                              \
-		LOAD_abcdefghij();                                                                 \
-		if (A > ctx->lex_index)                                                            \
-			return opi_invalid(ctx);
-
 	#define INLINE_UNOP(func, erop)                                                        \
-		LOAD_ABCD();                                                                       \
+		LOAD_abcd();                                                                       \
 		var_set(ctx, A, B, opi_unop(ctx, var_get(ctx, C, D), func, erop));                 \
 		if (ctx->failed)                                                                   \
 			return SINK_RUN_FAIL;
 
 	#define INLINE_BINOP_T(func, erop, t1, t2)                                             \
-		LOAD_ABCDEF();                                                                     \
+		LOAD_abcdef();                                                                     \
 		var_set(ctx, A, B,                                                                 \
 			opi_binop(ctx, var_get(ctx, C, D), var_get(ctx, E, F), func, erop, t1, t2));   \
 		if (ctx->failed)                                                                   \
@@ -11575,7 +11499,7 @@ static sink_run context_run(context ctx){
 	#define INLINE_BINOP(func, erop) INLINE_BINOP_T(func, erop, LT_ALLOWNUM, LT_ALLOWNUM)
 
 	#define INLINE_TRIOP(func, erop)                                                       \
-		LOAD_ABCDEFGH();                                                                   \
+		LOAD_abcdefgh();                                                                   \
 		var_set(ctx, A, B,                                                                 \
 			opi_triop(ctx, var_get(ctx, C, D), var_get(ctx, E, F), var_get(ctx, G, H),     \
 				func, erop));                                                              \
@@ -11595,12 +11519,12 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_MOVE           : { // [TGT], [SRC]
-				LOAD_ABCD();
+				LOAD_abcd();
 				var_set(ctx, A, B, var_get(ctx, C, D));
 			} break;
 
 			case OP_INC            : { // [TGT/SRC]
-				LOAD_AB();
+				LOAD_ab();
 				X = var_get(ctx, A, B);
 				if (!sink_isnum(X))
 					RETURN_FAIL("Expecting number when incrementing");
@@ -11608,32 +11532,32 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_NIL            : { // [TGT]
-				LOAD_AB();
+				LOAD_ab();
 				var_set(ctx, A, B, SINK_NIL);
 			} break;
 
 			case OP_NUMP8          : { // [TGT], VALUE
-				LOAD_ABc();
+				LOAD_abc();
 				var_set(ctx, A, B, sink_num(C));
 			} break;
 
 			case OP_NUMN8          : { // [TGT], VALUE
-				LOAD_ABc();
+				LOAD_abc();
 				var_set(ctx, A, B, sink_num(C - 256));
 			} break;
 
 			case OP_NUMP16         : { // [TGT], [VALUE]
-				LOAD_ABcd();
+				LOAD_abcd();
 				var_set(ctx, A, B, sink_num(C | (D << 8)));
 			} break;
 
 			case OP_NUMN16         : { // [TGT], [VALUE]
-				LOAD_ABcd();
+				LOAD_abcd();
 				var_set(ctx, A, B, sink_num((C | (D << 8)) - 65536));
 			} break;
 
 			case OP_NUMP32         : { // [TGT], [[VALUE]]
-				LOAD_ABcdef();
+				LOAD_abcdef();
 				var_set(ctx, A, B, sink_num(
 					((uint32_t)C) | (((uint32_t)D) << 8) |
 					(((uint32_t)E) << 16) | (((uint32_t)F) << 24)
@@ -11641,7 +11565,7 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_NUMN32         : { // [TGT], [[VALUE]]
-				LOAD_ABcdef();
+				LOAD_abcdef();
 				var_set(ctx, A, B, sink_num(
 					(double)(((uint32_t)C) | (((uint32_t)D) << 8) |
 					(((uint32_t)E) << 16) | (((uint32_t)F) << 24)) - 4294967296.0
@@ -11649,7 +11573,7 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_NUMDBL         : { // [TGT], [[[[VALUE]]]]
-				LOAD_ABcdefghij();
+				LOAD_abcdefghij();
 				X.u = ((uint64_t)C) |
 					(((uint64_t)D) << 8) |
 					(((uint64_t)E) << 16) |
@@ -11664,23 +11588,18 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_STR            : { // [TGT], [INDEX]
-				LOAD_ABcd();
+				LOAD_abcd();
 				C = C | (D << 8);
 				if (ctx->prg->repl){
-					if (C >= ctx->prg->strTable->size)
-						return opi_invalid(ctx);
 					list_byte s = ctx->prg->strTable->ptrs[C];
 					var_set(ctx, A, B, sink_str_newblob(ctx, s->size, s->bytes));
 				}
-				else{
-					if (C >= ctx->str_prealloc_size)
-						return opi_invalid(ctx);
+				else
 					var_set(ctx, A, B, (sink_val){ .u = SINK_TAG_STR | C });
-				}
 			} break;
 
 			case OP_LIST           : { // [TGT], HINT
-				LOAD_ABc();
+				LOAD_abc();
 				if (C <= 0)
 					var_set(ctx, A, B, sink_list_newblob(ctx, 0, NULL));
 				else{
@@ -11690,52 +11609,52 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_FORCELIST      : { // [SRC]
-				LOAD_AB();
+				LOAD_ab();
 				X = var_get(ctx, A, B);
 				if (!sink_islist(X))
 					RETURN_FAIL("Expecting list when calling function");
 			} break;
 
 			case OP_ISNUM          : { // [TGT], [SRC]
-				LOAD_ABCD();
+				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				var_set(ctx, A, B, sink_bool(sink_isnum(X)));
 			} break;
 
 			case OP_ISSTR          : { // [TGT], [SRC]
-				LOAD_ABCD();
+				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				var_set(ctx, A, B, sink_bool(sink_isstr(X)));
 			} break;
 
 			case OP_ISLIST         : { // [TGT], [SRC]
-				LOAD_ABCD();
+				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				var_set(ctx, A, B, sink_bool(sink_islist(X)));
 			} break;
 
 			case OP_NOT            : { // [TGT], [SRC]
-				LOAD_ABCD();
+				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				var_set(ctx, A, B, sink_bool(sink_isfalse(X)));
 			} break;
 
 			case OP_SIZE           : { // [TGT], [SRC]
-				LOAD_ABCD();
+				LOAD_abcd();
 				var_set(ctx, A, B, sink_num(opi_size(ctx, var_get(ctx, C, D))));
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
 			} break;
 
 			case OP_TONUM          : { // [TGT], [SRC]
-				LOAD_ABCD();
+				LOAD_abcd();
 				var_set(ctx, A, B, opi_tonum(ctx, var_get(ctx, C, D)));
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
 			} break;
 
 			case OP_CAT            : { // [TGT], [SRC1], [SRC2]
-				LOAD_ABCDEF();
+				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				if (sink_islist(X) && sink_islist(Y))
@@ -11748,7 +11667,7 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_LT             : { // [TGT], [SRC1], [SRC2]
-				LOAD_ABCDEF();
+				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				if (sink_isstr(X) && sink_isstr(Y)){
@@ -11766,7 +11685,7 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_LTE            : { // [TGT], [SRC1], [SRC2]
-				LOAD_ABCDEF();
+				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				if (sink_isstr(X) && sink_isstr(Y)){
@@ -11784,21 +11703,21 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_NEQ            : { // [TGT], [SRC1], [SRC2]
-				LOAD_ABCDEF();
+				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				var_set(ctx, A, B, sink_bool(!opi_equ(ctx, X, Y)));
 			} break;
 
 			case OP_EQU            : { // [TGT], [SRC1], [SRC2]
-				LOAD_ABCDEF();
+				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				var_set(ctx, A, B, sink_bool(opi_equ(ctx, X, Y)));
 			} break;
 
 			case OP_GETAT          : { // [TGT], [SRC1], [SRC2]
-				LOAD_ABCDEF();
+				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X) && !sink_isstr(X))
 					RETURN_FAIL("Expecting list or string when indexing");
@@ -11812,7 +11731,7 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_SLICE          : { // [TGT], [SRC1], [SRC2], [SRC3]
-				LOAD_ABCDEFGH();
+				LOAD_abcdefgh();
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X) && !sink_isstr(X))
 					RETURN_FAIL("Expecting list or string when slicing");
@@ -11827,7 +11746,7 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_SETAT          : { // [SRC1], [SRC2], [SRC3]
-				LOAD_ABCDEF();
+				LOAD_abcdef();
 				X = var_get(ctx, A, B);
 				if (!sink_islist(X))
 					RETURN_FAIL("Expecting list when setting index");
@@ -11844,7 +11763,7 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_SPLICE         : { // [SRC1], [SRC2], [SRC3], [SRC4]
-				LOAD_ABCDEFGH();
+				LOAD_abcdefgh();
 				X = var_get(ctx, A, B);
 				if (!sink_islist(X) && !sink_isstr(X))
 					RETURN_FAIL("Expecting list or string when splicing");
@@ -11878,7 +11797,7 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_JUMPTRUE       : { // [SRC], [[LOCATION]]
-				LOAD_ABcdef();
+				LOAD_abcdef();
 				C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
 				if (!sink_isnil(var_get(ctx, A, B))){
 					if (ctx->prg->repl && C == -1){
@@ -11890,7 +11809,7 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_JUMPFALSE      : { // [SRC], [[LOCATION]]
-				LOAD_ABcdef();
+				LOAD_abcdef();
 				C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
 				if (sink_isnil(var_get(ctx, A, B))){
 					if (ctx->prg->repl && C == -1){
@@ -11902,7 +11821,7 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_CALLCNT        : { // [TGT], LEVEL, [[LOCATION]], ARGCOUNT, [ARGS]...
-				LOAD_ABcdefgh();
+				LOAD_abcdefgh();
 				D = D + (E << 8) + (F << 16) + ((G << 23) * 2);
 				if (ctx->prg->repl && D == -1){
 					ctx->pc -= 9;
@@ -11910,15 +11829,13 @@ static sink_run context_run(context ctx){
 				}
 				for (I = 0; I < H; I++){
 					E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
-					if (E > ctx->lex_index)
-						return opi_invalid(ctx);
 					p[I] = var_get(ctx, E, F);
 				}
 				goto perform_call;
 			} break;
 
 			case OP_CALLVAR        : { // [TGT], LEVEL, [[LOCATION]], [ARGLIST]
-				LOAD_ABcdefgHI();
+				LOAD_abcdefghi();
 				D = D + (E << 8) + (F << 16) + ((G << 23) * 2);
 				if (ctx->prg->repl && D == -1){
 					ctx->pc -= 10;
@@ -11960,18 +11877,16 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_NATIVECNT      : { // [TGT], [INDEX], ARGCOUNT, [ARGS]...
-				LOAD_ABcde();
+				LOAD_abcde();
 				for (I = 0; I < E; I++){
 					G = ops->bytes[ctx->pc++]; H = ops->bytes[ctx->pc++];
-					if (G > ctx->lex_index)
-						return opi_invalid(ctx);
 					p[I] = var_get(ctx, G, H);
 				}
 				goto perform_native;
 			} break;
 
 			case OP_NATIVEVAR      : { // [TGT], [INDEX], [ARGLIST]
-				LOAD_ABcdEF();
+				LOAD_abcdef();
 				X = var_get(ctx, E, F);
 				if (!sink_islist(X))
 					RETURN_FAIL("Expecting list when calling function");
@@ -12018,7 +11933,7 @@ static sink_run context_run(context ctx){
 			case OP_RETURN         : { // [SRC]
 				if (ctx->call_stk->size <= 0)
 					return opi_exit(ctx);
-				LOAD_AB();
+				LOAD_ab();
 				X = var_get(ctx, A, B);
 				ccs s = list_ptr_pop(ctx->call_stk);
 				lxs lx = ctx->lex_stk->ptrs[ctx->lex_index];
@@ -12039,15 +11954,13 @@ static sink_run context_run(context ctx){
 				}
 				for (I = 0; I < E; I++){
 					G = ops->bytes[ctx->pc++]; H = ops->bytes[ctx->pc++];
-					if (G > ctx->lex_index)
-						return opi_invalid(ctx);
 					p[I] = var_get(ctx, G, H);
 				}
 				goto perform_returntail;
 			} break;
 
 			case OP_RETURNTAILVAR  : { // [[LOCATION]], [ARGLIST]
-				LOAD_abcdEF();
+				LOAD_abcdef();
 				A = A + (B << 8) + (C << 16) + ((D << 23) * 2);
 				if (ctx->prg->repl && A == -1){
 					ctx->pc -= 7;
@@ -12086,7 +11999,7 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_RANGE          : { // [TGT], [SRC1], [SRC2], [SRC3]
-				LOAD_ABCDEFGH();
+				LOAD_abcdefgh();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
@@ -12112,20 +12025,16 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_ORDER          : { // [TGT], [SRC1], [SRC2]
-				LOAD_ABCDEF();
+				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				var_set(ctx, A, B, sink_num(opi_order(ctx, X, Y)));
 			} break;
 
 			case OP_SAYCNT         : { // [TGT], ARGCOUNT, [ARGS]...
-				LOAD_ABc();
-				if (C == 255)
-					return opi_invalid(ctx);
+				LOAD_abc();
 				for (D = 0; D < C; D++){
 					E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
-					if (E > ctx->lex_index)
-						return opi_invalid(ctx);
 					p[D] = var_get(ctx, E, F);
 				}
 				opi_say(ctx, C, p);
@@ -12135,7 +12044,7 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_SAYVAR         : { // [TGT], [ARGLIST]
-				LOAD_ABCD();
+				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X))
 					RETURN_FAIL("Expecting list when calling say");
@@ -12147,13 +12056,9 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_WARNCNT        : { // [TGT], ARGCOUNT, [ARGS]...
-				LOAD_ABc();
-				if (C == 255)
-					return opi_invalid(ctx);
+				LOAD_abc();
 				for (D = 0; D < C; D++){
 					E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
-					if (E > ctx->lex_index)
-						return opi_invalid(ctx);
 					p[D] = var_get(ctx, E, F);
 				}
 				opi_warn(ctx, C, p);
@@ -12163,7 +12068,7 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_WARNVAR        : { // [TGT], [ARGLIST]
-				LOAD_ABCD();
+				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X))
 					RETURN_FAIL("Expecting list when calling warn");
@@ -12175,13 +12080,9 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_ASKCNT         : { // [TGT], ARGCOUNT, [ARGS]...
-				LOAD_ABc();
-				if (C == 255)
-					return opi_invalid(ctx);
+				LOAD_abc();
 				for (D = 0; D < C; D++){
 					E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
-					if (E > ctx->lex_index)
-						return opi_invalid(ctx);
 					p[D] = var_get(ctx, E, F);
 				}
 				var_set(ctx, A, B, opi_ask(ctx, C, p));
@@ -12190,7 +12091,7 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_ASKVAR         : { // [TGT], [ARGLIST]
-				LOAD_ABCD();
+				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X))
 					RETURN_FAIL("Expecting list when calling ask");
@@ -12201,13 +12102,9 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_EXITCNT        : { // [TGT], ARGCOUNT, [ARGS]...
-				LOAD_ABc();
-				if (C == 255)
-					return opi_invalid(ctx);
+				LOAD_abc();
 				for (D = 0; D < C; D++){
 					E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
-					if (E > ctx->lex_index)
-						return opi_invalid(ctx);
 					p[D] = var_get(ctx, E, F);
 				}
 				if (C > 0){
@@ -12219,7 +12116,7 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_EXITVAR        : { // [TGT], [ARGLIST]
-				LOAD_ABCD();
+				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X))
 					RETURN_FAIL("Expecting list when calling exit");
@@ -12233,13 +12130,9 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_ABORTCNT       : { // [TGT], ARGCOUNT, [ARGS]...
-				LOAD_ABc();
-				if (C == 255)
-					return opi_invalid(ctx);
+				LOAD_abc();
 				for (D = 0; D < C; D++){
 					E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
-					if (E > ctx->lex_index)
-						return opi_invalid(ctx);
 					p[D] = var_get(ctx, E, F);
 				}
 				char *err = NULL;
@@ -12249,7 +12142,7 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_ABORTVAR       : { // [TGT], [ARGLIST]
-				LOAD_ABCD();
+				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X))
 					RETURN_FAIL("Expecting list when calling exit");
@@ -12299,20 +12192,16 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_NUM_MAXCNT     : { // [TGT], ARGCOUNT, [ARGS]...
-				LOAD_ABc();
-				if (C == 255)
-					return opi_invalid(ctx);
+				LOAD_abc();
 				for (D = 0; D < C; D++){
 					E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
-					if (E > ctx->lex_index)
-						return opi_invalid(ctx);
 					p[D] = var_get(ctx, E, F);
 				}
 				var_set(ctx, A, B, opi_num_max(ctx, C, p));
 			} break;
 
 			case OP_NUM_MAXVAR     : { // [TGT], [ARGLIST]
-				LOAD_ABCD();
+				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X))
 					RETURN_FAIL("Expecting list when calling num.max");
@@ -12321,20 +12210,16 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_NUM_MINCNT     : { // [TGT], ARGCOUNT, [ARGS]...
-				LOAD_ABc();
-				if (C == 255)
-					return opi_invalid(ctx);
+				LOAD_abc();
 				for (D = 0; D < C; D++){
 					E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
-					if (E > ctx->lex_index)
-						return opi_invalid(ctx);
 					p[D] = var_get(ctx, E, F);
 				}
 				var_set(ctx, A, B, opi_num_min(ctx, C, p));
 			} break;
 
 			case OP_NUM_MINVAR     : { // [TGT], [ARGLIST]
-				LOAD_ABCD();
+				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X))
 					RETURN_FAIL("Expecting list when calling num.min");
@@ -12363,12 +12248,12 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_NUM_NAN        : { // [TGT]
-				LOAD_AB();
+				LOAD_ab();
 				var_set(ctx, A, B, sink_num_nan());
 			} break;
 
 			case OP_NUM_INF        : { // [TGT]
-				LOAD_AB();
+				LOAD_ab();
 				var_set(ctx, A, B, sink_num_inf());
 			} break;
 
@@ -12381,17 +12266,17 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_NUM_E          : { // [TGT]
-				LOAD_AB();
+				LOAD_ab();
 				var_set(ctx, A, B, sink_num_e());
 			} break;
 
 			case OP_NUM_PI         : { // [TGT]
-				LOAD_AB();
+				LOAD_ab();
 				var_set(ctx, A, B, sink_num_pi());
 			} break;
 
 			case OP_NUM_TAU        : { // [TGT]
-				LOAD_AB();
+				LOAD_ab();
 				var_set(ctx, A, B, sink_num_tau());
 			} break;
 
@@ -12515,7 +12400,7 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_RAND_SEED      : { // [TGT], [SRC]
-				LOAD_ABCD();
+				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				if (sink_isnil(X))
 					X.f = 0;
@@ -12526,28 +12411,28 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_RAND_SEEDAUTO  : { // [TGT]
-				LOAD_AB();
+				LOAD_ab();
 				opi_rand_seedauto(ctx);
 				var_set(ctx, A, B, SINK_NIL);
 			} break;
 
 			case OP_RAND_INT       : { // [TGT]
-				LOAD_AB();
+				LOAD_ab();
 				var_set(ctx, A, B, sink_num(opi_rand_int(ctx)));
 			} break;
 
 			case OP_RAND_NUM       : { // [TGT]
-				LOAD_AB();
+				LOAD_ab();
 				var_set(ctx, A, B, sink_num(opi_rand_num(ctx)));
 			} break;
 
 			case OP_RAND_GETSTATE  : { // [TGT]
-				LOAD_AB();
+				LOAD_ab();
 				var_set(ctx, A, B, opi_rand_getstate(ctx));
 			} break;
 
 			case OP_RAND_SETSTATE  : { // [TGT], [SRC]
-				LOAD_ABCD();
+				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X))
 					RETURN_FAIL("Expecting list of two integers");
@@ -12559,7 +12444,7 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_RAND_PICK      : { // [TGT], [SRC]
-				LOAD_ABCD();
+				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X))
 					RETURN_FAIL("Expecting list");
@@ -12567,7 +12452,7 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_RAND_SHUFFLE   : { // [TGT], [SRC]
-				LOAD_ABCD();
+				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X))
 					RETURN_FAIL("Expecting list");
@@ -12576,20 +12461,16 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_STR_NEWCNT     : { // [TGT], ARGCOUNT, [ARGS]...
-				LOAD_ABc();
-				if (C == 255)
-					return opi_invalid(ctx);
+				LOAD_abc();
 				for (D = 0; D < C; D++){
 					E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
-					if (E > ctx->lex_index)
-						return opi_invalid(ctx);
 					p[D] = var_get(ctx, E, F);
 				}
 				var_set(ctx, A, B, opi_str_new(ctx, C, p));
 			} break;
 
 			case OP_STR_NEWVAR     : { // [TGT], [ARGLIST]
-				LOAD_ABCD();
+				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X))
 					RETURN_FAIL("Expecting list when calling str.new");
@@ -12598,14 +12479,14 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_STR_SPLIT      : { // [TGT], [SRC1], [SRC2]
-				LOAD_ABCDEF();
+				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				var_set(ctx, A, B, opi_str_split(ctx, X, Y));
 			} break;
 
 			case OP_STR_REPLACE    : { // [TGT], [SRC1], [SRC2], [SRC3]
-				LOAD_ABCDEFGH();
+				LOAD_abcdefgh();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
@@ -12613,21 +12494,21 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_STR_BEGINS     : { // [TGT], [SRC1], [SRC2]
-				LOAD_ABCDEF();
+				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				var_set(ctx, A, B, opi_str_begins(ctx, X, Y));
 			} break;
 
 			case OP_STR_ENDS       : { // [TGT], [SRC1], [SRC2]
-				LOAD_ABCDEF();
+				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				var_set(ctx, A, B, opi_str_ends(ctx, X, Y));
 			} break;
 
 			case OP_STR_PAD        : { // [TGT], [SRC1], [SRC2]
-				LOAD_ABCDEF();
+				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				if (sink_isnil(Y))
@@ -12638,7 +12519,7 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_STR_FIND       : { // [TGT], [SRC1], [SRC2], [SRC3]
-				LOAD_ABCDEFGH();
+				LOAD_abcdefgh();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
@@ -12650,7 +12531,7 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_STR_RFIND      : { // [TGT], [SRC1], [SRC2], [SRC3]
-				LOAD_ABCDEFGH();
+				LOAD_abcdefgh();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
@@ -12660,31 +12541,31 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_STR_LOWER      : { // [TGT], [SRC]
-				LOAD_ABCD();
+				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				var_set(ctx, A, B, opi_str_lower(ctx, X));
 			} break;
 
 			case OP_STR_UPPER      : { // [TGT], [SRC]
-				LOAD_ABCD();
+				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				var_set(ctx, A, B, opi_str_upper(ctx, X));
 			} break;
 
 			case OP_STR_TRIM       : { // [TGT], [SRC]
-				LOAD_ABCD();
+				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				var_set(ctx, A, B, opi_str_trim(ctx, X));
 			} break;
 
 			case OP_STR_REV        : { // [TGT], [SRC]
-				LOAD_ABCD();
+				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				var_set(ctx, A, B, opi_str_rev(ctx, X));
 			} break;
 
 			case OP_STR_REP        : { // [TGT], [SRC1], [SRC2]
-				LOAD_ABCDEF();
+				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				if (sink_isnil(Y))
@@ -12695,13 +12576,13 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_STR_LIST       : { // [TGT], [SRC]
-				LOAD_ABCD();
+				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				var_set(ctx, A, B, opi_str_list(ctx, X));
 			} break;
 
 			case OP_STR_BYTE       : { // [TGT], [SRC1], [SRC2]
-				LOAD_ABCDEF();
+				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				if (sink_isnil(Y))
@@ -12712,7 +12593,7 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_STR_HASH       : { // [TGT], [SRC1], [SRC2]
-				LOAD_ABCDEF();
+				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				if (sink_isnil(Y))
@@ -12723,13 +12604,13 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_UTF8_VALID     : { // [TGT], [SRC]
-				LOAD_ABCD();
+				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				var_set(ctx, A, B, opi_utf8_valid(ctx, X));
 			} break;
 
 			case OP_UTF8_LIST      : { // [TGT], [SRC]
-				LOAD_ABCD();
+				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				if (!sink_isstr(X))
 					RETURN_FAIL("Expecting string");
@@ -12740,7 +12621,7 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_UTF8_STR       : { // [TGT], [SRC]
-				LOAD_ABCD();
+				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X))
 					RETURN_FAIL("Expecting list");
@@ -12751,13 +12632,13 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_STRUCT_SIZE    : { // [TGT], [SRC]
-				LOAD_ABCD();
+				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				var_set(ctx, A, B, opi_struct_size(ctx, X));
 			} break;
 
 			case OP_STRUCT_STR     : { // [TGT], [SRC1], [SRC2]
-				LOAD_ABCDEF();
+				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				if (!sink_islist(X) || !sink_islist(Y))
@@ -12769,7 +12650,7 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_STRUCT_LIST    : { // [TGT], [SRC1], [SRC2]
-				LOAD_ABCDEF();
+				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				if (!sink_isstr(X))
@@ -12783,7 +12664,7 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_LIST_NEW       : { // [TGT], [SRC1], [SRC2]
-				LOAD_ABCDEF();
+				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				if (!sink_isnil(X) && !sink_isnum(X))
 					RETURN_FAIL("Expecting number for list.new");
@@ -12792,7 +12673,7 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_LIST_SHIFT     : { // [TGT], [SRC]
-				LOAD_ABCD();
+				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X))
 					RETURN_FAIL("Expecting list when shifting");
@@ -12800,7 +12681,7 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_LIST_POP       : { // [TGT], [SRC]
-				LOAD_ABCD();
+				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X))
 					RETURN_FAIL("Expecting list when popping");
@@ -12808,7 +12689,7 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_LIST_PUSH      : { // [TGT], [SRC1], [SRC2]
-				LOAD_ABCDEF();
+				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X))
 					RETURN_FAIL("Expecting list when pushing");
@@ -12816,7 +12697,7 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_LIST_UNSHIFT   : { // [TGT], [SRC1], [SRC2]
-				LOAD_ABCDEF();
+				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X))
 					RETURN_FAIL("Expecting list when unshifting");
@@ -12824,7 +12705,7 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_LIST_APPEND    : { // [TGT], [SRC1], [SRC2]
-				LOAD_ABCDEF();
+				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				if (!sink_islist(X) || !sink_islist(Y))
@@ -12833,7 +12714,7 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_LIST_PREPEND   : { // [TGT], [SRC1], [SRC2]
-				LOAD_ABCDEF();
+				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				if (!sink_islist(X) || !sink_islist(Y))
@@ -12842,7 +12723,7 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_LIST_FIND      : { // [TGT], [SRC1], [SRC2], [SRC3]
-				LOAD_ABCDEFGH();
+				LOAD_abcdefgh();
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X))
 					RETURN_FAIL("Expecting list for list.find");
@@ -12854,7 +12735,7 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_LIST_RFIND     : { // [TGT], [SRC1], [SRC2], [SRC3]
-				LOAD_ABCDEFGH();
+				LOAD_abcdefgh();
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X))
 					RETURN_FAIL("Expecting list for list.rfind");
@@ -12866,7 +12747,7 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_LIST_JOIN      : { // [TGT], [SRC1], [SRC2]
-				LOAD_ABCDEF();
+				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X))
 					RETURN_FAIL("Expecting list for list.join");
@@ -12877,7 +12758,7 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_LIST_REV       : { // [TGT], [SRC]
-				LOAD_ABCD();
+				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X))
 					RETURN_FAIL("Expecting list for list.rev");
@@ -12885,7 +12766,7 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_LIST_STR       : { // [TGT], [SRC]
-				LOAD_ABCD();
+				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X))
 					RETURN_FAIL("Expecting list for list.str");
@@ -12909,7 +12790,7 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_LIST_SORT      : { // [TGT], [SRC]
-				LOAD_ABCD();
+				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X))
 					RETURN_FAIL("Expecting list for list.sort");
@@ -12920,7 +12801,7 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_LIST_RSORT     : { // [TGT], [SRC]
-				LOAD_ABCD();
+				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X))
 					RETURN_FAIL("Expecting list for list.sort");
@@ -12931,7 +12812,7 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_PICKLE_JSON    : { // [TGT], [SRC]
-				LOAD_ABCD();
+				LOAD_abcd();
 				X = opi_pickle_json(ctx, var_get(ctx, C, D));
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
@@ -12939,7 +12820,7 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_PICKLE_BIN     : { // [TGT], [SRC]
-				LOAD_ABCD();
+				LOAD_abcd();
 				X = opi_pickle_bin(ctx, var_get(ctx, C, D));
 				if (ctx->failed) // can fail in C impl because of SINK_TYPE_ASYNC
 					return SINK_RUN_FAIL;
@@ -12947,7 +12828,7 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_PICKLE_VAL     : { // [TGT], [SRC]
-				LOAD_ABCD();
+				LOAD_abcd();
 				X = opi_pickle_val(ctx, var_get(ctx, C, D));
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
@@ -12955,23 +12836,23 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_PICKLE_VALID   : { // [TGT], [SRC]
-				LOAD_ABCD();
+				LOAD_abcd();
 				E = opi_pickle_valid(ctx, var_get(ctx, C, D));
 				var_set(ctx, A, B, E == 0 ? SINK_NIL : sink_num(E));
 			} break;
 
 			case OP_PICKLE_SIBLING : { // [TGT], [SRC]
-				LOAD_ABCD();
+				LOAD_abcd();
 				var_set(ctx, A, B, sink_bool(opi_pickle_sibling(ctx, var_get(ctx, C, D))));
 			} break;
 
 			case OP_PICKLE_CIRCULAR: { // [TGT], [SRC]
-				LOAD_ABCD();
+				LOAD_abcd();
 				var_set(ctx, A, B, sink_bool(opi_pickle_circular(ctx, var_get(ctx, C, D))));
 			} break;
 
 			case OP_PICKLE_COPY    : { // [TGT], [SRC]
-				LOAD_ABCD();
+				LOAD_abcd();
 				X = opi_pickle_copy(ctx, var_get(ctx, C, D));
 				if (ctx->failed) // can fail in C impl because of SINK_TYPE_ASYNC
 					return SINK_RUN_FAIL;
@@ -12979,7 +12860,7 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_GC_GETLEVEL    : { // [TGT]
-				LOAD_AB();
+				LOAD_ab();
 				switch (ctx->gc_level){
 					case SINK_GC_NONE:
 						var_set(ctx, A, B, sink_str_newcstr(ctx, "none"));
@@ -12994,7 +12875,7 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_GC_SETLEVEL    : { // [TGT], [SRC]
-				LOAD_ABCD();
+				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				if (!sink_isstr(X))
 					RETURN_FAIL("Expecting one of 'none', 'default', or 'lowmem'");
@@ -13015,14 +12896,12 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_GC_RUN         : { // [TGT]
-				LOAD_AB();
+				LOAD_ab();
 				context_gc(ctx);
 				var_set(ctx, A, B, SINK_NIL);
 			} break;
 
-			default:
-				debugf("invalid opcode %02X", ops->bytes[ctx->pc]);
-				return opi_invalid(ctx);
+			default: break;
 		}
 		if (ctx->gc_level != SINK_GC_NONE){
 			ctx->gc_left--;
@@ -13038,6 +12917,14 @@ static sink_run context_run(context ctx){
 		}
 	}
 
+	#undef LOAD_ab
+	#undef LOAD_abc
+	#undef LOAD_abcd
+	#undef LOAD_abcde
+	#undef LOAD_abcdef
+	#undef LOAD_abcdefgh
+	#undef LOAD_abcdefghi
+	#undef LOAD_abcdefghij
 	#undef INLINE_UNOP
 	#undef INLINE_BINOP
 	#undef INLINE_TRIOP
