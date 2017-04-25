@@ -5235,7 +5235,7 @@ static sta_st symtbl_addTemp(symtbl sym){
 }
 
 static inline void symtbl_clearTemp(symtbl sym, varloc_st vlc){
-	if (vlc.frame == 0 && sym->fr->vars->vals[vlc.index] == FVR_TEMP_INUSE)
+	if (sym->fr->vars->vals[vlc.index] == FVR_TEMP_INUSE)
 		sym->fr->vars->vals[vlc.index] = FVR_TEMP_AVAIL;
 }
 
