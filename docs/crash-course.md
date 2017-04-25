@@ -117,8 +117,8 @@ else        include    while
 -    -=    >     >=     [    ]
 %    %=    !     !=     {    }
 *    *=    =     ==     ,    .
-/    /=    ||    ||=    |    @
-^    ^=    &&    &&=    &    :
+/    /=    ||    ||=    |    :
+^    ^=    &&    &&=    &
 ~    ~=    ...
 ```
 
@@ -694,23 +694,6 @@ test2     # 10
 test2 13  # 13
 x = 20
 test2     # 20
-```
-
-### Dynamic Arguments
-
-Commands can be called with a variable argument list using `@`:
-
-```
-def add a, b
-  say "adding $a + $b: ${a + b}"
-  return a + b
-end
-
-var nums = {5, 6}
-say add @ nums
-# output:
-#  adding 5 + 6: 11
-#  11
 ```
 
 ### Variable Arguments
