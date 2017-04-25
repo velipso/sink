@@ -335,6 +335,22 @@ static inline void list_byte_push7(list_byte b, uint8_t v1, uint8_t v2, uint8_t 
 	b->bytes[b->size++] = v7;
 }
 
+static inline void list_byte_push8(list_byte b, uint8_t v1, uint8_t v2, uint8_t v3, uint8_t v4,
+	uint8_t v5, uint8_t v6, uint8_t v7, uint8_t v8){
+	if (b->size + 8 > b->count){
+		b->count += list_byte_grow;
+		b->bytes = mem_realloc(b->bytes, sizeof(uint8_t) * b->count);
+	}
+	b->bytes[b->size++] = v1;
+	b->bytes[b->size++] = v2;
+	b->bytes[b->size++] = v3;
+	b->bytes[b->size++] = v4;
+	b->bytes[b->size++] = v5;
+	b->bytes[b->size++] = v6;
+	b->bytes[b->size++] = v7;
+	b->bytes[b->size++] = v8;
+}
+
 static inline void list_byte_push9(list_byte b, uint8_t v1, uint8_t v2, uint8_t v3, uint8_t v4,
 	uint8_t v5, uint8_t v6, uint8_t v7, uint8_t v8, uint8_t v9){
 	if (b->size + 9 > b->count){
@@ -599,18 +615,18 @@ static inline void cleanup_free(cleanup cup){
 }
 
 typedef struct {
-	int fdiff;
+	int frame;
 	int index;
 } varloc_st;
 
-static inline varloc_st varloc_new(int fdiff, int index){
-	return (varloc_st){ .fdiff = fdiff, .index = index };
+static inline varloc_st varloc_new(int frame, int index){
+	return (varloc_st){ .frame = frame, .index = index };
 }
 
-static const varloc_st VARLOC_NULL = (varloc_st){ .fdiff = -1 };
+static const varloc_st VARLOC_NULL = (varloc_st){ .frame = -1 };
 
 static inline bool varloc_isnull(varloc_st vlc){
-	return vlc.fdiff < 0;
+	return vlc.frame < 0;
 }
 
 static inline uint64_t native_hash(int size, const uint8_t *bytes){
@@ -663,134 +679,124 @@ typedef enum {
 	OP_JUMP            = 0x1D, // [[LOCATION]]
 	OP_JUMPTRUE        = 0x1E, // [SRC], [[LOCATION]]
 	OP_JUMPFALSE       = 0x1F, // [SRC], [[LOCATION]]
-	OP_CALLCNT         = 0x20, // [TGT], LEVEL, [[LOCATION]], ARGCOUNT, [ARGS]...
-	OP_CALLVAR         = 0x21, // [TGT], LEVEL, [[LOCATION]], [ARGLIST]
-	OP_NATIVECNT       = 0x22, // [TGT], [INDEX], ARGCOUNT, [ARGS]...
-	OP_NATIVEVAR       = 0x23, // [TGT], [INDEX], [ARGLIST]
-	OP_RETURN          = 0x24, // [SRC]
-	OP_RETURNTAILCNT   = 0x25, // [[LOCATION]], ARGCOUNT, [ARGS]...
-	OP_RETURNTAILVAR   = 0x26, // [[LOCATION]], [ARGLIST]
-	OP_RANGE           = 0x27, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_ORDER           = 0x28, // [TGT], [SRC1], [SRC2]
-	OP_SAYCNT          = 0x29, // [TGT], ARGCOUNT, [ARGS]...
-	OP_SAYVAR          = 0x2A, // [TGT], [ARGLIST]
-	OP_WARNCNT         = 0x2B, // [TGT], ARGCOUNT, [ARGS]...
-	OP_WARNVAR         = 0x2C, // [TGT], [ARGLIST]
-	OP_ASKCNT          = 0x2D, // [TGT], ARGCOUNT, [ARGS]...
-	OP_ASKVAR          = 0x2E, // [TGT], [ARGLIST]
-	OP_EXITCNT         = 0x2F, // [TGT], ARGCOUNT, [ARGS]...
-	OP_EXITVAR         = 0x30, // [TGT], [ARGLIST]
-	OP_ABORTCNT        = 0x31, // [TGT], ARGCOUNT, [ARGS]...
-	OP_ABORTVAR        = 0x32, // [TGT], [ARGLIST]
-	OP_NUM_NEG         = 0x33, // [TGT], [SRC]
-	OP_NUM_ADD         = 0x34, // [TGT], [SRC1], [SRC2]
-	OP_NUM_SUB         = 0x35, // [TGT], [SRC1], [SRC2]
-	OP_NUM_MUL         = 0x36, // [TGT], [SRC1], [SRC2]
-	OP_NUM_DIV         = 0x37, // [TGT], [SRC1], [SRC2]
-	OP_NUM_MOD         = 0x38, // [TGT], [SRC1], [SRC2]
-	OP_NUM_POW         = 0x39, // [TGT], [SRC1], [SRC2]
-	OP_NUM_ABS         = 0x3A, // [TGT], [SRC]
-	OP_NUM_SIGN        = 0x3B, // [TGT], [SRC]
-	OP_NUM_MAXCNT      = 0x3C, // [TGT], ARGCOUNT, [ARGS]...
-	OP_NUM_MAXVAR      = 0x3D, // [TGT], [ARGLIST]
-	OP_NUM_MINCNT      = 0x3E, // [TGT], ARGCOUNT, [ARGS]...
-	OP_NUM_MINVAR      = 0x3F, // [TGT], [ARGLIST]
-	OP_NUM_CLAMP       = 0x40, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_NUM_FLOOR       = 0x41, // [TGT], [SRC]
-	OP_NUM_CEIL        = 0x42, // [TGT], [SRC]
-	OP_NUM_ROUND       = 0x43, // [TGT], [SRC]
-	OP_NUM_TRUNC       = 0x44, // [TGT], [SRC]
-	OP_NUM_NAN         = 0x45, // [TGT]
-	OP_NUM_INF         = 0x46, // [TGT]
-	OP_NUM_ISNAN       = 0x47, // [TGT], [SRC]
-	OP_NUM_ISFINITE    = 0x48, // [TGT], [SRC]
-	OP_NUM_E           = 0x49, // [TGT]
-	OP_NUM_PI          = 0x4A, // [TGT]
-	OP_NUM_TAU         = 0x4B, // [TGT]
-	OP_NUM_SIN         = 0x4C, // [TGT], [SRC]
-	OP_NUM_COS         = 0x4D, // [TGT], [SRC]
-	OP_NUM_TAN         = 0x4E, // [TGT], [SRC]
-	OP_NUM_ASIN        = 0x4F, // [TGT], [SRC]
-	OP_NUM_ACOS        = 0x50, // [TGT], [SRC]
-	OP_NUM_ATAN        = 0x51, // [TGT], [SRC]
-	OP_NUM_ATAN2       = 0x52, // [TGT], [SRC1], [SRC2]
-	OP_NUM_LOG         = 0x53, // [TGT], [SRC]
-	OP_NUM_LOG2        = 0x54, // [TGT], [SRC]
-	OP_NUM_LOG10       = 0x55, // [TGT], [SRC]
-	OP_NUM_EXP         = 0x56, // [TGT], [SRC]
-	OP_NUM_LERP        = 0x57, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_NUM_HEX         = 0x58, // [TGT], [SRC1], [SRC2]
-	OP_NUM_OCT         = 0x59, // [TGT], [SRC1], [SRC2]
-	OP_NUM_BIN         = 0x5A, // [TGT], [SRC1], [SRC2]
-	OP_INT_NEW         = 0x5B, // [TGT], [SRC]
-	OP_INT_NOT         = 0x5C, // [TGT], [SRC]
-	OP_INT_AND         = 0x5D, // [TGT], [SRC1], [SRC2]
-	OP_INT_OR          = 0x5E, // [TGT], [SRC1], [SRC2]
-	OP_INT_XOR         = 0x5F, // [TGT], [SRC1], [SRC2]
-	OP_INT_SHL         = 0x60, // [TGT], [SRC1], [SRC2]
-	OP_INT_SHR         = 0x61, // [TGT], [SRC1], [SRC2]
-	OP_INT_SAR         = 0x62, // [TGT], [SRC1], [SRC2]
-	OP_INT_ADD         = 0x63, // [TGT], [SRC1], [SRC2]
-	OP_INT_SUB         = 0x64, // [TGT], [SRC1], [SRC2]
-	OP_INT_MUL         = 0x65, // [TGT], [SRC1], [SRC2]
-	OP_INT_DIV         = 0x66, // [TGT], [SRC1], [SRC2]
-	OP_INT_MOD         = 0x67, // [TGT], [SRC1], [SRC2]
-	OP_INT_CLZ         = 0x68, // [TGT], [SRC]
-	OP_RAND_SEED       = 0x69, // [TGT], [SRC]
-	OP_RAND_SEEDAUTO   = 0x6A, // [TGT]
-	OP_RAND_INT        = 0x6B, // [TGT]
-	OP_RAND_NUM        = 0x6C, // [TGT]
-	OP_RAND_GETSTATE   = 0x6D, // [TGT]
-	OP_RAND_SETSTATE   = 0x6E, // [TGT], [SRC]
-	OP_RAND_PICK       = 0x6F, // [TGT], [SRC]
-	OP_RAND_SHUFFLE    = 0x70, // [TGT], [SRC]
-	OP_STR_NEWCNT      = 0x71, // [TGT], ARGCOUNT, [ARGS]...
-	OP_STR_NEWVAR      = 0x72, // [TGT], [ARGLIST]
-	OP_STR_SPLIT       = 0x73, // [TGT], [SRC1], [SRC2]
-	OP_STR_REPLACE     = 0x74, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_STR_BEGINS      = 0x75, // [TGT], [SRC1], [SRC2]
-	OP_STR_ENDS        = 0x76, // [TGT], [SRC1], [SRC2]
-	OP_STR_PAD         = 0x77, // [TGT], [SRC1], [SRC2]
-	OP_STR_FIND        = 0x78, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_STR_RFIND       = 0x79, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_STR_LOWER       = 0x7A, // [TGT], [SRC]
-	OP_STR_UPPER       = 0x7B, // [TGT], [SRC]
-	OP_STR_TRIM        = 0x7C, // [TGT], [SRC]
-	OP_STR_REV         = 0x7D, // [TGT], [SRC]
-	OP_STR_REP         = 0x7E, // [TGT], [SRC]
-	OP_STR_LIST        = 0x7F, // [TGT], [SRC]
-	OP_STR_BYTE        = 0x80, // [TGT], [SRC1], [SRC2]
-	OP_STR_HASH        = 0x81, // [TGT], [SRC1], [SRC2]
-	OP_UTF8_VALID      = 0x82, // [TGT], [SRC]
-	OP_UTF8_LIST       = 0x83, // [TGT], [SRC]
-	OP_UTF8_STR        = 0x84, // [TGT], [SRC]
-	OP_STRUCT_SIZE     = 0x85, // [TGT], [SRC]
-	OP_STRUCT_STR      = 0x86, // [TGT], [SRC1], [SRC2]
-	OP_STRUCT_LIST     = 0x87, // [TGT], [SRC1], [SRC2]
-	OP_LIST_NEW        = 0x88, // [TGT], [SRC1], [SRC2]
-	OP_LIST_SHIFT      = 0x89, // [TGT], [SRC]
-	OP_LIST_POP        = 0x8A, // [TGT], [SRC]
-	OP_LIST_PUSH       = 0x8B, // [TGT], [SRC1], [SRC2]
-	OP_LIST_UNSHIFT    = 0x8C, // [TGT], [SRC1], [SRC2]
-	OP_LIST_APPEND     = 0x8D, // [TGT], [SRC1], [SRC2]
-	OP_LIST_PREPEND    = 0x8E, // [TGT], [SRC1], [SRC2]
-	OP_LIST_FIND       = 0x8F, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_LIST_RFIND      = 0x90, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_LIST_JOIN       = 0x91, // [TGT], [SRC1], [SRC2]
-	OP_LIST_REV        = 0x92, // [TGT], [SRC]
-	OP_LIST_STR        = 0x93, // [TGT], [SRC]
-	OP_LIST_SORT       = 0x94, // [TGT], [SRC]
-	OP_LIST_RSORT      = 0x95, // [TGT], [SRC]
-	OP_PICKLE_JSON     = 0x96, // [TGT], [SRC]
-	OP_PICKLE_BIN      = 0x97, // [TGT], [SRC]
-	OP_PICKLE_VAL      = 0x98, // [TGT], [SRC]
-	OP_PICKLE_VALID    = 0x99, // [TGT], [SRC]
-	OP_PICKLE_SIBLING  = 0x9A, // [TGT], [SRC]
-	OP_PICKLE_CIRCULAR = 0x9B, // [TGT], [SRC]
-	OP_PICKLE_COPY     = 0x9C, // [TGT], [SRC]
-	OP_GC_GETLEVEL     = 0x9D, // [TGT]
-	OP_GC_SETLEVEL     = 0x9E, // [TGT], [SRC]
-	OP_GC_RUN          = 0x9F, // [TGT]
+	OP_CMDHEAD         = 0x20, // LEVEL, RESTPOS
+	OP_CALL            = 0x21, // [TGT], [[LOCATION]], ARGCOUNT, [ARGS]...
+	OP_NATIVE          = 0x22, // [TGT], [INDEX], ARGCOUNT, [ARGS]...
+	OP_RETURN          = 0x23, // [SRC]
+	OP_RETURNTAIL      = 0x24, // [[LOCATION]], ARGCOUNT, [ARGS]...
+	OP_RANGE           = 0x25, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_ORDER           = 0x26, // [TGT], [SRC1], [SRC2]
+	OP_SAY             = 0x27, // [TGT], ARGCOUNT, [ARGS]...
+	OP_WARN            = 0x28, // [TGT], ARGCOUNT, [ARGS]...
+	OP_ASK             = 0x29, // [TGT], ARGCOUNT, [ARGS]...
+	OP_EXIT            = 0x2A, // [TGT], ARGCOUNT, [ARGS]...
+	OP_ABORT           = 0x2B, // [TGT], ARGCOUNT, [ARGS]...
+	OP_NUM_NEG         = 0x2C, // [TGT], [SRC]
+	OP_NUM_ADD         = 0x2D, // [TGT], [SRC1], [SRC2]
+	OP_NUM_SUB         = 0x2E, // [TGT], [SRC1], [SRC2]
+	OP_NUM_MUL         = 0x2F, // [TGT], [SRC1], [SRC2]
+	OP_NUM_DIV         = 0x30, // [TGT], [SRC1], [SRC2]
+	OP_NUM_MOD         = 0x31, // [TGT], [SRC1], [SRC2]
+	OP_NUM_POW         = 0x32, // [TGT], [SRC1], [SRC2]
+	OP_NUM_ABS         = 0x33, // [TGT], [SRC]
+	OP_NUM_SIGN        = 0x34, // [TGT], [SRC]
+	OP_NUM_MAX         = 0x35, // [TGT], ARGCOUNT, [ARGS]...
+	OP_NUM_MIN         = 0x36, // [TGT], ARGCOUNT, [ARGS]...
+	OP_NUM_CLAMP       = 0x37, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_NUM_FLOOR       = 0x38, // [TGT], [SRC]
+	OP_NUM_CEIL        = 0x39, // [TGT], [SRC]
+	OP_NUM_ROUND       = 0x3A, // [TGT], [SRC]
+	OP_NUM_TRUNC       = 0x3B, // [TGT], [SRC]
+	OP_NUM_NAN         = 0x3C, // [TGT]
+	OP_NUM_INF         = 0x3D, // [TGT]
+	OP_NUM_ISNAN       = 0x3E, // [TGT], [SRC]
+	OP_NUM_ISFINITE    = 0x3F, // [TGT], [SRC]
+	OP_NUM_E           = 0x40, // [TGT]
+	OP_NUM_PI          = 0x41, // [TGT]
+	OP_NUM_TAU         = 0x42, // [TGT]
+	OP_NUM_SIN         = 0x43, // [TGT], [SRC]
+	OP_NUM_COS         = 0x44, // [TGT], [SRC]
+	OP_NUM_TAN         = 0x45, // [TGT], [SRC]
+	OP_NUM_ASIN        = 0x46, // [TGT], [SRC]
+	OP_NUM_ACOS        = 0x47, // [TGT], [SRC]
+	OP_NUM_ATAN        = 0x48, // [TGT], [SRC]
+	OP_NUM_ATAN2       = 0x49, // [TGT], [SRC1], [SRC2]
+	OP_NUM_LOG         = 0x4A, // [TGT], [SRC]
+	OP_NUM_LOG2        = 0x4B, // [TGT], [SRC]
+	OP_NUM_LOG10       = 0x4C, // [TGT], [SRC]
+	OP_NUM_EXP         = 0x4D, // [TGT], [SRC]
+	OP_NUM_LERP        = 0x4E, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_NUM_HEX         = 0x4F, // [TGT], [SRC1], [SRC2]
+	OP_NUM_OCT         = 0x50, // [TGT], [SRC1], [SRC2]
+	OP_NUM_BIN         = 0x51, // [TGT], [SRC1], [SRC2]
+	OP_INT_NEW         = 0x52, // [TGT], [SRC]
+	OP_INT_NOT         = 0x53, // [TGT], [SRC]
+	OP_INT_AND         = 0x54, // [TGT], [SRC1], [SRC2]
+	OP_INT_OR          = 0x55, // [TGT], [SRC1], [SRC2]
+	OP_INT_XOR         = 0x56, // [TGT], [SRC1], [SRC2]
+	OP_INT_SHL         = 0x57, // [TGT], [SRC1], [SRC2]
+	OP_INT_SHR         = 0x58, // [TGT], [SRC1], [SRC2]
+	OP_INT_SAR         = 0x59, // [TGT], [SRC1], [SRC2]
+	OP_INT_ADD         = 0x5A, // [TGT], [SRC1], [SRC2]
+	OP_INT_SUB         = 0x5B, // [TGT], [SRC1], [SRC2]
+	OP_INT_MUL         = 0x5C, // [TGT], [SRC1], [SRC2]
+	OP_INT_DIV         = 0x5D, // [TGT], [SRC1], [SRC2]
+	OP_INT_MOD         = 0x5E, // [TGT], [SRC1], [SRC2]
+	OP_INT_CLZ         = 0x5F, // [TGT], [SRC]
+	OP_RAND_SEED       = 0x60, // [TGT], [SRC]
+	OP_RAND_SEEDAUTO   = 0x61, // [TGT]
+	OP_RAND_INT        = 0x62, // [TGT]
+	OP_RAND_NUM        = 0x63, // [TGT]
+	OP_RAND_GETSTATE   = 0x64, // [TGT]
+	OP_RAND_SETSTATE   = 0x65, // [TGT], [SRC]
+	OP_RAND_PICK       = 0x66, // [TGT], [SRC]
+	OP_RAND_SHUFFLE    = 0x67, // [TGT], [SRC]
+	OP_STR_NEW         = 0x68, // [TGT], ARGCOUNT, [ARGS]...
+	OP_STR_SPLIT       = 0x69, // [TGT], [SRC1], [SRC2]
+	OP_STR_REPLACE     = 0x6A, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_STR_BEGINS      = 0x6B, // [TGT], [SRC1], [SRC2]
+	OP_STR_ENDS        = 0x6C, // [TGT], [SRC1], [SRC2]
+	OP_STR_PAD         = 0x6D, // [TGT], [SRC1], [SRC2]
+	OP_STR_FIND        = 0x6E, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_STR_RFIND       = 0x6F, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_STR_LOWER       = 0x70, // [TGT], [SRC]
+	OP_STR_UPPER       = 0x71, // [TGT], [SRC]
+	OP_STR_TRIM        = 0x72, // [TGT], [SRC]
+	OP_STR_REV         = 0x73, // [TGT], [SRC]
+	OP_STR_REP         = 0x74, // [TGT], [SRC]
+	OP_STR_LIST        = 0x75, // [TGT], [SRC]
+	OP_STR_BYTE        = 0x76, // [TGT], [SRC1], [SRC2]
+	OP_STR_HASH        = 0x77, // [TGT], [SRC1], [SRC2]
+	OP_UTF8_VALID      = 0x78, // [TGT], [SRC]
+	OP_UTF8_LIST       = 0x79, // [TGT], [SRC]
+	OP_UTF8_STR        = 0x7A, // [TGT], [SRC]
+	OP_STRUCT_SIZE     = 0x7B, // [TGT], [SRC]
+	OP_STRUCT_STR      = 0x7C, // [TGT], [SRC1], [SRC2]
+	OP_STRUCT_LIST     = 0x7D, // [TGT], [SRC1], [SRC2]
+	OP_LIST_NEW        = 0x7E, // [TGT], [SRC1], [SRC2]
+	OP_LIST_SHIFT      = 0x7F, // [TGT], [SRC]
+	OP_LIST_POP        = 0x80, // [TGT], [SRC]
+	OP_LIST_PUSH       = 0x81, // [TGT], [SRC1], [SRC2]
+	OP_LIST_UNSHIFT    = 0x82, // [TGT], [SRC1], [SRC2]
+	OP_LIST_APPEND     = 0x83, // [TGT], [SRC1], [SRC2]
+	OP_LIST_PREPEND    = 0x84, // [TGT], [SRC1], [SRC2]
+	OP_LIST_FIND       = 0x85, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_LIST_RFIND      = 0x86, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_LIST_JOIN       = 0x87, // [TGT], [SRC1], [SRC2]
+	OP_LIST_REV        = 0x88, // [TGT], [SRC]
+	OP_LIST_STR        = 0x89, // [TGT], [SRC]
+	OP_LIST_SORT       = 0x8A, // [TGT], [SRC]
+	OP_LIST_RSORT      = 0x8B, // [TGT], [SRC]
+	OP_PICKLE_JSON     = 0x8C, // [TGT], [SRC]
+	OP_PICKLE_BIN      = 0x8D, // [TGT], [SRC]
+	OP_PICKLE_VAL      = 0x8E, // [TGT], [SRC]
+	OP_PICKLE_VALID    = 0x8F, // [TGT], [SRC]
+	OP_PICKLE_SIBLING  = 0x90, // [TGT], [SRC]
+	OP_PICKLE_CIRCULAR = 0x91, // [TGT], [SRC]
+	OP_PICKLE_COPY     = 0x92, // [TGT], [SRC]
+	OP_GC_GETLEVEL     = 0x93, // [TGT]
+	OP_GC_SETLEVEL     = 0x94, // [TGT], [SRC]
+	OP_GC_RUN          = 0x95, // [TGT]
 	// fake ops
 	OP_GT              = 0x1F0,
 	OP_GTE             = 0x1F1,
@@ -799,80 +805,80 @@ typedef enum {
 } op_enum;
 
 static inline void op_move(list_byte b, varloc_st tgt, varloc_st src){
-	if (tgt.fdiff == src.fdiff && tgt.index == src.index)
+	if (tgt.frame == src.frame && tgt.index == src.index)
 		return;
-	oplogf("MOVE %d:%d, %d:%d", tgt.fdiff, tgt.index, src.fdiff, src.index);
-	list_byte_push5(b, OP_MOVE, tgt.fdiff, tgt.index, src.fdiff, src.index);
+	oplogf("MOVE %d:%d, %d:%d", tgt.frame, tgt.index, src.frame, src.index);
+	list_byte_push5(b, OP_MOVE, tgt.frame, tgt.index, src.frame, src.index);
 }
 
 static inline void op_inc(list_byte b, varloc_st src){
-	oplogf("INC %d:%d", src.fdiff, src.index);
-	list_byte_push3(b, OP_INC, src.fdiff, src.index);
+	oplogf("INC %d:%d", src.frame, src.index);
+	list_byte_push3(b, OP_INC, src.frame, src.index);
 }
 
 static inline void op_nil(list_byte b, varloc_st tgt){
-	oplogf("NIL %d:%d", tgt.fdiff, tgt.index);
-	list_byte_push3(b, OP_NIL, tgt.fdiff, tgt.index);
+	oplogf("NIL %d:%d", tgt.frame, tgt.index);
+	list_byte_push3(b, OP_NIL, tgt.frame, tgt.index);
 }
 
 static inline void op_numint(list_byte b, varloc_st tgt, int64_t num){
 	if (num < 0){
 		if (num >= -256){
-			oplogf("NUMN8 %d:%d, %lld", tgt.fdiff, tgt.index, num);
+			oplogf("NUMN8 %d:%d, %lld", tgt.frame, tgt.index, num);
 			num += 256;
-			list_byte_push4(b, OP_NUMN8, tgt.fdiff, tgt.index, num & 0xFF);
+			list_byte_push4(b, OP_NUMN8, tgt.frame, tgt.index, num & 0xFF);
 		}
 		else if (num >= -65536){
-			oplogf("NUMN16 %d:%d, %lld", tgt.fdiff, tgt.index, num);
+			oplogf("NUMN16 %d:%d, %lld", tgt.frame, tgt.index, num);
 			num += 65536;
-			list_byte_push5(b, OP_NUMN16, tgt.fdiff, tgt.index, num & 0xFF, num >> 8);
+			list_byte_push5(b, OP_NUMN16, tgt.frame, tgt.index, num & 0xFF, num >> 8);
 		}
 		else{
-			oplogf("NUMN32 %d:%d, %lld", tgt.fdiff, tgt.index, num);
+			oplogf("NUMN32 %d:%d, %lld", tgt.frame, tgt.index, num);
 			num += 4294967296;
-			list_byte_push7(b, OP_NUMN32, tgt.fdiff, tgt.index,
+			list_byte_push7(b, OP_NUMN32, tgt.frame, tgt.index,
 				num & 0xFF, (num >> 8) & 0xFF, (num >> 16) & 0xFF, (num >> 24) & 0xFF);
 		}
 	}
 	else{
 		if (num < 256){
-			oplogf("NUMP8 %d:%d, %lld", tgt.fdiff, tgt.index, num);
-			list_byte_push4(b, OP_NUMP8, tgt.fdiff, tgt.index, num & 0xFF);
+			oplogf("NUMP8 %d:%d, %lld", tgt.frame, tgt.index, num);
+			list_byte_push4(b, OP_NUMP8, tgt.frame, tgt.index, num & 0xFF);
 		}
 		else if (num < 65536){
-			oplogf("NUMP16 %d:%d, %lld", tgt.fdiff, tgt.index, num);
-			list_byte_push5(b, OP_NUMP16, tgt.fdiff, tgt.index, num & 0xFF, num >> 8);
+			oplogf("NUMP16 %d:%d, %lld", tgt.frame, tgt.index, num);
+			list_byte_push5(b, OP_NUMP16, tgt.frame, tgt.index, num & 0xFF, num >> 8);
 		}
 		else{
-			oplogf("NUMP32 %d:%d, %lld", tgt.fdiff, tgt.index, num);
-			list_byte_push7(b, OP_NUMP32, tgt.fdiff, tgt.index,
+			oplogf("NUMP32 %d:%d, %lld", tgt.frame, tgt.index, num);
+			list_byte_push7(b, OP_NUMP32, tgt.frame, tgt.index,
 				num & 0xFF, (num >> 8) & 0xFF, (num >> 16) & 0xFF, (num >> 24) & 0xFF);
 		}
 	}
 }
 
 static inline void op_numdbl(list_byte b, varloc_st tgt, sink_val num){
-	oplogf("NUMDBL %d:%d, %g", tgt.fdiff, tgt.index, num.f);
-	list_byte_push11(b, OP_NUMDBL, tgt.fdiff, tgt.index,
+	oplogf("NUMDBL %d:%d, %g", tgt.frame, tgt.index, num.f);
+	list_byte_push11(b, OP_NUMDBL, tgt.frame, tgt.index,
 		num.u & 0xFF, (num.u >> 8) & 0xFF, (num.u >> 16) & 0xFF, (num.u >> 24) & 0xFF,
 		(num.u >> 32) & 0xFF, (num.u >> 40) & 0xFF, (num.u >> 48) & 0xFF, (num.u >> 56) & 0xFF);
 }
 
 static inline void op_str(list_byte b, varloc_st tgt, int index){
-	oplogf("STR %d:%d, %d", tgt.fdiff, tgt.index, index);
-	list_byte_push5(b, OP_STR, tgt.fdiff, tgt.index, index & 0xFF, index >> 8);
+	oplogf("STR %d:%d, %d", tgt.frame, tgt.index, index);
+	list_byte_push5(b, OP_STR, tgt.frame, tgt.index, index & 0xFF, index >> 8);
 }
 
 static inline void op_list(list_byte b, varloc_st tgt, int hint){
 	if (hint > 255)
 		hint = 255;
-	oplogf("LIST %d:%d, %d", tgt.fdiff, tgt.index, hint);
-	list_byte_push4(b, OP_LIST, tgt.fdiff, tgt.index, hint);
+	oplogf("LIST %d:%d, %d", tgt.frame, tgt.index, hint);
+	list_byte_push4(b, OP_LIST, tgt.frame, tgt.index, hint);
 }
 
 static inline void op_forcelist(list_byte b, varloc_st src){
-	oplogf("FORCELIST %d:%d", src.fdiff, src.index);
-	list_byte_push3(b, OP_FORCELIST, src.fdiff, src.index);
+	oplogf("FORCELIST %d:%d", src.frame, src.index);
+	list_byte_push3(b, OP_FORCELIST, src.frame, src.index);
 }
 
 static inline void op_unop(list_byte b, op_enum opcode, varloc_st tgt, varloc_st src){
@@ -887,9 +893,9 @@ static inline void op_unop(list_byte b, op_enum opcode, varloc_st tgt, varloc_st
 	else if (opcode == OP_NUM_NEG   ) opstr = "NUM_NEG";
 	else if (opcode == OP_LIST_SHIFT) opstr = "LIST_SHIFT";
 	else if (opcode == OP_LIST_POP  ) opstr = "LIST_POP";
-	oplogf("%s %d:%d, %d:%d", opstr, tgt.fdiff, tgt.index, src.fdiff, src.index);
+	oplogf("%s %d:%d, %d:%d", opstr, tgt.frame, tgt.index, src.frame, src.index);
 	#endif
-	list_byte_push5(b, opcode, tgt.fdiff, tgt.index, src.fdiff, src.index);
+	list_byte_push5(b, opcode, tgt.frame, tgt.index, src.frame, src.index);
 }
 
 static inline void op_binop(list_byte b, op_enum opcode, varloc_st tgt, varloc_st src1,
@@ -921,41 +927,41 @@ static inline void op_binop(list_byte b, op_enum opcode, varloc_st tgt, varloc_s
 	else if (opcode == OP_NUM_DIV) opstr = "NUM_DIV";
 	else if (opcode == OP_NUM_MOD) opstr = "NUM_MOD";
 	else if (opcode == OP_NUM_POW) opstr = "NUM_POW";
-	oplogf("%s %d:%d, %d:%d, %d:%d", opstr, tgt.fdiff, tgt.index, src1.fdiff, src1.index,
-		src2.fdiff, src2.index);
+	oplogf("%s %d:%d, %d:%d, %d:%d", opstr, tgt.frame, tgt.index, src1.frame, src1.index,
+		src2.frame, src2.index);
 	#endif
-	list_byte_push7(b, opcode, tgt.fdiff, tgt.index, src1.fdiff, src1.index,
-		src2.fdiff, src2.index);
+	list_byte_push7(b, opcode, tgt.frame, tgt.index, src1.frame, src1.index,
+		src2.frame, src2.index);
 }
 
 static inline void op_getat(list_byte b, varloc_st tgt, varloc_st src1, varloc_st src2){
-	oplogf("GETAT %d:%d, %d:%d, %d:%d", tgt.fdiff, tgt.index, src1.fdiff, src1.index,
-		src2.fdiff, src2.index);
-	list_byte_push7(b, OP_GETAT, tgt.fdiff, tgt.index, src1.fdiff, src1.index,
-		src2.fdiff, src2.index);
+	oplogf("GETAT %d:%d, %d:%d, %d:%d", tgt.frame, tgt.index, src1.frame, src1.index,
+		src2.frame, src2.index);
+	list_byte_push7(b, OP_GETAT, tgt.frame, tgt.index, src1.frame, src1.index,
+		src2.frame, src2.index);
 }
 
 static inline void op_slice(list_byte b, varloc_st tgt, varloc_st src1, varloc_st src2,
 	varloc_st src3){
-	oplogf("SLICE %d:%d, %d:%d, %d:%d, %d:%d", tgt.fdiff, tgt.index, src1.fdiff, src1.index,
-		src2.fdiff, src2.index, src3.fdiff, src3.index);
-	list_byte_push9(b, OP_SLICE, tgt.fdiff, tgt.index, src1.fdiff, src1.index,
-		src2.fdiff, src2.index, src3.fdiff, src3.index);
+	oplogf("SLICE %d:%d, %d:%d, %d:%d, %d:%d", tgt.frame, tgt.index, src1.frame, src1.index,
+		src2.frame, src2.index, src3.frame, src3.index);
+	list_byte_push9(b, OP_SLICE, tgt.frame, tgt.index, src1.frame, src1.index,
+		src2.frame, src2.index, src3.frame, src3.index);
 }
 
 static inline void op_setat(list_byte b, varloc_st src1, varloc_st src2, varloc_st src3){
-	oplogf("SETAT %d:%d, %d:%d, %d:%d", src1.fdiff, src1.index, src2.fdiff, src2.index,
-		src3.fdiff, src3.index);
-	list_byte_push7(b, OP_SETAT, src1.fdiff, src1.index, src2.fdiff, src2.index,
-		src3.fdiff, src3.index);
+	oplogf("SETAT %d:%d, %d:%d, %d:%d", src1.frame, src1.index, src2.frame, src2.index,
+		src3.frame, src3.index);
+	list_byte_push7(b, OP_SETAT, src1.frame, src1.index, src2.frame, src2.index,
+		src3.frame, src3.index);
 }
 
 static inline void op_splice(list_byte b, varloc_st src1, varloc_st src2, varloc_st src3,
 	varloc_st src4){
-	oplogf("SPLICE %d:%d, %d:%d, %d:%d, %d:%d", src1.fdiff, src1.index, src2.fdiff, src2.index,
-		src3.fdiff, src3.index, src4.fdiff, src4.index);
-	list_byte_push9(b, OP_SPLICE, src1.fdiff, src1.index, src2.fdiff, src2.index,
-		src3.fdiff, src3.index, src4.fdiff, src4.index);
+	oplogf("SPLICE %d:%d, %d:%d, %d:%d, %d:%d", src1.frame, src1.index, src2.frame, src2.index,
+		src3.frame, src3.index, src4.frame, src4.index);
+	list_byte_push9(b, OP_SPLICE, src1.frame, src1.index, src2.frame, src2.index,
+		src3.frame, src3.index, src4.frame, src4.index);
 }
 
 static inline void op_jump(list_byte b, uint32_t index, list_byte hint){
@@ -965,103 +971,80 @@ static inline void op_jump(list_byte b, uint32_t index, list_byte hint){
 }
 
 static inline void op_jumptrue(list_byte b, varloc_st src, uint32_t index, list_byte hint){
-	oplogf("JUMPTRUE %d:%d, %.*s", src.fdiff, src.index, hint->size, hint->bytes);
-	list_byte_push7(b, OP_JUMPTRUE, src.fdiff, src.index,
+	oplogf("JUMPTRUE %d:%d, %.*s", src.frame, src.index, hint->size, hint->bytes);
+	list_byte_push7(b, OP_JUMPTRUE, src.frame, src.index,
 		index % 256, (index >> 8) % 256, (index >> 16) % 256, (index >> 24) % 256);
 }
 
 static inline void op_jumpfalse(list_byte b, varloc_st src, uint32_t index, list_byte hint){
-	oplogf("JUMPFALSE %d:%d, %.*s", src.fdiff, src.index, hint->size, hint->bytes);
-	list_byte_push7(b, OP_JUMPFALSE, src.fdiff, src.index,
+	oplogf("JUMPFALSE %d:%d, %.*s", src.frame, src.index, hint->size, hint->bytes);
+	list_byte_push7(b, OP_JUMPFALSE, src.frame, src.index,
 		index % 256, (index >> 8) % 256, (index >> 16) % 256, (index >> 24) % 256);
 }
 
-static inline void op_callcnt(list_byte b, varloc_st ret, int level, uint32_t index, int argcount,
+static inline void op_cmdhead(list_byte b, int level, int restpos){
+	oplogf("CMDHEAD %d, %d", level, restpos);
+	list_byte_push3(b, OP_CMDHEAD, level, restpos);
+}
+
+static inline void op_call(list_byte b, varloc_st ret, uint32_t index, int argcount,
 	list_byte hint){
-	oplogf("CALLCNT %d:%d, %d, %.*s, %d", ret.fdiff, ret.index, level, hint->size, hint->bytes,
-		argcount);
-	list_byte_push9(b, OP_CALLCNT, ret.fdiff, ret.index, level,
+	oplogf("CALL %d:%d, %.*s, %d", ret.frame, ret.index, hint->size, hint->bytes, argcount);
+	list_byte_push8(b, OP_CALL, ret.frame, ret.index,
 		index % 256, (index >> 8) % 256, (index >> 16) % 256, (index >> 24) % 256,
 		argcount);
 }
 
-static inline void op_cntarg(list_byte b, varloc_st arg){
-	oplogf("  ARG: %d:%d", arg.fdiff, arg.index);
-	list_byte_push2(b, arg.fdiff, arg.index);
+static inline void op_arg(list_byte b, varloc_st arg){
+	oplogf("  ARG: %d:%d", arg.frame, arg.index);
+	list_byte_push2(b, arg.frame, arg.index);
 }
 
-static inline void op_callvar(list_byte b, varloc_st ret, int level, uint32_t index, varloc_st arg,
-	list_byte hint){
-	oplogf("CALLVAR %d:%d, %d, %.*s, %d:%d", ret.fdiff, ret.index, level, hint->size, hint->bytes,
-		arg.fdiff, arg.index);
-	list_byte_push10(b, OP_CALLVAR, ret.fdiff, ret.index, level,
-		index % 256, (index >> 8) % 256, (index >> 16) % 256, (index >> 24) % 256,
-		arg.fdiff, arg.index);
-}
-
-static inline void op_nativecnt(list_byte b, varloc_st ret, int index, int argcount){
-	oplogf("NATIVECNT %d:%d, %d, %d", ret.fdiff, ret.index, index, argcount);
-	list_byte_push6(b, OP_NATIVECNT, ret.fdiff, ret.index, index % 256, index >> 8, argcount);
-}
-
-static inline void op_nativevar(list_byte b, varloc_st ret, int index, varloc_st arg){
-	oplogf("NATIVEVAR %d:%d, %d, %d:%d", ret.fdiff, ret.index, index, arg.fdiff, arg.index);
-	list_byte_push7(b, OP_NATIVEVAR, ret.fdiff, ret.index, index % 256, index >> 8,
-		arg.fdiff, arg.index);
+static inline void op_native(list_byte b, varloc_st ret, int index, int argcount){
+	oplogf("NATIVE %d:%d, %d, %d", ret.frame, ret.index, index, argcount);
+	list_byte_push6(b, OP_NATIVE, ret.frame, ret.index, index % 256, index >> 8, argcount);
 }
 
 static inline void op_return(list_byte b, varloc_st src){
-	oplogf("RETURN %d:%d", src.fdiff, src.index);
-	list_byte_push3(b, OP_RETURN, src.fdiff, src.index);
+	oplogf("RETURN %d:%d", src.frame, src.index);
+	list_byte_push3(b, OP_RETURN, src.frame, src.index);
 }
 
-static inline void op_returntailcnt(list_byte b, uint32_t index, int argcount, list_byte hint){
-	oplogf("RETURNTAILCNT %.*s, %d", hint->size, hint->bytes, argcount);
-	list_byte_push6(b, OP_RETURNTAILCNT,
+static inline void op_returntail(list_byte b, uint32_t index, int argcount, list_byte hint){
+	oplogf("RETURNTAIL %.*s, %d", hint->size, hint->bytes, argcount);
+	list_byte_push6(b, OP_RETURNTAIL,
 		index % 256, (index >> 8) % 256, (index >> 16) % 256, (index >> 24) % 256, argcount);
 }
 
-static inline void op_returntailvar(list_byte b, uint32_t index, varloc_st arg, list_byte hint){
-	oplogf("RETURNTAILVAR %.*s, %d:%d", hint->size, hint->bytes, arg.fdiff, arg.index);
-	list_byte_push7(b, OP_RETURNTAILVAR,
-		index % 256, (index >> 8) % 256, (index >> 16) % 256, (index >> 24) % 256,
-		arg.fdiff, arg.index);
-}
-
-static inline void op_paramcnt(list_byte b, op_enum opcode, varloc_st tgt, int argcount){
-	oplogf("0x%02X %d:%d, %d", opcode, tgt.fdiff, tgt.index, argcount);
-	list_byte_push4(b, opcode, tgt.fdiff, tgt.index, argcount);
-}
-
-static inline void op_paramvar(list_byte b, op_enum opcode, varloc_st tgt, varloc_st arg){
-	oplogf("0x%02X %d:%d, %d:%d", opcode, tgt.fdiff, tgt.index, arg.fdiff, arg.index);
-	list_byte_push5(b, opcode, tgt.fdiff, tgt.index, arg.fdiff, arg.index);
+static inline void op_parama(list_byte b, op_enum opcode, varloc_st tgt, int argcount){
+	oplogf("0x%02X %d:%d, %d", opcode, tgt.frame, tgt.index, argcount);
+	list_byte_push4(b, opcode, tgt.frame, tgt.index, argcount);
 }
 
 static inline void op_param0(list_byte b, op_enum opcode, varloc_st tgt){
-	oplogf("0x%02X %d:%d", opcode, tgt.fdiff, tgt.index);
-	list_byte_push3(b, opcode, tgt.fdiff, tgt.index);
+	oplogf("0x%02X %d:%d", opcode, tgt.frame, tgt.index);
+	list_byte_push3(b, opcode, tgt.frame, tgt.index);
 }
 
 static inline void op_param1(list_byte b, op_enum opcode, varloc_st tgt, varloc_st src){
-	oplogf("0x%02X %d:%d, %d:%d", opcode, tgt.fdiff, tgt.index, src.fdiff, src.index);
-	list_byte_push5(b, opcode, tgt.fdiff, tgt.index, src.fdiff, src.index);
+	oplogf("0x%02X %d:%d, %d:%d", opcode, tgt.frame, tgt.index, src.frame, src.index);
+	list_byte_push5(b, opcode, tgt.frame, tgt.index, src.frame, src.index);
 }
 
 static inline void op_param2(list_byte b, op_enum opcode, varloc_st tgt, varloc_st src1,
 	varloc_st src2){
-	oplogf("0x%02X %d:%d, %d:%d, %d:%d", opcode, tgt.fdiff, tgt.index, src1.fdiff, src1.index,
-		src2.fdiff, src2.index);
-	list_byte_push7(b, opcode, tgt.fdiff, tgt.index, src1.fdiff, src1.index,
-		src2.fdiff, src2.index);
+	oplogf("0x%02X %d:%d, %d:%d, %d:%d", opcode, tgt.frame, tgt.index, src1.frame, src1.index,
+		src2.frame, src2.index);
+	list_byte_push7(b, opcode, tgt.frame, tgt.index, src1.frame, src1.index,
+		src2.frame, src2.index);
 }
 
 static inline void op_param3(list_byte b, op_enum opcode, varloc_st tgt, varloc_st src1,
 	varloc_st src2, varloc_st src3){
-	oplogf("0x%02X %d:%d, %d:%d, %d:%d, %d:%d", opcode, tgt.fdiff, tgt.index,
-		src1.fdiff, src1.index, src2.fdiff, src2.index, src3.fdiff, src3.index);
-	list_byte_push9(b, opcode, tgt.fdiff, tgt.index, src1.fdiff, src1.index,
-		src2.fdiff, src2.index, src3.fdiff, src3.index);
+	oplogf("0x%02X %d:%d, %d:%d, %d:%d, %d:%d", opcode, tgt.frame, tgt.index,
+		src1.frame, src1.index, src2.frame, src2.index, src3.frame, src3.index);
+	list_byte_push9(b, opcode, tgt.frame, tgt.index, src1.frame, src1.index,
+		src2.frame, src2.index, src3.frame, src3.index);
 }
 
 //
@@ -1094,7 +1077,6 @@ typedef enum {
 	KS_STAR,
 	KS_SLASH,
 	KS_CARET,
-	KS_AT,
 	KS_AMP,
 	KS_LT,
 	KS_GT,
@@ -1159,7 +1141,6 @@ static const char *ks_name(ks_enum k){
 		case KS_STAR:       return "KS_STAR";
 		case KS_SLASH:      return "KS_SLASH";
 		case KS_CARET:      return "KS_CARET";
-		case KS_AT:         return "KS_AT";
 		case KS_AMP:        return "KS_AMP";
 		case KS_LT:         return "KS_LT";
 		case KS_GT:         return "KS_GT";
@@ -1221,7 +1202,6 @@ static inline ks_enum ks_char(char c){
 	else if (c == '*') return KS_STAR;
 	else if (c == '/') return KS_SLASH;
 	else if (c == '^') return KS_CARET;
-	else if (c == '@') return KS_AT;
 	else if (c == '&') return KS_AMP;
 	else if (c == '<') return KS_LT;
 	else if (c == '>') return KS_GT;
@@ -1489,7 +1469,6 @@ static inline bool tok_isMid(tok tk, bool allowComma, bool allowPipe){
 		k == KS_SLASHEQU   ||
 		k == KS_CARET      ||
 		k == KS_CARETEQU   ||
-		k == KS_AT         ||
 		k == KS_LT         ||
 		k == KS_LTEQU      ||
 		k == KS_GT         ||
@@ -1536,17 +1515,16 @@ static inline int tok_midPrecedence(tok tk){
 	else if (k == KS_PLUS      ) return  3;
 	else if (k == KS_MINUS     ) return  3;
 	else if (k == KS_TILDE     ) return  4;
-	else if (k == KS_AT        ) return  5;
-	else if (k == KS_LTEQU     ) return  6;
-	else if (k == KS_LT        ) return  6;
-	else if (k == KS_GTEQU     ) return  6;
-	else if (k == KS_GT        ) return  6;
-	else if (k == KS_BANGEQU   ) return  7;
-	else if (k == KS_EQU2      ) return  7;
-	else if (k == KS_AMP2      ) return  8;
-	else if (k == KS_PIPE2     ) return  9;
-	else if (k == KS_COMMA     ) return 10;
-	else if (k == KS_PIPE      ) return 11;
+	else if (k == KS_LTEQU     ) return  5;
+	else if (k == KS_LT        ) return  5;
+	else if (k == KS_GTEQU     ) return  5;
+	else if (k == KS_GT        ) return  5;
+	else if (k == KS_BANGEQU   ) return  6;
+	else if (k == KS_EQU2      ) return  6;
+	else if (k == KS_AMP2      ) return  7;
+	else if (k == KS_PIPE2     ) return  8;
+	else if (k == KS_COMMA     ) return  9;
+	else if (k == KS_PIPE      ) return 10;
 	else if (k == KS_EQU       ) return 20;
 	else if (k == KS_PLUSEQU   ) return 20;
 	else if (k == KS_PERCENTEQU) return 20;
@@ -4708,30 +4686,16 @@ static inline void label_jumpfalse(label lbl, list_byte ops, varloc_st src){
 		label_refresh(lbl, ops, lbl->rewrites->size - 1);
 }
 
-static inline void label_callcnt(label lbl, list_byte ops, varloc_st ret, int level, int argcount){
-	op_callcnt(ops, ret, level, 0xFFFFFFFF, argcount, lbl->name);
+static inline void label_call(label lbl, list_byte ops, varloc_st ret, int argcount){
+	op_call(ops, ret, 0xFFFFFFFF, argcount, lbl->name);
 	list_int_push(lbl->rewrites, ops->size - 5);
 	if (lbl->pos >= 0)
 		label_refresh(lbl, ops, lbl->rewrites->size - 1);
 }
 
-static inline void label_callvar(label lbl, list_byte ops, varloc_st ret, int level, varloc_st arg){
-	op_callvar(ops, ret, level, 0xFFFFFFFF, arg, lbl->name);
-	list_int_push(lbl->rewrites, ops->size - 6);
-	if (lbl->pos >= 0)
-		label_refresh(lbl, ops, lbl->rewrites->size - 1);
-}
-
-static inline void label_returntailcnt(label lbl, list_byte ops, int argcount){
-	op_returntailcnt(ops, 0xFFFFFFFF, argcount, lbl->name);
+static inline void label_returntail(label lbl, list_byte ops, int argcount){
+	op_returntail(ops, 0xFFFFFFFF, argcount, lbl->name);
 	list_int_push(lbl->rewrites, ops->size - 5);
-	if (lbl->pos >= 0)
-		label_refresh(lbl, ops, lbl->rewrites->size - 1);
-}
-
-static inline void label_returntailvar(label lbl, list_byte ops, varloc_st arg){
-	op_returntailvar(ops, 0xFFFFFFFF, arg, lbl->name);
-	list_int_push(lbl->rewrites, ops->size - 6);
 	if (lbl->pos >= 0)
 		label_refresh(lbl, ops, lbl->rewrites->size - 1);
 }
@@ -4757,6 +4721,7 @@ struct frame_struct {
 	list_int vars;
 	list_ptr lbls;
 	frame parent;
+	int level;
 };
 
 static inline void frame_free(frame fr){
@@ -4787,18 +4752,19 @@ static inline frame frame_new(frame parent){
 	fr->vars = list_int_new();
 	fr->lbls = list_ptr_new((free_func)label_free);
 	fr->parent = parent;
+	fr->level = parent ? fr->parent->level + 1 : 0;
 	return fr;
 }
 
 static inline int frame_diff(frame parent, frame child){
-	int fdiff = 0;
+	int frame = 0;
 	while (child != parent && child != NULL){
 		child = child->parent;
-		fdiff++;
+		frame++;
 	}
 	if (child == NULL)
 		return -1;
-	return fdiff;
+	return frame;
 }
 
 typedef struct namespace_struct namespace_st, *namespace;
@@ -5288,17 +5254,17 @@ static sta_st symtbl_addTemp(symtbl sym){
 	for (int i = 0; i < sym->fr->vars->size; i++){
 		if (sym->fr->vars->vals[i] == FVR_TEMP_AVAIL){
 			sym->fr->vars->vals[i] = FVR_TEMP_INUSE;
-			return sta_var(varloc_new(0, i));
+			return sta_var(varloc_new(sym->fr->level, i));
 		}
 	}
 	if (sym->fr->vars->size >= 256)
 		return sta_error(sink_format("Too many variables in frame"));
 	list_int_push(sym->fr->vars, FVR_TEMP_INUSE);
-	return sta_var(varloc_new(0, sym->fr->vars->size - 1));
+	return sta_var(varloc_new(sym->fr->level, sym->fr->vars->size - 1));
 }
 
 static inline void symtbl_clearTemp(symtbl sym, varloc_st vlc){
-	if (vlc.fdiff == 0 && sym->fr->vars->vals[vlc.index] == FVR_TEMP_INUSE)
+	if (vlc.frame == 0 && sym->fr->vars->vals[vlc.index] == FVR_TEMP_INUSE)
 		sym->fr->vars->vals[vlc.index] = FVR_TEMP_AVAIL;
 }
 
@@ -5316,7 +5282,7 @@ static sta_st symtbl_addVar(symtbl sym, list_ptr names, int slot){
 					sink_format("Cannot redefine \"%.*s\"", nsn->name->size, nsn->name->bytes));
 			}
 			if (nsn->type == NSN_VAR)
-				return sta_var(varloc_new(frame_diff(nsn->u.var.fr, sym->fr), nsn->u.var.index));
+				return sta_var(varloc_new(nsn->u.var.fr->level, nsn->u.var.index));
 			if (slot < 0){
 				slot = sym->fr->vars->size;
 				list_int_push(sym->fr->vars, FVR_VAR);
@@ -5325,7 +5291,7 @@ static sta_st symtbl_addVar(symtbl sym, list_ptr names, int slot){
 				return sta_error(sink_format("Too many variables in frame"));
 			nsname_free(ns->names->ptrs[i]);
 			ns->names->ptrs[i] = nsname_var(names->ptrs[names->size - 1], sym->fr, slot);
-			return sta_var(varloc_new(0, slot));
+			return sta_var(varloc_new(sym->fr->level, slot));
 		}
 	}
 	if (slot < 0){
@@ -5335,7 +5301,7 @@ static sta_st symtbl_addVar(symtbl sym, list_ptr names, int slot){
 	if (slot >= 256)
 		return sta_error(sink_format("Too many variables in frame"));
 	list_ptr_push(ns->names, nsname_var(names->ptrs[names->size - 1], sym->fr, slot));
-	return sta_var(varloc_new(0, slot));
+	return sta_var(varloc_new(sym->fr->level, slot));
 }
 
 static void symtbl_reserveVars(symtbl sym, int count){
@@ -5399,11 +5365,11 @@ static inline list_ptr NSS(const char *str){
 static inline void symtbl_loadStdlib(symtbl sym){
 	list_ptr nss;
 	SAC(sym, "pick"          , OP_PICK           ,  3);
-	SAC(sym, "say"           , OP_SAYCNT         , -1);
-	SAC(sym, "warn"          , OP_WARNCNT        , -1);
-	SAC(sym, "ask"           , OP_ASKCNT         , -1);
-	SAC(sym, "exit"          , OP_EXITCNT        , -1);
-	SAC(sym, "abort"         , OP_ABORTCNT       , -1);
+	SAC(sym, "say"           , OP_SAY            , -1);
+	SAC(sym, "warn"          , OP_WARN           , -1);
+	SAC(sym, "ask"           , OP_ASK            , -1);
+	SAC(sym, "exit"          , OP_EXIT           , -1);
+	SAC(sym, "abort"         , OP_ABORT          , -1);
 	SAC(sym, "isnum"         , OP_ISNUM          ,  1);
 	SAC(sym, "isstr"         , OP_ISSTR          ,  1);
 	SAC(sym, "islist"        , OP_ISLIST         ,  1);
@@ -5412,8 +5378,8 @@ static inline void symtbl_loadStdlib(symtbl sym){
 	nss = NSS("num"); symtbl_pushNamespace(sym, nss); list_ptr_free(nss);
 		SAC(sym, "abs"       , OP_NUM_ABS        ,  1);
 		SAC(sym, "sign"      , OP_NUM_SIGN       ,  1);
-		SAC(sym, "max"       , OP_NUM_MAXCNT     , -1);
-		SAC(sym, "min"       , OP_NUM_MINCNT     , -1);
+		SAC(sym, "max"       , OP_NUM_MAX        , -1);
+		SAC(sym, "min"       , OP_NUM_MIN        , -1);
 		SAC(sym, "clamp"     , OP_NUM_CLAMP      ,  3);
 		SAC(sym, "floor"     , OP_NUM_FLOOR      ,  1);
 		SAC(sym, "ceil"      , OP_NUM_CEIL       ,  1);
@@ -5469,7 +5435,7 @@ static inline void symtbl_loadStdlib(symtbl sym){
 		SAC(sym, "shuffle"   , OP_RAND_SHUFFLE   ,  1);
 	symtbl_popNamespace(sym);
 	nss = NSS("str"); symtbl_pushNamespace(sym, nss); list_ptr_free(nss);
-		SAC(sym, "new"       , OP_STR_NEWCNT     , -1);
+		SAC(sym, "new"       , OP_STR_NEW        , -1);
 		SAC(sym, "split"     , OP_STR_SPLIT      ,  2);
 		SAC(sym, "replace"   , OP_STR_REPLACE    ,  3);
 		SAC(sym, "begins"    , OP_STR_BEGINS     ,  2);
@@ -5832,7 +5798,7 @@ static lvp_st lval_prepare(program prg, symtbl sym, expr ex){
 		if (sl.u.nsn->type != NSN_VAR)
 			return lvp_error(ex->flp, sink_format("Invalid assignment"));
 		return lvp_ok(lvr_var(ex->flp,
-			varloc_new(frame_diff(sl.u.nsn->u.var.fr, sym->fr), sl.u.nsn->u.var.index)));
+			varloc_new(sl.u.nsn->u.var.fr->level, sl.u.nsn->u.var.index)));
 	}
 	else if (ex->type == EXPR_INDEX){
 		per_st pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, ex->u.index.obj);
@@ -6232,10 +6198,10 @@ static inline bool program_evalCallArgcount(program prg, symtbl sym, expr params
 }
 
 static per_st program_evalCall(program prg, symtbl sym, pem_enum mode, varloc_st intoVlc,
-	filepos_st flp, nsname nsn, bool paramsAt, expr params){
+	filepos_st flp, nsname nsn, expr params){
 	// params can be NULL to indicate emptiness
 	if (nsn->type == NSN_CMD_OPCODE && nsn->u.cmdOpcode.opcode == OP_PICK){
-		if (paramsAt || params == NULL || params->type != EXPR_GROUP ||
+		if (params == NULL || params->type != EXPR_GROUP ||
 			params->u.group->size != 3)
 			return per_error(flp, sink_format("Using `pick` requires exactly three arguments"));
 
@@ -6291,119 +6257,44 @@ static per_st program_evalCall(program prg, symtbl sym, pem_enum mode, varloc_st
 	}
 
 	varloc_st p[255];
-	if (paramsAt){
-		varloc_st args;
-		per_st pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, params);
-		if (pe.type == PER_ERROR)
-			return pe;
-		args = pe.u.vlc;
+	int argcount;
+	per_st pe;
+	if (!program_evalCallArgcount(prg, sym, params, &argcount, &pe, p))
+		return pe;
 
-		if (nsn->type == NSN_CMD_LOCAL){
-			label_callvar(nsn->u.cmdLocal.lbl, prg->ops, intoVlc,
-				frame_diff(nsn->u.cmdLocal.fr, sym->fr), args);
-		}
-		else if (nsn->type == NSN_CMD_NATIVE)
-			op_nativevar(prg->ops, intoVlc, nsn->u.index, args);
-		else{ // NSN_CMD_OPCODE
-			if (nsn->u.cmdOpcode.params < 0)
-				op_paramvar(prg->ops, nsn->u.cmdOpcode.opcode + 1, intoVlc, args);
-			else{
-				op_forcelist(prg->ops, args);
-
-				// extract values from args
-				if (nsn->u.cmdOpcode.params >= 1){
-					sta_st ts = symtbl_addTemp(sym);
-					if (ts.type == STA_ERROR)
-						return per_error(flp, ts.u.msg);
-					p[0] = ts.u.vlc;
-					op_numint(prg->ops, p[0], 0);
-					op_getat(prg->ops, p[0], args, p[0]);
-
-					if (nsn->u.cmdOpcode.params >= 2){
-						ts = symtbl_addTemp(sym);
-						if (ts.type == STA_ERROR)
-							return per_error(flp, ts.u.msg);
-						p[1] = ts.u.vlc;
-						op_numint(prg->ops, p[1], 1);
-						op_getat(prg->ops, p[1], args, p[1]);
-
-						if (nsn->u.cmdOpcode.params >= 3){
-							ts = symtbl_addTemp(sym);
-							if (ts.type == STA_ERROR)
-								return per_error(flp, ts.u.msg);
-							p[2] = ts.u.vlc;
-							op_numint(prg->ops, p[2], 2);
-							op_getat(prg->ops, p[2], args, p[2]);
-						}
-					}
-				}
-
-				// call opcode with correct number of args
-				if (nsn->u.cmdOpcode.params == 0)
-					op_param0(prg->ops, nsn->u.cmdOpcode.opcode, intoVlc);
-				else if (nsn->u.cmdOpcode.params == 1)
-					op_param1(prg->ops, nsn->u.cmdOpcode.opcode, intoVlc, p[0]);
-				else if (nsn->u.cmdOpcode.params == 2)
-					op_param2(prg->ops, nsn->u.cmdOpcode.opcode, intoVlc, p[0], p[1]);
-				else // nsn.params == 3
-					op_param3(prg->ops, nsn->u.cmdOpcode.opcode, intoVlc, p[0], p[1], p[2]);
-
-				// clear the arg temps
-				if (nsn->u.cmdOpcode.params >= 1){
-					symtbl_clearTemp(sym, p[0]);
-					if (nsn->u.cmdOpcode.params >= 2){
-						symtbl_clearTemp(sym, p[1]);
-						if (nsn->u.cmdOpcode.params >= 3)
-							symtbl_clearTemp(sym, p[2]);
-					}
-				}
+	bool oarg = true;
+	if (nsn->type == NSN_CMD_LOCAL)
+		label_call(nsn->u.cmdLocal.lbl, prg->ops, intoVlc, argcount);
+	else if (nsn->type == NSN_CMD_NATIVE)
+		op_native(prg->ops, intoVlc, nsn->u.index, argcount);
+	else{ // NSN_CMD_OPCODE
+		if (nsn->u.cmdOpcode.params < 0)
+			op_parama(prg->ops, nsn->u.cmdOpcode.opcode, intoVlc, argcount);
+		else{
+			oarg = false;
+			if (nsn->u.cmdOpcode.params > argcount){
+				sta_st ts = symtbl_addTemp(sym);
+				if (ts.type == STA_ERROR)
+					return per_error(flp, ts.u.msg);
+				p[argcount + 0] = p[argcount + 1] = p[argcount + 2] = ts.u.vlc;
+				op_nil(prg->ops, p[argcount]);
+				argcount++;
 			}
+			if (nsn->u.cmdOpcode.params == 0)
+				op_param0(prg->ops, nsn->u.cmdOpcode.opcode, intoVlc);
+			else if (nsn->u.cmdOpcode.params == 1)
+				op_param1(prg->ops, nsn->u.cmdOpcode.opcode, intoVlc, p[0]);
+			else if (nsn->u.cmdOpcode.params == 2)
+				op_param2(prg->ops, nsn->u.cmdOpcode.opcode, intoVlc, p[0], p[1]);
+			else // nsn.params == 3
+				op_param3(prg->ops, nsn->u.cmdOpcode.opcode, intoVlc, p[0], p[1], p[2]);
 		}
-
-		symtbl_clearTemp(sym, args);
 	}
-	else{
-		int argcount;
-		per_st pe;
-		if (!program_evalCallArgcount(prg, sym, params, &argcount, &pe, p))
-			return pe;
 
-		bool cntarg = true;
-		if (nsn->type == NSN_CMD_LOCAL){
-			label_callcnt(nsn->u.cmdLocal.lbl, prg->ops, intoVlc,
-				frame_diff(nsn->u.cmdLocal.fr, sym->fr), argcount);
-		}
-		else if (nsn->type == NSN_CMD_NATIVE)
-			op_nativecnt(prg->ops, intoVlc, nsn->u.index, argcount);
-		else{ // NSN_CMD_OPCODE
-			if (nsn->u.cmdOpcode.params < 0)
-				op_paramcnt(prg->ops, nsn->u.cmdOpcode.opcode, intoVlc, argcount);
-			else{
-				cntarg = false;
-				if (nsn->u.cmdOpcode.params > argcount){
-					sta_st ts = symtbl_addTemp(sym);
-					if (ts.type == STA_ERROR)
-						return per_error(flp, ts.u.msg);
-					p[argcount + 0] = p[argcount + 1] = p[argcount + 2] = ts.u.vlc;
-					op_nil(prg->ops, p[argcount]);
-					argcount++;
-				}
-				if (nsn->u.cmdOpcode.params == 0)
-					op_param0(prg->ops, nsn->u.cmdOpcode.opcode, intoVlc);
-				else if (nsn->u.cmdOpcode.params == 1)
-					op_param1(prg->ops, nsn->u.cmdOpcode.opcode, intoVlc, p[0]);
-				else if (nsn->u.cmdOpcode.params == 2)
-					op_param2(prg->ops, nsn->u.cmdOpcode.opcode, intoVlc, p[0], p[1]);
-				else // nsn.params == 3
-					op_param3(prg->ops, nsn->u.cmdOpcode.opcode, intoVlc, p[0], p[1], p[2]);
-			}
-		}
-
-		for (int i = 0; i < argcount; i++){
-			if (cntarg)
-				op_cntarg(prg->ops, p[i]);
-			symtbl_clearTemp(sym, p[i]);
-		}
+	for (int i = 0; i < argcount; i++){
+		if (oarg)
+			op_arg(prg->ops, p[i]);
+		symtbl_clearTemp(sym, p[i]);
 	}
 
 	if (mode == PEM_EMPTY){
@@ -6760,7 +6651,7 @@ static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st int
 					if (pe.type == PER_ERROR)
 						return pe;
 					// check for `a = {a}`
-					if (intoVlc.fdiff == pe.u.vlc.fdiff && intoVlc.index == pe.u.vlc.index){
+					if (intoVlc.frame == pe.u.vlc.frame && intoVlc.index == pe.u.vlc.index){
 						sta_st ts = symtbl_addTemp(sym);
 						if (ts.type == STA_ERROR)
 							return per_error(ex->flp, ts.u.msg);
@@ -6790,8 +6681,7 @@ static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st int
 				case NSN_VAR: {
 					if (mode == PEM_EMPTY)
 						return per_ok(VARLOC_NULL);
-					varloc_st varVlc = varloc_new(frame_diff(sl.u.nsn->u.var.fr, sym->fr),
-						sl.u.nsn->u.var.index);
+					varloc_st varVlc = varloc_new(sl.u.nsn->u.var.fr->level, sl.u.nsn->u.var.index);
 					if (mode == PEM_CREATE)
 						return per_ok(varVlc);
 					op_move(prg->ops, intoVlc, varVlc);
@@ -6801,8 +6691,7 @@ static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st int
 				case NSN_CMD_LOCAL:
 				case NSN_CMD_NATIVE:
 				case NSN_CMD_OPCODE:
-					return program_evalCall(prg, sym, mode, intoVlc, ex->flp, sl.u.nsn, false,
-						NULL);
+					return program_evalCall(prg, sym, mode, intoVlc, ex->flp, sl.u.nsn, NULL);
 
 				case NSN_NAMESPACE:
 					return per_error(ex->flp, sink_format("Invalid expression"));
@@ -6966,17 +6855,6 @@ static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st int
 				symtbl_clearTemp(sym, left);
 				symtbl_clearTemp(sym, pe.u.vlc);
 			}
-			else if (ex->u.infix.k == KS_AT){
-				if (ex->u.infix.left->type != EXPR_NAMES)
-					return per_error(ex->flp, sink_format("Invalid call"));
-				stl_st sl = symtbl_lookup(sym, ex->u.infix.left->u.names);
-				if (sl.type == STL_ERROR)
-					return per_error(ex->flp, sl.u.msg);
-				per_st pe = program_evalCall(prg, sym, PEM_INTO, intoVlc, ex->flp, sl.u.nsn, true,
-					ex->u.infix.right);
-				if (pe.type == PER_ERROR)
-					return pe;
-			}
 			else if (ex->u.infix.k == KS_AMP2 || ex->u.infix.k == KS_PIPE2){
 				per_st pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, ex->u.infix.left);
 				if (pe.type == PER_ERROR)
@@ -7017,8 +6895,7 @@ static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st int
 			stl_st sl = symtbl_lookup(sym, ex->u.call.cmd->u.names);
 			if (sl.type == STL_ERROR)
 				return per_error(ex->flp, sl.u.msg);
-			return program_evalCall(prg, sym, mode, intoVlc, ex->flp, sl.u.nsn, false,
-				ex->u.call.params);
+			return program_evalCall(prg, sym, mode, intoVlc, ex->flp, sl.u.nsn, ex->u.call.params);
 		} break;
 
 		case EXPR_INDEX: {
@@ -7271,7 +7148,7 @@ static pgr_st program_forVars(symtbl sym, ast stmt){
 			return pgr_error(stmt->flp, sl.u.msg);
 		if (sl.u.nsn->type != NSN_VAR)
 			return pgr_error(stmt->flp, sink_format("Cannot use non-variable in for loop"));
-		val_vlc = varloc_new(frame_diff(sl.u.nsn->u.var.fr, sym->fr), sl.u.nsn->u.var.index);
+		val_vlc = varloc_new(sl.u.nsn->u.var.fr->level, sl.u.nsn->u.var.index);
 
 		if (stmt->u.for1.names2 == NULL){
 			sta_st ts = symtbl_addTemp(sym);
@@ -7287,7 +7164,7 @@ static pgr_st program_forVars(symtbl sym, ast stmt){
 				return pgr_error(stmt->flp,
 					sink_format("Cannot use non-variable in for loop"));
 			}
-			idx_vlc = varloc_new(frame_diff(sl.u.nsn->u.var.fr, sym->fr), sl.u.nsn->u.var.index);
+			idx_vlc = varloc_new(sl.u.nsn->u.var.fr->level, sl.u.nsn->u.var.index);
 		}
 	}
 	return pgr_forvars(val_vlc, idx_vlc);
@@ -7477,29 +7354,27 @@ static inline pgr_st program_gen(program prg, symtbl sym, ast stmt, void *state,
 					return pgr_error(stmt->flp, sr.u.msg);
 			}
 
+			int level = sym->fr->level + 1;
+			if (level > 255)
+				return pgr_error(stmt->flp, sink_format("Too many nested commands"));
+			int rest = 0xFF;
+			int lvs = stmt->u.def1.lvalues->size;
+			if (lvs > 255)
+				return pgr_error(stmt->flp, sink_format("Too many parameters"));
+			if (lvs > 0){
+				expr last_ex = stmt->u.def1.lvalues->ptrs[lvs - 1];
+				// is the last expression a `...rest`?
+				if (last_ex->type == EXPR_PREFIX && last_ex->u.prefix.k == KS_PERIOD3)
+					rest = lvs - 1;
+			}
+
 			label skip = label_newStr("^after_def");
 			label_jump(skip, prg->ops);
 
 			label_declare(lbl, prg->ops);
 			symtbl_pushFrame(sym);
 
-			// push a byte that tells the runtime how many arguments there are before the `...rest`
-			// argument is found -- and if no rest argument, 0xFF
-			int lvs = stmt->u.def1.lvalues->size;
-			if (lvs > 255){
-				label_free(skip);
-				return pgr_error(stmt->flp, sink_format("Too many parameters"));
-			}
-			if (lvs > 0){
-				expr last_ex = stmt->u.def1.lvalues->ptrs[lvs - 1];
-				// is the last expression a `...rest`?
-				if (last_ex->type == EXPR_PREFIX && last_ex->u.prefix.k == KS_PERIOD3)
-					list_byte_push(prg->ops, lvs - 1);
-				else
-					list_byte_push(prg->ops, 0xFF);
-			}
-			else
-				list_byte_push(prg->ops, 0xFF);
+			op_cmdhead(prg->ops, level, rest);
 
 			// reserve our argument registers as explicit registers 0 to lvs-1
 			symtbl_reserveVars(sym, lvs);
@@ -7509,7 +7384,7 @@ static inline pgr_st program_gen(program prg, symtbl sym, ast stmt, void *state,
 				expr ex = stmt->u.def1.lvalues->ptrs[i];
 				if (ex->type == EXPR_INFIX){
 					// the argument is the i-th register
-					varloc_st arg = varloc_new(0, i);
+					varloc_st arg = varloc_new(level, i);
 
 					// check for initialization -- must happen before the symbols are added so that
 					// `def a x = x` binds the seconds `x` to the outer scope
@@ -7776,7 +7651,6 @@ static inline pgr_st program_gen(program prg, symtbl sym, ast stmt, void *state,
 			nsname nsn = NULL;
 			expr params = NULL;
 			expr ex = stmt->u.areturn.ex;
-			bool paramsAt = false;
 
 			// check for tail call
 			if (ex->type == EXPR_CALL){
@@ -7794,38 +7668,19 @@ static inline pgr_st program_gen(program prg, symtbl sym, ast stmt, void *state,
 					return pgr_error(ex->flp, sl.u.msg);
 				nsn = sl.u.nsn;
 			}
-			else if (ex->type == EXPR_INFIX && ex->u.infix.k == KS_AT){
-				if (ex->u.infix.left->type != EXPR_NAMES)
-					return pgr_error(ex->flp, sink_format("Invalid call"));
-				stl_st sl = symtbl_lookup(sym, ex->u.infix.left->u.names);
-				if (sl.type == STL_ERROR)
-					return pgr_error(ex->flp, sl.u.msg);
-				nsn = sl.u.nsn;
-				params = ex->u.infix.right;
-				paramsAt = true;
-			}
 
 			// can only tail call local commands at the same lexical level
 			if (nsn != NULL && nsn->type == NSN_CMD_LOCAL &&
 				frame_diff(nsn->u.cmdLocal.fr, sym->fr) == 1){
-				if (paramsAt){
-					per_st pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, params);
-					if (pe.type == PER_ERROR)
-						return pgr_error(pe.u.error.flp, pe.u.error.msg);
-					label_returntailvar(nsn->u.cmdLocal.lbl, prg->ops, pe.u.vlc);
-					symtbl_clearTemp(sym, pe.u.vlc);
-				}
-				else{
-					int argcount;
-					per_st pe;
-					varloc_st p[255];
-					if (!program_evalCallArgcount(prg, sym, params, &argcount, &pe, p))
-						return pgr_error(pe.u.error.flp, pe.u.error.msg);
-					label_returntailcnt(nsn->u.cmdLocal.lbl, prg->ops, argcount);
-					for (int i = 0; i < argcount; i++){
-						op_cntarg(prg->ops, p[i]);
-						symtbl_clearTemp(sym, p[i]);
-					}
+				int argcount;
+				per_st pe;
+				varloc_st p[255];
+				if (!program_evalCallArgcount(prg, sym, params, &argcount, &pe, p))
+					return pgr_error(pe.u.error.flp, pe.u.error.msg);
+				label_returntail(nsn->u.cmdLocal.lbl, prg->ops, argcount);
+				for (int i = 0; i < argcount; i++){
+					op_arg(prg->ops, p[i]);
+					symtbl_clearTemp(sym, p[i]);
 				}
 				return pgr_ok();
 			}
@@ -7884,8 +7739,8 @@ static inline pgr_st program_gen(program prg, symtbl sym, ast stmt, void *state,
 				sta_st ts = symtbl_addTemp(sym);
 				if (ts.type == STA_ERROR)
 					return pgr_error(stmt->flp, ts.u.msg);
-				op_paramcnt(prg->ops, OP_SAYCNT, ts.u.vlc, 1);
-				op_cntarg(prg->ops, pr.u.vlc);
+				op_parama(prg->ops, OP_SAY, ts.u.vlc, 1);
+				op_arg(prg->ops, pr.u.vlc);
 				symtbl_clearTemp(sym, pr.u.vlc);
 				symtbl_clearTemp(sym, ts.u.vlc);
 			}
@@ -7991,7 +7846,7 @@ static int bmp_reserve(void **tbl, int *size, uint64_t **aloc, uint64_t **ref, s
 
 typedef struct {
 	int pc;
-	int fdiff;
+	int frame;
 	int index;
 	int lex_index;
 } ccs_st, *ccs;
@@ -8000,10 +7855,10 @@ static inline void ccs_free(ccs c){
 	mem_free(c);
 }
 
-static inline ccs ccs_new(int pc, int fdiff, int index, int lex_index){
+static inline ccs ccs_new(int pc, int frame, int index, int lex_index){
 	ccs c = mem_alloc(sizeof(ccs_st));
 	c->pc = pc;
-	c->fdiff = fdiff;
+	c->frame = frame;
 	c->index = index;
 	c->lex_index = lex_index;
 	return c;
@@ -8089,7 +7944,7 @@ typedef struct {
 	uint64_t str_prealloc_lastmask;
 	int timeout;
 	int timeout_left;
-	int async_fdiff;
+	int async_frame;
 	int async_index;
 	int gc_left;
 	sink_gc_level gc_level;
@@ -8372,12 +8227,12 @@ static inline void context_reset(context ctx){
 	ctx->timeout_left = ctx->timeout;
 }
 
-static inline sink_val var_get(context ctx, int fdiff, int index){
-	return ((lxs)ctx->lex_stk->ptrs[ctx->lex_index - fdiff])->vals[index];
+static inline sink_val var_get(context ctx, int frame, int index){
+	return ((lxs)ctx->lex_stk->ptrs[frame])->vals[index];
 }
 
-static inline void var_set(context ctx, int fdiff, int index, sink_val val){
-	((lxs)ctx->lex_stk->ptrs[ctx->lex_index - fdiff])->vals[index] = val;
+static inline void var_set(context ctx, int frame, int index, sink_val val){
+	((lxs)ctx->lex_stk->ptrs[frame])->vals[index] = val;
 }
 
 static inline sink_str var_caststr(context ctx, sink_val a){
@@ -11471,6 +11326,10 @@ static sink_run context_run(context ctx){
 		LOAD_abcd();                                                                       \
 		E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
 
+	#define LOAD_abcdefg()                                                                 \
+		LOAD_abcdef();                                                                     \
+		G = ops->bytes[ctx->pc++];
+
 	#define LOAD_abcdefgh()                                                                \
 		LOAD_abcdef();                                                                     \
 		G = ops->bytes[ctx->pc++]; H = ops->bytes[ctx->pc++];
@@ -11820,101 +11679,54 @@ static sink_run context_run(context ctx){
 				}
 			} break;
 
-			case OP_CALLCNT        : { // [TGT], LEVEL, [[LOCATION]], ARGCOUNT, [ARGS]...
-				LOAD_abcdefgh();
-				D = D + (E << 8) + (F << 16) + ((G << 23) * 2);
-				if (ctx->prg->repl && D == -1){
-					ctx->pc -= 9;
+			case OP_CALL           : { // [TGT], [[LOCATION]], ARGCOUNT, [ARGS]...
+				LOAD_abcdefg();
+				C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
+				if (C == -1){
+					ctx->pc -= 8;
 					return SINK_RUN_REPLMORE;
 				}
-				for (I = 0; I < H; I++){
+				for (I = 0; I < G; I++){
 					E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
 					p[I] = var_get(ctx, E, F);
 				}
-				goto perform_call;
-			} break;
-
-			case OP_CALLVAR        : { // [TGT], LEVEL, [[LOCATION]], [ARGLIST]
-				LOAD_abcdefghi();
-				D = D + (E << 8) + (F << 16) + ((G << 23) * 2);
-				if (ctx->prg->repl && D == -1){
-					ctx->pc -= 10;
-					return SINK_RUN_REPLMORE;
-				}
-				X = var_get(ctx, H, I);
-				if (!sink_islist(X))
-					RETURN_FAIL("Expecting list when calling function");
-				ls = var_castlist(ctx, X);
-				H = ls->size;
-				if (H > 0)
-					memcpy(p, ls->vals, sizeof(sink_val) * H);
-
-				perform_call:
-				// section of code expects the following values:
-				// A,B = return variable location
-				// C = level
-				// D = jump location
-				// H = argument count
-				// p = argument array
 				list_ptr_push(ctx->call_stk, ccs_new(ctx->pc, A, B, ctx->lex_index));
-				ctx->pc = D;
-				A = ops->bytes[ctx->pc++];
-				if (A != 0xFF){
-					if (H <= A){
-						while (H < A)
-							p[H++] = SINK_NIL;
-						p[H] = sink_list_newblob(ctx, 0, NULL);
+				ctx->pc = C - 1;
+				LOAD_abc();
+				// A is OP_CMDHEAD
+				if (C != 0xFF){
+					if (G <= C){
+						while (G < C)
+							p[G++] = SINK_NIL;
+						p[G] = sink_list_newblob(ctx, 0, NULL);
 					}
 					else
-						p[A] = sink_list_newblob(ctx, H - A, &p[A]);
-					H = A + 1;
+						p[C] = sink_list_newblob(ctx, G - C, &p[C]);
+					G = C + 1;
 				}
-				ctx->lex_index = ctx->lex_index - C + 1;
+				ctx->lex_index = B;
 				while (ctx->lex_index >= ctx->lex_stk->size)
 					list_ptr_push(ctx->lex_stk, NULL);
 				ctx->lex_stk->ptrs[ctx->lex_index] =
-					lxs_new(H, p, ctx->lex_stk->ptrs[ctx->lex_index]);
+					lxs_new(G, p, ctx->lex_stk->ptrs[ctx->lex_index]);
 			} break;
 
-			case OP_NATIVECNT      : { // [TGT], [INDEX], ARGCOUNT, [ARGS]...
+			case OP_NATIVE         : { // [TGT], [INDEX], ARGCOUNT, [ARGS]...
 				LOAD_abcde();
 				for (I = 0; I < E; I++){
 					G = ops->bytes[ctx->pc++]; H = ops->bytes[ctx->pc++];
 					p[I] = var_get(ctx, G, H);
 				}
-				goto perform_native;
-			} break;
-
-			case OP_NATIVEVAR      : { // [TGT], [INDEX], [ARGLIST]
-				LOAD_abcdef();
-				X = var_get(ctx, E, F);
-				if (!sink_islist(X))
-					RETURN_FAIL("Expecting list when calling function");
-				ls = var_castlist(ctx, X);
-				E = ls->size;
-				if (E > 0)
-					memcpy(p, ls->vals, sizeof(sink_val) * E);
-
-				perform_native:
-				// section of code expects the following values:
-				// A,B = return variable location
-				// C,D = native index
-				// E = argument count
-				// p = argument array
 				C = C | (D << 8);
-				if (C < 0 || C >= ctx->prg->keyTable->size)
-					RETURN_FAIL("Invalid native call");
 				uint64_t hash = ctx->prg->keyTable->vals[C];
-				bool found = false;
 				for (int i = 0; i < ctx->natives->size; i++){
 					native nat = ctx->natives->ptrs[i];
 					if (nat->hash == hash){
-						found = true;
 						X = nat->f_native(ctx, E, p, nat->natuser);
 						if (ctx->failed)
 							return SINK_RUN_FAIL;
 						if (sink_isasync(X)){
-							ctx->async_fdiff = A;
+							ctx->async_frame = A;
 							ctx->async_index = B;
 							ctx->timeout_left = ctx->timeout;
 							ctx->async = true;
@@ -11926,8 +11738,6 @@ static sink_run context_run(context ctx){
 						}
 					}
 				}
-				if (!found)
-					RETURN_FAIL("Invalid native call");
 			} break;
 
 			case OP_RETURN         : { // [SRC]
@@ -11940,15 +11750,15 @@ static sink_run context_run(context ctx){
 				ctx->lex_stk->ptrs[ctx->lex_index] = lx->next;
 				lxs_free(lx);
 				ctx->lex_index = s->lex_index;
-				var_set(ctx, s->fdiff, s->index, X);
+				var_set(ctx, s->frame, s->index, X);
 				ctx->pc = s->pc;
 				ccs_free(s);
 			} break;
 
-			case OP_RETURNTAILCNT  : { // [[LOCATION]], ARGCOUNT, [ARGS]...
+			case OP_RETURNTAIL     : { // [[LOCATION]], ARGCOUNT, [ARGS]...
 				LOAD_abcde();
 				A = A + (B << 8) + (C << 16) + ((D << 23) * 2);
-				if (ctx->prg->repl && A == -1){
+				if (A == -1){
 					ctx->pc -= 6;
 					return SINK_RUN_REPLMORE;
 				}
@@ -11956,40 +11766,17 @@ static sink_run context_run(context ctx){
 					G = ops->bytes[ctx->pc++]; H = ops->bytes[ctx->pc++];
 					p[I] = var_get(ctx, G, H);
 				}
-				goto perform_returntail;
-			} break;
-
-			case OP_RETURNTAILVAR  : { // [[LOCATION]], [ARGLIST]
-				LOAD_abcdef();
-				A = A + (B << 8) + (C << 16) + ((D << 23) * 2);
-				if (ctx->prg->repl && A == -1){
-					ctx->pc -= 7;
-					return SINK_RUN_REPLMORE;
-				}
-				X = var_get(ctx, E, F);
-				if (!sink_islist(X))
-					RETURN_FAIL("Expecting list when calling function");
-				ls = var_castlist(ctx, X);
-				E = ls->size;
-				if (E > 0)
-					memcpy(p, ls->vals, sizeof(sink_val) * E);
-
-				perform_returntail:
-				// section of code expects the following values:
-				// A = jump location
-				// E = argument count
-				// p = argument array
-				ctx->pc = A;
-				A = ops->bytes[ctx->pc++];
-				if (A != 0xFF){
-					if (E <= A){
-						while (E < A)
+				ctx->pc = A - 1;
+				LOAD_abc();
+				if (C != 0xFF){
+					if (E <= C){
+						while (E < C)
 							p[E++] = SINK_NIL;
 						p[E] = sink_list_newblob(ctx, 0, NULL);
 					}
 					else
-						p[A] = sink_list_newblob(ctx, E - A, &p[A]);
-					E = A + 1;
+						p[C] = sink_list_newblob(ctx, E - C, &p[C]);
+					E = C + 1;
 				}
 				lxs lx = ctx->lex_stk->ptrs[ctx->lex_index];
 				ctx->lex_stk->ptrs[ctx->lex_index] = lx->next;
@@ -12031,7 +11818,7 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, sink_num(opi_order(ctx, X, Y)));
 			} break;
 
-			case OP_SAYCNT         : { // [TGT], ARGCOUNT, [ARGS]...
+			case OP_SAY            : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
 				for (D = 0; D < C; D++){
 					E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
@@ -12043,19 +11830,7 @@ static sink_run context_run(context ctx){
 					return SINK_RUN_FAIL;
 			} break;
 
-			case OP_SAYVAR         : { // [TGT], [ARGLIST]
-				LOAD_abcd();
-				X = var_get(ctx, C, D);
-				if (!sink_islist(X))
-					RETURN_FAIL("Expecting list when calling say");
-				ls = var_castlist(ctx, X);
-				opi_say(ctx, ls->size, ls->vals);
-				var_set(ctx, A, B, SINK_NIL);
-				if (ctx->failed)
-					return SINK_RUN_FAIL;
-			} break;
-
-			case OP_WARNCNT        : { // [TGT], ARGCOUNT, [ARGS]...
+			case OP_WARN           : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
 				for (D = 0; D < C; D++){
 					E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
@@ -12067,19 +11842,7 @@ static sink_run context_run(context ctx){
 					return SINK_RUN_FAIL;
 			} break;
 
-			case OP_WARNVAR        : { // [TGT], [ARGLIST]
-				LOAD_abcd();
-				X = var_get(ctx, C, D);
-				if (!sink_islist(X))
-					RETURN_FAIL("Expecting list when calling warn");
-				ls = var_castlist(ctx, X);
-				opi_warn(ctx, ls->size, ls->vals);
-				var_set(ctx, A, B, SINK_NIL);
-				if (ctx->failed)
-					return SINK_RUN_FAIL;
-			} break;
-
-			case OP_ASKCNT         : { // [TGT], ARGCOUNT, [ARGS]...
+			case OP_ASK            : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
 				for (D = 0; D < C; D++){
 					E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
@@ -12090,18 +11853,7 @@ static sink_run context_run(context ctx){
 					return SINK_RUN_FAIL;
 			} break;
 
-			case OP_ASKVAR         : { // [TGT], [ARGLIST]
-				LOAD_abcd();
-				X = var_get(ctx, C, D);
-				if (!sink_islist(X))
-					RETURN_FAIL("Expecting list when calling ask");
-				ls = var_castlist(ctx, X);
-				var_set(ctx, A, B, opi_ask(ctx, ls->size, ls->vals));
-				if (ctx->failed)
-					return SINK_RUN_FAIL;
-			} break;
-
-			case OP_EXITCNT        : { // [TGT], ARGCOUNT, [ARGS]...
+			case OP_EXIT           : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
 				for (D = 0; D < C; D++){
 					E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
@@ -12115,21 +11867,7 @@ static sink_run context_run(context ctx){
 				return opi_exit(ctx);
 			} break;
 
-			case OP_EXITVAR        : { // [TGT], [ARGLIST]
-				LOAD_abcd();
-				X = var_get(ctx, C, D);
-				if (!sink_islist(X))
-					RETURN_FAIL("Expecting list when calling exit");
-				ls = var_castlist(ctx, X);
-				if (ls->size > 0){
-					opi_say(ctx, ls->size, ls->vals);
-					if (ctx->failed)
-						return SINK_RUN_FAIL;
-				}
-				return opi_exit(ctx);
-			} break;
-
-			case OP_ABORTCNT       : { // [TGT], ARGCOUNT, [ARGS]...
+			case OP_ABORT          : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
 				for (D = 0; D < C; D++){
 					E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
@@ -12138,20 +11876,6 @@ static sink_run context_run(context ctx){
 				char *err = NULL;
 				if (C > 0)
 					err = (char *)opi_list_joinplain(ctx, C, p, 1, (const uint8_t *)" ", &A);
-				return opi_abort(ctx, err);
-			} break;
-
-			case OP_ABORTVAR       : { // [TGT], [ARGLIST]
-				LOAD_abcd();
-				X = var_get(ctx, C, D);
-				if (!sink_islist(X))
-					RETURN_FAIL("Expecting list when calling exit");
-				ls = var_castlist(ctx, X);
-				char *err = NULL;
-				if (ls->size > 0){
-					err = (char *)opi_list_joinplain(ctx, ls->size, ls->vals, 1,
-						(const uint8_t *)" ", &A);
-				}
 				return opi_abort(ctx, err);
 			} break;
 
@@ -12191,7 +11915,7 @@ static sink_run context_run(context ctx){
 				INLINE_UNOP(unop_num_sign, "taking sign")
 			} break;
 
-			case OP_NUM_MAXCNT     : { // [TGT], ARGCOUNT, [ARGS]...
+			case OP_NUM_MAX        : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
 				for (D = 0; D < C; D++){
 					E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
@@ -12200,31 +11924,13 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, opi_num_max(ctx, C, p));
 			} break;
 
-			case OP_NUM_MAXVAR     : { // [TGT], [ARGLIST]
-				LOAD_abcd();
-				X = var_get(ctx, C, D);
-				if (!sink_islist(X))
-					RETURN_FAIL("Expecting list when calling num.max");
-				ls = var_castlist(ctx, X);
-				var_set(ctx, A, B, opi_num_max(ctx, ls->size, ls->vals));
-			} break;
-
-			case OP_NUM_MINCNT     : { // [TGT], ARGCOUNT, [ARGS]...
+			case OP_NUM_MIN        : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
 				for (D = 0; D < C; D++){
 					E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
 					p[D] = var_get(ctx, E, F);
 				}
 				var_set(ctx, A, B, opi_num_min(ctx, C, p));
-			} break;
-
-			case OP_NUM_MINVAR     : { // [TGT], [ARGLIST]
-				LOAD_abcd();
-				X = var_get(ctx, C, D);
-				if (!sink_islist(X))
-					RETURN_FAIL("Expecting list when calling num.min");
-				ls = var_castlist(ctx, X);
-				var_set(ctx, A, B, opi_num_min(ctx, ls->size, ls->vals));
 			} break;
 
 			case OP_NUM_CLAMP      : { // [TGT], [SRC1], [SRC2], [SRC3]
@@ -12460,22 +12166,13 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, X);
 			} break;
 
-			case OP_STR_NEWCNT     : { // [TGT], ARGCOUNT, [ARGS]...
+			case OP_STR_NEW        : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
 				for (D = 0; D < C; D++){
 					E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
 					p[D] = var_get(ctx, E, F);
 				}
 				var_set(ctx, A, B, opi_str_new(ctx, C, p));
-			} break;
-
-			case OP_STR_NEWVAR     : { // [TGT], [ARGLIST]
-				LOAD_abcd();
-				X = var_get(ctx, C, D);
-				if (!sink_islist(X))
-					RETURN_FAIL("Expecting list when calling str.new");
-				ls = var_castlist(ctx, X);
-				var_set(ctx, A, B, opi_str_new(ctx, ls->size, ls->vals));
 			} break;
 
 			case OP_STR_SPLIT      : { // [TGT], [SRC1], [SRC2]
@@ -12922,6 +12619,7 @@ static sink_run context_run(context ctx){
 	#undef LOAD_abcd
 	#undef LOAD_abcde
 	#undef LOAD_abcdef
+	#undef LOAD_abcdefg
 	#undef LOAD_abcdefgh
 	#undef LOAD_abcdefghi
 	#undef LOAD_abcdefghij
@@ -13692,7 +13390,7 @@ void sink_ctx_asyncresult(sink_ctx ctx, sink_val v){
 		assert(false);
 		return;
 	}
-	var_set(ctx2, ctx2->async_fdiff, ctx2->async_index, v);
+	var_set(ctx2, ctx2->async_frame, ctx2->async_index, v);
 	ctx2->async = false;
 }
 
