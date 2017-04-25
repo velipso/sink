@@ -60,10 +60,6 @@ for var v, i: 5 * range 5
   say v, i
 end
 
-for var v, i: range @ {10}
-  say v, i
-end
-
 for var v, i: (range 5) + (range 6)
   say v, i
 end
