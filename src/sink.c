@@ -368,24 +368,6 @@ static inline void list_byte_push9(list_byte b, uint8_t v1, uint8_t v2, uint8_t 
 	b->bytes[b->size++] = v9;
 }
 
-static inline void list_byte_push10(list_byte b, uint8_t v1, uint8_t v2, uint8_t v3, uint8_t v4,
-	uint8_t v5, uint8_t v6, uint8_t v7, uint8_t v8, uint8_t v9, uint8_t v10){
-	if (b->size + 10 > b->count){
-		b->count += list_byte_grow;
-		b->bytes = mem_realloc(b->bytes, sizeof(uint8_t) * b->count);
-	}
-	b->bytes[b->size++] = v1;
-	b->bytes[b->size++] = v2;
-	b->bytes[b->size++] = v3;
-	b->bytes[b->size++] = v4;
-	b->bytes[b->size++] = v5;
-	b->bytes[b->size++] = v6;
-	b->bytes[b->size++] = v7;
-	b->bytes[b->size++] = v8;
-	b->bytes[b->size++] = v9;
-	b->bytes[b->size++] = v10;
-}
-
 static inline void list_byte_push11(list_byte b, uint8_t v1, uint8_t v2, uint8_t v3, uint8_t v4,
 	uint8_t v5, uint8_t v6, uint8_t v7, uint8_t v8, uint8_t v9, uint8_t v10, uint8_t v11){
 	if (b->size + 11 > b->count){
@@ -4756,17 +4738,6 @@ static inline frame frame_new(frame parent){
 	return fr;
 }
 
-static inline int frame_diff(frame parent, frame child){
-	int frame = 0;
-	while (child != parent && child != NULL){
-		child = child->parent;
-		frame++;
-	}
-	if (child == NULL)
-		return -1;
-	return frame;
-}
-
 typedef struct namespace_struct namespace_st, *namespace;
 static inline void namespace_free(namespace ns);
 
@@ -7671,7 +7642,7 @@ static inline pgr_st program_gen(program prg, symtbl sym, ast stmt, void *state,
 
 			// can only tail call local commands at the same lexical level
 			if (nsn != NULL && nsn->type == NSN_CMD_LOCAL &&
-				frame_diff(nsn->u.cmdLocal.fr, sym->fr) == 1){
+				nsn->u.cmdLocal.fr->level == sym->fr->level + 1){
 				int argcount;
 				per_st pe;
 				varloc_st p[255];
