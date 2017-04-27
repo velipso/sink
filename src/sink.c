@@ -642,144 +642,143 @@ typedef enum {
 	OP_NUMDBL          = 0x0A, // [TGT], [[[[VALUE]]]]
 	OP_STR             = 0x0B, // [TGT], [INDEX]
 	OP_LIST            = 0x0C, // [TGT], HINT
-	OP_FORCELIST       = 0x0D, // [SRC]
-	OP_ISNUM           = 0x0E, // [TGT], [SRC]
-	OP_ISSTR           = 0x0F, // [TGT], [SRC]
-	OP_ISLIST          = 0x10, // [TGT], [SRC]
-	OP_NOT             = 0x11, // [TGT], [SRC]
-	OP_SIZE            = 0x12, // [TGT], [SRC]
-	OP_TONUM           = 0x13, // [TGT], [SRC]
-	OP_CAT             = 0x14, // [TGT], [SRC1], [SRC2]
-	OP_LT              = 0x15, // [TGT], [SRC1], [SRC2]
-	OP_LTE             = 0x16, // [TGT], [SRC1], [SRC2]
-	OP_NEQ             = 0x17, // [TGT], [SRC1], [SRC2]
-	OP_EQU             = 0x18, // [TGT], [SRC1], [SRC2]
-	OP_GETAT           = 0x19, // [TGT], [SRC1], [SRC2]
-	OP_SLICE           = 0x1A, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_SETAT           = 0x1B, // [SRC1], [SRC2], [SRC3]
-	OP_SPLICE          = 0x1C, // [SRC1], [SRC2], [SRC3], [SRC4]
-	OP_JUMP            = 0x1D, // [[LOCATION]]
-	OP_JUMPTRUE        = 0x1E, // [SRC], [[LOCATION]]
-	OP_JUMPFALSE       = 0x1F, // [SRC], [[LOCATION]]
-	OP_CMDHEAD         = 0x20, // LEVEL, RESTPOS
-	OP_CMDTAIL         = 0x21, //
-	OP_CALL            = 0x22, // [TGT], [[LOCATION]], ARGCOUNT, [ARGS]...
-	OP_NATIVE          = 0x23, // [TGT], [INDEX], ARGCOUNT, [ARGS]...
-	OP_RETURN          = 0x24, // [SRC]
-	OP_RETURNTAIL      = 0x25, // [[LOCATION]], ARGCOUNT, [ARGS]...
-	OP_RANGE           = 0x26, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_ORDER           = 0x27, // [TGT], [SRC1], [SRC2]
-	OP_SAY             = 0x28, // [TGT], ARGCOUNT, [ARGS]...
-	OP_WARN            = 0x29, // [TGT], ARGCOUNT, [ARGS]...
-	OP_ASK             = 0x2A, // [TGT], ARGCOUNT, [ARGS]...
-	OP_EXIT            = 0x2B, // [TGT], ARGCOUNT, [ARGS]...
-	OP_ABORT           = 0x2C, // [TGT], ARGCOUNT, [ARGS]...
-	OP_NUM_NEG         = 0x2D, // [TGT], [SRC]
-	OP_NUM_ADD         = 0x2E, // [TGT], [SRC1], [SRC2]
-	OP_NUM_SUB         = 0x2F, // [TGT], [SRC1], [SRC2]
-	OP_NUM_MUL         = 0x30, // [TGT], [SRC1], [SRC2]
-	OP_NUM_DIV         = 0x31, // [TGT], [SRC1], [SRC2]
-	OP_NUM_MOD         = 0x32, // [TGT], [SRC1], [SRC2]
-	OP_NUM_POW         = 0x33, // [TGT], [SRC1], [SRC2]
-	OP_NUM_ABS         = 0x34, // [TGT], [SRC]
-	OP_NUM_SIGN        = 0x35, // [TGT], [SRC]
-	OP_NUM_MAX         = 0x36, // [TGT], ARGCOUNT, [ARGS]...
-	OP_NUM_MIN         = 0x37, // [TGT], ARGCOUNT, [ARGS]...
-	OP_NUM_CLAMP       = 0x38, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_NUM_FLOOR       = 0x39, // [TGT], [SRC]
-	OP_NUM_CEIL        = 0x3A, // [TGT], [SRC]
-	OP_NUM_ROUND       = 0x3B, // [TGT], [SRC]
-	OP_NUM_TRUNC       = 0x3C, // [TGT], [SRC]
-	OP_NUM_NAN         = 0x3D, // [TGT]
-	OP_NUM_INF         = 0x3E, // [TGT]
-	OP_NUM_ISNAN       = 0x3F, // [TGT], [SRC]
-	OP_NUM_ISFINITE    = 0x40, // [TGT], [SRC]
-	OP_NUM_E           = 0x41, // [TGT]
-	OP_NUM_PI          = 0x42, // [TGT]
-	OP_NUM_TAU         = 0x43, // [TGT]
-	OP_NUM_SIN         = 0x44, // [TGT], [SRC]
-	OP_NUM_COS         = 0x45, // [TGT], [SRC]
-	OP_NUM_TAN         = 0x46, // [TGT], [SRC]
-	OP_NUM_ASIN        = 0x47, // [TGT], [SRC]
-	OP_NUM_ACOS        = 0x48, // [TGT], [SRC]
-	OP_NUM_ATAN        = 0x49, // [TGT], [SRC]
-	OP_NUM_ATAN2       = 0x4A, // [TGT], [SRC1], [SRC2]
-	OP_NUM_LOG         = 0x4B, // [TGT], [SRC]
-	OP_NUM_LOG2        = 0x4C, // [TGT], [SRC]
-	OP_NUM_LOG10       = 0x4D, // [TGT], [SRC]
-	OP_NUM_EXP         = 0x4E, // [TGT], [SRC]
-	OP_NUM_LERP        = 0x4F, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_NUM_HEX         = 0x50, // [TGT], [SRC1], [SRC2]
-	OP_NUM_OCT         = 0x51, // [TGT], [SRC1], [SRC2]
-	OP_NUM_BIN         = 0x52, // [TGT], [SRC1], [SRC2]
-	OP_INT_NEW         = 0x53, // [TGT], [SRC]
-	OP_INT_NOT         = 0x54, // [TGT], [SRC]
-	OP_INT_AND         = 0x55, // [TGT], [SRC1], [SRC2]
-	OP_INT_OR          = 0x56, // [TGT], [SRC1], [SRC2]
-	OP_INT_XOR         = 0x57, // [TGT], [SRC1], [SRC2]
-	OP_INT_SHL         = 0x58, // [TGT], [SRC1], [SRC2]
-	OP_INT_SHR         = 0x59, // [TGT], [SRC1], [SRC2]
-	OP_INT_SAR         = 0x5A, // [TGT], [SRC1], [SRC2]
-	OP_INT_ADD         = 0x5B, // [TGT], [SRC1], [SRC2]
-	OP_INT_SUB         = 0x5C, // [TGT], [SRC1], [SRC2]
-	OP_INT_MUL         = 0x5D, // [TGT], [SRC1], [SRC2]
-	OP_INT_DIV         = 0x5E, // [TGT], [SRC1], [SRC2]
-	OP_INT_MOD         = 0x5F, // [TGT], [SRC1], [SRC2]
-	OP_INT_CLZ         = 0x60, // [TGT], [SRC]
-	OP_RAND_SEED       = 0x61, // [TGT], [SRC]
-	OP_RAND_SEEDAUTO   = 0x62, // [TGT]
-	OP_RAND_INT        = 0x63, // [TGT]
-	OP_RAND_NUM        = 0x64, // [TGT]
-	OP_RAND_GETSTATE   = 0x65, // [TGT]
-	OP_RAND_SETSTATE   = 0x66, // [TGT], [SRC]
-	OP_RAND_PICK       = 0x67, // [TGT], [SRC]
-	OP_RAND_SHUFFLE    = 0x68, // [TGT], [SRC]
-	OP_STR_NEW         = 0x69, // [TGT], ARGCOUNT, [ARGS]...
-	OP_STR_SPLIT       = 0x6A, // [TGT], [SRC1], [SRC2]
-	OP_STR_REPLACE     = 0x6B, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_STR_BEGINS      = 0x6C, // [TGT], [SRC1], [SRC2]
-	OP_STR_ENDS        = 0x6D, // [TGT], [SRC1], [SRC2]
-	OP_STR_PAD         = 0x6E, // [TGT], [SRC1], [SRC2]
-	OP_STR_FIND        = 0x6F, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_STR_RFIND       = 0x70, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_STR_LOWER       = 0x71, // [TGT], [SRC]
-	OP_STR_UPPER       = 0x72, // [TGT], [SRC]
-	OP_STR_TRIM        = 0x73, // [TGT], [SRC]
-	OP_STR_REV         = 0x74, // [TGT], [SRC]
-	OP_STR_REP         = 0x75, // [TGT], [SRC]
-	OP_STR_LIST        = 0x76, // [TGT], [SRC]
-	OP_STR_BYTE        = 0x77, // [TGT], [SRC1], [SRC2]
-	OP_STR_HASH        = 0x78, // [TGT], [SRC1], [SRC2]
-	OP_UTF8_VALID      = 0x79, // [TGT], [SRC]
-	OP_UTF8_LIST       = 0x7A, // [TGT], [SRC]
-	OP_UTF8_STR        = 0x7B, // [TGT], [SRC]
-	OP_STRUCT_SIZE     = 0x7C, // [TGT], [SRC]
-	OP_STRUCT_STR      = 0x7D, // [TGT], [SRC1], [SRC2]
-	OP_STRUCT_LIST     = 0x7E, // [TGT], [SRC1], [SRC2]
-	OP_LIST_NEW        = 0x7F, // [TGT], [SRC1], [SRC2]
-	OP_LIST_SHIFT      = 0x80, // [TGT], [SRC]
-	OP_LIST_POP        = 0x81, // [TGT], [SRC]
-	OP_LIST_PUSH       = 0x82, // [TGT], [SRC1], [SRC2]
-	OP_LIST_UNSHIFT    = 0x83, // [TGT], [SRC1], [SRC2]
-	OP_LIST_APPEND     = 0x84, // [TGT], [SRC1], [SRC2]
-	OP_LIST_PREPEND    = 0x85, // [TGT], [SRC1], [SRC2]
-	OP_LIST_FIND       = 0x86, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_LIST_RFIND      = 0x87, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_LIST_JOIN       = 0x88, // [TGT], [SRC1], [SRC2]
-	OP_LIST_REV        = 0x89, // [TGT], [SRC]
-	OP_LIST_STR        = 0x8A, // [TGT], [SRC]
-	OP_LIST_SORT       = 0x8B, // [TGT], [SRC]
-	OP_LIST_RSORT      = 0x8C, // [TGT], [SRC]
-	OP_PICKLE_JSON     = 0x8D, // [TGT], [SRC]
-	OP_PICKLE_BIN      = 0x8E, // [TGT], [SRC]
-	OP_PICKLE_VAL      = 0x8F, // [TGT], [SRC]
-	OP_PICKLE_VALID    = 0x90, // [TGT], [SRC]
-	OP_PICKLE_SIBLING  = 0x91, // [TGT], [SRC]
-	OP_PICKLE_CIRCULAR = 0x92, // [TGT], [SRC]
-	OP_PICKLE_COPY     = 0x93, // [TGT], [SRC]
-	OP_GC_GETLEVEL     = 0x94, // [TGT]
-	OP_GC_SETLEVEL     = 0x95, // [TGT], [SRC]
-	OP_GC_RUN          = 0x96, // [TGT]
+	OP_ISNUM           = 0x0D, // [TGT], [SRC]
+	OP_ISSTR           = 0x0E, // [TGT], [SRC]
+	OP_ISLIST          = 0x0F, // [TGT], [SRC]
+	OP_NOT             = 0x10, // [TGT], [SRC]
+	OP_SIZE            = 0x11, // [TGT], [SRC]
+	OP_TONUM           = 0x12, // [TGT], [SRC]
+	OP_CAT             = 0x13, // [TGT], [SRC1], [SRC2]
+	OP_LT              = 0x14, // [TGT], [SRC1], [SRC2]
+	OP_LTE             = 0x15, // [TGT], [SRC1], [SRC2]
+	OP_NEQ             = 0x16, // [TGT], [SRC1], [SRC2]
+	OP_EQU             = 0x17, // [TGT], [SRC1], [SRC2]
+	OP_GETAT           = 0x18, // [TGT], [SRC1], [SRC2]
+	OP_SLICE           = 0x19, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_SETAT           = 0x1A, // [SRC1], [SRC2], [SRC3]
+	OP_SPLICE          = 0x1B, // [SRC1], [SRC2], [SRC3], [SRC4]
+	OP_JUMP            = 0x1C, // [[LOCATION]]
+	OP_JUMPTRUE        = 0x1D, // [SRC], [[LOCATION]]
+	OP_JUMPFALSE       = 0x1E, // [SRC], [[LOCATION]]
+	OP_CMDHEAD         = 0x1F, // LEVEL, RESTPOS
+	OP_CMDTAIL         = 0x20, //
+	OP_CALL            = 0x21, // [TGT], [[LOCATION]], ARGCOUNT, [ARGS]...
+	OP_NATIVE          = 0x22, // [TGT], [INDEX], ARGCOUNT, [ARGS]...
+	OP_RETURN          = 0x23, // [SRC]
+	OP_RETURNTAIL      = 0x24, // [[LOCATION]], ARGCOUNT, [ARGS]...
+	OP_RANGE           = 0x25, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_ORDER           = 0x26, // [TGT], [SRC1], [SRC2]
+	OP_SAY             = 0x27, // [TGT], ARGCOUNT, [ARGS]...
+	OP_WARN            = 0x28, // [TGT], ARGCOUNT, [ARGS]...
+	OP_ASK             = 0x29, // [TGT], ARGCOUNT, [ARGS]...
+	OP_EXIT            = 0x2A, // [TGT], ARGCOUNT, [ARGS]...
+	OP_ABORT           = 0x2B, // [TGT], ARGCOUNT, [ARGS]...
+	OP_NUM_NEG         = 0x2C, // [TGT], [SRC]
+	OP_NUM_ADD         = 0x2D, // [TGT], [SRC1], [SRC2]
+	OP_NUM_SUB         = 0x2E, // [TGT], [SRC1], [SRC2]
+	OP_NUM_MUL         = 0x2F, // [TGT], [SRC1], [SRC2]
+	OP_NUM_DIV         = 0x30, // [TGT], [SRC1], [SRC2]
+	OP_NUM_MOD         = 0x31, // [TGT], [SRC1], [SRC2]
+	OP_NUM_POW         = 0x32, // [TGT], [SRC1], [SRC2]
+	OP_NUM_ABS         = 0x33, // [TGT], [SRC]
+	OP_NUM_SIGN        = 0x34, // [TGT], [SRC]
+	OP_NUM_MAX         = 0x35, // [TGT], ARGCOUNT, [ARGS]...
+	OP_NUM_MIN         = 0x36, // [TGT], ARGCOUNT, [ARGS]...
+	OP_NUM_CLAMP       = 0x37, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_NUM_FLOOR       = 0x38, // [TGT], [SRC]
+	OP_NUM_CEIL        = 0x39, // [TGT], [SRC]
+	OP_NUM_ROUND       = 0x3A, // [TGT], [SRC]
+	OP_NUM_TRUNC       = 0x3B, // [TGT], [SRC]
+	OP_NUM_NAN         = 0x3C, // [TGT]
+	OP_NUM_INF         = 0x3D, // [TGT]
+	OP_NUM_ISNAN       = 0x3E, // [TGT], [SRC]
+	OP_NUM_ISFINITE    = 0x3F, // [TGT], [SRC]
+	OP_NUM_E           = 0x40, // [TGT]
+	OP_NUM_PI          = 0x41, // [TGT]
+	OP_NUM_TAU         = 0x42, // [TGT]
+	OP_NUM_SIN         = 0x43, // [TGT], [SRC]
+	OP_NUM_COS         = 0x44, // [TGT], [SRC]
+	OP_NUM_TAN         = 0x45, // [TGT], [SRC]
+	OP_NUM_ASIN        = 0x46, // [TGT], [SRC]
+	OP_NUM_ACOS        = 0x47, // [TGT], [SRC]
+	OP_NUM_ATAN        = 0x48, // [TGT], [SRC]
+	OP_NUM_ATAN2       = 0x49, // [TGT], [SRC1], [SRC2]
+	OP_NUM_LOG         = 0x4A, // [TGT], [SRC]
+	OP_NUM_LOG2        = 0x4B, // [TGT], [SRC]
+	OP_NUM_LOG10       = 0x4C, // [TGT], [SRC]
+	OP_NUM_EXP         = 0x4D, // [TGT], [SRC]
+	OP_NUM_LERP        = 0x4E, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_NUM_HEX         = 0x4F, // [TGT], [SRC1], [SRC2]
+	OP_NUM_OCT         = 0x50, // [TGT], [SRC1], [SRC2]
+	OP_NUM_BIN         = 0x51, // [TGT], [SRC1], [SRC2]
+	OP_INT_NEW         = 0x52, // [TGT], [SRC]
+	OP_INT_NOT         = 0x53, // [TGT], [SRC]
+	OP_INT_AND         = 0x54, // [TGT], [SRC1], [SRC2]
+	OP_INT_OR          = 0x55, // [TGT], [SRC1], [SRC2]
+	OP_INT_XOR         = 0x56, // [TGT], [SRC1], [SRC2]
+	OP_INT_SHL         = 0x57, // [TGT], [SRC1], [SRC2]
+	OP_INT_SHR         = 0x58, // [TGT], [SRC1], [SRC2]
+	OP_INT_SAR         = 0x59, // [TGT], [SRC1], [SRC2]
+	OP_INT_ADD         = 0x5A, // [TGT], [SRC1], [SRC2]
+	OP_INT_SUB         = 0x5B, // [TGT], [SRC1], [SRC2]
+	OP_INT_MUL         = 0x5C, // [TGT], [SRC1], [SRC2]
+	OP_INT_DIV         = 0x5D, // [TGT], [SRC1], [SRC2]
+	OP_INT_MOD         = 0x5E, // [TGT], [SRC1], [SRC2]
+	OP_INT_CLZ         = 0x5F, // [TGT], [SRC]
+	OP_RAND_SEED       = 0x60, // [TGT], [SRC]
+	OP_RAND_SEEDAUTO   = 0x61, // [TGT]
+	OP_RAND_INT        = 0x62, // [TGT]
+	OP_RAND_NUM        = 0x63, // [TGT]
+	OP_RAND_GETSTATE   = 0x64, // [TGT]
+	OP_RAND_SETSTATE   = 0x65, // [TGT], [SRC]
+	OP_RAND_PICK       = 0x66, // [TGT], [SRC]
+	OP_RAND_SHUFFLE    = 0x67, // [TGT], [SRC]
+	OP_STR_NEW         = 0x68, // [TGT], ARGCOUNT, [ARGS]...
+	OP_STR_SPLIT       = 0x69, // [TGT], [SRC1], [SRC2]
+	OP_STR_REPLACE     = 0x6A, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_STR_BEGINS      = 0x6B, // [TGT], [SRC1], [SRC2]
+	OP_STR_ENDS        = 0x6C, // [TGT], [SRC1], [SRC2]
+	OP_STR_PAD         = 0x6D, // [TGT], [SRC1], [SRC2]
+	OP_STR_FIND        = 0x6E, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_STR_RFIND       = 0x6F, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_STR_LOWER       = 0x70, // [TGT], [SRC]
+	OP_STR_UPPER       = 0x71, // [TGT], [SRC]
+	OP_STR_TRIM        = 0x72, // [TGT], [SRC]
+	OP_STR_REV         = 0x73, // [TGT], [SRC]
+	OP_STR_REP         = 0x74, // [TGT], [SRC]
+	OP_STR_LIST        = 0x75, // [TGT], [SRC]
+	OP_STR_BYTE        = 0x76, // [TGT], [SRC1], [SRC2]
+	OP_STR_HASH        = 0x77, // [TGT], [SRC1], [SRC2]
+	OP_UTF8_VALID      = 0x78, // [TGT], [SRC]
+	OP_UTF8_LIST       = 0x79, // [TGT], [SRC]
+	OP_UTF8_STR        = 0x7A, // [TGT], [SRC]
+	OP_STRUCT_SIZE     = 0x7B, // [TGT], [SRC]
+	OP_STRUCT_STR      = 0x7C, // [TGT], [SRC1], [SRC2]
+	OP_STRUCT_LIST     = 0x7D, // [TGT], [SRC1], [SRC2]
+	OP_LIST_NEW        = 0x7E, // [TGT], [SRC1], [SRC2]
+	OP_LIST_SHIFT      = 0x7F, // [TGT], [SRC]
+	OP_LIST_POP        = 0x80, // [TGT], [SRC]
+	OP_LIST_PUSH       = 0x81, // [TGT], [SRC1], [SRC2]
+	OP_LIST_UNSHIFT    = 0x82, // [TGT], [SRC1], [SRC2]
+	OP_LIST_APPEND     = 0x83, // [TGT], [SRC1], [SRC2]
+	OP_LIST_PREPEND    = 0x84, // [TGT], [SRC1], [SRC2]
+	OP_LIST_FIND       = 0x85, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_LIST_RFIND      = 0x86, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_LIST_JOIN       = 0x87, // [TGT], [SRC1], [SRC2]
+	OP_LIST_REV        = 0x88, // [TGT], [SRC]
+	OP_LIST_STR        = 0x89, // [TGT], [SRC]
+	OP_LIST_SORT       = 0x8A, // [TGT], [SRC]
+	OP_LIST_RSORT      = 0x8B, // [TGT], [SRC]
+	OP_PICKLE_JSON     = 0x8C, // [TGT], [SRC]
+	OP_PICKLE_BIN      = 0x8D, // [TGT], [SRC]
+	OP_PICKLE_VAL      = 0x8E, // [TGT], [SRC]
+	OP_PICKLE_VALID    = 0x8F, // [TGT], [SRC]
+	OP_PICKLE_SIBLING  = 0x90, // [TGT], [SRC]
+	OP_PICKLE_CIRCULAR = 0x91, // [TGT], [SRC]
+	OP_PICKLE_COPY     = 0x92, // [TGT], [SRC]
+	OP_GC_GETLEVEL     = 0x93, // [TGT]
+	OP_GC_SETLEVEL     = 0x94, // [TGT], [SRC]
+	OP_GC_RUN          = 0x95, // [TGT]
 	// fake ops
 	OP_GT              = 0x1F0,
 	OP_GTE             = 0x1F1,
@@ -857,11 +856,6 @@ static inline void op_list(list_byte b, varloc_st tgt, int hint){
 		hint = 255;
 	oplogf("LIST %d:%d, %d", tgt.frame, tgt.index, hint);
 	list_byte_push4(b, OP_LIST, tgt.frame, tgt.index, hint);
-}
-
-static inline void op_forcelist(list_byte b, varloc_st src){
-	oplogf("FORCELIST %d:%d", src.frame, src.index);
-	list_byte_push3(b, OP_FORCELIST, src.frame, src.index);
 }
 
 static inline void op_unop(list_byte b, op_enum opcode, varloc_st tgt, varloc_st src){
@@ -6233,7 +6227,7 @@ static per_st program_evalCall(program prg, symtbl sym, pem_enum mode, varloc_st
 		intoVlc = ts.u.vlc;
 	}
 
-	varloc_st p[255];
+	varloc_st p[256];
 	int argcount;
 	per_st pe;
 	if (!program_evalCallArgcount(prg, sym, params, &argcount, &pe, p))
@@ -7644,7 +7638,7 @@ static inline pgr_st program_gen(program prg, symtbl sym, ast stmt, void *state,
 				nsn->u.cmdLocal.fr->level == sym->fr->level + 1){
 				int argcount;
 				per_st pe;
-				varloc_st p[255];
+				varloc_st p[256];
 				if (!program_evalCallArgcount(prg, sym, params, &argcount, &pe, p))
 					return pgr_error(pe.u.error.flp, pe.u.error.msg);
 				label_returntail(nsn->u.cmdLocal.lbl, prg->ops, argcount);
@@ -7854,8 +7848,8 @@ static void lxs_freeAll(lxs ls){
 }
 
 static inline lxs lxs_new(int argcount, sink_val *args, lxs next){
-	if (argcount > 255)
-		argcount = 255;
+	if (argcount > 256)
+		argcount = 256;
 	lxs ls = mem_alloc(sizeof(lxs_st));
 	if (argcount > 0)
 		memcpy(ls->vals, args, sizeof(sink_val) * argcount);
@@ -7891,6 +7885,7 @@ typedef struct {
 	list_ptr f_finalize;
 	list_ptr user_hint;
 	list_ptr ccs_avail;
+	list_ptr lxs_avail;
 
 	sink_io_st io;
 
@@ -7928,6 +7923,23 @@ typedef struct {
 	bool failed;
 	bool async;
 } context_st, *context;
+
+static inline lxs lxs_get(context ctx, int argcount, sink_val *args, lxs next){
+	if (ctx->lxs_avail->size > 0){
+		lxs ls = ctx->lxs_avail->ptrs[--ctx->lxs_avail->size];
+		if (argcount > 0)
+			memcpy(ls->vals, args, sizeof(sink_val) * argcount);
+		for (int i = argcount; i < 256; i++)
+			ls->vals[i] = SINK_NIL;
+		ls->next = next;
+		return ls;
+	}
+	return lxs_new(argcount, args, next);
+}
+
+static inline void lxs_release(context ctx, lxs ls){
+	list_ptr_push(ctx->lxs_avail, ls);
+}
 
 static inline ccs ccs_get(context ctx, int pc, int frame, int index, int lex_index){
 	if (ctx->ccs_avail->size > 0){
@@ -8099,6 +8111,7 @@ static inline void context_free(context ctx){
 	context_clearref(ctx);
 	context_sweep(ctx);
 	list_ptr_free(ctx->ccs_avail);
+	list_ptr_free(ctx->lxs_avail);
 	list_ptr_free(ctx->call_stk);
 	list_ptr_free(ctx->lex_stk);
 	list_ptr_free(ctx->f_finalize);
@@ -8125,8 +8138,9 @@ static inline context context_new(program prg, sink_io_st io){
 	ctx->natives = list_ptr_new(mem_free_func);
 	ctx->call_stk = list_ptr_new((free_func)ccs_free);
 	ctx->lex_stk = list_ptr_new((free_func)lxs_freeAll);
-	ctx->ccs_avail = list_ptr_new((free_func)ccs_free);
 	list_ptr_push(ctx->lex_stk, lxs_new(0, NULL, NULL));
+	ctx->ccs_avail = list_ptr_new((free_func)ccs_free);
+	ctx->lxs_avail = list_ptr_new((free_func)lxs_free);
 	ctx->prg = prg;
 	ctx->f_finalize = list_ptr_new(NULL);
 	ctx->user_hint = list_ptr_new(NULL);
@@ -8204,7 +8218,7 @@ static inline void context_reset(context ctx){
 		ccs s = list_ptr_pop(ctx->call_stk);
 		lxs lx = ctx->lex_stk->ptrs[ctx->lex_index];
 		ctx->lex_stk->ptrs[ctx->lex_index] = lx->next;
-		lxs_free(lx);
+		lxs_release(ctx, lx);
 		ctx->lex_index = s->lex_index;
 		ctx->pc = s->pc;
 		ccs_release(ctx, s);
@@ -11291,7 +11305,7 @@ static sink_run context_run(context ctx){
 	sink_val X, Y, Z, W;
 	sink_list ls;
 	sink_str str;
-	sink_val p[255];
+	sink_val p[256];
 
 	list_byte ops = ctx->prg->ops;
 
@@ -11454,13 +11468,6 @@ static sink_run context_run(context ctx){
 					var_set(ctx, A, B,
 						sink_list_newblobgive(ctx, 0, C, mem_alloc(sizeof(sink_val) * C)));
 				}
-			} break;
-
-			case OP_FORCELIST      : { // [SRC]
-				LOAD_ab();
-				X = var_get(ctx, A, B);
-				if (!sink_islist(X))
-					RETURN_FAIL("Expecting list when calling function");
 			} break;
 
 			case OP_ISNUM          : { // [TGT], [SRC]
@@ -11672,7 +11679,7 @@ static sink_run context_run(context ctx){
 				ccs s = list_ptr_pop(ctx->call_stk);
 				lxs lx = ctx->lex_stk->ptrs[ctx->lex_index];
 				ctx->lex_stk->ptrs[ctx->lex_index] = lx->next;
-				lxs_free(lx);
+				lxs_release(ctx, lx);
 				ctx->lex_index = s->lex_index;
 				var_set(ctx, s->frame, s->index, SINK_NIL);
 				ctx->pc = s->pc;
@@ -11708,7 +11715,7 @@ static sink_run context_run(context ctx){
 				while (ctx->lex_index >= ctx->lex_stk->size)
 					list_ptr_push(ctx->lex_stk, NULL);
 				ctx->lex_stk->ptrs[ctx->lex_index] =
-					lxs_new(G, p, ctx->lex_stk->ptrs[ctx->lex_index]);
+					lxs_get(ctx, G, p, ctx->lex_stk->ptrs[ctx->lex_index]);
 			} break;
 
 			case OP_NATIVE         : { // [TGT], [INDEX], ARGCOUNT, [ARGS]...
@@ -11748,7 +11755,7 @@ static sink_run context_run(context ctx){
 				ccs s = list_ptr_pop(ctx->call_stk);
 				lxs lx = ctx->lex_stk->ptrs[ctx->lex_index];
 				ctx->lex_stk->ptrs[ctx->lex_index] = lx->next;
-				lxs_free(lx);
+				lxs_release(ctx, lx);
 				ctx->lex_index = s->lex_index;
 				var_set(ctx, s->frame, s->index, X);
 				ctx->pc = s->pc;
@@ -11780,9 +11787,9 @@ static sink_run context_run(context ctx){
 				}
 				lxs lx = ctx->lex_stk->ptrs[ctx->lex_index];
 				ctx->lex_stk->ptrs[ctx->lex_index] = lx->next;
-				lxs_free(lx);
+				lxs_release(ctx, lx);
 				ctx->lex_stk->ptrs[ctx->lex_index] =
-					lxs_new(E, p, ctx->lex_stk->ptrs[ctx->lex_index]);
+					lxs_get(ctx, E, p, ctx->lex_stk->ptrs[ctx->lex_index]);
 			} break;
 
 			case OP_RANGE          : { // [TGT], [SRC1], [SRC2], [SRC3]
