@@ -7890,6 +7890,7 @@ typedef struct {
 	list_ptr lex_stk;
 	list_ptr f_finalize;
 	list_ptr user_hint;
+	list_ptr ccs_avail;
 
 	sink_io_st io;
 
@@ -7927,6 +7928,22 @@ typedef struct {
 	bool failed;
 	bool async;
 } context_st, *context;
+
+static inline ccs ccs_get(context ctx, int pc, int frame, int index, int lex_index){
+	if (ctx->ccs_avail->size > 0){
+		ccs c = ctx->ccs_avail->ptrs[--ctx->ccs_avail->size];
+		c->pc = pc;
+		c->frame = frame;
+		c->index = index;
+		c->lex_index = lex_index;
+		return c;
+	}
+	return ccs_new(pc, frame, index, lex_index);
+}
+
+static inline void ccs_release(context ctx, ccs c){
+	list_ptr_push(ctx->ccs_avail, c);
+}
 
 static inline void context_cleanup(context ctx, void *cuser, sink_free_func f_free){
 	cleanup_add(ctx->cup, cuser, f_free);
@@ -8081,6 +8098,7 @@ static inline void context_free(context ctx){
 	list_ptr_free(ctx->natives);
 	context_clearref(ctx);
 	context_sweep(ctx);
+	list_ptr_free(ctx->ccs_avail);
 	list_ptr_free(ctx->call_stk);
 	list_ptr_free(ctx->lex_stk);
 	list_ptr_free(ctx->f_finalize);
@@ -8107,6 +8125,7 @@ static inline context context_new(program prg, sink_io_st io){
 	ctx->natives = list_ptr_new(mem_free_func);
 	ctx->call_stk = list_ptr_new((free_func)ccs_free);
 	ctx->lex_stk = list_ptr_new((free_func)lxs_freeAll);
+	ctx->ccs_avail = list_ptr_new((free_func)ccs_free);
 	list_ptr_push(ctx->lex_stk, lxs_new(0, NULL, NULL));
 	ctx->prg = prg;
 	ctx->f_finalize = list_ptr_new(NULL);
@@ -8188,7 +8207,7 @@ static inline void context_reset(context ctx){
 		lxs_free(lx);
 		ctx->lex_index = s->lex_index;
 		ctx->pc = s->pc;
-		ccs_free(s);
+		ccs_release(ctx, s);
 	}
 	// reset variables and fast-forward to the end of the current program
 	ctx->passed = false;
@@ -11657,7 +11676,7 @@ static sink_run context_run(context ctx){
 				ctx->lex_index = s->lex_index;
 				var_set(ctx, s->frame, s->index, SINK_NIL);
 				ctx->pc = s->pc;
-				ccs_free(s);
+				ccs_release(ctx, s);
 			} break;
 
 			case OP_CALL           : { // [TGT], [[LOCATION]], ARGCOUNT, [ARGS]...
@@ -11671,7 +11690,7 @@ static sink_run context_run(context ctx){
 					E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
 					p[I] = var_get(ctx, E, F);
 				}
-				list_ptr_push(ctx->call_stk, ccs_new(ctx->pc, A, B, ctx->lex_index));
+				list_ptr_push(ctx->call_stk, ccs_get(ctx, ctx->pc, A, B, ctx->lex_index));
 				ctx->pc = C - 1;
 				LOAD_abc();
 				// A is OP_CMDHEAD
@@ -11733,7 +11752,7 @@ static sink_run context_run(context ctx){
 				ctx->lex_index = s->lex_index;
 				var_set(ctx, s->frame, s->index, X);
 				ctx->pc = s->pc;
-				ccs_free(s);
+				ccs_release(ctx, s);
 			} break;
 
 			case OP_RETURNTAIL     : { // [[LOCATION]], ARGCOUNT, [ARGS]...
