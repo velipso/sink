@@ -5307,6 +5307,15 @@ static inline void symtbl_clearTemp(symtbl sym, varloc_st vlc){
 		sym->fr->vars->vals[vlc.index] = FVR_TEMP_AVAIL;
 }
 
+static inline int symtbl_tempAvail(symtbl sym){
+	int cnt = 256 - sym->fr->vars->size;
+	for (int i = 0; i < sym->fr->vars->size; i++){
+		if (sym->fr->vars->vals[i] == FVR_TEMP_AVAIL)
+			cnt++;
+	}
+	return cnt;
+}
+
 static sta_st symtbl_addVar(symtbl sym, list_ptr names, int slot){
 	// set `slot` to negative to add variable at next available location
 	sfn_st nsr = symtbl_findNamespace(sym, names, names->size - 1);
@@ -6752,26 +6761,48 @@ static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st int
 			break;
 
 		case EXPR_CAT: {
-			if (ex->u.cat->size > 256)
-				return per_error(ex->flp, sink_format("Concatenation too large"));
 			if (mode == PEM_EMPTY || mode == PEM_CREATE){
 				sta_st ts = symtbl_addTemp(sym);
 				if (ts.type == STA_ERROR)
 					return per_error(ex->flp, ts.u.msg);
 				intoVlc = ts.u.vlc;
 			}
+			varloc_st t = VARLOC_NULL;
+			int tmax = symtbl_tempAvail(sym) - 128;
+			if (tmax < 16)
+				tmax = 16;
+			if (ex->u.cat->size > tmax){
+				tmax--;
+				sta_st ts = symtbl_addTemp(sym);
+				if (ts.type == STA_ERROR)
+					return per_error(ex->flp, ts.u.msg);
+				t = ts.u.vlc;
+			}
 			varloc_st p[256];
-			for (int i = 0; i < ex->u.cat->size; i++){
-				per_st pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, ex->u.cat->ptrs[i]);
-				if (pe.type == PER_ERROR)
-					return pe;
-				p[i] = pe.u.vlc;
+			for (int ci = 0; ci < ex->u.cat->size; ci += tmax){
+				int len = ex->u.cat->size - ci;
+				if (len > tmax)
+					len = tmax;
+				for (int i = 0; i < len; i++){
+					per_st pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL,
+						ex->u.cat->ptrs[ci + i]);
+					if (pe.type == PER_ERROR)
+						return pe;
+					p[i] = pe.u.vlc;
+				}
+				op_cat(prg->ops, ci > 0 ? t : intoVlc, len);
+				for (int i = 0; i < len; i++){
+					symtbl_clearTemp(sym, p[i]);
+					op_arg(prg->ops, p[i]);
+				}
+				if (ci > 0){
+					op_cat(prg->ops, intoVlc, 2);
+					op_arg(prg->ops, intoVlc);
+					op_arg(prg->ops, t);
+				}
 			}
-			op_cat(prg->ops, intoVlc, ex->u.cat->size);
-			for (int i = 0; i < ex->u.cat->size; i++){
-				symtbl_clearTemp(sym, p[i]);
-				op_arg(prg->ops, p[i]);
-			}
+			if (!varloc_isnull(t))
+				symtbl_clearTemp(sym, t);
 			if (mode == PEM_EMPTY){
 				symtbl_clearTemp(sym, intoVlc);
 				return per_ok(VARLOC_NULL);

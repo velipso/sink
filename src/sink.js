@@ -3308,6 +3308,15 @@ function symtbl_clearTemp(sym, vlc){
 		sym.fr.vars[vlc.index] = FVR_TEMP_AVAIL;
 }
 
+function symtbl_tempAvail(sym){
+	var cnt = 256 - sym.fr.vars.length;
+	for (var i = 0; i < sym.fr.vars.length; i++){
+		if (sym.fr.vars[i] == FVR_TEMP_AVAIL)
+			cnt++;
+	}
+	return cnt;
+}
+
 function symtbl_addVar(sym, names, slot){
 	// set `slot` to negative to add variable at next available location
 	var nsr = symtbl_findNamespace(sym, names, names.length - 1);
@@ -4552,26 +4561,43 @@ function program_eval(prg, sym, mode, intoVlc, ex){
 			break;
 
 		case EXPR_CAT: {
-			if (ex.cat.length > 256)
-				return per_error(ex.flp, 'Concatenation too large');
 			if (mode == PEM_EMPTY || mode == PEM_CREATE){
 				var ts = symtbl_addTemp(sym);
 				if (ts.type == STA_ERROR)
 					return per_error(ex.flp, ts.msg);
 				intoVlc = ts.vlc;
 			}
-			var p = new Array(ex.cat.length);
-			for (var i = 0; i < ex.cat.length; i++){
-				var pe = program_eval(prg, sym, PEM_CREATE, null, ex.cat[i]);
-				if (pe.type == PER_ERROR)
-					return pe;
-				p[i] = pe.vlc;
+			var t = null;
+			var tmax = Math.max(16, symtbl_tempAvail(sym) - 128);
+			if (ex.cat.length > tmax){
+				tmax--;
+				var ts = symtbl_addTemp(sym);
+				if (ts.type == STA_ERROR)
+					return per_error(ex.flp, ts.msg);
+				t = ts.vlc;
 			}
-			op_cat(prg.ops, intoVlc, ex.cat.length);
-			for (var i = 0; i < ex.cat.length; i++){
-				symtbl_clearTemp(sym, p[i]);
-				op_arg(prg.ops, p[i]);
+			for (var ci = 0; ci < ex.cat.length; ci += tmax){
+				var len = Math.min(tmax, ex.cat.length - ci);
+				var p = new Array(len);
+				for (var i = 0; i < len; i++){
+					var pe = program_eval(prg, sym, PEM_CREATE, null, ex.cat[ci + i]);
+					if (pe.type == PER_ERROR)
+						return pe;
+					p[i] = pe.vlc;
+				}
+				op_cat(prg.ops, ci > 0 ? t : intoVlc, len);
+				for (var i = 0; i < len; i++){
+					symtbl_clearTemp(sym, p[i]);
+					op_arg(prg.ops, p[i]);
+				}
+				if (ci > 0){
+					op_cat(prg.ops, intoVlc, 2);
+					op_arg(prg.ops, intoVlc);
+					op_arg(prg.ops, t);
+				}
 			}
+			if (t != null)
+				symtbl_clearTemp(sym, t);
 			if (mode == PEM_EMPTY){
 				symtbl_clearTemp(sym, intoVlc);
 				return per_ok(null);
@@ -7659,9 +7685,10 @@ function context_run(ctx){
 				if (listcat)
 					var_set(ctx, A, B, Array.prototype.concat.apply([], p));
 				else{
+					var out = '';
 					for (var i = 0; i < p.length; i++)
-						p[i] = sink_tostr(p[i]);
-					var_set(ctx, A, B, p.join(''));
+						out += sink_tostr(p[i]);
+					var_set(ctx, A, B, out);
 				}
 			} break;
 
