@@ -648,7 +648,7 @@ typedef enum {
 	OP_NOT             = 0x10, // [TGT], [SRC]
 	OP_SIZE            = 0x11, // [TGT], [SRC]
 	OP_TONUM           = 0x12, // [TGT], [SRC]
-	OP_CAT             = 0x13, // [TGT], [SRC1], [SRC2]
+	OP_CAT             = 0x13, // [TGT], ARGCOUNT, [ARGS]...
 	OP_LT              = 0x14, // [TGT], [SRC1], [SRC2]
 	OP_LTE             = 0x15, // [TGT], [SRC1], [SRC2]
 	OP_NEQ             = 0x16, // [TGT], [SRC1], [SRC2]
@@ -875,6 +875,16 @@ static inline void op_unop(list_byte b, op_enum opcode, varloc_st tgt, varloc_st
 	list_byte_push5(b, opcode, tgt.frame, tgt.index, src.frame, src.index);
 }
 
+static inline void op_cat(list_byte b, varloc_st tgt, int argcount){
+	oplogf("CAT %d:%d, %d", tgt.frame, tgt.index, argcount);
+	list_byte_push4(b, OP_CAT, tgt.frame, tgt.index, argcount);
+}
+
+static inline void op_arg(list_byte b, varloc_st arg){
+	oplogf("  ARG: %d:%d", arg.frame, arg.index);
+	list_byte_push2(b, arg.frame, arg.index);
+}
+
 static inline void op_binop(list_byte b, op_enum opcode, varloc_st tgt, varloc_st src1,
 	varloc_st src2){
 	// rewire GT to LT and GTE to LTE
@@ -891,10 +901,17 @@ static inline void op_binop(list_byte b, op_enum opcode, varloc_st tgt, varloc_s
 		src2 = t;
 	}
 
+	// intercept cat
+	if (opcode == OP_CAT){
+		op_cat(b, tgt, 2);
+		op_arg(b, src1);
+		op_arg(b, src2);
+		return;
+	}
+
 	#ifdef SINK_DEBUG
 	const char *opstr = "???";
-	if      (opcode == OP_CAT    ) opstr = "CAT";
-	else if (opcode == OP_LT     ) opstr = "LT";
+	if      (opcode == OP_LT     ) opstr = "LT";
 	else if (opcode == OP_LTE    ) opstr = "LTE";
 	else if (opcode == OP_NEQ    ) opstr = "NEQ";
 	else if (opcode == OP_EQU    ) opstr = "EQU";
@@ -975,11 +992,6 @@ static inline void op_call(list_byte b, varloc_st ret, uint32_t index, int argco
 	list_byte_push8(b, OP_CALL, ret.frame, ret.index,
 		index % 256, (index >> 8) % 256, (index >> 16) % 256, (index >> 24) % 256,
 		argcount);
-}
-
-static inline void op_arg(list_byte b, varloc_st arg){
-	oplogf("  ARG: %d:%d", arg.frame, arg.index);
-	list_byte_push2(b, arg.frame, arg.index);
 }
 
 static inline void op_native(list_byte b, varloc_st ret, int index, int argcount){
@@ -2282,6 +2294,7 @@ typedef enum {
 	EXPR_NAMES,
 	EXPR_PAREN,
 	EXPR_GROUP,
+	EXPR_CAT,
 	EXPR_PREFIX,
 	EXPR_INFIX,
 	EXPR_CALL,
@@ -2300,6 +2313,7 @@ struct expr_struct {
 		list_ptr names;
 		varloc_st vlc;
 		list_ptr group;
+		list_ptr cat;
 		struct {
 			expr ex;
 			ks_enum k;
@@ -2354,6 +2368,11 @@ static void expr_free(expr ex){
 		case EXPR_GROUP:
 			if (ex->u.group)
 				list_ptr_free(ex->u.group);
+			break;
+
+		case EXPR_CAT:
+			if (ex->u.cat)
+				list_ptr_free(ex->u.cat);
 			break;
 
 		case EXPR_PREFIX:
@@ -2454,6 +2473,16 @@ static void expr_print(expr ex, int depth){
 			}
 			else
 				debugf("%sEXPR_GROUP NULL", tab);
+			break;
+
+		case EXPR_CAT:
+			if (ex->u.cat){
+				debugf("%sEXPR_CAT:", tab);
+				for (int i = 0; i < ex->u.cat->size; i++)
+					expr_print(ex->u.cat->ptrs[i], depth + 1);
+			}
+			else
+				debugf("%sEXPR_CAT NULL", tab);
 			break;
 
 		case EXPR_PREFIX:
@@ -2596,6 +2625,43 @@ static inline expr expr_group(filepos_st flp, expr left, expr right){
 	return ex;
 }
 
+static inline expr expr_cat(filepos_st flp, expr left, expr right){
+	// unwrap any parens
+	while (left->type == EXPR_PAREN){
+		expr lf = left->u.ex;
+		left->u.ex = NULL;
+		expr_free(left);
+		left = lf;
+	}
+	while (right->type == EXPR_PAREN){
+		expr rt = right->u.ex;
+		right->u.ex = NULL;
+		expr_free(right);
+		right = rt;
+	}
+
+	list_ptr c = list_ptr_new((free_func)expr_free);
+	if (left->type == EXPR_CAT){
+		list_ptr_append(c, left->u.cat);
+		left->u.cat->size = 0;
+		expr_free(left);
+	}
+	else
+		list_ptr_push(c, left);
+	if (right->type == EXPR_CAT){
+		list_ptr_append(c, right->u.cat);
+		right->u.cat->size = 0;
+		expr_free(right);
+	}
+	else
+		list_ptr_push(c, right);
+	expr ex = mem_alloc(sizeof(expr_st));
+	ex->flp = flp;
+	ex->type = EXPR_CAT;
+	ex->u.cat = c;
+	return ex;
+}
+
 static inline expr expr_prefix(filepos_st flp, ks_enum k, expr ex){
 	if ((k == KS_MINUS || k == KS_UNMINUS) && ex->type == EXPR_NUM){
 		ex->u.num = -ex->u.num;
@@ -2614,6 +2680,8 @@ static inline expr expr_prefix(filepos_st flp, ks_enum k, expr ex){
 static inline expr expr_infix(filepos_st flp, ks_enum k, expr left, expr right){
 	if (k == KS_COMMA)
 		return expr_group(flp, left, right);
+	else if (k == KS_TILDE)
+		return expr_cat(flp, left, right);
 	expr ex = mem_alloc(sizeof(expr_st));
 	ex->flp = flp;
 	ex->type = EXPR_INFIX;
@@ -6683,6 +6751,34 @@ static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st int
 			}
 			break;
 
+		case EXPR_CAT: {
+			if (ex->u.cat->size > 256)
+				return per_error(ex->flp, sink_format("Concatenation too large"));
+			if (mode == PEM_EMPTY || mode == PEM_CREATE){
+				sta_st ts = symtbl_addTemp(sym);
+				if (ts.type == STA_ERROR)
+					return per_error(ex->flp, ts.u.msg);
+				intoVlc = ts.u.vlc;
+			}
+			varloc_st p[256];
+			for (int i = 0; i < ex->u.cat->size; i++){
+				per_st pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, ex->u.cat->ptrs[i]);
+				if (pe.type == PER_ERROR)
+					return pe;
+				p[i] = pe.u.vlc;
+			}
+			op_cat(prg->ops, intoVlc, ex->u.cat->size);
+			for (int i = 0; i < ex->u.cat->size; i++){
+				symtbl_clearTemp(sym, p[i]);
+				op_arg(prg->ops, p[i]);
+			}
+			if (mode == PEM_EMPTY){
+				symtbl_clearTemp(sym, intoVlc);
+				return per_ok(VARLOC_NULL);
+			}
+			return per_ok(intoVlc);
+		} break;
+
 		case EXPR_PREFIX: {
 			op_enum unop = ks_toUnaryOp(ex->u.prefix.k);
 			if (unop == OP_INVALID)
@@ -9787,21 +9883,8 @@ static inline sink_val opi_str_at(context ctx, sink_val a, sink_val b){
 	return sink_str_newblob(ctx, 1, &s->bytes[idx]);
 }
 
-static inline sink_val opi_str_cat(context ctx, sink_val a, sink_val b){
-	a = sink_tostr(ctx, a);
-	b = sink_tostr(ctx, b);
-	sink_str str = var_caststr(ctx, a);
-	sink_str str2 = var_caststr(ctx, b);
-	int ns = str->size + str2->size;
-	if (ns <= 0)
-		return sink_str_newblob(ctx, 0, NULL);
-	uint8_t *bytes = mem_alloc(sizeof(uint8_t) * (ns + 1));
-	if (str->size > 0)
-		memcpy(&bytes[0], str->bytes, sizeof(uint8_t) * str->size);
-	if (str2->size > 0)
-		memcpy(&bytes[str->size], str2->bytes, sizeof(uint8_t) * str2->size);
-	bytes[ns] = 0;
-	return sink_str_newblobgive(ctx, ns, bytes);
+static inline sink_val opi_str_cat(context ctx, int argcount, sink_val *args){
+	return sink_list_joinplain(ctx, argcount, args, 0, NULL);
 }
 
 typedef struct {
@@ -9910,17 +9993,21 @@ static inline sink_val opi_list_at(context ctx, sink_val a, sink_val b){
 	return ls->vals[idx];
 }
 
-static inline sink_val opi_list_cat(context ctx, sink_val a, sink_val b){
-	sink_list ls = var_castlist(ctx, a);
-	sink_list ls2 = var_castlist(ctx, b);
-	int ns = ls->size + ls2->size;
+static inline sink_val opi_list_cat(context ctx, int argcount, sink_val *args){
+	int ns = 0;
+	for (int i = 0; i < argcount; i++)
+		ns += var_castlist(ctx, args[i])->size;
 	if (ns <= 0)
 		return sink_list_newblob(ctx, 0, NULL);
 	sink_val *vals = mem_alloc(sizeof(sink_val) * ns);
-	if (ls->size > 0)
-		memcpy(&vals[0], ls->vals, sizeof(sink_val) * ls->size);
-	if (ls2->size > 0)
-		memcpy(&vals[ls->size], ls2->vals, sizeof(sink_val) * ls2->size);
+	ns = 0;
+	for (int i = 0; i < argcount; i++){
+		sink_list ls = var_castlist(ctx, args[i]);
+		if (ls->size > 0){
+			memcpy(&vals[ns], ls->vals, sizeof(sink_val) * ls->size);
+			ns += ls->size;
+		}
+	}
 	return sink_list_newblobgive(ctx, ns, ns, vals);
 }
 
@@ -11508,14 +11595,19 @@ static sink_run context_run(context ctx){
 					return SINK_RUN_FAIL;
 			} break;
 
-			case OP_CAT            : { // [TGT], [SRC1], [SRC2]
-				LOAD_abcdef();
-				X = var_get(ctx, C, D);
-				Y = var_get(ctx, E, F);
-				if (sink_islist(X) && sink_islist(Y))
-					var_set(ctx, A, B, opi_list_cat(ctx, X, Y));
+			case OP_CAT            : { // [TGT], ARGCOUNT, [ARGS]...
+				LOAD_abc();
+				bool listcat = C > 0;
+				for (D = 0; D < C; D++){
+					E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
+					p[D] = var_get(ctx, E, F);
+					if (!sink_islist(p[D]))
+						listcat = false;
+				}
+				if (listcat)
+					var_set(ctx, A, B, opi_list_cat(ctx, C, p));
 				else{
-					var_set(ctx, A, B, opi_str_cat(ctx, X, Y));
+					var_set(ctx, A, B, opi_str_cat(ctx, C, p));
 					if (ctx->failed)
 						return SINK_RUN_FAIL;
 				}

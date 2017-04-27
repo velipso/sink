@@ -49,7 +49,7 @@ var OP_ISLIST          = 0x0F; // [TGT], [SRC]
 var OP_NOT             = 0x10; // [TGT], [SRC]
 var OP_SIZE            = 0x11; // [TGT], [SRC]
 var OP_TONUM           = 0x12; // [TGT], [SRC]
-var OP_CAT             = 0x13; // [TGT], [SRC1], [SRC2]
+var OP_CAT             = 0x13; // [TGT], ARGCOUNT, [ARGS]...
 var OP_LT              = 0x14; // [TGT], [SRC1], [SRC2]
 var OP_LTE             = 0x15; // [TGT], [SRC1], [SRC2]
 var OP_NEQ             = 0x16; // [TGT], [SRC1], [SRC2]
@@ -287,6 +287,16 @@ function op_unop(b, opcode, tgt, src){
 	b.push(opcode, tgt.frame, tgt.index, src.frame, src.index);
 }
 
+function op_cat(b, tgt, argcount){
+	oplog('CAT', tgt, argcount);
+	b.push(OP_CAT, tgt.frame, tgt.index, argcount);
+}
+
+function op_arg(b, arg){
+	oplog('  ARG', arg);
+	b.push(arg.frame, arg.index);
+}
+
 function op_binop(b, opcode, tgt, src1, src2){
 	// rewire GT to LT and GTE to LTE
 	if (opcode == 0x100){ // GT
@@ -302,9 +312,16 @@ function op_binop(b, opcode, tgt, src1, src2){
 		src2 = t;
 	}
 
+	// intercept cat
+	if (opcode == OP_CAT){
+		op_cat(b, tgt, 2);
+		op_arg(b, src1);
+		op_arg(b, src2);
+		return;
+	}
+
 	var opstr = '???';
-	if      (opcode == OP_CAT    ) opstr = 'CAT';
-	else if (opcode == OP_LT     ) opstr = 'LT';
+	if      (opcode == OP_LT     ) opstr = 'LT';
 	else if (opcode == OP_LTE    ) opstr = 'LTE';
 	else if (opcode == OP_NEQ    ) opstr = 'NEQ';
 	else if (opcode == OP_EQU    ) opstr = 'EQU';
@@ -388,11 +405,6 @@ function op_call(b, ret, index, argcount, hint){
 		Math.floor(index /    65536) % 256,
 		Math.floor(index / 16777216) % 256,
 		argcount);
-}
-
-function op_arg(b, arg){
-	oplog('  ARG', arg);
-	b.push(arg.frame, arg.index);
 }
 
 function op_native(b, ret, index, argcount){
@@ -1558,6 +1570,7 @@ var EXPR_NAMES  = 'EXPR_NAMES';
 var EXPR_VAR    = 'EXPR_VAR';
 var EXPR_PAREN  = 'EXPR_PAREN';
 var EXPR_GROUP  = 'EXPR_GROUP';
+var EXPR_CAT    = 'EXPR_CAT';
 var EXPR_PREFIX = 'EXPR_PREFIX';
 var EXPR_INFIX  = 'EXPR_INFIX';
 var EXPR_CALL   = 'EXPR_CALL';
@@ -1607,6 +1620,27 @@ function expr_group(flp, left, right){
 	return { flp: flp, type: EXPR_GROUP, group: g };
 }
 
+function expr_cat(flp, left, right){
+	// unwrap any parens
+	while (left.type == EXPR_PAREN)
+		left = left.ex;
+	while (right.type == EXPR_PAREN)
+		right = right.ex;
+
+	var c;
+	if (left.type == EXPR_CAT){
+		if (right.type == EXPR_CAT)
+			c = left.cat.concat(right.cat);
+		else
+			c = left.cat.concat([right]);
+	}
+	else if (right.type == EXPR_CAT)
+		c = [left].concat(right.cat);
+	else
+		c = [left, right];
+	return { flp: flp, type: EXPR_CAT, cat: c };
+}
+
 function expr_prefix(flp, k, ex){
 	if ((k == KS_MINUS || k == KS_UNMINUS) && ex.type == EXPR_NUM)
 		return expr_num(flp, -ex.num);
@@ -1618,6 +1652,8 @@ function expr_prefix(flp, k, ex){
 function expr_infix(flp, k, left, right){
 	if (k == KS_COMMA)
 		return expr_group(flp, left, right);
+	if (k == KS_TILDE)
+		return expr_cat(flp, left, right);
 	return { flp: flp, type: EXPR_INFIX, k: k, left: left, right: right };
 }
 
@@ -4514,6 +4550,34 @@ function program_eval(prg, sym, mode, intoVlc, ex){
 					return pe;
 			}
 			break;
+
+		case EXPR_CAT: {
+			if (ex.cat.length > 256)
+				return per_error(ex.flp, 'Concatenation too large');
+			if (mode == PEM_EMPTY || mode == PEM_CREATE){
+				var ts = symtbl_addTemp(sym);
+				if (ts.type == STA_ERROR)
+					return per_error(ex.flp, ts.msg);
+				intoVlc = ts.vlc;
+			}
+			var p = new Array(ex.cat.length);
+			for (var i = 0; i < ex.cat.length; i++){
+				var pe = program_eval(prg, sym, PEM_CREATE, null, ex.cat[i]);
+				if (pe.type == PER_ERROR)
+					return pe;
+				p[i] = pe.vlc;
+			}
+			op_cat(prg.ops, intoVlc, ex.cat.length);
+			for (var i = 0; i < ex.cat.length; i++){
+				symtbl_clearTemp(sym, p[i]);
+				op_arg(prg.ops, p[i]);
+			}
+			if (mode == PEM_EMPTY){
+				symtbl_clearTemp(sym, intoVlc);
+				return per_ok(null);
+			}
+			return per_ok(intoVlc);
+		} break;
 
 		case EXPR_PREFIX: {
 			var unop = ks_toUnaryOp(ex.k);
@@ -7582,14 +7646,23 @@ function context_run(ctx){
 				var_set(ctx, A, B, oper_un(X, unop_tonum));
 			} break;
 
-			case OP_CAT            : { // [TGT], [SRC1], [SRC2]
-				LOAD_abcdef();
-				X = var_get(ctx, C, D);
-				Y = var_get(ctx, E, F);
-				if (sink_islist(X) && sink_islist(Y))
-					var_set(ctx, A, B, X.concat(Y));
-				else
-					var_set(ctx, A, B, sink_tostr(X) + sink_tostr(Y));
+			case OP_CAT            : { // [TGT], ARGCOUNT, [ARGS]...
+				LOAD_abc();
+				var p = new Array(C);
+				var listcat = C > 0;
+				for (D = 0; D < C; D++){
+					E = ops[ctx.pc++]; F = ops[ctx.pc++];
+					p[D] = var_get(ctx, E, F);
+					if (!sink_islist(p[D]))
+						listcat = false;
+				}
+				if (listcat)
+					var_set(ctx, A, B, Array.prototype.concat.apply([], p));
+				else{
+					for (var i = 0; i < p.length; i++)
+						p[i] = sink_tostr(p[i]);
+					var_set(ctx, A, B, p.join(''));
+				}
 			} break;
 
 			case OP_LT             : { // [TGT], [SRC1], [SRC2]
