@@ -6335,6 +6335,8 @@ static inline bool program_evalCallArgcount(program prg, symtbl sym, expr params
 
 static per_st program_evalCall(program prg, symtbl sym, pem_enum mode, varloc_st intoVlc,
 	filepos_st flp, nsname nsn, expr params){
+	if (nsn->type != NSN_CMD_LOCAL && nsn->type != NSN_CMD_NATIVE && nsn->type != NSN_CMD_OPCODE)
+		return per_error(flp, sink_format("Invalid call - not a command"));
 	// params can be NULL to indicate emptiness
 	if (nsn->type == NSN_CMD_OPCODE && nsn->u.cmdOpcode.opcode == OP_PICK){
 		if (params == NULL || params->type != EXPR_GROUP ||

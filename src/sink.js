@@ -4146,6 +4146,8 @@ function program_evalCallArgcount(prg, sym, params, p){
 }
 
 function program_evalCall(prg, sym, mode, intoVlc, flp, nsn, params){
+	if (nsn.type != NSN_CMD_LOCAL && nsn.type != NSN_CMD_NATIVE && nsn.type != NSN_CMD_OPCODE)
+		return per_error(flp, 'Invalid call - not a command');
 	// params can be null to indicate emptiness
 	if (nsn.type == NSN_CMD_OPCODE && nsn.opcode == -1){ // short-circuit `pick`
 		if (params == null || params.type != EXPR_GROUP || params.group.length != 3)

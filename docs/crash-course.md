@@ -487,7 +487,7 @@ enum x, y, z
 say x, y, z  # 0 1 2
 
 enum zero, one, three = 3, four, five
-say zero, one, three, four five  # 0 1 3 4 5
+say zero, one, three, four, five  # 0 1 3 4 5
 
 enum some.constant.number = 100
 
