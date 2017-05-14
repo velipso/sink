@@ -94,92 +94,89 @@ var OP_NUM_NAN         = 0x3C; // [TGT]
 var OP_NUM_INF         = 0x3D; // [TGT]
 var OP_NUM_ISNAN       = 0x3E; // [TGT], [SRC]
 var OP_NUM_ISFINITE    = 0x3F; // [TGT], [SRC]
-var OP_NUM_E           = 0x40; // [TGT]
-var OP_NUM_PI          = 0x41; // [TGT]
-var OP_NUM_TAU         = 0x42; // [TGT]
-var OP_NUM_SIN         = 0x43; // [TGT], [SRC]
-var OP_NUM_COS         = 0x44; // [TGT], [SRC]
-var OP_NUM_TAN         = 0x45; // [TGT], [SRC]
-var OP_NUM_ASIN        = 0x46; // [TGT], [SRC]
-var OP_NUM_ACOS        = 0x47; // [TGT], [SRC]
-var OP_NUM_ATAN        = 0x48; // [TGT], [SRC]
-var OP_NUM_ATAN2       = 0x49; // [TGT], [SRC1], [SRC2]
-var OP_NUM_LOG         = 0x4A; // [TGT], [SRC]
-var OP_NUM_LOG2        = 0x4B; // [TGT], [SRC]
-var OP_NUM_LOG10       = 0x4C; // [TGT], [SRC]
-var OP_NUM_EXP         = 0x4D; // [TGT], [SRC]
-var OP_NUM_LERP        = 0x4E; // [TGT], [SRC1], [SRC2], [SRC3]
-var OP_NUM_HEX         = 0x4F; // [TGT], [SRC1], [SRC2]
-var OP_NUM_OCT         = 0x50; // [TGT], [SRC1], [SRC2]
-var OP_NUM_BIN         = 0x51; // [TGT], [SRC1], [SRC2]
-var OP_INT_NEW         = 0x52; // [TGT], [SRC]
-var OP_INT_NOT         = 0x53; // [TGT], [SRC]
-var OP_INT_AND         = 0x54; // [TGT], [SRC1], [SRC2]
-var OP_INT_OR          = 0x55; // [TGT], [SRC1], [SRC2]
-var OP_INT_XOR         = 0x56; // [TGT], [SRC1], [SRC2]
-var OP_INT_SHL         = 0x57; // [TGT], [SRC1], [SRC2]
-var OP_INT_SHR         = 0x58; // [TGT], [SRC1], [SRC2]
-var OP_INT_SAR         = 0x59; // [TGT], [SRC1], [SRC2]
-var OP_INT_ADD         = 0x5A; // [TGT], [SRC1], [SRC2]
-var OP_INT_SUB         = 0x5B; // [TGT], [SRC1], [SRC2]
-var OP_INT_MUL         = 0x5C; // [TGT], [SRC1], [SRC2]
-var OP_INT_DIV         = 0x5D; // [TGT], [SRC1], [SRC2]
-var OP_INT_MOD         = 0x5E; // [TGT], [SRC1], [SRC2]
-var OP_INT_CLZ         = 0x5F; // [TGT], [SRC]
-var OP_RAND_SEED       = 0x60; // [TGT], [SRC]
-var OP_RAND_SEEDAUTO   = 0x61; // [TGT]
-var OP_RAND_INT        = 0x62; // [TGT]
-var OP_RAND_NUM        = 0x63; // [TGT]
-var OP_RAND_GETSTATE   = 0x64; // [TGT]
-var OP_RAND_SETSTATE   = 0x65; // [TGT], [SRC]
-var OP_RAND_PICK       = 0x66; // [TGT], [SRC]
-var OP_RAND_SHUFFLE    = 0x67; // [TGT], [SRC]
-var OP_STR_NEW         = 0x68; // [TGT], ARGCOUNT, [ARGS]...
-var OP_STR_SPLIT       = 0x69; // [TGT], [SRC1], [SRC2]
-var OP_STR_REPLACE     = 0x6A; // [TGT], [SRC1], [SRC2], [SRC3]
-var OP_STR_BEGINS      = 0x6B; // [TGT], [SRC1], [SRC2]
-var OP_STR_ENDS        = 0x6C; // [TGT], [SRC1], [SRC2]
-var OP_STR_PAD         = 0x6D; // [TGT], [SRC1], [SRC2]
-var OP_STR_FIND        = 0x6E; // [TGT], [SRC1], [SRC2], [SRC3]
-var OP_STR_RFIND       = 0x6F; // [TGT], [SRC1], [SRC2], [SRC3]
-var OP_STR_LOWER       = 0x70; // [TGT], [SRC]
-var OP_STR_UPPER       = 0x71; // [TGT], [SRC]
-var OP_STR_TRIM        = 0x72; // [TGT], [SRC]
-var OP_STR_REV         = 0x73; // [TGT], [SRC]
-var OP_STR_REP         = 0x74; // [TGT], [SRC]
-var OP_STR_LIST        = 0x75; // [TGT], [SRC]
-var OP_STR_BYTE        = 0x76; // [TGT], [SRC1], [SRC2]
-var OP_STR_HASH        = 0x77; // [TGT], [SRC1], [SRC2]
-var OP_UTF8_VALID      = 0x78; // [TGT], [SRC]
-var OP_UTF8_LIST       = 0x79; // [TGT], [SRC]
-var OP_UTF8_STR        = 0x7A; // [TGT], [SRC]
-var OP_STRUCT_SIZE     = 0x7B; // [TGT], [SRC]
-var OP_STRUCT_STR      = 0x7C; // [TGT], [SRC1], [SRC2]
-var OP_STRUCT_LIST     = 0x7D; // [TGT], [SRC1], [SRC2]
-var OP_LIST_NEW        = 0x7E; // [TGT], [SRC1], [SRC2]
-var OP_LIST_SHIFT      = 0x7F; // [TGT], [SRC]
-var OP_LIST_POP        = 0x80; // [TGT], [SRC]
-var OP_LIST_PUSH       = 0x81; // [TGT], [SRC1], [SRC2]
-var OP_LIST_UNSHIFT    = 0x82; // [TGT], [SRC1], [SRC2]
-var OP_LIST_APPEND     = 0x83; // [TGT], [SRC1], [SRC2]
-var OP_LIST_PREPEND    = 0x84; // [TGT], [SRC1], [SRC2]
-var OP_LIST_FIND       = 0x85; // [TGT], [SRC1], [SRC2], [SRC3]
-var OP_LIST_RFIND      = 0x86; // [TGT], [SRC1], [SRC2], [SRC3]
-var OP_LIST_JOIN       = 0x87; // [TGT], [SRC1], [SRC2]
-var OP_LIST_REV        = 0x88; // [TGT], [SRC]
-var OP_LIST_STR        = 0x89; // [TGT], [SRC]
-var OP_LIST_SORT       = 0x8A; // [TGT], [SRC]
-var OP_LIST_RSORT      = 0x8B; // [TGT], [SRC]
-var OP_PICKLE_JSON     = 0x8C; // [TGT], [SRC]
-var OP_PICKLE_BIN      = 0x8D; // [TGT], [SRC]
-var OP_PICKLE_VAL      = 0x8E; // [TGT], [SRC]
-var OP_PICKLE_VALID    = 0x8F; // [TGT], [SRC]
-var OP_PICKLE_SIBLING  = 0x90; // [TGT], [SRC]
-var OP_PICKLE_CIRCULAR = 0x91; // [TGT], [SRC]
-var OP_PICKLE_COPY     = 0x92; // [TGT], [SRC]
-var OP_GC_GETLEVEL     = 0x93; // [TGT]
-var OP_GC_SETLEVEL     = 0x94; // [TGT], [SRC]
-var OP_GC_RUN          = 0x95; // [TGT]
+var OP_NUM_SIN         = 0x40; // [TGT], [SRC]
+var OP_NUM_COS         = 0x41; // [TGT], [SRC]
+var OP_NUM_TAN         = 0x42; // [TGT], [SRC]
+var OP_NUM_ASIN        = 0x43; // [TGT], [SRC]
+var OP_NUM_ACOS        = 0x44; // [TGT], [SRC]
+var OP_NUM_ATAN        = 0x45; // [TGT], [SRC]
+var OP_NUM_ATAN2       = 0x46; // [TGT], [SRC1], [SRC2]
+var OP_NUM_LOG         = 0x47; // [TGT], [SRC]
+var OP_NUM_LOG2        = 0x48; // [TGT], [SRC]
+var OP_NUM_LOG10       = 0x49; // [TGT], [SRC]
+var OP_NUM_EXP         = 0x4A; // [TGT], [SRC]
+var OP_NUM_LERP        = 0x4B; // [TGT], [SRC1], [SRC2], [SRC3]
+var OP_NUM_HEX         = 0x4C; // [TGT], [SRC1], [SRC2]
+var OP_NUM_OCT         = 0x4D; // [TGT], [SRC1], [SRC2]
+var OP_NUM_BIN         = 0x4E; // [TGT], [SRC1], [SRC2]
+var OP_INT_NEW         = 0x4F; // [TGT], [SRC]
+var OP_INT_NOT         = 0x50; // [TGT], [SRC]
+var OP_INT_AND         = 0x51; // [TGT], [SRC1], [SRC2]
+var OP_INT_OR          = 0x52; // [TGT], [SRC1], [SRC2]
+var OP_INT_XOR         = 0x53; // [TGT], [SRC1], [SRC2]
+var OP_INT_SHL         = 0x54; // [TGT], [SRC1], [SRC2]
+var OP_INT_SHR         = 0x55; // [TGT], [SRC1], [SRC2]
+var OP_INT_SAR         = 0x56; // [TGT], [SRC1], [SRC2]
+var OP_INT_ADD         = 0x57; // [TGT], [SRC1], [SRC2]
+var OP_INT_SUB         = 0x58; // [TGT], [SRC1], [SRC2]
+var OP_INT_MUL         = 0x59; // [TGT], [SRC1], [SRC2]
+var OP_INT_DIV         = 0x5A; // [TGT], [SRC1], [SRC2]
+var OP_INT_MOD         = 0x5B; // [TGT], [SRC1], [SRC2]
+var OP_INT_CLZ         = 0x5C; // [TGT], [SRC]
+var OP_RAND_SEED       = 0x5D; // [TGT], [SRC]
+var OP_RAND_SEEDAUTO   = 0x5E; // [TGT]
+var OP_RAND_INT        = 0x5F; // [TGT]
+var OP_RAND_NUM        = 0x60; // [TGT]
+var OP_RAND_GETSTATE   = 0x61; // [TGT]
+var OP_RAND_SETSTATE   = 0x62; // [TGT], [SRC]
+var OP_RAND_PICK       = 0x63; // [TGT], [SRC]
+var OP_RAND_SHUFFLE    = 0x64; // [TGT], [SRC]
+var OP_STR_NEW         = 0x65; // [TGT], ARGCOUNT, [ARGS]...
+var OP_STR_SPLIT       = 0x66; // [TGT], [SRC1], [SRC2]
+var OP_STR_REPLACE     = 0x67; // [TGT], [SRC1], [SRC2], [SRC3]
+var OP_STR_BEGINS      = 0x68; // [TGT], [SRC1], [SRC2]
+var OP_STR_ENDS        = 0x69; // [TGT], [SRC1], [SRC2]
+var OP_STR_PAD         = 0x6A; // [TGT], [SRC1], [SRC2]
+var OP_STR_FIND        = 0x6B; // [TGT], [SRC1], [SRC2], [SRC3]
+var OP_STR_RFIND       = 0x6C; // [TGT], [SRC1], [SRC2], [SRC3]
+var OP_STR_LOWER       = 0x6D; // [TGT], [SRC]
+var OP_STR_UPPER       = 0x6E; // [TGT], [SRC]
+var OP_STR_TRIM        = 0x6F; // [TGT], [SRC]
+var OP_STR_REV         = 0x70; // [TGT], [SRC]
+var OP_STR_REP         = 0x71; // [TGT], [SRC]
+var OP_STR_LIST        = 0x72; // [TGT], [SRC]
+var OP_STR_BYTE        = 0x73; // [TGT], [SRC1], [SRC2]
+var OP_STR_HASH        = 0x74; // [TGT], [SRC1], [SRC2]
+var OP_UTF8_VALID      = 0x75; // [TGT], [SRC]
+var OP_UTF8_LIST       = 0x76; // [TGT], [SRC]
+var OP_UTF8_STR        = 0x77; // [TGT], [SRC]
+var OP_STRUCT_SIZE     = 0x78; // [TGT], [SRC]
+var OP_STRUCT_STR      = 0x79; // [TGT], [SRC1], [SRC2]
+var OP_STRUCT_LIST     = 0x7A; // [TGT], [SRC1], [SRC2]
+var OP_LIST_NEW        = 0x7B; // [TGT], [SRC1], [SRC2]
+var OP_LIST_SHIFT      = 0x7C; // [TGT], [SRC]
+var OP_LIST_POP        = 0x7D; // [TGT], [SRC]
+var OP_LIST_PUSH       = 0x7E; // [TGT], [SRC1], [SRC2]
+var OP_LIST_UNSHIFT    = 0x7F; // [TGT], [SRC1], [SRC2]
+var OP_LIST_APPEND     = 0x80; // [TGT], [SRC1], [SRC2]
+var OP_LIST_PREPEND    = 0x81; // [TGT], [SRC1], [SRC2]
+var OP_LIST_FIND       = 0x82; // [TGT], [SRC1], [SRC2], [SRC3]
+var OP_LIST_RFIND      = 0x83; // [TGT], [SRC1], [SRC2], [SRC3]
+var OP_LIST_JOIN       = 0x84; // [TGT], [SRC1], [SRC2]
+var OP_LIST_REV        = 0x85; // [TGT], [SRC]
+var OP_LIST_STR        = 0x86; // [TGT], [SRC]
+var OP_LIST_SORT       = 0x87; // [TGT], [SRC]
+var OP_LIST_RSORT      = 0x88; // [TGT], [SRC]
+var OP_PICKLE_JSON     = 0x89; // [TGT], [SRC]
+var OP_PICKLE_BIN      = 0x8A; // [TGT], [SRC]
+var OP_PICKLE_VAL      = 0x8B; // [TGT], [SRC]
+var OP_PICKLE_VALID    = 0x8C; // [TGT], [SRC]
+var OP_PICKLE_SIBLING  = 0x8D; // [TGT], [SRC]
+var OP_PICKLE_CIRCULAR = 0x8E; // [TGT], [SRC]
+var OP_PICKLE_COPY     = 0x8F; // [TGT], [SRC]
+var OP_GC_GETLEVEL     = 0x90; // [TGT]
+var OP_GC_SETLEVEL     = 0x91; // [TGT], [SRC]
+var OP_GC_RUN          = 0x92; // [TGT]
 // fake ops
 var OP_GT              = 0x1F0;
 var OP_GTE             = 0x1F1;
@@ -258,6 +255,13 @@ function op_numdbl(b, tgt, num){
 	b.push(OP_NUMDBL, tgt.frame, tgt.index,
 		dview.getUint8(0), dview.getUint8(1), dview.getUint8(2), dview.getUint8(3),
 		dview.getUint8(4), dview.getUint8(5), dview.getUint8(6), dview.getUint8(7));
+}
+
+function op_num(b, tgt, num){
+	if (Math.floor(num) == num && num >= -4294967296 && num < 4294967296)
+		op_numint(b, tgt, num);
+	else
+		op_numdbl(b, tgt, num);
 }
 
 function op_str(b, tgt, index){
@@ -522,6 +526,7 @@ var KS_DO         = 'KS_DO';
 var KS_ELSE       = 'KS_ELSE';
 var KS_ELSEIF     = 'KS_ELSEIF';
 var KS_END        = 'KS_END';
+var KS_ENUM       = 'KS_ENUM';
 var KS_FOR        = 'KS_FOR';
 var KS_GOTO       = 'KS_GOTO';
 var KS_IF         = 'KS_IF';
@@ -592,6 +597,7 @@ function ks_str(s){
 	else if (s == 'else'     ) return KS_ELSE;
 	else if (s == 'elseif'   ) return KS_ELSEIF;
 	else if (s == 'end'      ) return KS_END;
+	else if (s == 'enum'     ) return KS_ENUM;
 	else if (s == 'for'      ) return KS_FOR;
 	else if (s == 'goto'     ) return KS_GOTO;
 	else if (s == 'if'       ) return KS_IF;
@@ -1681,6 +1687,7 @@ var AST_DEF2       = 'AST_DEF2';
 var AST_DOWHILE1   = 'AST_DOWHILE1';
 var AST_DOWHILE2   = 'AST_DOWHILE2';
 var AST_DOWHILE3   = 'AST_DOWHILE3';
+var AST_ENUM       = 'AST_ENUM';
 var AST_FOR1       = 'AST_FOR1';
 var AST_FOR2       = 'AST_FOR2';
 var AST_LOOP1      = 'AST_LOOP1';
@@ -1729,6 +1736,10 @@ function ast_dowhile2(flp, cond){
 
 function ast_dowhile3(flp){
 	return { flp: flp, type: AST_DOWHILE3 };
+}
+
+function ast_enum(flp, lvalues){
+	return { flp: flp, type: AST_ENUM, lvalues: lvalues };
 }
 
 function ast_for1(flp, forVar, names1, names2, ex){
@@ -1903,6 +1914,8 @@ var PRS_USING_LOOKUP                  = 'PRS_USING_LOOKUP';
 var PRS_VAR                           = 'PRS_VAR';
 var PRS_VAR_LVALUES                   = 'PRS_VAR_LVALUES';
 var PRS_IDENTS                        = 'PRS_IDENTS';
+var PRS_ENUM                          = 'PRS_ENUM';
+var PRS_ENUM_LVALUES                  = 'PRS_ENUM_LVALUES';
 var PRS_EVAL                          = 'PRS_EVAL';
 var PRS_EVAL_EXPR                     = 'PRS_EVAL_EXPR';
 var PRS_EXPR                          = 'PRS_EXPR';
@@ -1928,6 +1941,7 @@ function prs_new(state, next){
 		state: state,
 		lvalues: null,              // list of expr
 		lvaluesPeriods: 0,          // 0 off, 1 def, 2 nested list
+		lvaluesEnum: false,         // reading an enum
 		forVar: false,
 		str: null,
 		exprAllowComma: true,
@@ -2041,6 +2055,7 @@ function parser_process(pr, flp, stmts){
 			else if (tok_isKS(tk1, KS_DECLARE  )) return parser_start(pr, PRS_DECLARE  );
 			else if (tok_isKS(tk1, KS_DEF      )) return parser_start(pr, PRS_DEF      );
 			else if (tok_isKS(tk1, KS_DO       )) return parser_start(pr, PRS_DO       );
+			else if (tok_isKS(tk1, KS_ENUM     )) return parser_start(pr, PRS_ENUM     );
 			else if (tok_isKS(tk1, KS_FOR      )) return parser_start(pr, PRS_FOR      );
 			else if (tok_isKS(tk1, KS_GOTO     )) return parser_start(pr, PRS_GOTO     );
 			else if (tok_isKS(tk1, KS_IF       )) return parser_start(pr, PRS_IF       );
@@ -2108,12 +2123,15 @@ function parser_process(pr, flp, stmts){
 			st.state = PRS_LVALUES_TERM_DONE;
 			parser_push(pr, PRS_LVALUES_TERM);
 			pr.state.lvaluesPeriods = st.lvaluesPeriods;
+			pr.state.lvaluesEnum = st.lvaluesEnum;
 			return parser_process(pr, flp, stmts);
 
 		case PRS_LVALUES_TERM:
 			if (tk1.type == TOK_IDENT)
 				return parser_lookup(pr, PRS_LVALUES_TERM_LOOKUP);
-			else if (tok_isKS(tk1, KS_LBRACE)){
+			if (st.lvaluesEnum)
+				return prr_error('Expecting enumerator name');
+			if (tok_isKS(tk1, KS_LBRACE)){
 				st.state = PRS_LVALUES_TERM_LIST_DONE;
 				parser_push(pr, PRS_LVALUES_TERM_LIST);
 				return prr_more();
@@ -2499,6 +2517,21 @@ function parser_process(pr, flp, stmts){
 				return prr_error('Missing `end` of if block');
 			stmts.push(ast_if4(flp));
 			return parser_statement(pr, flp, stmts, true);
+
+		case PRS_ENUM:
+			if (tk1.type == TOK_NEWLINE && !tk1.soft)
+				return prr_more();
+			st.state = PRS_ENUM_LVALUES;
+			parser_push(pr, PRS_LVALUES);
+			pr.state.lvalues = [];
+			pr.state.lvaluesEnum = true;
+			return parser_process(pr, flp, stmts);
+
+		case PRS_ENUM_LVALUES:
+			if (st.lvalues.length <= 0)
+				return prr_error('Invalid enumerator declaration');
+			stmts.push(ast_enum(flp, st.lvalues));
+			return parser_statement(pr, flp, stmts, false);
 
 		case PRS_INCLUDE:
 			if (tk1.type == TOK_NEWLINE && !tk1.soft)
@@ -3009,6 +3042,7 @@ function frame_new(parent){
 }
 
 var NSN_VAR        = 'NSN_VAR';
+var NSN_ENUM       = 'NSN_ENUM';
 var NSN_CMD_LOCAL  = 'NSN_CMD_LOCAL';
 var NSN_CMD_NATIVE = 'NSN_CMD_NATIVE';
 var NSN_CMD_OPCODE = 'NSN_CMD_OPCODE';
@@ -3020,6 +3054,14 @@ function nsname_var(name, fr, index){
 		type: NSN_VAR,
 		fr: fr,
 		index: index
+	};
+}
+
+function nsname_enum(name, val){
+	return {
+		name: name,
+		type: NSN_ENUM,
+		val: val
 	};
 }
 
@@ -3350,6 +3392,24 @@ function symtbl_addVar(sym, names, slot){
 	return sta_var(varloc_new(sym.fr.level, slot));
 }
 
+function symtbl_addEnum(sym, names, val){
+	var nsr = symtbl_findNamespace(sym, names, names.length - 1);
+	if (nsr.type == SFN_ERROR)
+		return sta_error(nsr.msg);
+	var ns = nsr.ns;
+	for (var i = 0; i < ns.names.length; i++){
+		var nsn = ns.names[i];
+		if (nsn.name == names[names.length - 1]){
+			if (!sym.repl)
+				return sta_error('Cannot redefine "' + nsn.name + '"');
+			ns.names[i] = nsname_enum(nsn.name, val);
+			return sta_ok();
+		}
+	}
+	ns.names.push(nsname_enum(names[names.length - 1], val));
+	return sta_ok();
+}
+
 function symtbl_reserveVars(sym, count){
 	// reserves the slots 0 to count-1 for arguments to be passed in for commands
 	for (var i = 0; i < count; i++)
@@ -3397,6 +3457,10 @@ function symtbl_addCmdOpcode(sym, name, opcode, params){
 	sym.sc.ns.names.push(nsname_cmdOpcode(name, opcode, params));
 }
 
+function SAE(sym, name, value){
+	sym.sc.ns.names.push(nsname_enum(name, value));
+}
+
 function symtbl_loadStdlib(sym){
 	function SAC(sym, name, opcode, params){
 		symtbl_addCmdOpcode(sym, name, opcode, params);
@@ -3426,9 +3490,9 @@ function symtbl_loadStdlib(sym){
 		SAC(sym, 'inf'       , OP_NUM_INF        ,  0);
 		SAC(sym, 'isnan'     , OP_NUM_ISNAN      ,  1);
 		SAC(sym, 'isfinite'  , OP_NUM_ISFINITE   ,  1);
-		SAC(sym, 'e'         , OP_NUM_E          ,  0);
-		SAC(sym, 'pi'        , OP_NUM_PI         ,  0);
-		SAC(sym, 'tau'       , OP_NUM_TAU        ,  0);
+		SAE(sym, 'e'         , Math.E                );
+		SAE(sym, 'pi'        , Math.PI               );
+		SAE(sym, 'tau'       , Math.PI * 2           );
 		SAC(sym, 'sin'       , OP_NUM_SIN        ,  1);
 		SAC(sym, 'cos'       , OP_NUM_COS        ,  1);
 		SAC(sym, 'tan'       , OP_NUM_TAN        ,  1);
@@ -4417,12 +4481,7 @@ function program_eval(prg, sym, mode, intoVlc, ex){
 					return per_error(ex.flp, ts.msg);
 				intoVlc = ts.vlc;
 			}
-			if (Math.floor(ex.num) == ex.num &&
-				ex.num >= -4294967296 && ex.num < 4294967296){
-				op_numint(prg.ops, intoVlc, ex.num);
-				return per_ok(intoVlc);
-			}
-			op_numdbl(prg.ops, intoVlc, ex.num);
+			op_num(prg.ops, intoVlc, ex.num);
 			return per_ok(intoVlc);
 		} break;
 
@@ -4524,6 +4583,19 @@ function program_eval(prg, sym, mode, intoVlc, ex){
 					if (mode == PEM_CREATE)
 						return per_ok(varVlc);
 					op_move(prg.ops, intoVlc, varVlc);
+					return per_ok(intoVlc);
+				} break;
+
+				case NSN_ENUM: {
+					if (mode == PEM_EMPTY)
+						return per_ok(null);
+					if (mode == PEM_CREATE){
+						var ts = symtbl_addTemp(sym);
+						if (ts.type == STA_ERROR)
+							return per_error(ex.flp, ts.msg);
+						intoVlc = ts.vlc;
+					}
+					op_num(prg.ops, intoVlc, sl.nsn.val);
 					return per_ok(intoVlc);
 				} break;
 
@@ -5192,6 +5264,28 @@ function program_gen(prg, sym, stmt, pst, sayexpr){
 			label_declare(pst.finish, prg.ops);
 			symtbl_popScope(sym);
 			return pgr_pop();
+		} break;
+
+		case AST_ENUM: {
+			var last_val = -1;
+			for (var i = 0; i < stmt.lvalues.length; i++){
+				var ex = stmt.lvalues[i];
+				if (ex.type != EXPR_INFIX)
+					throw new Error('Enum expr should be EXPR_INFIX (this shouldn\'t happen)');
+				var v = last_val + 1;
+				if (ex.right != null){
+					if (ex.right.type != EXPR_NUM)
+						return pgr_error(stmt.flp, 'Enums must be a constant number');
+					v = ex.right.num;
+				}
+				if (ex.left.type != EXPR_NAMES)
+					return pgr_error(stmt.flp, 'Enum name must only consist of identifiers');
+				last_val = v;
+				var st = symtbl_addEnum(sym, ex.left.names, v);
+				if (st == STA_ERROR)
+					return pgr_error(stmt.flp, st.msg);
+			}
+			return pgr_ok();
 		} break;
 
 		case AST_FOR1: {
@@ -8235,21 +8329,6 @@ function context_run(ctx){
 				var iu = INLINE_UNOP(unop_num_isfinite, 'testing if finite');
 				if (iu !== false)
 					return iu;
-			} break;
-
-			case OP_NUM_E          : { // [TGT]
-				LOAD_ab();
-				var_set(ctx, A, B, Math.E);
-			} break;
-
-			case OP_NUM_PI         : { // [TGT]
-				LOAD_ab();
-				var_set(ctx, A, B, Math.PI);
-			} break;
-
-			case OP_NUM_TAU        : { // [TGT]
-				LOAD_ab();
-				var_set(ctx, A, B, Math.PI * 2);
 			} break;
 
 			case OP_NUM_SIN        : { // [TGT], [SRC]
