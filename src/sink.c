@@ -14,14 +14,18 @@
 #endif
 
 #ifdef SINK_DEBUG
-#	undef NDEBUG
+#	ifdef NDEBUG
+#		undef NDEBUG
+#	endif
 #	include <assert.h>
 #	define debug(msg)         printf("> %-10s: %s\n", __func__, msg)
 #	define debugf(msg, ...)   printf("> %-10s: " msg "\n", __func__, __VA_ARGS__)
 #	define oplog(msg)         printf("%% %s\n", msg)
 #	define oplogf(msg, ...)   printf("%% " msg "\n", __VA_ARGS__)
 #else
-#	define NDEBUG
+#	ifndef NDEBUG
+#		define NDEBUG
+#	endif
 #	include <assert.h>
 #	define debug(msg)
 #	define debugf(msg, ...)
