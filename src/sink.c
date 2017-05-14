@@ -159,7 +159,7 @@ static void mem_debug_done(){
 	if (m){
 		printf("Failed to free memory allocated on:\n");
 		while (m){
-			printf("%s:%d\n", m->file, m->line);
+			printf("%s:%d (%p)\n", m->file, m->line, m->p);
 			m_debug_memlist f = m;
 			m = m->next;
 			mem_prod_free(f->p);
@@ -693,92 +693,89 @@ typedef enum {
 	OP_NUM_INF         = 0x3D, // [TGT]
 	OP_NUM_ISNAN       = 0x3E, // [TGT], [SRC]
 	OP_NUM_ISFINITE    = 0x3F, // [TGT], [SRC]
-	OP_NUM_E           = 0x40, // [TGT]
-	OP_NUM_PI          = 0x41, // [TGT]
-	OP_NUM_TAU         = 0x42, // [TGT]
-	OP_NUM_SIN         = 0x43, // [TGT], [SRC]
-	OP_NUM_COS         = 0x44, // [TGT], [SRC]
-	OP_NUM_TAN         = 0x45, // [TGT], [SRC]
-	OP_NUM_ASIN        = 0x46, // [TGT], [SRC]
-	OP_NUM_ACOS        = 0x47, // [TGT], [SRC]
-	OP_NUM_ATAN        = 0x48, // [TGT], [SRC]
-	OP_NUM_ATAN2       = 0x49, // [TGT], [SRC1], [SRC2]
-	OP_NUM_LOG         = 0x4A, // [TGT], [SRC]
-	OP_NUM_LOG2        = 0x4B, // [TGT], [SRC]
-	OP_NUM_LOG10       = 0x4C, // [TGT], [SRC]
-	OP_NUM_EXP         = 0x4D, // [TGT], [SRC]
-	OP_NUM_LERP        = 0x4E, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_NUM_HEX         = 0x4F, // [TGT], [SRC1], [SRC2]
-	OP_NUM_OCT         = 0x50, // [TGT], [SRC1], [SRC2]
-	OP_NUM_BIN         = 0x51, // [TGT], [SRC1], [SRC2]
-	OP_INT_NEW         = 0x52, // [TGT], [SRC]
-	OP_INT_NOT         = 0x53, // [TGT], [SRC]
-	OP_INT_AND         = 0x54, // [TGT], [SRC1], [SRC2]
-	OP_INT_OR          = 0x55, // [TGT], [SRC1], [SRC2]
-	OP_INT_XOR         = 0x56, // [TGT], [SRC1], [SRC2]
-	OP_INT_SHL         = 0x57, // [TGT], [SRC1], [SRC2]
-	OP_INT_SHR         = 0x58, // [TGT], [SRC1], [SRC2]
-	OP_INT_SAR         = 0x59, // [TGT], [SRC1], [SRC2]
-	OP_INT_ADD         = 0x5A, // [TGT], [SRC1], [SRC2]
-	OP_INT_SUB         = 0x5B, // [TGT], [SRC1], [SRC2]
-	OP_INT_MUL         = 0x5C, // [TGT], [SRC1], [SRC2]
-	OP_INT_DIV         = 0x5D, // [TGT], [SRC1], [SRC2]
-	OP_INT_MOD         = 0x5E, // [TGT], [SRC1], [SRC2]
-	OP_INT_CLZ         = 0x5F, // [TGT], [SRC]
-	OP_RAND_SEED       = 0x60, // [TGT], [SRC]
-	OP_RAND_SEEDAUTO   = 0x61, // [TGT]
-	OP_RAND_INT        = 0x62, // [TGT]
-	OP_RAND_NUM        = 0x63, // [TGT]
-	OP_RAND_GETSTATE   = 0x64, // [TGT]
-	OP_RAND_SETSTATE   = 0x65, // [TGT], [SRC]
-	OP_RAND_PICK       = 0x66, // [TGT], [SRC]
-	OP_RAND_SHUFFLE    = 0x67, // [TGT], [SRC]
-	OP_STR_NEW         = 0x68, // [TGT], ARGCOUNT, [ARGS]...
-	OP_STR_SPLIT       = 0x69, // [TGT], [SRC1], [SRC2]
-	OP_STR_REPLACE     = 0x6A, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_STR_BEGINS      = 0x6B, // [TGT], [SRC1], [SRC2]
-	OP_STR_ENDS        = 0x6C, // [TGT], [SRC1], [SRC2]
-	OP_STR_PAD         = 0x6D, // [TGT], [SRC1], [SRC2]
-	OP_STR_FIND        = 0x6E, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_STR_RFIND       = 0x6F, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_STR_LOWER       = 0x70, // [TGT], [SRC]
-	OP_STR_UPPER       = 0x71, // [TGT], [SRC]
-	OP_STR_TRIM        = 0x72, // [TGT], [SRC]
-	OP_STR_REV         = 0x73, // [TGT], [SRC]
-	OP_STR_REP         = 0x74, // [TGT], [SRC]
-	OP_STR_LIST        = 0x75, // [TGT], [SRC]
-	OP_STR_BYTE        = 0x76, // [TGT], [SRC1], [SRC2]
-	OP_STR_HASH        = 0x77, // [TGT], [SRC1], [SRC2]
-	OP_UTF8_VALID      = 0x78, // [TGT], [SRC]
-	OP_UTF8_LIST       = 0x79, // [TGT], [SRC]
-	OP_UTF8_STR        = 0x7A, // [TGT], [SRC]
-	OP_STRUCT_SIZE     = 0x7B, // [TGT], [SRC]
-	OP_STRUCT_STR      = 0x7C, // [TGT], [SRC1], [SRC2]
-	OP_STRUCT_LIST     = 0x7D, // [TGT], [SRC1], [SRC2]
-	OP_LIST_NEW        = 0x7E, // [TGT], [SRC1], [SRC2]
-	OP_LIST_SHIFT      = 0x7F, // [TGT], [SRC]
-	OP_LIST_POP        = 0x80, // [TGT], [SRC]
-	OP_LIST_PUSH       = 0x81, // [TGT], [SRC1], [SRC2]
-	OP_LIST_UNSHIFT    = 0x82, // [TGT], [SRC1], [SRC2]
-	OP_LIST_APPEND     = 0x83, // [TGT], [SRC1], [SRC2]
-	OP_LIST_PREPEND    = 0x84, // [TGT], [SRC1], [SRC2]
-	OP_LIST_FIND       = 0x85, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_LIST_RFIND      = 0x86, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_LIST_JOIN       = 0x87, // [TGT], [SRC1], [SRC2]
-	OP_LIST_REV        = 0x88, // [TGT], [SRC]
-	OP_LIST_STR        = 0x89, // [TGT], [SRC]
-	OP_LIST_SORT       = 0x8A, // [TGT], [SRC]
-	OP_LIST_RSORT      = 0x8B, // [TGT], [SRC]
-	OP_PICKLE_JSON     = 0x8C, // [TGT], [SRC]
-	OP_PICKLE_BIN      = 0x8D, // [TGT], [SRC]
-	OP_PICKLE_VAL      = 0x8E, // [TGT], [SRC]
-	OP_PICKLE_VALID    = 0x8F, // [TGT], [SRC]
-	OP_PICKLE_SIBLING  = 0x90, // [TGT], [SRC]
-	OP_PICKLE_CIRCULAR = 0x91, // [TGT], [SRC]
-	OP_PICKLE_COPY     = 0x92, // [TGT], [SRC]
-	OP_GC_GETLEVEL     = 0x93, // [TGT]
-	OP_GC_SETLEVEL     = 0x94, // [TGT], [SRC]
-	OP_GC_RUN          = 0x95, // [TGT]
+	OP_NUM_SIN         = 0x40, // [TGT], [SRC]
+	OP_NUM_COS         = 0x41, // [TGT], [SRC]
+	OP_NUM_TAN         = 0x42, // [TGT], [SRC]
+	OP_NUM_ASIN        = 0x43, // [TGT], [SRC]
+	OP_NUM_ACOS        = 0x44, // [TGT], [SRC]
+	OP_NUM_ATAN        = 0x45, // [TGT], [SRC]
+	OP_NUM_ATAN2       = 0x46, // [TGT], [SRC1], [SRC2]
+	OP_NUM_LOG         = 0x47, // [TGT], [SRC]
+	OP_NUM_LOG2        = 0x48, // [TGT], [SRC]
+	OP_NUM_LOG10       = 0x49, // [TGT], [SRC]
+	OP_NUM_EXP         = 0x4A, // [TGT], [SRC]
+	OP_NUM_LERP        = 0x4B, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_NUM_HEX         = 0x4C, // [TGT], [SRC1], [SRC2]
+	OP_NUM_OCT         = 0x4D, // [TGT], [SRC1], [SRC2]
+	OP_NUM_BIN         = 0x4E, // [TGT], [SRC1], [SRC2]
+	OP_INT_NEW         = 0x4F, // [TGT], [SRC]
+	OP_INT_NOT         = 0x50, // [TGT], [SRC]
+	OP_INT_AND         = 0x51, // [TGT], [SRC1], [SRC2]
+	OP_INT_OR          = 0x52, // [TGT], [SRC1], [SRC2]
+	OP_INT_XOR         = 0x53, // [TGT], [SRC1], [SRC2]
+	OP_INT_SHL         = 0x54, // [TGT], [SRC1], [SRC2]
+	OP_INT_SHR         = 0x55, // [TGT], [SRC1], [SRC2]
+	OP_INT_SAR         = 0x56, // [TGT], [SRC1], [SRC2]
+	OP_INT_ADD         = 0x57, // [TGT], [SRC1], [SRC2]
+	OP_INT_SUB         = 0x58, // [TGT], [SRC1], [SRC2]
+	OP_INT_MUL         = 0x59, // [TGT], [SRC1], [SRC2]
+	OP_INT_DIV         = 0x5A, // [TGT], [SRC1], [SRC2]
+	OP_INT_MOD         = 0x5B, // [TGT], [SRC1], [SRC2]
+	OP_INT_CLZ         = 0x5C, // [TGT], [SRC]
+	OP_RAND_SEED       = 0x5D, // [TGT], [SRC]
+	OP_RAND_SEEDAUTO   = 0x5E, // [TGT]
+	OP_RAND_INT        = 0x5F, // [TGT]
+	OP_RAND_NUM        = 0x60, // [TGT]
+	OP_RAND_GETSTATE   = 0x61, // [TGT]
+	OP_RAND_SETSTATE   = 0x62, // [TGT], [SRC]
+	OP_RAND_PICK       = 0x63, // [TGT], [SRC]
+	OP_RAND_SHUFFLE    = 0x64, // [TGT], [SRC]
+	OP_STR_NEW         = 0x65, // [TGT], ARGCOUNT, [ARGS]...
+	OP_STR_SPLIT       = 0x66, // [TGT], [SRC1], [SRC2]
+	OP_STR_REPLACE     = 0x67, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_STR_BEGINS      = 0x68, // [TGT], [SRC1], [SRC2]
+	OP_STR_ENDS        = 0x69, // [TGT], [SRC1], [SRC2]
+	OP_STR_PAD         = 0x6A, // [TGT], [SRC1], [SRC2]
+	OP_STR_FIND        = 0x6B, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_STR_RFIND       = 0x6C, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_STR_LOWER       = 0x6D, // [TGT], [SRC]
+	OP_STR_UPPER       = 0x6E, // [TGT], [SRC]
+	OP_STR_TRIM        = 0x6F, // [TGT], [SRC]
+	OP_STR_REV         = 0x70, // [TGT], [SRC]
+	OP_STR_REP         = 0x71, // [TGT], [SRC]
+	OP_STR_LIST        = 0x72, // [TGT], [SRC]
+	OP_STR_BYTE        = 0x73, // [TGT], [SRC1], [SRC2]
+	OP_STR_HASH        = 0x74, // [TGT], [SRC1], [SRC2]
+	OP_UTF8_VALID      = 0x75, // [TGT], [SRC]
+	OP_UTF8_LIST       = 0x76, // [TGT], [SRC]
+	OP_UTF8_STR        = 0x77, // [TGT], [SRC]
+	OP_STRUCT_SIZE     = 0x78, // [TGT], [SRC]
+	OP_STRUCT_STR      = 0x79, // [TGT], [SRC1], [SRC2]
+	OP_STRUCT_LIST     = 0x7A, // [TGT], [SRC1], [SRC2]
+	OP_LIST_NEW        = 0x7B, // [TGT], [SRC1], [SRC2]
+	OP_LIST_SHIFT      = 0x7C, // [TGT], [SRC]
+	OP_LIST_POP        = 0x7D, // [TGT], [SRC]
+	OP_LIST_PUSH       = 0x7E, // [TGT], [SRC1], [SRC2]
+	OP_LIST_UNSHIFT    = 0x7F, // [TGT], [SRC1], [SRC2]
+	OP_LIST_APPEND     = 0x80, // [TGT], [SRC1], [SRC2]
+	OP_LIST_PREPEND    = 0x81, // [TGT], [SRC1], [SRC2]
+	OP_LIST_FIND       = 0x82, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_LIST_RFIND      = 0x83, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_LIST_JOIN       = 0x84, // [TGT], [SRC1], [SRC2]
+	OP_LIST_REV        = 0x85, // [TGT], [SRC]
+	OP_LIST_STR        = 0x86, // [TGT], [SRC]
+	OP_LIST_SORT       = 0x87, // [TGT], [SRC]
+	OP_LIST_RSORT      = 0x88, // [TGT], [SRC]
+	OP_PICKLE_JSON     = 0x89, // [TGT], [SRC]
+	OP_PICKLE_BIN      = 0x8A, // [TGT], [SRC]
+	OP_PICKLE_VAL      = 0x8B, // [TGT], [SRC]
+	OP_PICKLE_VALID    = 0x8C, // [TGT], [SRC]
+	OP_PICKLE_SIBLING  = 0x8D, // [TGT], [SRC]
+	OP_PICKLE_CIRCULAR = 0x8E, // [TGT], [SRC]
+	OP_PICKLE_COPY     = 0x8F, // [TGT], [SRC]
+	OP_GC_GETLEVEL     = 0x90, // [TGT]
+	OP_GC_SETLEVEL     = 0x91, // [TGT], [SRC]
+	OP_GC_RUN          = 0x92, // [TGT]
 	// fake ops
 	OP_GT              = 0x1F0,
 	OP_GTE             = 0x1F1,
@@ -844,6 +841,13 @@ static inline void op_numdbl(list_byte b, varloc_st tgt, sink_val num){
 	list_byte_push11(b, OP_NUMDBL, tgt.frame, tgt.index,
 		num.u & 0xFF, (num.u >> 8) & 0xFF, (num.u >> 16) & 0xFF, (num.u >> 24) & 0xFF,
 		(num.u >> 32) & 0xFF, (num.u >> 40) & 0xFF, (num.u >> 48) & 0xFF, (num.u >> 56) & 0xFF);
+}
+
+static inline void op_num(list_byte b, varloc_st tgt, double num){
+	if (floor(num) == num && num >= -4294967296.0 && num < 4294967296.0)
+		op_numint(b, tgt, (int64_t)num);
+	else
+		op_numdbl(b, tgt, (sink_val){ .f = num });
 }
 
 static inline void op_str(list_byte b, varloc_st tgt, int index){
@@ -1111,6 +1115,7 @@ typedef enum {
 	KS_ELSE,
 	KS_ELSEIF,
 	KS_END,
+	KS_ENUM,
 	KS_FOR,
 	KS_GOTO,
 	KS_IF,
@@ -1175,6 +1180,7 @@ static const char *ks_name(ks_enum k){
 		case KS_ELSE:       return "KS_ELSE";
 		case KS_ELSEIF:     return "KS_ELSEIF";
 		case KS_END:        return "KS_END";
+		case KS_ENUM:       return "KS_ENUM";
 		case KS_FOR:        return "KS_FOR";
 		case KS_GOTO:       return "KS_GOTO";
 		case KS_IF:         return "KS_IF";
@@ -1248,6 +1254,7 @@ static inline ks_enum ks_str(list_byte s){
 	else if (byteequ(s, "else"     )) return KS_ELSE;
 	else if (byteequ(s, "elseif"   )) return KS_ELSEIF;
 	else if (byteequ(s, "end"      )) return KS_END;
+	else if (byteequ(s, "enum"     )) return KS_ENUM;
 	else if (byteequ(s, "for"      )) return KS_FOR;
 	else if (byteequ(s, "goto"     )) return KS_GOTO;
 	else if (byteequ(s, "if"       )) return KS_IF;
@@ -2767,6 +2774,7 @@ typedef enum {
 	AST_DOWHILE1,
 	AST_DOWHILE2,
 	AST_DOWHILE3,
+	AST_ENUM,
 	AST_FOR1,
 	AST_FOR2,
 	AST_LOOP1,
@@ -2784,11 +2792,11 @@ typedef enum {
 	AST_VAR,
 	AST_EVAL,
 	AST_LABEL
-} ast_enum;
+} ast_enumt;
 
 typedef struct {
 	filepos_st flp;
-	ast_enum type;
+	ast_enumt type;
 	union {
 		struct {
 			decl dc;
@@ -2800,6 +2808,9 @@ typedef struct {
 		struct {
 			expr cond;
 		} dowhile2;
+		struct {
+			list_ptr lvalues;
+		} enm;
 		struct {
 			list_ptr names1;
 			list_ptr names2;
@@ -2866,6 +2877,11 @@ static void ast_free(ast stmt){
 			break;
 
 		case AST_DOWHILE3:
+			break;
+
+		case AST_ENUM:
+			if (stmt->u.enm.lvalues)
+				list_ptr_free(stmt->u.enm.lvalues);
 			break;
 
 		case AST_FOR1:
@@ -2980,6 +2996,10 @@ static void ast_print(ast stmt){
 
 		case AST_DOWHILE3:
 			debug("AST_DOWHILE3");
+			break;
+
+		case AST_ENUM:
+			debug("AST_ENUM");
 			break;
 
 		case AST_FOR1:
@@ -3144,6 +3164,14 @@ static inline ast ast_dowhile3(filepos_st flp){
 	ast stmt = mem_alloc(sizeof(ast_st));
 	stmt->flp = flp;
 	stmt->type = AST_DOWHILE3;
+	return stmt;
+}
+
+static inline ast ast_enum(filepos_st flp, list_ptr lvalues){
+	ast stmt = mem_alloc(sizeof(ast_st));
+	stmt->flp = flp;
+	stmt->type = AST_ENUM;
+	stmt->u.enm.lvalues = lvalues;
 	return stmt;
 }
 
@@ -3435,6 +3463,8 @@ typedef enum {
 	PRS_VAR,
 	PRS_VAR_LVALUES,
 	PRS_IDENTS,
+	PRS_ENUM,
+	PRS_ENUM_LVALUES,
 	PRS_EVAL,
 	PRS_EVAL_EXPR,
 	PRS_EXPR,
@@ -3461,6 +3491,7 @@ struct prs_struct {
 	prs_enum state;
 	list_ptr lvalues;
 	int lvaluesPeriods;
+	bool lvaluesEnum;
 	bool forVar;
 	list_byte str;
 	bool exprAllowComma;
@@ -3536,6 +3567,7 @@ static prs prs_new(prs_enum state, prs next){
 	pr->state = state;
 	pr->lvalues = NULL;              // list of expr
 	pr->lvaluesPeriods = 0;          // 0 off, 1 def, 2 nested list
+	pr->lvaluesEnum = false;         // reading an enum
 	pr->forVar = false;
 	pr->str = NULL;
 	pr->exprAllowComma = true;
@@ -3700,6 +3732,7 @@ static prr_st parser_process(parser pr, filepos_st flp, list_ptr stmts){
 			else if (tok_isKS(tk1, KS_DECLARE  )) return parser_start(pr, PRS_DECLARE  );
 			else if (tok_isKS(tk1, KS_DEF      )) return parser_start(pr, PRS_DEF      );
 			else if (tok_isKS(tk1, KS_DO       )) return parser_start(pr, PRS_DO       );
+			else if (tok_isKS(tk1, KS_ENUM     )) return parser_start(pr, PRS_ENUM     );
 			else if (tok_isKS(tk1, KS_FOR      )) return parser_start(pr, PRS_FOR      );
 			else if (tok_isKS(tk1, KS_GOTO     )) return parser_start(pr, PRS_GOTO     );
 			else if (tok_isKS(tk1, KS_IF       )) return parser_start(pr, PRS_IF       );
@@ -3774,12 +3807,15 @@ static prr_st parser_process(parser pr, filepos_st flp, list_ptr stmts){
 			st->state = PRS_LVALUES_TERM_DONE;
 			parser_push(pr, PRS_LVALUES_TERM);
 			pr->state->lvaluesPeriods = st->lvaluesPeriods;
+			pr->state->lvaluesEnum = st->lvaluesEnum;
 			return parser_process(pr, flp, stmts);
 
 		case PRS_LVALUES_TERM:
 			if (tk1->type == TOK_IDENT)
 				return parser_lookup(pr, PRS_LVALUES_TERM_LOOKUP);
-			else if (tok_isKS(tk1, KS_LBRACE)){
+			if (st->lvaluesEnum)
+				return prr_error(sink_format("Expecting enumerator name"));
+			if (tok_isKS(tk1, KS_LBRACE)){
 				st->state = PRS_LVALUES_TERM_LIST_DONE;
 				parser_push(pr, PRS_LVALUES_TERM_LIST);
 				return prr_more();
@@ -4201,6 +4237,22 @@ static prr_st parser_process(parser pr, filepos_st flp, list_ptr stmts){
 				return prr_error(sink_format("Missing `end` of if block"));
 			list_ptr_push(stmts, ast_if4(flp));
 			return parser_statement(pr, flp, stmts, true);
+
+		case PRS_ENUM:
+			if (tk1->type == TOK_NEWLINE && !tk1->u.soft)
+				return prr_more();
+			st->state = PRS_ENUM_LVALUES;
+			parser_push(pr, PRS_LVALUES);
+			pr->state->lvalues = list_ptr_new((free_func)expr_free);
+			pr->state->lvaluesEnum = true;
+			return parser_process(pr, flp, stmts);
+
+		case PRS_ENUM_LVALUES:
+			if (st->lvalues->size <= 0)
+				return prr_error(sink_format("Invalid enumerator declaration"));
+			list_ptr_push(stmts, ast_enum(flp, st->lvalues));
+			st->lvalues = NULL;
+			return parser_statement(pr, flp, stmts, false);
 
 		case PRS_INCLUDE:
 			if (tk1->type == TOK_NEWLINE && !tk1->u.soft)
@@ -4811,20 +4863,22 @@ static inline void namespace_free(namespace ns);
 
 typedef enum {
 	NSN_VAR,
+	NSN_ENUM,
 	NSN_CMD_LOCAL,
 	NSN_CMD_NATIVE,
 	NSN_CMD_OPCODE,
 	NSN_NAMESPACE
-} nsname_enum;
+} nsname_enumt;
 
 typedef struct {
 	list_byte name;
-	nsname_enum type;
+	nsname_enumt type;
 	union {
 		struct {
 			frame fr; // not freed by nsname_free
 			int index;
 		} var;
+		double val;
 		struct {
 			frame fr; // not freed by nsname_free
 			label lbl; // not feed by nsname_free
@@ -4842,11 +4896,9 @@ static void nsname_free(nsname nsn){
 	list_byte_free(nsn->name);
 	switch (nsn->type){
 		case NSN_VAR:
-			break;
+		case NSN_ENUM:
 		case NSN_CMD_LOCAL:
-			break;
 		case NSN_CMD_NATIVE:
-			break;
 		case NSN_CMD_OPCODE:
 			break;
 		case NSN_NAMESPACE:
@@ -4862,6 +4914,9 @@ static void nsname_print(nsname nsn){
 	switch (nsn->type){
 		case NSN_VAR:
 			debugf("%.*s NSN_VAR %d", nsn->name->size, nsn->name->bytes, nsn->u.var.index);
+			break;
+		case NSN_ENUM:
+			debugf("%.*s NSN_ENUM %g", nsn->name->size, nsn->name->bytes, nsn->u.val);
 			break;
 		case NSN_CMD_LOCAL:
 			debugf("%.*s NSN_CMD_LOCAL", nsn->name->size, nsn->name->bytes);
@@ -4886,6 +4941,14 @@ static inline nsname nsname_var(list_byte name, frame fr, int index){
 	nsn->type = NSN_VAR;
 	nsn->u.var.fr = fr;
 	nsn->u.var.index = index;
+	return nsn;
+}
+
+static inline nsname nsname_enum(list_byte name, double val, bool own){
+	nsname nsn = mem_alloc(sizeof(nsname_st));
+	nsn->name = own ? name : list_byte_newcopy(name);
+	nsn->type = NSN_ENUM;
+	nsn->u.val = val;
 	return nsn;
 }
 
@@ -5352,6 +5415,27 @@ static sta_st symtbl_addVar(symtbl sym, list_ptr names, int slot){
 	return sta_var(varloc_new(sym->fr->level, slot));
 }
 
+static sta_st symtbl_addEnum(symtbl sym, list_ptr names, double val){
+	sfn_st nsr = symtbl_findNamespace(sym, names, names->size - 1);
+	if (nsr.type == SFN_ERROR)
+		return sta_error(nsr.u.msg);
+	namespace ns = nsr.u.ns;
+	for (int i = 0; i < ns->names->size; i++){
+		nsname nsn = ns->names->ptrs[i];
+		if (list_byte_equ(nsn->name, names->ptrs[names->size - 1])){
+			if (!sym->repl){
+				return sta_error(
+					sink_format("Cannot redefine \"%.*s\"", nsn->name->size, nsn->name->bytes));
+			}
+			nsname_free(ns->names->ptrs[i]);
+			ns->names->ptrs[i] = nsname_enum(names->ptrs[names->size - 1], val, false);
+			return sta_ok();
+		}
+	}
+	list_ptr_push(ns->names, nsname_enum(names->ptrs[names->size - 1], val, false));
+	return sta_ok();
+}
+
 static void symtbl_reserveVars(symtbl sym, int count){
 	// reserves the slots 0 to count-1 for arguments to be passed in for commands
 	for (int i = 0; i < count; i++)
@@ -5406,6 +5490,10 @@ static inline void SAC(symtbl sym, const char *name, op_enum opcode, int params)
 	list_ptr_push(sym->sc->ns->names, nsname_cmdOpcode(list_byte_newstr(name), opcode, params));
 }
 
+static inline void SAE(symtbl sym, const char *name, double val){
+	list_ptr_push(sym->sc->ns->names, nsname_enum(list_byte_newstr(name), val, true));
+}
+
 static inline list_ptr NSS(const char *str){
 	return list_ptr_newsingle((free_func)list_byte_free, list_byte_newstr(str));
 }
@@ -5437,9 +5525,9 @@ static inline void symtbl_loadStdlib(symtbl sym){
 		SAC(sym, "inf"       , OP_NUM_INF        ,  0);
 		SAC(sym, "isnan"     , OP_NUM_ISNAN      ,  1);
 		SAC(sym, "isfinite"  , OP_NUM_ISFINITE   ,  1);
-		SAC(sym, "e"         , OP_NUM_E          ,  0);
-		SAC(sym, "pi"        , OP_NUM_PI         ,  0);
-		SAC(sym, "tau"       , OP_NUM_TAU        ,  0);
+		SAE(sym, "e"         , sink_num_e().f        );
+		SAE(sym, "pi"        , sink_num_pi().f       );
+		SAE(sym, "tau"       , sink_num_tau().f      );
 		SAC(sym, "sin"       , OP_NUM_SIN        ,  1);
 		SAC(sym, "cos"       , OP_NUM_COS        ,  1);
 		SAC(sym, "tan"       , OP_NUM_TAN        ,  1);
@@ -6624,12 +6712,7 @@ static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st int
 					return per_error(ex->flp, ts.u.msg);
 				intoVlc = ts.u.vlc;
 			}
-			if (floor(ex->u.num) == ex->u.num &&
-				ex->u.num >= -4294967296.0 && ex->u.num < 4294967296.0){
-				op_numint(prg->ops, intoVlc, (int64_t)ex->u.num);
-				return per_ok(intoVlc);
-			}
-			op_numdbl(prg->ops, intoVlc, (sink_val){ .f = ex->u.num });
+			op_num(prg->ops, intoVlc, ex->u.num);
 			return per_ok(intoVlc);
 		} break;
 
@@ -6733,6 +6816,19 @@ static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st int
 					if (mode == PEM_CREATE)
 						return per_ok(varVlc);
 					op_move(prg->ops, intoVlc, varVlc);
+					return per_ok(intoVlc);
+				} break;
+
+				case NSN_ENUM: {
+					if (mode == PEM_EMPTY)
+						return per_ok(VARLOC_NULL);
+					if (mode == PEM_CREATE){
+						sta_st ts = symtbl_addTemp(sym);
+						if (ts.type == STA_ERROR)
+							return per_error(ex->flp, ts.u.msg);
+						intoVlc = ts.u.vlc;
+					}
+					op_num(prg->ops, intoVlc, sl.u.nsn->u.val);
 					return per_ok(intoVlc);
 				} break;
 
@@ -7581,6 +7677,29 @@ static inline pgr_st program_gen(program prg, symtbl sym, ast stmt, void *state,
 			label_declare(pst->finish, prg->ops);
 			symtbl_popScope(sym);
 			return pgr_pop();
+		} break;
+
+		case AST_ENUM: {
+			double last_val = -1;
+			for (int i = 0; i < stmt->u.var.lvalues->size; i++){
+				expr ex = stmt->u.var.lvalues->ptrs[i];
+				assert(ex->type == EXPR_INFIX);
+				double v = last_val + 1;
+				if (ex->u.infix.right != NULL){
+					if (ex->u.infix.right->type != EXPR_NUM)
+						return pgr_error(stmt->flp, sink_format("Enums must be a constant number"));
+					v = ex->u.infix.right->u.num;
+				}
+				if (ex->u.infix.left->type != EXPR_NAMES){
+					return pgr_error(stmt->flp,
+						sink_format("Enum name must only consist of identifiers"));
+				}
+				last_val = v;
+				sta_st st = symtbl_addEnum(sym, ex->u.infix.left->u.names, v);
+				if (st.type == STA_ERROR)
+					return pgr_error(stmt->flp, st.u.msg);
+			}
+			return pgr_ok();
 		} break;
 
 		case AST_FOR1: {
@@ -12099,21 +12218,6 @@ static sink_run context_run(context ctx){
 
 			case OP_NUM_ISFINITE   : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_isfinite, "testing if finite")
-			} break;
-
-			case OP_NUM_E          : { // [TGT]
-				LOAD_ab();
-				var_set(ctx, A, B, sink_num_e());
-			} break;
-
-			case OP_NUM_PI         : { // [TGT]
-				LOAD_ab();
-				var_set(ctx, A, B, sink_num_pi());
-			} break;
-
-			case OP_NUM_TAU        : { // [TGT]
-				LOAD_ab();
-				var_set(ctx, A, B, sink_num_tau());
 			} break;
 
 			case OP_NUM_SIN        : { // [TGT], [SRC]
