@@ -7688,9 +7688,12 @@ static inline pgr_st program_gen(program prg, symtbl sym, ast stmt, void *state,
 				assert(ex->type == EXPR_INFIX);
 				double v = last_val + 1;
 				if (ex->u.infix.right != NULL){
-					if (ex->u.infix.right->type != EXPR_NUM)
+					expr ex2 = ex->u.infix.right;
+					while (ex2->type == EXPR_PAREN)
+						ex2 = ex2->u.ex;
+					if (ex2->type != EXPR_NUM)
 						return pgr_error(stmt->flp, sink_format("Enums must be a constant number"));
-					v = ex->u.infix.right->u.num;
+					v = ex2->u.num;
 				}
 				if (ex->u.infix.left->type != EXPR_NAMES){
 					return pgr_error(stmt->flp,

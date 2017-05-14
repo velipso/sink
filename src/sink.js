@@ -5276,9 +5276,12 @@ function program_gen(prg, sym, stmt, pst, sayexpr){
 					throw new Error('Enum expr should be EXPR_INFIX (this shouldn\'t happen)');
 				var v = last_val + 1;
 				if (ex.right != null){
-					if (ex.right.type != EXPR_NUM)
+					var ex2 = ex.right;
+					while (ex2.type == EXPR_PAREN)
+						ex2 = ex2.ex;
+					if (ex2.type != EXPR_NUM)
 						return pgr_error(stmt.flp, 'Enums must be a constant number');
-					v = ex.right.num;
+					v = ex2.num;
 				}
 				if (ex.left.type != EXPR_NAMES)
 					return pgr_error(stmt.flp, 'Enum name must only consist of identifiers');
