@@ -494,6 +494,8 @@ enum some.constant.number = 100
 say some.constant.number  # 100
 ```
 
+If a value isn't initialized, it is the previous value plus one (starting at 0).
+
 Destructuring Assignment
 ------------------------
 
