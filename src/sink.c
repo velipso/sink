@@ -7716,7 +7716,11 @@ static inline pgr_st program_gen(program prg, symtbl sym, ast stmt, void *state,
 				expr c = stmt->u.for1.ex;
 				if (c->u.call.cmd->type == EXPR_NAMES){
 					expr n = c->u.call.cmd;
-					if (n->u.names->size == 1 && byteequ(n->u.names->ptrs[0], "range")){
+					stl_st sl = symtbl_lookup(sym, n->u.names);
+					if (sl.type == STL_ERROR)
+						return pgr_error(stmt->flp, sl.u.msg);
+					nsname nsn = sl.u.nsn;
+					if (nsn->type == NSN_CMD_OPCODE && nsn->u.cmdOpcode.opcode == OP_RANGE){
 						expr p = c->u.call.params;
 						varloc_st rp[3] = { VARLOC_NULL, VARLOC_NULL, VARLOC_NULL };
 						if (p->type != EXPR_GROUP){
