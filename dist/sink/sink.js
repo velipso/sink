@@ -5298,7 +5298,11 @@ function program_gen(prg, sym, stmt, pst, sayexpr){
 				var c = stmt.ex;
 				if (c.cmd.type == EXPR_NAMES){
 					var n = c.cmd;
-					if (n.names.length == 1 && n.names[0] == 'range'){
+					var sl = symtbl_lookup(sym, n.names);
+					if (sl.type == STL_ERROR)
+						return pgr_error(stmt.flp, sl.msg);
+					var nsn = sl.nsn;
+					if (nsn.type == NSN_CMD_OPCODE && nsn.opcode == OP_RANGE){
 						var p = c.params;
 						var rp = [null, null, null];
 						if (p.type != EXPR_GROUP){
@@ -5445,7 +5449,7 @@ function program_gen(prg, sym, stmt, pst, sayexpr){
 					return pgr_error(ex.flp, 'Invalid call');
 				var sl = symtbl_lookup(sym, ex.cmd.names);
 				if (sl.type == STL_ERROR)
-					return pgr_error(exflp, sl.msg);
+					return pgr_error(ex.flp, sl.msg);
 				nsn = sl.nsn;
 				params = ex.params;
 			}
