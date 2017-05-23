@@ -785,6 +785,8 @@ function tok_midPrecedence(tk){
 	else if (k == KS_SLASHEQU  ) return 20;
 	else if (k == KS_CARETEQU  ) return 20;
 	else if (k == KS_TILDEEQU  ) return 20;
+	else if (k == KS_AMP2EQU   ) return 20;
+	else if (k == KS_PIPE2EQU  ) return 20;
 	//assert(false);
 	return -1;
 }
@@ -2386,6 +2388,10 @@ function parser_process(pr, flp, stmts){
 				parser_push(pr, PRS_BODY);
 				return prr_more();
 			}
+			else if (tok_isKS(tk1, KS_COLON)){
+				st.state = PRS_FOR_VARS_DONE;
+				return prr_more();
+			}
 			st.state = PRS_FOR_VARS;
 			if (tok_isKS(tk1, KS_VAR)){
 				st.forVar = true;
@@ -3346,6 +3352,7 @@ function symtbl_addTemp(sym){
 }
 
 function symtbl_clearTemp(sym, vlc){
+	//assert(vlc !== null);
 	if (vlc.frame == sym.fr.level && sym.fr.vars[vlc.index] == FVR_TEMP_INUSE)
 		sym.fr.vars[vlc.index] = FVR_TEMP_AVAIL;
 }
@@ -4921,12 +4928,13 @@ function pgs_dowhile_new(top, cond, finish){
 	return { top: top, cond: cond, finish: finish };
 }
 
-function pgs_for_new(t1, t2, t3, t4, idx_vlc, top, inc, finish){
+function pgs_for_new(t1, t2, t3, t4, val_vlc, idx_vlc, top, inc, finish){
 	return {
 		t1: t1,
 		t2: t2,
 		t3: t3,
 		t4: t4,
+		val_vlc: val_vlc,
 		idx_vlc: idx_vlc,
 		top: top,
 		inc: inc,
@@ -4942,54 +4950,31 @@ function pgs_if_new(nextcond, ifdone){
 	return { nextcond: nextcond, ifdone: ifdone };
 }
 
-function program_forVars(sym, stmt){
-	var val_vlc;
-	var idx_vlc;
-
-	// load VLC's for the value and index
-	if (stmt.forVar){
-		var sr = symtbl_addVar(sym, stmt.names1, -1);
-		if (sr.type == STA_ERROR)
-			return pgr_error(stmt.flp, sr.msg);
-		val_vlc = sr.vlc;
-
-		if (stmt.names2 == null){
-			var ts = symtbl_addTemp(sym);
-			if (ts.type == STA_ERROR)
-				return pgr_error(stmt.flp, ts.msg);
-			idx_vlc = ts.vlc;
-		}
-		else{
-			sr = symtbl_addVar(sym, stmt.names2, -1);
-			if (sr.type == STA_ERROR)
-				return pgr_error(stmt.flp, sr.msg);
-			idx_vlc = sr.vlc;
-		}
+function program_forVarsSingle(sym, forVar, names){
+	if (names == null || forVar){
+		var ts = names == null ? symtbl_addTemp(sym) : symtbl_addVar(sym, names, -1);
+		if (ts.type == STA_ERROR)
+			return { success: false, err: ts.msg };
+		return { success: true, vlc: ts.vlc };
 	}
 	else{
-		var sl = symtbl_lookup(sym, stmt.names1);
+		var sl = symtbl_lookup(sym, names);
 		if (sl.type == STL_ERROR)
-			return pgr_error(stmt.flp, sl.msg);
+			return { success: false, err: sl.msg };
 		if (sl.nsn.type != NSN_VAR)
-			return pgr_error(stmt.flp, 'Cannot use non-variable in for loop');
-		val_vlc = varloc_new(sl.nsn.fr.level, sl.nsn.index);
-
-		if (stmt.names2 == null){
-			var ts = symtbl_addTemp(sym);
-			if (ts.type == STA_ERROR)
-				return pgr_error(stmt.flp, ts.msg);
-			idx_vlc = ts.vlc;
-		}
-		else{
-			sl = symtbl_lookup(sym, stmt.names2);
-			if (sl.type == STL_ERROR)
-				return pgr_error(stmt.flp, sl.msg);
-			if (sl.nsn.type != NSN_VAR)
-				return pgr_error(stmt.flp, 'Cannot use non-variable in for loop');
-			idx_vlc = varloc_new(sl.nsn.fr.level, sl.nsn.index);
-		}
+			return { success: false, err: 'Cannot use non-variable in for loop' };
+		return { success: true, vlc: varloc_new(sl.nsn.fr.level, sl.nsn.index) };
 	}
-	return pgr_forvars(val_vlc, idx_vlc);
+}
+
+function program_forVars(sym, stmt){
+	var pf1 = program_forVarsSingle(sym, stmt.forVar, stmt.names1);
+	if (!pf1.success)
+		return pgr_error(stmt.flp, pf1.err);
+	var pf2 = program_forVarsSingle(sym, stmt.forVar, stmt.names2);
+	if (!pf2.success)
+		return pgr_error(stmt.flp, pf2.err);
+	return pgr_forvars(pf1.vlc, pf2.vlc);
 }
 
 function program_genForRange(prg, sym, stmt, p1, p2, p3){
@@ -5049,7 +5034,7 @@ function program_genForRange(prg, sym, stmt, p1, p2, p3){
 	sym.sc.lblBreak = finish;
 	sym.sc.lblContinue = inc;
 
-	return pgr_push(pgs_for_new(p1, p2, p3, t, idx_vlc, top, inc, finish));
+	return pgr_push(pgs_for_new(p1, p2, p3, t, val_vlc, idx_vlc, top, inc, finish));
 }
 
 function program_genForGeneric(prg, sym, stmt){
@@ -5088,7 +5073,7 @@ function program_genForGeneric(prg, sym, stmt){
 	sym.sc.lblBreak = finish;
 	sym.sc.lblContinue = inc;
 
-	return pgr_push(pgs_for_new(t, exp_vlc, val_vlc, null, idx_vlc, top, inc, finish));
+	return pgr_push(pgs_for_new(t, exp_vlc, null, null, val_vlc, idx_vlc, top, inc, finish));
 }
 
 function program_gen(prg, sym, stmt, pst, sayexpr){
@@ -5349,6 +5334,7 @@ function program_gen(prg, sym, stmt, pst, sayexpr){
 				symtbl_clearTemp(sym, pst.t3);
 			if (pst.t4 !== null)
 				symtbl_clearTemp(sym, pst.t4);
+			symtbl_clearTemp(sym, pst.val_vlc);
 			symtbl_clearTemp(sym, pst.idx_vlc);
 			symtbl_popScope(sym);
 			return pgr_pop();

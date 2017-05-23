@@ -18,10 +18,10 @@
 #		undef NDEBUG
 #	endif
 #	include <assert.h>
-#	define debug(msg)         printf("> %-10s: %s\n", __func__, msg)
-#	define debugf(msg, ...)   printf("> %-10s: " msg "\n", __func__, __VA_ARGS__)
-#	define oplog(msg)         printf("%% %s\n", msg)
-#	define oplogf(msg, ...)   printf("%% " msg "\n", __VA_ARGS__)
+#	define debug(msg)         fprintf(stderr, "> %-10s: %s\n", __func__, msg)
+#	define debugf(msg, ...)   fprintf(stderr, "> %-10s: " msg "\n", __func__, __VA_ARGS__)
+#	define oplog(msg)         fprintf(stderr, "%% %s\n", msg)
+#	define oplogf(msg, ...)   fprintf(stderr, "%% " msg "\n", __VA_ARGS__)
 #else
 #	ifndef NDEBUG
 #		define NDEBUG
@@ -1538,6 +1538,8 @@ static inline int tok_midPrecedence(tok tk){
 	else if (k == KS_SLASHEQU  ) return 20;
 	else if (k == KS_CARETEQU  ) return 20;
 	else if (k == KS_TILDEEQU  ) return 20;
+	else if (k == KS_AMP2EQU   ) return 20;
+	else if (k == KS_PIPE2EQU  ) return 20;
 	assert(false);
 	return -1;
 }
@@ -4105,6 +4107,10 @@ static prr_st parser_process(parser pr, filepos_st flp, list_ptr stmts){
 				parser_push(pr, PRS_BODY);
 				return prr_more();
 			}
+			else if (tok_isKS(tk1, KS_COLON)){
+				st->state = PRS_FOR_VARS_DONE;
+				return prr_more();
+			}
 			st->state = PRS_FOR_VARS;
 			if (tok_isKS(tk1, KS_VAR)){
 				st->forVar = true;
@@ -5370,6 +5376,7 @@ static sta_st symtbl_addTemp(symtbl sym){
 }
 
 static inline void symtbl_clearTemp(symtbl sym, varloc_st vlc){
+	assert(!varloc_isnull(vlc));
 	if (vlc.frame == sym->fr->level && sym->fr->vars->vals[vlc.index] == FVR_TEMP_INUSE)
 		sym->fr->vars->vals[vlc.index] = FVR_TEMP_AVAIL;
 }
@@ -7257,6 +7264,7 @@ typedef struct {
 	varloc_st t2;
 	varloc_st t3;
 	varloc_st t4;
+	varloc_st val_vlc;
 	varloc_st idx_vlc;
 } pgs_for_st, *pgs_for;
 
@@ -7268,12 +7276,13 @@ static inline void pgs_for_free(pgs_for pst){
 }
 
 static inline pgs_for pgs_for_new(varloc_st t1, varloc_st t2, varloc_st t3, varloc_st t4,
-	varloc_st idx_vlc, label top, label inc, label finish){
+	varloc_st val_vlc, varloc_st idx_vlc, label top, label inc, label finish){
 	pgs_for pst = mem_alloc(sizeof(pgs_for_st));
 	pst->t1 = t1;
 	pst->t2 = t2;
 	pst->t3 = t3;
 	pst->t4 = t4;
+	pst->val_vlc = val_vlc;
 	pst->idx_vlc = idx_vlc;
 	pst->top = top;
 	pst->inc = inc;
@@ -7318,56 +7327,43 @@ static inline pgs_if pgs_if_new(label nextcond, label ifdone){
 	return pst;
 }
 
-static pgr_st program_forVars(symtbl sym, ast stmt){
-	varloc_st val_vlc;
-	varloc_st idx_vlc;
+typedef struct {
+	varloc_st vlc;
+	char *err;
+} pfvs_res_st;
 
-	// load VLC's for the value and index
-	if (stmt->u.for1.forVar){
-		sta_st sr = symtbl_addVar(sym, stmt->u.for1.names1, -1);
-		if (sr.type == STA_ERROR)
-			return pgr_error(stmt->flp, sr.u.msg);
-		val_vlc = sr.u.vlc;
-
-		if (stmt->u.for1.names2 == NULL){
-			sta_st ts = symtbl_addTemp(sym);
-			if (ts.type == STA_ERROR)
-				return pgr_error(stmt->flp, ts.u.msg);
-			idx_vlc = ts.u.vlc;
-		}
-		else{
-			sr = symtbl_addVar(sym, stmt->u.for1.names2, -1);
-			if (sr.type == STA_ERROR)
-				return pgr_error(stmt->flp, sr.u.msg);
-			idx_vlc = sr.u.vlc;
-		}
+static inline pfvs_res_st program_forVarsSingle(symtbl sym, bool forVar, list_ptr names){
+	if (names == NULL || forVar){
+		sta_st ts = names == NULL ? symtbl_addTemp(sym) : symtbl_addVar(sym, names, -1);
+		if (ts.type == STA_ERROR)
+			return (pfvs_res_st){ .vlc = VARLOC_NULL, .err = ts.u.msg };
+		return (pfvs_res_st){ .vlc = ts.u.vlc, .err = NULL };
 	}
 	else{
-		stl_st sl = symtbl_lookup(sym, stmt->u.for1.names1);
+		stl_st sl = symtbl_lookup(sym, names);
 		if (sl.type == STL_ERROR)
-			return pgr_error(stmt->flp, sl.u.msg);
-		if (sl.u.nsn->type != NSN_VAR)
-			return pgr_error(stmt->flp, sink_format("Cannot use non-variable in for loop"));
-		val_vlc = varloc_new(sl.u.nsn->u.var.fr->level, sl.u.nsn->u.var.index);
-
-		if (stmt->u.for1.names2 == NULL){
-			sta_st ts = symtbl_addTemp(sym);
-			if (ts.type == STA_ERROR)
-				return pgr_error(stmt->flp, ts.u.msg);
-			idx_vlc = ts.u.vlc;
+			return (pfvs_res_st){ .vlc = VARLOC_NULL, .err = sl.u.msg };
+		if (sl.u.nsn->type != NSN_VAR){
+			return (pfvs_res_st){
+				.vlc = VARLOC_NULL,
+				.err = sink_format("Cannot use non-variable in for loop")
+			};
 		}
-		else{
-			sl = symtbl_lookup(sym, stmt->u.for1.names2);
-			if (sl.type == STL_ERROR)
-				return pgr_error(stmt->flp, sl.u.msg);
-			if (sl.u.nsn->type != NSN_VAR){
-				return pgr_error(stmt->flp,
-					sink_format("Cannot use non-variable in for loop"));
-			}
-			idx_vlc = varloc_new(sl.u.nsn->u.var.fr->level, sl.u.nsn->u.var.index);
-		}
+		return (pfvs_res_st){
+			.vlc = varloc_new(sl.u.nsn->u.var.fr->level, sl.u.nsn->u.var.index),
+			.err = NULL
+		};
 	}
-	return pgr_forvars(val_vlc, idx_vlc);
+}
+
+static pgr_st program_forVars(symtbl sym, ast stmt){
+	pfvs_res_st pf1 = program_forVarsSingle(sym, stmt->u.for1.forVar, stmt->u.for1.names1);
+	if (pf1.err)
+		return pgr_error(stmt->flp, pf1.err);
+	pfvs_res_st pf2 = program_forVarsSingle(sym, stmt->u.for1.forVar, stmt->u.for1.names2);
+	if (pf2.err)
+		return pgr_error(stmt->flp, pf2.err);
+	return pgr_forvars(pf1.vlc, pf2.vlc);
 }
 
 static pgr_st program_genForRange(program prg, symtbl sym, ast stmt, varloc_st p1, varloc_st p2,
@@ -7432,7 +7428,8 @@ static pgr_st program_genForRange(program prg, symtbl sym, ast stmt, varloc_st p
 	sym->sc->lblBreak = finish;
 	sym->sc->lblContinue = inc;
 
-	return pgr_push(pgs_for_new(p1, p2, p3, t, idx_vlc, top, inc, finish), (free_func)pgs_for_free);
+	return pgr_push(pgs_for_new(p1, p2, p3, t, val_vlc, idx_vlc, top, inc, finish),
+		(free_func)pgs_for_free);
 }
 
 static pgr_st program_genForGeneric(program prg, symtbl sym, ast stmt){
@@ -7476,7 +7473,8 @@ static pgr_st program_genForGeneric(program prg, symtbl sym, ast stmt){
 	sym->sc->lblBreak = finish;
 	sym->sc->lblContinue = inc;
 
-	return pgr_push(pgs_for_new(t, exp_vlc, val_vlc, VARLOC_NULL, idx_vlc, top, inc, finish),
+	return pgr_push(
+		pgs_for_new(t, exp_vlc, VARLOC_NULL, VARLOC_NULL, val_vlc, idx_vlc, top, inc, finish),
 		(free_func)pgs_for_free);
 }
 
@@ -7769,6 +7767,7 @@ static inline pgr_st program_gen(program prg, symtbl sym, ast stmt, void *state,
 				symtbl_clearTemp(sym, pst->t3);
 			if (!varloc_isnull(pst->t4))
 				symtbl_clearTemp(sym, pst->t4);
+			symtbl_clearTemp(sym, pst->val_vlc);
 			symtbl_clearTemp(sym, pst->idx_vlc);
 			symtbl_popScope(sym);
 			return pgr_pop();
