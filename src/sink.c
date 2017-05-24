@@ -714,9 +714,9 @@ typedef enum {
 	OP_NUM_BIN         = 0x4E, // [TGT], [SRC1], [SRC2]
 	OP_INT_NEW         = 0x4F, // [TGT], [SRC]
 	OP_INT_NOT         = 0x50, // [TGT], [SRC]
-	OP_INT_AND         = 0x51, // [TGT], [SRC1], [SRC2]
-	OP_INT_OR          = 0x52, // [TGT], [SRC1], [SRC2]
-	OP_INT_XOR         = 0x53, // [TGT], [SRC1], [SRC2]
+	OP_INT_AND         = 0x51, // [TGT], ARGCOUNT, [ARGS]...
+	OP_INT_OR          = 0x52, // [TGT], ARGCOUNT, [ARGS]...
+	OP_INT_XOR         = 0x53, // [TGT], ARGCOUNT, [ARGS]...
 	OP_INT_SHL         = 0x54, // [TGT], [SRC1], [SRC2]
 	OP_INT_SHR         = 0x55, // [TGT], [SRC1], [SRC2]
 	OP_INT_SAR         = 0x56, // [TGT], [SRC1], [SRC2]
@@ -5558,9 +5558,9 @@ static inline void symtbl_loadStdlib(symtbl sym){
 	nss = NSS("int"); symtbl_pushNamespace(sym, nss); list_ptr_free(nss);
 		SAC(sym, "new"       , OP_INT_NEW        ,  1);
 		SAC(sym, "not"       , OP_INT_NOT        ,  1);
-		SAC(sym, "and"       , OP_INT_AND        ,  2);
-		SAC(sym, "or"        , OP_INT_OR         ,  2);
-		SAC(sym, "xor"       , OP_INT_XOR        ,  2);
+		SAC(sym, "and"       , OP_INT_AND        , -1);
+		SAC(sym, "or"        , OP_INT_OR         , -1);
+		SAC(sym, "xor"       , OP_INT_XOR        , -1);
 		SAC(sym, "shl"       , OP_INT_SHL        ,  2);
 		SAC(sym, "shr"       , OP_INT_SHR        ,  2);
 		SAC(sym, "sar"       , OP_INT_SAR        ,  2);
@@ -10042,6 +10042,48 @@ static inline sink_val opi_triop(context ctx, sink_val a, sink_val b, sink_val c
 	return oper_tri(ctx, a, b, c, f_trinary);
 }
 
+static inline sink_val opi_combop(context ctx, int size, sink_val *vals, binary_func f_binary,
+	const char *erop){
+	if (size <= 0)
+		goto badtype;
+	int listsize = -1;
+	for (int i = 0; i < size; i++){
+		if (sink_islist(vals[i])){
+			sink_list ls = var_castlist(ctx, vals[i]);
+			if (ls->size > listsize)
+				listsize = ls->size;
+			for (int j = 0; j < size; j++){
+				if (!sink_isnum(ls->vals[j]))
+					goto badtype;
+			}
+		}
+		else if (!sink_isnum(vals[i]))
+			goto badtype;
+	}
+
+	if (listsize < 0){
+		// no lists, so just combine
+		for (int i = 1; i < size; i++)
+			vals[0] = f_binary(ctx, vals[0], vals[i]);
+		return vals[0];
+	}
+	else if (listsize > 0){
+		sink_val *ret = mem_alloc(sizeof(sink_val) * listsize);
+		for (int j = 0; j < listsize; j++)
+			ret[j] = arget(ctx, vals[0], j);
+		for (int i = 1; i < size; i++){
+			for (int j = 0; j < listsize; j++)
+				ret[j] = f_binary(ctx, ret[j], arget(ctx, vals[i], j));
+		}
+		return sink_list_newblobgive(ctx, listsize, listsize, ret);
+	}
+	// otherwise, listsize == 0
+	return sink_list_newblob(ctx, 0, NULL);
+
+	badtype:
+	return opi_abortformat(ctx, "Expecting number or list of numbers when %s", erop);
+}
+
 static inline sink_val opi_str_at(context ctx, sink_val a, sink_val b){
 	sink_str s = var_caststr(ctx, a);
 	int idx = b.f;
@@ -12310,16 +12352,31 @@ static sink_run context_run(context ctx){
 				INLINE_UNOP(unop_int_not, "NOTing")
 			} break;
 
-			case OP_INT_AND        : { // [TGT], [SRC1], [SRC2]
-				INLINE_BINOP(binop_int_and, "ANDing")
+			case OP_INT_AND        : { // [TGT], ARGCOUNT, [ARGS]...
+				LOAD_abc();
+				for (D = 0; D < C; D++){
+					E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
+					p[D] = var_get(ctx, E, F);
+				}
+				var_set(ctx, A, B, opi_combop(ctx, C, p, binop_int_and, "ANDing"));
 			} break;
 
-			case OP_INT_OR         : { // [TGT], [SRC1], [SRC2]
-				INLINE_BINOP(binop_int_or, "ORing")
+			case OP_INT_OR         : { // [TGT], ARGCOUNT, [ARGS]...
+				LOAD_abc();
+				for (D = 0; D < C; D++){
+					E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
+					p[D] = var_get(ctx, E, F);
+				}
+				var_set(ctx, A, B, opi_combop(ctx, C, p, binop_int_or, "ORing"));
 			} break;
 
-			case OP_INT_XOR        : { // [TGT], [SRC1], [SRC2]
-				INLINE_BINOP(binop_int_xor, "XORing")
+			case OP_INT_XOR        : { // [TGT], ARGCOUNT, [ARGS]...
+				LOAD_abc();
+				for (D = 0; D < C; D++){
+					E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
+					p[D] = var_get(ctx, E, F);
+				}
+				var_set(ctx, A, B, opi_combop(ctx, C, p, binop_int_xor, "XORing"));
 			} break;
 
 			case OP_INT_SHL        : { // [TGT], [SRC1], [SRC2]

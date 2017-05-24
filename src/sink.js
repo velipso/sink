@@ -111,9 +111,9 @@ var OP_NUM_OCT         = 0x4D; // [TGT], [SRC1], [SRC2]
 var OP_NUM_BIN         = 0x4E; // [TGT], [SRC1], [SRC2]
 var OP_INT_NEW         = 0x4F; // [TGT], [SRC]
 var OP_INT_NOT         = 0x50; // [TGT], [SRC]
-var OP_INT_AND         = 0x51; // [TGT], [SRC1], [SRC2]
-var OP_INT_OR          = 0x52; // [TGT], [SRC1], [SRC2]
-var OP_INT_XOR         = 0x53; // [TGT], [SRC1], [SRC2]
+var OP_INT_AND         = 0x51; // [TGT], ARGCOUNT, [ARGS]...
+var OP_INT_OR          = 0x52; // [TGT], ARGCOUNT, [ARGS]...
+var OP_INT_XOR         = 0x53; // [TGT], ARGCOUNT, [ARGS]...
 var OP_INT_SHL         = 0x54; // [TGT], [SRC1], [SRC2]
 var OP_INT_SHR         = 0x55; // [TGT], [SRC1], [SRC2]
 var OP_INT_SAR         = 0x56; // [TGT], [SRC1], [SRC2]
@@ -3519,9 +3519,9 @@ function symtbl_loadStdlib(sym){
 	symtbl_pushNamespace(sym, ['int']);
 		SAC(sym, 'new'       , OP_INT_NEW        ,  1);
 		SAC(sym, 'not'       , OP_INT_NOT        ,  1);
-		SAC(sym, 'and'       , OP_INT_AND        ,  2);
-		SAC(sym, 'or'        , OP_INT_OR         ,  2);
-		SAC(sym, 'xor'       , OP_INT_XOR        ,  2);
+		SAC(sym, 'and'       , OP_INT_AND        , -1);
+		SAC(sym, 'or'        , OP_INT_OR         , -1);
+		SAC(sym, 'xor'       , OP_INT_XOR        , -1);
 		SAC(sym, 'shl'       , OP_INT_SHL        ,  2);
 		SAC(sym, 'shr'       , OP_INT_SHR        ,  2);
 		SAC(sym, 'sar'       , OP_INT_SAR        ,  2);
@@ -6589,6 +6589,55 @@ function opi_abort(ctx, err){
 	return SINK_RUN_FAIL;
 }
 
+function opi_combop(ctx, vals, f_binary, erop){
+	do{
+		if (vals.length <= 0)
+			break;
+		var listsize = -1;
+		var badtype = false;
+		for (var i = 0; i < vals.length; i++){
+			if (sink_islist(vals[i])){
+				var ls = vals[i];
+				if (ls.length > listsize)
+					listsize = ls.length;
+				for (var j = 0; j < ls.length; j++){
+					if (!sink_isnum(ls[j])){
+						badtype = true;
+						break;
+					}
+				}
+				if (badtype)
+					break;
+			}
+			else if (!sink_isnum(vals[i]))
+				break;
+		}
+		if (badtype)
+			break;
+
+		if (listsize < 0){
+			// no lists, so just combine
+			for (var i = 1; i < vals.length; i++)
+				vals[0] = f_binary(vals[0], vals[i]);
+			return vals[0];
+		}
+		else if (listsize > 0){
+			var ret = [];
+			for (var j = 0; j < listsize; j++)
+				ret[j] = arget(vals[0], j);
+			for (var i = 1; i < vals.length; i++){
+				for (var j = 0; j < listsize; j++)
+					ret[j] = f_binary(ret[j], arget(vals[i], j));
+			}
+			return ret;
+		}
+		// otherwise, listsize == 0
+		return [];
+	} while(false);
+
+	return opi_abort(ctx, 'Expecting number or list of numbers when ' + erop);
+}
+
 function sortboth(ctx, li, a, b, mul){
 	if (a === b ||
 		(typeof a === 'number' && typeof b === 'number' && isNaN(a) && isNaN(b)))
@@ -8439,22 +8488,43 @@ function context_run(ctx){
 					return iu;
 			} break;
 
-			case OP_INT_AND        : { // [TGT], [SRC1], [SRC2]
-				var ib = INLINE_BINOP(function(a, b){ return a & b; }, 'ANDing');
-				if (ib !== false)
-					return ib;
+			case OP_INT_AND        : { // [TGT], ARGCOUNT, [ARGS]...
+				LOAD_abc();
+				var p = new Array(C);
+				for (D = 0; D < C; D++){
+					E = ops[ctx.pc++]; F = ops[ctx.pc++];
+					p[D] = var_get(ctx, E, F);
+				}
+				X = opi_combop(ctx, p, function(a, b){ return a & b; }, 'ANDing');
+				if (ctx.failed)
+					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
-			case OP_INT_OR         : { // [TGT], [SRC1], [SRC2]
-				var ib = INLINE_BINOP(function(a, b){ return a | b; }, 'ORing');
-				if (ib !== false)
-					return ib;
+			case OP_INT_OR         : { // [TGT], ARGCOUNT, [ARGS]...
+				LOAD_abc();
+				var p = new Array(C);
+				for (D = 0; D < C; D++){
+					E = ops[ctx.pc++]; F = ops[ctx.pc++];
+					p[D] = var_get(ctx, E, F);
+				}
+				X = opi_combop(ctx, p, function(a, b){ return a | b; }, 'ORing');
+				if (ctx.failed)
+					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
-			case OP_INT_XOR        : { // [TGT], [SRC1], [SRC2]
-				var ib = INLINE_BINOP(function(a, b){ return a ^ b; }, 'XORing');
-				if (ib !== false)
-					return ib;
+			case OP_INT_XOR        : { // [TGT], ARGCOUNT, [ARGS]...
+				LOAD_abc();
+				var p = new Array(C);
+				for (D = 0; D < C; D++){
+					E = ops[ctx.pc++]; F = ops[ctx.pc++];
+					p[D] = var_get(ctx, E, F);
+				}
+				X = opi_combop(ctx, p, function(a, b){ return a ^ b; }, 'XORing');
+				if (ctx.failed)
+					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_INT_SHL        : { // [TGT], [SRC1], [SRC2]
