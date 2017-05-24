@@ -7357,9 +7357,12 @@ static inline pfvs_res_st program_forVarsSingle(symtbl sym, bool forVar, list_pt
 }
 
 static pgr_st program_forVars(symtbl sym, ast stmt){
-	pfvs_res_st pf1 = program_forVarsSingle(sym, stmt->u.for1.forVar, stmt->u.for1.names1);
-	if (pf1.err)
-		return pgr_error(stmt->flp, pf1.err);
+	pfvs_res_st pf1 = { .vlc = VARLOC_NULL };
+	if (stmt->u.for1.names1 != NULL){
+		pf1 = program_forVarsSingle(sym, stmt->u.for1.forVar, stmt->u.for1.names1);
+		if (pf1.err)
+			return pgr_error(stmt->flp, pf1.err);
+	}
 	pfvs_res_st pf2 = program_forVarsSingle(sym, stmt->u.for1.forVar, stmt->u.for1.names2);
 	if (pf2.err)
 		return pgr_error(stmt->flp, pf2.err);
@@ -7413,16 +7416,18 @@ static pgr_st program_genForRange(program prg, symtbl sym, ast stmt, varloc_st p
 	op_binop(prg->ops, OP_LT, t, idx_vlc, p2);
 	label_jumpfalse(finish, prg->ops, t);
 
-	if (varloc_isnull(p3)){
-		if (!zerostart)
-			op_binop(prg->ops, OP_NUM_ADD, val_vlc, p1, idx_vlc);
-		else
-			op_move(prg->ops, val_vlc, idx_vlc);
-	}
-	else{
-		op_binop(prg->ops, OP_NUM_MUL, val_vlc, idx_vlc, p3);
-		if (!zerostart)
-			op_binop(prg->ops, OP_NUM_ADD, val_vlc, p1, val_vlc);
+	if (!varloc_isnull(val_vlc)){
+		if (varloc_isnull(p3)){
+			if (!zerostart)
+				op_binop(prg->ops, OP_NUM_ADD, val_vlc, p1, idx_vlc);
+			else
+				op_move(prg->ops, val_vlc, idx_vlc);
+		}
+		else{
+			op_binop(prg->ops, OP_NUM_MUL, val_vlc, idx_vlc, p3);
+			if (!zerostart)
+				op_binop(prg->ops, OP_NUM_ADD, val_vlc, p1, val_vlc);
+		}
 	}
 
 	sym->sc->lblBreak = finish;
@@ -7469,7 +7474,8 @@ static pgr_st program_genForGeneric(program prg, symtbl sym, ast stmt){
 	op_binop(prg->ops, OP_LT, t, idx_vlc, t);
 	label_jumpfalse(finish, prg->ops, t);
 
-	op_getat(prg->ops, val_vlc, exp_vlc, idx_vlc);
+	if (!varloc_isnull(val_vlc))
+		op_getat(prg->ops, val_vlc, exp_vlc, idx_vlc);
 	sym->sc->lblBreak = finish;
 	sym->sc->lblContinue = inc;
 
@@ -7767,7 +7773,8 @@ static inline pgr_st program_gen(program prg, symtbl sym, ast stmt, void *state,
 				symtbl_clearTemp(sym, pst->t3);
 			if (!varloc_isnull(pst->t4))
 				symtbl_clearTemp(sym, pst->t4);
-			symtbl_clearTemp(sym, pst->val_vlc);
+			if (!varloc_isnull(pst->val_vlc))
+				symtbl_clearTemp(sym, pst->val_vlc);
 			symtbl_clearTemp(sym, pst->idx_vlc);
 			symtbl_popScope(sym);
 			return pgr_pop();

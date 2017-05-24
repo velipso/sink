@@ -4968,9 +4968,12 @@ function program_forVarsSingle(sym, forVar, names){
 }
 
 function program_forVars(sym, stmt){
-	var pf1 = program_forVarsSingle(sym, stmt.forVar, stmt.names1);
-	if (!pf1.success)
-		return pgr_error(stmt.flp, pf1.err);
+	var pf1 = { vlc: null };
+	if (stmt.names1 !== null){
+		pf1 = program_forVarsSingle(sym, stmt.forVar, stmt.names1);
+		if (!pf1.success)
+			return pgr_error(stmt.flp, pf1.err);
+	}
 	var pf2 = program_forVarsSingle(sym, stmt.forVar, stmt.names2);
 	if (!pf2.success)
 		return pgr_error(stmt.flp, pf2.err);
@@ -5019,16 +5022,18 @@ function program_genForRange(prg, sym, stmt, p1, p2, p3){
 	op_binop(prg.ops, OP_LT, t, idx_vlc, p2);
 	label_jumpfalse(finish, prg.ops, t);
 
-	if (p3 === null){
-		if (!zerostart)
-			op_binop(prg.ops, OP_NUM_ADD, val_vlc, p1, idx_vlc);
-		else
-			op_move(prg.ops, val_vlc, idx_vlc);
-	}
-	else{
-		op_binop(prg.ops, OP_NUM_MUL, val_vlc, idx_vlc, p3);
-		if (!zerostart)
-			op_binop(prg.ops, OP_NUM_ADD, val_vlc, p1, val_vlc);
+	if (val_vlc !== null){
+		if (p3 === null){
+			if (!zerostart)
+				op_binop(prg.ops, OP_NUM_ADD, val_vlc, p1, idx_vlc);
+			else
+				op_move(prg.ops, val_vlc, idx_vlc);
+		}
+		else{
+			op_binop(prg.ops, OP_NUM_MUL, val_vlc, idx_vlc, p3);
+			if (!zerostart)
+				op_binop(prg.ops, OP_NUM_ADD, val_vlc, p1, val_vlc);
+		}
 	}
 
 	sym.sc.lblBreak = finish;
@@ -5069,7 +5074,8 @@ function program_genForGeneric(prg, sym, stmt){
 	op_binop(prg.ops, OP_LT, t, idx_vlc, t);
 	label_jumpfalse(finish, prg.ops, t);
 
-	op_getat(prg.ops, val_vlc, exp_vlc, idx_vlc);
+	if (val_vlc !== null)
+		op_getat(prg.ops, val_vlc, exp_vlc, idx_vlc);
 	sym.sc.lblBreak = finish;
 	sym.sc.lblContinue = inc;
 
@@ -5334,7 +5340,8 @@ function program_gen(prg, sym, stmt, pst, sayexpr){
 				symtbl_clearTemp(sym, pst.t3);
 			if (pst.t4 !== null)
 				symtbl_clearTemp(sym, pst.t4);
-			symtbl_clearTemp(sym, pst.val_vlc);
+			if (pst.val_vlc !== null)
+				symtbl_clearTemp(sym, pst.val_vlc);
 			symtbl_clearTemp(sym, pst.idx_vlc);
 			symtbl_popScope(sym);
 			return pgr_pop();
