@@ -138,22 +138,22 @@ signed 32-bit integers using the `int` namespace, with appropriate two's-complem
 Integer commands will operate on lists by performing the operation on each element, just like the
 built-in unary and binary operators.
 
-| Function       | Description                                                                    |
-|----------------|--------------------------------------------------------------------------------|
-| `int.new a`    | Round `a` to an integer                                                        |
-| `int.not a`    | Bitwise NOT of `a`                                                             |
-| `int.and a, b` | Bitwise AND between `a` and `b`                                                |
-| `int.or a, b`  | Bitwise OR between `a` and `b`                                                 |
-| `int.xor a, b` | Bitwise XOR between `a` and `b`                                                |
-| `int.shl a, b` | Bit-shift left `a` by `b` bits                                                 |
-| `int.shr a, b` | Bit-shift right `a` by `b` bits (zero-fill shift)                              |
-| `int.sar a, b` | Bit-shift right `a` by `b` bits (sign-extended shift)                          |
-| `int.add a, b` | `a + b`                                                                        |
-| `int.sub a, b` | `a - b`                                                                        |
-| `int.mul a, b` | `a * b`                                                                        |
-| `int.div a, b` | `a / b`                                                                        |
-| `int.mod a, b` | `a % b`                                                                        |
-| `int.clz a`    | Count leading zeros                                                            |
+| Function            | Description                                                               |
+|---------------------|---------------------------------------------------------------------------|
+| `int.new a`         | Round `a` to an integer                                                   |
+| `int.not a`         | Bitwise NOT of `a`                                                        |
+| `int.and a, b, ...` | Bitwise AND between all arguments                                         |
+| `int.or a, b, ...`  | Bitwise OR between all arguments                                          |
+| `int.xor a, b, ...` | Bitwise XOR between all arguments                                         |
+| `int.shl a, b`      | Bit-shift left `a` by `b` bits                                            |
+| `int.shr a, b`      | Bit-shift right `a` by `b` bits (zero-fill shift)                         |
+| `int.sar a, b`      | Bit-shift right `a` by `b` bits (sign-extended shift)                     |
+| `int.add a, b`      | `a + b`                                                                   |
+| `int.sub a, b`      | `a - b`                                                                   |
+| `int.mul a, b`      | `a * b`                                                                   |
+| `int.div a, b`      | `a / b`                                                                   |
+| `int.mod a, b`      | `a % b`                                                                   |
+| `int.clz a`         | Count leading zeros                                                       |
 
 Random
 ------
