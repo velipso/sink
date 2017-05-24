@@ -12358,7 +12358,10 @@ static sink_run context_run(context ctx){
 					E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
 					p[D] = var_get(ctx, E, F);
 				}
-				var_set(ctx, A, B, opi_combop(ctx, C, p, binop_int_and, "ANDing"));
+				X = opi_combop(ctx, C, p, binop_int_and, "ANDing");
+				if (ctx->failed)
+					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_INT_OR         : { // [TGT], ARGCOUNT, [ARGS]...
@@ -12367,7 +12370,10 @@ static sink_run context_run(context ctx){
 					E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
 					p[D] = var_get(ctx, E, F);
 				}
-				var_set(ctx, A, B, opi_combop(ctx, C, p, binop_int_or, "ORing"));
+				X = opi_combop(ctx, C, p, binop_int_or, "ORing");
+				if (ctx->failed)
+					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_INT_XOR        : { // [TGT], ARGCOUNT, [ARGS]...
@@ -12376,7 +12382,10 @@ static sink_run context_run(context ctx){
 					E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
 					p[D] = var_get(ctx, E, F);
 				}
-				var_set(ctx, A, B, opi_combop(ctx, C, p, binop_int_xor, "XORing"));
+				X = opi_combop(ctx, C, p, binop_int_xor, "XORing");
+				if (ctx->failed)
+					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_INT_SHL        : { // [TGT], [SRC1], [SRC2]
