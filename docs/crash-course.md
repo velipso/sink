@@ -627,6 +627,14 @@ end
 #  ...forever
 ```
 
+Variables are optional and can be omitted if not needed:
+
+```
+for: range 10
+  # do something 10 times
+end
+```
+
 The `continue` and `break` statements operate as expected inside the for loops.
 
 ### Range
