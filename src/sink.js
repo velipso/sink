@@ -184,7 +184,7 @@ var OP_PICK            = 0x1F2;
 var OP_INVALID         = 0x1F3;
 
 function oplog(){
-	//return;
+	return;
 	var out = arguments[0];
 	for (var i = 1; i < arguments.length; i++){
 		var a = arguments[i];
