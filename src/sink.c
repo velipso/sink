@@ -5886,7 +5886,7 @@ static bool program_validate(program prg){
 	uint32_t jumploc;
 	uint32_t jumplocs[256];
 	list_byte ops = prg->ops;
-	int A, B, C, D, E, F, G, H, I, J;
+	int A, B, C, D;
 
 	// holds alignment information
 	// op_actual: the actual alignment of each byte
