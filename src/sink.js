@@ -183,6 +183,184 @@ var OP_GTE             = 0x1F1;
 var OP_PICK            = 0x1F2;
 var OP_INVALID         = 0x1F3;
 
+var OPPC_INVALID    = 'OPPC_INVALID';
+var OPPC_STR        = 'OPPC_STR';        // [VAR], [INDEX]
+var OPPC_CMDHEAD    = 'OPPC_CMDHEAD';    // LEVEL, RESTPOS
+var OPPC_CMDTAIL    = 'OPPC_CMDTAIL';    //
+var OPPC_JUMP       = 'OPPC_JUMP';       // [[LOCATION]]
+var OPPC_VJUMP      = 'OPPC_VJUMP';      // [VAR], [[LOCATION]]
+var OPPC_CALL       = 'OPPC_CALL';       // [VAR], [[LOCATION]], ARGCOUNT, [VARS]...
+var OPPC_NATIVE     = 'OPPC_NATIVE';     // [VAR], [INDEX], ARGCOUNT, [VARS]...
+var OPPC_RETURNTAIL = 'OPPC_RETURNTAIL'; // [[LOCATION]], ARGCOUNT, [VARS]...
+var OPPC_VVVV       = 'OPPC_VVVV';       // [VAR], [VAR], [VAR], [VAR]
+var OPPC_VVV        = 'OPPC_VVV';        // [VAR], [VAR], [VAR]
+var OPPC_VV         = 'OPPC_VV';         // [VAR], [VAR]
+var OPPC_V          = 'OPPC_V';          // [VAR]
+var OPPC_EMPTY      = 'OPPC_EMPTY';      // nothing
+var OPPC_VA         = 'OPPC_VA';         // [VAR], ARGCOUNT, [VARS]...
+var OPPC_VN         = 'OPPC_VN';         // [VAR], DATA
+var OPPC_VNN        = 'OPPC_VNN';        // [VAR], [DATA]
+var OPPC_VNNNN      = 'OPPC_VNNNN';      // [VAR], [[DATA]]
+var OPPC_VNNNNNNNN  = 'OPPC_VNNNNNNNN';  // [VAR], [[[DATA]]]
+
+// lookup table for categorizing the operator types
+function op_paramcat(op){
+	switch (op){
+		case OP_NOP            : return OPPC_EMPTY;
+		case OP_MOVE           : return OPPC_VV;
+		case OP_INC            : return OPPC_V;
+		case OP_NIL            : return OPPC_V;
+		case OP_NUMP8          : return OPPC_VN;
+		case OP_NUMN8          : return OPPC_VN;
+		case OP_NUMP16         : return OPPC_VNN;
+		case OP_NUMN16         : return OPPC_VNN;
+		case OP_NUMP32         : return OPPC_VNNNN;
+		case OP_NUMN32         : return OPPC_VNNNN;
+		case OP_NUMDBL         : return OPPC_VNNNNNNNN;
+		case OP_STR            : return OPPC_STR;
+		case OP_LIST           : return OPPC_VN;
+		case OP_ISNUM          : return OPPC_VV;
+		case OP_ISSTR          : return OPPC_VV;
+		case OP_ISLIST         : return OPPC_VV;
+		case OP_NOT            : return OPPC_VV;
+		case OP_SIZE           : return OPPC_VV;
+		case OP_TONUM          : return OPPC_VV;
+		case OP_CAT            : return OPPC_VA;
+		case OP_LT             : return OPPC_VVV;
+		case OP_LTE            : return OPPC_VVV;
+		case OP_NEQ            : return OPPC_VVV;
+		case OP_EQU            : return OPPC_VVV;
+		case OP_GETAT          : return OPPC_VVV;
+		case OP_SLICE          : return OPPC_VVVV;
+		case OP_SETAT          : return OPPC_VVV;
+		case OP_SPLICE         : return OPPC_VVVV;
+		case OP_JUMP           : return OPPC_JUMP;
+		case OP_JUMPTRUE       : return OPPC_VJUMP;
+		case OP_JUMPFALSE      : return OPPC_VJUMP;
+		case OP_CMDHEAD        : return OPPC_CMDHEAD;
+		case OP_CMDTAIL        : return OPPC_CMDTAIL;
+		case OP_CALL           : return OPPC_CALL;
+		case OP_NATIVE         : return OPPC_NATIVE;
+		case OP_RETURN         : return OPPC_V;
+		case OP_RETURNTAIL     : return OPPC_RETURNTAIL;
+		case OP_RANGE          : return OPPC_VVVV;
+		case OP_ORDER          : return OPPC_VVV;
+		case OP_SAY            : return OPPC_VA;
+		case OP_WARN           : return OPPC_VA;
+		case OP_ASK            : return OPPC_VA;
+		case OP_EXIT           : return OPPC_VA;
+		case OP_ABORT          : return OPPC_VA;
+		case OP_NUM_NEG        : return OPPC_VV;
+		case OP_NUM_ADD        : return OPPC_VVV;
+		case OP_NUM_SUB        : return OPPC_VVV;
+		case OP_NUM_MUL        : return OPPC_VVV;
+		case OP_NUM_DIV        : return OPPC_VVV;
+		case OP_NUM_MOD        : return OPPC_VVV;
+		case OP_NUM_POW        : return OPPC_VVV;
+		case OP_NUM_ABS        : return OPPC_VV;
+		case OP_NUM_SIGN       : return OPPC_VV;
+		case OP_NUM_MAX        : return OPPC_VA;
+		case OP_NUM_MIN        : return OPPC_VA;
+		case OP_NUM_CLAMP      : return OPPC_VVVV;
+		case OP_NUM_FLOOR      : return OPPC_VV;
+		case OP_NUM_CEIL       : return OPPC_VV;
+		case OP_NUM_ROUND      : return OPPC_VV;
+		case OP_NUM_TRUNC      : return OPPC_VV;
+		case OP_NUM_NAN        : return OPPC_V;
+		case OP_NUM_INF        : return OPPC_V;
+		case OP_NUM_ISNAN      : return OPPC_VV;
+		case OP_NUM_ISFINITE   : return OPPC_VV;
+		case OP_NUM_SIN        : return OPPC_VV;
+		case OP_NUM_COS        : return OPPC_VV;
+		case OP_NUM_TAN        : return OPPC_VV;
+		case OP_NUM_ASIN       : return OPPC_VV;
+		case OP_NUM_ACOS       : return OPPC_VV;
+		case OP_NUM_ATAN       : return OPPC_VV;
+		case OP_NUM_ATAN2      : return OPPC_VVV;
+		case OP_NUM_LOG        : return OPPC_VV;
+		case OP_NUM_LOG2       : return OPPC_VV;
+		case OP_NUM_LOG10      : return OPPC_VV;
+		case OP_NUM_EXP        : return OPPC_VV;
+		case OP_NUM_LERP       : return OPPC_VVVV;
+		case OP_NUM_HEX        : return OPPC_VVV;
+		case OP_NUM_OCT        : return OPPC_VVV;
+		case OP_NUM_BIN        : return OPPC_VVV;
+		case OP_INT_NEW        : return OPPC_VV;
+		case OP_INT_NOT        : return OPPC_VV;
+		case OP_INT_AND        : return OPPC_VA;
+		case OP_INT_OR         : return OPPC_VA;
+		case OP_INT_XOR        : return OPPC_VA;
+		case OP_INT_SHL        : return OPPC_VVV;
+		case OP_INT_SHR        : return OPPC_VVV;
+		case OP_INT_SAR        : return OPPC_VVV;
+		case OP_INT_ADD        : return OPPC_VVV;
+		case OP_INT_SUB        : return OPPC_VVV;
+		case OP_INT_MUL        : return OPPC_VVV;
+		case OP_INT_DIV        : return OPPC_VVV;
+		case OP_INT_MOD        : return OPPC_VVV;
+		case OP_INT_CLZ        : return OPPC_VV;
+		case OP_RAND_SEED      : return OPPC_VV;
+		case OP_RAND_SEEDAUTO  : return OPPC_V;
+		case OP_RAND_INT       : return OPPC_V;
+		case OP_RAND_NUM       : return OPPC_V;
+		case OP_RAND_GETSTATE  : return OPPC_V;
+		case OP_RAND_SETSTATE  : return OPPC_VV;
+		case OP_RAND_PICK      : return OPPC_VV;
+		case OP_RAND_SHUFFLE   : return OPPC_VV;
+		case OP_STR_NEW        : return OPPC_VA;
+		case OP_STR_SPLIT      : return OPPC_VVV;
+		case OP_STR_REPLACE    : return OPPC_VVVV;
+		case OP_STR_BEGINS     : return OPPC_VVV;
+		case OP_STR_ENDS       : return OPPC_VVV;
+		case OP_STR_PAD        : return OPPC_VVV;
+		case OP_STR_FIND       : return OPPC_VVVV;
+		case OP_STR_RFIND      : return OPPC_VVVV;
+		case OP_STR_LOWER      : return OPPC_VV;
+		case OP_STR_UPPER      : return OPPC_VV;
+		case OP_STR_TRIM       : return OPPC_VV;
+		case OP_STR_REV        : return OPPC_VV;
+		case OP_STR_REP        : return OPPC_VVV;
+		case OP_STR_LIST       : return OPPC_VV;
+		case OP_STR_BYTE       : return OPPC_VVV;
+		case OP_STR_HASH       : return OPPC_VVV;
+		case OP_UTF8_VALID     : return OPPC_VV;
+		case OP_UTF8_LIST      : return OPPC_VV;
+		case OP_UTF8_STR       : return OPPC_VV;
+		case OP_STRUCT_SIZE    : return OPPC_VV;
+		case OP_STRUCT_STR     : return OPPC_VVV;
+		case OP_STRUCT_LIST    : return OPPC_VVV;
+		case OP_LIST_NEW       : return OPPC_VVV;
+		case OP_LIST_SHIFT     : return OPPC_VV;
+		case OP_LIST_POP       : return OPPC_VV;
+		case OP_LIST_PUSH      : return OPPC_VVV;
+		case OP_LIST_UNSHIFT   : return OPPC_VVV;
+		case OP_LIST_APPEND    : return OPPC_VVV;
+		case OP_LIST_PREPEND   : return OPPC_VVV;
+		case OP_LIST_FIND      : return OPPC_VVVV;
+		case OP_LIST_RFIND     : return OPPC_VVVV;
+		case OP_LIST_JOIN      : return OPPC_VVV;
+		case OP_LIST_REV       : return OPPC_VV;
+		case OP_LIST_STR       : return OPPC_VV;
+		case OP_LIST_SORT      : return OPPC_VV;
+		case OP_LIST_RSORT     : return OPPC_VV;
+		case OP_PICKLE_JSON    : return OPPC_VV;
+		case OP_PICKLE_BIN     : return OPPC_VV;
+		case OP_PICKLE_VAL     : return OPPC_VV;
+		case OP_PICKLE_VALID   : return OPPC_VV;
+		case OP_PICKLE_SIBLING : return OPPC_VV;
+		case OP_PICKLE_CIRCULAR: return OPPC_VV;
+		case OP_PICKLE_COPY    : return OPPC_VV;
+		case OP_GC_GETLEVEL    : return OPPC_V;
+		case OP_GC_SETLEVEL    : return OPPC_VV;
+		case OP_GC_RUN         : return OPPC_V;
+		case OP_GT             : return OPPC_INVALID;
+		case OP_GTE            : return OPPC_INVALID;
+		case OP_PICK           : return OPPC_INVALID;
+		case OP_INVALID        : return OPPC_INVALID;
+	}
+	return OPPC_INVALID;
+}
+
 function oplog(){
 	return;
 	var out = arguments[0];
@@ -3614,6 +3792,194 @@ function program_new(repl){
 		flpTable: [],
 		ops: []
 	};
+}
+
+function program_validate(prg){
+	var pc = 0;
+	var level = 0;
+	var wasjump = false;
+	var jumploc;
+	var jumplocs = new Array(256);
+	var ops = prg.ops;
+	var A, B, C, D;
+
+	// holds alignment information
+	// op_actual: the actual alignment of each byte
+	//   0 = invalid target, 1 = valid jump target, 2 = valid call target
+	var op_actual = [];
+	// op_need: the required alignment of each byte
+	//   0 = don't care, 1 = valid jump target, 2 = valid call target
+	var op_need = [];
+	for (var i = 0; i < ops.length; i++){
+		op_actual.push(0);
+		op_need.push(0);
+	}
+
+	function READVAR(){
+		if (pc + 2 > ops.length)
+			return false;
+		A = ops[pc++];
+		B = ops[pc++];
+		if (A > level)
+			return false;
+		return true;
+	}
+
+	function READLOC(L){
+		if (pc + 4 > ops.length)
+			return false;
+		A = ops[pc++];
+		B = ops[pc++];
+		C = ops[pc++];
+		D = ops[pc++];
+		jumploc = A + (B << 8) + (C << 16) + ((D << 23) * 2);
+		if (jumploc == 0xFFFFFFFF)
+			return false;
+		if (jumploc < ops.length)
+			op_need[jumploc] = L;
+		return true;
+	}
+
+	function READDATA(S){
+		if (pc + S > ops.length)
+			return false;
+		pc += S;
+		return true;
+	}
+
+	function READCNT(){
+		if (pc + 1 > ops.length)
+			return false;
+		C = ops[pc++];
+		for (D = 0; D < C; D++){
+			if (!READVAR())
+				return false;
+		}
+		return true;
+	}
+
+	function READINDEX(){
+		if (pc + 2 > ops.length)
+			return false;
+		A = ops[pc++];
+		B = ops[pc++];
+		A = A | (B << 8);
+		return true;
+	}
+
+	while (pc < ops.length){
+		op_actual[pc] = 1;
+		var opc = op_paramcat(ops[pc++]);
+		switch (opc){
+			case OPPC_INVALID    : return false;
+
+			case OPPC_STR        : { // [VAR], [INDEX]
+				if (!READVAR()) return false;
+				if (!READINDEX()) return false;
+				if (A < 0 || A >= prg.strTable.length)
+					return false;
+			} break;
+
+			case OPPC_CMDHEAD    : { // LEVEL, RESTPOS
+				if (!wasjump)
+					return false;
+				if (pc + 2 > ops.length)
+					return false;
+				op_actual[pc - 1] = 2; // valid call target
+				if (level > 255)
+					return false;
+				jumplocs[level++] = jumploc; // save previous jump target
+				A = ops[pc++];
+				B = ops[pc++];
+				if (A != level)
+					return false;
+			} break;
+
+			case OPPC_CMDTAIL    : { //
+				if (level <= 0)
+					return false;
+				if (jumplocs[--level] != pc) // force jump target to jump over command body
+					return false;
+			} break;
+
+			case OPPC_JUMP       : { // [[LOCATION]]
+				if (!READLOC(1)) // need valid jump target
+					return false;
+			} break;
+
+			case OPPC_VJUMP      : { // [VAR], [[LOCATION]]
+				if (!READVAR()) return false;
+				if (!READLOC(1)) // need valid jump target
+					return false;
+			} break;
+
+			case OPPC_CALL       : { // [VAR], [[LOCATION]], ARGCOUNT, [VARS]...
+				if (!READVAR()) return false;
+				if (!READLOC(2)) // need valid call target
+					return false;
+				if (!READCNT()) return false;
+			} break;
+
+			case OPPC_NATIVE     : { // [VAR], [INDEX], ARGCOUNT, [VARS]...
+				if (!READVAR()) return false;
+				if (!READINDEX()) return false;
+				if (A < 0 || A >= prg.keyTable.length)
+					return false;
+				if (!READCNT()) return false;
+			} break;
+
+			case OPPC_RETURNTAIL : { // [[LOCATION]], ARGCOUNT, [VARS]...
+				if (!READLOC(2)) // need valid call target
+					return false;
+				if (!READCNT()) return false;
+			} break;
+
+			case OPPC_VVVV       :   // [VAR], [VAR], [VAR], [VAR]
+				if (!READVAR()) return false;
+			case OPPC_VVV        :   // [VAR], [VAR], [VAR]
+				if (!READVAR()) return false;
+			case OPPC_VV         :   // [VAR], [VAR]
+				if (!READVAR()) return false;
+			case OPPC_V          :   // [VAR]
+				if (!READVAR()) return false;
+			case OPPC_EMPTY      :   // nothing
+				break;
+
+			case OPPC_VA         : { // [VAR], ARGCOUNT, [VARS]...
+				if (!READVAR()) return false;
+				if (!READCNT()) return false;
+			} break;
+
+			case OPPC_VN         : { // [VAR], DATA
+				if (!READVAR()) return false;
+				if (!READDATA(1)) return false;
+			} break;
+
+			case OPPC_VNN        : { // [VAR], [DATA]
+				if (!READVAR()) return false;
+				if (!READDATA(2)) return false;
+			} break;
+
+			case OPPC_VNNNN      : { // [VAR], [[DATA]]
+				if (!READVAR()) return false;
+				if (!READDATA(4)) return false;
+			} break;
+
+			case OPPC_VNNNNNNNN  : { // [VAR], [[[DATA]]]
+				if (!READVAR()) return false;
+				if (!READDATA(8)) return false;
+			} break;
+		}
+		wasjump = opc == OPPC_JUMP;
+	}
+
+	// validate op_need alignments matches op_actual alignments
+	for (var i = 0; i < ops.length; i++){
+		if (op_need[i] != 0 && op_need[i] != op_actual[i])
+			return false;
+	}
+
+	return true;
 }
 
 function program_flp(prg, flp){
@@ -7579,6 +7945,10 @@ function fix_slice(start, len, objsize){
 }
 
 function context_run(ctx){
+	//if (!program_validate(ctx.prg)){
+	//	console.log('Program failed to validate');
+	//	return SINK_RUN_FAIL;
+	//}
 	if (ctx.passed) return SINK_RUN_PASS;
 	if (ctx.failed) return SINK_RUN_FAIL;
 
