@@ -143,7 +143,7 @@ var OP_STR_LOWER       = 0x6D; // [TGT], [SRC]
 var OP_STR_UPPER       = 0x6E; // [TGT], [SRC]
 var OP_STR_TRIM        = 0x6F; // [TGT], [SRC]
 var OP_STR_REV         = 0x70; // [TGT], [SRC]
-var OP_STR_REP         = 0x71; // [TGT], [SRC]
+var OP_STR_REP         = 0x71; // [TGT], [SRC1], [SRC2]
 var OP_STR_LIST        = 0x72; // [TGT], [SRC]
 var OP_STR_BYTE        = 0x73; // [TGT], [SRC1], [SRC2]
 var OP_STR_HASH        = 0x74; // [TGT], [SRC1], [SRC2]
@@ -184,7 +184,7 @@ var OP_PICK            = 0x1F2;
 var OP_INVALID         = 0x1F3;
 
 function oplog(){
-	return;
+	//return;
 	var out = arguments[0];
 	for (var i = 1; i < arguments.length; i++){
 		var a = arguments[i];

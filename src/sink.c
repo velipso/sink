@@ -632,6 +632,7 @@ static inline uint64_t native_hash(int size, const uint8_t *bytes){
 // opcodes
 //
 
+// key: SINGLEBYTE  [TWOBYTES]  [[FOURBYTES]]  [[[EIGHTBYTES]]]
 typedef enum {
 	OP_NOP             = 0x00, //
 	OP_MOVE            = 0x01, // [TGT], [SRC]
@@ -643,7 +644,7 @@ typedef enum {
 	OP_NUMN16          = 0x07, // [TGT], [VALUE]
 	OP_NUMP32          = 0x08, // [TGT], [[VALUE]]
 	OP_NUMN32          = 0x09, // [TGT], [[VALUE]]
-	OP_NUMDBL          = 0x0A, // [TGT], [[[[VALUE]]]]
+	OP_NUMDBL          = 0x0A, // [TGT], [[[VALUE]]]
 	OP_STR             = 0x0B, // [TGT], [INDEX]
 	OP_LIST            = 0x0C, // [TGT], HINT
 	OP_ISNUM           = 0x0D, // [TGT], [SRC]
@@ -746,7 +747,7 @@ typedef enum {
 	OP_STR_UPPER       = 0x6E, // [TGT], [SRC]
 	OP_STR_TRIM        = 0x6F, // [TGT], [SRC]
 	OP_STR_REV         = 0x70, // [TGT], [SRC]
-	OP_STR_REP         = 0x71, // [TGT], [SRC]
+	OP_STR_REP         = 0x71, // [TGT], [SRC1], [SRC2]
 	OP_STR_LIST        = 0x72, // [TGT], [SRC]
 	OP_STR_BYTE        = 0x73, // [TGT], [SRC1], [SRC2]
 	OP_STR_HASH        = 0x74, // [TGT], [SRC1], [SRC2]
@@ -786,6 +787,213 @@ typedef enum {
 	OP_PICK            = 0x1F2,
 	OP_INVALID         = 0x1F3
 } op_enum;
+
+typedef enum {
+	OPPC_INVALID,
+	OPPC_STR,        // [VAR], [INDEX]
+	OPPC_CMDHEAD,    // LEVEL, RESTPOS
+	OPPC_CMDTAIL,    //
+	OPPC_JUMP,       // [[LOCATION]]
+	OPPC_VJUMP,      // [VAR], [[LOCATION]]
+	OPPC_CALL,       // [VAR], [[LOCATION]], ARGCOUNT, [VARS]...
+	OPPC_NATIVE,     // [VAR], [INDEX], ARGCOUNT, [VARS]...
+	OPPC_RETURNTAIL, // [[LOCATION]], ARGCOUNT, [VARS]...
+	OPPC_VVVV,       // [VAR], [VAR], [VAR], [VAR]
+	OPPC_VVV,        // [VAR], [VAR], [VAR]
+	OPPC_VV,         // [VAR], [VAR]
+	OPPC_V,          // [VAR]
+	OPPC_EMPTY,      // nothing
+	OPPC_VA,         // [VAR], ARGCOUNT, [VARS]...
+	OPPC_VN,         // [VAR], DATA
+	OPPC_VNN,        // [VAR], [DATA]
+	OPPC_VNNNN,      // [VAR], [[DATA]]
+	OPPC_VNNNNNNNN   // [VAR], [[[DATA]]]
+} op_pcat;
+
+// lookup table for categorizing the operator types
+static inline op_pcat op_paramcat(op_enum op){
+	switch (op){
+		case OP_NOP            : return OPPC_EMPTY;
+		case OP_MOVE           : return OPPC_VV;
+		case OP_INC            : return OPPC_V;
+		case OP_NIL            : return OPPC_V;
+		case OP_NUMP8          : return OPPC_VN;
+		case OP_NUMN8          : return OPPC_VN;
+		case OP_NUMP16         : return OPPC_VNN;
+		case OP_NUMN16         : return OPPC_VNN;
+		case OP_NUMP32         : return OPPC_VNNNN;
+		case OP_NUMN32         : return OPPC_VNNNN;
+		case OP_NUMDBL         : return OPPC_VNNNNNNNN;
+		case OP_STR            : return OPPC_STR;
+		case OP_LIST           : return OPPC_VN;
+		case OP_ISNUM          : return OPPC_VV;
+		case OP_ISSTR          : return OPPC_VV;
+		case OP_ISLIST         : return OPPC_VV;
+		case OP_NOT            : return OPPC_VV;
+		case OP_SIZE           : return OPPC_VV;
+		case OP_TONUM          : return OPPC_VV;
+		case OP_CAT            : return OPPC_VA;
+		case OP_LT             : return OPPC_VVV;
+		case OP_LTE            : return OPPC_VVV;
+		case OP_NEQ            : return OPPC_VVV;
+		case OP_EQU            : return OPPC_VVV;
+		case OP_GETAT          : return OPPC_VVV;
+		case OP_SLICE          : return OPPC_VVVV;
+		case OP_SETAT          : return OPPC_VVV;
+		case OP_SPLICE         : return OPPC_VVVV;
+		case OP_JUMP           : return OPPC_JUMP;
+		case OP_JUMPTRUE       : return OPPC_VJUMP;
+		case OP_JUMPFALSE      : return OPPC_VJUMP;
+		case OP_CMDHEAD        : return OPPC_CMDHEAD;
+		case OP_CMDTAIL        : return OPPC_CMDTAIL;
+		case OP_CALL           : return OPPC_CALL;
+		case OP_NATIVE         : return OPPC_NATIVE;
+		case OP_RETURN         : return OPPC_V;
+		case OP_RETURNTAIL     : return OPPC_RETURNTAIL;
+		case OP_RANGE          : return OPPC_VVVV;
+		case OP_ORDER          : return OPPC_VVV;
+		case OP_SAY            : return OPPC_VA;
+		case OP_WARN           : return OPPC_VA;
+		case OP_ASK            : return OPPC_VA;
+		case OP_EXIT           : return OPPC_VA;
+		case OP_ABORT          : return OPPC_VA;
+		case OP_NUM_NEG        : return OPPC_VV;
+		case OP_NUM_ADD        : return OPPC_VVV;
+		case OP_NUM_SUB        : return OPPC_VVV;
+		case OP_NUM_MUL        : return OPPC_VVV;
+		case OP_NUM_DIV        : return OPPC_VVV;
+		case OP_NUM_MOD        : return OPPC_VVV;
+		case OP_NUM_POW        : return OPPC_VVV;
+		case OP_NUM_ABS        : return OPPC_VV;
+		case OP_NUM_SIGN       : return OPPC_VV;
+		case OP_NUM_MAX        : return OPPC_VA;
+		case OP_NUM_MIN        : return OPPC_VA;
+		case OP_NUM_CLAMP      : return OPPC_VVVV;
+		case OP_NUM_FLOOR      : return OPPC_VV;
+		case OP_NUM_CEIL       : return OPPC_VV;
+		case OP_NUM_ROUND      : return OPPC_VV;
+		case OP_NUM_TRUNC      : return OPPC_VV;
+		case OP_NUM_NAN        : return OPPC_V;
+		case OP_NUM_INF        : return OPPC_V;
+		case OP_NUM_ISNAN      : return OPPC_VV;
+		case OP_NUM_ISFINITE   : return OPPC_VV;
+		case OP_NUM_SIN        : return OPPC_VV;
+		case OP_NUM_COS        : return OPPC_VV;
+		case OP_NUM_TAN        : return OPPC_VV;
+		case OP_NUM_ASIN       : return OPPC_VV;
+		case OP_NUM_ACOS       : return OPPC_VV;
+		case OP_NUM_ATAN       : return OPPC_VV;
+		case OP_NUM_ATAN2      : return OPPC_VVV;
+		case OP_NUM_LOG        : return OPPC_VV;
+		case OP_NUM_LOG2       : return OPPC_VV;
+		case OP_NUM_LOG10      : return OPPC_VV;
+		case OP_NUM_EXP        : return OPPC_VV;
+		case OP_NUM_LERP       : return OPPC_VVVV;
+		case OP_NUM_HEX        : return OPPC_VVV;
+		case OP_NUM_OCT        : return OPPC_VVV;
+		case OP_NUM_BIN        : return OPPC_VVV;
+		case OP_INT_NEW        : return OPPC_VV;
+		case OP_INT_NOT        : return OPPC_VV;
+		case OP_INT_AND        : return OPPC_VA;
+		case OP_INT_OR         : return OPPC_VA;
+		case OP_INT_XOR        : return OPPC_VA;
+		case OP_INT_SHL        : return OPPC_VVV;
+		case OP_INT_SHR        : return OPPC_VVV;
+		case OP_INT_SAR        : return OPPC_VVV;
+		case OP_INT_ADD        : return OPPC_VVV;
+		case OP_INT_SUB        : return OPPC_VVV;
+		case OP_INT_MUL        : return OPPC_VVV;
+		case OP_INT_DIV        : return OPPC_VVV;
+		case OP_INT_MOD        : return OPPC_VVV;
+		case OP_INT_CLZ        : return OPPC_VV;
+		case OP_RAND_SEED      : return OPPC_VV;
+		case OP_RAND_SEEDAUTO  : return OPPC_V;
+		case OP_RAND_INT       : return OPPC_V;
+		case OP_RAND_NUM       : return OPPC_V;
+		case OP_RAND_GETSTATE  : return OPPC_V;
+		case OP_RAND_SETSTATE  : return OPPC_VV;
+		case OP_RAND_PICK      : return OPPC_VV;
+		case OP_RAND_SHUFFLE   : return OPPC_VV;
+		case OP_STR_NEW        : return OPPC_VA;
+		case OP_STR_SPLIT      : return OPPC_VVV;
+		case OP_STR_REPLACE    : return OPPC_VVVV;
+		case OP_STR_BEGINS     : return OPPC_VVV;
+		case OP_STR_ENDS       : return OPPC_VVV;
+		case OP_STR_PAD        : return OPPC_VVV;
+		case OP_STR_FIND       : return OPPC_VVVV;
+		case OP_STR_RFIND      : return OPPC_VVVV;
+		case OP_STR_LOWER      : return OPPC_VV;
+		case OP_STR_UPPER      : return OPPC_VV;
+		case OP_STR_TRIM       : return OPPC_VV;
+		case OP_STR_REV        : return OPPC_VV;
+		case OP_STR_REP        : return OPPC_VVV;
+		case OP_STR_LIST       : return OPPC_VV;
+		case OP_STR_BYTE       : return OPPC_VVV;
+		case OP_STR_HASH       : return OPPC_VVV;
+		case OP_UTF8_VALID     : return OPPC_VV;
+		case OP_UTF8_LIST      : return OPPC_VV;
+		case OP_UTF8_STR       : return OPPC_VV;
+		case OP_STRUCT_SIZE    : return OPPC_VV;
+		case OP_STRUCT_STR     : return OPPC_VVV;
+		case OP_STRUCT_LIST    : return OPPC_VVV;
+		case OP_LIST_NEW       : return OPPC_VVV;
+		case OP_LIST_SHIFT     : return OPPC_VV;
+		case OP_LIST_POP       : return OPPC_VV;
+		case OP_LIST_PUSH      : return OPPC_VVV;
+		case OP_LIST_UNSHIFT   : return OPPC_VVV;
+		case OP_LIST_APPEND    : return OPPC_VVV;
+		case OP_LIST_PREPEND   : return OPPC_VVV;
+		case OP_LIST_FIND      : return OPPC_VVVV;
+		case OP_LIST_RFIND     : return OPPC_VVVV;
+		case OP_LIST_JOIN      : return OPPC_VVV;
+		case OP_LIST_REV       : return OPPC_VV;
+		case OP_LIST_STR       : return OPPC_VV;
+		case OP_LIST_SORT      : return OPPC_VV;
+		case OP_LIST_RSORT     : return OPPC_VV;
+		case OP_PICKLE_JSON    : return OPPC_VV;
+		case OP_PICKLE_BIN     : return OPPC_VV;
+		case OP_PICKLE_VAL     : return OPPC_VV;
+		case OP_PICKLE_VALID   : return OPPC_VV;
+		case OP_PICKLE_SIBLING : return OPPC_VV;
+		case OP_PICKLE_CIRCULAR: return OPPC_VV;
+		case OP_PICKLE_COPY    : return OPPC_VV;
+		case OP_GC_GETLEVEL    : return OPPC_V;
+		case OP_GC_SETLEVEL    : return OPPC_VV;
+		case OP_GC_RUN         : return OPPC_V;
+		case OP_GT             : return OPPC_INVALID;
+		case OP_GTE            : return OPPC_INVALID;
+		case OP_PICK           : return OPPC_INVALID;
+		case OP_INVALID        : return OPPC_INVALID;
+	}
+	return OPPC_INVALID;
+}
+
+#ifdef SINK_DEBUG
+static const char *op_pcat_name(op_pcat opc){
+	switch (opc){
+		case OPPC_INVALID   : return "OPPC_INVALID";
+		case OPPC_STR       : return "OPPC_STR";
+		case OPPC_CMDHEAD   : return "OPPC_CMDHEAD";
+		case OPPC_CMDTAIL   : return "OPPC_CMDTAIL";
+		case OPPC_JUMP      : return "OPPC_JUMP";
+		case OPPC_VJUMP     : return "OPPC_VJUMP";
+		case OPPC_CALL      : return "OPPC_CALL";
+		case OPPC_NATIVE    : return "OPPC_NATIVE";
+		case OPPC_RETURNTAIL: return "OPPC_RETURNTAIL";
+		case OPPC_VVVV      : return "OPPC_VVVV";
+		case OPPC_VVV       : return "OPPC_VVV";
+		case OPPC_VV        : return "OPPC_VV";
+		case OPPC_V         : return "OPPC_V";
+		case OPPC_EMPTY     : return "OPPC_EMPTY";
+		case OPPC_VA        : return "OPPC_VA";
+		case OPPC_VN        : return "OPPC_VN";
+		case OPPC_VNN       : return "OPPC_VNN";
+		case OPPC_VNNNN     : return "OPPC_VNNNN";
+		case OPPC_VNNNNNNNN : return "OPPC_VNNNNNNNN";
+	}
+	return "Unknown";
+}
+#endif
 
 static inline void op_move(list_byte b, varloc_st tgt, varloc_st src){
 	if (tgt.frame == src.frame && tgt.index == src.index)
@@ -5669,6 +5877,195 @@ static inline program program_new(bool repl){
 	prg->ops = list_byte_new();
 	prg->repl = repl;
 	return prg;
+}
+
+static bool program_validate(program prg){
+	int pc = 0;
+	int level = 0;
+	bool wasjump = false;
+	uint32_t jumploc;
+	uint32_t jumplocs[256];
+	list_byte ops = prg->ops;
+	int A, B, C, D, E, F, G, H, I, J;
+
+	// holds alignment information
+	// op_actual: the actual alignment of each byte
+	//   0 = invalid target, 1 = valid jump target, 2 = valid call target
+	uint8_t *op_actual = mem_alloc(sizeof(uint8_t) * ops->size);
+	memset(op_actual, 0, sizeof(uint8_t) * ops->size);
+	// op_need: the required alignment of each byte
+	//   0 = don't care, 1 = valid jump target, 2 = valid call target
+	uint8_t *op_need = mem_alloc(sizeof(uint8_t) * ops->size);
+	memset(op_need, 0, sizeof(uint8_t) * ops->size);
+
+	#define READVAR() do{                                              \
+			if (pc + 2 > ops->size)                                    \
+				goto fail;                                             \
+			A = ops->bytes[pc++];                                      \
+			B = ops->bytes[pc++];                                      \
+			if (A > level)                                             \
+				goto fail;                                             \
+		} while (false)
+
+	#define READLOC(L) do{                                             \
+			if (pc + 4 > ops->size)                                    \
+				goto fail;                                             \
+			A = ops->bytes[pc++];                                      \
+			B = ops->bytes[pc++];                                      \
+			C = ops->bytes[pc++];                                      \
+			D = ops->bytes[pc++];                                      \
+			jumploc = A + (B << 8) + (C << 16) + ((D << 23) * 2);      \
+			if (jumploc < 0)                                           \
+				goto fail;                                             \
+			if (jumploc < ops->size)                                   \
+				op_need[jumploc] = L;                                  \
+		} while (false)
+
+	#define READDATA(S) do{                                            \
+			if (pc + S > ops->size)                                    \
+				goto fail;                                             \
+			pc += S;                                                   \
+		} while (false)
+
+	#define READCNT() do{                                              \
+			if (pc + 1 > ops->size)                                    \
+				goto fail;                                             \
+			C = ops->bytes[pc++];                                      \
+			for (D = 0; D < C; D++)                                    \
+				READVAR();                                             \
+		} while (false)
+
+	#define READINDEX() do{                                            \
+			if (pc + 2 > ops->size)                                    \
+				goto fail;                                             \
+			A = ops->bytes[pc++];                                      \
+			B = ops->bytes[pc++];                                      \
+			A = A | (B << 8);                                          \
+		} while (false)
+
+	while (pc < ops->size){
+		op_actual[pc] = 1;
+		op_pcat opc = op_paramcat((op_enum)ops->bytes[pc++]);
+		debug(op_pcat_name(opc));
+		switch (opc){
+			case OPPC_INVALID    : goto fail;
+
+			case OPPC_STR        : { // [VAR], [INDEX]
+				READVAR();
+				READINDEX();
+				if (A < 0 || A >= prg->strTable->size)
+					goto fail;
+			} break;
+
+			case OPPC_CMDHEAD    : { // LEVEL, RESTPOS
+				if (!wasjump)
+					goto fail;
+				if (pc + 2 > ops->size)
+					goto fail;
+				op_actual[pc - 1] = 2; // valid call target
+				if (level > 255)
+					goto fail;
+				jumplocs[level++] = jumploc; // save previous jump target
+				A = ops->bytes[pc++];
+				B = ops->bytes[pc++];
+				if (A != level)
+					goto fail;
+			} break;
+
+			case OPPC_CMDTAIL    : { //
+				if (level <= 0)
+					goto fail;
+				if (jumplocs[--level] != pc) // force jump target to jump over command body
+					goto fail;
+			} break;
+
+			case OPPC_JUMP       : { // [[LOCATION]]
+				READLOC(1); // need valid jump target
+			} break;
+
+			case OPPC_VJUMP      : { // [VAR], [[LOCATION]]
+				READVAR();
+				READLOC(1); // need valid jump target
+			} break;
+
+			case OPPC_CALL       : { // [VAR], [[LOCATION]], ARGCOUNT, [VARS]...
+				READVAR();
+				READLOC(2); // need valid call target
+				READCNT();
+			} break;
+
+			case OPPC_NATIVE     : { // [VAR], [INDEX], ARGCOUNT, [VARS]...
+				READVAR();
+				READINDEX();
+				if (A < 0 || A >= prg->keyTable->size)
+					goto fail;
+				READCNT();
+			} break;
+
+			case OPPC_RETURNTAIL : { // [[LOCATION]], ARGCOUNT, [VARS]...
+				READLOC(2); // need valid call target
+				READCNT();
+			} break;
+
+			case OPPC_VVVV       :   // [VAR], [VAR], [VAR], [VAR]
+				READVAR();
+			case OPPC_VVV        :   // [VAR], [VAR], [VAR]
+				READVAR();
+			case OPPC_VV         :   // [VAR], [VAR]
+				READVAR();
+			case OPPC_V          :   // [VAR]
+				READVAR();
+			case OPPC_EMPTY      :   // nothing
+				break;
+
+			case OPPC_VA         : { // [VAR], ARGCOUNT, [VARS]...
+				READVAR();
+				READCNT();
+			} break;
+
+			case OPPC_VN         : { // [VAR], DATA
+				READVAR();
+				READDATA(1);
+			} break;
+
+			case OPPC_VNN        : { // [VAR], [DATA]
+				READVAR();
+				READDATA(2);
+			} break;
+
+			case OPPC_VNNNN      : { // [VAR], [[DATA]]
+				READVAR();
+				READDATA(4);
+			} break;
+
+			case OPPC_VNNNNNNNN  : { // [VAR], [[[DATA]]]
+				READVAR();
+				READDATA(8);
+			} break;
+		}
+		wasjump = opc == OPPC_JUMP;
+	}
+
+	#undef READVAR
+	#undef READLOC
+	#undef READDATA
+	#undef READCNT
+	#undef READINDEX
+
+	// validate op_need alignments matches op_actual alignments
+	for (int i = 0; i < ops->size; i++){
+		if (op_need[i] != 0 && op_need[i] != op_actual[i])
+			goto fail;
+	}
+
+	mem_free(op_actual);
+	mem_free(op_need);
+	return true;
+
+	fail:
+	mem_free(op_actual);
+	mem_free(op_need);
+	return false;
 }
 
 typedef struct {
@@ -11590,6 +11987,12 @@ static inline uint8_t *opi_list_joinplain(sink_ctx ctx, int size, sink_val *vals
 	const uint8_t *sep, int *totv);
 
 static sink_run context_run(context ctx){
+	#ifdef SINK_DEBUG
+	if (!program_validate(ctx->prg)){
+		debug("Program failed to validate");
+		return SINK_RUN_FAIL;
+	}
+	#endif
 	if (ctx->passed) return SINK_RUN_PASS;
 	if (ctx->failed) return SINK_RUN_FAIL;
 	if (ctx->async ) return SINK_RUN_ASYNC;
@@ -11732,7 +12135,7 @@ static sink_run context_run(context ctx){
 				));
 			} break;
 
-			case OP_NUMDBL         : { // [TGT], [[[[VALUE]]]]
+			case OP_NUMDBL         : { // [TGT], [[[VALUE]]]
 				LOAD_abcdefghij();
 				X.u = ((uint64_t)C) |
 					(((uint64_t)D) << 8) |
