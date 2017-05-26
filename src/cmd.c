@@ -261,6 +261,18 @@ int main_eval(const char *eval, char *const *argv, int argc){
 	return res == SINK_RUN_PASS ? 0 : 1;
 }
 
+int main_compile(const char *file, bool debug){
+	sink_scr scr = newscr(SINK_SCR_FILE);
+	if (!sink_scr_loadfile(scr, file)){
+		printscrerr(scr);
+		sink_scr_free(scr);
+		return 1;
+	}
+	sink_scr_dump(scr, debug, (void *)stdout, (sink_dump_func)fwrite);
+	sink_scr_free(scr);
+	return 0;
+}
+
 void printVersion(){
 	printf(
 		"Sink v1.0\n"
@@ -276,6 +288,7 @@ void printHelp(){
 		"  sink <file> [arguments]        Run file with arguments\n"
 		"  sink -e '<code>' [arguments]   Run '<code>' with arguments\n"
 		"  sink -c <file>                 Compile file to bytecode\n"
+		"  sink -d <file>                 Compile file to bytecode with debug info\n"
 		"  sink -v                        Print version information\n");
 }
 
@@ -293,9 +306,9 @@ int main(int argc, char **argv){
 					mode = 1;
 				else if (strcmp(argv[i], "-c") == 0)
 					mode = 2;
-				else if (strcmp(argv[i], "-e") == 0)
+				else if (strcmp(argv[i], "-d") == 0)
 					mode = 3;
-				else if (strcmp(argv[i], "--") == 0)
+				else if (strcmp(argv[i], "-e") == 0)
 					mode = 4;
 				else if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0){
 					printHelp();
@@ -320,7 +333,16 @@ int main(int argc, char **argv){
 				}
 				break;
 
-			case 3: // eval
+			case 3: // compile with debug
+				if (inFile == NULL)
+					inFile = argv[i];
+				else{
+					printHelp();
+					return 1;
+				}
+				break;
+
+			case 4: // eval
 				if (evalLine == NULL)
 					evalLine = argv[i];
 				else{
@@ -333,11 +355,6 @@ int main(int argc, char **argv){
 					}
 					args[argsSize++] = argv[i];
 				}
-				break;
-
-			case 4: // rest
-				inFile = argv[i];
-				mode = 5;
 				break;
 
 			case 5: // run
@@ -360,10 +377,13 @@ int main(int argc, char **argv){
 			printVersion();
 			return 0;
 		case 2: // compile
-			printf("TODO: compile\n");
-			abort();
-			return 1;
-		case 3: // eval
+		case 3: // compile with debug
+			if (inFile == NULL){
+				printHelp();
+				return 1;
+			}
+			return main_compile(inFile, mode == 3);
+		case 4: // eval
 			if (evalLine == NULL){
 				printHelp();
 				return 1;
@@ -372,8 +392,6 @@ int main(int argc, char **argv){
 			if (args)
 				free(args);
 			return res;
-		case 4: // rest
-			return main_repl();
 		case 5: { // run
 			int res = main_run(inFile, args, argsSize);
 			if (args)

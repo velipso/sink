@@ -228,7 +228,7 @@ bool        sink_scr_write(sink_scr scr, int size, const uint8_t *bytes);
 const char *sink_scr_err(sink_scr scr);
 void        sink_scr_setpos(sink_scr scr, int line, int chr);
 int         sink_scr_level(sink_scr scr);
-void        sink_scr_dump(sink_scr scr, void *user, sink_dump_func f_dump);
+void        sink_scr_dump(sink_scr scr, bool debug, void *user, sink_dump_func f_dump);
 void        sink_scr_free(sink_scr scr);
 
 // context

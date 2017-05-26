@@ -781,6 +781,7 @@ typedef enum {
 	OP_GC_GETLEVEL     = 0x90, // [TGT]
 	OP_GC_SETLEVEL     = 0x91, // [TGT], [SRC]
 	OP_GC_RUN          = 0x92, // [TGT]
+	// RESERVED        = 0xFD,
 	// fake ops
 	OP_GT              = 0x1F0,
 	OP_GTE             = 0x1F1,
@@ -14023,9 +14024,146 @@ int sink_scr_level(sink_scr scr){
 	return ((script)scr)->cmp->pr->level;
 }
 
-void sink_scr_dump(sink_scr scr, void *user, sink_dump_func f_dump){
-	fprintf(stderr, "TODO: write sc->prg to f_dump\n");
-	abort();
+void sink_scr_dump(sink_scr scr, bool debug, void *user, sink_dump_func f_dump){
+	// all integer values are little endian
+
+	// output header
+	// 4 bytes: header: 0xFC, 'S', 'k', file format version (always 0x01)
+	// 2 bytes: string table size
+	// 2 bytes: key table size
+	// 4 bytes: unique filename table size
+	// 4 bytes: flp table size
+	uint8_t header[16] = { 0xFC, 0x53, 0x6B, 0x01, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+	list_int flpmap = NULL;
+	program prg = ((script)scr)->prg;
+	header[4] = (prg->strTable->size     ) & 0xFF;
+	header[5] = (prg->strTable->size >> 8) & 0xFF;
+	header[6] = (prg->keyTable->size     ) & 0xFF;
+	header[7] = (prg->keyTable->size >> 8) & 0xFF;
+	if (debug){
+		// calculate unique filenames
+		flpmap = list_int_new();
+		for (int i = 0; i < prg->flpTable->size; i++){
+			prgflp p = prg->flpTable->ptrs[i];
+			bool found = false;
+			int j;
+			for (j = 0; j < flpmap->size && !found; j++){
+				prgflp p2 = prg->flpTable->ptrs[j];
+				found = strcmp(p->flp.file, p2->flp.file) == 0;
+			}
+			if (!found)
+				list_int_push(flpmap, i); // maps i'th flpTable entry to the j'th unique file
+		}
+		header[ 8] = (flpmap->size      ) & 0xFF;
+		header[ 9] = (flpmap->size >>  8) & 0xFF;
+		header[10] = (flpmap->size >> 16) & 0xFF;
+		header[11] = (flpmap->size >> 24) & 0xFF;
+		header[12] = (prg->flpTable->size      ) & 0xFF;
+		header[13] = (prg->flpTable->size >>  8) & 0xFF;
+		header[14] = (prg->flpTable->size >> 16) & 0xFF;
+		header[15] = (prg->flpTable->size >> 24) & 0xFF;
+	}
+	f_dump(header, 1, 16, user);
+
+	// output strTable
+	// 4 bytes: string size
+	// N bytes: raw string bytes
+	for (int i = 0; i < prg->strTable->size; i++){
+		list_byte str = prg->strTable->ptrs[i];
+		uint8_t sizeb[4] = {
+			(str->size      ) & 0xFF,
+			(str->size >>  8) & 0xFF,
+			(str->size >> 16) & 0xFF,
+			(str->size >> 24) & 0xFF
+		};
+		f_dump(sizeb, 1, 4, user);
+		if (str->size > 0)
+			f_dump(str->bytes, 1, str->size, user);
+	}
+
+	// output keyTable
+	// 8 bytes: hash identifier
+	for (int i = 0; i < prg->keyTable->size; i++){
+		uint64_t id = prg->keyTable->vals[i];
+		uint8_t idb[8] = {
+			(id      ) & 0xFF,
+			(id >>  8) & 0xFF,
+			(id >> 16) & 0xFF,
+			(id >> 24) & 0xFF,
+			(id >> 32) & 0xFF,
+			(id >> 40) & 0xFF,
+			(id >> 48) & 0xFF,
+			(id >> 56) & 0xFF
+		};
+		f_dump(idb, 1, 8, user);
+	}
+
+	if (debug){
+		// output unique filenames
+		// 4 bytes: filename length
+		// N bytes: filename raw bytes
+		for (int i = 0; i < flpmap->size; i++){
+			prgflp p = prg->flpTable->ptrs[flpmap->vals[i]];
+			size_t flen = strlen(p->flp.file);
+			uint8_t flenb[4] = {
+				(flen      ) & 0xFF,
+				(flen >>  8) & 0xFF,
+				(flen >> 16) & 0xFF,
+				(flen >> 24) & 0xFF
+			};
+			f_dump(flenb, 1, 4, user);
+			if (flen > 0)
+				f_dump(p->flp.file, 1, flen, user);
+		}
+
+		// output flpTable
+		// 4 bytes: start PC
+		// 4 bytes: line number
+		// 4 bytes: character number
+		// 4 bytes: filename index
+		for (int i = 0; i < prg->flpTable->size; i++){
+			prgflp p = prg->flpTable->ptrs[i];
+			// find unique filename entry
+			int j;
+			for (j = 0; j < flpmap->size; j++){
+				prgflp p2 = prg->flpTable->ptrs[flpmap->vals[j]];
+				if (strcmp(p->flp.file, p2->flp.file) == 0)
+					break;
+			}
+			uint8_t plcb[16] = {
+				(p->pc            ) & 0xFF,
+				(p->pc       >>  8) & 0xFF,
+				(p->pc       >> 16) & 0xFF,
+				(p->pc       >> 24) & 0xFF,
+				(p->flp.line      ) & 0xFF,
+				(p->flp.line >>  8) & 0xFF,
+				(p->flp.line >> 16) & 0xFF,
+				(p->flp.line >> 24) & 0xFF,
+				(p->flp.chr       ) & 0xFF,
+				(p->flp.chr  >>  8) & 0xFF,
+				(p->flp.chr  >> 16) & 0xFF,
+				(p->flp.chr  >> 24) & 0xFF,
+				(j                ) & 0xFF,
+				(j           >>  8) & 0xFF,
+				(j           >> 16) & 0xFF,
+				(j           >> 24) & 0xFF
+			};
+			f_dump(plcb, 1, 16, user);
+		}
+	}
+
+	// output ops
+	// just the raw bytecode
+	if (prg->ops->size > 0)
+		f_dump(prg->ops->bytes, 1, prg->ops->size, user);
+
+	// output end
+	// single 0xFD byte which is an invalid op
+	uint8_t end = 0xFD;
+	f_dump(&end, 1, 1, user);
+
+	if (flpmap)
+		list_int_free(flpmap);
 }
 
 void sink_scr_free(sink_scr scr){
