@@ -16,14 +16,14 @@ CodeMirror.defineMode('sink', function(config, parserConfig) {
     return Object.prototype.hasOwnProperty.call(obj, key);
   }
   var specials = [
-    '+', '-', '%', '*', '/', '^', '@', '&', '<', '>', '!', '=', '~', ':', ',', '.', '|', '(',
-    '[', '{', ')', ']', '}', '+=', '-=', '%=', '*=', '/=', '^=', '<=', '>=', '!=', '==', '~=',
-    '&&', '||', '...', '||=', '&&='
+    '+', '-', '%', '*', '/', '^', '~', '+=', '-=', '%=', '*=', '/=', '^=', '~=', '<', '>', '!', '=',
+    '||', '&&', '<=', '>=', '!=', '==', '||=', '&&=', '(', '[', '{', ',', '|', '&', ')', ']', '}',
+    ':', '.', '...'
   ];
 
   var libs = {
-    'nil': true, 'pick': true, 'say': true, 'warn': true, 'ask': true, 'exit': true, 'abort': true,
-    'isnum': true, 'isstr': true, 'islist': true,
+    'nil': true, 'say': true, 'warn': true, 'ask': true, 'exit': true, 'abort': true,
+    'isnum': true, 'isstr': true, 'islist': true, 'range': true, 'order': true, 'pick': true,
     'num': [
       'abs', 'sign', 'max', 'min', 'clamp', 'floor', 'ceil', 'round', 'trunc', 'nan', 'inf',
       'isnan', 'isfinite', 'e', 'pi', 'tau', 'sin', 'cos', 'tan', 'asin', 'acos', 'atan',
@@ -48,19 +48,19 @@ CodeMirror.defineMode('sink', function(config, parserConfig) {
     ],
     'list': [
       'new', 'shift', 'pop', 'push', 'unshift', 'append', 'prepend', 'find', 'rfind', 'join',
-      'rev', 'str', 'sort', 'rsort', 'sortcmp'
+      'rev', 'str', 'sort', 'rsort'
     ],
     'pickle': [
-      'valid', 'str', 'val'
+      'json', 'bin', 'val', 'valid', 'sibling', 'circular', 'copy'
     ],
     'gc': [
-      'get', 'set', 'run'
+      'getlevel', 'setlevel', 'run'
     ]
   };
 
   var keywords = [
-    'break', 'continue', 'declare', 'def', 'do', 'else', 'elseif', 'end', 'for', 'goto', 'if',
-    'include', 'namespace', 'return', 'using', 'var', 'while'
+    'break', 'continue', 'declare', 'def', 'do', 'else', 'elseif', 'end', 'enum', 'for', 'goto',
+    'if', 'include', 'namespace', 'return', 'using', 'var', 'while'
   ];
 
   function ident(id){
