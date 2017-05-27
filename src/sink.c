@@ -13747,7 +13747,8 @@ static char *compiler_process(compiler cmp){
 							if (is_body)
 								success = compiler_staticinc(cmp, inc->names, file, sinc_content);
 							else{
-								success = compiler_dynamicinc(cmp, inc->names, file, sinc_content);
+								success = compiler_dynamicinc(cmp, inc->names, sinc_content,
+									stmt->flp.file);
 								if (!success){
 									compiler_setmsg(cmp,
 										sink_format("Failed to include: %s", file));
