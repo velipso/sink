@@ -88,35 +88,12 @@ static sink_inc_st inc = {
 	.user = NULL
 };
 
-static inline sink_scr newscr(sink_scr_type type){
-	// create the script with the current working directory
-	char *cwd = getcwd(NULL, 0);
-	sink_scr scr = sink_scr_new(inc, cwd, type);
-	free(cwd);
-
-	// add the appropriate paths
-	const char *sp = getenv("SINK_PATH");
-	if (sp == NULL){
-		// if no environment variable, then add a default path of the current directory
-		sink_scr_addpath(scr, ".");
-	}
-	else{
-		fprintf(stderr, "TODO: process SINK_PATH\n");
-		abort();
-	}
-
-	// add any libraries
-	sink_shell_scr(scr);
-
-	return scr;
-}
-
-static inline sink_ctx newctx(sink_scr scr){
+static inline sink_ctx newctx(sink_scr scr, int argc, char **argv){
 	// create the context with the standard I/O
 	sink_ctx ctx = sink_ctx_new(scr, sink_stdio);
 
 	// add any libraries
-	sink_shell_ctx(ctx, 0, NULL);
+	sink_shell_ctx(ctx, argc, argv);
 
 	return ctx;
 }
@@ -146,10 +123,9 @@ static inline void printctxerr(sink_ctx ctx){
 	fprintf(stderr, "%s\n", err ? err : "Error: Unknown");
 }
 
-static int main_repl(){
+static int main_repl(sink_scr scr, int argc, char **argv){
 	int res = 0;
-	sink_scr scr = newscr(SINK_SCR_REPL);
-	sink_ctx ctx = newctx(scr);
+	sink_ctx ctx = newctx(scr, argc, argv);
 	int line = 1;
 	int bufsize = 0;
 	int bufcount = 200;
@@ -215,6 +191,58 @@ static int main_repl(){
 	return res;
 }
 
+int main_run(sink_scr scr, const char *file, int argc, char **argv){
+	if (!sink_scr_loadfile(scr, file)){
+		printscrerr(scr);
+		sink_scr_free(scr);
+		return 1;
+	}
+	sink_ctx ctx = newctx(scr, argc, argv);
+	sink_run res = sink_ctx_run(ctx);
+	if (res == SINK_RUN_FAIL)
+		printctxerr(ctx);
+	sink_ctx_free(ctx);
+	sink_scr_free(scr);
+	return res == SINK_RUN_PASS ? 0 : 1;
+}
+
+int main_eval(sink_scr scr, const char *eval, int argc, char **argv){
+	if (!sink_scr_write(scr, strlen(eval), (const uint8_t *)eval)){
+		printscrerr(scr);
+		sink_scr_free(scr);
+		return 1;
+	}
+	sink_ctx ctx = newctx(scr, argc, argv);
+	sink_run res = sink_ctx_run(ctx);
+	if (res == SINK_RUN_FAIL)
+		printctxerr(ctx);
+	sink_ctx_free(ctx);
+	sink_scr_free(scr);
+	return res == SINK_RUN_PASS ? 0 : 1;
+}
+
+int main_compile_file(sink_scr scr, const char *file, bool debug){
+	if (!sink_scr_loadfile(scr, file)){
+		printscrerr(scr);
+		sink_scr_free(scr);
+		return 1;
+	}
+	sink_scr_dump(scr, debug, (void *)stdout, (sink_dump_func)fwrite);
+	sink_scr_free(scr);
+	return 0;
+}
+
+int main_compile_eval(sink_scr scr, const char *eval, bool debug){
+	if (!sink_scr_write(scr, strlen(eval), (const uint8_t *)eval)){
+		printscrerr(scr);
+		sink_scr_free(scr);
+		return 1;
+	}
+	sink_scr_dump(scr, debug, (void *)stdout, (sink_dump_func)fwrite);
+	sink_scr_free(scr);
+	return 0;
+}
+
 static char *format(const char *fmt, ...){
 	va_list args, args2;
 	va_start(args, fmt);
@@ -229,176 +257,155 @@ static char *format(const char *fmt, ...){
 	return buf;
 }
 
-int main_run(const char *file, char *const *argv, int argc){
-	sink_scr scr = newscr(SINK_SCR_FILE);
-	if (!sink_scr_loadfile(scr, file)){
-		printscrerr(scr);
-		sink_scr_free(scr);
-		return 1;
-	}
-	sink_ctx ctx = newctx(scr);
-	sink_run res = sink_ctx_run(ctx);
-	if (res == SINK_RUN_FAIL)
-		printctxerr(ctx);
-	sink_ctx_free(ctx);
-	sink_scr_free(scr);
-	return res == SINK_RUN_PASS ? 0 : 1;
-}
-
-int main_eval(const char *eval, char *const *argv, int argc){
-	sink_scr scr = newscr(SINK_SCR_EVAL);
-	if (!sink_scr_write(scr, strlen(eval), (const uint8_t *)eval)){
-		printscrerr(scr);
-		sink_scr_free(scr);
-		return 1;
-	}
-	sink_ctx ctx = newctx(scr);
-	sink_run res = sink_ctx_run(ctx);
-	if (res == SINK_RUN_FAIL)
-		printctxerr(ctx);
-	sink_ctx_free(ctx);
-	sink_scr_free(scr);
-	return res == SINK_RUN_PASS ? 0 : 1;
-}
-
-int main_compile(const char *file, bool debug){
-	sink_scr scr = newscr(SINK_SCR_FILE);
-	if (!sink_scr_loadfile(scr, file)){
-		printscrerr(scr);
-		sink_scr_free(scr);
-		return 1;
-	}
-	sink_scr_dump(scr, debug, (void *)stdout, (sink_dump_func)fwrite);
-	sink_scr_free(scr);
-	return 0;
-}
-
-void printVersion(){
+void print_version(){
 	printf(
 		"Sink v1.0\n"
 		"Copyright (c) 2016-2017 Sean Connelly (@voidqk), MIT License\n"
 		"https://github.com/voidqk/sink  http://syntheti.cc\n");
 }
 
-void printHelp(){
-	printVersion();
+void print_help(){
+	print_version();
 	printf(
 		"\nUsage:\n"
-		"  sink                           Read-eval-print loop\n"
-		"  sink <file> [arguments]        Run file with arguments\n"
-		"  sink -e '<code>' [arguments]   Run '<code>' with arguments\n"
-		"  sink -c <file>                 Compile file to bytecode\n"
-		"  sink -d <file>                 Compile file to bytecode with debug info\n"
-		"  sink -v                        Print version information\n");
+		"  sink [options] [ -e '<code>' | <file> ] [arguments]\n"
+		"\n"
+		"With no arguments, sink will enter interactive mode (REPL).\n"
+		"\n"
+		"Option           Description\n"
+		"  -v               Display version information and exit\n"
+		"  -h, --help       Display help information and exit\n"
+		"  -I <path>        Add <path> to the include search path\n"
+		"  -c               Compile input and output bytecode to stdout\n"
+		"  -d               If compiling, output bytecode with debug info\n"
+		"  -D <key> <file>  If compiling, add <file> declarations when including <key>\n"
+		"\n"
+		"  The -D option is useful for providing declarations so that compilation can\n"
+		"  succeed for other host environments.\n"
+		"\n"
+		"  For example, a host might provide declarations for native commands via:\n"
+		"\n"
+		"    include 'shapes'\n"
+		"\n"
+		"  The host could provide a declaration file, which can be used during\n"
+		"  compilation using a `-D shapes shapes_decl.sink` option.  This means when the\n"
+		"  script executes `include 'shapes'`, the compiler will load `shapes_decl.sink`.\n"
+		"  Even though the compiler doesn't know how to execute the host commands, it can\n"
+		"  still compile the file for use in the host environment.\n");
 }
 
 int main(int argc, char **argv){
-	int mode = 0;
-	char *evalLine = NULL;
-	char *inFile = NULL;
-	char **args = NULL;
-	int argsSize = 0;
+	bool compile = false;
+	bool compile_debug = false;
+	sink_scr_type input_type = SINK_SCR_REPL;
+	char *input_content = NULL;
 
-	for (int i = 1; i < argc; i++){
-		switch (mode){
-			case 0: // unknown
-				if (strcmp(argv[i], "-v") == 0)
-					mode = 1;
-				else if (strcmp(argv[i], "-c") == 0)
-					mode = 2;
-				else if (strcmp(argv[i], "-d") == 0)
-					mode = 3;
-				else if (strcmp(argv[i], "-e") == 0)
-					mode = 4;
-				else if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0){
-					printHelp();
-					return 0;
-				}
-				else{
-					mode = 5;
-					inFile = argv[i];
-				}
-				break;
-
-			case 1: // version
-				printHelp();
+	// first pass, just figure out what we're doing and validate arguments
+	int i;
+	for (i = 1; i < argc; i++){
+		if (strcmp(argv[i], "-v") == 0){
+			if (i + 1 < argc){
+				print_help();
 				return 1;
-
-			case 2: // compile
-				if (inFile == NULL)
-					inFile = argv[i];
-				else{
-					printHelp();
-					return 1;
-				}
-				break;
-
-			case 3: // compile with debug
-				if (inFile == NULL)
-					inFile = argv[i];
-				else{
-					printHelp();
-					return 1;
-				}
-				break;
-
-			case 4: // eval
-				if (evalLine == NULL)
-					evalLine = argv[i];
-				else{
-					if (args == NULL){
-						args = malloc(sizeof(char *) * (argc - i));
-						if (args == NULL){
-							fprintf(stderr, "Out of memory!\n");
-							return 1;
-						}
-					}
-					args[argsSize++] = argv[i];
-				}
-				break;
-
-			case 5: // run
-				if (args == NULL){
-					args = malloc(sizeof(char *) * (argc - i));
-					if (args == NULL){
-						fprintf(stderr, "Out of memory!\n");
-						return 1;
-					}
-				}
-				args[argsSize++] = argv[i];
-				break;
-		}
-	}
-
-	switch (mode){
-		case 0: // unknown
-			return main_repl();
-		case 1: // version
-			printVersion();
+			}
+			print_version();
 			return 0;
-		case 2: // compile
-		case 3: // compile with debug
-			if (inFile == NULL){
-				printHelp();
+		}
+		else if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0){
+			print_help();
+			return i + 1 < argc ? 1 : 0;
+		}
+		else if (strcmp(argv[i], "-I") == 0){
+			if (i + 1 >= argc){
+				print_help();
 				return 1;
 			}
-			return main_compile(inFile, mode == 3);
-		case 4: // eval
-			if (evalLine == NULL){
-				printHelp();
+			i++; // skip include path
+		}
+		else if (strcmp(argv[i], "-c") == 0)
+			compile = true;
+		else if (strcmp(argv[i], "-d") == 0)
+			compile_debug = true;
+		else if (strcmp(argv[i], "-D") == 0){
+			if (i + 2 >= argc){
+				print_help();
 				return 1;
 			}
-			int res = main_eval(evalLine, args, argsSize);
-			if (args)
-				free(args);
-			return res;
-		case 5: { // run
-			int res = main_run(inFile, args, argsSize);
-			if (args)
-				free(args);
-			return res;
+			i += 2; // skip declaration key/file
+		}
+		else if (strcmp(argv[i], "-e") == 0){
+			if (i + 1 >= argc){
+				print_help();
+				return 1;
+			}
+			input_content = argv[i + 1];
+			i += 2; // skip over script
+			input_type = SINK_SCR_EVAL;
+			break;
+		}
+		else{
+			if (argv[i][0] == '-'){
+				// some unknown option
+				print_help();
+				return 1;
+			}
+			input_content = argv[i];
+			i++; // skip over file
+			input_type = SINK_SCR_FILE;
+			break;
 		}
 	}
 
-	return 0;
+	if (compile && input_type == SINK_SCR_REPL){
+		print_help();
+		return 1;
+	}
+
+	// grab sink arguments
+	int s_argc = argc - i;
+	char **s_argv = &argv[i];
+
+	// create the script with the current working directory
+	char *cwd = getcwd(NULL, 0);
+	sink_scr scr = sink_scr_new(inc, cwd, input_type);
+	free(cwd);
+
+	// add the appropriate paths
+	const char *sp = getenv("SINK_PATH");
+	if (sp == NULL){
+		// if no environment variable, then add a default path of the current directory
+		sink_scr_addpath(scr, ".");
+	}
+	else{
+		fprintf(stderr, "TODO: process SINK_PATH\n");
+		abort();
+	}
+
+	// add any libraries
+	sink_shell_scr(scr);
+
+	// load include paths and declaration key/files
+	for (i = 1; argv[i] != input_content; i++){
+		if (strcmp(argv[i], "-I") == 0){
+			sink_scr_addpath(scr, argv[i + 1]);
+			i++;
+		}
+		else if (strcmp(argv[i], "-D") == 0){
+			sink_scr_incfile(scr, argv[i + 1], argv[i + 2]);
+			i += 2;
+		}
+	}
+
+	if (compile){
+		if (input_type == SINK_SCR_FILE)
+			return main_compile_file(scr, input_content, compile_debug);
+		return main_compile_eval(scr, input_content, compile_debug);
+	}
+	switch (input_type){
+		case SINK_SCR_FILE: return main_run(scr, input_content, s_argc, s_argv);
+		case SINK_SCR_REPL: return main_repl(scr, s_argc, s_argv);
+		case SINK_SCR_EVAL: return main_eval(scr, input_content, s_argc, s_argv);
+	}
+	// shouldn't happen
+	return 1;
 }

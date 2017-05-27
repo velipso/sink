@@ -5102,7 +5102,7 @@ typedef struct {
 			frame fr; // not freed by nsname_free
 			label lbl; // not feed by nsname_free
 		} cmdLocal;
-		int index;
+		uint64_t hash;
 		struct {
 			op_enum opcode;
 			int params;
@@ -5180,11 +5180,11 @@ static inline nsname nsname_cmdLocal(list_byte name, frame fr, label lbl){
 	return nsn;
 }
 
-static inline nsname nsname_cmdNative(list_byte name, int index){
+static inline nsname nsname_cmdNative(list_byte name, uint64_t hash){
 	nsname nsn = mem_alloc(sizeof(nsname_st));
 	nsn->name = list_byte_newcopy(name);
 	nsn->type = NSN_CMD_NATIVE;
-	nsn->u.index = index;
+	nsn->u.hash = hash;
 	return nsn;
 }
 
@@ -5683,7 +5683,7 @@ static sta_st symtbl_addCmdLocal(symtbl sym, list_ptr names, label lbl){
 	return sta_ok();
 }
 
-static sta_st symtbl_addCmdNative(symtbl sym, list_ptr names, int index){
+static sta_st symtbl_addCmdNative(symtbl sym, list_ptr names, uint64_t hash){
 	sfn_st nsr = symtbl_findNamespace(sym, names, names->size - 1);
 	if (nsr.type == SFN_ERROR)
 		return sta_error(nsr.u.msg);
@@ -5696,11 +5696,11 @@ static sta_st symtbl_addCmdNative(symtbl sym, list_ptr names, int index){
 					sink_format("Cannot redefine \"%.*s\"", nsn->name->size, nsn->name->bytes));
 			}
 			nsname_free(ns->names->ptrs[i]);
-			ns->names->ptrs[i] = nsname_cmdNative(names->ptrs[names->size - 1], index);
+			ns->names->ptrs[i] = nsname_cmdNative(names->ptrs[names->size - 1], hash);
 			return sta_ok();
 		}
 	}
-	list_ptr_push(ns->names, nsname_cmdNative(names->ptrs[names->size - 1], index));
+	list_ptr_push(ns->names, nsname_cmdNative(names->ptrs[names->size - 1], hash));
 	return sta_ok();
 }
 
@@ -6812,8 +6812,20 @@ static per_st program_evalCall(program prg, symtbl sym, pem_enum mode, varloc_st
 	bool oarg = true;
 	if (nsn->type == NSN_CMD_LOCAL)
 		label_call(nsn->u.cmdLocal.lbl, prg->ops, intoVlc, argcount);
-	else if (nsn->type == NSN_CMD_NATIVE)
-		op_native(prg->ops, intoVlc, nsn->u.index, argcount);
+	else if (nsn->type == NSN_CMD_NATIVE){
+		// search for the hash
+		int index;
+		bool found = false;
+		for (index = 0; index < prg->keyTable->size && !found; index++)
+			found = prg->keyTable->vals[index] == nsn->u.hash;
+		if (!found){
+			if (prg->keyTable->size >= 65536) // using too many native calls?
+				return per_error(flp, sink_format("Too many native commands"));
+			index = prg->keyTable->size;
+			list_u64_push(prg->keyTable, nsn->u.hash);
+		}
+		op_native(prg->ops, intoVlc, index, argcount);
+	}
 	else{ // NSN_CMD_OPCODE
 		if (nsn->u.cmdOpcode.params < 0)
 			op_parama(prg->ops, nsn->u.cmdOpcode.opcode, intoVlc, argcount);
@@ -7910,20 +7922,8 @@ static inline pgr_st program_gen(program prg, symtbl sym, ast stmt, void *state,
 						return pgr_error(stmt->flp, sr.u.msg);
 				} break;
 				case DECL_NATIVE: {
-					bool found = false;
-					uint64_t hash = native_hash(dc->key->size, dc->key->bytes);
-					int index;
-					for (index = 0; index < prg->keyTable->size; index++){
-						found = prg->keyTable->vals[index] == hash;
-						if (found)
-							break;
-					}
-					if (!found){
-						if (index >= 65536)
-							return pgr_error(stmt->flp, sink_format("Too many native functions"));
-						list_u64_push(prg->keyTable, hash);
-					}
-					sta_st sr = symtbl_addCmdNative(sym, dc->names, index);
+					sta_st sr = symtbl_addCmdNative(sym, dc->names,
+						native_hash(dc->key->size, dc->key->bytes));
 					if (sr.type == STA_ERROR)
 						return pgr_error(stmt->flp, sr.u.msg);
 				} break;
@@ -13535,24 +13535,34 @@ static void flpn_free(filepos_node flpn){
 
 typedef struct {
 	list_ptr name;
-	list_ptr body;
+	list_byte type; // 0 = body, 1 = file
+	list_ptr content;
 } staticinc_st, *staticinc;
 
 static inline staticinc staticinc_new(){
 	staticinc sinc = mem_alloc(sizeof(staticinc_st));
 	sinc->name = list_ptr_new(NULL);
-	sinc->body = list_ptr_new(NULL);
+	sinc->type = list_byte_new();
+	sinc->content = list_ptr_new(NULL);
 	return sinc;
 }
 
-static inline void staticinc_add(staticinc sinc, const char *name, const char *body){
+static inline void staticinc_addbody(staticinc sinc, const char *name, const char *body){
 	list_ptr_push(sinc->name, (void *)name);
-	list_ptr_push(sinc->body, (void *)body);
+	list_byte_push(sinc->type, 0);
+	list_ptr_push(sinc->content, (void *)body);
+}
+
+static inline void staticinc_addfile(staticinc sinc, const char *name, const char *file){
+	list_ptr_push(sinc->name, (void *)name);
+	list_byte_push(sinc->type, 1);
+	list_ptr_push(sinc->content, (void *)file);
 }
 
 static inline void staticinc_free(staticinc sinc){
 	list_ptr_free(sinc->name);
-	list_ptr_free(sinc->body);
+	list_byte_free(sinc->type);
+	list_ptr_free(sinc->content);
 	mem_free(sinc);
 }
 
@@ -13725,10 +13735,20 @@ static char *compiler_process(compiler cmp){
 					bool internal = false;
 					for (int i = 0; i < cmp->sinc->name->size; i++){
 						const char *sinc_name = cmp->sinc->name->ptrs[i];
-						const char *sinc_body = cmp->sinc->body->ptrs[i];
 						if (strcmp(file, sinc_name) == 0){
 							internal = true;
-							bool success = compiler_staticinc(cmp, inc->names, file, sinc_body);
+							const char *sinc_content = cmp->sinc->content->ptrs[i];
+							bool is_body = cmp->sinc->type->bytes[i] == 0;
+							bool success;
+							if (is_body)
+								success = compiler_staticinc(cmp, inc->names, file, sinc_content);
+							else{
+								success = compiler_dynamicinc(cmp, inc->names, file, sinc_content);
+								if (!success){
+									compiler_setmsg(cmp,
+										sink_format("Failed to include: %s", file));
+								}
+							}
 							if (!success){
 								ast_free(stmt);
 								list_ptr_free(stmts);
@@ -13907,8 +13927,12 @@ void sink_scr_addpath(sink_scr scr, const char *path){
 	list_ptr_push(((script)scr)->paths, sink_format("%s", path));
 }
 
-void sink_scr_inc(sink_scr scr, const char *name, const char *body){
-	staticinc_add(((script)scr)->sinc, name, body);
+void sink_scr_incbody(sink_scr scr, const char *name, const char *body){
+	staticinc_addbody(((script)scr)->sinc, name, body);
+}
+
+void sink_scr_incfile(sink_scr scr, const char *name, const char *file){
+	staticinc_addfile(((script)scr)->sinc, name, file);
 }
 
 void sink_scr_cleanup(sink_scr scr, void *cuser, sink_free_func f_free){
@@ -14104,7 +14128,7 @@ void sink_scr_dump(sink_scr scr, bool debug, void *user, sink_dump_func f_dump){
 		// N bytes: filename raw bytes
 		for (int i = 0; i < flpmap->size; i++){
 			prgflp p = prg->flpTable->ptrs[flpmap->vals[i]];
-			size_t flen = strlen(p->flp.file);
+			size_t flen = p->flp.file == NULL ? 4 : strlen(p->flp.file);
 			uint8_t flenb[4] = {
 				(flen      ) & 0xFF,
 				(flen >>  8) & 0xFF,
@@ -14112,7 +14136,9 @@ void sink_scr_dump(sink_scr scr, bool debug, void *user, sink_dump_func f_dump){
 				(flen >> 24) & 0xFF
 			};
 			f_dump(flenb, 1, 4, user);
-			if (flen > 0)
+			if (p->flp.file == NULL)
+				f_dump("eval", 1, 4, user);
+			else if (flen > 0)
 				f_dump(p->flp.file, 1, flen, user);
 		}
 
@@ -14127,7 +14153,9 @@ void sink_scr_dump(sink_scr scr, bool debug, void *user, sink_dump_func f_dump){
 			int j;
 			for (j = 0; j < flpmap->size; j++){
 				prgflp p2 = prg->flpTable->ptrs[flpmap->vals[j]];
-				if (strcmp(p->flp.file, p2->flp.file) == 0)
+				if (p->flp.file == p2->flp.file ||
+					(p->flp.file != NULL && p2->flp.file != NULL &&
+						strcmp(p->flp.file, p2->flp.file) == 0))
 					break;
 			}
 			uint8_t plcb[16] = {

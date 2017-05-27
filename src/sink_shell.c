@@ -12,7 +12,7 @@
 #endif
 
 typedef struct {
-	char *const *args;
+	char **args;
 	int size;
 } uargs_st, *uargs;
 
@@ -35,7 +35,7 @@ static sink_val L_pwd(sink_ctx ctx, int size, sink_val *args, void *nuser){
 }
 
 void sink_shell_scr(sink_scr scr){
-	sink_scr_inc(scr, "shell",
+	sink_scr_incbody(scr, "shell",
 		"declare args  'sink.shell.args' ;"
 		"declare cat   'sink.shell.cat'  ;"
 		"declare cd    'sink.shell.cd'   ;"
@@ -57,15 +57,15 @@ void sink_shell_scr(sink_scr scr){
 	);
 }
 
-void sink_shell_ctx(sink_ctx ctx, int argsSize, char *const *args){
+void sink_shell_ctx(sink_ctx ctx, int argc, char **argv){
 	uargs a = malloc(sizeof(uargs_st));
 	if (a == NULL){
 		fprintf(stderr, "Error: Out of Memory!\n");
 		exit(1);
 		return;
 	}
-	a->args = args;
-	a->size = argsSize;
+	a->args = argv;
+	a->size = argc;
 	sink_ctx_cleanup(ctx, a, free);
 	sink_ctx_native(ctx, "sink.shell.args", a, (sink_native_func)L_args);
 	sink_ctx_native(ctx, "sink.shell.pwd", NULL, L_pwd);

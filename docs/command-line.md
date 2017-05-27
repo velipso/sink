@@ -2,7 +2,11 @@
 Command-Line Options
 ====================
 
-Usage: `sink [options] [ -e '<code>' | <file> ] [arguments]`
+Usage:
+
+```
+sink [options] [ -e '<code>' | <file> ] [arguments]
+```
 
 With no arguments, sink will enter interactive mode (REPL).
 
