@@ -243,20 +243,6 @@ int main_compile_eval(sink_scr scr, const char *eval, bool debug){
 	return 0;
 }
 
-static char *format(const char *fmt, ...){
-	va_list args, args2;
-	va_start(args, fmt);
-	va_copy(args2, args);
-	size_t s = vsnprintf(NULL, 0, fmt, args);
-	char *buf = malloc(s + 1);
-	if (buf == NULL)
-		return NULL;
-	vsprintf(buf, fmt, args2);
-	va_end(args);
-	va_end(args2);
-	return buf;
-}
-
 void print_version(){
 	printf(
 		"Sink v1.0\n"
@@ -396,15 +382,19 @@ int main(int argc, char **argv){
 		}
 	}
 
-	if (compile){
-		if (input_type == SINK_SCR_FILE)
-			return main_compile_file(scr, input_content, compile_debug);
-		return main_compile_eval(scr, input_content, compile_debug);
-	}
 	switch (input_type){
-		case SINK_SCR_FILE: return main_run(scr, input_content, s_argc, s_argv);
-		case SINK_SCR_REPL: return main_repl(scr, s_argc, s_argv);
-		case SINK_SCR_EVAL: return main_eval(scr, input_content, s_argc, s_argv);
+		case SINK_SCR_FILE:
+			if (compile)
+				return main_compile_file(scr, input_content, compile_debug);
+			return main_run(scr, input_content, s_argc, s_argv);
+
+		case SINK_SCR_REPL:
+			return main_repl(scr, s_argc, s_argv);
+
+		case SINK_SCR_EVAL:
+			if (compile)
+				return main_compile_eval(scr, input_content, compile_debug);
+			return main_eval(scr, input_content, s_argc, s_argv);
 	}
 	// shouldn't happen
 	return 1;
