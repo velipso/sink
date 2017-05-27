@@ -6816,8 +6816,12 @@ static per_st program_evalCall(program prg, symtbl sym, pem_enum mode, varloc_st
 		// search for the hash
 		int index;
 		bool found = false;
-		for (index = 0; index < prg->keyTable->size && !found; index++)
-			found = prg->keyTable->vals[index] == nsn->u.hash;
+		for (index = 0; index < prg->keyTable->size; index++){
+			if (prg->keyTable->vals[index] == nsn->u.hash){
+				found = true;
+				break;
+			}
+		}
 		if (!found){
 			if (prg->keyTable->size >= 65536) // using too many native calls?
 				return per_error(flp, sink_format("Too many native commands"));

@@ -3258,11 +3258,11 @@ function nsname_cmdLocal(name, fr, lbl){
 	};
 }
 
-function nsname_cmdNative(name, index){
+function nsname_cmdNative(name, hash){
 	return {
 		name: name,
 		type: NSN_CMD_NATIVE,
-		index: index
+		hash: hash
 	};
 }
 
@@ -3619,7 +3619,7 @@ function symtbl_addCmdLocal(sym, names, lbl){
 	return sta_ok();
 }
 
-function symtbl_addCmdNative(sym, names, index){
+function symtbl_addCmdNative(sym, names, hash){
 	var nsr = symtbl_findNamespace(sym, names, names.length - 1);
 	if (nsr.type == SFN_ERROR)
 		return sta_error(nsr.msg);
@@ -3629,11 +3629,11 @@ function symtbl_addCmdNative(sym, names, index){
 		if (nsn.name == names[names.length - 1]){
 			if (!sym.repl)
 				return sta_error('Cannot redefine "' + nsn.name + '"');
-			ns.names[i] = nsname_cmdNative(nsn.name, index);
+			ns.names[i] = nsname_cmdNative(nsn.name, hash);
 			return sta_ok();
 		}
 	}
-	ns.names.push(nsname_cmdNative(names[names.length - 1], index));
+	ns.names.push(nsname_cmdNative(names[names.length - 1], hash));
 	return sta_ok();
 }
 
@@ -4577,8 +4577,24 @@ function program_evalCall(prg, sym, mode, intoVlc, flp, nsn, params){
 	var oarg = true;
 	if (nsn.type == NSN_CMD_LOCAL)
 		label_call(nsn.lbl, prg.ops, intoVlc, argcount);
-	else if (nsn.type == NSN_CMD_NATIVE)
-		op_native(prg.ops, intoVlc, nsn.index, argcount);
+	else if (nsn.type == NSN_CMD_NATIVE){
+		// search for the hash
+		var index;
+		var found = false;
+		for (index = 0; index < prg.keyTable.length; index++){
+			if (prg.keyTable[index] == nsn.hash){
+				found = true;
+				break;
+			}
+		}
+		if (!found){
+			if (prg.keyTable.length >= 65536) // using too many native calls?
+				return per_error(flp, 'Too many native commands');
+			index = prg.keyTable.length;
+			prg.keyTable.push(nsn.hash);
+		}
+		op_native(prg.ops, intoVlc, index, argcount);
+	}
 	else{ // NSN_CMD_OPCODE
 		if (nsn.params < 0)
 			op_parama(prg.ops, nsn.opcode, intoVlc, argcount);
@@ -5476,19 +5492,7 @@ function program_gen(prg, sym, stmt, pst, sayexpr){
 						return pgr_error(dc.flp, sr.msg);
 				} break;
 				case DECL_NATIVE: {
-					var found = false;
-					var index;
-					for (index = 0; index < prg.keyTable.length; index++){
-						found = prg.keyTable[index] == dc.key;
-						if (found)
-							break;
-					}
-					if (!found){
-						if (index >= 65536)
-							return pgr_error(dc.flp, 'Too many native functions');
-						prg.keyTable.push(dc.key);
-					}
-					var sr = symtbl_addCmdNative(sym, dc.names, index);
+					var sr = symtbl_addCmdNative(sym, dc.names, native_hash(dc.key));
 					if (sr.type == STA_ERROR)
 						return pgr_error(dc.flp, sr.msg);
 				} break;
@@ -10013,6 +10017,19 @@ function murmur(str, seed){
 	return [uns(h1[0]), uns(h1[1]), uns(h2[0]), uns(h2[1])];
 }
 
+function native_hash(str){
+	var res = murmur(str, 0);
+	return '' +
+		String.fromCharCode((res[0]      ) & 0xFF) +
+		String.fromCharCode((res[0] >>  8) & 0xFF) +
+		String.fromCharCode((res[0] >> 16) & 0xFF) +
+		String.fromCharCode((res[0] >> 24) & 0xFF) +
+		String.fromCharCode((res[1]      ) & 0xFF) +
+		String.fromCharCode((res[1] >>  8) & 0xFF) +
+		String.fromCharCode((res[1] >> 16) & 0xFF) +
+		String.fromCharCode((res[1] >> 24) & 0xFF);
+}
+
 //
 // JavaScript API
 //
@@ -10075,9 +10092,10 @@ function libs_getNatives(libs){
 		for (var k in lib.natives){
 			if (!has(lib.natives, k))
 				continue;
-			if (has(out, k))
+			var hash = native_hash(k);
+			if (has(out, hash))
 				throw new Error('Cannot have multiple native functions for key: "' + k + '"');
-			out[k] = lib.natives[k];
+			out[hash] = lib.natives[k];
 		}
 	});
 	return out;
