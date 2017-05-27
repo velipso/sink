@@ -13940,6 +13940,24 @@ void sink_scr_incfile(sink_scr scr, const char *name, const char *file){
 	staticinc_addfile(((script)scr)->sinc, name, file);
 }
 
+int sink_scr_getinctype(sink_scr scr, const char *name){
+	staticinc si = ((script)scr)->sinc;
+	for (int i = 0; i < si->name->size; i++){
+		if (strcmp(name, si->name->ptrs[i]) == 0)
+			return si->type->bytes[i];
+	}
+	return -1;
+}
+
+const char *sink_scr_getinccontent(sink_scr scr, const char *name){
+	staticinc si = ((script)scr)->sinc;
+	for (int i = 0; i < si->name->size; i++){
+		if (strcmp(name, si->name->ptrs[i]) == 0)
+			return si->content->ptrs[i];
+	}
+	return NULL;
+}
+
 void sink_scr_cleanup(sink_scr scr, void *cuser, sink_free_func f_free){
 	cleanup_add(((script)scr)->cup, cuser, f_free);
 }

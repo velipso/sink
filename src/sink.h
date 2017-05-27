@@ -221,6 +221,8 @@ sink_scr    sink_scr_new(sink_inc_st inc, const char *curdir, sink_scr_type type
 void        sink_scr_addpath(sink_scr scr, const char *path);
 void        sink_scr_incbody(sink_scr scr, const char *name, const char *body);
 void        sink_scr_incfile(sink_scr scr, const char *name, const char *file);
+int         sink_scr_getinctype(sink_scr scr, const char *name); // -1 not found, 0 body, 1 file
+const char *sink_scr_getinccontent(sink_scr scr, const char *name);
 void        sink_scr_cleanup(sink_scr scr, void *cuser, sink_free_func f_free);
 bool        sink_scr_loadfile(sink_scr scr, const char *file);
 const char *sink_scr_getfile(sink_scr scr);
