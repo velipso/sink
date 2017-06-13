@@ -8461,7 +8461,7 @@ static int bmp_reserve(void **tbl, int *size, uint64_t **aloc, uint64_t **ref, s
 	int index = bmp_alloc(*aloc, *size);
 	if (index >= 0)
 		return index;
-	if (*size >= 0x7FFFFFFF){
+	if (*size >= 0x3FFFFFFF){
 		SINK_PANIC("Out of memory!");
 		return -1;
 	}
