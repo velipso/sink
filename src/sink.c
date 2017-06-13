@@ -211,8 +211,8 @@ char *sink_format(const char *fmt, ...){
 
 typedef struct {
 	uint8_t *bytes;
-	int size;
-	int count;
+	uint_fast32_t size;
+	uint_fast32_t count;
 } list_byte_st, *list_byte;
 
 const static int list_byte_grow = 200;
@@ -421,8 +421,8 @@ static inline bool list_byte_equ(list_byte b1, list_byte b2){
 
 typedef struct {
 	int *vals;
-	int size;
-	int count;
+	uint_fast32_t size;
+	uint_fast32_t count;
 } list_int_st, *list_int;
 
 const int list_int_grow = 200;
@@ -467,8 +467,8 @@ static inline bool list_int_has(list_int ls, int v){
 
 typedef struct {
 	uint64_t *vals;
-	int size;
-	int count;
+	uint_fast32_t size;
+	uint_fast32_t count;
 } list_u64_st, *list_u64;
 
 const int list_u64_grow = 200;
@@ -499,8 +499,8 @@ typedef void (*free_func)(void *p);
 typedef struct {
 	void **ptrs;
 	free_func f_free;
-	int size;
-	int count;
+	uint_fast32_t size;
+	uint_fast32_t count;
 } list_ptr_st, *list_ptr;
 
 const static int list_ptr_grow = 200;
@@ -645,7 +645,7 @@ typedef enum {
 	OP_NUMP32          = 0x08, // [TGT], [[VALUE]]
 	OP_NUMN32          = 0x09, // [TGT], [[VALUE]]
 	OP_NUMDBL          = 0x0A, // [TGT], [[[VALUE]]]
-	OP_STR             = 0x0B, // [TGT], [INDEX]
+	OP_STR             = 0x0B, // [TGT], [[INDEX]]
 	OP_LIST            = 0x0C, // [TGT], HINT
 	OP_ISNUM           = 0x0D, // [TGT], [SRC]
 	OP_ISSTR           = 0x0E, // [TGT], [SRC]
@@ -668,7 +668,7 @@ typedef enum {
 	OP_CMDHEAD         = 0x1F, // LEVEL, RESTPOS
 	OP_CMDTAIL         = 0x20, //
 	OP_CALL            = 0x21, // [TGT], [[LOCATION]], ARGCOUNT, [ARGS]...
-	OP_NATIVE          = 0x22, // [TGT], [INDEX], ARGCOUNT, [ARGS]...
+	OP_NATIVE          = 0x22, // [TGT], [[INDEX]], ARGCOUNT, [ARGS]...
 	OP_RETURN          = 0x23, // [SRC]
 	OP_RETURNTAIL      = 0x24, // [[LOCATION]], ARGCOUNT, [ARGS]...
 	OP_RANGE           = 0x25, // [TGT], [SRC1], [SRC2], [SRC3]
@@ -1065,7 +1065,8 @@ static inline void op_num(list_byte b, varloc_st tgt, double num){
 
 static inline void op_str(list_byte b, varloc_st tgt, int index){
 	oplogf("STR %d:%d, %d", tgt.frame, tgt.index, index);
-	list_byte_push5(b, OP_STR, tgt.frame, tgt.index, index & 0xFF, index >> 8);
+	list_byte_push7(b, OP_STR, tgt.frame, tgt.index,
+		index % 256, (index >> 8) % 256, (index >> 16) % 256, (index >> 24) % 256);
 }
 
 static inline void op_list(list_byte b, varloc_st tgt, int hint){
@@ -1213,7 +1214,8 @@ static inline void op_call(list_byte b, varloc_st ret, uint32_t index, int argco
 
 static inline void op_native(list_byte b, varloc_st ret, int index, int argcount){
 	oplogf("NATIVE %d:%d, %d, %d", ret.frame, ret.index, index, argcount);
-	list_byte_push6(b, OP_NATIVE, ret.frame, ret.index, index % 256, index >> 8, argcount);
+	list_byte_push8(b, OP_NATIVE, ret.frame, ret.index,
+		index % 256, (index >> 8) % 256, (index >> 16) % 256, (index >> 24) % 256, argcount);
 }
 
 static inline void op_return(list_byte b, varloc_st src){
@@ -5937,11 +5939,13 @@ static bool program_validate(program prg){
 		} while (false)
 
 	#define READINDEX() do{                                            \
-			if (pc + 2 > ops->size)                                    \
+			if (pc + 4 > ops->size)                                    \
 				goto fail;                                             \
 			A = ops->bytes[pc++];                                      \
 			B = ops->bytes[pc++];                                      \
-			A = A | (B << 8);                                          \
+			C = ops->bytes[pc++];                                      \
+			D = ops->bytes[pc++];                                      \
+			A = A + (B << 8) + (C << 16) + ((D << 23) * 2);            \
 		} while (false)
 
 	while (pc < ops->size){
@@ -6823,7 +6827,7 @@ static per_st program_evalCall(program prg, symtbl sym, pem_enum mode, varloc_st
 			}
 		}
 		if (!found){
-			if (prg->keyTable->size >= 65536) // using too many native calls?
+			if (prg->keyTable->size >= 0x7FFFFFFF) // using too many native calls?
 				return per_error(flp, sink_format("Too many native commands"));
 			index = prg->keyTable->size;
 			list_u64_push(prg->keyTable, nsn->u.hash);
@@ -7153,14 +7157,15 @@ static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st int
 				intoVlc = ts.u.vlc;
 			}
 			bool found = false;
-			int index;
+			int64_t index;
 			for (index = 0; index < prg->strTable->size; index++){
-				found = list_byte_equ(ex->u.str, prg->strTable->ptrs[index]);
-				if (found)
+				if (list_byte_equ(ex->u.str, prg->strTable->ptrs[index])){
+					found = true;
 					break;
+				}
 			}
 			if (!found){
-				if (index >= 65536)
+				if (index >= 0x7FFFFFFF)
 					return per_error(ex->flp, sink_format("Too many string constants"));
 				list_ptr_push(prg->strTable, ex->u.str);
 				ex->u.str = NULL;
@@ -8456,7 +8461,7 @@ static int bmp_reserve(void **tbl, int *size, uint64_t **aloc, uint64_t **ref, s
 	int index = bmp_alloc(*aloc, *size);
 	if (index >= 0)
 		return index;
-	if (*size >= 0x3FFFFFFF){
+	if (*size >= 0x7FFFFFFF){
 		SINK_PANIC("Out of memory!");
 		return -1;
 	}
@@ -12155,9 +12160,9 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, X);
 			} break;
 
-			case OP_STR            : { // [TGT], [INDEX]
-				LOAD_abcd();
-				C = C | (D << 8);
+			case OP_STR            : { // [TGT], [[INDEX]]
+				LOAD_abcdef();
+				C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
 				if (ctx->prg->repl){
 					list_byte s = ctx->prg->strTable->ptrs[C];
 					var_set(ctx, A, B, sink_str_newblob(ctx, s->size, s->bytes));
@@ -12429,18 +12434,18 @@ static sink_run context_run(context ctx){
 					lxs_get(ctx, G, p, ctx->lex_stk->ptrs[ctx->lex_index]);
 			} break;
 
-			case OP_NATIVE         : { // [TGT], [INDEX], ARGCOUNT, [ARGS]...
-				LOAD_abcde();
-				for (I = 0; I < E; I++){
-					G = ops->bytes[ctx->pc++]; H = ops->bytes[ctx->pc++];
-					p[I] = var_get(ctx, G, H);
+			case OP_NATIVE         : { // [TGT], [[INDEX]], ARGCOUNT, [ARGS]...
+				LOAD_abcdefg();
+				for (I = 0; I < G; I++){
+					J = ops->bytes[ctx->pc++]; H = ops->bytes[ctx->pc++];
+					p[I] = var_get(ctx, J, H);
 				}
-				C = C | (D << 8);
+				C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
 				uint64_t hash = ctx->prg->keyTable->vals[C];
 				for (int i = 0; i < ctx->natives->size; i++){
 					native nat = ctx->natives->ptrs[i];
 					if (nat->hash == hash){
-						X = nat->f_native(ctx, E, p, nat->natuser);
+						X = nat->f_native(ctx, G, p, nat->natuser);
 						if (ctx->failed)
 							return SINK_RUN_FAIL;
 						if (sink_isasync(X)){
@@ -14076,17 +14081,21 @@ void sink_scr_dump(sink_scr scr, bool debug, void *user, sink_dump_func f_dump){
 
 	// output header
 	// 4 bytes: header: 0xFC, 'S', 'k', file format version (always 0x01)
-	// 2 bytes: string table size
-	// 2 bytes: key table size
+	// 4 bytes: string table size
+	// 4 bytes: key table size
 	// 4 bytes: unique filename table size
 	// 4 bytes: flp table size
-	uint8_t header[16] = { 0xFC, 0x53, 0x6B, 0x01, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+	uint8_t header[20] = { 0xFC, 0x53, 0x6B, 0x01, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 	list_int flpmap = NULL;
 	program prg = ((script)scr)->prg;
-	header[4] = (prg->strTable->size     ) & 0xFF;
-	header[5] = (prg->strTable->size >> 8) & 0xFF;
-	header[6] = (prg->keyTable->size     ) & 0xFF;
-	header[7] = (prg->keyTable->size >> 8) & 0xFF;
+	header[ 4] = (prg->strTable->size      ) & 0xFF;
+	header[ 5] = (prg->strTable->size >>  8) & 0xFF;
+	header[ 6] = (prg->strTable->size >> 16) & 0xFF;
+	header[ 7] = (prg->strTable->size >> 24) & 0xFF;
+	header[ 8] = (prg->keyTable->size      ) & 0xFF;
+	header[ 9] = (prg->keyTable->size >>  8) & 0xFF;
+	header[10] = (prg->keyTable->size >> 16) & 0xFF;
+	header[11] = (prg->keyTable->size >> 24) & 0xFF;
 	if (debug){
 		// calculate unique filenames
 		flpmap = list_int_new();
@@ -14101,16 +14110,16 @@ void sink_scr_dump(sink_scr scr, bool debug, void *user, sink_dump_func f_dump){
 			if (!found)
 				list_int_push(flpmap, i); // maps i'th flpTable entry to the j'th unique file
 		}
-		header[ 8] = (flpmap->size      ) & 0xFF;
-		header[ 9] = (flpmap->size >>  8) & 0xFF;
-		header[10] = (flpmap->size >> 16) & 0xFF;
-		header[11] = (flpmap->size >> 24) & 0xFF;
-		header[12] = (prg->flpTable->size      ) & 0xFF;
-		header[13] = (prg->flpTable->size >>  8) & 0xFF;
-		header[14] = (prg->flpTable->size >> 16) & 0xFF;
-		header[15] = (prg->flpTable->size >> 24) & 0xFF;
+		header[12] = (flpmap->size      ) & 0xFF;
+		header[13] = (flpmap->size >>  8) & 0xFF;
+		header[14] = (flpmap->size >> 16) & 0xFF;
+		header[15] = (flpmap->size >> 24) & 0xFF;
+		header[16] = (prg->flpTable->size      ) & 0xFF;
+		header[17] = (prg->flpTable->size >>  8) & 0xFF;
+		header[18] = (prg->flpTable->size >> 16) & 0xFF;
+		header[19] = (prg->flpTable->size >> 24) & 0xFF;
 	}
-	f_dump(header, 1, 16, user);
+	f_dump(header, 1, 20, user);
 
 	// output strTable
 	// 4 bytes: string size

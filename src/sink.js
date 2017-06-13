@@ -41,7 +41,7 @@ var OP_NUMN16          = 0x07; // [TGT], [VALUE]
 var OP_NUMP32          = 0x08; // [TGT], [[VALUE]]
 var OP_NUMN32          = 0x09; // [TGT], [[VALUE]]
 var OP_NUMDBL          = 0x0A; // [TGT], [[[[VALUE]]]]
-var OP_STR             = 0x0B; // [TGT], [INDEX]
+var OP_STR             = 0x0B; // [TGT], [[INDEX]]
 var OP_LIST            = 0x0C; // [TGT], HINT
 var OP_ISNUM           = 0x0D; // [TGT], [SRC]
 var OP_ISSTR           = 0x0E; // [TGT], [SRC]
@@ -64,7 +64,7 @@ var OP_JUMPFALSE       = 0x1E; // [SRC], [[LOCATION]]
 var OP_CMDHEAD         = 0x1F; // LEVEL, RESTPOS
 var OP_CMDTAIL         = 0x20; //
 var OP_CALL            = 0x21; // [TGT], [[LOCATION]], ARGCOUNT, [ARGS]...
-var OP_NATIVE          = 0x22; // [TGT], [INDEX], ARGCOUNT, [ARGS]...
+var OP_NATIVE          = 0x22; // [TGT], [[INDEX]], ARGCOUNT, [ARGS]...
 var OP_RETURN          = 0x23; // [SRC]
 var OP_RETURNTAIL      = 0x24; // [[LOCATION]], ARGCOUNT, [ARGS]...
 var OP_RANGE           = 0x25; // [TGT], [SRC1], [SRC2], [SRC3]
@@ -444,7 +444,11 @@ function op_num(b, tgt, num){
 
 function op_str(b, tgt, index){
 	oplog('STR', tgt, index);
-	b.push(OP_STR, tgt.frame, tgt.index, index & 0xFF, index >> 8);
+	b.push(OP_STR, tgt.frame, tgt.index,
+		index % 256,
+		Math.floor(index /      256) % 256,
+		Math.floor(index /    65536) % 256,
+		Math.floor(index / 16777216) % 256);
 }
 
 function op_list(b, tgt, hint){
@@ -591,7 +595,12 @@ function op_call(b, ret, index, argcount, hint){
 
 function op_native(b, ret, index, argcount){
 	oplog('NATIVE', ret, index, argcount);
-	b.push(OP_NATIVE, ret.frame, ret.index, index % 256, Math.floor(index / 256), argcount);
+	b.push(OP_NATIVE, ret.frame, ret.index,
+		index % 256,
+		Math.floor(index /      256) % 256,
+		Math.floor(index /    65536) % 256,
+		Math.floor(index / 16777216) % 256,
+		argcount);
 }
 
 function op_return(b, src){
@@ -3859,11 +3868,13 @@ function program_validate(prg){
 	}
 
 	function READINDEX(){
-		if (pc + 2 > ops.length)
+		if (pc + 4 > ops.length)
 			return false;
 		A = ops[pc++];
 		B = ops[pc++];
-		A = A | (B << 8);
+		C = ops[pc++];
+		D = ops[pc++];
+		A = A + (B << 8) + (C << 16) + ((D << 23) * 2);
 		return true;
 	}
 
@@ -4588,7 +4599,7 @@ function program_evalCall(prg, sym, mode, intoVlc, flp, nsn, params){
 			}
 		}
 		if (!found){
-			if (prg.keyTable.length >= 65536) // using too many native calls?
+			if (prg.keyTable.length >= 0x7FFFFFFF) // using too many native calls?
 				return per_error(flp, 'Too many native commands');
 			index = prg.keyTable.length;
 			prg.keyTable.push(nsn.hash);
@@ -4888,12 +4899,13 @@ function program_eval(prg, sym, mode, intoVlc, ex){
 			var found = false;
 			var index;
 			for (index = 0; index < prg.strTable.length; index++){
-				found = ex.str == prg.strTable[index];
-				if (found)
+				if (ex.str == prg.strTable[index]){
+					found = true;
 					break;
+				}
 			}
 			if (!found){
-				if (index >= 65536)
+				if (index >= 0x7FFFFFFF)
 					return per_error(ex.flp, 'Too many string constants');
 				prg.strTable.push(ex.str);
 			}
@@ -8140,9 +8152,9 @@ function context_run(ctx){
 				var_set(ctx, A, B, dview.getFloat64(0, true));
 			} break;
 
-			case OP_STR            : { // [TGT], [INDEX]
-				LOAD_abcd();
-				C = C | (D << 8);
+			case OP_STR            : { // [TGT], [[INDEX]]
+				LOAD_abcdef();
+				C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
 				var_set(ctx, A, B, ctx.prg.strTable[C]);
 			} break;
 
@@ -8423,16 +8435,14 @@ function context_run(ctx){
 				ctx.lex_stk[ctx.lex_index] = lxs_new(G, p, ctx.lex_stk[ctx.lex_index]);
 			} break;
 
-			case OP_NATIVE         : { // [TGT], [INDEX], ARGCOUNT, [ARGS]...
-				LOAD_abcde();
-				var p = new Array(E);
-				for (I = 0; I < E; I++){
-					G = ops[ctx.pc++]; H = ops[ctx.pc++];
-					p[I] = var_get(ctx, G, H);
+			case OP_NATIVE         : { // [TGT], [[INDEX]], ARGCOUNT, [ARGS]...
+				LOAD_abcdefg();
+				var p = new Array(G);
+				for (I = 0; I < G; I++){
+					J = ops[ctx.pc++]; H = ops[ctx.pc++];
+					p[I] = var_get(ctx, J, H);
 				}
-				C = C | (D << 8);
-				if (C < 0 || C >= ctx.prg.keyTable.length)
-					return opi_abort(ctx, 'Invalid native call');
+				C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
 				C = ctx.prg.keyTable[C];
 				if (!has(ctx.natives, C))
 					return opi_abort(ctx, 'Invalid native call');
