@@ -8447,7 +8447,7 @@ static inline int bmp_alloc(uint64_t *bmp, int count){
 
 	#ifdef BITSCAN_FFSLL
 		int pos = ffsll(~*bmp) - 1;
-		*bmp |= 1LL << pos;
+		*bmp |= UINT64_C(1) << pos;
 		return loop * 64 + pos;
 	#else
 	#	error Don't know how to implement bmp_alloc
