@@ -66,7 +66,7 @@ function redraw(){
 			ctx.fillRect(12 + pms.width, y + 5, wms.width, 40);
 		}
 	}
-	else{	
+	else{
 		lines.shift();
 		lines.shift();
 	}
@@ -93,8 +93,10 @@ window.addEventListener('keydown', function(e){
 		return;
 	if (e.key.length > 1){
 		if (e.key == 'Backspace'){
-			if (inputLine.length > 0)
-				inputLine = inputLine.substr(0, inputLine.length - 1);
+			if (cursorLoc > 0){
+				inputLine = inputLine.substr(0, cursorLoc - 1) + inputLine.substr(cursorLoc);
+				cursorLoc--;
+			}
 		}
 		else if (e.key == 'Enter'){
 			lines.push('#fff', inputPrompt + inputLine);
@@ -105,29 +107,30 @@ window.addEventListener('keydown', function(e){
 			allowInput = false;
 			c(inputLine + '\n');
 			inputLine = '';
-
-		} else if (e.key == "ArrowUp") {
-			if (upArrowSelectedCommand > 0) {
+		}
+		else if (e.key == 'ArrowUp'){
+			if (upArrowSelectedCommand > 0){
 				upArrowSelectedCommand--;
 				inputLine = commands[upArrowSelectedCommand];
 			}
-		} else if (e.key == "ArrowDown") {
-			inputLine = "";
-			if (upArrowSelectedCommand < commands.length - 1) {
+		}
+		else if (e.key == 'ArrowDown'){
+			inputLine = '';
+			if (upArrowSelectedCommand < commands.length - 1){
 				upArrowSelectedCommand++;
 				inputLine = commands[upArrowSelectedCommand];
 			}
-		} else if (e.key == "ArrowLeft") {
-			if (cursorLoc > 0) {
+		}
+		else if (e.key == 'ArrowLeft'){
+			if (cursorLoc > 0)
 				cursorLoc--;
-			}
-		} else if (e.key == "ArrowRight") {
-			if (cursorLoc < inputLine.length) {
+		}
+		else if (e.key == 'ArrowRight'){
+			if (cursorLoc < inputLine.length)
 				cursorLoc++;
-			}
 		}
 	}
-	else {
+	else{
 		inputLine = inputLine.substr(0, cursorLoc) + e.key + inputLine.substr(cursorLoc);
 		cursorLoc++;
 	}
