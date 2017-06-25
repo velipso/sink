@@ -3796,8 +3796,6 @@ function symtbl_loadStdlib(sym){
 function program_new(repl){
 	return {
 		repl: repl,
-		metakeyTable: [],
-		metavalTable: [],
 		strTable: [],
 		keyTable: [],
 		flpTable: [],
@@ -3813,19 +3811,6 @@ function program_validate(prg){
 	var jumplocs = new Array(256);
 	var ops = prg.ops;
 	var A, B, C, D;
-
-	// check meta
-	if (prg.metakeyTable.length != prg.metavalTable.length)
-		return false;
-	for (var i = 0; i < prg.metakeyTable.length; i++){
-		var key = prg.metakeyTable[i];
-		if (key.length <= 0 || key.length > 256)
-			return false;
-		for (var j = i + 1; j < prg.metakeyTable.length; j++){
-			if (prg.metakeyTable[i] == prg.metakeyTable[j])
-				return false;
-		}
-	}
 
 	// holds alignment information
 	// op_actual: the actual alignment of each byte
