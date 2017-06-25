@@ -112,13 +112,17 @@ window.addEventListener('keydown', function(e){
 			if (upArrowSelectedCommand > 0){
 				upArrowSelectedCommand--;
 				inputLine = commands[upArrowSelectedCommand];
+				cursorLoc = inputLine.length;
 			}
 		}
 		else if (e.key == 'ArrowDown'){
-			inputLine = '';
-			if (upArrowSelectedCommand < commands.length - 1){
+			if (upArrowSelectedCommand < commands.length){
 				upArrowSelectedCommand++;
-				inputLine = commands[upArrowSelectedCommand];
+				if (upArrowSelectedCommand < commands.length)
+					inputLine = commands[upArrowSelectedCommand];
+				else
+					inputLine = '';
+				cursorLoc = inputLine.length;
 			}
 		}
 		else if (e.key == 'ArrowLeft'){
