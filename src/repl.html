@@ -23,6 +23,9 @@ var ctx = cnv.getContext('2d');
 var lines = [
 	'#0f0', 'Sink Demo'
 ];
+var commands = [];
+var upArrowSelectedCommand = 0;
+var cursorLoc = 0;
 var allowInput = false;
 var inLine = 1;
 var inputPrompt = ' 1: ';
@@ -50,18 +53,20 @@ function redraw(){
 	if (y + 40 < cnv.height){
 		ctx.fillStyle = '#fff';
 		ctx.fillText(inputPrompt + inputLine, 10, y);
-		if (allowInput !== false){
+		if (allowInput !== false) {
 			var wms = ctx.measureText('w');
-			var pms = ctx.measureText(inputPrompt + inputLine);
-			var gray = Math.pow(Math.cos(((new Date()).getTime() % 1000) * Math.PI * 2 / 999) * 0.5 + 0.5, 5) * 0.3 + 0.2;
+			var pms = ctx.measureText(inputPrompt + inputLine.substr(0, cursorLoc));
+			var gray = 255;
 			ctx.fillStyle = 'rgb(' +
-				Math.round(gray * 255) + ', ' +
-				Math.round(gray * 255) + ', ' +
-				Math.round(gray * 255) + ')';
+				Math.round(gray) + ', ' +
+				Math.round(gray) + ', ' +
+				Math.round(gray) + ')';
+			ctx.globalAlpha=0.5;
+
 			ctx.fillRect(12 + pms.width, y + 5, wms.width, 40);
 		}
 	}
-	else{
+	else{	
 		lines.shift();
 		lines.shift();
 	}
@@ -93,15 +98,39 @@ window.addEventListener('keydown', function(e){
 		}
 		else if (e.key == 'Enter'){
 			lines.push('#fff', inputPrompt + inputLine);
+			commands.push(inputLine);
+			upArrowSelectedCommand = commands.length;
 			inLine++;
 			var c = allowInput;
 			allowInput = false;
 			c(inputLine + '\n');
 			inputLine = '';
+
+		} else if (e.key == "ArrowUp") {
+			if (upArrowSelectedCommand > 0) {
+				upArrowSelectedCommand--;
+				inputLine = commands[upArrowSelectedCommand];
+			}
+		} else if (e.key == "ArrowDown") {
+			inputLine = "";
+			if (upArrowSelectedCommand < commands.length - 1) {
+				upArrowSelectedCommand++;
+				inputLine = commands[upArrowSelectedCommand];
+			}
+		} else if (e.key == "ArrowLeft") {
+			if (cursorLoc > 0) {
+				cursorLoc--;
+			}
+		} else if (e.key == "ArrowRight") {
+			if (cursorLoc < inputLine.length) {
+				cursorLoc++;
+			}
 		}
 	}
-	else
-		inputLine += e.key;
+	else {
+		inputLine = inputLine.substr(0, cursorLoc) + e.key + inputLine.substr(cursorLoc);
+		cursorLoc++;
+	}
 });
 
 setInterval(redraw, 0);
