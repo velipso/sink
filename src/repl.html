@@ -107,6 +107,7 @@ window.addEventListener('keydown', function(e){
 			allowInput = false;
 			c(inputLine + '\n');
 			inputLine = '';
+			cursorLoc = 0;
 		}
 		else if (e.key == 'ArrowUp'){
 			if (upArrowSelectedCommand > 0){
