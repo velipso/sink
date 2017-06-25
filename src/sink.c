@@ -786,7 +786,8 @@ typedef enum {
 	OP_GT              = 0x1F0,
 	OP_GTE             = 0x1F1,
 	OP_PICK            = 0x1F2,
-	OP_INVALID         = 0x1F3
+	OP_EMBED           = 0x1F3,
+	OP_INVALID         = 0x1F4
 } op_enum;
 
 typedef enum {
@@ -964,6 +965,7 @@ static inline op_pcat op_paramcat(op_enum op){
 		case OP_GT             : return OPPC_INVALID;
 		case OP_GTE            : return OPPC_INVALID;
 		case OP_PICK           : return OPPC_INVALID;
+		case OP_EMBED          : return OPPC_INVALID;
 		case OP_INVALID        : return OPPC_INVALID;
 	}
 	return OPPC_INVALID;
@@ -5722,7 +5724,6 @@ static inline list_ptr NSS(const char *str){
 
 static inline void symtbl_loadStdlib(symtbl sym){
 	list_ptr nss;
-	SAC(sym, "pick"          , OP_PICK           ,  3);
 	SAC(sym, "say"           , OP_SAY            , -1);
 	SAC(sym, "warn"          , OP_WARN           , -1);
 	SAC(sym, "ask"           , OP_ASK            , -1);
@@ -5733,6 +5734,8 @@ static inline void symtbl_loadStdlib(symtbl sym){
 	SAC(sym, "islist"        , OP_ISLIST         ,  1);
 	SAC(sym, "range"         , OP_RANGE          ,  3);
 	SAC(sym, "order"         , OP_ORDER          ,  2);
+	SAC(sym, "pick"          , OP_PICK           ,  3);
+	SAC(sym, "embed"         , OP_EMBED          ,  1);
 	nss = NSS("num"); symtbl_pushNamespace(sym, nss); list_ptr_free(nss);
 		SAC(sym, "abs"       , OP_NUM_ABS        ,  1);
 		SAC(sym, "sign"      , OP_NUM_SIGN       ,  1);
@@ -6798,6 +6801,10 @@ static per_st program_evalCall(program prg, symtbl sym, pem_enum mode, varloc_st
 		label_free(pickfalse);
 		label_free(finish);
 		return per_ok(intoVlc);
+	}
+	else if (nsn->type == NSN_CMD_OPCODE && nsn->u.cmdOpcode.opcode == OP_EMBED){
+		fprintf(stderr, "TODO: embed\n");
+		abort();
 	}
 
 	if (mode == PEM_EMPTY || mode == PEM_CREATE){
@@ -14085,17 +14092,18 @@ void sink_scr_dump(sink_scr scr, bool debug, void *user, sink_dump_func f_dump){
 	// 4 bytes: key table size
 	// 4 bytes: unique filename table size
 	// 4 bytes: flp table size
-	uint8_t header[20] = { 0xFC, 0x53, 0x6B, 0x01, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+	uint8_t header[24] = { 0xFC, 0x53, 0x6B, 0x01,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 	list_int flpmap = NULL;
 	program prg = ((script)scr)->prg;
-	header[ 4] = (prg->strTable->size      ) & 0xFF;
-	header[ 5] = (prg->strTable->size >>  8) & 0xFF;
-	header[ 6] = (prg->strTable->size >> 16) & 0xFF;
-	header[ 7] = (prg->strTable->size >> 24) & 0xFF;
-	header[ 8] = (prg->keyTable->size      ) & 0xFF;
-	header[ 9] = (prg->keyTable->size >>  8) & 0xFF;
-	header[10] = (prg->keyTable->size >> 16) & 0xFF;
-	header[11] = (prg->keyTable->size >> 24) & 0xFF;
+	header[ 4] = (prg->strTable->size          ) & 0xFF;
+	header[ 5] = (prg->strTable->size     >>  8) & 0xFF;
+	header[ 6] = (prg->strTable->size     >> 16) & 0xFF;
+	header[ 7] = (prg->strTable->size     >> 24) & 0xFF;
+	header[ 8] = (prg->keyTable->size          ) & 0xFF;
+	header[ 9] = (prg->keyTable->size     >>  8) & 0xFF;
+	header[10] = (prg->keyTable->size     >> 16) & 0xFF;
+	header[11] = (prg->keyTable->size     >> 24) & 0xFF;
 	if (debug){
 		// calculate unique filenames
 		flpmap = list_int_new();
@@ -15020,6 +15028,8 @@ static inline uint8_t *opi_list_joinplain(sink_ctx ctx, int size, sink_val *vals
 }
 
 sink_val sink_list_joinplain(sink_ctx ctx, int size, sink_val *vals, int sepz, const uint8_t *sep){
+	if (size <= 0)
+		return sink_str_newblobgive(ctx, 0, NULL);
 	int tot;
 	uint8_t *bytes = opi_list_joinplain(ctx, size, vals, sepz, sep, &tot);
 	return sink_str_newblobgive(ctx, tot, bytes);

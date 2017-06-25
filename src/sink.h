@@ -427,7 +427,6 @@ void     sink_list_rev(sink_ctx ctx, sink_val ls);
 sink_val sink_list_str(sink_ctx ctx, sink_val ls);
 void     sink_list_sort(sink_ctx ctx, sink_val ls);
 void     sink_list_rsort(sink_ctx ctx, sink_val ls);
-sink_val sink_list_sortcmp(sink_ctx ctx, sink_val a, sink_val b);
 
 // user helper
 static inline sink_val sink_user_new(sink_ctx ctx, sink_user usertype, void *user){
