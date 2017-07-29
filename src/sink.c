@@ -7064,10 +7064,16 @@ static per_st program_evalCall(pgen_st pgen, pem_enum mode, varloc_st intoVlc,
 		};
 		if (pgen.from)
 			cwd = pathjoin(pgen.from, "..");
-		bool res = fileres_read(pgen.scr, false, (const char *)file->u.str->bytes, cwd,
+		list_byte fstr = file->u.str;
+		list_byte_push(fstr, 0); // make sure it's NULL terminated
+		fstr->size--;
+		bool res = fileres_read(pgen.scr, false, (const char *)fstr->bytes,
+			cwd ? cwd : pgen.scr->curdir,
 			(f_fileres_begin_func)embed_begin, (f_fileres_end_func)embed_end, &efu);
 		if (cwd)
 			mem_free(cwd);
+		if (!res)
+			return per_error(flp, sink_format("Failed to embed: %s", (const char *)fstr->bytes));
 		return efu.pe;
 	}
 
@@ -13932,7 +13938,7 @@ static bool compiler_dynamicinc(compiler cmp, list_ptr names, const char *file, 
 	char *cwd = NULL;
 	if (from)
 		cwd = pathjoin(from, "..");
-	bool res = fileres_read(cmp->scr, true, file, cwd,
+	bool res = fileres_read(cmp->scr, true, file, cwd ? cwd : cmp->scr->curdir,
 		(f_fileres_begin_func)compiler_begininc_cfu, (f_fileres_end_func)compiler_endinc_cfu, &cfu);
 	if (cwd)
 		mem_free(cwd);
