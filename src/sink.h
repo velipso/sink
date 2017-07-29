@@ -215,15 +215,12 @@ sink_scr    sink_scr_new(sink_inc_st inc, const char *curdir, sink_scr_type type
 void        sink_scr_addpath(sink_scr scr, const char *path);
 void        sink_scr_incbody(sink_scr scr, const char *name, const char *body);
 void        sink_scr_incfile(sink_scr scr, const char *name, const char *file);
-int         sink_scr_getinctype(sink_scr scr, const char *name); // -1 not found, 0 body, 1 file
-const char *sink_scr_getinccontent(sink_scr scr, const char *name);
 void        sink_scr_cleanup(sink_scr scr, void *cuser, sink_free_func f_free);
 bool        sink_scr_loadfile(sink_scr scr, const char *file);
 const char *sink_scr_getfile(sink_scr scr);
 const char *sink_scr_getcwd(sink_scr scr);
 bool        sink_scr_write(sink_scr scr, int size, const uint8_t *bytes);
 const char *sink_scr_err(sink_scr scr);
-void        sink_scr_setpos(sink_scr scr, int line, int chr);
 int         sink_scr_level(sink_scr scr);
 void        sink_scr_dump(sink_scr scr, bool debug, void *user, sink_dump_func f_dump);
 void        sink_scr_free(sink_scr scr);

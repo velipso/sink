@@ -1617,6 +1617,9 @@ static inline tok tok_num(double num){
 static inline tok tok_str(list_byte str){
 	tok tk = mem_alloc(sizeof(tok_st));
 	tk->type = TOK_STR;
+	// must end in NULL
+	list_byte_push(str, 0);
+	str->size--;
 	tk->u.str = str;
 	return tk;
 }
@@ -8692,13 +8695,13 @@ static void context_markvals(context ctx, int size, sink_val *vals){
 static inline void context_clearref(context ctx){
 	memset(ctx->str_ref, 0, sizeof(uint64_t) * (ctx->str_size / 64));
 	memset(ctx->list_ref, 0, sizeof(uint64_t) * (ctx->list_size / 64));
-}
-
-static inline void context_mark(context ctx){
-	// mark the string table
+	// mark the string table since it isn't owned by the context
 	if (ctx->str_prealloc_memset > 0)
 		memset(ctx->str_ref, 0xFF, sizeof(uint64_t) * ctx->str_prealloc_memset);
 	ctx->str_ref[ctx->str_prealloc_memset] = ctx->str_prealloc_lastmask;
+}
+
+static inline void context_mark(context ctx){
 	context_markvals(ctx, ctx->pinned.size, ctx->pinned.vals);
 	for (int i = 0; i < ctx->lex_stk->size; i++){
 		lxs here = ctx->lex_stk->ptrs[i];
@@ -8855,7 +8858,7 @@ static inline context context_new(program prg, sink_io_st io){
 		// reserve locations for the string table, such that string table index == var_index
 		for (int i = 0; i < ctx->prg->strTable->size; i++){
 			list_byte s = ctx->prg->strTable->ptrs[i];
-			sink_str_newblob(ctx, s->size, s->bytes);
+			sink_str_newblobgive(ctx, s->size, s->bytes);
 		}
 
 		// precalculate the values needed to mark the prealloc'ed string table quickly
@@ -13934,24 +13937,6 @@ void sink_scr_incfile(sink_scr scr, const char *name, const char *file){
 	staticinc_addfile(((script)scr)->sinc, name, file);
 }
 
-int sink_scr_getinctype(sink_scr scr, const char *name){
-	staticinc si = ((script)scr)->sinc;
-	for (int i = 0; i < si->name->size; i++){
-		if (strcmp(name, si->name->ptrs[i]) == 0)
-			return si->type->bytes[i];
-	}
-	return -1;
-}
-
-const char *sink_scr_getinccontent(sink_scr scr, const char *name){
-	staticinc si = ((script)scr)->sinc;
-	for (int i = 0; i < si->name->size; i++){
-		if (strcmp(name, si->name->ptrs[i]) == 0)
-			return si->content->ptrs[i];
-	}
-	return NULL;
-}
-
 void sink_scr_cleanup(sink_scr scr, void *cuser, sink_free_func f_free){
 	cleanup_add(((script)scr)->cup, cuser, f_free);
 }
@@ -14022,6 +14007,7 @@ bool sink_scr_write(sink_scr scr, int size, const uint8_t *bytes){
 
 	if (sc->mode == SCM_BINARY){
 		fprintf(stderr, "TODO: read/write binary sink file\n");
+		// TODO: make sure to append NULL to string table strings, since they are newblobgive'd
 		abort();
 		return false;
 	}
@@ -14051,16 +14037,8 @@ const char *sink_scr_err(sink_scr scr){
 	return ((script)scr)->err;
 }
 
-void sink_scr_setpos(sink_scr scr, int line, int chr){
-	script sc = scr;
-	if (sc->mode != 2)
-		return;
-	sc->cmp->flpn->flp.line = line;
-	sc->cmp->flpn->flp.chr = chr;
-}
-
 int sink_scr_level(sink_scr scr){
-	if (((script)scr)->mode != 2)
+	if (((script)scr)->mode != SCM_TEXT)
 		return 0;
 	return ((script)scr)->cmp->pr->level;
 }
