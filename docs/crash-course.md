@@ -875,7 +875,7 @@ If you include a file more than once, any definitions will fail the second time,
 as trying to define something more than once.  Instead, it might be useful to use the syntax:
 
 ```
-include . './file'
+include + './file'
 ```
 
 This will create a unique namespace for the contents of `'./file'`, accessed directly.  It is
@@ -895,7 +895,7 @@ include
   './first',
   './second',
   third './third',
-  . './fourth'
+  + './fourth'
 ```
 
 The `embed` expression can be used to include the contents of a file as a string literal.  This can

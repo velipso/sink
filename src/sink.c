@@ -3484,9 +3484,9 @@ static inline ast ast_if4(filepos_st flp){
 	return stmt;
 }
 
-// the `names` field in `incl_st` can be INCL_PERIOD to indicate that the user typed:
-//   include . 'foo'
-#define INCL_PERIOD  ((void *)1)
+// the `names` field in `incl_st` can be INCL_UNIQUE to indicate that the user typed:
+//   include + 'foo'
+#define INCL_UNIQUE  ((void *)1)
 
 typedef struct {
 	list_ptr names;
@@ -3494,7 +3494,7 @@ typedef struct {
 } incl_st, *incl;
 
 static void incl_free(incl inc){
-	if (inc->names && inc->names != INCL_PERIOD)
+	if (inc->names && inc->names != INCL_UNIQUE)
 		list_ptr_free(inc->names);
 	if (inc->file)
 		list_byte_free(inc->file);
@@ -3748,7 +3748,7 @@ struct prs_struct {
 	expr exprTerm;
 	expr exprTerm2;
 	expr exprTerm3;
-	list_ptr names; // can be INCL_PERIOD
+	list_ptr names; // can be INCL_UNIQUE
 	list_ptr names2;
 	list_ptr incls;
 	prs next;
@@ -3797,7 +3797,7 @@ static void prs_free(prs pr){
 		expr_free(pr->exprTerm2);
 	if (pr->exprTerm3)
 		expr_free(pr->exprTerm3);
-	if (pr->names && pr->names != INCL_PERIOD)
+	if (pr->names && pr->names != INCL_UNIQUE)
 		list_ptr_free(pr->names);
 	if (pr->names2)
 		list_ptr_free(pr->names2);
@@ -4511,8 +4511,8 @@ static prr_st parser_process(parser pr, filepos_st flp, list_ptr stmts){
 				st->state = PRS_INCLUDE_STR;
 				return prr_more();
 			}
-			else if (tok_isKS(tk1, KS_PERIOD)){
-				st->names = INCL_PERIOD;
+			else if (tok_isKS(tk1, KS_PLUS)){
+				st->names = INCL_UNIQUE;
 				st->state = PRS_INCLUDE_LOOKUP;
 				return prr_more();
 			}
@@ -5500,7 +5500,7 @@ static inline spn_st spn_error(char *msg){
 
 static inline spn_st symtbl_pushNamespace(symtbl sym, list_ptr names){
 	namespace ns;
-	if (names == INCL_PERIOD){
+	if (names == INCL_UNIQUE){
 		// create a unique namespace and use it (via `using`) immediately
 		namespace nsp = sym->sc->ns;
 		ns = namespace_new(nsp->fr);

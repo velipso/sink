@@ -1,5 +1,0 @@
-
-include . './test'
-include A './test', B './test', . './test'
-
-foo 1
