@@ -7,3 +7,6 @@ say int.and {}
 say int.and {15, 7}, 30
 say int.and {1, 2, 3, 4}, {5, 6, 7, 8}, {9, 10, 11, 12}
 say int.and {3, 3, 3}, {6, 6}, {2}
+
+int.pop   {0x00000000, 0xFFFFFFFF, 0x12345678} | say
+int.bswap {0x12345678, 0xAABBCC0D, 0x1A2B3C4D} | num.hex 8 | say

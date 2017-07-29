@@ -708,61 +708,63 @@ typedef enum {
 	OP_INT_DIV         = 0x5A, // [TGT], [SRC1], [SRC2]
 	OP_INT_MOD         = 0x5B, // [TGT], [SRC1], [SRC2]
 	OP_INT_CLZ         = 0x5C, // [TGT], [SRC]
-	OP_RAND_SEED       = 0x5D, // [TGT], [SRC]
-	OP_RAND_SEEDAUTO   = 0x5E, // [TGT]
-	OP_RAND_INT        = 0x5F, // [TGT]
-	OP_RAND_NUM        = 0x60, // [TGT]
-	OP_RAND_GETSTATE   = 0x61, // [TGT]
-	OP_RAND_SETSTATE   = 0x62, // [TGT], [SRC]
-	OP_RAND_PICK       = 0x63, // [TGT], [SRC]
-	OP_RAND_SHUFFLE    = 0x64, // [TGT], [SRC]
-	OP_STR_NEW         = 0x65, // [TGT], ARGCOUNT, [ARGS]...
-	OP_STR_SPLIT       = 0x66, // [TGT], [SRC1], [SRC2]
-	OP_STR_REPLACE     = 0x67, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_STR_BEGINS      = 0x68, // [TGT], [SRC1], [SRC2]
-	OP_STR_ENDS        = 0x69, // [TGT], [SRC1], [SRC2]
-	OP_STR_PAD         = 0x6A, // [TGT], [SRC1], [SRC2]
-	OP_STR_FIND        = 0x6B, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_STR_RFIND       = 0x6C, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_STR_LOWER       = 0x6D, // [TGT], [SRC]
-	OP_STR_UPPER       = 0x6E, // [TGT], [SRC]
-	OP_STR_TRIM        = 0x6F, // [TGT], [SRC]
-	OP_STR_REV         = 0x70, // [TGT], [SRC]
-	OP_STR_REP         = 0x71, // [TGT], [SRC1], [SRC2]
-	OP_STR_LIST        = 0x72, // [TGT], [SRC]
-	OP_STR_BYTE        = 0x73, // [TGT], [SRC1], [SRC2]
-	OP_STR_HASH        = 0x74, // [TGT], [SRC1], [SRC2]
-	OP_UTF8_VALID      = 0x75, // [TGT], [SRC]
-	OP_UTF8_LIST       = 0x76, // [TGT], [SRC]
-	OP_UTF8_STR        = 0x77, // [TGT], [SRC]
-	OP_STRUCT_SIZE     = 0x78, // [TGT], [SRC]
-	OP_STRUCT_STR      = 0x79, // [TGT], [SRC1], [SRC2]
-	OP_STRUCT_LIST     = 0x7A, // [TGT], [SRC1], [SRC2]
-	OP_STRUCT_ISLE     = 0x7B, // [TGT]
-	OP_LIST_NEW        = 0x7C, // [TGT], [SRC1], [SRC2]
-	OP_LIST_SHIFT      = 0x7D, // [TGT], [SRC]
-	OP_LIST_POP        = 0x7E, // [TGT], [SRC]
-	OP_LIST_PUSH       = 0x7F, // [TGT], [SRC1], [SRC2]
-	OP_LIST_UNSHIFT    = 0x80, // [TGT], [SRC1], [SRC2]
-	OP_LIST_APPEND     = 0x81, // [TGT], [SRC1], [SRC2]
-	OP_LIST_PREPEND    = 0x82, // [TGT], [SRC1], [SRC2]
-	OP_LIST_FIND       = 0x83, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_LIST_RFIND      = 0x84, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_LIST_JOIN       = 0x85, // [TGT], [SRC1], [SRC2]
-	OP_LIST_REV        = 0x86, // [TGT], [SRC]
-	OP_LIST_STR        = 0x87, // [TGT], [SRC]
-	OP_LIST_SORT       = 0x88, // [TGT], [SRC]
-	OP_LIST_RSORT      = 0x89, // [TGT], [SRC]
-	OP_PICKLE_JSON     = 0x8A, // [TGT], [SRC]
-	OP_PICKLE_BIN      = 0x8B, // [TGT], [SRC]
-	OP_PICKLE_VAL      = 0x8C, // [TGT], [SRC]
-	OP_PICKLE_VALID    = 0x8D, // [TGT], [SRC]
-	OP_PICKLE_SIBLING  = 0x8E, // [TGT], [SRC]
-	OP_PICKLE_CIRCULAR = 0x8F, // [TGT], [SRC]
-	OP_PICKLE_COPY     = 0x90, // [TGT], [SRC]
-	OP_GC_GETLEVEL     = 0x91, // [TGT]
-	OP_GC_SETLEVEL     = 0x92, // [TGT], [SRC]
-	OP_GC_RUN          = 0x93, // [TGT]
+	OP_INT_POP         = 0x5D, // [TGT], [SRC]
+	OP_INT_BSWAP       = 0x5E, // [TGT], [SRC]
+	OP_RAND_SEED       = 0x5F, // [TGT], [SRC]
+	OP_RAND_SEEDAUTO   = 0x60, // [TGT]
+	OP_RAND_INT        = 0x61, // [TGT]
+	OP_RAND_NUM        = 0x62, // [TGT]
+	OP_RAND_GETSTATE   = 0x63, // [TGT]
+	OP_RAND_SETSTATE   = 0x64, // [TGT], [SRC]
+	OP_RAND_PICK       = 0x65, // [TGT], [SRC]
+	OP_RAND_SHUFFLE    = 0x66, // [TGT], [SRC]
+	OP_STR_NEW         = 0x67, // [TGT], ARGCOUNT, [ARGS]...
+	OP_STR_SPLIT       = 0x68, // [TGT], [SRC1], [SRC2]
+	OP_STR_REPLACE     = 0x69, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_STR_BEGINS      = 0x6A, // [TGT], [SRC1], [SRC2]
+	OP_STR_ENDS        = 0x6B, // [TGT], [SRC1], [SRC2]
+	OP_STR_PAD         = 0x6C, // [TGT], [SRC1], [SRC2]
+	OP_STR_FIND        = 0x6D, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_STR_RFIND       = 0x6E, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_STR_LOWER       = 0x6F, // [TGT], [SRC]
+	OP_STR_UPPER       = 0x70, // [TGT], [SRC]
+	OP_STR_TRIM        = 0x71, // [TGT], [SRC]
+	OP_STR_REV         = 0x72, // [TGT], [SRC]
+	OP_STR_REP         = 0x73, // [TGT], [SRC1], [SRC2]
+	OP_STR_LIST        = 0x74, // [TGT], [SRC]
+	OP_STR_BYTE        = 0x75, // [TGT], [SRC1], [SRC2]
+	OP_STR_HASH        = 0x76, // [TGT], [SRC1], [SRC2]
+	OP_UTF8_VALID      = 0x77, // [TGT], [SRC]
+	OP_UTF8_LIST       = 0x78, // [TGT], [SRC]
+	OP_UTF8_STR        = 0x79, // [TGT], [SRC]
+	OP_STRUCT_SIZE     = 0x7A, // [TGT], [SRC]
+	OP_STRUCT_STR      = 0x7B, // [TGT], [SRC1], [SRC2]
+	OP_STRUCT_LIST     = 0x7C, // [TGT], [SRC1], [SRC2]
+	OP_STRUCT_ISLE     = 0x7D, // [TGT]
+	OP_LIST_NEW        = 0x7E, // [TGT], [SRC1], [SRC2]
+	OP_LIST_SHIFT      = 0x7F, // [TGT], [SRC]
+	OP_LIST_POP        = 0x80, // [TGT], [SRC]
+	OP_LIST_PUSH       = 0x81, // [TGT], [SRC1], [SRC2]
+	OP_LIST_UNSHIFT    = 0x82, // [TGT], [SRC1], [SRC2]
+	OP_LIST_APPEND     = 0x83, // [TGT], [SRC1], [SRC2]
+	OP_LIST_PREPEND    = 0x84, // [TGT], [SRC1], [SRC2]
+	OP_LIST_FIND       = 0x85, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_LIST_RFIND      = 0x86, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_LIST_JOIN       = 0x87, // [TGT], [SRC1], [SRC2]
+	OP_LIST_REV        = 0x88, // [TGT], [SRC]
+	OP_LIST_STR        = 0x89, // [TGT], [SRC]
+	OP_LIST_SORT       = 0x8A, // [TGT], [SRC]
+	OP_LIST_RSORT      = 0x8B, // [TGT], [SRC]
+	OP_PICKLE_JSON     = 0x8C, // [TGT], [SRC]
+	OP_PICKLE_BIN      = 0x8D, // [TGT], [SRC]
+	OP_PICKLE_VAL      = 0x8E, // [TGT], [SRC]
+	OP_PICKLE_VALID    = 0x8F, // [TGT], [SRC]
+	OP_PICKLE_SIBLING  = 0x90, // [TGT], [SRC]
+	OP_PICKLE_CIRCULAR = 0x91, // [TGT], [SRC]
+	OP_PICKLE_COPY     = 0x92, // [TGT], [SRC]
+	OP_GC_GETLEVEL     = 0x93, // [TGT]
+	OP_GC_SETLEVEL     = 0x94, // [TGT], [SRC]
+	OP_GC_RUN          = 0x95, // [TGT]
 	// RESERVED        = 0xFD,
 	// fake ops
 	OP_GT              = 0x1F0,
@@ -890,6 +892,8 @@ static inline op_pcat op_paramcat(op_enum op){
 		case OP_INT_DIV        : return OPPC_VVV;
 		case OP_INT_MOD        : return OPPC_VVV;
 		case OP_INT_CLZ        : return OPPC_VV;
+		case OP_INT_POP        : return OPPC_VV;
+		case OP_INT_BSWAP      : return OPPC_VV;
 		case OP_RAND_SEED      : return OPPC_VV;
 		case OP_RAND_SEEDAUTO  : return OPPC_V;
 		case OP_RAND_INT       : return OPPC_V;
@@ -5830,6 +5834,8 @@ static inline void symtbl_loadStdlib(symtbl sym){
 		SAC(sym, "div"       , OP_INT_DIV        ,  2);
 		SAC(sym, "mod"       , OP_INT_MOD        ,  2);
 		SAC(sym, "clz"       , OP_INT_CLZ        ,  1);
+		SAC(sym, "pop"       , OP_INT_POP        ,  1);
+		SAC(sym, "bswap"     , OP_INT_BSWAP      ,  1);
 	symtbl_popNamespace(sym);
 	nss = NSS("rand"); symtbl_pushNamespace(sym, nss); list_ptr_free(nss);
 		SAC(sym, "seed"      , OP_RAND_SEED      ,  1);
@@ -10382,6 +10388,22 @@ static sink_val unop_int_clz(context ctx, sink_val a){
 	#endif
 }
 
+static sink_val unop_int_pop(context ctx, sink_val a){
+	uint32_t n = toint(a);
+	n = ((n & 0xAAAAAAAA) >>  1) + (n & 0x55555555);
+	n = ((n & 0xCCCCCCCC) >>  2) + (n & 0x33333333);
+	n = ((n & 0xF0F0F0F0) >>  4) + (n & 0x0F0F0F0F);
+	n = ((n & 0xFF00FF00) >>  8) + (n & 0x00FF00FF);
+	n = ((n & 0xFFFF0000) >> 16) + (n & 0x0000FFFF);
+	return intnum(n);
+}
+
+static sink_val unop_int_bswap(context ctx, sink_val a){
+	uint32_t n = toint(a);
+	n = (n >> 24) | ((n >> 8) & 0xFF00) | ((n << 8) & 0xFF0000) | (n << 24);
+	return intnum(n);
+}
+
 static sink_val binop_int_and(context ctx, sink_val a, sink_val b){
 	return intnum(toint(a) & toint(b));
 }
@@ -12951,6 +12973,14 @@ static sink_run context_run(context ctx){
 				INLINE_UNOP(unop_int_clz, "counting leading zeros")
 			} break;
 
+			case OP_INT_POP        : { // [TGT], [SRC]
+				INLINE_UNOP(unop_int_pop, "population count")
+			} break;
+
+			case OP_INT_BSWAP      : { // [TGT], [SRC]
+				INLINE_UNOP(unop_int_bswap, "byte swaping")
+			} break;
+
 			case OP_RAND_SEED      : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
@@ -14703,6 +14733,8 @@ sink_val  sink_int_mul(sink_ctx ctx, sink_val a, sink_val b);
 sink_val  sink_int_div(sink_ctx ctx, sink_val a, sink_val b);
 sink_val  sink_int_mod(sink_ctx ctx, sink_val a, sink_val b);
 sink_val  sink_int_clz(sink_ctx ctx, sink_val a);
+sink_val  sink_int_pop(sink_ctx ctx, sink_val a);
+sink_val  sink_int_bswap(sink_ctx ctx, sink_val a);
 
 // random
 void      sink_rand_seed(sink_ctx ctx, sink_val a);

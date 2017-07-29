@@ -154,6 +154,8 @@ built-in unary and binary operators.
 | `int.div a, b`      | `a / b`                                                                   |
 | `int.mod a, b`      | `a % b`                                                                   |
 | `int.clz a`         | Count leading zeros                                                       |
+| `int.pop a`         | Count number of bits set (population count, Hamming weight)               |
+| `int.bswap a`       | Byte swap (`0x12345678` becomes `0x78563412`)                             |
 
 Random
 ------

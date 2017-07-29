@@ -345,6 +345,8 @@ sink_val sink_int_mul(sink_ctx ctx, sink_val a, sink_val b);
 sink_val sink_int_div(sink_ctx ctx, sink_val a, sink_val b);
 sink_val sink_int_mod(sink_ctx ctx, sink_val a, sink_val b);
 sink_val sink_int_clz(sink_ctx ctx, sink_val a);
+sink_val sink_int_pop(sink_ctx ctx, sink_val a);
+sink_val sink_int_bswap(sink_ctx ctx, sink_val a);
 
 // random
 void     sink_rand_seed(sink_ctx ctx, sink_val a);
