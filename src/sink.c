@@ -6149,6 +6149,11 @@ static inline void program_flp(program prg, filepos_st flp){
 	list_ptr_push(prg->flpTable, p);
 }
 
+typedef struct {
+	program prg;
+	symtbl sym;
+} pgen_st;
+
 typedef enum {
 	PER_OK,
 	PER_ERROR
@@ -6179,7 +6184,7 @@ typedef enum {
 	PEM_INTO    // I need to own the register
 } pem_enum;
 
-static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st intoVlc, expr ex);
+static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr ex);
 
 typedef enum {
 	PSR_OK,
@@ -6208,7 +6213,7 @@ static inline psr_st psr_error(filepos_st flp, char *msg){
 	return (psr_st){ .type = PSR_ERROR, .u.error.flp = flp, .u.error.msg = msg };
 }
 
-static psr_st program_slice(program prg, symtbl sym, expr ex);
+static psr_st program_slice(pgen_st pgen, expr ex);
 
 typedef enum {
 	LVR_VAR,
@@ -6321,8 +6326,8 @@ typedef enum {
 	PLM_INTO
 } plm_enum;
 
-static per_st program_lvalGet(program prg, symtbl sym, plm_enum mode, varloc_st intoVlc, lvr lv);
-static per_st program_lvalGetIndex(program prg, symtbl sym, lvr lv);
+static per_st program_lvalGet(pgen_st pgen, plm_enum mode, varloc_st intoVlc, lvr lv);
+static per_st program_lvalGetIndex(pgen_st pgen, lvr lv);
 
 typedef enum {
 	LVP_OK,
@@ -6395,9 +6400,9 @@ static lvp_st lval_addVars(symtbl sym, expr ex, int slot){
 	return lvp_error(ex->flp, sink_format("Invalid assignment"));
 }
 
-static lvp_st lval_prepare(program prg, symtbl sym, expr ex){
+static lvp_st lval_prepare(pgen_st pgen, expr ex){
 	if (ex->type == EXPR_NAMES){
-		stl_st sl = symtbl_lookup(sym, ex->u.names);
+		stl_st sl = symtbl_lookup(pgen.sym, ex->u.names);
 		if (sl.type == STL_ERROR)
 			return lvp_error(ex->flp, sl.u.msg);
 		if (sl.u.nsn->type != NSN_VAR)
@@ -6406,11 +6411,11 @@ static lvp_st lval_prepare(program prg, symtbl sym, expr ex){
 			varloc_new(sl.u.nsn->u.var.fr->level, sl.u.nsn->u.var.index)));
 	}
 	else if (ex->type == EXPR_INDEX){
-		per_st pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, ex->u.index.obj);
+		per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex->u.index.obj);
 		if (pe.type == PER_ERROR)
 			return lvp_error(pe.u.error.flp, pe.u.error.msg);
 		varloc_st obj = pe.u.vlc;
-		pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, ex->u.index.key);
+		pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex->u.index.key);
 		if (pe.type == PER_ERROR)
 			return lvp_error(pe.u.error.flp, pe.u.error.msg);
 		return lvp_ok(lvr_index(ex->flp, obj, pe.u.vlc));
@@ -6418,26 +6423,26 @@ static lvp_st lval_prepare(program prg, symtbl sym, expr ex){
 	else if (ex->type == EXPR_SLICE){
 		if (ex->u.slice.obj->type == EXPR_INDEX){
 			// we have a slice of an index `foo[1][2:3]`
-			per_st pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL,
+			per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL,
 				ex->u.slice.obj->u.index.obj);
 			if (pe.type == PER_ERROR)
 				return lvp_error(pe.u.error.flp, pe.u.error.msg);
 			varloc_st obj = pe.u.vlc;
-			pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, ex->u.slice.obj->u.index.key);
+			pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex->u.slice.obj->u.index.key);
 			if (pe.type == PER_ERROR)
 				return lvp_error(pe.u.error.flp, pe.u.error.msg);
 			varloc_st key = pe.u.vlc;
-			psr_st sr = program_slice(prg, sym, ex);
+			psr_st sr = program_slice(pgen, ex);
 			if (sr.type == PSR_ERROR)
 				return lvp_error(sr.u.error.flp, sr.u.error.msg);
 			return lvp_ok(lvr_sliceindex(ex->flp, obj, key, sr.u.ok.start, sr.u.ok.len));
 		}
 		else{
-			per_st pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, ex->u.slice.obj);
+			per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex->u.slice.obj);
 			if (pe.type == PER_ERROR)
 				return lvp_error(pe.u.error.flp, pe.u.error.msg);
 			varloc_st obj = pe.u.vlc;
-			psr_st sr = program_slice(prg, sym, ex);
+			psr_st sr = program_slice(pgen, ex);
 			if (sr.type == PSR_ERROR)
 				return lvp_error(sr.u.error.flp, sr.u.error.msg);
 			return lvp_ok(lvr_slice(ex->flp, obj, sr.u.ok.start, sr.u.ok.len));
@@ -6453,7 +6458,7 @@ static lvp_st lval_prepare(program prg, symtbl sym, expr ex){
 				expr gex = ex->u.ex->u.group->ptrs[i];
 				if (i == ex->u.ex->u.group->size - 1 && gex->type == EXPR_PREFIX &&
 					gex->u.prefix.k == KS_PERIOD3){
-					lvp_st lp = lval_prepare(prg, sym, gex->u.ex);
+					lvp_st lp = lval_prepare(pgen, gex->u.ex);
 					if (lp.type == LVP_ERROR){
 						list_ptr_free(body);
 						return lp;
@@ -6461,7 +6466,7 @@ static lvp_st lval_prepare(program prg, symtbl sym, expr ex){
 					rest = lp.u.lv;
 				}
 				else{
-					lvp_st lp = lval_prepare(prg, sym, gex);
+					lvp_st lp = lval_prepare(pgen, gex);
 					if (lp.type == LVP_ERROR){
 						list_ptr_free(body);
 						return lp;
@@ -6472,7 +6477,7 @@ static lvp_st lval_prepare(program prg, symtbl sym, expr ex){
 		}
 		else{
 			if (ex->u.ex->type == EXPR_PREFIX && ex->u.ex->u.prefix.k == KS_PERIOD3){
-				lvp_st lp = lval_prepare(prg, sym, ex->u.ex->u.ex);
+				lvp_st lp = lval_prepare(pgen, ex->u.ex->u.ex);
 				if (lp.type == LVP_ERROR){
 					list_ptr_free(body);
 					return lp;
@@ -6480,7 +6485,7 @@ static lvp_st lval_prepare(program prg, symtbl sym, expr ex){
 				rest = lp.u.lv;
 			}
 			else{
-				lvp_st lp = lval_prepare(prg, sym, ex->u.ex);
+				lvp_st lp = lval_prepare(pgen, ex->u.ex);
 				if (lp.type == LVP_ERROR){
 					list_ptr_free(body);
 					return lp;
@@ -6529,8 +6534,10 @@ static void lval_clearTemps(lvr lv, symtbl sym){
 	}
 }
 
-static per_st program_evalLval(program prg, symtbl sym, pem_enum mode, varloc_st intoVlc, lvr lv,
+static per_st program_evalLval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, lvr lv,
 	op_enum mutop, varloc_st valueVlc, bool clearTemps){
+	program prg = pgen.prg;
+	symtbl sym = pgen.sym;
 	// first, perform the assignment of valueVlc into lv
 	switch (lv->type){
 		case LVR_VAR:
@@ -6544,7 +6551,7 @@ static per_st program_evalLval(program prg, symtbl sym, pem_enum mode, varloc_st
 			if (mutop == OP_INVALID)
 				op_setat(prg->ops, lv->u.index.obj, lv->u.index.key, valueVlc);
 			else{
-				per_st pe = program_lvalGet(prg, sym, PLM_CREATE, VARLOC_NULL, lv);
+				per_st pe = program_lvalGet(pgen, PLM_CREATE, VARLOC_NULL, lv);
 				if (pe.type == PER_ERROR)
 					return pe;
 				op_binop(prg->ops, mutop, pe.u.vlc, pe.u.vlc, valueVlc);
@@ -6556,11 +6563,11 @@ static per_st program_evalLval(program prg, symtbl sym, pem_enum mode, varloc_st
 			if (mutop == OP_INVALID)
 				op_splice(prg->ops, lv->u.slice.obj, lv->u.slice.start, lv->u.slice.len, valueVlc);
 			else{
-				per_st pe = program_lvalGet(prg, sym, PLM_CREATE, VARLOC_NULL, lv);
+				per_st pe = program_lvalGet(pgen, PLM_CREATE, VARLOC_NULL, lv);
 				if (pe.type == PER_ERROR)
 					return pe;
 				lvr lv2 = lvr_var(lv->flp, lv->vlc);
-				pe = program_evalLval(prg, sym, PEM_EMPTY, VARLOC_NULL, lv2, mutop, valueVlc, true);
+				pe = program_evalLval(pgen, PEM_EMPTY, VARLOC_NULL, lv2, mutop, valueVlc, true);
 				lvr_free(lv2);
 				if (pe.type == PER_ERROR)
 					return pe;
@@ -6579,7 +6586,7 @@ static per_st program_evalLval(program prg, symtbl sym, pem_enum mode, varloc_st
 
 		case LVR_SLICEINDEX: {
 			if (mutop == OP_INVALID){
-				per_st pe = program_lvalGetIndex(prg, sym, lv);
+				per_st pe = program_lvalGetIndex(pgen, lv);
 				if (pe.type == PER_ERROR)
 					return pe;
 				op_splice(prg->ops, pe.u.vlc, lv->u.sliceindex.start, lv->u.sliceindex.len,
@@ -6587,11 +6594,11 @@ static per_st program_evalLval(program prg, symtbl sym, pem_enum mode, varloc_st
 				op_setat(prg->ops, lv->u.sliceindex.obj, lv->u.sliceindex.key, pe.u.vlc);
 			}
 			else{
-				per_st pe = program_lvalGet(prg, sym, PLM_CREATE, VARLOC_NULL, lv);
+				per_st pe = program_lvalGet(pgen, PLM_CREATE, VARLOC_NULL, lv);
 				if (pe.type == PER_ERROR)
 					return pe;
 				lvr lv2 = lvr_var(lv->flp, lv->vlc);
-				pe = program_evalLval(prg, sym, PEM_EMPTY, VARLOC_NULL, lv2, mutop, valueVlc, true);
+				pe = program_evalLval(pgen, PEM_EMPTY, VARLOC_NULL, lv2, mutop, valueVlc, true);
 				lvr_free(lv2);
 				if (pe.type == PER_ERROR)
 					return pe;
@@ -6620,7 +6627,7 @@ static per_st program_evalLval(program prg, symtbl sym, pem_enum mode, varloc_st
 			for (int i = 0; i < lv->u.list.body->size; i++){
 				op_numint(prg->ops, t, i);
 				op_getat(prg->ops, t, valueVlc, t);
-				per_st pe = program_evalLval(prg, sym, PEM_EMPTY, VARLOC_NULL,
+				per_st pe = program_evalLval(pgen, PEM_EMPTY, VARLOC_NULL,
 					lv->u.list.body->ptrs[i], mutop, t, false);
 				if (pe.type == PER_ERROR)
 					return pe;
@@ -6636,7 +6643,7 @@ static per_st program_evalLval(program prg, symtbl sym, pem_enum mode, varloc_st
 				op_nil(prg->ops, t2);
 				op_slice(prg->ops, t, valueVlc, t, t2);
 				symtbl_clearTemp(sym, t2);
-				per_st pe = program_evalLval(prg, sym, PEM_EMPTY, VARLOC_NULL, lv->u.list.rest,
+				per_st pe = program_evalLval(pgen, PEM_EMPTY, VARLOC_NULL, lv->u.list.rest,
 					mutop, t, false);
 				if (pe.type == PER_ERROR)
 					return pe;
@@ -6658,7 +6665,7 @@ static per_st program_evalLval(program prg, symtbl sym, pem_enum mode, varloc_st
 		intoVlc = ts.u.vlc;
 	}
 
-	per_st pe = program_lvalGet(prg, sym, PLM_INTO, intoVlc, lv);
+	per_st pe = program_lvalGet(pgen, PLM_INTO, intoVlc, lv);
 	if (pe.type == PER_ERROR)
 		return pe;
 	if (clearTemps)
@@ -6666,17 +6673,17 @@ static per_st program_evalLval(program prg, symtbl sym, pem_enum mode, varloc_st
 	return per_ok(intoVlc);
 }
 
-static psr_st program_slice(program prg, symtbl sym, expr ex){
+static psr_st program_slice(pgen_st pgen, expr ex){
 	varloc_st start;
 	if (ex->u.slice.start == NULL){
-		sta_st ts = symtbl_addTemp(sym);
+		sta_st ts = symtbl_addTemp(pgen.sym);
 		if (ts.type == STA_ERROR)
 			return psr_error(ex->flp, ts.u.msg);
 		start = ts.u.vlc;
-		op_numint(prg->ops, start, 0);
+		op_numint(pgen.prg->ops, start, 0);
 	}
 	else{
-		per_st pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, ex->u.slice.start);
+		per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex->u.slice.start);
 		if (pe.type == PER_ERROR)
 			return psr_error(pe.u.error.flp, pe.u.error.msg);
 		start = pe.u.vlc;
@@ -6684,14 +6691,14 @@ static psr_st program_slice(program prg, symtbl sym, expr ex){
 
 	varloc_st len;
 	if (ex->u.slice.len == NULL){
-		sta_st ts = symtbl_addTemp(sym);
+		sta_st ts = symtbl_addTemp(pgen.sym);
 		if (ts.type == STA_ERROR)
 			return psr_error(ex->flp, ts.u.msg);
 		len = ts.u.vlc;
-		op_nil(prg->ops, len);
+		op_nil(pgen.prg->ops, len);
 	}
 	else{
-		per_st pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, ex->u.slice.len);
+		per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex->u.slice.len);
 		if (pe.type == PER_ERROR)
 			return psr_error(pe.u.error.flp, pe.u.error.msg);
 		len = pe.u.vlc;
@@ -6700,21 +6707,22 @@ static psr_st program_slice(program prg, symtbl sym, expr ex){
 	return psr_ok(start, len);
 }
 
-static per_st program_lvalGetIndex(program prg, symtbl sym, lvr lv){
+static per_st program_lvalGetIndex(pgen_st pgen, lvr lv){
 	// specifically for LVR_SLICEINDEX in order to fill lv.indexvlc
 	if (!varloc_isnull(lv->u.sliceindex.indexvlc))
 		return per_ok(lv->u.sliceindex.indexvlc);
 
-	sta_st ts = symtbl_addTemp(sym);
+	sta_st ts = symtbl_addTemp(pgen.sym);
 	if (ts.type == STA_ERROR)
 		return per_error(lv->flp, ts.u.msg);
 	lv->u.sliceindex.indexvlc = ts.u.vlc;
 
-	op_getat(prg->ops, lv->u.sliceindex.indexvlc, lv->u.sliceindex.obj, lv->u.sliceindex.key);
+	op_getat(pgen.prg->ops, lv->u.sliceindex.indexvlc, lv->u.sliceindex.obj, lv->u.sliceindex.key);
 	return per_ok(lv->u.sliceindex.indexvlc);
 }
 
-static per_st program_lvalGet(program prg, symtbl sym, plm_enum mode, varloc_st intoVlc, lvr lv){
+static per_st program_lvalGet(pgen_st pgen, plm_enum mode, varloc_st intoVlc, lvr lv){
+	program prg = pgen.prg;
 	if (!varloc_isnull(lv->vlc)){
 		if (mode == PLM_CREATE)
 			return per_ok(lv->vlc);
@@ -6723,7 +6731,7 @@ static per_st program_lvalGet(program prg, symtbl sym, plm_enum mode, varloc_st 
 	}
 
 	if (mode == PLM_CREATE){
-		sta_st ts = symtbl_addTemp(sym);
+		sta_st ts = symtbl_addTemp(pgen.sym);
 		if (ts.type == STA_ERROR)
 			return per_error(lv->flp, ts.u.msg);
 		intoVlc = lv->vlc = ts.u.vlc;
@@ -6743,7 +6751,7 @@ static per_st program_lvalGet(program prg, symtbl sym, plm_enum mode, varloc_st 
 			break;
 
 		case LVR_SLICEINDEX: {
-			per_st pe = program_lvalGetIndex(prg, sym, lv);
+			per_st pe = program_lvalGetIndex(pgen, lv);
 			if (pe.type == PER_ERROR)
 				return pe;
 			op_slice(prg->ops, intoVlc, pe.u.vlc, lv->u.sliceindex.start, lv->u.sliceindex.len);
@@ -6753,7 +6761,7 @@ static per_st program_lvalGet(program prg, symtbl sym, plm_enum mode, varloc_st 
 			op_list(prg->ops, intoVlc, lv->u.list.body->size);
 
 			for (int i = 0; i < lv->u.list.body->size; i++){
-				per_st pe = program_lvalGet(prg, sym, PLM_CREATE, VARLOC_NULL,
+				per_st pe = program_lvalGet(pgen, PLM_CREATE, VARLOC_NULL,
 					lv->u.list.body->ptrs[i]);
 				if (pe.type == PER_ERROR)
 					return pe;
@@ -6761,7 +6769,7 @@ static per_st program_lvalGet(program prg, symtbl sym, plm_enum mode, varloc_st 
 			}
 
 			if (lv->u.list.rest != NULL){
-				per_st pe = program_lvalGet(prg, sym, PLM_CREATE, VARLOC_NULL, lv->u.list.rest);
+				per_st pe = program_lvalGet(pgen, PLM_CREATE, VARLOC_NULL, lv->u.list.rest);
 				if (pe.type == PER_ERROR)
 					return pe;
 				op_param2(prg->ops, OP_LIST_APPEND, intoVlc, intoVlc, pe.u.vlc);
@@ -6772,7 +6780,7 @@ static per_st program_lvalGet(program prg, symtbl sym, plm_enum mode, varloc_st 
 	return per_ok(intoVlc);
 }
 
-static inline bool program_evalCallArgcount(program prg, symtbl sym, expr params, int *argcount,
+static inline bool program_evalCallArgcount(pgen_st pgen, expr params, int *argcount,
 	per_st *pe, varloc_st *p){
 	// `p` is an array of 255 varloc_st's, which get filled with `argcount` arguments
 	// returns false on error, with error inside of `pe`
@@ -6783,7 +6791,7 @@ static inline bool program_evalCallArgcount(program prg, symtbl sym, expr params
 			if (*argcount > 254)
 				*argcount = 254;
 			for (int i = 0; i < params->u.group->size; i++){
-				*pe = program_eval(prg, sym, i < *argcount ? PEM_CREATE : PEM_EMPTY, VARLOC_NULL,
+				*pe = program_eval(pgen, i < *argcount ? PEM_CREATE : PEM_EMPTY, VARLOC_NULL,
 					params->u.group->ptrs[i]);
 				if (pe->type == PER_ERROR)
 					return false;
@@ -6793,7 +6801,7 @@ static inline bool program_evalCallArgcount(program prg, symtbl sym, expr params
 		}
 		else{
 			*argcount = 1;
-			*pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, params);
+			*pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, params);
 			if (pe->type == PER_ERROR)
 				return false;
 			p[0] = pe->u.vlc;
@@ -6802,8 +6810,10 @@ static inline bool program_evalCallArgcount(program prg, symtbl sym, expr params
 	return true;
 }
 
-static per_st program_evalCall(program prg, symtbl sym, pem_enum mode, varloc_st intoVlc,
+static per_st program_evalCall(pgen_st pgen, pem_enum mode, varloc_st intoVlc,
 	filepos_st flp, nsname nsn, expr params){
+	program prg = pgen.prg;
+	symtbl sym = pgen.sym;
 	if (nsn->type != NSN_CMD_LOCAL && nsn->type != NSN_CMD_NATIVE && nsn->type != NSN_CMD_OPCODE)
 		return per_error(flp, sink_format("Invalid call - not a command"));
 	// params can be NULL to indicate emptiness
@@ -6812,7 +6822,7 @@ static per_st program_evalCall(program prg, symtbl sym, pem_enum mode, varloc_st
 			params->u.group->size != 3)
 			return per_error(flp, sink_format("Using `pick` requires exactly three arguments"));
 
-		per_st pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, params->u.group->ptrs[0]);
+		per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, params->u.group->ptrs[0]);
 		if (pe.type == PER_ERROR)
 			return pe;
 		if (mode == PEM_CREATE){
@@ -6829,9 +6839,9 @@ static per_st program_evalCall(program prg, symtbl sym, pem_enum mode, varloc_st
 		symtbl_clearTemp(sym, pe.u.vlc);
 
 		if (mode == PEM_EMPTY)
-			pe = program_eval(prg, sym, PEM_EMPTY, intoVlc, params->u.group->ptrs[1]);
+			pe = program_eval(pgen, PEM_EMPTY, intoVlc, params->u.group->ptrs[1]);
 		else
-			pe = program_eval(prg, sym, PEM_INTO, intoVlc, params->u.group->ptrs[1]);
+			pe = program_eval(pgen, PEM_INTO, intoVlc, params->u.group->ptrs[1]);
 		if (pe.type == PER_ERROR){
 			label_free(pickfalse);
 			label_free(finish);
@@ -6841,9 +6851,9 @@ static per_st program_evalCall(program prg, symtbl sym, pem_enum mode, varloc_st
 
 		label_declare(pickfalse, prg->ops);
 		if (mode == PEM_EMPTY)
-			pe = program_eval(prg, sym, PEM_EMPTY, intoVlc, params->u.group->ptrs[2]);
+			pe = program_eval(pgen, PEM_EMPTY, intoVlc, params->u.group->ptrs[2]);
 		else
-			pe = program_eval(prg, sym, PEM_INTO, intoVlc, params->u.group->ptrs[2]);
+			pe = program_eval(pgen, PEM_INTO, intoVlc, params->u.group->ptrs[2]);
 		if (pe.type == PER_ERROR){
 			label_free(pickfalse);
 			label_free(finish);
@@ -6870,7 +6880,7 @@ static per_st program_evalCall(program prg, symtbl sym, pem_enum mode, varloc_st
 	varloc_st p[256];
 	int argcount;
 	per_st pe;
-	if (!program_evalCallArgcount(prg, sym, params, &argcount, &pe, p))
+	if (!program_evalCallArgcount(pgen, params, &argcount, &pe, p))
 		return pe;
 
 	bool oarg = true;
@@ -6931,12 +6941,13 @@ static per_st program_evalCall(program prg, symtbl sym, pem_enum mode, varloc_st
 	return per_ok(intoVlc);
 }
 
-static per_st program_lvalCheckNil(program prg, symtbl sym, lvr lv, bool jumpFalse, bool inverted,
-	label skip){
+static per_st program_lvalCheckNil(pgen_st pgen, lvr lv, bool jumpFalse, bool inverted, label skip){
+	program prg = pgen.prg;
+	symtbl sym = pgen.sym;
 	switch (lv->type){
 		case LVR_VAR:
 		case LVR_INDEX: {
-			per_st pe = program_lvalGet(prg, sym, PLM_CREATE, VARLOC_NULL, lv);
+			per_st pe = program_lvalGet(pgen, PLM_CREATE, VARLOC_NULL, lv);
 			if (pe.type == PER_ERROR)
 				return pe;
 			if (jumpFalse == !inverted)
@@ -6957,7 +6968,7 @@ static per_st program_lvalCheckNil(program prg, symtbl sym, lvr lv, bool jumpFal
 				len = lv->u.slice.len;
 			}
 			else{
-				per_st pe = program_lvalGetIndex(prg, sym, lv);
+				per_st pe = program_lvalGetIndex(pgen, lv);
 				if (pe.type == PER_ERROR)
 					return pe;
 				obj = pe.u.vlc;
@@ -7012,11 +7023,11 @@ static per_st program_lvalCheckNil(program prg, symtbl sym, lvr lv, bool jumpFal
 		case LVR_LIST: {
 			label keep = label_newStr("^condkeep");
 			for (int i = 0; i < lv->u.list.body->size; i++){
-				program_lvalCheckNil(prg, sym, lv->u.list.body->ptrs[i], jumpFalse, true,
+				program_lvalCheckNil(pgen, lv->u.list.body->ptrs[i], jumpFalse, true,
 					inverted ? skip : keep);
 			}
 			if (lv->u.list.rest != NULL){
-				program_lvalCheckNil(prg, sym, lv->u.list.rest, jumpFalse, true,
+				program_lvalCheckNil(pgen, lv->u.list.rest, jumpFalse, true,
 					inverted ? skip : keep);
 			}
 			if (!inverted)
@@ -7028,12 +7039,13 @@ static per_st program_lvalCheckNil(program prg, symtbl sym, lvr lv, bool jumpFal
 	return per_ok(VARLOC_NULL);
 }
 
-static per_st program_lvalCondAssignPart(program prg, symtbl sym, lvr lv, bool jumpFalse,
-	varloc_st valueVlc){
+static per_st program_lvalCondAssignPart(pgen_st pgen, lvr lv, bool jumpFalse, varloc_st valueVlc){
+	program prg = pgen.prg;
+	symtbl sym = pgen.sym;
 	switch (lv->type){
 		case LVR_VAR:
 		case LVR_INDEX: {
-			per_st pe = program_lvalGet(prg, sym, PLM_CREATE, VARLOC_NULL, lv);
+			per_st pe = program_lvalGet(pgen, PLM_CREATE, VARLOC_NULL, lv);
 			if (pe.type == PER_ERROR)
 				return pe;
 			label skip = label_newStr("^condskippart");
@@ -7042,7 +7054,7 @@ static per_st program_lvalCondAssignPart(program prg, symtbl sym, lvr lv, bool j
 			else
 				label_jumptrue(skip, prg->ops, pe.u.vlc);
 			symtbl_clearTemp(sym, pe.u.vlc);
-			pe = program_evalLval(prg, sym, PEM_EMPTY, VARLOC_NULL, lv, OP_INVALID, valueVlc, true);
+			pe = program_evalLval(pgen, PEM_EMPTY, VARLOC_NULL, lv, OP_INVALID, valueVlc, true);
 			if (pe.type == PER_ERROR){
 				label_free(skip);
 				return pe;
@@ -7062,7 +7074,7 @@ static per_st program_lvalCondAssignPart(program prg, symtbl sym, lvr lv, bool j
 				len = lv->u.slice.len;
 			}
 			else{
-				per_st pe = program_lvalGetIndex(prg, sym, lv);
+				per_st pe = program_lvalGetIndex(pgen, lv);
 				if (pe.type == PER_ERROR)
 					return pe;
 				obj = pe.u.vlc;
@@ -7134,7 +7146,7 @@ static per_st program_lvalCondAssignPart(program prg, symtbl sym, lvr lv, bool j
 			for (int i = 0; i < lv->u.list.body->size; i++){
 				op_numint(prg->ops, t, i);
 				op_getat(prg->ops, t, valueVlc, t);
-				per_st pe = program_lvalCondAssignPart(prg, sym, lv->u.list.body->ptrs[i],
+				per_st pe = program_lvalCondAssignPart(pgen, lv->u.list.body->ptrs[i],
 					jumpFalse, t);
 				if (pe.type == PER_ERROR)
 					return pe;
@@ -7148,7 +7160,7 @@ static per_st program_lvalCondAssignPart(program prg, symtbl sym, lvr lv, bool j
 				op_nil(prg->ops, t2);
 				op_slice(prg->ops, t, valueVlc, t, t2);
 				symtbl_clearTemp(sym, t2);
-				per_st pe = program_lvalCondAssignPart(prg, sym, lv->u.list.rest, jumpFalse, t);
+				per_st pe = program_lvalCondAssignPart(pgen, lv->u.list.rest, jumpFalse, t);
 				if (pe.type == PER_ERROR)
 					return pe;
 			}
@@ -7158,12 +7170,11 @@ static per_st program_lvalCondAssignPart(program prg, symtbl sym, lvr lv, bool j
 	return per_ok(VARLOC_NULL);
 }
 
-static per_st program_lvalCondAssign(program prg, symtbl sym, lvr lv, bool jumpFalse,
-	varloc_st valueVlc){
+static per_st program_lvalCondAssign(pgen_st pgen, lvr lv, bool jumpFalse, varloc_st valueVlc){
 	switch (lv->type){
 		case LVR_VAR:
 		case LVR_INDEX: {
-			per_st pe = program_evalLval(prg, sym, PEM_EMPTY, VARLOC_NULL, lv, OP_INVALID,
+			per_st pe = program_evalLval(pgen, PEM_EMPTY, VARLOC_NULL, lv, OP_INVALID,
 				valueVlc, true);
 			if (pe.type == PER_ERROR)
 				return pe;
@@ -7172,13 +7183,15 @@ static per_st program_lvalCondAssign(program prg, symtbl sym, lvr lv, bool jumpF
 		case LVR_SLICE:
 		case LVR_SLICEINDEX:
 		case LVR_LIST:
-			return program_lvalCondAssignPart(prg, sym, lv, jumpFalse, valueVlc);
+			return program_lvalCondAssignPart(pgen, lv, jumpFalse, valueVlc);
 	}
-	symtbl_clearTemp(sym, valueVlc);
+	symtbl_clearTemp(pgen.sym, valueVlc);
 	return per_ok(VARLOC_NULL);
 }
 
-static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st intoVlc, expr ex){
+static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr ex){
+	program prg = pgen.prg;
+	symtbl sym = pgen.sym;
 	program_flp(prg, ex->flp);
 	switch (ex->type){
 		case EXPR_NIL: {
@@ -7237,7 +7250,7 @@ static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st int
 		case EXPR_LIST: {
 			if (mode == PEM_EMPTY){
 				if (ex->u.ex != NULL)
-					return program_eval(prg, sym, PEM_EMPTY, VARLOC_NULL, ex->u.ex);
+					return program_eval(pgen, PEM_EMPTY, VARLOC_NULL, ex->u.ex);
 				return per_ok(VARLOC_NULL);
 			}
 			else if (mode == PEM_CREATE){
@@ -7257,7 +7270,7 @@ static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st int
 					}
 					op_list(prg->ops, ls, ex->u.ex->u.group->size);
 					for (int i = 0; i < ex->u.ex->u.group->size; i++){
-						per_st pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL,
+						per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL,
 							ex->u.ex->u.group->ptrs[i]);
 						if (pe.type == PER_ERROR)
 							return pe;
@@ -7270,7 +7283,7 @@ static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st int
 					}
 				}
 				else{
-					per_st pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, ex->u.ex);
+					per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex->u.ex);
 					if (pe.type == PER_ERROR)
 						return pe;
 					// check for `a = {a}`
@@ -7327,7 +7340,7 @@ static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st int
 				case NSN_CMD_LOCAL:
 				case NSN_CMD_NATIVE:
 				case NSN_CMD_OPCODE:
-					return program_evalCall(prg, sym, mode, intoVlc, ex->flp, sl.u.nsn, NULL);
+					return program_evalCall(pgen, mode, intoVlc, ex->flp, sl.u.nsn, NULL);
 
 				case NSN_NAMESPACE:
 					return per_error(ex->flp, sink_format("Invalid expression"));
@@ -7336,13 +7349,13 @@ static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st int
 		} break;
 
 		case EXPR_PAREN:
-			return program_eval(prg, sym, mode, intoVlc, ex->u.ex);
+			return program_eval(pgen, mode, intoVlc, ex->u.ex);
 
 		case EXPR_GROUP:
 			for (int i = 0; i < ex->u.group->size; i++){
 				if (i == ex->u.group->size - 1)
-					return program_eval(prg, sym, mode, intoVlc, ex->u.group->ptrs[i]);
-				per_st pe = program_eval(prg, sym, PEM_EMPTY, VARLOC_NULL, ex->u.group->ptrs[i]);
+					return program_eval(pgen, mode, intoVlc, ex->u.group->ptrs[i]);
+				per_st pe = program_eval(pgen, PEM_EMPTY, VARLOC_NULL, ex->u.group->ptrs[i]);
 				if (pe.type == PER_ERROR)
 					return pe;
 			}
@@ -7372,7 +7385,7 @@ static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st int
 				if (len > tmax)
 					len = tmax;
 				for (int i = 0; i < len; i++){
-					per_st pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL,
+					per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL,
 						ex->u.cat->ptrs[ci + i]);
 					if (pe.type == PER_ERROR)
 						return pe;
@@ -7402,7 +7415,7 @@ static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st int
 			op_enum unop = ks_toUnaryOp(ex->u.prefix.k);
 			if (unop == OP_INVALID)
 				return per_error(ex->flp, sink_format("Invalid unary operator"));
-			per_st pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, ex->u.prefix.ex);
+			per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex->u.prefix.ex);
 			if (pe.type == PER_ERROR)
 				return pe;
 			if (mode == PEM_EMPTY || mode == PEM_CREATE){
@@ -7424,14 +7437,14 @@ static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st int
 			op_enum mutop = ks_toMutateOp(ex->u.infix.k);
 			if (ex->u.infix.k == KS_EQU || ex->u.infix.k == KS_AMP2EQU ||
 				ex->u.infix.k == KS_PIPE2EQU || mutop != OP_INVALID){
-				lvp_st lp = lval_prepare(prg, sym, ex->u.infix.left);
+				lvp_st lp = lval_prepare(pgen, ex->u.infix.left);
 				if (lp.type == LVP_ERROR)
 					return per_error(lp.u.error.flp, lp.u.error.msg);
 
 				if (ex->u.infix.k == KS_AMP2EQU || ex->u.infix.k == KS_PIPE2EQU){
 					label skip = label_newStr("^condsetskip");
 
-					per_st pe = program_lvalCheckNil(prg, sym, lp.u.lv, ex->u.infix.k == KS_AMP2EQU,
+					per_st pe = program_lvalCheckNil(pgen, lp.u.lv, ex->u.infix.k == KS_AMP2EQU,
 						false, skip);
 					if (pe.type == PER_ERROR){
 						lvr_free(lp.u.lv);
@@ -7439,14 +7452,14 @@ static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st int
 						return pe;
 					}
 
-					pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, ex->u.infix.right);
+					pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex->u.infix.right);
 					if (pe.type == PER_ERROR){
 						lvr_free(lp.u.lv);
 						label_free(skip);
 						return pe;
 					}
 
-					pe = program_lvalCondAssign(prg, sym, lp.u.lv, ex->u.infix.k == KS_AMP2EQU,
+					pe = program_lvalCondAssign(pgen, lp.u.lv, ex->u.infix.k == KS_AMP2EQU,
 						pe.u.vlc);
 					if (pe.type == PER_ERROR){
 						lvr_free(lp.u.lv);
@@ -7474,7 +7487,7 @@ static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st int
 						intoVlc = ts.u.vlc;
 					}
 
-					per_st ple = program_lvalGet(prg, sym, PLM_INTO, intoVlc, lp.u.lv);
+					per_st ple = program_lvalGet(pgen, PLM_INTO, intoVlc, lp.u.lv);
 					if (ple.type == PER_ERROR){
 						lvr_free(lp.u.lv);
 						label_free(skip);
@@ -7489,7 +7502,7 @@ static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st int
 
 				// special handling for basic variable assignment to avoid a temporary
 				if (ex->u.infix.k == KS_EQU && lp.u.lv->type == LVR_VAR){
-					per_st pe = program_eval(prg, sym, PEM_INTO, lp.u.lv->vlc, ex->u.infix.right);
+					per_st pe = program_eval(pgen, PEM_INTO, lp.u.lv->vlc, ex->u.infix.right);
 					if (pe.type == PER_ERROR){
 						lvr_free(lp.u.lv);
 						return pe;
@@ -7511,12 +7524,12 @@ static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st int
 					return per_ok(intoVlc);
 				}
 
-				per_st pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, ex->u.infix.right);
+				per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex->u.infix.right);
 				if (pe.type == PER_ERROR){
 					lvr_free(lp.u.lv);
 					return pe;
 				}
-				pe = program_evalLval(prg, sym, mode, intoVlc, lp.u.lv, mutop, pe.u.vlc, true);
+				pe = program_evalLval(pgen, mode, intoVlc, lp.u.lv, mutop, pe.u.vlc, true);
 				lvr_free(lp.u.lv);
 				return pe;
 			}
@@ -7530,11 +7543,11 @@ static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st int
 
 			op_enum binop = ks_toBinaryOp(ex->u.infix.k);
 			if (binop != OP_INVALID){
-				per_st pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, ex->u.infix.left);
+				per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex->u.infix.left);
 				if (pe.type == PER_ERROR)
 					return pe;
 				varloc_st left = pe.u.vlc;
-				pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, ex->u.infix.right);
+				pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex->u.infix.right);
 				if (pe.type == PER_ERROR)
 					return pe;
 				op_binop(prg->ops, binop, intoVlc, left, pe.u.vlc);
@@ -7542,7 +7555,7 @@ static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st int
 				symtbl_clearTemp(sym, pe.u.vlc);
 			}
 			else if (ex->u.infix.k == KS_AMP2 || ex->u.infix.k == KS_PIPE2){
-				per_st pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, ex->u.infix.left);
+				per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex->u.infix.left);
 				if (pe.type == PER_ERROR)
 					return pe;
 				varloc_st left = pe.u.vlc;
@@ -7551,7 +7564,7 @@ static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st int
 					label_jumpfalse(useleft, prg->ops, left);
 				else
 					label_jumptrue(useleft, prg->ops, left);
-				pe = program_eval(prg, sym, PEM_INTO, intoVlc, ex->u.infix.right);
+				pe = program_eval(pgen, PEM_INTO, intoVlc, ex->u.infix.right);
 				if (pe.type == PER_ERROR){
 					label_free(useleft);
 					return pe;
@@ -7581,15 +7594,15 @@ static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st int
 			stl_st sl = symtbl_lookup(sym, ex->u.call.cmd->u.names);
 			if (sl.type == STL_ERROR)
 				return per_error(ex->flp, sl.u.msg);
-			return program_evalCall(prg, sym, mode, intoVlc, ex->flp, sl.u.nsn, ex->u.call.params);
+			return program_evalCall(pgen, mode, intoVlc, ex->flp, sl.u.nsn, ex->u.call.params);
 		} break;
 
 		case EXPR_INDEX: {
 			if (mode == PEM_EMPTY){
-				per_st pe = program_eval(prg, sym, PEM_EMPTY, VARLOC_NULL, ex->u.index.obj);
+				per_st pe = program_eval(pgen, PEM_EMPTY, VARLOC_NULL, ex->u.index.obj);
 				if (pe.type == PER_ERROR)
 					return pe;
-				pe = program_eval(prg, sym, PEM_EMPTY, VARLOC_NULL, ex->u.index.key);
+				pe = program_eval(pgen, PEM_EMPTY, VARLOC_NULL, ex->u.index.key);
 				if (pe.type == PER_ERROR)
 					return pe;
 				return per_ok(VARLOC_NULL);
@@ -7601,12 +7614,12 @@ static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st int
 				intoVlc = ts.u.vlc;
 			}
 
-			per_st pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, ex->u.index.obj);
+			per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex->u.index.obj);
 			if (pe.type == PER_ERROR)
 				return pe;
 			varloc_st obj = pe.u.vlc;
 
-			pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, ex->u.index.key);
+			pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex->u.index.key);
 			if (pe.type == PER_ERROR)
 				return pe;
 			varloc_st key = pe.u.vlc;
@@ -7625,12 +7638,12 @@ static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st int
 				intoVlc = ts.u.vlc;
 			}
 
-			per_st pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, ex->u.slice.obj);
+			per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex->u.slice.obj);
 			if (pe.type == PER_ERROR)
 				return pe;
 			varloc_st obj = pe.u.vlc;
 
-			psr_st sr = program_slice(prg, sym, ex);
+			psr_st sr = program_slice(pgen, ex);
 			if (sr.type == PSR_ERROR)
 				return per_error(sr.u.error.flp, sr.u.error.msg);
 
@@ -7665,29 +7678,29 @@ static inline pen_st pen_err(char *msg){
 	return (pen_st){ .success = false, .u.msg = msg };
 }
 
-static pen_st program_exprToNum(program prg, symtbl sym, expr ex){
+static pen_st program_exprToNum(pgen_st pgen, expr ex){
 	if (ex->type == EXPR_NUM)
 		return pen_ok(ex->u.num);
 	else if (ex->type == EXPR_NAMES){
-		stl_st sl = symtbl_lookup(sym, ex->u.names);
+		stl_st sl = symtbl_lookup(pgen.sym, ex->u.names);
 		if (sl.type == STL_ERROR)
 			return pen_err(sl.u.msg);
 		if (sl.u.nsn->type == NSN_ENUM)
 			return pen_ok(sl.u.nsn->u.val);
 	}
 	else if (ex->type == EXPR_PAREN)
-		return program_exprToNum(prg, sym, ex->u.ex);
+		return program_exprToNum(pgen, ex->u.ex);
 	else if (ex->type == EXPR_PREFIX){
-		pen_st n = program_exprToNum(prg, sym, ex->u.prefix.ex);
+		pen_st n = program_exprToNum(pgen, ex->u.prefix.ex);
 		if (n.success && ks_toUnaryOp(ex->u.prefix.k) == OP_NUM_NEG)
 			return pen_ok(-n.u.value);
 		return n;
 	}
 	else if (ex->type == EXPR_INFIX){
-		pen_st n1 = program_exprToNum(prg, sym, ex->u.infix.left);
+		pen_st n1 = program_exprToNum(pgen, ex->u.infix.left);
 		if (!n1.success)
 			return n1;
-		pen_st n2 = program_exprToNum(prg, sym, ex->u.infix.right);
+		pen_st n2 = program_exprToNum(pgen, ex->u.infix.right);
 		if (!n2.success)
 			return n2;
 		op_enum binop = ks_toBinaryOp(ex->u.infix.k);
@@ -7900,8 +7913,9 @@ static pgr_st program_forVars(symtbl sym, ast stmt){
 	return pgr_forvars(pf1.vlc, pf2.vlc);
 }
 
-static pgr_st program_genForRange(program prg, symtbl sym, ast stmt, varloc_st p1, varloc_st p2,
-	varloc_st p3){
+static pgr_st program_genForRange(pgen_st pgen, ast stmt, varloc_st p1, varloc_st p2, varloc_st p3){
+	program prg = pgen.prg;
+	symtbl sym = pgen.sym;
 	bool zerostart = false;
 	if (varloc_isnull(p2)){
 		zerostart = true;
@@ -7968,8 +7982,10 @@ static pgr_st program_genForRange(program prg, symtbl sym, ast stmt, varloc_st p
 		(free_func)pgs_for_free);
 }
 
-static pgr_st program_genForGeneric(program prg, symtbl sym, ast stmt){
-	per_st pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, stmt->u.for1.ex);
+static pgr_st program_genForGeneric(pgen_st pgen, ast stmt){
+	program prg = pgen.prg;
+	symtbl sym = pgen.sym;
+	per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, stmt->u.for1.ex);
 	if (pe.type == PER_ERROR)
 		return pgr_error(pe.u.error.flp, pe.u.error.msg);
 
@@ -8015,7 +8031,9 @@ static pgr_st program_genForGeneric(program prg, symtbl sym, ast stmt){
 		(free_func)pgs_for_free);
 }
 
-static inline pgr_st program_gen(program prg, symtbl sym, ast stmt, void *state, bool sayexpr){
+static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayexpr){
+	program prg = pgen.prg;
+	symtbl sym = pgen.sym;
 	program_flp(prg, stmt->flp);
 	switch (stmt->type){
 		case AST_BREAK: {
@@ -8114,7 +8132,7 @@ static inline pgr_st program_gen(program prg, symtbl sym, ast stmt, void *state,
 					if (ex->u.infix.right != NULL){
 						label argset = label_newStr("^argset");
 						label_jumptrue(argset, prg->ops, arg);
-						per_st pr = program_eval(prg, sym, PEM_INTO, arg, ex->u.infix.right);
+						per_st pr = program_eval(pgen, PEM_INTO, arg, ex->u.infix.right);
 						if (pr.type == PER_ERROR){
 							label_free(skip);
 							label_free(argset);
@@ -8132,7 +8150,7 @@ static inline pgr_st program_gen(program prg, symtbl sym, ast stmt, void *state,
 					}
 
 					// move argument into lval(s)
-					per_st pe = program_evalLval(prg, sym, PEM_EMPTY, VARLOC_NULL, lr.u.lv,
+					per_st pe = program_evalLval(pgen, PEM_EMPTY, VARLOC_NULL, lr.u.lv,
 						OP_INVALID, arg, true);
 					lvr_free(lr.u.lv);
 					if (pe.type == PER_ERROR){
@@ -8182,7 +8200,7 @@ static inline pgr_st program_gen(program prg, symtbl sym, ast stmt, void *state,
 			label_declare(pst->cond, prg->ops);
 			if (stmt->u.dowhile2.cond){
 				// do while end
-				per_st pe = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, stmt->u.dowhile2.cond);
+				per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, stmt->u.dowhile2.cond);
 				if (pe.type == PER_ERROR)
 					return pgr_error(pe.u.error.flp, pe.u.error.msg);
 				label_jumpfalse(pst->finish, prg->ops, pe.u.vlc);
@@ -8215,7 +8233,7 @@ static inline pgr_st program_gen(program prg, symtbl sym, ast stmt, void *state,
 				assert(ex->type == EXPR_INFIX);
 				double v = last_val + 1;
 				if (ex->u.infix.right != NULL){
-					pen_st n = program_exprToNum(prg, sym, ex->u.infix.right);
+					pen_st n = program_exprToNum(pgen, ex->u.infix.right);
 					if (!n.success)
 						return pgr_error(stmt->flp, n.u.msg);
 					v = n.u.value;
@@ -8249,7 +8267,7 @@ static inline pgr_st program_gen(program prg, symtbl sym, ast stmt, void *state,
 							if (ts.type == STA_ERROR)
 								return pgr_error(stmt->flp, ts.u.msg);
 							rp[0] = ts.u.vlc;
-							per_st pe = program_eval(prg, sym, PEM_INTO, rp[0], p);
+							per_st pe = program_eval(pgen, PEM_INTO, rp[0], p);
 							if (pe.type == PER_ERROR)
 								return pgr_error(pe.u.error.flp, pe.u.error.msg);
 						}
@@ -8261,7 +8279,7 @@ static inline pgr_st program_gen(program prg, symtbl sym, ast stmt, void *state,
 										return pgr_error(stmt->flp, ts.u.msg);
 									rp[i] = ts.u.vlc;
 								}
-								per_st pe = program_eval(prg, sym,
+								per_st pe = program_eval(pgen,
 									i < 3 ? PEM_INTO : PEM_EMPTY,
 									i < 3 ? rp[i] : VARLOC_NULL,
 									p->u.group->ptrs[i]);
@@ -8269,11 +8287,11 @@ static inline pgr_st program_gen(program prg, symtbl sym, ast stmt, void *state,
 									return pgr_error(pe.u.error.flp, pe.u.error.msg);
 							}
 						}
-						return program_genForRange(prg, sym, stmt, rp[0], rp[1], rp[2]);
+						return program_genForRange(pgen, stmt, rp[0], rp[1], rp[2]);
 					}
 				}
 			}
-			return program_genForGeneric(prg, sym, stmt);
+			return program_genForGeneric(pgen, stmt);
 		} break;
 
 		case AST_FOR2: {
@@ -8347,7 +8365,7 @@ static inline pgr_st program_gen(program prg, symtbl sym, ast stmt, void *state,
 				label_free(pst->nextcond);
 			}
 			pst->nextcond = label_newStr("^nextcond");
-			per_st pr = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, stmt->u.if2.cond);
+			per_st pr = program_eval(pgen, PEM_CREATE, VARLOC_NULL, stmt->u.if2.cond);
 			if (pr.type == PER_ERROR)
 				return pgr_error(pr.u.error.flp, pr.u.error.msg);
 
@@ -8421,7 +8439,7 @@ static inline pgr_st program_gen(program prg, symtbl sym, ast stmt, void *state,
 				int argcount;
 				per_st pe;
 				varloc_st p[256];
-				if (!program_evalCallArgcount(prg, sym, params, &argcount, &pe, p))
+				if (!program_evalCallArgcount(pgen, params, &argcount, &pe, p))
 					return pgr_error(pe.u.error.flp, pe.u.error.msg);
 				label_returntail(nsn->u.cmdLocal.lbl, prg->ops, argcount);
 				for (int i = 0; i < argcount; i++){
@@ -8431,7 +8449,7 @@ static inline pgr_st program_gen(program prg, symtbl sym, ast stmt, void *state,
 				return pgr_ok();
 			}
 
-			per_st pr = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, ex);
+			per_st pr = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex);
 			if (pr.type == PER_ERROR)
 				return pgr_error(pr.u.error.flp, pr.u.error.msg);
 			symtbl_clearTemp(sym, pr.u.vlc);
@@ -8456,7 +8474,7 @@ static inline pgr_st program_gen(program prg, symtbl sym, ast stmt, void *state,
 				assert(ex->type == EXPR_INFIX);
 				per_st pr;
 				if (ex->u.infix.right != NULL){
-					pr = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, ex->u.infix.right);
+					pr = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex->u.infix.right);
 					if (pr.type == PER_ERROR)
 						return pgr_error(pr.u.error.flp, pr.u.error.msg);
 				}
@@ -8464,7 +8482,7 @@ static inline pgr_st program_gen(program prg, symtbl sym, ast stmt, void *state,
 				if (lr.type == LVP_ERROR)
 					return pgr_error(lr.u.error.flp, lr.u.error.msg);
 				if (ex->u.infix.right != NULL){
-					per_st pe = program_evalLval(prg, sym, PEM_EMPTY, VARLOC_NULL, lr.u.lv,
+					per_st pe = program_evalLval(pgen, PEM_EMPTY, VARLOC_NULL, lr.u.lv,
 						OP_INVALID, pr.u.vlc, true);
 					lvr_free(lr.u.lv);
 					if (pe.type == PER_ERROR)
@@ -8479,7 +8497,7 @@ static inline pgr_st program_gen(program prg, symtbl sym, ast stmt, void *state,
 
 		case AST_EVAL: {
 			if (sayexpr){
-				per_st pr = program_eval(prg, sym, PEM_CREATE, VARLOC_NULL, stmt->u.eval.ex);
+				per_st pr = program_eval(pgen, PEM_CREATE, VARLOC_NULL, stmt->u.eval.ex);
 				if (pr.type == PER_ERROR)
 					return pgr_error(pr.u.error.flp, pr.u.error.msg);
 				sta_st ts = symtbl_addTemp(sym);
@@ -8491,7 +8509,7 @@ static inline pgr_st program_gen(program prg, symtbl sym, ast stmt, void *state,
 				symtbl_clearTemp(sym, ts.u.vlc);
 			}
 			else{
-				per_st pr = program_eval(prg, sym, PEM_EMPTY, VARLOC_NULL, stmt->u.eval.ex);
+				per_st pr = program_eval(pgen, PEM_EMPTY, VARLOC_NULL, stmt->u.eval.ex);
 				if (pr.type == PER_ERROR)
 					return pgr_error(pr.u.error.flp, pr.u.error.msg);
 			}
@@ -13931,7 +13949,7 @@ static char *compiler_process(compiler cmp){
 			}
 			else{
 				list_ptr pgsl = cmp->flpn->pgstate;
-				pgr_st pg = program_gen(cmp->prg, cmp->sym, stmt,
+				pgr_st pg = program_gen((pgen_st){ .prg = cmp->prg, .sym = cmp->sym }, stmt,
 					pgsl->size <= 0 ? NULL : ((pgst)pgsl->ptrs[pgsl->size - 1])->state,
 					cmp->prg->repl && cmp->flpn->next == NULL && pgsl->size <= 0);
 				symtbl_print(cmp->sym);

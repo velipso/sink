@@ -104,11 +104,13 @@ Keywords and Symbols
 --------------------
 
 ```
-break       else      for          nil
-continue    elseif    goto         return
-declare     embed     if           using
-def         end       include      var
-do          enum      namespace    while
+break       end          nil
+continue    enum         return
+declare     for          using
+def         goto         var
+do          if           while
+else        include
+elseif      namespace
 ```
 
 ```

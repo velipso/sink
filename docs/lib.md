@@ -19,6 +19,7 @@ results.
 | `range [start,] stop[, step]` | Returns a list of numbers in the interval [`start`, `stop`)     |
 | `order a, b`      | Compare `a` with `b` according to the sorting precedence (-1, 0, 1)         |
 | `pick cond, a, b` | If `cond` is true, return `a`, otherwise return `b` (short-circuited)       |
+| `embed 'file'`    | At compile-time, load the contents of `'file'` as a string                  |
 
 ### Range Examples
 
