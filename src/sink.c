@@ -2805,6 +2805,8 @@ static inline expr expr_names(filepos_st flp, list_ptr names){
 }
 
 static inline expr expr_paren(filepos_st flp, expr ex){
+	if (ex->type == EXPR_NUM)
+		return ex;
 	expr ex2 = mem_alloc(sizeof(expr_st));
 	ex2->flp = flp;
 	ex2->type = EXPR_PAREN;
@@ -2888,6 +2890,39 @@ static inline expr expr_prefix(filepos_st flp, ks_enum k, expr ex){
 }
 
 static inline expr expr_infix(filepos_st flp, ks_enum k, expr left, expr right){
+	if (left->type == EXPR_NUM && right->type == EXPR_NUM){
+		// check for compile-time numeric optimizations
+		if (k == KS_PLUS){
+			left->u.num += right->u.num;
+			expr_free(right);
+			return left;
+		}
+		else if (k == KS_MINUS){
+			left->u.num -= right->u.num;
+			expr_free(right);
+			return left;
+		}
+		else if (k == KS_PERCENT){
+			left->u.num = fmod(left->u.num, right->u.num);
+			expr_free(right);
+			return left;
+		}
+		else if (k == KS_STAR){
+			left->u.num *= right->u.num;
+			expr_free(right);
+			return left;
+		}
+		else if (k == KS_SLASH){
+			left->u.num /= right->u.num;
+			expr_free(right);
+			return left;
+		}
+		else if (k == KS_CARET){
+			left->u.num = pow(left->u.num, right->u.num);
+			expr_free(right);
+			return left;
+		}
+	}
 	if (k == KS_COMMA)
 		return expr_group(flp, left, right);
 	else if (k == KS_TILDE)
@@ -7581,6 +7616,58 @@ static per_st program_eval(program prg, symtbl sym, pem_enum mode, varloc_st int
 }
 
 typedef struct {
+	bool success;
+	union {
+		double value;
+		char *msg;
+	} u;
+} pen_st;
+
+static inline pen_st pen_ok(double value){
+	return (pen_st){ .success = true, .u.value = value };
+}
+
+static inline pen_st pen_err(char *msg){
+	return (pen_st){ .success = false, .u.msg = msg };
+}
+
+static pen_st program_exprToNum(program prg, symtbl sym, expr ex){
+	if (ex->type == EXPR_NUM)
+		return pen_ok(ex->u.num);
+	else if (ex->type == EXPR_NAMES){
+		stl_st sl = symtbl_lookup(sym, ex->u.names);
+		if (sl.type == STL_ERROR)
+			return pen_err(sl.u.msg);
+		if (sl.u.nsn->type == NSN_ENUM)
+			return pen_ok(sl.u.nsn->u.val);
+	}
+	else if (ex->type == EXPR_PAREN)
+		return program_exprToNum(prg, sym, ex->u.ex);
+	else if (ex->type == EXPR_PREFIX){
+		pen_st n = program_exprToNum(prg, sym, ex->u.prefix.ex);
+		if (n.success && ks_toUnaryOp(ex->u.prefix.k) == OP_NUM_NEG)
+			return pen_ok(-n.u.value);
+		return n;
+	}
+	else if (ex->type == EXPR_INFIX){
+		pen_st n1 = program_exprToNum(prg, sym, ex->u.infix.left);
+		if (!n1.success)
+			return n1;
+		pen_st n2 = program_exprToNum(prg, sym, ex->u.infix.right);
+		if (!n2.success)
+			return n2;
+		op_enum binop = ks_toBinaryOp(ex->u.infix.k);
+		if      (binop == OP_NUM_ADD) return pen_ok(n1.u.value + n2.u.value);
+		else if (binop == OP_NUM_SUB) return pen_ok(n1.u.value - n2.u.value);
+		else if (binop == OP_NUM_MOD) return pen_ok(fmod(n1.u.value, n2.u.value));
+		else if (binop == OP_NUM_MUL) return pen_ok(n1.u.value * n2.u.value);
+		else if (binop == OP_NUM_DIV) return pen_ok(n1.u.value / n2.u.value);
+		else if (binop == OP_NUM_POW) return pen_ok(pow(n1.u.value, n2.u.value));
+	}
+	return pen_err(sink_format("Enums must be a constant number"));
+}
+
+typedef struct {
 	void *state;
 	free_func f_free;
 } pgst_st, *pgst;
@@ -8094,12 +8181,10 @@ static inline pgr_st program_gen(program prg, symtbl sym, ast stmt, void *state,
 				assert(ex->type == EXPR_INFIX);
 				double v = last_val + 1;
 				if (ex->u.infix.right != NULL){
-					expr ex2 = ex->u.infix.right;
-					while (ex2->type == EXPR_PAREN)
-						ex2 = ex2->u.ex;
-					if (ex2->type != EXPR_NUM)
-						return pgr_error(stmt->flp, sink_format("Enums must be a constant number"));
-					v = ex2->u.num;
+					pen_st n = program_exprToNum(prg, sym, ex->u.infix.right);
+					if (!n.success)
+						return pgr_error(stmt->flp, n.u.msg);
+					v = n.u.value;
 				}
 				if (ex->u.infix.left->type != EXPR_NAMES){
 					return pgr_error(stmt->flp,
