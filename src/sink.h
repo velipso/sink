@@ -39,19 +39,15 @@
 #	endif
 #endif
 
-#ifndef SINK_ALLOC
-#	define SINK_ALLOC    malloc
-#   define SINK_REALLOC  realloc
-#	define SINK_FREE     free
-#else
-	void *SINK_ALLOC(size_t sz);
-	void *SINK_REALLOC(void *ptr, size_t sz);
-	void SINK_FREE(void *ptr);
-#endif
+typedef void *(*sink_malloc_func)(size_t sz);
+typedef void *(*sink_realloc_func)(void *ptr, size_t sz);
+typedef void (*sink_free_func)(void *ptr);
 
-#ifndef SINK_PANIC
-#	define SINK_PANIC(msg)    do{ fprintf(stderr, "Panic: " msg "\n"); abort(); }while(false)
-#endif
+// all memory management is through these functions, which default to stdlib's malloc/realloc/free
+// overwrite these global variables with your own functions if desired
+extern sink_malloc_func  sink_malloc;
+extern sink_realloc_func sink_relloc;
+extern sink_free_func    sink_free;
 
 typedef enum {
 	SINK_TYPE_NIL,
@@ -99,7 +95,6 @@ typedef enum {
 
 typedef void (*sink_output_func)(sink_ctx ctx, sink_str str, void *iouser);
 typedef sink_val (*sink_input_func)(sink_ctx ctx, sink_str str, void *iouser);
-typedef void (*sink_free_func)(void *user);
 typedef sink_val (*sink_native_func)(sink_ctx ctx, int size, sink_val *args, void *natuser);
 typedef char *(*sink_fixpath_func)(const char *file, void *incuser);
 typedef sink_fstype (*sink_fstype_func)(const char *file, void *incuser);
@@ -536,12 +531,13 @@ static char *sink_win32_fixpath(const char *file, void *user){
 	//   /foo/bar/baz             =>   \\?\foo\bar\baz
 	//   /f/oo/bar/baz            =>   \\?\f:\oo\bar\baz
 	//
-	// Must return a string allocated with SINK_ALLOC, because caller will free via SINK_FREE
+	// Must return a string allocated with sink_malloc, because caller will free via sink_free
 
 	int len = strlen(file);
-	char *out = SINK_ALLOC(sizeof(char) * (len + 5));
+	char *out = sink_malloc(sizeof(char) * (len + 5));
 	if (out == NULL){
-		SINK_PANIC("Out of memory!");
+		fprintf(stderr, "Out of memory!\n");
+		exit(1);
 		return NULL;
 	}
 	int j = 0;

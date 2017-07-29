@@ -34,24 +34,30 @@
 #	define oplogf(msg, ...)
 #endif
 
+sink_malloc_func  sink_malloc  = malloc;
+sink_realloc_func sink_realloc = realloc;
+sink_free_func    sink_free    = free;
+
 static inline void *mem_prod_alloc(size_t s){
-	void *p = SINK_ALLOC(s);
+	void *p = sink_malloc(s);
 	if (p == NULL){
-		SINK_PANIC("Out of memory!");
+		fprintf(stderr, "Out of memory!\n");
+		exit(1);
 	}
 	return p;
 }
 
 static inline void *mem_prod_realloc(void *p, size_t s){
-	p = SINK_REALLOC(p, s);
+	p = sink_realloc(p, s);
 	if (p == NULL){
-		SINK_PANIC("Out of memory!");
+		fprintf(stderr, "Out of memory!\n");
+		exit(1);
 	}
 	return p;
 }
 
 static inline void mem_prod_free(void *p){
-	SINK_FREE(p);
+	sink_free(p);
 }
 
 #if defined(SINK_DEBUG) || defined(SINK_MEMTEST)
@@ -8444,7 +8450,8 @@ static int bmp_reserve(void **tbl, int *size, uint64_t **aloc, uint64_t **ref, s
 	if (index >= 0)
 		return index;
 	if (*size >= 0x3FFFFFFF){
-		SINK_PANIC("Out of memory!");
+		fprintf(stderr, "Out of memory!\n");
+		exit(1);
 		return -1;
 	}
 	int new_count = *size * 2;
