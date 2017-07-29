@@ -1,0 +1,6 @@
+
+say 'included'
+
+def foo ...args
+	say 'foo', args
+end

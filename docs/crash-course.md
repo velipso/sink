@@ -104,13 +104,11 @@ Keywords and Symbols
 --------------------
 
 ```
-break       end          nil
-continue    enum         return
-declare     for          using
-def         goto         var
-do          if           while
-else        include
-elseif      namespace
+break       else      for          nil
+continue    elseif    goto         return
+declare     embed     if           using
+def         end       include      var
+do          enum      namespace    while
 ```
 
 ```
@@ -836,3 +834,75 @@ def round a
 end
 say round 1.3  # 11.3
 ```
+
+Include and Embed
+-----------------
+
+To include another file, simply use the `include` statement:
+
+```
+include './some/file'
+```
+
+This will search the include path (defined by the host) and parse the file as if it had been
+pasted directly at that spot.  If the file doesn't exist, it will try adding a `.sink` extension.
+If the file is a directory, it will look for `index.sink` inside that directory.
+
+Hosts can also define native libraries, that are typically just one word:
+
+```
+include 'shapes'
+```
+
+This would typically paste a bunch of declarations provided by the host, so that native commands
+would compile correctly -- but ultimately, this behavior is defined by the host.
+
+To include a file in it's own namespace, you can do:
+
+```
+namespace foo
+  include './file'
+end
+```
+
+Or, more compactly:
+
+```
+include foo './file'
+```
+
+If you include a file more than once, any definitions will fail the second time, because it as seen
+as trying to define something more than once.  Instead, it might be useful to use the syntax:
+
+```
+include . './file'
+```
+
+This will create a unique namespace for the contents of `'./file'`, accessed directly.  It is
+effectively short for:
+
+```
+namespace unique_1234
+  include './file'
+end
+using unique_1234
+```
+
+You can also include multiple files with a single `include` statement:
+
+```
+include
+  './first',
+  './second',
+  third './third',
+  . './fourth'
+```
+
+The `embed` expression can be used to include the contents of a file as a string literal.  This can
+be useful for embedding data directly in the script at compile-time.
+
+```
+var img = embed './image.png'
+```
+
+This is equivalent to pasting the binary data as a string in the script.

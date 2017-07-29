@@ -20,3 +20,10 @@ say struct.size
 say struct.size 'asdf'
 say struct.size 'U8'
 say struct.size {}
+
+if struct.isLE
+	# pass no matter what, just want to make sure the command exists
+	say 'pass'
+else
+	say 'pass'
+end

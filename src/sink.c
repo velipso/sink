@@ -3484,13 +3484,17 @@ static inline ast ast_if4(filepos_st flp){
 	return stmt;
 }
 
+// the `names` field in `incl_st` can be INCL_PERIOD to indicate that the user typed:
+//   include . 'foo'
+#define INCL_PERIOD  ((void *)1)
+
 typedef struct {
 	list_ptr names;
 	list_byte file;
 } incl_st, *incl;
 
 static void incl_free(incl inc){
-	if (inc->names)
+	if (inc->names && inc->names != INCL_PERIOD)
 		list_ptr_free(inc->names);
 	if (inc->file)
 		list_byte_free(inc->file);
@@ -3744,7 +3748,7 @@ struct prs_struct {
 	expr exprTerm;
 	expr exprTerm2;
 	expr exprTerm3;
-	list_ptr names;
+	list_ptr names; // can be INCL_PERIOD
 	list_ptr names2;
 	list_ptr incls;
 	prs next;
@@ -3793,7 +3797,7 @@ static void prs_free(prs pr){
 		expr_free(pr->exprTerm2);
 	if (pr->exprTerm3)
 		expr_free(pr->exprTerm3);
-	if (pr->names)
+	if (pr->names && pr->names != INCL_PERIOD)
 		list_ptr_free(pr->names);
 	if (pr->names2)
 		list_ptr_free(pr->names2);
@@ -4505,6 +4509,11 @@ static prr_st parser_process(parser pr, filepos_st flp, list_ptr stmts){
 				return parser_lookup(pr, PRS_INCLUDE_LOOKUP);
 			else if (tok_isKS(tk1, KS_LPAREN)){
 				st->state = PRS_INCLUDE_STR;
+				return prr_more();
+			}
+			else if (tok_isKS(tk1, KS_PERIOD)){
+				st->names = INCL_PERIOD;
+				st->state = PRS_INCLUDE_LOOKUP;
 				return prr_more();
 			}
 			return prr_error(sink_format("Expecting file as constant string literal"));
@@ -5222,12 +5231,16 @@ static inline nsname nsname_cmdOpcode(list_byte name, op_enum opcode, int params
 	return nsn;
 }
 
-static inline nsname nsname_namespace(list_byte name, namespace ns){
+static inline nsname nsname_namespacegive(list_byte name, namespace ns){
 	nsname nsn = mem_alloc(sizeof(nsname_st));
-	nsn->name = list_byte_newcopy(name);
+	nsn->name = name;
 	nsn->type = NSN_NAMESPACE;
 	nsn->u.ns = ns;
 	return nsn;
+}
+
+static inline nsname nsname_namespace(list_byte name, namespace ns){
+	return nsname_namespacegive(list_byte_newcopy(name), ns);
 }
 
 struct namespace_struct {
@@ -5486,11 +5499,23 @@ static inline spn_st spn_error(char *msg){
 }
 
 static inline spn_st symtbl_pushNamespace(symtbl sym, list_ptr names){
-	sfn_st nsr = symtbl_findNamespace(sym, names, names->size);
-	if (nsr.type == SFN_ERROR)
-		return spn_error(nsr.u.msg);
-	list_ptr_push(sym->sc->nsStack, nsr.u.ns);
-	sym->sc->ns = nsr.u.ns;
+	namespace ns;
+	if (names == INCL_PERIOD){
+		// create a unique namespace and use it (via `using`) immediately
+		namespace nsp = sym->sc->ns;
+		ns = namespace_new(nsp->fr);
+		list_ptr_push(nsp->names, nsname_namespacegive(list_byte_newstr("."), ns));
+		list_ptr_push(nsp->usings, ns);
+	}
+	else{
+		// find (and create if non-existant) namespace
+		sfn_st nsr = symtbl_findNamespace(sym, names, names->size);
+		if (nsr.type == SFN_ERROR)
+			return spn_error(nsr.u.msg);
+		ns = nsr.u.ns;
+	}
+	list_ptr_push(sym->sc->nsStack, ns);
+	sym->sc->ns = ns;
 	return spn_ok();
 }
 
