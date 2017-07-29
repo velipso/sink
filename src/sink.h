@@ -101,7 +101,6 @@ typedef void (*sink_output_func)(sink_ctx ctx, sink_str str, void *iouser);
 typedef sink_val (*sink_input_func)(sink_ctx ctx, sink_str str, void *iouser);
 typedef void (*sink_free_func)(void *user);
 typedef sink_val (*sink_native_func)(sink_ctx ctx, int size, sink_val *args, void *natuser);
-typedef sink_val (*sink_resume_func)(sink_ctx ctx);
 typedef char *(*sink_fixpath_func)(const char *file, void *incuser);
 typedef sink_fstype (*sink_fstype_func)(const char *file, void *incuser);
 typedef bool (*sink_fsread_func)(sink_scr scr, const char *file, void *incuser);

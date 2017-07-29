@@ -3,6 +3,7 @@
 // Project Home: https://github.com/voidqk/sink
 
 #include "sink.h"
+#include <time.h>
 
 #ifdef SINK_MACOSX
 #	include <strings.h>  // ffsll
@@ -31,32 +32,6 @@
 #	define debugf(msg, ...)
 #	define oplog(msg)
 #	define oplogf(msg, ...)
-#endif
-
-//
-// cross-platform function for getting the current time in milliseconds
-//
-
-#ifdef SINK_MACOSX
-#	include <sys/time.h>
-
-static uint64_t current_ms(){
-	struct timeval now;
-	int rv = gettimeofday(&now, NULL);
-	if (rv){
-		SINK_PANIC("Failed to query Mac OSX for time of day");
-	}
-	uint64_t ret = now.tv_sec;
-	ret *= 1000;
-	ret += now.tv_usec / 1000;
-	return ret;
-}
-
-#else
-#	error Unknown platform
-	// POSIX you'll want clock_gettime(CLOCK_REALTIME, ts)
-	// windows you'll want GetSystemTime(&st)
-	// others, who knows
 #endif
 
 static inline void *mem_prod_alloc(size_t s){
@@ -9158,8 +9133,8 @@ static sink_val opi_num_base(context ctx, double num, int len, int base){
 static inline uint32_t opi_rand_int(context ctx);
 
 static inline void opi_rand_seedauto(context ctx){
-	ctx->rand_seed = (uint32_t)current_ms();
-	ctx->rand_i = (uint32_t)current_ms();
+	ctx->rand_seed = (uint32_t)clock();
+	ctx->rand_i = (uint32_t)clock();
 	for (int i = 0; i < 1000; i++)
 		opi_rand_int(ctx);
 	ctx->rand_i = 0;
