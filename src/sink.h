@@ -393,6 +393,7 @@ sink_val sink_utf8_str(sink_ctx ctx, sink_val a);
 sink_val sink_struct_size(sink_ctx ctx, sink_val tpl);
 sink_val sink_struct_str(sink_ctx ctx, sink_val ls, sink_val tpl);
 sink_val sink_struct_list(sink_ctx ctx, sink_val a, sink_val tpl);
+bool     sink_struct_isLE();
 
 // lists
 void     sink_list_setuser(sink_ctx ctx, sink_val ls, sink_user usertype, void *user);

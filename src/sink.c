@@ -738,30 +738,31 @@ typedef enum {
 	OP_STRUCT_SIZE     = 0x78, // [TGT], [SRC]
 	OP_STRUCT_STR      = 0x79, // [TGT], [SRC1], [SRC2]
 	OP_STRUCT_LIST     = 0x7A, // [TGT], [SRC1], [SRC2]
-	OP_LIST_NEW        = 0x7B, // [TGT], [SRC1], [SRC2]
-	OP_LIST_SHIFT      = 0x7C, // [TGT], [SRC]
-	OP_LIST_POP        = 0x7D, // [TGT], [SRC]
-	OP_LIST_PUSH       = 0x7E, // [TGT], [SRC1], [SRC2]
-	OP_LIST_UNSHIFT    = 0x7F, // [TGT], [SRC1], [SRC2]
-	OP_LIST_APPEND     = 0x80, // [TGT], [SRC1], [SRC2]
-	OP_LIST_PREPEND    = 0x81, // [TGT], [SRC1], [SRC2]
-	OP_LIST_FIND       = 0x82, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_LIST_RFIND      = 0x83, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_LIST_JOIN       = 0x84, // [TGT], [SRC1], [SRC2]
-	OP_LIST_REV        = 0x85, // [TGT], [SRC]
-	OP_LIST_STR        = 0x86, // [TGT], [SRC]
-	OP_LIST_SORT       = 0x87, // [TGT], [SRC]
-	OP_LIST_RSORT      = 0x88, // [TGT], [SRC]
-	OP_PICKLE_JSON     = 0x89, // [TGT], [SRC]
-	OP_PICKLE_BIN      = 0x8A, // [TGT], [SRC]
-	OP_PICKLE_VAL      = 0x8B, // [TGT], [SRC]
-	OP_PICKLE_VALID    = 0x8C, // [TGT], [SRC]
-	OP_PICKLE_SIBLING  = 0x8D, // [TGT], [SRC]
-	OP_PICKLE_CIRCULAR = 0x8E, // [TGT], [SRC]
-	OP_PICKLE_COPY     = 0x8F, // [TGT], [SRC]
-	OP_GC_GETLEVEL     = 0x90, // [TGT]
-	OP_GC_SETLEVEL     = 0x91, // [TGT], [SRC]
-	OP_GC_RUN          = 0x92, // [TGT]
+	OP_STRUCT_ISLE     = 0x7B, // [TGT]
+	OP_LIST_NEW        = 0x7C, // [TGT], [SRC1], [SRC2]
+	OP_LIST_SHIFT      = 0x7D, // [TGT], [SRC]
+	OP_LIST_POP        = 0x7E, // [TGT], [SRC]
+	OP_LIST_PUSH       = 0x7F, // [TGT], [SRC1], [SRC2]
+	OP_LIST_UNSHIFT    = 0x80, // [TGT], [SRC1], [SRC2]
+	OP_LIST_APPEND     = 0x81, // [TGT], [SRC1], [SRC2]
+	OP_LIST_PREPEND    = 0x82, // [TGT], [SRC1], [SRC2]
+	OP_LIST_FIND       = 0x83, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_LIST_RFIND      = 0x84, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_LIST_JOIN       = 0x85, // [TGT], [SRC1], [SRC2]
+	OP_LIST_REV        = 0x86, // [TGT], [SRC]
+	OP_LIST_STR        = 0x87, // [TGT], [SRC]
+	OP_LIST_SORT       = 0x88, // [TGT], [SRC]
+	OP_LIST_RSORT      = 0x89, // [TGT], [SRC]
+	OP_PICKLE_JSON     = 0x8A, // [TGT], [SRC]
+	OP_PICKLE_BIN      = 0x8B, // [TGT], [SRC]
+	OP_PICKLE_VAL      = 0x8C, // [TGT], [SRC]
+	OP_PICKLE_VALID    = 0x8D, // [TGT], [SRC]
+	OP_PICKLE_SIBLING  = 0x8E, // [TGT], [SRC]
+	OP_PICKLE_CIRCULAR = 0x8F, // [TGT], [SRC]
+	OP_PICKLE_COPY     = 0x90, // [TGT], [SRC]
+	OP_GC_GETLEVEL     = 0x91, // [TGT]
+	OP_GC_SETLEVEL     = 0x92, // [TGT], [SRC]
+	OP_GC_RUN          = 0x93, // [TGT]
 	// RESERVED        = 0xFD,
 	// fake ops
 	OP_GT              = 0x1F0,
@@ -919,6 +920,7 @@ static inline op_pcat op_paramcat(op_enum op){
 		case OP_STRUCT_SIZE    : return OPPC_VV;
 		case OP_STRUCT_STR     : return OPPC_VVV;
 		case OP_STRUCT_LIST    : return OPPC_VVV;
+		case OP_STRUCT_ISLE    : return OPPC_V;
 		case OP_LIST_NEW       : return OPPC_VVV;
 		case OP_LIST_SHIFT     : return OPPC_VV;
 		case OP_LIST_POP       : return OPPC_VV;
@@ -5841,6 +5843,7 @@ static inline void symtbl_loadStdlib(symtbl sym){
 		SAC(sym, "size"      , OP_STRUCT_SIZE    ,  1);
 		SAC(sym, "str"       , OP_STRUCT_STR     ,  2);
 		SAC(sym, "list"      , OP_STRUCT_LIST    ,  2);
+		SAC(sym, "isLE"      , OP_STRUCT_ISLE    ,  0);
 	symtbl_popNamespace(sym);
 	nss = NSS("list"); symtbl_pushNamespace(sym, nss); list_ptr_free(nss);
 		SAC(sym, "new"       , OP_LIST_NEW       ,  2);
@@ -10037,6 +10040,15 @@ static inline sink_val opi_struct_list(context ctx, sink_val a, sink_val b){
 	return res;
 }
 
+static inline bool opi_struct_isLE(){
+	union {
+		uint16_t a;
+		uint8_t b[2];
+	} v;
+	v.a = 0x1234;
+	return v.b[0] == 0x34;
+}
+
 // operators
 static sink_val unop_num_neg(context ctx, sink_val a){
 	return sink_num(-a.f);
@@ -13169,6 +13181,11 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, X);
 			} break;
 
+			case OP_STRUCT_ISLE    : { // [TGT]
+				LOAD_ab();
+				var_set(ctx, A, B, sink_bool(opi_struct_isLE()));
+			} break;
+
 			case OP_LIST_NEW       : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
@@ -14956,6 +14973,7 @@ sink_val  sink_utf8_str(sink_ctx ctx, sink_val a);
 sink_val  sink_struct_size(sink_ctx ctx, sink_val tpl);
 sink_val  sink_struct_str(sink_ctx ctx, sink_val ls, sink_val tpl);
 sink_val  sink_struct_list(sink_ctx ctx, sink_val a, sink_val tpl);
+bool      sink_struct_isLE();
 */
 
 // lists

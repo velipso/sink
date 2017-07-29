@@ -406,6 +406,7 @@ Structured Data
 | `struct.size tpl`    | Calculate the length of string the template specifies (nil for invalid)  |
 | `struct.str ls, tpl` | Convert data in list `ls` to a string using `tpl` as the template        |
 | `struct.list a, tpl` | Convert string `a` to a list of data using `tpl` as the template         |
+| `struct.isLE`        | Returns true if system is little endian; false otherwise                 |
 
 ### Structure Templates
 
