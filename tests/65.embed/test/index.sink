@@ -1,0 +1,2 @@
+
+embed './data2.txt' | str.rev | str.trim | say

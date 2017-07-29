@@ -1,0 +1,4 @@
+
+embed './data1.txt' | str.upper | str.trim | say
+
+include './test'
