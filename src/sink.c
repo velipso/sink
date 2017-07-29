@@ -6049,6 +6049,8 @@ static bool fileres_read(script scr, bool postfix, const char *file, const char 
 	if (file[0] == '/')
 		return fileres_try(scr, postfix, file, f_begin, f_end, fuser);
 	// otherwise, we have a relative path, so we need to go through our search list
+	if (cwd == NULL)
+		cwd = scr->curdir;
 	list_ptr paths = scr->paths;
 	for (int i = 0; i < paths->size; i++){
 		char *path = paths->ptrs[i];
@@ -7067,8 +7069,7 @@ static per_st program_evalCall(pgen_st pgen, pem_enum mode, varloc_st intoVlc,
 		list_byte fstr = file->u.str;
 		list_byte_push(fstr, 0); // make sure it's NULL terminated
 		fstr->size--;
-		bool res = fileres_read(pgen.scr, false, (const char *)fstr->bytes,
-			cwd ? cwd : pgen.scr->curdir,
+		bool res = fileres_read(pgen.scr, false, (const char *)fstr->bytes, cwd,
 			(f_fileres_begin_func)embed_begin, (f_fileres_end_func)embed_end, &efu);
 		if (cwd)
 			mem_free(cwd);
@@ -13938,7 +13939,7 @@ static bool compiler_dynamicinc(compiler cmp, list_ptr names, const char *file, 
 	char *cwd = NULL;
 	if (from)
 		cwd = pathjoin(from, "..");
-	bool res = fileres_read(cmp->scr, true, file, cwd ? cwd : cmp->scr->curdir,
+	bool res = fileres_read(cmp->scr, true, file, cwd,
 		(f_fileres_begin_func)compiler_begininc_cfu, (f_fileres_end_func)compiler_endinc_cfu, &cfu);
 	if (cwd)
 		mem_free(cwd);
@@ -14217,7 +14218,7 @@ bool sink_scr_loadfile(sink_scr scr, const char *file){
 		mem_free(sc->err);
 		sc->err = NULL;
 	}
-	bool read = fileres_read(sc, true, file, sc->curdir,
+	bool read = fileres_read(sc, true, file, NULL,
 		(f_fileres_begin_func)sfr_begin, (f_fileres_end_func)sfr_end, sc);
 	if (!read && sc->err == NULL)
 		sc->err = sink_format("Error: Failed to read file: %s", file);
