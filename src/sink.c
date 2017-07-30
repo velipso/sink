@@ -248,6 +248,15 @@ static inline void list_byte_push(list_byte b, uint8_t v){
 	b->bytes[b->size++] = v;
 }
 
+static inline void list_byte_null(list_byte b){
+	// make sure the buffer is NULL terminated
+	if (b->size + 1 > b->count){
+		b->count = b->size + 1;
+		b->bytes = mem_realloc(b->bytes, sizeof(uint8_t) * b->count);
+	}
+	b->bytes[b->size] = 0;
+}
+
 static inline void list_byte_push2(list_byte b, uint8_t v1, uint8_t v2){
 	if (b->size + 2 > b->count){
 		b->count += list_byte_grow;
@@ -1617,9 +1626,7 @@ static inline tok tok_num(double num){
 static inline tok tok_str(list_byte str){
 	tok tk = mem_alloc(sizeof(tok_st));
 	tk->type = TOK_STR;
-	// must end in NULL
-	list_byte_push(str, 0);
-	str->size--;
+	list_byte_null(str);
 	tk->u.str = str;
 	return tk;
 }
@@ -3638,7 +3645,6 @@ typedef enum {
 	PRS_RETURN,
 	PRS_RETURN_DONE,
 	PRS_USING,
-	PRS_USING2,
 	PRS_USING_LOOKUP,
 	PRS_VAR,
 	PRS_VAR_LVALUES,
@@ -3666,12 +3672,18 @@ typedef enum {
 	PRS_EXPR_FINISH
 } prs_enum;
 
+typedef enum {
+	LVM_VAR,
+	LVM_DEF,
+	LVM_ENUM,
+	LVM_LIST
+} lvm_enum;
+
 typedef struct prs_struct prs_st, *prs;
 struct prs_struct {
 	prs_enum state;
 	list_ptr lvalues;
-	int lvaluesPeriods;
-	bool lvaluesEnum;
+	lvm_enum lvaluesMode;
 	bool forVar;
 	list_byte str;
 	bool exprAllowComma;
@@ -3746,8 +3758,7 @@ static prs prs_new(prs_enum state, prs next){
 	prs pr = mem_alloc(sizeof(prs_st));
 	pr->state = state;
 	pr->lvalues = NULL;              // list of expr
-	pr->lvaluesPeriods = 0;          // 0 off, 1 def, 2 nested list
-	pr->lvaluesEnum = false;         // reading an enum
+	pr->lvaluesMode = LVM_VAR;
 	pr->forVar = false;
 	pr->str = NULL;
 	pr->exprAllowComma = true;
@@ -3825,6 +3836,12 @@ static inline void parser_push(parser pr, prs_enum state){
 	pr->state = prs_new(state, pr->state);
 }
 
+static inline void parser_pop(parser pr){
+	prs p = pr->state;
+	pr->state = p->next;
+	prs_free(p);
+}
+
 typedef enum {
 	PRI_OK,
 	PRI_ERROR
@@ -3854,10 +3871,17 @@ static inline pri_st parser_infix(filepos_st flp, ks_enum k, expr left, expr rig
 			return pri_ok(right);
 		}
 		else if (right->type == EXPR_NAMES)
-			return pri_ok(expr_call(flp, right, left));
+			return pri_ok(expr_call(flp, right, expr_paren(left->flp, left)));
 		return pri_error("Invalid pipe");
 	}
 	return pri_ok(expr_infix(flp, k, left, right));
+}
+
+static inline void parser_lvalues(parser pr, prs_enum retstate, lvm_enum lvm){
+	pr->state->state = retstate;
+	parser_push(pr, PRS_LVALUES);
+	pr->state->lvalues = list_ptr_new(expr_free);
+	pr->state->lvaluesMode = lvm;
 }
 
 static inline const char *parser_start(parser pr, prs_enum state){
@@ -3914,8 +3938,7 @@ static const char *parser_process(parser pr, filepos_st flp, list_ptr stmts){
 			else if (tok_isMidStmt(tk1)){
 				if (st->next == NULL)
 					return "Invalid statement";
-				pr->state = st->next;
-				prs_free(st);
+				parser_pop(pr);
 				return parser_process(pr, flp, stmts);
 			}
 			return "Invalid statement";
@@ -3930,8 +3953,7 @@ static const char *parser_process(parser pr, filepos_st flp, list_ptr stmts){
 			if (!tok_isKS(tk1, KS_PERIOD)){
 				st->next->names = st->names;
 				st->names = NULL;
-				pr->state = st->next;
-				prs_free(st);
+				parser_pop(pr);
 				return parser_process(pr, flp, stmts);
 			}
 			st->state = PRS_LOOKUP_IDENT;
@@ -3952,8 +3974,7 @@ static const char *parser_process(parser pr, filepos_st flp, list_ptr stmts){
 
 		case PRS_BODY_STATEMENT:
 			if (tok_isMidStmt(tk1)){
-				pr->state = st->next;
-				prs_free(st);
+				parser_pop(pr);
 				return parser_process(pr, flp, stmts);
 			}
 			parser_push(pr, PRS_STATEMENT);
@@ -3963,40 +3984,40 @@ static const char *parser_process(parser pr, filepos_st flp, list_ptr stmts){
 			if (tk1->type == TOK_NEWLINE){
 				st->next->lvalues = st->lvalues;
 				st->lvalues = NULL;
-				pr->state = st->next;
-				prs_free(st);
+				parser_pop(pr);
 				return parser_process(pr, flp, stmts);
 			}
 			st->state = PRS_LVALUES_TERM_DONE;
 			parser_push(pr, PRS_LVALUES_TERM);
-			pr->state->lvaluesPeriods = st->lvaluesPeriods;
-			pr->state->lvaluesEnum = st->lvaluesEnum;
+			pr->state->lvaluesMode = st->lvaluesMode;
 			return parser_process(pr, flp, stmts);
 
 		case PRS_LVALUES_TERM:
 			if (tk1->type == TOK_IDENT)
 				return parser_lookup(pr, PRS_LVALUES_TERM_LOOKUP);
-			if (st->lvaluesEnum)
+			if (st->lvaluesMode == LVM_ENUM)
 				return "Expecting enumerator name";
 			if (tok_isKS(tk1, KS_LBRACE)){
 				st->state = PRS_LVALUES_TERM_LIST_DONE;
 				parser_push(pr, PRS_LVALUES_TERM_LIST);
 				return NULL;
 			}
-			else if (st->lvaluesPeriods > 0 && tok_isKS(tk1, KS_PERIOD3)){
-				if (st->lvaluesPeriods == 1) // specifying end of a def
+			else if (tok_isKS(tk1, KS_PERIOD3)){
+				if (st->lvaluesMode == LVM_DEF){
 					st->state = PRS_LVALUES_DEF_TAIL;
-				else // otherwise, specifying end of a list
+					return NULL;
+				}
+				else if (st->lvaluesMode == LVM_LIST){
 					st->state = PRS_LVALUES_TERM_LIST_TAIL;
-				return NULL;
+					return NULL;
+				}
 			}
 			return "Expecting variable";
 
 		case PRS_LVALUES_TERM_LOOKUP:
 			st->next->exprTerm = expr_names(flp, st->names);
 			st->names = NULL;
-			pr->state = st->next;
-			prs_free(st);
+			parser_pop(pr);
 			return parser_process(pr, flp, stmts);
 
 		case PRS_LVALUES_TERM_LIST:
@@ -4005,13 +4026,12 @@ static const char *parser_process(parser pr, filepos_st flp, list_ptr stmts){
 			else if (tok_isKS(tk1, KS_RBRACE)){
 				st->next->exprTerm = st->exprTerm;
 				st->exprTerm = NULL;
-				pr->state = st->next;
-				prs_free(st);
+				parser_pop(pr);
 				return NULL;
 			}
 			st->state = PRS_LVALUES_TERM_LIST_TERM_DONE;
 			parser_push(pr, PRS_LVALUES_TERM);
-			pr->state->lvaluesPeriods = 2;
+			pr->state->lvaluesMode = LVM_LIST;
 			return parser_process(pr, flp, stmts);
 
 		case PRS_LVALUES_TERM_LIST_TERM_DONE:
@@ -4028,13 +4048,12 @@ static const char *parser_process(parser pr, filepos_st flp, list_ptr stmts){
 			if (tok_isKS(tk1, KS_RBRACE)){
 				st->next->exprTerm = st->exprTerm2;
 				st->exprTerm2 = NULL;
-				pr->state = st->next;
-				prs_free(st);
+				parser_pop(pr);
 				return NULL;
 			}
 			else if (tok_isKS(tk1, KS_COMMA)){
 				parser_push(pr, PRS_LVALUES_TERM);
-				pr->state->lvaluesPeriods = 2;
+				pr->state->lvaluesMode = LVM_LIST;
 				return NULL;
 			}
 			return "Invalid list";
@@ -4057,15 +4076,13 @@ static const char *parser_process(parser pr, filepos_st flp, list_ptr stmts){
 				return "Missing end of list";
 			st->next->exprTerm = expr_prefix(flp, KS_PERIOD3, expr_names(flp, st->names));
 			st->names = NULL;
-			pr->state = st->next;
-			prs_free(st);
+			parser_pop(pr);
 			return parser_process(pr, flp, stmts);
 
 		case PRS_LVALUES_TERM_LIST_DONE:
 			st->next->exprTerm = expr_list(flp, st->exprTerm);
 			st->exprTerm = NULL;
-			pr->state = st->next;
-			prs_free(st);
+			parser_pop(pr);
 			return parser_process(pr, flp, stmts);
 
 		case PRS_LVALUES_TERM_DONE:
@@ -4074,8 +4091,7 @@ static const char *parser_process(parser pr, filepos_st flp, list_ptr stmts){
 				st->exprTerm = NULL;
 				st->next->lvalues = st->lvalues;
 				st->lvalues = NULL;
-				pr->state = st->next;
-				prs_free(st);
+				parser_pop(pr);
 				return parser_process(pr, flp, stmts);
 			}
 			else if (tok_isKS(tk1, KS_EQU)){
@@ -4101,8 +4117,7 @@ static const char *parser_process(parser pr, filepos_st flp, list_ptr stmts){
 			if (tk1->type == TOK_NEWLINE){
 				st->next->lvalues = st->lvalues;
 				st->lvalues = NULL;
-				pr->state = st->next;
-				prs_free(st);
+				parser_pop(pr);
 				return parser_process(pr, flp, stmts);
 			}
 			else if (tok_isKS(tk1, KS_COMMA)){
@@ -4116,7 +4131,7 @@ static const char *parser_process(parser pr, filepos_st flp, list_ptr stmts){
 				return NULL;
 			st->state = PRS_LVALUES_TERM_DONE;
 			parser_push(pr, PRS_LVALUES_TERM);
-			pr->state->lvaluesPeriods = st->lvaluesPeriods;
+			pr->state->lvaluesMode = st->lvaluesMode;
 			return parser_process(pr, flp, stmts);
 
 		case PRS_LVALUES_DEF_TAIL:
@@ -4129,15 +4144,13 @@ static const char *parser_process(parser pr, filepos_st flp, list_ptr stmts){
 				return "Missing newline or semicolon";
 			st->next->names = st->names;
 			st->names = NULL;
-			pr->state = st->next;
-			prs_free(st);
+			parser_pop(pr);
 			st = pr->state;
 			list_ptr_push(st->lvalues, expr_prefix(flp, KS_PERIOD3, expr_names(flp, st->names)));
 			st->names = NULL;
 			st->next->lvalues = st->lvalues;
 			st->lvalues = NULL;
-			pr->state = st->next;
-			prs_free(st);
+			parser_pop(pr);
 			return parser_process(pr, flp, stmts);
 
 		case PRS_BREAK:
@@ -4196,10 +4209,7 @@ static const char *parser_process(parser pr, filepos_st flp, list_ptr stmts){
 			return parser_lookup(pr, PRS_DEF_LOOKUP);
 
 		case PRS_DEF_LOOKUP:
-			st->state = PRS_DEF_LVALUES;
-			parser_push(pr, PRS_LVALUES);
-			pr->state->lvalues = list_ptr_new(expr_free);
-			pr->state->lvaluesPeriods = 1;
+			parser_lvalues(pr, PRS_DEF_LVALUES, LVM_DEF);
 			return parser_process(pr, flp, stmts);
 
 		case PRS_DEF_LVALUES:
@@ -4408,10 +4418,7 @@ static const char *parser_process(parser pr, filepos_st flp, list_ptr stmts){
 		case PRS_ENUM:
 			if (tk1->type == TOK_NEWLINE && !tk1->u.soft)
 				return NULL;
-			st->state = PRS_ENUM_LVALUES;
-			parser_push(pr, PRS_LVALUES);
-			pr->state->lvalues = list_ptr_new(expr_free);
-			pr->state->lvaluesEnum = true;
+			parser_lvalues(pr, PRS_ENUM_LVALUES, LVM_ENUM);
 			return parser_process(pr, flp, stmts);
 
 		case PRS_ENUM_LVALUES:
@@ -4460,7 +4467,7 @@ static const char *parser_process(parser pr, filepos_st flp, list_ptr stmts){
 		case PRS_INCLUDE_STR3:
 			if (st->incls == NULL)
 				st->incls = list_ptr_new(incl_free);
-			list_byte_push(st->str, 0); // NULL-terminate the filename
+			list_byte_null(st->str);
 			list_ptr_push(st->incls, incl_new(st->names, st->str));
 			st->names = NULL;
 			st->str = NULL;
@@ -4507,12 +4514,6 @@ static const char *parser_process(parser pr, filepos_st flp, list_ptr stmts){
 			return parser_statement(pr, flp, stmts, false);
 
 		case PRS_USING:
-			if (tk1->type == TOK_NEWLINE)
-				return "Expecting identifier";
-			st->state = PRS_USING2;
-			return parser_process(pr, flp, stmts);
-
-		case PRS_USING2:
 			if (tk1->type == TOK_NEWLINE && !tk1->u.soft)
 				return NULL;
 			if (tk1->type != TOK_IDENT)
@@ -4523,7 +4524,7 @@ static const char *parser_process(parser pr, filepos_st flp, list_ptr stmts){
 			list_ptr_push(stmts, ast_using(flp, st->names));
 			st->names = NULL;
 			if (tok_isKS(tk1, KS_COMMA)){
-				st->state = PRS_USING2;
+				st->state = PRS_USING;
 				return NULL;
 			}
 			return parser_statement(pr, flp, stmts, false);
@@ -4531,9 +4532,7 @@ static const char *parser_process(parser pr, filepos_st flp, list_ptr stmts){
 		case PRS_VAR:
 			if (tk1->type == TOK_NEWLINE && !tk1->u.soft)
 				return NULL;
-			st->state = PRS_VAR_LVALUES;
-			parser_push(pr, PRS_LVALUES);
-			pr->state->lvalues = list_ptr_new(expr_free);
+			parser_lvalues(pr, PRS_VAR_LVALUES, LVM_VAR);
 			return parser_process(pr, flp, stmts);
 
 		case PRS_VAR_LVALUES:
@@ -4884,8 +4883,7 @@ static const char *parser_process(parser pr, filepos_st flp, list_ptr stmts){
 			// everything has been applied, and exprTerm has been set!
 			st->next->exprTerm = st->exprTerm;
 			st->exprTerm = NULL;
-			pr->state = st->next;
-			prs_free(st);
+			parser_pop(pr);
 			return parser_process(pr, flp, stmts);
 	}
 }
@@ -6982,8 +6980,7 @@ static per_st program_evalCall(pgen_st pgen, pem_enum mode, varloc_st intoVlc,
 		if (pgen.from)
 			cwd = pathjoin(pgen.from, "..");
 		list_byte fstr = file->u.str;
-		list_byte_push(fstr, 0); // make sure it's NULL terminated
-		fstr->size--;
+		list_byte_null(fstr);
 		bool res = fileres_read(pgen.scr, false, (const char *)fstr->bytes, cwd,
 			(f_fileres_begin_f)embed_begin, (f_fileres_end_f)embed_end, &efu);
 		if (cwd)
@@ -11949,9 +11946,9 @@ static bool pk_fmjson(context ctx, sink_str s, int *pos, sink_val *res){
 			b = s->bytes[*pos];
 			if (b == '"'){
 				(*pos)++;
-				list_byte_push(str, 0);
+				list_byte_null(str);
 				sink_str_st bstr = list_byte_freetostr(str);
-				*res = sink_str_newblobgive(ctx, bstr.size - 1, bstr.bytes);
+				*res = sink_str_newblobgive(ctx, bstr.size, bstr.bytes);
 				return true;
 			}
 			else if (b == '\\'){
