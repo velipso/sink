@@ -4923,9 +4923,8 @@ static inline label label_new(list_byte name){
 	return lbl;
 }
 
-static inline label label_newStr(const char *str){
-	return label_new(list_byte_newstr(str));
-}
+// hard-coded labels are prefixed with a character that can't be in a script label
+#define label_newstr(s) label_new(list_byte_newstr("^" s))
 
 static void label_refresh(label lbl, list_byte ops, int start){
 	for (int i = start; i < lbl->rewrites->size; i++){
@@ -6931,8 +6930,8 @@ static per_st program_evalCall(pgen_st pgen, pem_enum mode, varloc_st intoVlc,
 			intoVlc = ts.u.vlc;
 		}
 
-		label pickfalse = label_newStr("^pickfalse");
-		label finish = label_newStr("^pickfinish");
+		label pickfalse = label_newstr("pickfalse");
+		label finish = label_newstr("pickfinish");
 
 		label_jumpfalse(pickfalse, prg->ops, pe.u.vlc);
 		symtbl_clearTemp(sym, pe.u.vlc);
@@ -7108,7 +7107,7 @@ static per_st program_lvalCheckNil(pgen_st pgen, lvr lv, bool jumpFalse, bool in
 
 			op_numint(prg->ops, idx, 0);
 
-			label next = label_newStr("^condslicenext");
+			label next = label_newstr("condslicenext");
 
 			op_nil(prg->ops, t);
 			op_binop(prg->ops, OP_EQU, t, t, len);
@@ -7120,7 +7119,7 @@ static per_st program_lvalCheckNil(pgen_st pgen, lvr lv, bool jumpFalse, bool in
 
 			op_binop(prg->ops, OP_LT, t, idx, len);
 
-			label keep = label_newStr("^condslicekeep");
+			label keep = label_newstr("condslicekeep");
 			label_jumpfalse(inverted ? keep : skip, prg->ops, t);
 
 			op_binop(prg->ops, OP_NUM_ADD, t, idx, start);
@@ -7141,7 +7140,7 @@ static per_st program_lvalCheckNil(pgen_st pgen, lvr lv, bool jumpFalse, bool in
 		} break;
 
 		case LVR_LIST: {
-			label keep = label_newStr("^condkeep");
+			label keep = label_newstr("condkeep");
 			for (int i = 0; i < lv->u.list.body->size; i++){
 				program_lvalCheckNil(pgen, lv->u.list.body->ptrs[i], jumpFalse, true,
 					inverted ? skip : keep);
@@ -7168,7 +7167,7 @@ static per_st program_lvalCondAssignPart(pgen_st pgen, lvr lv, bool jumpFalse, v
 			per_st pe = program_lvalGet(pgen, PLM_CREATE, VARLOC_NULL, lv);
 			if (pe.type == PER_ERROR)
 				return pe;
-			label skip = label_newStr("^condskippart");
+			label skip = label_newstr("condskippart");
 			if (jumpFalse)
 				label_jumpfalse(skip, prg->ops, pe.u.vlc);
 			else
@@ -7219,7 +7218,7 @@ static per_st program_lvalCondAssignPart(pgen_st pgen, lvr lv, bool jumpFalse, v
 
 			op_numint(prg->ops, idx, 0);
 
-			label next = label_newStr("^condpartslicenext");
+			label next = label_newstr("condpartslicenext");
 
 			op_nil(prg->ops, t);
 			op_binop(prg->ops, OP_EQU, t, t, len);
@@ -7231,10 +7230,10 @@ static per_st program_lvalCondAssignPart(pgen_st pgen, lvr lv, bool jumpFalse, v
 
 			op_binop(prg->ops, OP_LT, t, idx, len);
 
-			label done = label_newStr("^condpartslicedone");
+			label done = label_newstr("condpartslicedone");
 			label_jumpfalse(done, prg->ops, t);
 
-			label inc = label_newStr("^condpartsliceinc");
+			label inc = label_newstr("condpartsliceinc");
 			op_binop(prg->ops, OP_NUM_ADD, t, idx, start);
 			op_getat(prg->ops, t2, obj, t);
 			if (jumpFalse)
@@ -7562,7 +7561,7 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 					return per_error(lp.u.error.flp, lp.u.error.msg);
 
 				if (ex->u.infix.k == KS_AMP2EQU || ex->u.infix.k == KS_PIPE2EQU){
-					label skip = label_newStr("^condsetskip");
+					label skip = label_newstr("condsetskip");
 
 					per_st pe = program_lvalCheckNil(pgen, lp.u.lv, ex->u.infix.k == KS_AMP2EQU,
 						false, skip);
@@ -7679,7 +7678,7 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 				if (pe.type == PER_ERROR)
 					return pe;
 				varloc_st left = pe.u.vlc;
-				label useleft = label_newStr("^useleft");
+				label useleft = label_newstr("useleft");
 				if (ex->u.infix.k == KS_AMP2)
 					label_jumpfalse(useleft, prg->ops, left);
 				else
@@ -7689,7 +7688,7 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 					label_free(useleft);
 					return pe;
 				}
-				label finish = label_newStr("^finish");
+				label finish = label_newstr("finish");
 				label_jump(finish, prg->ops);
 				label_declare(useleft, prg->ops);
 				op_move(prg->ops, intoVlc, left);
@@ -8063,9 +8062,9 @@ static pgr_st program_genForRange(pgen_st pgen, ast stmt, varloc_st p1, varloc_s
 	if (!varloc_isnull(p3))
 		op_binop(prg->ops, OP_NUM_DIV, p2, p2, p3);
 
-	label top    = label_newStr("^forR_top");
-	label inc    = label_newStr("^forR_inc");
-	label finish = label_newStr("^forR_finish");
+	label top    = label_newstr("forR_top");
+	label inc    = label_newstr("forR_inc");
+	label finish = label_newstr("forR_finish");
 
 	sta_st ts = symtbl_addTemp(sym);
 	if (ts.type == STA_ERROR){
@@ -8122,9 +8121,9 @@ static pgr_st program_genForGeneric(pgen_st pgen, ast stmt){
 	// clear the index
 	op_numint(prg->ops, idx_vlc, 0);
 
-	label top    = label_newStr("^forG_top");
-	label inc    = label_newStr("^forG_inc");
-	label finish = label_newStr("^forG_finish");
+	label top    = label_newstr("forG_top");
+	label inc    = label_newstr("forG_inc");
+	label finish = label_newstr("forG_finish");
 
 	sta_st ts = symtbl_addTemp(sym);
 	if (ts.type == STA_ERROR){
@@ -8174,7 +8173,7 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 			decl dc = stmt->u.declare;
 			switch (dc->type){
 				case DECL_LOCAL: {
-					label lbl = label_newStr("^def");
+					label lbl = label_newstr("def");
 					list_ptr_push(sym->fr->lbls, lbl);
 					sta_st sr = symtbl_addCmdLocal(sym, dc->names, lbl);
 					if (sr.type == STA_ERROR)
@@ -8208,7 +8207,7 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 				}
 			}
 			else{
-				lbl = label_newStr("^def");
+				lbl = label_newstr("def");
 				list_ptr_push(sym->fr->lbls, lbl);
 				sta_st sr = symtbl_addCmdLocal(sym, stmt->u.def1.names, lbl);
 				if (sr.type == STA_ERROR)
@@ -8229,7 +8228,7 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 					rest = lvs - 1;
 			}
 
-			label skip = label_newStr("^after_def");
+			label skip = label_newstr("after_def");
 			label_jump(skip, prg->ops);
 
 			label_declare(lbl, prg->ops);
@@ -8250,7 +8249,7 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 					// check for initialization -- must happen before the symbols are added so that
 					// `def a x = x` binds the seconds `x` to the outer scope
 					if (ex->u.infix.right != NULL){
-						label argset = label_newStr("^argset");
+						label argset = label_newstr("argset");
 						label_jumptrue(argset, prg->ops, arg);
 						per_st pr = program_eval(pgen, PEM_INTO, arg, ex->u.infix.right);
 						if (pr.type == PER_ERROR){
@@ -8302,9 +8301,9 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 		} break;
 
 		case AST_DOWHILE1: {
-			label top    = label_newStr("^dowhile_top");
-			label cond   = label_newStr("^dowhile_cond");
-			label finish = label_newStr("^dowhile_finish");
+			label top    = label_newstr("dowhile_top");
+			label cond   = label_newstr("dowhile_cond");
+			label finish = label_newstr("dowhile_finish");
 
 			symtbl_pushScope(sym);
 			sym->sc->lblBreak = finish;
@@ -8437,8 +8436,8 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 
 		case AST_LOOP1: {
 			symtbl_pushScope(sym);
-			label lcont = label_newStr("^loop_continue");
-			label lbrk = label_newStr("^loop_break");
+			label lcont = label_newstr("loop_continue");
+			label lbrk = label_newstr("loop_break");
 			sym->sc->lblContinue = lcont;
 			sym->sc->lblBreak = lbrk;
 			label_declare(lcont, prg->ops);
@@ -8471,7 +8470,7 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 		} break;
 
 		case AST_IF1: {
-			return pgr_push(pgs_if_new(NULL, label_newStr("^ifdone")), (sink_free_f)pgs_if_free);
+			return pgr_push(pgs_if_new(NULL, label_newstr("ifdone")), (sink_free_f)pgs_if_free);
 		} break;
 
 		case AST_IF2: {
@@ -8484,7 +8483,7 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 				label_declare(pst->nextcond, prg->ops);
 				label_free(pst->nextcond);
 			}
-			pst->nextcond = label_newStr("^nextcond");
+			pst->nextcond = label_newstr("nextcond");
 			per_st pr = program_eval(pgen, PEM_CREATE, VARLOC_NULL, stmt->u.cond);
 			if (pr.type == PER_ERROR)
 				return pgr_error(pr.u.error.flp, pr.u.error.msg);
