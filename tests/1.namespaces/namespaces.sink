@@ -26,3 +26,10 @@ namespace obj3
 end
 
 obj3.test
+
+# allow using before namespace exists
+using qux
+def qux.test
+	say 'q'
+end
+test

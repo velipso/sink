@@ -8559,12 +8559,21 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 
 		case AST_USING: {
 			stl_st sl = symtbl_lookup(sym, stmt->u.names);
-			if (sl.type == STL_ERROR)
-				return pgr_error(stmt->flp, sl.u.msg);
-			if (sl.u.nsn->type != NSN_NAMESPACE)
-				return pgr_error(stmt->flp, sink_format("Expecting namespace"));
-			if (!list_ptr_has(sym->sc->ns->usings, sl.u.nsn->u.ns))
-				list_ptr_push(sym->sc->ns->usings, sl.u.nsn->u.ns);
+			namespace ns;
+			if (sl.type == STL_ERROR){ // not found, so create it
+				mem_free(sl.u.msg);
+				sfn_st sf = symtbl_findNamespace(sym, stmt->u.names, stmt->u.names->size);
+				if (sf.type == SFN_ERROR)
+					return pgr_error(stmt->flp, sf.u.msg);
+				ns = sf.u.ns;
+			}
+			else{
+				if (sl.u.nsn->type != NSN_NAMESPACE)
+					return pgr_error(stmt->flp, sink_format("Expecting namespace"));
+				ns = sl.u.nsn->u.ns;
+			}
+			if (!list_ptr_has(sym->sc->ns->usings, ns))
+				list_ptr_push(sym->sc->ns->usings, ns);
 			return pgr_ok();
 		} break;
 
