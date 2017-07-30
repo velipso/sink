@@ -1,4 +1,4 @@
-// (c) Copyright 2016, Sean Connelly (@voidqk), http://syntheti.cc
+// (c) Copyright 2016-2017, Sean Connelly (@voidqk), http://syntheti.cc
 // MIT License
 // Project Home: https://github.com/voidqk/sink
 
@@ -34,9 +34,9 @@
 #	define oplogf(msg, ...)
 #endif
 
-sink_malloc_func  sink_malloc  = malloc;
-sink_realloc_func sink_realloc = realloc;
-sink_free_func    sink_free    = free;
+sink_malloc_f  sink_malloc  = malloc;
+sink_realloc_f sink_realloc = realloc;
+sink_free_f    sink_free    = free;
 
 static inline void *mem_prod_alloc(size_t s){
 	void *p = sink_malloc(s);
@@ -475,18 +475,16 @@ static inline void list_u64_push(list_u64 ls, uint64_t v){
 	ls->vals[ls->size++] = v;
 }
 
-typedef void (*free_func)(void *p);
-
 typedef struct {
 	void **ptrs;
-	free_func f_free;
+	sink_free_f f_free;
 	uint_fast32_t size;
 	uint_fast32_t count;
 } list_ptr_st, *list_ptr;
 
 const static int list_ptr_grow = 200;
 
-static list_ptr list_ptr_new(free_func f_free){
+static list_ptr list_ptr_new(sink_free_f f_free){
 	list_ptr ls = mem_alloc(sizeof(list_ptr_st));
 	ls->size = 0;
 	ls->count = list_ptr_grow;
@@ -495,7 +493,7 @@ static list_ptr list_ptr_new(free_func f_free){
 	return ls;
 }
 
-static inline list_ptr list_ptr_newsingle(free_func f_free, void *p){
+static inline list_ptr list_ptr_newsingle(sink_free_f f_free, void *p){
 	list_ptr ls = mem_alloc(sizeof(list_ptr_st));
 	ls->size = 1;
 	ls->count = 1;
@@ -566,14 +564,14 @@ static inline cleanup cleanup_new(){
 	return cup;
 }
 
-static inline void cleanup_add(cleanup cup, void *cuser, sink_free_func f_free){
+static inline void cleanup_add(cleanup cup, void *cuser, sink_free_f f_free){
 	list_ptr_push(cup->cuser, cuser);
 	list_ptr_push(cup->f_free, f_free);
 }
 
 static inline void cleanup_free(cleanup cup){
 	for (int i = 0; i < cup->cuser->size; i++){
-		sink_free_func f_free = cup->f_free->ptrs[i];
+		sink_free_f f_free = cup->f_free->ptrs[i];
 		f_free(cup->cuser->ptrs[i]);
 	}
 	list_ptr_free(cup->cuser);
@@ -2821,7 +2819,7 @@ static inline expr expr_paren(filepos_st flp, expr ex){
 }
 
 static inline expr expr_group(filepos_st flp, expr left, expr right){
-	list_ptr g = list_ptr_new((free_func)expr_free);
+	list_ptr g = list_ptr_new((sink_free_f)expr_free);
 	if (left->type == EXPR_GROUP){
 		list_ptr_append(g, left->u.group);
 		left->u.group->size = 0;
@@ -2858,7 +2856,7 @@ static inline expr expr_cat(filepos_st flp, expr left, expr right){
 		right = rt;
 	}
 
-	list_ptr c = list_ptr_new((free_func)expr_free);
+	list_ptr c = list_ptr_new((sink_free_f)expr_free);
 	if (left->type == EXPR_CAT){
 		list_ptr_append(c, left->u.cat);
 		left->u.cat->size = 0;
@@ -3963,7 +3961,7 @@ static inline prr_st parser_statement(parser pr, filepos_st flp, list_ptr stmts,
 static inline prr_st parser_lookup(parser pr, prs_enum retstate){
 	pr->state->state = retstate;
 	parser_push(pr, PRS_LOOKUP);
-	pr->state->names = list_ptr_new((free_func)list_byte_free);
+	pr->state->names = list_ptr_new((sink_free_f)list_byte_free);
 	list_ptr_push(pr->state->names, pr->tk1->u.ident);
 	pr->tk1->u.ident = NULL;
 	return prr_more();
@@ -4283,7 +4281,7 @@ static prr_st parser_process(parser pr, filepos_st flp, list_ptr stmts){
 		case PRS_DEF_LOOKUP:
 			st->state = PRS_DEF_LVALUES;
 			parser_push(pr, PRS_LVALUES);
-			pr->state->lvalues = list_ptr_new((free_func)expr_free);
+			pr->state->lvalues = list_ptr_new((sink_free_f)expr_free);
 			pr->state->lvaluesPeriods = 1;
 			return parser_process(pr, flp, stmts);
 
@@ -4495,7 +4493,7 @@ static prr_st parser_process(parser pr, filepos_st flp, list_ptr stmts){
 				return prr_more();
 			st->state = PRS_ENUM_LVALUES;
 			parser_push(pr, PRS_LVALUES);
-			pr->state->lvalues = list_ptr_new((free_func)expr_free);
+			pr->state->lvalues = list_ptr_new((sink_free_f)expr_free);
 			pr->state->lvaluesEnum = true;
 			return parser_process(pr, flp, stmts);
 
@@ -4544,7 +4542,7 @@ static prr_st parser_process(parser pr, filepos_st flp, list_ptr stmts){
 
 		case PRS_INCLUDE_STR3:
 			if (st->incls == NULL)
-				st->incls = list_ptr_new((free_func)incl_free);
+				st->incls = list_ptr_new((sink_free_f)incl_free);
 			list_byte_push(st->str, 0); // NULL-terminate the filename
 			list_ptr_push(st->incls, incl_new(st->names, st->str));
 			st->names = NULL;
@@ -4618,7 +4616,7 @@ static prr_st parser_process(parser pr, filepos_st flp, list_ptr stmts){
 				return prr_more();
 			st->state = PRS_VAR_LVALUES;
 			parser_push(pr, PRS_LVALUES);
-			pr->state->lvalues = list_ptr_new((free_func)expr_free);
+			pr->state->lvalues = list_ptr_new((sink_free_f)expr_free);
 			return parser_process(pr, flp, stmts);
 
 		case PRS_VAR_LVALUES:
@@ -5109,7 +5107,7 @@ static void frame_print(frame fr){
 static inline frame frame_new(frame parent){
 	frame fr = mem_alloc(sizeof(frame_st));
 	fr->vars = list_int_new();
-	fr->lbls = list_ptr_new((free_func)label_free);
+	fr->lbls = list_ptr_new((sink_free_f)label_free);
 	fr->parent = parent;
 	fr->level = parent ? fr->parent->level + 1 : 0;
 	return fr;
@@ -5271,7 +5269,7 @@ static inline namespace namespace_new(frame fr){
 	namespace ns = mem_alloc(sizeof(namespace_st));
 	ns->fr = fr;
 	ns->usings = list_ptr_new(NULL);
-	ns->names = list_ptr_new((free_func)nsname_free);
+	ns->names = list_ptr_new((sink_free_f)nsname_free);
 	return ns;
 }
 
@@ -5769,7 +5767,7 @@ static inline void SAE(symtbl sym, const char *name, double val){
 }
 
 static inline list_ptr NSS(const char *str){
-	return list_ptr_newsingle((free_func)list_byte_free, list_byte_newstr(str));
+	return list_ptr_newsingle((sink_free_f)list_byte_free, list_byte_newstr(str));
 }
 
 static inline void symtbl_loadStdlib(symtbl sym){
@@ -5989,11 +5987,11 @@ static char *pathjoin(const char *prev, const char *next){
 // file resolver
 //
 
-typedef bool (*f_fileres_begin_func)(const char *file, void *fuser);
-typedef void (*f_fileres_end_func)(bool success, const char *file, void *fuser);
+typedef bool (*f_fileres_begin_f)(const char *file, void *fuser);
+typedef void (*f_fileres_end_f)(bool success, const char *file, void *fuser);
 
 static bool fileres_try(script scr, bool postfix, const char *file,
-	f_fileres_begin_func f_begin, f_fileres_end_func f_end, void *fuser){
+	f_fileres_begin_f f_begin, f_fileres_end_f f_end, void *fuser){
 	sink_inc_st inc = scr->inc;
 	char *fix = (char *)file;
 	bool freefix = false;
@@ -6044,7 +6042,7 @@ static bool fileres_try(script scr, bool postfix, const char *file,
 }
 
 static bool fileres_read(script scr, bool postfix, const char *file, const char *cwd,
-	f_fileres_begin_func f_begin, f_fileres_end_func f_end, void *fuser){
+	f_fileres_begin_f f_begin, f_fileres_end_f f_end, void *fuser){
 	// if an absolute path, there is no searching, so just try to read it directly
 	if (file[0] == '/')
 		return fileres_try(scr, postfix, file, f_begin, f_end, fuser);
@@ -6086,7 +6084,7 @@ static inline void program_free(program prg){
 
 static inline program program_new(bool repl){
 	program prg = mem_alloc(sizeof(program_st));
-	prg->strTable = list_ptr_new((free_func)list_byte_free);
+	prg->strTable = list_ptr_new((sink_free_f)list_byte_free);
 	prg->keyTable = list_u64_new();
 	prg->flpTable = list_ptr_new(mem_free_func);
 	prg->ops = list_byte_new();
@@ -6521,7 +6519,7 @@ static lvp_st lval_addVars(symtbl sym, expr ex, int slot){
 	else if (ex->type == EXPR_LIST){
 		if (ex->u.ex == NULL)
 			return lvp_error(ex->flp, sink_format("Invalid assignment"));
-		list_ptr body = list_ptr_new((free_func)lvr_free);
+		list_ptr body = list_ptr_new((sink_free_f)lvr_free);
 		lvr rest = NULL;
 		if (ex->u.ex->type == EXPR_GROUP){
 			for (int i = 0; i < ex->u.ex->u.group->size; i++){
@@ -6607,7 +6605,7 @@ static lvp_st lval_prepare(pgen_st pgen, expr ex){
 		}
 	}
 	else if (ex->type == EXPR_LIST){
-		list_ptr body = list_ptr_new((free_func)lvr_free);
+		list_ptr body = list_ptr_new((sink_free_f)lvr_free);
 		lvr rest = NULL;
 		if (ex->u.ex == NULL)
 			/* do nothing */;
@@ -7070,7 +7068,7 @@ static per_st program_evalCall(pgen_st pgen, pem_enum mode, varloc_st intoVlc,
 		list_byte_push(fstr, 0); // make sure it's NULL terminated
 		fstr->size--;
 		bool res = fileres_read(pgen.scr, false, (const char *)fstr->bytes, cwd,
-			(f_fileres_begin_func)embed_begin, (f_fileres_end_func)embed_end, &efu);
+			(f_fileres_begin_f)embed_begin, (f_fileres_end_f)embed_end, &efu);
 		if (cwd)
 			mem_free(cwd);
 		if (!res)
@@ -7924,7 +7922,7 @@ static pen_st program_exprToNum(pgen_st pgen, expr ex){
 
 typedef struct {
 	void *state;
-	free_func f_free;
+	sink_free_f f_free;
 } pgst_st, *pgst;
 
 static inline void pgst_free(pgst pgs){
@@ -7933,7 +7931,7 @@ static inline void pgst_free(pgst pgs){
 	mem_free(pgs);
 }
 
-static inline pgst pgst_new(void *state, free_func f_free){
+static inline pgst pgst_new(void *state, sink_free_f f_free){
 	pgst pgs = mem_alloc(sizeof(pgst_st));
 	pgs->state = state;
 	pgs->f_free = f_free;
@@ -7969,7 +7967,7 @@ static inline pgr_st pgr_ok(){
 	return (pgr_st){ .type = PGR_OK };
 }
 
-static inline pgr_st pgr_push(void *state, free_func f_free){
+static inline pgr_st pgr_push(void *state, sink_free_f f_free){
 	return (pgr_st){ .type = PGR_PUSH, .u.push.pgs = pgst_new(state, f_free) };
 }
 
@@ -8187,7 +8185,7 @@ static pgr_st program_genForRange(pgen_st pgen, ast stmt, varloc_st p1, varloc_s
 	sym->sc->lblContinue = inc;
 
 	return pgr_push(pgs_for_new(p1, p2, p3, t, val_vlc, idx_vlc, top, inc, finish),
-		(free_func)pgs_for_free);
+		(sink_free_f)pgs_for_free);
 }
 
 static pgr_st program_genForGeneric(pgen_st pgen, ast stmt){
@@ -8236,7 +8234,7 @@ static pgr_st program_genForGeneric(pgen_st pgen, ast stmt){
 
 	return pgr_push(
 		pgs_for_new(t, exp_vlc, VARLOC_NULL, VARLOC_NULL, val_vlc, idx_vlc, top, inc, finish),
-		(free_func)pgs_for_free);
+		(sink_free_f)pgs_for_free);
 }
 
 static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayexpr){
@@ -8378,7 +8376,7 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 				else
 					assert(false);
 			}
-			return pgr_push(skip, (free_func)label_free);
+			return pgr_push(skip, (sink_free_f)label_free);
 		} break;
 
 		case AST_DEF2: {
@@ -8399,7 +8397,7 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 			sym->sc->lblContinue = cond;
 
 			label_declare(top, prg->ops);
-			return pgr_push(pgs_dowhile_new(top, cond, finish), (free_func)pgs_dowhile_free);
+			return pgr_push(pgs_dowhile_new(top, cond, finish), (sink_free_f)pgs_dowhile_free);
 		} break;
 
 		case AST_DOWHILE2: {
@@ -8530,7 +8528,7 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 			sym->sc->lblContinue = lcont;
 			sym->sc->lblBreak = lbrk;
 			label_declare(lcont, prg->ops);
-			return pgr_push(pgs_loop_new(lcont, lbrk), (free_func)pgs_loop_free);
+			return pgr_push(pgs_loop_new(lcont, lbrk), (sink_free_f)pgs_loop_free);
 		} break;
 
 		case AST_LOOP2: {
@@ -8559,7 +8557,7 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 		} break;
 
 		case AST_IF1: {
-			return pgr_push(pgs_if_new(NULL, label_newStr("^ifdone")), (free_func)pgs_if_free);
+			return pgr_push(pgs_if_new(NULL, label_newStr("^ifdone")), (sink_free_f)pgs_if_free);
 		} break;
 
 		case AST_IF2: {
@@ -8870,11 +8868,11 @@ static inline lxs lxs_new(int argcount, sink_val *args, lxs next){
 
 typedef struct {
 	void *natuser;
-	sink_native_func f_native;
+	sink_native_f f_native;
 	uint64_t hash;
 } native_st, *native;
 
-static inline native native_new(uint64_t hash, void *natuser, sink_native_func f_native){
+static inline native native_new(uint64_t hash, void *natuser, sink_native_f f_native){
 	native nat = mem_alloc(sizeof(native_st));
 	nat->hash = hash;
 	nat->natuser = natuser;
@@ -8884,7 +8882,7 @@ static inline native native_new(uint64_t hash, void *natuser, sink_native_func f
 
 typedef struct {
 	void *user;
-	sink_free_func f_freeuser;
+	sink_free_f f_freeuser;
 	cleanup cup;
 	list_ptr natives;
 
@@ -8966,16 +8964,27 @@ static inline void ccs_release(context ctx, ccs c){
 	list_ptr_push(ctx->ccs_avail, c);
 }
 
-static inline void context_cleanup(context ctx, void *cuser, sink_free_func f_free){
+static inline void context_cleanup(context ctx, void *cuser, sink_free_f f_free){
 	cleanup_add(ctx->cup, cuser, f_free);
 }
 
 static inline void context_native(context ctx, uint64_t hash, void *natuser,
-	sink_native_func f_native){
-	list_ptr_push(ctx->natives, native_new(hash, natuser, f_native));
+	sink_native_f f_native){
+	if (ctx->prg->repl)
+		list_ptr_push(ctx->natives, native_new(hash, natuser, f_native));
+	else{
+		for (int i = 0; i < ctx->natives->size; i++){
+			native nat = ctx->natives->ptrs[i];
+			if (nat->hash == hash){
+				nat->natuser = natuser;
+				nat->f_native = f_native;
+				return;
+			}
+		}
+	}
 }
 
-typedef void (*sweepfree_func)(context ctx, int index);
+typedef void (*sweepfree_f)(context ctx, int index);
 
 static void context_sweepfree_str(context ctx, int index){
 	if (ctx->str_tbl[index].bytes)
@@ -8985,7 +8994,7 @@ static void context_sweepfree_str(context ctx, int index){
 static void context_sweepfree_list(context ctx, int index){
 	sink_list ls = &ctx->list_tbl[index];
 	if (ls->usertype >= 0){
-		sink_free_func f_free = ctx->f_finalize->ptrs[ls->usertype];
+		sink_free_f f_free = ctx->f_finalize->ptrs[ls->usertype];
 		if (f_free)
 			f_free(ls->user);
 	}
@@ -8994,7 +9003,7 @@ static void context_sweepfree_list(context ctx, int index){
 }
 
 static inline void context_sweephelp(context ctx, int size, uint64_t *aloc, uint64_t *ref,
-	sweepfree_func f_free){
+	sweepfree_f f_free){
 	int ms = size / 64;
 	for (int i = 0; i < ms; i++){
 		if (aloc[i] == ref[i])
@@ -9145,11 +9154,11 @@ static inline context context_new(program prg, sink_io_st io){
 	ctx->f_freeuser = NULL;
 	ctx->cup = cleanup_new();
 	ctx->natives = list_ptr_new(mem_free_func);
-	ctx->call_stk = list_ptr_new((free_func)ccs_free);
-	ctx->lex_stk = list_ptr_new((free_func)lxs_freeAll);
+	ctx->call_stk = list_ptr_new((sink_free_f)ccs_free);
+	ctx->lex_stk = list_ptr_new((sink_free_f)lxs_freeAll);
 	list_ptr_push(ctx->lex_stk, lxs_new(0, NULL, NULL));
-	ctx->ccs_avail = list_ptr_new((free_func)ccs_free);
-	ctx->lxs_avail = list_ptr_new((free_func)lxs_free);
+	ctx->ccs_avail = list_ptr_new((sink_free_f)ccs_free);
+	ctx->lxs_avail = list_ptr_new((sink_free_f)lxs_free);
 	ctx->prg = prg;
 	ctx->f_finalize = list_ptr_new(NULL);
 	ctx->user_hint = list_ptr_new(NULL);
@@ -9164,6 +9173,9 @@ static inline context context_new(program prg, sink_io_st io){
 		ctx->str_prealloc_size = ctx->prg->strTable->size;
 		ctx->str_size = ctx->str_prealloc_size + 64;
 		ctx->str_size += 64 - (ctx->str_size % 64); // round up to number divisible by 64
+		// if not a REPL, then natives can be built now
+		for (int i = 0; i < prg->keyTable->size; i++)
+			list_ptr_push(ctx->natives, native_new(prg->keyTable->vals[i], NULL, NULL));
 	}
 	ctx->list_size = 64;
 
@@ -9298,9 +9310,9 @@ static inline bool oper_typelist(context ctx, sink_val a, int mask){
 	return oper_typemask(a, mask);
 }
 
-typedef sink_val (*unary_func)(context ctx, sink_val v);
+typedef sink_val (*unary_f)(context ctx, sink_val v);
 
-static sink_val oper_un(context ctx, sink_val a, unary_func f_unary){
+static sink_val oper_un(context ctx, sink_val a, unary_f f_unary){
 	if (sink_islist(a)){
 		sink_list ls = var_castlist(ctx, a);
 		if (ls->size <= 0)
@@ -9313,9 +9325,9 @@ static sink_val oper_un(context ctx, sink_val a, unary_func f_unary){
 	return f_unary(ctx, a);
 }
 
-typedef sink_val (*binary_func)(context ctx, sink_val a, sink_val b);
+typedef sink_val (*binary_f)(context ctx, sink_val a, sink_val b);
 
-static sink_val oper_bin(context ctx, sink_val a, sink_val b, binary_func f_binary){
+static sink_val oper_bin(context ctx, sink_val a, sink_val b, binary_f f_binary){
 	if (sink_islist(a) || sink_islist(b)){
 		int ma = arsize(ctx, a);
 		int mb = arsize(ctx, b);
@@ -9330,9 +9342,9 @@ static sink_val oper_bin(context ctx, sink_val a, sink_val b, binary_func f_bina
 	return f_binary(ctx, a, b);
 }
 
-typedef sink_val (*trinary_func)(context ctx, sink_val a, sink_val b, sink_val c);
+typedef sink_val (*trinary_f)(context ctx, sink_val a, sink_val b, sink_val c);
 
-static sink_val oper_tri(context ctx, sink_val a, sink_val b, sink_val c, trinary_func f_trinary){
+static sink_val oper_tri(context ctx, sink_val a, sink_val b, sink_val c, trinary_f f_trinary){
 	if (sink_islist(a) || sink_islist(b) || sink_islist(c)){
 		int ma = arsize(ctx, a);
 		int mb = arsize(ctx, b);
@@ -10675,7 +10687,7 @@ static sink_val binop_int_mod(context ctx, sink_val a, sink_val b){
 }
 
 // inline operators
-static inline void opi_abortcstr(context ctx, const char *msg);
+static inline sink_run opi_abortcstr(context ctx, const char *msg);
 
 static inline bool opi_equ(context ctx, sink_val a, sink_val b){
 	if (a.u == b.u){
@@ -10768,8 +10780,8 @@ static inline sink_run opi_abort(context ctx, char *err){
 	return SINK_RUN_FAIL;
 }
 
-static inline void opi_abortcstr(context ctx, const char *msg){
-	opi_abort(ctx, sink_format("%s", msg));
+static inline sink_run opi_abortcstr(context ctx, const char *msg){
+	return opi_abort(ctx, sink_format("%s", msg));
 }
 
 static inline sink_val opi_abortformat(context ctx, const char *fmt, ...){
@@ -10785,13 +10797,13 @@ static inline sink_val opi_abortformat(context ctx, const char *fmt, ...){
 	return SINK_NIL;
 }
 
-static inline sink_val opi_unop(context ctx, sink_val a, unary_func f_unary, const char *erop){
+static inline sink_val opi_unop(context ctx, sink_val a, unary_f f_unary, const char *erop){
 	if (!oper_typelist(ctx, a, LT_ALLOWNUM))
 		return opi_abortformat(ctx, "Expecting number or list of numbers when %s", erop);
 	return oper_un(ctx, a, f_unary);
 }
 
-static inline sink_val opi_binop(context ctx, sink_val a, sink_val b, binary_func f_binary,
+static inline sink_val opi_binop(context ctx, sink_val a, sink_val b, binary_f f_binary,
 	const char *erop, int t1, int t2){
 	if (!oper_typelist(ctx, a, t1))
 		return opi_abortformat(ctx, "Expecting number or list of numbers when %s", erop);
@@ -10801,7 +10813,7 @@ static inline sink_val opi_binop(context ctx, sink_val a, sink_val b, binary_fun
 }
 
 static inline sink_val opi_triop(context ctx, sink_val a, sink_val b, sink_val c,
-	trinary_func f_trinary, const char *erop){
+	trinary_f f_trinary, const char *erop){
 	if (!oper_typelist(ctx, a, LT_ALLOWNUM))
 		return opi_abortformat(ctx, "Expecting number or list of numbers when %s", erop);
 	if (!oper_typelist(ctx, b, LT_ALLOWNUM))
@@ -10811,7 +10823,7 @@ static inline sink_val opi_triop(context ctx, sink_val a, sink_val b, sink_val c
 	return oper_tri(ctx, a, b, c, f_trinary);
 }
 
-static inline sink_val opi_combop(context ctx, int size, sink_val *vals, binary_func f_binary,
+static inline sink_val opi_combop(context ctx, int size, sink_val *vals, binary_f f_binary,
 	const char *erop){
 	if (size <= 0)
 		goto badtype;
@@ -12803,26 +12815,33 @@ static sink_run context_run(context ctx){
 					p[I] = var_get(ctx, J, H);
 				}
 				C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
-				uint64_t hash = ctx->prg->keyTable->vals[C];
-				for (int i = 0; i < ctx->natives->size; i++){
-					native nat = ctx->natives->ptrs[i];
-					if (nat->hash == hash){
-						X = nat->f_native(ctx, G, p, nat->natuser);
-						if (ctx->failed)
-							return SINK_RUN_FAIL;
-						if (sink_isasync(X)){
-							ctx->async_frame = A;
-							ctx->async_index = B;
-							ctx->timeout_left = ctx->timeout;
-							ctx->async = true;
-							return SINK_RUN_ASYNC;
-						}
-						else{
-							var_set(ctx, A, B, X);
+				native nat = NULL;
+				if (ctx->prg->repl){
+					// if REPL, then we need to search for the hash
+					uint64_t hash = ctx->prg->keyTable->vals[C];
+					for (int i = 0; i < ctx->natives->size; i++){
+						native nat2 = ctx->natives->ptrs[i];
+						if (nat2->hash == hash){
+							nat = nat2;
 							break;
 						}
 					}
 				}
+				else
+					nat = ctx->natives->ptrs[C];
+				if (nat == NULL || nat->f_native == NULL)
+					return opi_abortcstr(ctx, "Native call not implemented");
+				X = nat->f_native(ctx, G, p, nat->natuser);
+				if (ctx->failed)
+					return SINK_RUN_FAIL;
+				if (sink_isasync(X)){
+					ctx->async_frame = A;
+					ctx->async_index = B;
+					ctx->timeout_left = ctx->timeout;
+					ctx->async = true;
+					return SINK_RUN_ASYNC;
+				}
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_RETURN         : { // [SRC]
@@ -13775,8 +13794,8 @@ struct filepos_node_struct {
 static filepos_node flpn_new(char *file, filepos_node next){
 	filepos_node flpn = mem_alloc(sizeof(filepos_node_st));
 	flpn->lx = lex_new();
-	flpn->tkflps = list_ptr_new((free_func)tkflp_free);
-	flpn->pgstate = list_ptr_new((free_func)pgst_free);
+	flpn->tkflps = list_ptr_new((sink_free_f)tkflp_free);
+	flpn->pgstate = list_ptr_new((sink_free_f)pgst_free);
 	flpn->flp.file = file;
 	flpn->flp.line = 1;
 	flpn->flp.chr = 1;
@@ -13868,10 +13887,10 @@ static void compiler_reset(compiler cmp){
 	cmp->pr = parser_new();
 
 	list_ptr_free(cmp->flpn->tkflps);
-	cmp->flpn->tkflps = list_ptr_new((free_func)tkflp_free);
+	cmp->flpn->tkflps = list_ptr_new((sink_free_f)tkflp_free);
 
 	list_ptr_free(cmp->flpn->pgstate);
-	cmp->flpn->pgstate = list_ptr_new((free_func)pgst_free);
+	cmp->flpn->pgstate = list_ptr_new((sink_free_f)pgst_free);
 }
 
 static char *compiler_write(compiler cmp, int size, const uint8_t *bytes);
@@ -13940,7 +13959,7 @@ static bool compiler_dynamicinc(compiler cmp, list_ptr names, const char *file, 
 	if (from)
 		cwd = pathjoin(from, "..");
 	bool res = fileres_read(cmp->scr, true, file, cwd,
-		(f_fileres_begin_func)compiler_begininc_cfu, (f_fileres_end_func)compiler_endinc_cfu, &cfu);
+		(f_fileres_begin_f)compiler_begininc_cfu, (f_fileres_end_f)compiler_endinc_cfu, &cfu);
 	if (cwd)
 		mem_free(cwd);
 	return res;
@@ -13948,7 +13967,7 @@ static bool compiler_dynamicinc(compiler cmp, list_ptr names, const char *file, 
 
 static char *compiler_process(compiler cmp){
 	// generate statements
-	list_ptr stmts = list_ptr_new((free_func)ast_free);
+	list_ptr stmts = list_ptr_new((sink_free_f)ast_free);
 	while (cmp->flpn->tkflps->size > 0){
 		bool found_include = false;
 		while (cmp->flpn->tkflps->size > 0){
@@ -14073,7 +14092,7 @@ static char *compiler_write(compiler cmp, int size, const uint8_t *bytes){
 	filepos_node flpn = cmp->flpn;
 	for (int i = 0; i < size; i++){
 		if (tks == NULL)
-			tks = list_ptr_new((free_func)tok_free);
+			tks = list_ptr_new((sink_free_f)tok_free);
 		lex_add(flpn->lx, bytes[i], tks);
 
 		if (tks->size > 0){
@@ -14103,7 +14122,7 @@ static char *compiler_write(compiler cmp, int size, const uint8_t *bytes){
 }
 
 static char *compiler_closeLexer(compiler cmp){
-	list_ptr tks = list_ptr_new((free_func)tok_free);
+	list_ptr tks = list_ptr_new((sink_free_f)tok_free);
 	lex_close(cmp->flpn->lx, tks);
 	if (tks->size > 0)
 		list_ptr_push(cmp->flpn->tkflps, tkflp_new(tks, cmp->flpn->flp));
@@ -14182,7 +14201,7 @@ void sink_scr_incfile(sink_scr scr, const char *name, const char *file){
 	staticinc_addfile(((script)scr)->sinc, name, file);
 }
 
-void sink_scr_cleanup(sink_scr scr, void *cuser, sink_free_func f_free){
+void sink_scr_cleanup(sink_scr scr, void *cuser, sink_free_f f_free){
 	cleanup_add(((script)scr)->cup, cuser, f_free);
 }
 
@@ -14219,7 +14238,7 @@ bool sink_scr_loadfile(sink_scr scr, const char *file){
 		sc->err = NULL;
 	}
 	bool read = fileres_read(sc, true, file, NULL,
-		(f_fileres_begin_func)sfr_begin, (f_fileres_end_func)sfr_end, sc);
+		(f_fileres_begin_f)sfr_begin, (f_fileres_end_f)sfr_end, sc);
 	if (!read && sc->err == NULL)
 		sc->err = sink_format("Error: Failed to read file: %s", file);
 	return sc->err == NULL;
@@ -14295,7 +14314,7 @@ int sink_scr_level(sink_scr scr){
 	return ((script)scr)->cmp->pr->level;
 }
 
-void sink_scr_dump(sink_scr scr, bool debug, void *user, sink_dump_func f_dump){
+void sink_scr_dump(sink_scr scr, bool debug, void *user, sink_dump_f f_dump){
 	// all integer values are little endian
 
 	// output header
@@ -14487,19 +14506,19 @@ sink_ctx_status sink_ctx_getstatus(sink_ctx ctx){
 	return SINK_CTX_READY;
 }
 
-void sink_ctx_native(sink_ctx ctx, const char *name, void *natuser, sink_native_func f_native){
+void sink_ctx_native(sink_ctx ctx, const char *name, void *natuser, sink_native_f f_native){
 	context_native(ctx, native_hash((int)strlen(name), (const uint8_t *)name), natuser, f_native);
 }
 
-void sink_ctx_nativehash(sink_ctx ctx, uint64_t hash, void *natuser, sink_native_func f_native){
+void sink_ctx_nativehash(sink_ctx ctx, uint64_t hash, void *natuser, sink_native_f f_native){
 	context_native(ctx, hash, natuser, f_native);
 }
 
-void sink_ctx_cleanup(sink_ctx ctx, void *cuser, sink_free_func f_cleanup){
+void sink_ctx_cleanup(sink_ctx ctx, void *cuser, sink_free_f f_cleanup){
 	context_cleanup(ctx, cuser, f_cleanup);
 }
 
-void sink_ctx_setuser(sink_ctx ctx, void *user, sink_free_func f_freeuser){
+void sink_ctx_setuser(sink_ctx ctx, void *user, sink_free_f f_freeuser){
 	context ctx2 = ctx;
 	if (ctx2->f_freeuser)
 		ctx2->f_freeuser(ctx2->user);
@@ -14511,14 +14530,14 @@ void *sink_ctx_getuser(sink_ctx ctx){
 	return ((context)ctx)->user;
 }
 
-sink_user sink_ctx_addusertype(sink_ctx ctx, const char *hint, sink_free_func f_free){
+sink_user sink_ctx_addusertype(sink_ctx ctx, const char *hint, sink_free_f f_free){
 	context ctx2 = ctx;
 	list_ptr_push(ctx2->f_finalize, f_free);
 	list_ptr_push(ctx2->user_hint, (void *)hint);
 	return ctx2->f_finalize->size - 1;
 }
 
-sink_free_func sink_ctx_getuserfree(sink_ctx ctx, sink_user usertype){
+sink_free_f sink_ctx_getuserfree(sink_ctx ctx, sink_user usertype){
 	return ((context)ctx)->f_finalize->ptrs[usertype];
 }
 
@@ -15134,7 +15153,7 @@ bool      sink_struct_isLE();
 void sink_list_setuser(sink_ctx ctx, sink_val ls, sink_user usertype, void *user){
 	sink_list ls2 = var_castlist(ctx, ls);
 	if (ls2->usertype >= 0){
-		sink_free_func f_free = ((context)ctx)->f_finalize->ptrs[ls2->usertype];
+		sink_free_f f_free = ((context)ctx)->f_finalize->ptrs[ls2->usertype];
 		if (f_free)
 			f_free(ls2->user);
 	}

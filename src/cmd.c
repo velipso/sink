@@ -227,7 +227,7 @@ int main_compile_file(sink_scr scr, const char *file, bool debug){
 		sink_scr_free(scr);
 		return 1;
 	}
-	sink_scr_dump(scr, debug, (void *)stdout, (sink_dump_func)fwrite);
+	sink_scr_dump(scr, debug, (void *)stdout, (sink_dump_f)fwrite);
 	sink_scr_free(scr);
 	return 0;
 }
@@ -238,7 +238,7 @@ int main_compile_eval(sink_scr scr, const char *eval, bool debug){
 		sink_scr_free(scr);
 		return 1;
 	}
-	sink_scr_dump(scr, debug, (void *)stdout, (sink_dump_func)fwrite);
+	sink_scr_dump(scr, debug, (void *)stdout, (sink_dump_f)fwrite);
 	sink_scr_free(scr);
 	return 0;
 }

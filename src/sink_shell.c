@@ -67,6 +67,6 @@ void sink_shell_ctx(sink_ctx ctx, int argc, char **argv){
 	a->args = argv;
 	a->size = argc;
 	sink_ctx_cleanup(ctx, a, free);
-	sink_ctx_native(ctx, "sink.shell.args", a, (sink_native_func)L_args);
+	sink_ctx_native(ctx, "sink.shell.args", a, (sink_native_f)L_args);
 	sink_ctx_native(ctx, "sink.shell.pwd", NULL, L_pwd);
 }

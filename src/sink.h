@@ -1,4 +1,4 @@
-// (c) Copyright 2016, Sean Connelly (@voidqk), http://syntheti.cc
+// (c) Copyright 2016-2017, Sean Connelly (@voidqk), http://syntheti.cc
 // MIT License
 // Project Home: https://github.com/voidqk/sink
 
@@ -39,15 +39,15 @@
 #	endif
 #endif
 
-typedef void *(*sink_malloc_func)(size_t sz);
-typedef void *(*sink_realloc_func)(void *ptr, size_t sz);
-typedef void (*sink_free_func)(void *ptr);
+typedef void *(*sink_malloc_f)(size_t sz);
+typedef void *(*sink_realloc_f)(void *ptr, size_t sz);
+typedef void (*sink_free_f)(void *ptr);
 
 // all memory management is through these functions, which default to stdlib's malloc/realloc/free
 // overwrite these global variables with your own functions if desired
-extern sink_malloc_func  sink_malloc;
-extern sink_realloc_func sink_relloc;
-extern sink_free_func    sink_free;
+extern sink_malloc_f  sink_malloc;
+extern sink_realloc_f sink_relloc;
+extern sink_free_f    sink_free;
 
 typedef enum {
 	SINK_TYPE_NIL,
@@ -93,26 +93,26 @@ typedef enum {
 	SINK_GC_LOWMEM
 } sink_gc_level;
 
-typedef void (*sink_output_func)(sink_ctx ctx, sink_str str, void *iouser);
-typedef sink_val (*sink_input_func)(sink_ctx ctx, sink_str str, void *iouser);
-typedef sink_val (*sink_native_func)(sink_ctx ctx, int size, sink_val *args, void *natuser);
-typedef char *(*sink_fixpath_func)(const char *file, void *incuser);
-typedef sink_fstype (*sink_fstype_func)(const char *file, void *incuser);
-typedef bool (*sink_fsread_func)(sink_scr scr, const char *file, void *incuser);
-typedef size_t (*sink_dump_func)(const void *restrict ptr, size_t size, size_t nitems,
+typedef void (*sink_output_f)(sink_ctx ctx, sink_str str, void *iouser);
+typedef sink_val (*sink_input_f)(sink_ctx ctx, sink_str str, void *iouser);
+typedef sink_val (*sink_native_f)(sink_ctx ctx, int size, sink_val *args, void *natuser);
+typedef char *(*sink_fixpath_f)(const char *file, void *incuser);
+typedef sink_fstype (*sink_fstype_f)(const char *file, void *incuser);
+typedef bool (*sink_fsread_f)(sink_scr scr, const char *file, void *incuser);
+typedef size_t (*sink_dump_f)(const void *restrict ptr, size_t size, size_t nitems,
 	void *restrict user);
 
 typedef struct {
-	sink_output_func f_say;
-	sink_output_func f_warn;
-	sink_input_func f_ask;
+	sink_output_f f_say;
+	sink_output_f f_warn;
+	sink_input_f f_ask;
 	void *user; // passed as iouser to functions
 } sink_io_st;
 
 typedef struct {
-	sink_fixpath_func f_fixpath;
-	sink_fstype_func f_fstype;
-	sink_fsread_func f_fsread;
+	sink_fixpath_f f_fixpath;
+	sink_fstype_f f_fstype;
+	sink_fsread_f f_fsread;
 	void *user; // passed as incuser to functions
 } sink_inc_st;
 
@@ -215,28 +215,28 @@ sink_scr    sink_scr_new(sink_inc_st inc, const char *curdir, sink_scr_type type
 void        sink_scr_addpath(sink_scr scr, const char *path);
 void        sink_scr_incbody(sink_scr scr, const char *name, const char *body);
 void        sink_scr_incfile(sink_scr scr, const char *name, const char *file);
-void        sink_scr_cleanup(sink_scr scr, void *cuser, sink_free_func f_free);
+void        sink_scr_cleanup(sink_scr scr, void *cuser, sink_free_f f_free);
 bool        sink_scr_loadfile(sink_scr scr, const char *file);
 const char *sink_scr_getfile(sink_scr scr);
 const char *sink_scr_getcwd(sink_scr scr);
 bool        sink_scr_write(sink_scr scr, int size, const uint8_t *bytes);
 const char *sink_scr_err(sink_scr scr);
 int         sink_scr_level(sink_scr scr);
-void        sink_scr_dump(sink_scr scr, bool debug, void *user, sink_dump_func f_dump);
+void        sink_scr_dump(sink_scr scr, bool debug, void *user, sink_dump_f f_dump);
 void        sink_scr_free(sink_scr scr);
 
 // context
 sink_ctx        sink_ctx_new(sink_scr scr, sink_io_st io);
 sink_ctx_status sink_ctx_getstatus(sink_ctx ctx);
 void            sink_ctx_native(sink_ctx ctx, const char *name, void *natuser,
-	sink_native_func f_native);
+	sink_native_f f_native);
 void            sink_ctx_nativehash(sink_ctx ctx, uint64_t hash, void *natuser,
-	sink_native_func f_native);
-void            sink_ctx_cleanup(sink_ctx ctx, void *cuser, sink_free_func f_cleanup);
-void            sink_ctx_setuser(sink_ctx ctx, void *user, sink_free_func f_free);
+	sink_native_f f_native);
+void            sink_ctx_cleanup(sink_ctx ctx, void *cuser, sink_free_f f_cleanup);
+void            sink_ctx_setuser(sink_ctx ctx, void *user, sink_free_f f_free);
 void *          sink_ctx_getuser(sink_ctx ctx);
-sink_user       sink_ctx_addusertype(sink_ctx ctx, const char *hint, sink_free_func f_free);
-sink_free_func  sink_ctx_getuserfree(sink_ctx ctx, sink_user usertype);
+sink_user       sink_ctx_addusertype(sink_ctx ctx, const char *hint, sink_free_f f_free);
+sink_free_f  sink_ctx_getuserfree(sink_ctx ctx, sink_user usertype);
 const char *    sink_ctx_getuserhint(sink_ctx ctx, sink_user usertype);
 void            sink_ctx_asyncresult(sink_ctx ctx, sink_val v);
 void            sink_ctx_settimeout(sink_ctx ctx, int timeout);
