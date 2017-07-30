@@ -5401,25 +5401,7 @@ static sfn_st symtbl_findNamespace(symtbl sym, list_ptr names, int max){
 	return sfn_ok(ns);
 }
 
-typedef enum {
-	SPN_OK,
-	SPN_ERROR
-} spn_enum;
-
-typedef struct {
-	spn_enum type;
-	char *msg;
-} spn_st;
-
-static inline spn_st spn_ok(){
-	return (spn_st){ .type = SPN_OK };
-}
-
-static inline spn_st spn_error(char *msg){
-	return (spn_st){ .type = SPN_ERROR, .msg = msg };
-}
-
-static inline spn_st symtbl_pushNamespace(symtbl sym, list_ptr names){
+static inline char *symtbl_pushNamespace(symtbl sym, list_ptr names){
 	namespace ns;
 	if (names == INCL_UNIQUE){
 		// create a unique namespace and use it (via `using`) immediately
@@ -5432,12 +5414,12 @@ static inline spn_st symtbl_pushNamespace(symtbl sym, list_ptr names){
 		// find (and create if non-existant) namespace
 		sfn_st nsr = symtbl_findNamespace(sym, names, names->size);
 		if (nsr.type == SFN_ERROR)
-			return spn_error(nsr.u.msg);
+			return nsr.u.msg;
 		ns = nsr.u.ns;
 	}
 	list_ptr_push(sym->sc->nsStack, ns);
 	sym->sc->ns = ns;
-	return spn_ok();
+	return NULL;
 }
 
 static inline void symtbl_popNamespace(symtbl sym){
@@ -5606,25 +5588,23 @@ static sta_st symtbl_addVar(symtbl sym, list_ptr names, int slot){
 	return sta_var(varloc_new(sym->fr->level, slot));
 }
 
-static sta_st symtbl_addEnum(symtbl sym, list_ptr names, double val){
+static char *symtbl_addEnum(symtbl sym, list_ptr names, double val){
 	sfn_st nsr = symtbl_findNamespace(sym, names, names->size - 1);
 	if (nsr.type == SFN_ERROR)
-		return sta_error(nsr.u.msg);
+		return nsr.u.msg;
 	namespace ns = nsr.u.ns;
 	for (int i = 0; i < ns->names->size; i++){
 		nsname nsn = ns->names->ptrs[i];
 		if (list_byte_equ(nsn->name, names->ptrs[names->size - 1])){
-			if (!sym->repl){
-				return sta_error(
-					sink_format("Cannot redefine \"%.*s\"", nsn->name->size, nsn->name->bytes));
-			}
+			if (!sym->repl)
+				return sink_format("Cannot redefine \"%.*s\"", nsn->name->size, nsn->name->bytes);
 			nsname_free(ns->names->ptrs[i]);
 			ns->names->ptrs[i] = nsname_enum(names->ptrs[names->size - 1], val, false);
-			return sta_ok();
+			return NULL;
 		}
 	}
 	list_ptr_push(ns->names, nsname_enum(names->ptrs[names->size - 1], val, false));
-	return sta_ok();
+	return NULL;
 }
 
 static void symtbl_reserveVars(symtbl sym, int count){
@@ -5633,46 +5613,42 @@ static void symtbl_reserveVars(symtbl sym, int count){
 		list_int_push(sym->fr->vars, FVR_VAR);
 }
 
-static sta_st symtbl_addCmdLocal(symtbl sym, list_ptr names, label lbl){
+static char *symtbl_addCmdLocal(symtbl sym, list_ptr names, label lbl){
 	sfn_st nsr = symtbl_findNamespace(sym, names, names->size - 1);
 	if (nsr.type == SFN_ERROR)
-		return sta_error(nsr.u.msg);
+		return nsr.u.msg;
 	namespace ns = nsr.u.ns;
 	for (int i = 0; i < ns->names->size; i++){
 		nsname nsn = ns->names->ptrs[i];
 		if (list_byte_equ(nsn->name, names->ptrs[names->size - 1])){
-			if (!sym->repl){
-				return sta_error(
-					sink_format("Cannot redefine \"%.*s\"", nsn->name->size, nsn->name->bytes));
-			}
+			if (!sym->repl)
+				return sink_format("Cannot redefine \"%.*s\"", nsn->name->size, nsn->name->bytes);
 			nsname_free(ns->names->ptrs[i]);
 			ns->names->ptrs[i] = nsname_cmdLocal(names->ptrs[names->size - 1], sym->fr, lbl);
-			return sta_ok();
+			return NULL;
 		}
 	}
 	list_ptr_push(ns->names, nsname_cmdLocal(names->ptrs[names->size - 1], sym->fr, lbl));
-	return sta_ok();
+	return NULL;
 }
 
-static sta_st symtbl_addCmdNative(symtbl sym, list_ptr names, uint64_t hash){
+static char *symtbl_addCmdNative(symtbl sym, list_ptr names, uint64_t hash){
 	sfn_st nsr = symtbl_findNamespace(sym, names, names->size - 1);
 	if (nsr.type == SFN_ERROR)
-		return sta_error(nsr.u.msg);
+		return nsr.u.msg;
 	namespace ns = nsr.u.ns;
 	for (int i = 0; i < ns->names->size; i++){
 		nsname nsn = ns->names->ptrs[i];
 		if (list_byte_equ(nsn->name, names->ptrs[names->size - 1])){
-			if (!sym->repl){
-				return sta_error(
-					sink_format("Cannot redefine \"%.*s\"", nsn->name->size, nsn->name->bytes));
-			}
+			if (!sym->repl)
+				return sink_format("Cannot redefine \"%.*s\"", nsn->name->size, nsn->name->bytes);
 			nsname_free(ns->names->ptrs[i]);
 			ns->names->ptrs[i] = nsname_cmdNative(names->ptrs[names->size - 1], hash);
-			return sta_ok();
+			return NULL;
 		}
 	}
 	list_ptr_push(ns->names, nsname_cmdNative(names->ptrs[names->size - 1], hash));
-	return sta_ok();
+	return NULL;
 }
 
 // symtbl_addCmdOpcode
@@ -8180,15 +8156,15 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 				case DECL_LOCAL: {
 					label lbl = label_newstr("def");
 					list_ptr_push(sym->fr->lbls, lbl);
-					sta_st sr = symtbl_addCmdLocal(sym, dc->names, lbl);
-					if (sr.type == STA_ERROR)
-						return pgr_error(stmt->flp, sr.u.msg);
+					char *smsg = symtbl_addCmdLocal(sym, dc->names, lbl);
+					if (smsg)
+						return pgr_error(stmt->flp, smsg);
 				} break;
 				case DECL_NATIVE: {
-					sta_st sr = symtbl_addCmdNative(sym, dc->names,
+					char *smsg = symtbl_addCmdNative(sym, dc->names,
 						native_hash(dc->key->size, dc->key->bytes));
-					if (sr.type == STA_ERROR)
-						return pgr_error(stmt->flp, sr.u.msg);
+					if (smsg)
+						return pgr_error(stmt->flp, smsg);
 				} break;
 			}
 			return pgr_ok();
@@ -8214,9 +8190,9 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 			else{
 				lbl = label_newstr("def");
 				list_ptr_push(sym->fr->lbls, lbl);
-				sta_st sr = symtbl_addCmdLocal(sym, stmt->u.def1.names, lbl);
-				if (sr.type == STA_ERROR)
-					return pgr_error(stmt->flp, sr.u.msg);
+				char *smsg = symtbl_addCmdLocal(sym, stmt->u.def1.names, lbl);
+				if (smsg)
+					return pgr_error(stmt->flp, smsg);
 			}
 
 			int level = sym->fr->level + 1;
@@ -8367,9 +8343,9 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 						sink_format("Enum name must only consist of identifiers"));
 				}
 				last_val = v;
-				sta_st st = symtbl_addEnum(sym, ex->u.infix.left->u.names, v);
-				if (st.type == STA_ERROR)
-					return pgr_error(stmt->flp, st.u.msg);
+				char *smsg = symtbl_addEnum(sym, ex->u.infix.left->u.names, v);
+				if (smsg)
+					return pgr_error(stmt->flp, smsg);
 			}
 			return pgr_ok();
 		} break;
@@ -8524,9 +8500,9 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 		} break;
 
 		case AST_NAMESPACE1: {
-			spn_st sr = symtbl_pushNamespace(sym, stmt->u.names);
-			if (sr.type == SPN_ERROR)
-				return pgr_error(stmt->flp, sr.msg);
+			char *smsg = symtbl_pushNamespace(sym, stmt->u.names);
+			if (smsg)
+				return pgr_error(stmt->flp, smsg);
 			return pgr_push(NULL, NULL);
 		} break;
 
@@ -13817,12 +13793,12 @@ static char *compiler_closeLexer(compiler cmp);
 static bool compiler_begininc(compiler cmp, list_ptr names, char *file){
 	cmp->flpn = flpn_new(file, cmp->flpn);
 	if (names){
-		spn_st st = symtbl_pushNamespace(cmp->sym, names);
-		if (st.type == SPN_ERROR){
+		char *smsg = symtbl_pushNamespace(cmp->sym, names);
+		if (smsg){
 			filepos_node del = cmp->flpn;
 			cmp->flpn = cmp->flpn->next;
 			flpn_free(del);
-			compiler_setmsg(cmp, st.msg);
+			compiler_setmsg(cmp, smsg);
 			return false;
 		}
 	}
