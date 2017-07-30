@@ -5472,7 +5472,7 @@ static inline stl_st stl_error(char *msg){
 	return (stl_st){ .type = STL_ERROR, .u.msg = msg };
 }
 
-static stl_st symtbl_lookup(symtbl sym, list_ptr names){
+static stl_st symtbl_lookupfast(symtbl sym, list_ptr names){
 	list_ptr tried = list_ptr_new(NULL);
 	scope trysc = sym->sc;
 	while (trysc != NULL){
@@ -5487,15 +5487,24 @@ static stl_st symtbl_lookup(symtbl sym, list_ptr names){
 		trysc = trysc->parent;
 	}
 	list_ptr_free(tried);
-	list_byte lb = names->ptrs[0];
-	char *join = sink_format("Not found: %.*s", lb->size, lb->bytes);
-	for (int i = 1; i < names->size; i++){
-		lb = names->ptrs[i];
-		char *join2 = sink_format("%s.%.*s", join, lb->size, lb->bytes);
-		mem_free(join);
-		join = join2;
+	return stl_error(NULL); // don't create an error message (unless we need it)
+}
+
+static stl_st symtbl_lookup(symtbl sym, list_ptr names){
+	stl_st res = symtbl_lookupfast(sym, names);
+	if (res.type == STL_ERROR){
+		// create an error message
+		list_byte lb = names->ptrs[0];
+		char *join = sink_format("Not found: %.*s", lb->size, lb->bytes);
+		for (int i = 1; i < names->size; i++){
+			lb = names->ptrs[i];
+			char *join2 = sink_format("%s.%.*s", join, lb->size, lb->bytes);
+			mem_free(join);
+			join = join2;
+		}
+		res.u.msg = join;
 	}
-	return stl_error(join);
+	return res;
 }
 
 typedef enum {
@@ -8558,10 +8567,9 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 		} break;
 
 		case AST_USING: {
-			stl_st sl = symtbl_lookup(sym, stmt->u.names);
+			stl_st sl = symtbl_lookupfast(sym, stmt->u.names);
 			namespace ns;
 			if (sl.type == STL_ERROR){ // not found, so create it
-				mem_free(sl.u.msg);
 				sfn_st sf = symtbl_findNamespace(sym, stmt->u.names, stmt->u.names->size);
 				if (sf.type == SFN_ERROR)
 					return pgr_error(stmt->flp, sf.u.msg);
