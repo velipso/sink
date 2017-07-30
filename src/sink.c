@@ -4910,7 +4910,8 @@ typedef struct {
 } label_st, *label;
 
 static inline void label_free(label lbl){
-	list_byte_free(lbl->name);
+	if (lbl->name)
+		list_byte_free(lbl->name);
 	list_int_free(lbl->rewrites);
 	mem_free(lbl);
 }
@@ -4923,8 +4924,12 @@ static inline label label_new(list_byte name){
 	return lbl;
 }
 
+#ifdef SINK_DEBUG
 // hard-coded labels are prefixed with a character that can't be in a script label
-#define label_newstr(s) label_new(list_byte_newstr("^" s))
+#	define label_newstr(s) label_new(list_byte_newstr("^" s))
+#else
+#	define label_newstr(s) label_new(NULL)
+#endif
 
 static void label_refresh(label lbl, list_byte ops, int start){
 	for (int i = start; i < lbl->rewrites->size; i++){
@@ -8456,7 +8461,7 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 		case AST_GOTO: {
 			for (int i = 0; i < sym->fr->lbls->size; i++){
 				label lbl = sym->fr->lbls->ptrs[i];
-				if (list_byte_equ(lbl->name, stmt->u.ident)){
+				if (lbl->name && list_byte_equ(lbl->name, stmt->u.ident)){
 					label_jump(lbl, prg->ops);
 					return pgr_ok();
 				}
@@ -8640,7 +8645,7 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 			bool found = false;
 			for (int i = 0; i < sym->fr->lbls->size; i++){
 				lbl = sym->fr->lbls->ptrs[i];
-				if (list_byte_equ(lbl->name, stmt->u.ident)){
+				if (lbl->name && list_byte_equ(lbl->name, stmt->u.ident)){
 					if (lbl->pos >= 0){
 						return pgr_error(stmt->flp, sink_format("Cannot redeclare label \"%.*s\"",
 							stmt->u.ident->size, stmt->u.ident->bytes));
