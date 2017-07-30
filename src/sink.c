@@ -1092,26 +1092,20 @@ static inline void op_arg(list_byte b, varloc_st arg){
 
 static inline void op_binop(list_byte b, op_enum opcode, varloc_st tgt, varloc_st src1,
 	varloc_st src2){
-	// rewire GT to LT and GTE to LTE
-	if (opcode == OP_GT){ // GT
-		opcode = OP_LT;
-		varloc_st t = src1;
-		src1 = src2;
-		src2 = t;
-	}
-	else if (opcode == OP_GTE){ // GTE
-		opcode = OP_LTE;
-		varloc_st t = src1;
-		src1 = src2;
-		src2 = t;
-	}
-
 	// intercept cat
 	if (opcode == OP_CAT){
 		op_cat(b, tgt, 2);
 		op_arg(b, src1);
 		op_arg(b, src2);
 		return;
+	}
+
+	// rewire GT to LT and GTE to LTE
+	if (opcode == OP_GT || opcode == OP_GTE){
+		opcode = opcode == OP_GT ? OP_LT : OP_LTE;
+		varloc_st t = src1;
+		src1 = src2;
+		src2 = t;
 	}
 
 	#ifdef SINK_DEBUG
@@ -1965,7 +1959,6 @@ static void lex_process(lex lx, list_ptr tks){
 			else if (isNum(ch1)){
 				numpart_new(&lx->npi);
 				lx->npi.val = toHex(ch1);
-				lx->npi.base = 10;
 				if (lx->npi.val == 0)
 					lx->state = LEX_NUM_0;
 				else
@@ -2032,22 +2025,18 @@ static void lex_process(lex lx, list_ptr tks){
 			}
 			else{
 				ks_enum ks1 = ks_char(lx->ch2);
-				if (ks1 != KS_INVALID){
-					// hack to detect difference between binary and unary +/-
-					if (ks1 == KS_PLUS){
-						if (!isSpace(ch1) && isSpace(lx->ch3))
-							ks1 = KS_UNPLUS;
-					}
-					else if (ks1 == KS_MINUS){
-						if (!isSpace(ch1) && isSpace(lx->ch3))
-							ks1 = KS_UNMINUS;
-					}
-					list_ptr_push(tks, tok_ks(ks1));
-					lx->state = LEX_START;
-					lex_process(lx, tks);
+				// hack to detect difference between binary and unary +/-
+				if (ks1 == KS_PLUS){
+					if (!isSpace(ch1) && isSpace(lx->ch3))
+						ks1 = KS_UNPLUS;
 				}
-				else
-					list_ptr_push(tks, tok_error(sink_format("Unexpected character: %c", lx->ch2)));
+				else if (ks1 == KS_MINUS){
+					if (!isSpace(ch1) && isSpace(lx->ch3))
+						ks1 = KS_UNMINUS;
+				}
+				list_ptr_push(tks, tok_ks(ks1));
+				lx->state = LEX_START;
+				lex_process(lx, tks);
 			}
 			break;
 
@@ -2066,27 +2055,17 @@ static void lex_process(lex lx, list_ptr tks){
 				}
 				else{
 					ks_enum ks1 = ks_char(lx->ch3);
-					if (ks1 != KS_INVALID){
-						// hack to detect difference between binary and unary +/-
-						if (ks1 == KS_PLUS){
-							if (!isSpace(lx->ch2) && isSpace(lx->ch4))
-								ks1 = KS_UNPLUS;
-						}
-						else if (ks1 == KS_MINUS){
-							if (!isSpace(lx->ch2) && isSpace(lx->ch4))
-								ks1 = KS_UNMINUS;
-						}
-						list_ptr_push(tks, tok_ks(ks1));
-						lx->state = LEX_START;
-						lex_rev(lx);
-						lex_process(lx, tks);
-						lex_fwd(lx, lx->chR);
-						lex_process(lx, tks);
-					}
-					else{
-						list_ptr_push(tks,
-							tok_error(sink_format("Unexpected character: %c", lx->ch3)));
-					}
+					// hack to detect difference between binary and unary +/-
+					if (ks1 == KS_PLUS && isSpace(lx->ch4))
+						ks1 = KS_UNPLUS;
+					else if (ks1 == KS_MINUS && isSpace(lx->ch4))
+						ks1 = KS_UNMINUS;
+					list_ptr_push(tks, tok_ks(ks1));
+					lx->state = LEX_START;
+					lex_rev(lx);
+					lex_process(lx, tks);
+					lex_fwd(lx, lx->chR);
+					lex_process(lx, tks);
 				}
 			}
 		} break;
@@ -2243,7 +2222,7 @@ static void lex_process(lex lx, list_ptr tks){
 			break;
 
 		case LEX_STR_BASIC_ESC:
-			if (ch1 == '\'' || ch1 == '\''){
+			if (ch1 == '\''){
 				list_byte_push(lx->str, ch1);
 				lx->state = LEX_STR_BASIC;
 			}
@@ -2405,34 +2384,17 @@ static void lex_close(lex lx, list_ptr tks){
 			list_ptr_push(tks, tok_error(sink_format("Missing end of block comment")));
 			return;
 
-		case LEX_SPECIAL1: {
-			ks_enum ks1 = ks_char(lx->ch1);
-			if (ks1 != KS_INVALID)
-				list_ptr_push(tks, tok_ks(ks1));
-			else
-				list_ptr_push(tks, tok_error(sink_format("Unexpected character: %c", lx->ch1)));
-		} break;
+		case LEX_SPECIAL1:
+			list_ptr_push(tks, tok_ks(ks_char(lx->ch1)));
+			break;
 
 		case LEX_SPECIAL2: {
 			ks_enum ks2 = ks_char2(lx->ch2, lx->ch1);
 			if (ks2 != KS_INVALID)
 				list_ptr_push(tks, tok_ks(ks2));
 			else{
-				ks_enum ks1 = ks_char(lx->ch2);
-				ks2 = ks_char(lx->ch1);
-				if (ks1 != KS_INVALID){
-					list_ptr_push(tks, tok_ks(ks1));
-					if (ks2 != KS_INVALID)
-						list_ptr_push(tks, tok_ks(ks2));
-					else{
-						list_ptr_push(tks,
-							tok_error(sink_format("Unexpected character: %c", lx->ch1)));
-					}
-				}
-				else{
-					list_ptr_push(tks,
-						tok_error(sink_format("Unexpected character: %c", lx->ch2)));
-				}
+				list_ptr_push(tks, tok_ks(ks_char(lx->ch2)));
+				list_ptr_push(tks, tok_ks(ks_char(lx->ch1)));
 			}
 		} break;
 
