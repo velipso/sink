@@ -224,7 +224,7 @@ static inline list_byte list_byte_new(){
 static inline list_byte list_byte_newcopy(list_byte b){
 	list_byte b2 = mem_alloc(sizeof(list_byte_st));
 	b2->size = b->size;
-	b2->count = b->size;
+	b2->count = b->size + 1; // make room for NULL if required later
 	b2->bytes = mem_alloc(sizeof(uint8_t) * b2->count);
 	if (b->size > 0)
 		memcpy(b2->bytes, b->bytes, sizeof(uint8_t) * b->size);
@@ -234,7 +234,7 @@ static inline list_byte list_byte_newcopy(list_byte b){
 static inline list_byte list_byte_newstr(const char *data){
 	list_byte b = mem_alloc(sizeof(list_byte_st));
 	b->size = (int)strlen(data);
-	b->count = b->size;
+	b->count = b->size + 1;
 	b->bytes = mem_alloc(sizeof(uint8_t) * b->count);
 	memcpy(b->bytes, data, sizeof(uint8_t) * b->count);
 	return b;
@@ -2825,6 +2825,13 @@ static inline expr expr_cat(filepos_st flp, expr left, expr right){
 		right->u.ex = NULL;
 		expr_free(right);
 		right = rt;
+	}
+
+	// check for static concat
+	if (left->type == EXPR_STR && right->type == EXPR_STR){
+		list_byte_append(left->u.str, right->u.str->size, right->u.str->bytes);
+		expr_free(right);
+		return left;
 	}
 
 	list_ptr c = list_ptr_new(expr_free);
