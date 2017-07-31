@@ -6529,8 +6529,10 @@ static lvp_st lval_prepare(pgen_st pgen, expr ex){
 	else if (ex->type == EXPR_LIST){
 		list_ptr body = list_ptr_new(lvr_free);
 		lvr rest = NULL;
-		if (ex->u.ex == NULL)
-			/* do nothing */;
+		if (ex->u.ex == NULL){
+			list_ptr_free(body);
+			return lvp_error(ex->flp, sink_format("Invalid assignment"));
+		}
 		else if (ex->u.ex->type == EXPR_GROUP){
 			for (int i = 0; i < ex->u.ex->u.group->size; i++){
 				expr gex = ex->u.ex->u.group->ptrs[i];
@@ -8689,11 +8691,16 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 //
 
 static inline void bmp_setbit(uint64_t *bmp, int index){
-	((bmp)[(index) / 64] |= (UINT64_C(1) << ((index) % 64)));
+	bmp[index / 64] |= UINT64_C(1) << (index % 64);
 }
 
-static inline bool bmp_hasbit(uint64_t *bmp, int index){
-	return ((bmp)[(index) / 64] & (UINT64_C(1) << ((index) % 64)));
+static inline bool bmp_hassetbit(uint64_t *bmp, int index){
+	int k = index / 64;
+	uint64_t mask = UINT64_C(1) << (index % 64);
+	if (bmp[k] & mask)
+		return true;
+	bmp[k] |= mask;
+	return false;
 }
 
 static inline int bmp_alloc(uint64_t *bmp, int count){
@@ -8966,8 +8973,7 @@ static void context_markvals(context ctx, int size, sink_val *vals){
 		}
 		else if (sink_islist(vals[i])){
 			int idx = var_index(vals[i]);
-			if (!bmp_hasbit(ctx->list_ref, idx)){
-				bmp_setbit(ctx->list_ref, idx);
+			if (!bmp_hassetbit(ctx->list_ref, idx)){
 				sink_list ls = &ctx->list_tbl[idx];
 				context_markvals(ctx, ls->size, ls->vals);
 			}
@@ -10695,14 +10701,15 @@ static inline sink_run opi_abort(context ctx, char *err){
 				break;
 			flp = p->flp;
 		}
-		if (flp.line >= 0){
-			char *err2 = filepos_err(flp, err);
-			mem_free(err);
-			err = err2;
-		}
 		if (ctx->err)
 			mem_free(ctx->err);
-		ctx->err = sink_format("Error: %s", err);
+		if (flp.line >= 0){
+			char *err2 = filepos_err(flp, err);
+			ctx->err = sink_format("Error: %s", err2);
+			mem_free(err2);
+		}
+		else
+			ctx->err = sink_format("Error: %s", err);
 		mem_free(err);
 	}
 	ctx->failed = true;
@@ -14409,9 +14416,7 @@ void sink_scr_free(sink_scr scr){
 	if (sc->err)
 		mem_free(sc->err);
 	mem_free(sc);
-	#ifdef SINK_MEMTEST
 	mem_done();
-	#endif
 }
 
 //
