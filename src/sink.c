@@ -2833,6 +2833,17 @@ static inline expr expr_cat(filepos_st flp, expr left, expr right){
 		expr_free(right);
 		return left;
 	}
+	else if (left->type == EXPR_LIST && right->type == EXPR_LIST){
+		if (right->u.ex){
+			if (left->u.ex)
+				left->u.ex = expr_group(flp, left->u.ex, right->u.ex);
+			else
+				left->u.ex = right->u.ex;
+			right->u.ex = NULL;
+		}
+		expr_free(right);
+		return left;
+	}
 
 	list_ptr c = list_ptr_new(expr_free);
 	if (left->type == EXPR_CAT){
