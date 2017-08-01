@@ -3021,8 +3021,7 @@ typedef enum {
 
 typedef struct {
 	decl_enum type;
-	filepos_st flpN; // location of names
-	filepos_st flpK; // location of key
+	filepos_st flp; // location of names
 	list_ptr names;
 	list_byte key;
 } decl_st, *decl;
@@ -3035,21 +3034,19 @@ static inline void decl_free(decl dc){
 	mem_free(dc);
 }
 
-static inline decl decl_local(filepos_st flpN, list_ptr names){
+static inline decl decl_local(filepos_st flp, list_ptr names){
 	decl dc = mem_alloc(sizeof(decl_st));
 	dc->type = DECL_LOCAL;
-	dc->flpN = flpN;
-	dc->flpK = FILEPOS_NULL;
+	dc->flp = flp;
 	dc->names = names;
 	dc->key = NULL;
 	return dc;
 }
 
-static inline decl decl_native(filepos_st flpN, list_ptr names, filepos_st flpK, list_byte key){
+static inline decl decl_native(filepos_st flp, list_ptr names, list_byte key){
 	decl dc = mem_alloc(sizeof(decl_st));
 	dc->type = DECL_NATIVE;
-	dc->flpN = flpN;
-	dc->flpK = flpK;
+	dc->flp = flp;
 	dc->names = names;
 	dc->key = key;
 	return dc;
@@ -3096,6 +3093,7 @@ typedef struct {
 		list_ptr names;
 		expr ex;
 		struct {
+			filepos_st flpN;
 			list_ptr names;
 			list_ptr lvalues;
 		} def1;
@@ -3390,10 +3388,11 @@ static inline ast ast_declare(filepos_st flp, decl dc){
 	return stmt;
 }
 
-static inline ast ast_def1(filepos_st flp, list_ptr names, list_ptr lvalues){
+static inline ast ast_def1(filepos_st flp, filepos_st flpN, list_ptr names, list_ptr lvalues){
 	ast stmt = mem_alloc(sizeof(ast_st));
 	stmt->flp = flp;
 	stmt->type = AST_DEF1;
+	stmt->u.def1.flpN = flpN;
 	stmt->u.def1.names = names;
 	stmt->u.def1.lvalues = lvalues;
 	return stmt;
@@ -4293,8 +4292,7 @@ static const char *parser_process(parser pr, list_ptr stmts){
 		case PRS_DECLARE_STR:
 			if (tk1->type != TOK_STR)
 				return "Expecting string constant";
-			list_ptr_push(stmts, ast_declare(flpS,
-				decl_native(flpL, st->names, tk1->flp, tk1->u.str)));
+			list_ptr_push(stmts, ast_declare(flpS, decl_native(flpL, st->names, tk1->u.str)));
 			st->names = NULL;
 			tk1->u.str = NULL;
 			st->state = PRS_DECLARE_STR2;
@@ -4325,7 +4323,7 @@ static const char *parser_process(parser pr, list_ptr stmts){
 		case PRS_DEF_LVALUES:
 			if (tk1->type != TOK_NEWLINE)
 				return "Missing newline or semicolon";
-			list_ptr_push(stmts, ast_def1(flpS, st->names, st->lvalues));
+			list_ptr_push(stmts, ast_def1(flpS, flpL, st->names, st->lvalues));
 			st->names = NULL;
 			st->lvalues = NULL;
 			st->state = PRS_DEF_BODY;
@@ -8372,13 +8370,13 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 					list_ptr_push(sym->fr->lbls, lbl);
 					char *smsg = symtbl_addCmdLocal(sym, dc->names, lbl);
 					if (smsg)
-						return pgr_error(stmt->flp, smsg);
+						return pgr_error(dc->flp, smsg);
 				} break;
 				case DECL_NATIVE: {
 					char *smsg = symtbl_addCmdNative(sym, dc->names,
 						native_hash(dc->key->size, dc->key->bytes));
 					if (smsg)
-						return pgr_error(stmt->flp, smsg);
+						return pgr_error(dc->flp, smsg);
 				} break;
 			}
 			return pgr_ok();
@@ -8391,14 +8389,14 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 				lbl = n.nsn->u.cmdLocal.lbl;
 				if (!sym->repl && lbl->pos >= 0){ // if already defined, error
 					list_byte b = stmt->u.def1.names->ptrs[0];
-					char *join = sink_format("Cannot redefine: %.*s", b->size, b->bytes);
+					char *join = sink_format("Cannot redefine \"%.*s\"", b->size, b->bytes);
 					for (int i = 1; i < stmt->u.def1.names->size; i++){
 						b = stmt->u.def1.names->ptrs[i];
 						char *join2 = sink_format("%s.%.*s", join, b->size, b->bytes);
 						mem_free(join);
 						join = join2;
 					}
-					return pgr_error(stmt->flp, join);
+					return pgr_error(stmt->u.def1.flpN, join);
 				}
 			}
 			else{
@@ -8406,7 +8404,7 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 				list_ptr_push(sym->fr->lbls, lbl);
 				char *smsg = symtbl_addCmdLocal(sym, stmt->u.def1.names, lbl);
 				if (smsg)
-					return pgr_error(stmt->flp, smsg);
+					return pgr_error(stmt->u.def1.flpN, smsg);
 			}
 
 			int level = sym->fr->level + 1;
@@ -14215,7 +14213,8 @@ static char *compiler_process(compiler cmp){
 						pgst_free(list_ptr_pop(pgsl));
 						break;
 					case PGR_ERROR:
-						compiler_setmsg(cmp, program_errormsg(cmp->prg, stmt->flp, pg.u.error.msg));
+						compiler_setmsg(cmp,
+							program_errormsg(cmp->prg, pg.u.error.flp, pg.u.error.msg));
 						ast_free(stmt);
 						mem_free(pg.u.error.msg);
 						list_ptr_free(stmts);
