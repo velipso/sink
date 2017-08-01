@@ -1559,37 +1559,63 @@ static void tok_print(tok tk){
 	#ifdef SINK_DEBUG
 	switch (tk->type){
 		case TOK_NEWLINE:
-			debug("TOK_NEWLINE");
+			debugf("TOK_NEWLINE [%d/%d/%d:%d]",
+				tk->flp.basefile, tk->flp.fullfile, tk->flp.line, tk->flp.chr);
 			break;
 		case TOK_KS:
-			debugf("TOK_KS %s", ks_name(tk->u.k));
+			debugf("TOK_KS [%d/%d/%d:%d] %s",
+				tk->flp.basefile, tk->flp.fullfile, tk->flp.line, tk->flp.chr, ks_name(tk->u.k));
 			break;
 		case TOK_IDENT:
-			if (tk->u.ident)
-				debugf("TOK_IDENT \"%.*s\"", tk->u.ident->size, tk->u.ident->bytes);
-			else
-				debug("TOK_IDENT NULL");
+			if (tk->u.ident){
+				debugf("TOK_IDENT [%d/%d/%d:%d] \"%.*s\"",
+					tk->flp.basefile, tk->flp.fullfile, tk->flp.line, tk->flp.chr,
+					tk->u.ident->size, tk->u.ident->bytes);
+			}
+			else{
+				debugf("TOK_IDENT [%d/%d/%d:%d] NULL",
+					tk->flp.basefile, tk->flp.fullfile, tk->flp.line, tk->flp.chr);
+			}
 			break;
 		case TOK_NUM:
-			debugf("TOK_NUM %g", tk->u.num);
+			debugf("TOK_NUM [%d/%d/%d:%d] %g",
+				tk->flp.basefile, tk->flp.fullfile, tk->flp.line, tk->flp.chr, tk->u.num);
 			break;
 		case TOK_STR:
-			if (tk->u.str)
-				debugf("TOK_STR \"%.*s\"", tk->u.str->size, tk->u.str->bytes);
-			else
-				debug("TOK_STR NULL");
+			if (tk->u.str){
+				debugf("TOK_STR [%d/%d/%d:%d] \"%.*s\"",
+					tk->flp.basefile, tk->flp.fullfile, tk->flp.line, tk->flp.chr,
+					tk->u.str->size, tk->u.str->bytes);
+			}
+			else{
+				debugf("TOK_STR [%d/%d/%d:%d] NULL",
+					tk->flp.basefile, tk->flp.fullfile, tk->flp.line, tk->flp.chr);
+			}
 			break;
 		case TOK_ERROR:
-			if (tk->u.msg)
-				debugf("TOK_ERROR \"%s\"", tk->u.msg);
-			else
-				debug("TOK_ERROR NULL");
+			if (tk->u.msg){
+				debugf("TOK_ERROR [%d/%d/%d:%d] \"%s\"",
+					tk->flp.basefile, tk->flp.fullfile, tk->flp.line, tk->flp.chr, tk->u.msg);
+			}
+			else{
+				debugf("TOK_ERROR [%d/%d/%d:%d] NULL",
+					tk->flp.basefile, tk->flp.fullfile, tk->flp.line, tk->flp.chr);
+			}
 			break;
 	}
 	#endif
 }
 
+#ifdef SINK_DEBUG
+static inline void assertflp(filepos_st flp){
+	assert(flp.basefile >= 0 && flp.fullfile >= 0 && flp.line >= 1 && flp.chr >= 1);
+}
+#else
+#	define assertflp(f)
+#endif
+
 static inline tok tok_newline(filepos_st flp, bool soft){
+	assertflp(flp);
 	tok tk = mem_alloc(sizeof(tok_st));
 	tk->type = TOK_NEWLINE;
 	tk->flp = flp;
@@ -1598,6 +1624,7 @@ static inline tok tok_newline(filepos_st flp, bool soft){
 }
 
 static inline tok tok_ks(filepos_st flp, ks_enum k){
+	assertflp(flp);
 	tok tk = mem_alloc(sizeof(tok_st));
 	tk->type = TOK_KS;
 	tk->flp = flp;
@@ -1606,6 +1633,7 @@ static inline tok tok_ks(filepos_st flp, ks_enum k){
 }
 
 static inline tok tok_ident(filepos_st flp, list_byte ident){
+	assertflp(flp);
 	tok tk = mem_alloc(sizeof(tok_st));
 	tk->type = TOK_IDENT;
 	tk->flp = flp;
@@ -1614,6 +1642,7 @@ static inline tok tok_ident(filepos_st flp, list_byte ident){
 }
 
 static inline tok tok_num(filepos_st flp, double num){
+	assertflp(flp);
 	tok tk = mem_alloc(sizeof(tok_st));
 	tk->type = TOK_NUM;
 	tk->flp = flp;
@@ -1622,6 +1651,7 @@ static inline tok tok_num(filepos_st flp, double num){
 }
 
 static inline tok tok_str(filepos_st flp, list_byte str){
+	assertflp(flp);
 	tok tk = mem_alloc(sizeof(tok_st));
 	tk->type = TOK_STR;
 	tk->flp = flp;
@@ -1631,6 +1661,7 @@ static inline tok tok_str(filepos_st flp, list_byte str){
 }
 
 static inline tok tok_error(filepos_st flp, char *msg){
+	assertflp(flp);
 	tok tk = mem_alloc(sizeof(tok_st));
 	tk->type = TOK_ERROR;
 	tk->flp = flp;
@@ -2990,6 +3021,8 @@ typedef enum {
 
 typedef struct {
 	decl_enum type;
+	filepos_st flpN; // location of names
+	filepos_st flpK; // location of key
 	list_ptr names;
 	list_byte key;
 } decl_st, *decl;
@@ -3002,17 +3035,21 @@ static inline void decl_free(decl dc){
 	mem_free(dc);
 }
 
-static inline decl decl_local(list_ptr names){
+static inline decl decl_local(filepos_st flpN, list_ptr names){
 	decl dc = mem_alloc(sizeof(decl_st));
 	dc->type = DECL_LOCAL;
+	dc->flpN = flpN;
+	dc->flpK = FILEPOS_NULL;
 	dc->names = names;
 	dc->key = NULL;
 	return dc;
 }
 
-static inline decl decl_native(list_ptr names, list_byte key){
+static inline decl decl_native(filepos_st flpN, list_ptr names, filepos_st flpK, list_byte key){
 	decl dc = mem_alloc(sizeof(decl_st));
 	dc->type = DECL_NATIVE;
+	dc->flpN = flpN;
+	dc->flpK = flpK;
 	dc->names = names;
 	dc->key = key;
 	return dc;
@@ -3492,6 +3529,7 @@ static inline incl incl_new(list_ptr names, list_byte file){
 }
 
 static inline ast ast_include(filepos_st flp, list_ptr incls){
+	assertflp(flp);
 	ast stmt = mem_alloc(sizeof(ast_st));
 	stmt->flp = flp;
 	stmt->type = AST_INCLUDE;
@@ -3500,6 +3538,7 @@ static inline ast ast_include(filepos_st flp, list_ptr incls){
 }
 
 static inline ast ast_namespace1(filepos_st flp, list_ptr names){
+	assertflp(flp);
 	ast stmt = mem_alloc(sizeof(ast_st));
 	stmt->flp = flp;
 	stmt->type = AST_NAMESPACE1;
@@ -3508,6 +3547,7 @@ static inline ast ast_namespace1(filepos_st flp, list_ptr names){
 }
 
 static inline ast ast_namespace2(filepos_st flp){
+	assertflp(flp);
 	ast stmt = mem_alloc(sizeof(ast_st));
 	stmt->flp = flp;
 	stmt->type = AST_NAMESPACE2;
@@ -3515,6 +3555,7 @@ static inline ast ast_namespace2(filepos_st flp){
 }
 
 static inline ast ast_return(filepos_st flp, expr ex){
+	assertflp(flp);
 	ast stmt = mem_alloc(sizeof(ast_st));
 	stmt->flp = flp;
 	stmt->type = AST_RETURN;
@@ -3523,6 +3564,7 @@ static inline ast ast_return(filepos_st flp, expr ex){
 }
 
 static inline ast ast_using(filepos_st flp, list_ptr names){
+	assertflp(flp);
 	ast stmt = mem_alloc(sizeof(ast_st));
 	stmt->flp = flp;
 	stmt->type = AST_USING;
@@ -3531,6 +3573,7 @@ static inline ast ast_using(filepos_st flp, list_ptr names){
 }
 
 static inline ast ast_var(filepos_st flp, list_ptr lvalues){
+	assertflp(flp);
 	ast stmt = mem_alloc(sizeof(ast_st));
 	stmt->flp = flp;
 	stmt->type = AST_VAR;
@@ -3539,6 +3582,7 @@ static inline ast ast_var(filepos_st flp, list_ptr lvalues){
 }
 
 static inline ast ast_eval(filepos_st flp, expr ex){
+	assertflp(flp);
 	ast stmt = mem_alloc(sizeof(ast_st));
 	stmt->flp = flp;
 	stmt->type = AST_EVAL;
@@ -3547,6 +3591,7 @@ static inline ast ast_eval(filepos_st flp, expr ex){
 }
 
 static inline ast ast_label(filepos_st flp, list_byte ident){
+	assertflp(flp);
 	ast stmt = mem_alloc(sizeof(ast_st));
 	stmt->flp = flp;
 	stmt->type = AST_LABEL;
@@ -3694,6 +3739,7 @@ typedef enum {
 	PRS_EVAL,
 	PRS_EVAL_EXPR,
 	PRS_EXPR,
+	PRS_EXPR_PRE,
 	PRS_EXPR_TERM,
 	PRS_EXPR_TERM_ISEMPTYLIST,
 	PRS_EXPR_TERM_CLOSEBRACE,
@@ -3726,7 +3772,9 @@ struct prs_struct {
 	lvm_enum lvaluesMode;
 	bool forVar;
 	list_byte str;
-	filepos_st flp;
+	filepos_st flpS; // statment flp
+	filepos_st flpL; // lookup flp
+	filepos_st flpE; // expr flp
 	bool exprAllowComma;
 	bool exprAllowPipe;
 	bool exprAllowTrailComma;
@@ -3802,7 +3850,9 @@ static prs prs_new(prs_enum state, prs next){
 	pr->lvaluesMode = LVM_VAR;
 	pr->forVar = false;
 	pr->str = NULL;
-	pr->flp = FILEPOS_NULL;
+	pr->flpS = FILEPOS_NULL;
+	pr->flpL = FILEPOS_NULL;
+	pr->flpE = FILEPOS_NULL;
 	pr->exprAllowComma = true;
 	pr->exprAllowPipe = true;
 	pr->exprAllowTrailComma = false;
@@ -3908,15 +3958,15 @@ static inline pri_st pri_error(char *msg){
 static inline pri_st parser_infix(filepos_st flp, ks_enum k, expr left, expr right){
 	if (k == KS_PIPE){
 		if (right->type == EXPR_CALL){
-			right->u.call.params = expr_infix(left->flp, KS_COMMA, expr_paren(left->flp, left),
+			right->u.call.params = expr_infix(flp, KS_COMMA, expr_paren(left->flp, left),
 				right->u.call.params);
 			return pri_ok(right);
 		}
 		else if (right->type == EXPR_NAMES)
-			return pri_ok(expr_call(left->flp, right, expr_paren(left->flp, left)));
+			return pri_ok(expr_call(right->flp, right, expr_paren(left->flp, left)));
 		return pri_error("Invalid pipe");
 	}
-	return pri_ok(expr_infix(left->flp, k, left, right));
+	return pri_ok(expr_infix(flp, k, left, right));
 }
 
 static inline void parser_lvalues(parser pr, prs_enum retstate, lvm_enum lvm){
@@ -3931,24 +3981,25 @@ static inline void parser_expr(parser pr, prs_enum retstate){
 	parser_push(pr, PRS_EXPR);
 }
 
-static inline const char *parser_start(parser pr, prs_enum state){
+static inline const char *parser_start(parser pr, filepos_st flpS, prs_enum state){
 	pr->level++;
 	pr->state->state = state;
+	pr->state->flpS = flpS;
 	return NULL;
 }
 
 // returns NULL for success, or an error message
 static const char *parser_process(parser pr, list_ptr stmts);
 
-static inline const char *parser_statement(parser pr, filepos_st flp, list_ptr stmts, bool more){
+static inline const char *parser_statement(parser pr, list_ptr stmts, bool more){
 	pr->level--;
 	pr->state->state = PRS_STATEMENT_END;
 	return more ? NULL : parser_process(pr, stmts);
 }
 
-static inline const char *parser_lookup(parser pr, filepos_st flp, prs_enum retstate){
+static inline const char *parser_lookup(parser pr, filepos_st flpL, prs_enum retstate){
 	pr->state->state = retstate;
-	pr->state->flp = flp;
+	pr->state->flpL = flpL;
 	parser_push(pr, PRS_LOOKUP);
 	pr->state->names = list_ptr_new(list_byte_free);
 	list_ptr_push(pr->state->names, pr->tk1->u.ident);
@@ -3958,30 +4009,36 @@ static inline const char *parser_lookup(parser pr, filepos_st flp, prs_enum rets
 
 static const char *parser_process(parser pr, list_ptr stmts){
 	tok tk1 = pr->tk1;
-	filepos_st flp = tk1->flp;
 	prs st = pr->state;
+	filepos_st flpT = tk1->flp;
+	filepos_st flpS = st->flpS;
+	filepos_st flpL = st->flpL;
+	filepos_st flpE = st->flpE;
 	switch (st->state){
 		case PRS_STATEMENT:
 			if      (tk1->type == TOK_NEWLINE   ) return NULL;
-			else if (tok_isKS(tk1, KS_BREAK    )) return parser_start(pr, PRS_BREAK    );
-			else if (tok_isKS(tk1, KS_CONTINUE )) return parser_start(pr, PRS_CONTINUE );
-			else if (tok_isKS(tk1, KS_DECLARE  )) return parser_start(pr, PRS_DECLARE  );
-			else if (tok_isKS(tk1, KS_DEF      )) return parser_start(pr, PRS_DEF      );
-			else if (tok_isKS(tk1, KS_DO       )) return parser_start(pr, PRS_DO       );
-			else if (tok_isKS(tk1, KS_ENUM     )) return parser_start(pr, PRS_ENUM     );
-			else if (tok_isKS(tk1, KS_FOR      )) return parser_start(pr, PRS_FOR      );
-			else if (tok_isKS(tk1, KS_GOTO     )) return parser_start(pr, PRS_GOTO     );
-			else if (tok_isKS(tk1, KS_IF       )) return parser_start(pr, PRS_IF       );
-			else if (tok_isKS(tk1, KS_INCLUDE  )) return parser_start(pr, PRS_INCLUDE  );
-			else if (tok_isKS(tk1, KS_NAMESPACE)) return parser_start(pr, PRS_NAMESPACE);
-			else if (tok_isKS(tk1, KS_RETURN   )) return parser_start(pr, PRS_RETURN   );
-			else if (tok_isKS(tk1, KS_USING    )) return parser_start(pr, PRS_USING    );
-			else if (tok_isKS(tk1, KS_VAR      )) return parser_start(pr, PRS_VAR      );
-			else if (tk1->type == TOK_IDENT)
-				return parser_lookup(pr, flp, PRS_IDENTS);
+			else if (tok_isKS(tk1, KS_BREAK    )) return parser_start(pr, flpT, PRS_BREAK    );
+			else if (tok_isKS(tk1, KS_CONTINUE )) return parser_start(pr, flpT, PRS_CONTINUE );
+			else if (tok_isKS(tk1, KS_DECLARE  )) return parser_start(pr, flpT, PRS_DECLARE  );
+			else if (tok_isKS(tk1, KS_DEF      )) return parser_start(pr, flpT, PRS_DEF      );
+			else if (tok_isKS(tk1, KS_DO       )) return parser_start(pr, flpT, PRS_DO       );
+			else if (tok_isKS(tk1, KS_ENUM     )) return parser_start(pr, flpT, PRS_ENUM     );
+			else if (tok_isKS(tk1, KS_FOR      )) return parser_start(pr, flpT, PRS_FOR      );
+			else if (tok_isKS(tk1, KS_GOTO     )) return parser_start(pr, flpT, PRS_GOTO     );
+			else if (tok_isKS(tk1, KS_IF       )) return parser_start(pr, flpT, PRS_IF       );
+			else if (tok_isKS(tk1, KS_INCLUDE  )) return parser_start(pr, flpT, PRS_INCLUDE  );
+			else if (tok_isKS(tk1, KS_NAMESPACE)) return parser_start(pr, flpT, PRS_NAMESPACE);
+			else if (tok_isKS(tk1, KS_RETURN   )) return parser_start(pr, flpT, PRS_RETURN   );
+			else if (tok_isKS(tk1, KS_USING    )) return parser_start(pr, flpT, PRS_USING    );
+			else if (tok_isKS(tk1, KS_VAR      )) return parser_start(pr, flpT, PRS_VAR      );
+			else if (tk1->type == TOK_IDENT){
+				st->flpS = flpT;
+				return parser_lookup(pr, flpT, PRS_IDENTS);
+			}
 			else if (tok_isPre(tk1) || tok_isTerm(tk1)){
 				pr->level++;
 				st->state = PRS_EVAL;
+				st->flpS = flpT;
 				return parser_process(pr, stmts);
 			}
 			else if (tok_isMidStmt(tk1)){
@@ -4043,11 +4100,12 @@ static const char *parser_process(parser pr, list_ptr stmts){
 
 		case PRS_LVALUES_TERM:
 			if (tk1->type == TOK_IDENT)
-				return parser_lookup(pr, flp, PRS_LVALUES_TERM_LOOKUP);
+				return parser_lookup(pr, flpT, PRS_LVALUES_TERM_LOOKUP);
 			if (st->lvaluesMode == LVM_ENUM)
 				return "Expecting enumerator name";
 			if (tok_isKS(tk1, KS_LBRACE)){
 				st->state = PRS_LVALUES_TERM_LIST_DONE;
+				st->flpE = flpT;
 				parser_push(pr, PRS_LVALUES_TERM_LIST);
 				return NULL;
 			}
@@ -4064,7 +4122,7 @@ static const char *parser_process(parser pr, list_ptr stmts){
 			return "Expecting variable";
 
 		case PRS_LVALUES_TERM_LOOKUP:
-			st->next->exprTerm = expr_names(st->flp, st->names);
+			st->next->exprTerm = expr_names(flpL, st->names);
 			st->names = NULL;
 			parser_pop(pr);
 			return parser_process(pr, stmts);
@@ -4111,7 +4169,7 @@ static const char *parser_process(parser pr, list_ptr stmts){
 		case PRS_LVALUES_TERM_LIST_TAIL:
 			if (tk1->type != TOK_IDENT)
 				return "Expecting identifier";
-			return parser_lookup(pr, flp, PRS_LVALUES_TERM_LIST_TAIL_LOOKUP);
+			return parser_lookup(pr, flpT, PRS_LVALUES_TERM_LIST_TAIL_LOOKUP);
 
 		case PRS_LVALUES_TERM_LIST_TAIL_LOOKUP:
 			if (tk1->type == TOK_NEWLINE && !tk1->u.soft)
@@ -4124,21 +4182,20 @@ static const char *parser_process(parser pr, list_ptr stmts){
 		case PRS_LVALUES_TERM_LIST_TAIL_DONE:
 			if (!tok_isKS(tk1, KS_RBRACE))
 				return "Missing end of list";
-			st->next->exprTerm = expr_prefix(flp, KS_PERIOD3, expr_names(st->flp, st->names));
+			st->next->exprTerm = expr_prefix(flpL, KS_PERIOD3, expr_names(flpL, st->names));
 			st->names = NULL;
 			parser_pop(pr);
 			return parser_process(pr, stmts);
 
 		case PRS_LVALUES_TERM_LIST_DONE:
-			st->next->exprTerm = expr_list(flp, st->exprTerm);
+			st->next->exprTerm = expr_list(flpE, st->exprTerm);
 			st->exprTerm = NULL;
 			parser_pop(pr);
 			return parser_process(pr, stmts);
 
 		case PRS_LVALUES_TERM_DONE:
 			if (tk1->type == TOK_NEWLINE){
-				list_ptr_push(st->lvalues,
-					expr_infix(st->exprTerm->flp, KS_EQU, st->exprTerm, NULL));
+				list_ptr_push(st->lvalues, expr_infix(flpT, KS_EQU, st->exprTerm, NULL));
 				st->exprTerm = NULL;
 				st->next->lvalues = st->lvalues;
 				st->lvalues = NULL;
@@ -4189,18 +4246,16 @@ static const char *parser_process(parser pr, list_ptr stmts){
 		case PRS_LVALUES_DEF_TAIL:
 			if (tk1->type != TOK_IDENT)
 				return "Expecting identifier";
-			return parser_lookup(pr, flp, PRS_LVALUES_DEF_TAIL_DONE);
+			return parser_lookup(pr, flpT, PRS_LVALUES_DEF_TAIL_DONE);
 
 		case PRS_LVALUES_DEF_TAIL_DONE:
 			if (tk1->type != TOK_NEWLINE)
 				return "Missing newline or semicolon";
 			st->next->names = st->names;
-			st->next->flp = st->flp;
 			st->names = NULL;
 			parser_pop(pr);
 			st = pr->state;
-			list_ptr_push(st->lvalues,
-				expr_prefix(flp, KS_PERIOD3, expr_names(st->flp, st->names)));
+			list_ptr_push(st->lvalues, expr_prefix(flpL, KS_PERIOD3, expr_names(flpL, st->names)));
 			st->names = NULL;
 			st->next->lvalues = st->lvalues;
 			st->lvalues = NULL;
@@ -4208,37 +4263,38 @@ static const char *parser_process(parser pr, list_ptr stmts){
 			return parser_process(pr, stmts);
 
 		case PRS_BREAK:
-			list_ptr_push(stmts, ast_break(flp));
-			return parser_statement(pr, flp, stmts, false);
+			list_ptr_push(stmts, ast_break(flpS));
+			return parser_statement(pr, stmts, false);
 
 		case PRS_CONTINUE:
-			list_ptr_push(stmts, ast_continue(flp));
-			return parser_statement(pr, flp, stmts, false);
+			list_ptr_push(stmts, ast_continue(flpS));
+			return parser_statement(pr, stmts, false);
 
 		case PRS_DECLARE:
 			if (tk1->type == TOK_NEWLINE && !tk1->u.soft)
 				return NULL;
 			if (tk1->type != TOK_IDENT)
 				return "Expecting identifier";
-			return parser_lookup(pr, flp, PRS_DECLARE_LOOKUP);
+			return parser_lookup(pr, flpT, PRS_DECLARE_LOOKUP);
 
 		case PRS_DECLARE_LOOKUP:
 			if (tok_isKS(tk1, KS_LPAREN)){
 				st->state = PRS_DECLARE_STR;
 				return NULL;
 			}
-			list_ptr_push(stmts, ast_declare(flp, decl_local(st->names)));
+			list_ptr_push(stmts, ast_declare(flpS, decl_local(flpL, st->names)));
 			st->names = NULL;
 			if (tok_isKS(tk1, KS_COMMA)){
 				st->state = PRS_DECLARE;
 				return NULL;
 			}
-			return parser_statement(pr, flp, stmts, false);
+			return parser_statement(pr, stmts, false);
 
 		case PRS_DECLARE_STR:
 			if (tk1->type != TOK_STR)
 				return "Expecting string constant";
-			list_ptr_push(stmts, ast_declare(flp, decl_native(st->names, tk1->u.str)));
+			list_ptr_push(stmts, ast_declare(flpS,
+				decl_native(flpL, st->names, tk1->flp, tk1->u.str)));
 			st->names = NULL;
 			tk1->u.str = NULL;
 			st->state = PRS_DECLARE_STR2;
@@ -4255,12 +4311,12 @@ static const char *parser_process(parser pr, list_ptr stmts){
 				st->state = PRS_DECLARE;
 				return NULL;
 			}
-			return parser_statement(pr, flp, stmts, false);
+			return parser_statement(pr, stmts, false);
 
 		case PRS_DEF:
 			if (tk1->type != TOK_IDENT)
 				return "Expecting identifier";
-			return parser_lookup(pr, flp, PRS_DEF_LOOKUP);
+			return parser_lookup(pr, flpT, PRS_DEF_LOOKUP);
 
 		case PRS_DEF_LOOKUP:
 			parser_lvalues(pr, PRS_DEF_LVALUES, LVM_DEF);
@@ -4269,7 +4325,7 @@ static const char *parser_process(parser pr, list_ptr stmts){
 		case PRS_DEF_LVALUES:
 			if (tk1->type != TOK_NEWLINE)
 				return "Missing newline or semicolon";
-			list_ptr_push(stmts, ast_def1(flp, st->names, st->lvalues));
+			list_ptr_push(stmts, ast_def1(flpS, st->names, st->lvalues));
 			st->names = NULL;
 			st->lvalues = NULL;
 			st->state = PRS_DEF_BODY;
@@ -4279,11 +4335,11 @@ static const char *parser_process(parser pr, list_ptr stmts){
 		case PRS_DEF_BODY:
 			if (!tok_isKS(tk1, KS_END))
 				return "Missing `end` of def block";
-			list_ptr_push(stmts, ast_def2(flp));
-			return parser_statement(pr, flp, stmts, true);
+			list_ptr_push(stmts, ast_def2(flpS));
+			return parser_statement(pr, stmts, true);
 
 		case PRS_DO:
-			list_ptr_push(stmts, ast_dowhile1(flp));
+			list_ptr_push(stmts, ast_dowhile1(flpS));
 			st->state = PRS_DO_BODY;
 			parser_push(pr, PRS_BODY);
 			return parser_process(pr, stmts);
@@ -4294,14 +4350,14 @@ static const char *parser_process(parser pr, list_ptr stmts){
 				return NULL;
 			}
 			else if (tok_isKS(tk1, KS_END)){
-				list_ptr_push(stmts, ast_dowhile2(flp, NULL));
-				list_ptr_push(stmts, ast_dowhile3(flp));
-				return parser_statement(pr, flp, stmts, true);
+				list_ptr_push(stmts, ast_dowhile2(flpS, NULL));
+				list_ptr_push(stmts, ast_dowhile3(flpS));
+				return parser_statement(pr, stmts, true);
 			}
 			return "Missing `while` or `end` of do block";
 
 		case PRS_DO_WHILE_EXPR:
-			list_ptr_push(stmts, ast_dowhile2(flp, st->exprTerm));
+			list_ptr_push(stmts, ast_dowhile2(flpS, st->exprTerm));
 			st->exprTerm = NULL;
 			if (tk1->type == TOK_NEWLINE){
 				st->state = PRS_DO_WHILE_BODY;
@@ -4309,20 +4365,20 @@ static const char *parser_process(parser pr, list_ptr stmts){
 				return NULL;
 			}
 			else if (tok_isKS(tk1, KS_END)){
-				list_ptr_push(stmts, ast_dowhile3(flp));
-				return parser_statement(pr, flp, stmts, true);
+				list_ptr_push(stmts, ast_dowhile3(flpS));
+				return parser_statement(pr, stmts, true);
 			}
 			return "Missing newline or semicolon";
 
 		case PRS_DO_WHILE_BODY:
 			if (!tok_isKS(tk1, KS_END))
 				return "Missing `end` of do-while block";
-			list_ptr_push(stmts, ast_dowhile3(flp));
-			return parser_statement(pr, flp, stmts, true);
+			list_ptr_push(stmts, ast_dowhile3(flpS));
+			return parser_statement(pr, stmts, true);
 
 		case PRS_FOR:
 			if (tk1->type == TOK_NEWLINE){
-				list_ptr_push(stmts, ast_loop1(flp));
+				list_ptr_push(stmts, ast_loop1(flpS));
 				st->state = PRS_LOOP_BODY;
 				parser_push(pr, PRS_BODY);
 				return NULL;
@@ -4341,13 +4397,13 @@ static const char *parser_process(parser pr, list_ptr stmts){
 		case PRS_LOOP_BODY:
 			if (!tok_isKS(tk1, KS_END))
 				return "Missing `end` of for block";
-			list_ptr_push(stmts, ast_loop2(flp));
-			return parser_statement(pr, flp, stmts, true);
+			list_ptr_push(stmts, ast_loop2(flpS));
+			return parser_statement(pr, stmts, true);
 
 		case PRS_FOR_VARS:
 			if (tk1->type != TOK_IDENT)
 				return "Expecting identifier";
-			return parser_lookup(pr, flp, PRS_FOR_VARS_LOOKUP);
+			return parser_lookup(pr, flpT, PRS_FOR_VARS_LOOKUP);
 
 		case PRS_FOR_VARS_LOOKUP:
 			st->names2 = st->names;
@@ -4365,7 +4421,7 @@ static const char *parser_process(parser pr, list_ptr stmts){
 		case PRS_FOR_VARS2:
 			if (tk1->type != TOK_IDENT)
 				return "Expecting identifier";
-			return parser_lookup(pr, flp, PRS_FOR_VARS2_LOOKUP);
+			return parser_lookup(pr, flpT, PRS_FOR_VARS2_LOOKUP);
 
 		case PRS_FOR_VARS2_LOOKUP:
 			if (!tok_isKS(tk1, KS_COLON))
@@ -4380,7 +4436,7 @@ static const char *parser_process(parser pr, list_ptr stmts){
 			return parser_process(pr, stmts);
 
 		case PRS_FOR_EXPR:
-			list_ptr_push(stmts, ast_for1(flp, st->forVar, st->names2, st->names, st->exprTerm));
+			list_ptr_push(stmts, ast_for1(flpS, st->forVar, st->names2, st->names, st->exprTerm));
 			st->names2 = NULL;
 			st->names = NULL;
 			st->exprTerm = NULL;
@@ -4390,26 +4446,26 @@ static const char *parser_process(parser pr, list_ptr stmts){
 				return NULL;
 			}
 			else if (tok_isKS(tk1, KS_END)){
-				list_ptr_push(stmts, ast_for2(flp));
-				return parser_statement(pr, flp, stmts, true);
+				list_ptr_push(stmts, ast_for2(flpS));
+				return parser_statement(pr, stmts, true);
 			}
 			return "Missing newline or semicolon";
 
 		case PRS_FOR_BODY:
 			if (!tok_isKS(tk1, KS_END))
 				return "Missing `end` of for block";
-			list_ptr_push(stmts, ast_for2(flp));
-			return parser_statement(pr, flp, stmts, true);
+			list_ptr_push(stmts, ast_for2(flpS));
+			return parser_statement(pr, stmts, true);
 
 		case PRS_GOTO:
 			if (tk1->type != TOK_IDENT)
 				return "Expecting identifier";
-			list_ptr_push(stmts, ast_goto(flp, tk1->u.ident));
+			list_ptr_push(stmts, ast_goto(flpS, tk1->u.ident));
 			tk1->u.ident = NULL;
-			return parser_statement(pr, flp, stmts, true);
+			return parser_statement(pr, stmts, true);
 
 		case PRS_IF:
-			list_ptr_push(stmts, ast_if1(flp));
+			list_ptr_push(stmts, ast_if1(flpS));
 			st->state = PRS_IF2;
 			return parser_process(pr, stmts);
 
@@ -4420,7 +4476,7 @@ static const char *parser_process(parser pr, list_ptr stmts){
 			return parser_process(pr, stmts);
 
 		case PRS_IF_EXPR:
-			list_ptr_push(stmts, ast_if2(flp, st->exprTerm));
+			list_ptr_push(stmts, ast_if2(flpS, st->exprTerm));
 			st->exprTerm = NULL;
 			if (tk1->type == TOK_NEWLINE){
 				st->state = PRS_IF_BODY;
@@ -4431,15 +4487,15 @@ static const char *parser_process(parser pr, list_ptr stmts){
 				st->state = PRS_IF2;
 				return NULL;
 			}
-			list_ptr_push(stmts, ast_if3(flp));
+			list_ptr_push(stmts, ast_if3(flpS));
 			if (tok_isKS(tk1, KS_ELSE)){
 				st->state = PRS_ELSE_BODY;
 				parser_push(pr, PRS_BODY);
 				return NULL;
 			}
 			else if (tok_isKS(tk1, KS_END)){
-				list_ptr_push(stmts, ast_if4(flp));
-				return parser_statement(pr, flp, stmts, true);
+				list_ptr_push(stmts, ast_if4(flpS));
+				return parser_statement(pr, stmts, true);
 			}
 			return "Missing newline or semicolon";
 
@@ -4448,23 +4504,23 @@ static const char *parser_process(parser pr, list_ptr stmts){
 				st->state = PRS_IF2;
 				return NULL;
 			}
-			list_ptr_push(stmts, ast_if3(flp));
+			list_ptr_push(stmts, ast_if3(flpS));
 			if (tok_isKS(tk1, KS_ELSE)){
 				st->state = PRS_ELSE_BODY;
 				parser_push(pr, PRS_BODY);
 				return NULL;
 			}
 			else if (tok_isKS(tk1, KS_END)){
-				list_ptr_push(stmts, ast_if4(flp));
-				return parser_statement(pr, flp, stmts, true);
+				list_ptr_push(stmts, ast_if4(flpS));
+				return parser_statement(pr, stmts, true);
 			}
 			return "Missing `elseif`, `else`, or `end` of if block";
 
 		case PRS_ELSE_BODY:
 			if (!tok_isKS(tk1, KS_END))
 				return "Missing `end` of if block";
-			list_ptr_push(stmts, ast_if4(flp));
-			return parser_statement(pr, flp, stmts, true);
+			list_ptr_push(stmts, ast_if4(flpS));
+			return parser_statement(pr, stmts, true);
 
 		case PRS_ENUM:
 			if (tk1->type == TOK_NEWLINE && !tk1->u.soft)
@@ -4475,15 +4531,15 @@ static const char *parser_process(parser pr, list_ptr stmts){
 		case PRS_ENUM_LVALUES:
 			if (st->lvalues->size <= 0)
 				return "Invalid enumerator declaration";
-			list_ptr_push(stmts, ast_enum(flp, st->lvalues));
+			list_ptr_push(stmts, ast_enum(flpS, st->lvalues));
 			st->lvalues = NULL;
-			return parser_statement(pr, flp, stmts, false);
+			return parser_statement(pr, stmts, false);
 
 		case PRS_INCLUDE:
 			if (tk1->type == TOK_NEWLINE && !tk1->u.soft)
 				return NULL;
 			else if (tk1->type == TOK_IDENT)
-				return parser_lookup(pr, flp, PRS_INCLUDE_LOOKUP);
+				return parser_lookup(pr, flpT, PRS_INCLUDE_LOOKUP);
 			else if (tok_isKS(tk1, KS_LPAREN)){
 				st->state = PRS_INCLUDE_STR;
 				return NULL;
@@ -4526,19 +4582,19 @@ static const char *parser_process(parser pr, list_ptr stmts){
 				st->state = PRS_INCLUDE;
 				return NULL;
 			}
-			list_ptr_push(stmts, ast_include(flp, st->incls));
+			list_ptr_push(stmts, ast_include(flpS, st->incls));
 			st->incls = NULL;
-			return parser_statement(pr, flp, stmts, false);
+			return parser_statement(pr, stmts, false);
 
 		case PRS_NAMESPACE:
 			if (tk1->type != TOK_IDENT)
 				return "Expecting identifier";
-			return parser_lookup(pr, flp, PRS_NAMESPACE_LOOKUP);
+			return parser_lookup(pr, flpT, PRS_NAMESPACE_LOOKUP);
 
 		case PRS_NAMESPACE_LOOKUP:
 			if (tk1->type != TOK_NEWLINE)
 				return "Missing newline or semicolon";
-			list_ptr_push(stmts, ast_namespace1(flp, st->names));
+			list_ptr_push(stmts, ast_namespace1(flpS, st->names));
 			st->names = NULL;
 			st->state = PRS_NAMESPACE_BODY;
 			parser_push(pr, PRS_BODY);
@@ -4547,37 +4603,37 @@ static const char *parser_process(parser pr, list_ptr stmts){
 		case PRS_NAMESPACE_BODY:
 			if (!tok_isKS(tk1, KS_END))
 				return "Missing `end` of namespace block";
-			list_ptr_push(stmts, ast_namespace2(flp));
-			return parser_statement(pr, flp, stmts, true);
+			list_ptr_push(stmts, ast_namespace2(flpS));
+			return parser_statement(pr, stmts, true);
 
 		case PRS_RETURN:
 			if (tk1->type == TOK_NEWLINE){
-				list_ptr_push(stmts, ast_return(flp, expr_nil(flp)));
-				return parser_statement(pr, flp, stmts, false);
+				list_ptr_push(stmts, ast_return(flpS, expr_nil(flpS)));
+				return parser_statement(pr, stmts, false);
 			}
 			parser_expr(pr, PRS_RETURN_DONE);
 			return parser_process(pr, stmts);
 
 		case PRS_RETURN_DONE:
-			list_ptr_push(stmts, ast_return(flp, st->exprTerm));
+			list_ptr_push(stmts, ast_return(flpS, st->exprTerm));
 			st->exprTerm = NULL;
-			return parser_statement(pr, flp, stmts, false);
+			return parser_statement(pr, stmts, false);
 
 		case PRS_USING:
 			if (tk1->type == TOK_NEWLINE && !tk1->u.soft)
 				return NULL;
 			if (tk1->type != TOK_IDENT)
 				return "Expecting identifier";
-			return parser_lookup(pr, flp, PRS_USING_LOOKUP);
+			return parser_lookup(pr, flpT, PRS_USING_LOOKUP);
 
 		case PRS_USING_LOOKUP:
-			list_ptr_push(stmts, ast_using(flp, st->names));
+			list_ptr_push(stmts, ast_using(flpS, st->names));
 			st->names = NULL;
 			if (tok_isKS(tk1, KS_COMMA)){
 				st->state = PRS_USING;
 				return NULL;
 			}
-			return parser_statement(pr, flp, stmts, false);
+			return parser_statement(pr, stmts, false);
 
 		case PRS_VAR:
 			if (tk1->type == TOK_NEWLINE && !tk1->u.soft)
@@ -4588,13 +4644,13 @@ static const char *parser_process(parser pr, list_ptr stmts){
 		case PRS_VAR_LVALUES:
 			if (st->lvalues->size <= 0)
 				return "Invalid variable declaration";
-			list_ptr_push(stmts, ast_var(flp, st->lvalues));
+			list_ptr_push(stmts, ast_var(flpS, st->lvalues));
 			st->lvalues = NULL;
-			return parser_statement(pr, flp, stmts, false);
+			return parser_statement(pr, stmts, false);
 
 		case PRS_IDENTS:
 			if (st->names->size == 1 && tok_isKS(tk1, KS_COLON)){
-				list_ptr_push(stmts, ast_label(st->flp, list_ptr_pop(st->names)));
+				list_ptr_push(stmts, ast_label(st->flpS, list_ptr_pop(st->names)));
 				list_ptr_free(st->names);
 				st->names = NULL;
 				st->state = PRS_STATEMENT;
@@ -4603,7 +4659,7 @@ static const char *parser_process(parser pr, list_ptr stmts){
 			pr->level++;
 			st->state = PRS_EVAL_EXPR;
 			parser_push(pr, PRS_EXPR_POST);
-			pr->state->exprTerm = expr_names(st->flp, st->names);
+			pr->state->exprTerm = expr_names(flpL, st->names);
 			st->names = NULL;
 			return parser_process(pr, stmts);
 
@@ -4612,11 +4668,15 @@ static const char *parser_process(parser pr, list_ptr stmts){
 			return parser_process(pr, stmts);
 
 		case PRS_EVAL_EXPR:
-			list_ptr_push(stmts, ast_eval(st->exprTerm->flp, st->exprTerm));
+			list_ptr_push(stmts, ast_eval(flpS, st->exprTerm));
 			st->exprTerm = NULL;
-			return parser_statement(pr, flp, stmts, false);
+			return parser_statement(pr, stmts, false);
 
 		case PRS_EXPR:
+			st->flpE = flpT;
+			st->state = PRS_EXPR_PRE;
+			// fall through
+		case PRS_EXPR_PRE:
 			if (tok_isPre(tk1)){
 				st->exprPreStack = ets_new(tk1, st->exprPreStack);
 				pr->tk1 = NULL;
@@ -4630,22 +4690,22 @@ static const char *parser_process(parser pr, list_ptr stmts){
 				return NULL;
 			else if (tok_isKS(tk1, KS_NIL)){
 				st->state = PRS_EXPR_POST;
-				st->exprTerm = expr_nil(flp);
+				st->exprTerm = expr_nil(flpT);
 				return NULL;
 			}
 			else if (tk1->type == TOK_NUM){
 				st->state = PRS_EXPR_POST;
-				st->exprTerm = expr_num(flp, tk1->u.num);
+				st->exprTerm = expr_num(flpT, tk1->u.num);
 				return NULL;
 			}
 			else if (tk1->type == TOK_STR){
 				st->state = PRS_EXPR_POST;
-				st->exprTerm = expr_str(flp, tk1->u.str);
+				st->exprTerm = expr_str(flpT, tk1->u.str);
 				tk1->u.str = NULL;
 				return NULL;
 			}
 			else if (tk1->type == TOK_IDENT)
-				return parser_lookup(pr, flp, PRS_EXPR_TERM_LOOKUP);
+				return parser_lookup(pr, flpT, PRS_EXPR_TERM_LOOKUP);
 			else if (tok_isKS(tk1, KS_LBRACE)){
 				st->state = PRS_EXPR_TERM_ISEMPTYLIST;
 				return NULL;
@@ -4662,7 +4722,7 @@ static const char *parser_process(parser pr, list_ptr stmts){
 				return NULL;
 			else if (tok_isKS(tk1, KS_RBRACE)){
 				st->state = PRS_EXPR_POST;
-				st->exprTerm = expr_list(flp, NULL);
+				st->exprTerm = expr_list(flpE, NULL);
 				return NULL;
 			}
 			parser_expr(pr, PRS_EXPR_TERM_CLOSEBRACE);
@@ -4674,7 +4734,7 @@ static const char *parser_process(parser pr, list_ptr stmts){
 				return NULL;
 			if (!tok_isKS(tk1, KS_RBRACE))
 				return "Expecting close brace";
-			st->exprTerm = expr_list(flp, st->exprTerm);
+			st->exprTerm = expr_list(flpE, st->exprTerm);
 			st->state = PRS_EXPR_POST;
 			return NULL;
 
@@ -4683,12 +4743,12 @@ static const char *parser_process(parser pr, list_ptr stmts){
 				return NULL;
 			if (!tok_isKS(tk1, KS_RPAREN))
 				return "Expecting close parenthesis";
-			st->exprTerm = expr_paren(flp, st->exprTerm);
+			st->exprTerm = expr_paren(st->exprTerm->flp, st->exprTerm);
 			st->state = PRS_EXPR_POST;
 			return NULL;
 
 		case PRS_EXPR_TERM_LOOKUP:
-			st->exprTerm = expr_names(st->flp, st->names);
+			st->exprTerm = expr_names(flpL, st->names);
 			st->names = NULL;
 			st->state = PRS_EXPR_POST;
 			return parser_process(pr, stmts);
@@ -4746,7 +4806,7 @@ static const char *parser_process(parser pr, list_ptr stmts){
 			if (tk1->type == TOK_NEWLINE && !tk1->u.soft)
 				return NULL;
 			if (tok_isKS(tk1, KS_RBRACKET)){
-				st->exprTerm = expr_slice(flp, st->exprTerm, NULL, NULL);
+				st->exprTerm = expr_slice(flpT, st->exprTerm, NULL, NULL);
 				st->state = PRS_EXPR_POST;
 				return NULL;
 			}
@@ -4760,7 +4820,7 @@ static const char *parser_process(parser pr, list_ptr stmts){
 				return NULL;
 			if (!tok_isKS(tk1, KS_RBRACKET))
 				return "Missing close bracket";
-			st->exprTerm = expr_slice(flp, st->exprTerm2, NULL, st->exprTerm);
+			st->exprTerm = expr_slice(st->exprTerm->flp, st->exprTerm2, NULL, st->exprTerm);
 			st->exprTerm2 = NULL;
 			st->state = PRS_EXPR_POST;
 			return NULL;
@@ -4774,7 +4834,7 @@ static const char *parser_process(parser pr, list_ptr stmts){
 			}
 			if (!tok_isKS(tk1, KS_RBRACKET))
 				return "Missing close bracket";
-			st->exprTerm = expr_index(flp, st->exprTerm2, st->exprTerm);
+			st->exprTerm = expr_index(st->exprTerm->flp, st->exprTerm2, st->exprTerm);
 			st->exprTerm2 = NULL;
 			st->state = PRS_EXPR_POST;
 			return NULL;
@@ -4783,7 +4843,7 @@ static const char *parser_process(parser pr, list_ptr stmts){
 			if (tk1->type == TOK_NEWLINE && !tk1->u.soft)
 				return NULL;
 			if (tok_isKS(tk1, KS_RBRACKET)){
-				st->exprTerm = expr_slice(flp, st->exprTerm2, st->exprTerm, NULL);
+				st->exprTerm = expr_slice(st->exprTerm->flp, st->exprTerm2, st->exprTerm, NULL);
 				st->exprTerm2 = NULL;
 				st->state = PRS_EXPR_POST;
 				return NULL;
@@ -4798,7 +4858,8 @@ static const char *parser_process(parser pr, list_ptr stmts){
 				return NULL;
 			if (!tok_isKS(tk1, KS_RBRACKET))
 				return "Missing close bracket";
-			st->exprTerm = expr_slice(flp, st->exprTerm2, st->exprTerm3, st->exprTerm);
+			st->exprTerm =
+				expr_slice(st->exprTerm3->flp, st->exprTerm2, st->exprTerm3, st->exprTerm);
 			st->exprTerm2 = NULL;
 			st->exprTerm3 = NULL;
 			st->state = PRS_EXPR_POST;
@@ -4831,7 +4892,8 @@ static const char *parser_process(parser pr, list_ptr stmts){
 				// fight between the Pre and the Mid
 				while (st->exprPreStack != NULL && tok_isPreBeforeMid(st->exprPreStack->tk, tk1)){
 					// apply the Pre
-					st->exprTerm = expr_prefix(flp, st->exprPreStack->tk->u.k, st->exprTerm);
+					tok ptk = st->exprPreStack->tk;
+					st->exprTerm = expr_prefix(ptk->flp, ptk->u.k, st->exprTerm);
 					ets next = st->exprPreStack->next;
 					ets_free(st->exprPreStack);
 					st->exprPreStack = next;
@@ -4841,8 +4903,8 @@ static const char *parser_process(parser pr, list_ptr stmts){
 				if (st->exprPreStack == NULL && st->exprMidStack != NULL &&
 					tok_isMidBeforeMid(st->exprMidStack->tk, tk1)){
 					// apply the previous Mid
-					pri_st pri = parser_infix(flp, st->exprMidStack->tk->u.k, st->exprStack->ex,
-						st->exprTerm);
+					tok mtk = st->exprMidStack->tk;
+					pri_st pri = parser_infix(mtk->flp, mtk->u.k, st->exprStack->ex, st->exprTerm);
 					if (pri.type == PRI_ERROR)
 						return pri.u.msg;
 					st->exprTerm = pri.u.ex;
@@ -4871,14 +4933,15 @@ static const char *parser_process(parser pr, list_ptr stmts){
 			st->exprTerm = NULL;
 			st->exprMidStack = ets_new(tk1, st->exprMidStack);
 			pr->tk1 = NULL;
-			st->state = PRS_EXPR;
+			st->state = PRS_EXPR_PRE;
 			return NULL;
 
 		case PRS_EXPR_FINISH:
 			while (true){
 				// apply any outstanding Pre's
 				while (st->exprPreStack != NULL){
-					st->exprTerm = expr_prefix(flp, st->exprPreStack->tk->u.k, st->exprTerm);
+					tok ptk = st->exprPreStack->tk;
+					st->exprTerm = expr_prefix(ptk->flp, ptk->u.k, st->exprTerm);
 					ets next = st->exprPreStack->next;
 					ets_free(st->exprPreStack);
 					st->exprPreStack = next;
@@ -4898,8 +4961,8 @@ static const char *parser_process(parser pr, list_ptr stmts){
 					(st->exprMidStack == NULL ||
 						tok_isPreBeforeMid(st->exprPreStack->tk, st->exprMidStack->tk))){
 					// apply the Pre to the left side
-					st->exprStack->ex = expr_prefix(flp, st->exprPreStack->tk->u.k,
-						st->exprStack->ex);
+					tok ptk = st->exprPreStack->tk;
+					st->exprStack->ex = expr_prefix(ptk->flp, ptk->u.k, st->exprStack->ex);
 					ets next = st->exprPreStack->next;
 					ets_free(st->exprPreStack);
 					st->exprPreStack = next;
@@ -4909,8 +4972,8 @@ static const char *parser_process(parser pr, list_ptr stmts){
 					break;
 
 				// apply the Mid
-				pri_st pri = parser_infix(flp, st->exprMidStack->tk->u.k, st->exprStack->ex,
-					st->exprTerm);
+				tok mtk = st->exprMidStack->tk;
+				pri_st pri = parser_infix(mtk->flp, mtk->u.k, st->exprStack->ex, st->exprTerm);
 
 				if (pri.type == PRI_ERROR)
 					return pri.u.msg;
@@ -7799,6 +7862,7 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 				pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex->u.infix.right);
 				if (pe.type == PER_ERROR)
 					return pe;
+				program_flp(prg, ex->flp);
 				op_binop(prg->ops, binop, intoVlc, left, pe.u.vlc);
 				symtbl_clearTemp(sym, left);
 				symtbl_clearTemp(sym, pe.u.vlc);
