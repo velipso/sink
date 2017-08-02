@@ -9429,6 +9429,8 @@ static inline void context_reset(context ctx){
 	ctx->timeout_left = ctx->timeout;
 }
 
+static inline sink_run opi_abortcstr(context ctx, const char *msg);
+
 static inline sink_val var_get(context ctx, int frame, int index){
 	return ((lxs)ctx->lex_stk->ptrs[frame])->vals[index];
 }
@@ -9712,12 +9714,25 @@ static inline sink_val opi_rand_getstate(context ctx){
 	return sink_list_newblob(ctx, 2, (sink_val *)vals);
 }
 
-static inline void opi_rand_setstate(context ctx, double a, double b){
-	ctx->rand_seed = (uint32_t)a;
-	ctx->rand_i = (uint32_t)b;
+static inline void opi_rand_setstate(context ctx, sink_val a){
+	if (!sink_islist(a)){
+		opi_abortcstr(ctx, "Expecting list of two integers");
+		return;
+	}
+	sink_list ls = var_castlist(ctx, a);
+	if (ls->size < 2 || !sink_isnum(ls->vals[0]) || !sink_isnum(ls->vals[1])){
+		opi_abortcstr(ctx, "Expecting list of two integers");
+		return;
+	}
+	ctx->rand_seed = (uint32_t)sink_castnum(ls->vals[0]);
+	ctx->rand_i = (uint32_t)sink_castnum(ls->vals[1]);
 }
 
 static inline sink_val opi_rand_pick(context ctx, sink_val a){
+	if (!sink_islist(a)){
+		opi_abortcstr(ctx, "Expecting list");
+		return SINK_NIL;
+	}
 	sink_list ls = var_castlist(ctx, a);
 	if (ls->size <= 0)
 		return SINK_NIL;
@@ -9725,6 +9740,10 @@ static inline sink_val opi_rand_pick(context ctx, sink_val a){
 }
 
 static inline void opi_rand_shuffle(context ctx, sink_val a){
+	if (!sink_islist(a)){
+		opi_abortcstr(ctx, "Expecting list");
+		return;
+	}
 	sink_list ls = var_castlist(ctx, a);
 	int m = ls->size;
 	while (m > 1){
@@ -10865,8 +10884,6 @@ static sink_val binop_int_mod(context ctx, sink_val a, sink_val b){
 }
 
 // inline operators
-static inline sink_run opi_abortcstr(context ctx, const char *msg);
-
 static inline bool opi_equ(context ctx, sink_val a, sink_val b){
 	if (a.u == b.u){
 		if (sink_isnum(a))
@@ -13568,30 +13585,25 @@ static sink_run context_run(context ctx){
 
 			case OP_RAND_SETSTATE  : { // [TGT], [SRC]
 				LOAD_abcd();
-				X = var_get(ctx, C, D);
-				if (!sink_islist(X))
-					RETURN_FAIL("Expecting list of two integers");
-				ls = var_castlist(ctx, X);
-				 if (ls->size < 2 || !sink_isnum(ls->vals[0]) || !sink_isnum(ls->vals[1]))
-				 	RETURN_FAIL("Expecting list of two integers");
-				opi_rand_setstate(ctx, ls->vals[0].f, ls->vals[1].f);
+				opi_rand_setstate(ctx, var_get(ctx, C, D));
+				if (ctx->failed)
+					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, SINK_NIL);
 			} break;
 
 			case OP_RAND_PICK      : { // [TGT], [SRC]
 				LOAD_abcd();
-				X = var_get(ctx, C, D);
-				if (!sink_islist(X))
-					RETURN_FAIL("Expecting list");
-				var_set(ctx, A, B, opi_rand_pick(ctx, X));
+				var_set(ctx, A, B, opi_rand_pick(ctx, var_get(ctx, C, D)));
+				if (ctx->failed)
+					return SINK_RUN_FAIL;
 			} break;
 
 			case OP_RAND_SHUFFLE   : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				if (!sink_islist(X))
-					RETURN_FAIL("Expecting list");
 				opi_rand_shuffle(ctx, X);
+				if (ctx->failed)
+					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -15286,6 +15298,37 @@ sink_val sink_int_bswap(sink_ctx ctx, sink_val a){
 }
 
 // random
+void sink_rand_seed(sink_ctx ctx, uint32_t a){
+	opi_rand_seed(ctx, a);
+}
+
+void sink_rand_seedauto(sink_ctx ctx){
+	opi_rand_seedauto(ctx);
+}
+
+uint32_t sink_rand_int(sink_ctx ctx){
+	return opi_rand_int(ctx);
+}
+
+double sink_rand_num(sink_ctx ctx){
+	return opi_rand_num(ctx);
+}
+
+sink_val sink_rand_getstate(sink_ctx ctx){
+	return opi_rand_getstate(ctx);
+}
+
+void sink_rand_setstate(sink_ctx ctx, sink_val a){
+	opi_rand_setstate(ctx, a);
+}
+
+sink_val sink_rand_pick(sink_ctx ctx, sink_val ls){
+	return opi_rand_pick(ctx, ls);
+}
+
+void sink_rand_shuffle(sink_ctx ctx, sink_val ls){
+	opi_rand_shuffle(ctx, ls);
+}
 
 // strings
 sink_val sink_str_newcstr(sink_ctx ctx, const char *str){

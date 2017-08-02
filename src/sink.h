@@ -351,7 +351,7 @@ sink_val sink_int_pop(sink_ctx ctx, sink_val a);
 sink_val sink_int_bswap(sink_ctx ctx, sink_val a);
 
 // random
-void     sink_rand_seed(sink_ctx ctx, sink_val a);
+void     sink_rand_seed(sink_ctx ctx, uint32_t a);
 void     sink_rand_seedauto(sink_ctx ctx);
 uint32_t sink_rand_int(sink_ctx ctx);
 double   sink_rand_num(sink_ctx ctx);
