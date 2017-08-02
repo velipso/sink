@@ -1,4 +1,4 @@
-// (c) Copyright 2016, Sean Connelly (@voidqk), http://syntheti.cc
+// (c) Copyright 2016-2017, Sean Connelly (@voidqk), http://syntheti.cc
 // MIT License
 // Project Home: https://github.com/voidqk/sink
 
@@ -24,6 +24,7 @@ CodeMirror.defineMode('sink', function(config, parserConfig) {
   var libs = {
     'nil': true, 'say': true, 'warn': true, 'ask': true, 'exit': true, 'abort': true,
     'isnum': true, 'isstr': true, 'islist': true, 'range': true, 'order': true, 'pick': true,
+    'embed': true, 'stacktrace': true,
     'num': [
       'abs', 'sign', 'max', 'min', 'clamp', 'floor', 'ceil', 'round', 'trunc', 'nan', 'inf',
       'isnan', 'isfinite', 'e', 'pi', 'tau', 'sin', 'cos', 'tan', 'asin', 'acos', 'atan',
@@ -31,7 +32,7 @@ CodeMirror.defineMode('sink', function(config, parserConfig) {
     ],
     'int': [
       'new', 'not', 'and', 'or', 'xor', 'shl', 'shr', 'sar', 'add', 'sub', 'mul', 'div',
-      'mod', 'clz'
+      'mod', 'clz', 'pop', 'bswap'
     ],
     'rand': [
       'seed', 'seedauto', 'int', 'num', 'getstate', 'setstate', 'pick', 'shuffle'
@@ -44,7 +45,7 @@ CodeMirror.defineMode('sink', function(config, parserConfig) {
       'valid', 'list', 'str'
     ],
     'struct': [
-      'size', 'str', 'list'
+      'size', 'str', 'list', 'isLE'
     ],
     'list': [
       'new', 'shift', 'pop', 'push', 'unshift', 'append', 'prepend', 'find', 'rfind', 'join',
