@@ -276,6 +276,7 @@ bool sink_arg_user(sink_ctx ctx, int size, sink_val *args, int index, sink_user 
 	void **user);
 
 // globals
+sink_val sink_tonum(sink_ctx ctx, sink_val v);
 sink_val sink_tostr(sink_ctx ctx, sink_val v);
 int      sink_size(sink_ctx ctx, sink_val v);
 void     sink_say(sink_ctx ctx, int size, sink_val *vals);
@@ -366,11 +367,9 @@ sink_val sink_str_newblob(sink_ctx ctx, int size, const uint8_t *bytes);
 sink_val sink_str_newblobgive(sink_ctx ctx, int size, uint8_t *bytes);
 sink_val sink_str_newformat(sink_ctx ctx, const char *fmt, ...);
 sink_val sink_str_new(sink_ctx ctx, int size, sink_val *vals);
-sink_val sink_str_at(sink_ctx ctx, sink_val a, sink_val b);
-sink_val sink_str_cat(sink_ctx ctx, sink_val a, sink_val b);
-sink_val sink_str_tonum(sink_ctx ctx, sink_val a);
+sink_val sink_str_cat(sink_ctx ctx, int size, sink_val *vals);
 sink_val sink_str_slice(sink_ctx ctx, sink_val a, sink_val start, sink_val len);
-sink_val sink_str_splice(sink_ctx ctx, sink_val a, sink_val start, sink_val len, sink_val d);
+sink_val sink_str_splice(sink_ctx ctx, sink_val a, sink_val start, sink_val len, sink_val b);
 sink_val sink_str_split(sink_ctx ctx, sink_val a, sink_val b);
 sink_val sink_str_replace(sink_ctx ctx, sink_val a, sink_val b, sink_val c);
 bool     sink_str_begins(sink_ctx ctx, sink_val a, sink_val b);
@@ -404,9 +403,9 @@ void     sink_list_setuser(sink_ctx ctx, sink_val ls, sink_user usertype, void *
 void *   sink_list_getuser(sink_ctx ctx, sink_val ls, sink_user usertype);
 sink_val sink_list_newblob(sink_ctx ctx, int size, const sink_val *vals);
 sink_val sink_list_newblobgive(sink_ctx ctx, int size, int count, sink_val *vals);
+static inline sink_val sink_list_newempty(sink_ctx ctx){ return sink_list_newblob(ctx, 0, NULL); }
 sink_val sink_list_new(sink_ctx ctx, sink_val a, sink_val b);
-sink_val sink_list_at(sink_ctx ctx, sink_val ls, sink_val b);
-sink_val sink_list_cat(sink_ctx ctx, sink_val ls1, sink_val ls2);
+sink_val sink_list_cat(sink_ctx ctx, int size, sink_val *vals);
 sink_val sink_list_slice(sink_ctx ctx, sink_val ls, sink_val start, sink_val len);
 void     sink_list_splice(sink_ctx ctx, sink_val ls, sink_val start, sink_val len, sink_val ls2);
 sink_val sink_list_shift(sink_ctx ctx, sink_val ls);

@@ -16,7 +16,7 @@ With no arguments, sink will enter interactive mode (REPL).
 | `-h`, `--help`    | Display help information and exit                                           |
 | `-I <path>`       | Add `<path>` to the include search path                                     |
 | `-c`              | Compile input and output bytecode to stdout                                 |
-| `-d`              | If compiling, output bytecode with debug info                               |
+| `-d`              | If compiling, output bytecode with debug/stacktrace information             |
 | `-D <key> <file>` | If compiling, add `<file>` declarations when including `<key>`              |
 
 The `-D` option is useful for providing declarations so that compilation can succeed for other host

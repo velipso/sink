@@ -9441,7 +9441,7 @@ static sink_val oper_un(context ctx, sink_val a, unary_f f_unary){
 	if (sink_islist(a)){
 		sink_list ls = var_castlist(ctx, a);
 		if (ls->size <= 0)
-			return sink_list_newblob(ctx, 0, NULL);
+			return sink_list_newempty(ctx);
 		sink_val *ret = mem_alloc(sizeof(sink_val) * ls->size);
 		for (int i = 0; i < ls->size; i++)
 			ret[i] = f_unary(ctx, ls->vals[i]);
@@ -9458,7 +9458,7 @@ static sink_val oper_bin(context ctx, sink_val a, sink_val b, binary_f f_binary)
 		int mb = arsize(ctx, b);
 		int m = ma > mb ? ma : mb;
 		if (m <= 0)
-			return sink_list_newblob(ctx, 0, NULL);
+			return sink_list_newempty(ctx);
 		sink_val *ret = mem_alloc(sizeof(sink_val) * m);
 		for (int i = 0; i < m; i++)
 			ret[i] = f_binary(ctx, arget(ctx, a, i), arget(ctx, b, i));
@@ -9476,7 +9476,7 @@ static sink_val oper_tri(context ctx, sink_val a, sink_val b, sink_val c, trinar
 		int mc = arsize(ctx, c);
 		int m = ma > mb ? (ma > mc ? ma : mc) : (mb > mc ? mb : mc);
 		if (m <= 0)
-			return sink_list_newblob(ctx, 0, NULL);
+			return sink_list_newempty(ctx);
 		sink_val *ret = mem_alloc(sizeof(sink_val) * m);
 		for (int i = 0; i < m; i++)
 			ret[i] = f_trinary(ctx, arget(ctx, a, i), arget(ctx, b, i), arget(ctx, c, i));
@@ -9695,7 +9695,7 @@ static inline sink_val opi_str_split(context ctx, sink_val a, sink_val b){
 	b = sink_tostr(ctx, b);
 	sink_str haystack = var_caststr(ctx, a);
 	sink_str needle = var_caststr(ctx, b);
-	sink_val result = sink_list_newblob(ctx, 0, NULL);
+	sink_val result = sink_list_newempty(ctx);
 
 	int nlen = needle->size;
 	int hlen = haystack->size;
@@ -9923,7 +9923,7 @@ static inline sink_val opi_str_rep(context ctx, sink_val a, int rep){
 
 static inline sink_val opi_str_list(context ctx, sink_val a){
 	sink_str s = var_caststr(ctx, sink_tostr(ctx, a));
-	sink_val r = sink_list_newblob(ctx, 0, NULL);
+	sink_val r = sink_list_newempty(ctx);
 	for (int i = 0; i < s->size; i++)
 		opi_list_push(ctx, r, sink_num(s->bytes[i]));
 	return r;
@@ -10021,7 +10021,7 @@ static inline sink_val opi_utf8_valid(context ctx, sink_val a){
 
 static inline sink_val opi_utf8_list(context ctx, sink_val a){
 	sink_str s = var_caststr(ctx, a);
-	sink_val res = sink_list_newblob(ctx, 0, NULL);
+	sink_val res = sink_list_newempty(ctx);
 	int state = 0;
 	int codepoint = 0;
 	int min = 0;
@@ -10276,7 +10276,7 @@ static inline sink_val opi_struct_list(context ctx, sink_val a, sink_val b){
 	if (s->size % stsize != 0)
 		return SINK_NIL;
 	sink_list type = var_castlist(ctx, b);
-	sink_val res = sink_list_newblob(ctx, 0, NULL);
+	sink_val res = sink_list_newempty(ctx);
 	int pos = 0;
 	while (pos < s->size){
 		for (int i = 0; i < type->size; i++){
@@ -10979,7 +10979,7 @@ static inline sink_run opi_abort(context ctx, char *err){
 }
 
 static inline sink_val opi_stacktrace(context ctx){
-	sink_val ls = sink_list_newblob(ctx, 0, NULL);
+	sink_val ls = sink_list_newempty(ctx);
 	char *err = callstack_append(ctx, NULL, ctx->lastpc);
 	if (err)
 		sink_list_push(ctx, ls, sink_str_newcstrgive(ctx, err));
@@ -11071,7 +11071,7 @@ static inline sink_val opi_combop(context ctx, int size, sink_val *vals, binary_
 		return sink_list_newblobgive(ctx, listsize, listsize, ret);
 	}
 	// otherwise, listsize == 0
-	return sink_list_newblob(ctx, 0, NULL);
+	return sink_list_newempty(ctx);
 
 	badtype:
 	return opi_abortformat(ctx, "Expecting number or list of numbers when %s", erop);
@@ -11180,7 +11180,7 @@ static inline sink_val opi_str_splice(context ctx, sink_val a, sink_val b, sink_
 static inline sink_val opi_list_new(context ctx, sink_val a, sink_val b){
 	int size = sink_isnil(a) ? 0 : a.f;
 	if (size <= 0)
-		return sink_list_newblob(ctx, 0, NULL);
+		return sink_list_newempty(ctx);
 	sink_val *vals = mem_alloc(sizeof(sink_val) * size);
 	for (int i = 0; i < size; i++)
 		vals[i] = b;
@@ -11202,7 +11202,7 @@ static inline sink_val opi_list_cat(context ctx, int argcount, sink_val *args){
 	for (int i = 0; i < argcount; i++)
 		ns += var_castlist(ctx, args[i])->size;
 	if (ns <= 0)
-		return sink_list_newblob(ctx, 0, NULL);
+		return sink_list_newempty(ctx);
 	sink_val *vals = mem_alloc(sizeof(sink_val) * ns);
 	ns = 0;
 	for (int i = 0; i < argcount; i++){
@@ -11219,7 +11219,7 @@ static inline sink_val opi_list_slice(context ctx, sink_val a, sink_val b, sink_
 	sink_list ls = var_castlist(ctx, a);
 	fix_slice_st sl = fix_slice(b, c, ls->size);
 	if (ls->size <= 0 || sl.len <= 0)
-		return sink_list_newblob(ctx, 0, NULL);
+		return sink_list_newempty(ctx);
 	return sink_list_newblob(ctx, sl.len, &ls->vals[sl.start]);
 }
 
@@ -11516,7 +11516,7 @@ static inline sink_val opi_range(context ctx, double start, double stop, double 
 	if (count > 10000000)
 		return SINK_NIL;
 	if (count <= 0)
-		return sink_list_newblob(ctx, 0, NULL);
+		return sink_list_newempty(ctx);
 	sink_val *ret = mem_alloc(sizeof(sink_val) * count);
 	for (int i = 0; i < count; i++)
 		ret[i] = sink_num(start + (double)i * step);
@@ -12145,7 +12145,7 @@ static bool pk_fmbin(context ctx, sink_str s, uint64_t *pos, uint32_t str_table_
 			if (!pk_fmbin_vint(s, pos, &sz))
 				return false;
 			if (sz <= 0){
-				*res = sink_list_newblob(ctx, 0, NULL);
+				*res = sink_list_newempty(ctx);
 				list_int_push(li, var_index(*res));
 			}
 			else{
@@ -12302,10 +12302,10 @@ static bool pk_fmjson(context ctx, sink_str s, int *pos, sink_val *res){
 			return false;
 		if (s->bytes[*pos] == ']'){
 			(*pos)++;
-			*res = sink_list_newblob(ctx, 0, NULL);
+			*res = sink_list_newempty(ctx);
 			return true;
 		}
-		*res = sink_list_newblob(ctx, 0, NULL);
+		*res = sink_list_newempty(ctx);
 		while (true){
 			sink_val item;
 			if (!pk_fmjson(ctx, s, pos, &item))
@@ -12540,7 +12540,7 @@ static sink_val pk_copy(context ctx, sink_val a, list_int li_src, list_int li_tg
 			if (idxat < 0){
 				sink_list ls = var_castlist(ctx, a);
 				if (ls->size <= 0){
-					sink_val b = sink_list_newblob(ctx, 0, NULL);
+					sink_val b = sink_list_newempty(ctx);
 					list_int_push(li_src, idx);
 					list_int_push(li_tgt, var_index(b));
 					return b;
@@ -12760,7 +12760,7 @@ static sink_run context_run(context ctx){
 			case OP_LIST           : { // [TGT], HINT
 				LOAD_abc();
 				if (C <= 0)
-					var_set(ctx, A, B, sink_list_newblob(ctx, 0, NULL));
+					var_set(ctx, A, B, sink_list_newempty(ctx));
 				else{
 					var_set(ctx, A, B,
 						sink_list_newblobgive(ctx, 0, C, mem_alloc(sizeof(sink_val) * C)));
@@ -13007,7 +13007,7 @@ static sink_run context_run(context ctx){
 					if (G <= C){
 						while (G < C)
 							p[G++] = SINK_NIL;
-						p[G] = sink_list_newblob(ctx, 0, NULL);
+						p[G] = sink_list_newempty(ctx);
 					}
 					else
 						p[C] = sink_list_newblob(ctx, G - C, &p[C]);
@@ -13088,7 +13088,7 @@ static sink_run context_run(context ctx){
 					if (E <= C){
 						while (E < C)
 							p[E++] = SINK_NIL;
-						p[E] = sink_list_newblob(ctx, 0, NULL);
+						p[E] = sink_list_newempty(ctx);
 					}
 					else
 						p[C] = sink_list_newblob(ctx, E - C, &p[C]);
@@ -14996,68 +14996,6 @@ sink_val sink_stacktrace(sink_ctx ctx){
 	return opi_stacktrace(ctx);
 }
 
-/*
-// numbers
-sink_val  sink_num_neg(sink_ctx ctx, sink_val a);
-sink_val  sink_num_add(sink_ctx ctx, sink_val a, sink_val b);
-sink_val  sink_num_sub(sink_ctx ctx, sink_val a, sink_val b);
-sink_val  sink_num_mul(sink_ctx ctx, sink_val a, sink_val b);
-sink_val  sink_num_div(sink_ctx ctx, sink_val a, sink_val b);
-sink_val  sink_num_mod(sink_ctx ctx, sink_val a, sink_val b);
-sink_val  sink_num_pow(sink_ctx ctx, sink_val a, sink_val b);
-sink_val  sink_num_abs(sink_ctx ctx, sink_val a);
-sink_val  sink_num_sign(sink_ctx ctx, sink_val a);
-sink_val  sink_num_max(sink_ctx ctx, int size, sink_val *vals);
-sink_val  sink_num_min(sink_ctx ctx, int size, sink_val *vals);
-sink_val  sink_num_clamp(sink_ctx ctx, sink_val a, sink_val b, sink_val c);
-sink_val  sink_num_floor(sink_ctx ctx, sink_val a);
-sink_val  sink_num_ceil(sink_ctx ctx, sink_val a);
-sink_val  sink_num_round(sink_ctx ctx, sink_val a);
-sink_val  sink_num_trunc(sink_ctx ctx, sink_val a);
-sink_val  sink_num_sin(sink_ctx ctx, sink_val a);
-sink_val  sink_num_cos(sink_ctx ctx, sink_val a);
-sink_val  sink_num_tan(sink_ctx ctx, sink_val a);
-sink_val  sink_num_asin(sink_ctx ctx, sink_val a);
-sink_val  sink_num_acos(sink_ctx ctx, sink_val a);
-sink_val  sink_num_atan(sink_ctx ctx, sink_val a);
-sink_val  sink_num_atan2(sink_ctx ctx, sink_val a, sink_val b);
-sink_val  sink_num_log(sink_ctx ctx, sink_val a);
-sink_val  sink_num_log2(sink_ctx ctx, sink_val a);
-sink_val  sink_num_log10(sink_ctx ctx, sink_val a);
-sink_val  sink_num_exp(sink_ctx ctx, sink_val a);
-sink_val  sink_num_lerp(sink_ctx ctx, sink_val a, sink_val b, sink_val t);
-sink_val  sink_num_hex(sink_ctx ctx, sink_val a, sink_val b);
-sink_val  sink_num_oct(sink_ctx ctx, sink_val a, sink_val b);
-sink_val  sink_num_bin(sink_ctx ctx, sink_val a, sink_val b);
-
-// integers
-sink_val  sink_int_cast(sink_ctx ctx, sink_val a);
-sink_val  sink_int_not(sink_ctx ctx, sink_val a);
-sink_val  sink_int_and(sink_ctx ctx, sink_val a, sink_val b);
-sink_val  sink_int_or(sink_ctx ctx, sink_val a, sink_val b);
-sink_val  sink_int_xor(sink_ctx ctx, sink_val a, sink_val b);
-sink_val  sink_int_shl(sink_ctx ctx, sink_val a, sink_val b);
-sink_val  sink_int_shr(sink_ctx ctx, sink_val a, sink_val b);
-sink_val  sink_int_sar(sink_ctx ctx, sink_val a, sink_val b);
-sink_val  sink_int_add(sink_ctx ctx, sink_val a, sink_val b);
-sink_val  sink_int_sub(sink_ctx ctx, sink_val a, sink_val b);
-sink_val  sink_int_mul(sink_ctx ctx, sink_val a, sink_val b);
-sink_val  sink_int_div(sink_ctx ctx, sink_val a, sink_val b);
-sink_val  sink_int_mod(sink_ctx ctx, sink_val a, sink_val b);
-sink_val  sink_int_clz(sink_ctx ctx, sink_val a);
-sink_val  sink_int_pop(sink_ctx ctx, sink_val a);
-sink_val  sink_int_bswap(sink_ctx ctx, sink_val a);
-
-// random
-void      sink_rand_seed(sink_ctx ctx, sink_val a);
-void      sink_rand_seedauto(sink_ctx ctx);
-uint32_t  sink_rand_int(sink_ctx ctx);
-double    sink_rand_num(sink_ctx ctx);
-sink_val  sink_rand_getstate(sink_ctx ctx);
-void      sink_rand_setstate(sink_ctx ctx, sink_val a);
-sink_val  sink_rand_pick(sink_ctx ctx, sink_val ls);
-void      sink_rand_shuffle(sink_ctx ctx, sink_val ls);
-*/
 // strings
 sink_val sink_str_newcstr(sink_ctx ctx, const char *str){
 	return sink_str_newblob(ctx, (int)strlen(str), (const uint8_t *)str);
@@ -15106,26 +15044,7 @@ sink_val sink_str_newformat(sink_ctx ctx, const char *fmt, ...){
 	va_end(args2);
 	return sink_str_newblobgive(ctx, (int)s, (uint8_t *)buf);
 }
-/*
-sink_val  sink_str_new(sink_ctx ctx, sink_val a, sink_val b);
-sink_val  sink_str_cat(sink_ctx ctx, sink_val a, sink_val b);
-sink_val  sink_str_tonum(sink_ctx ctx, sink_val a);
-int       sink_str_size(sink_ctx ctx, sink_val a);
-sink_val  sink_str_split(sink_ctx ctx, sink_val a, sink_val b);
-sink_val  sink_str_replace(sink_ctx ctx, sink_val a, sink_val b, sink_val c);
-bool      sink_str_begins(sink_ctx ctx, sink_val a, sink_val b);
-bool      sink_str_ends(sink_ctx ctx, sink_val a, sink_val b);
-sink_val  sink_str_pad(sink_ctx ctx, sink_val a, sink_val b);
-sink_val  sink_str_find(sink_ctx ctx, sink_val a, sink_val b, sink_val c);
-sink_val  sink_str_rfind(sink_ctx ctx, sink_val a, sink_val b, sink_val c);
-sink_val  sink_str_lower(sink_ctx ctx, sink_val a);
-sink_val  sink_str_upper(sink_ctx ctx, sink_val a);
-sink_val  sink_str_trim(sink_ctx ctx, sink_val a);
-sink_val  sink_str_rev(sink_ctx ctx, sink_val a);
-sink_val  sink_str_list(sink_ctx ctx, sink_val a);
-sink_val  sink_str_byte(sink_ctx ctx, sink_val a, sink_val b);
-sink_val  sink_str_hash(sink_ctx ctx, sink_val a, sink_val b);
-*/
+
 static inline uint64_t rotl64(uint64_t x, int8_t r){
 	return (x << r) | (x >> (64 - r));
 }
@@ -15336,19 +15255,6 @@ void sink_str_hashplain(int size, const uint8_t *str, uint32_t seed, uint32_t *o
 		hash_be(size, str, seed, out);
 }
 
-/*
-// utf8
-bool      sink_utf8_valid(sink_ctx ctx, sink_val a);
-sink_val  sink_utf8_list(sink_ctx ctx, sink_val a);
-sink_val  sink_utf8_str(sink_ctx ctx, sink_val a);
-
-// structs
-sink_val  sink_struct_size(sink_ctx ctx, sink_val tpl);
-sink_val  sink_struct_str(sink_ctx ctx, sink_val ls, sink_val tpl);
-sink_val  sink_struct_list(sink_ctx ctx, sink_val a, sink_val tpl);
-bool      sink_struct_isLE();
-*/
-
 // lists
 void sink_list_setuser(sink_ctx ctx, sink_val ls, sink_user usertype, void *user){
 	sink_list ls2 = var_castlist(ctx, ls);
@@ -15410,14 +15316,6 @@ sink_val sink_list_new(sink_ctx ctx, sink_val a, sink_val b){
 	return sink_list_newblobgive(ctx, size, count, vals);
 }
 
-/*
-sink_val  sink_list_cat(sink_ctx ctx, sink_val ls1, sink_val ls2);
-int       sink_list_size(sink_ctx ctx, sink_val ls);
-sink_val  sink_list_slice(sink_ctx ctx, sink_val ls, sink_val start, sink_val len);
-void      sink_list_splice(sink_ctx ctx, sink_val ls, sink_val start, sink_val len, sink_val ls2);
-sink_val  sink_list_shift(sink_ctx ctx, sink_val ls);
-sink_val  sink_list_pop(sink_ctx ctx, sink_val ls);
-*/
 void sink_list_push(sink_ctx ctx, sink_val ls, sink_val a){
 	if (!sink_islist(ls)){
 		sink_abortcstr(ctx, "Expecting list");
@@ -15425,14 +15323,7 @@ void sink_list_push(sink_ctx ctx, sink_val ls, sink_val a){
 	}
 	opi_list_push(ctx, ls, a);
 }
-/*
-void      sink_list_unshift(sink_ctx ctx, sink_val ls, sink_val a);
-void      sink_list_append(sink_ctx ctx, sink_val ls, sink_val ls2);
-void      sink_list_prepend(sink_ctx ctx, sink_val ls, sink_val ls2);
-sink_val  sink_list_find(sink_ctx ctx, sink_val ls, sink_val a, sink_val b);
-sink_val  sink_list_rfind(sink_ctx ctx, sink_val ls, sink_val a, sink_val b);
-sink_val  sink_list_join(sink_ctx ctx, sink_val ls, sink_val a);
-*/
+
 static inline uint8_t *opi_list_joinplain(sink_ctx ctx, int size, sink_val *vals, int sepz,
 	const uint8_t *sep, int *totv){
 	sink_val *strs = mem_alloc(sizeof(sink_val) * size);
@@ -15470,12 +15361,6 @@ sink_val sink_list_joinplain(sink_ctx ctx, int size, sink_val *vals, int sepz, c
 	uint8_t *bytes = opi_list_joinplain(ctx, size, vals, sepz, sep, &tot);
 	return sink_str_newblobgive(ctx, tot, bytes);
 }
-/*
-void      sink_list_rev(sink_ctx ctx, sink_val ls);
-sink_val  sink_list_str(sink_ctx ctx, sink_val ls);
-void      sink_list_sort(sink_ctx ctx, sink_val ls);
-void      sink_list_rsort(sink_ctx ctx, sink_val ls);
-*/
 
 // pickle
 sink_val sink_pickle_json(sink_ctx ctx, sink_val a){
