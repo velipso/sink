@@ -8753,8 +8753,8 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 			}
 
 			// can only tail call local commands at the same lexical level
-			if (nsn != NULL && nsn->type == NSN_CMD_LOCAL &&
-				nsn->u.cmdLocal.fr->level == sym->fr->level + 1){
+			if (nsn && nsn->type == NSN_CMD_LOCAL &&
+				nsn->u.cmdLocal.fr->level + 1 == sym->fr->level){
 				int argcount;
 				per_st pe;
 				varloc_st p[256];

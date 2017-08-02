@@ -1,12 +1,9 @@
 
-def factorial a
-	def step left, total
-		if left <= 0
-			return total
-		end
-		return step left - 1, total * left
+def test a
+	if a > 100
+		return stacktrace
 	end
-	return step a, 1
+	return test a + 1
 end
 
-say factorial 15
+say &test 0
