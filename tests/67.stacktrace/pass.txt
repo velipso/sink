@@ -1,0 +1,7 @@
+gt2 (stacktrace.sink:5:11)
+gt1 (stacktrace.sink:7:10)
+gettrace (stacktrace.sink:9:22)
+gettrace (stacktrace.sink:9:27)
+gettrace (stacktrace.sink:9:27)
+gettrace (stacktrace.sink:9:27)
+stacktrace.sink:12:12

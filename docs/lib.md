@@ -20,6 +20,7 @@ results.
 | `order a, b`      | Compare `a` with `b` according to the sorting precedence (-1, 0, 1)         |
 | `pick cond, a, b` | If `cond` is true, return `a`, otherwise return `b` (short-circuited)       |
 | `embed 'file'`    | At compile-time, load the contents of `'file'` as a string                  |
+| `stacktrace`      | Return a list of strings with stacktrace information (if available)         |
 
 ### Range Examples
 
@@ -89,6 +90,15 @@ order num.nan, num.nan  # =>  0
 list.sort {3, 2, nil, 4}   # => {nil, 2, 3, 4}
 list.rsort {3, 2, nil, 4}  # => {4, 3, 2, nil}
 ```
+
+### Stacktrace
+
+Note that `stacktrace` always returns a list of strings, but the list could be empty, or the format
+of each string could change.  The `stacktrace` command should only be used for logging, and its
+contents should not be relied upon or parsed.
+
+If a sink script is compiled without debug information, `stacktrace` will simply return an empty
+list `{}`.
 
 Number
 ------

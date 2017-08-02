@@ -285,6 +285,7 @@ void     sink_exit(sink_ctx ctx, int size, sink_val *vals);
 void     sink_abort(sink_ctx ctx, int size, sink_val *vals);
 sink_val sink_range(sink_ctx ctx, double start, double stop, double step);
 int      sink_order(sink_ctx ctx, sink_val a, sink_val b);
+sink_val sink_stacktrace(sink_ctx ctx);
 
 // nil
 static inline sink_val sink_nil(){ return SINK_NIL; }
@@ -360,6 +361,7 @@ void     sink_rand_shuffle(sink_ctx ctx, sink_val ls);
 
 // strings
 sink_val sink_str_newcstr(sink_ctx ctx, const char *str);
+sink_val sink_str_newcstrgive(sink_ctx ctx, char *str);
 sink_val sink_str_newblob(sink_ctx ctx, int size, const uint8_t *bytes);
 sink_val sink_str_newblobgive(sink_ctx ctx, int size, uint8_t *bytes);
 sink_val sink_str_newformat(sink_ctx ctx, const char *fmt, ...);
