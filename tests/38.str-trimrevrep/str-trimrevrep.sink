@@ -14,3 +14,5 @@ say str.rep 'abc', 0
 say str.rep 'abc', 1
 say str.rep 'abc', 3
 say str.rep '', 99
+
+say '"' ~ (str.trim '   ') ~ '"'

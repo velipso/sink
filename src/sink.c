@@ -8826,6 +8826,7 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 			stl_st sl = symtbl_lookupfast(sym, stmt->u.names);
 			namespace ns;
 			if (sl.type == STL_ERROR){ // not found, so create it
+				// don't have to free the error message because lookupfast doesn't create one
 				sfn_st sf = symtbl_findNamespace(sym, stmt->u.names, stmt->u.names->size);
 				if (sf.type == SFN_ERROR)
 					return pgr_error(stmt->flp, sf.u.msg);
@@ -9463,17 +9464,16 @@ static inline int arsize(context ctx, sink_val ar){
 	return 1;
 }
 
-static const int LT_ALLOWNIL  = 1;
-static const int LT_ALLOWNUM  = 2;
-static const int LT_ALLOWSTR  = 4;
-static const int LT_ALLOWLIST = 8;
+static const int LT_ALLOWNIL = 1;
+static const int LT_ALLOWNUM = 2;
+static const int LT_ALLOWSTR = 4;
 
 static inline bool oper_typemask(sink_val a, int mask){
 	switch (sink_typeof(a)){
 		case SINK_TYPE_NIL   : return (mask & LT_ALLOWNIL ) != 0;
 		case SINK_TYPE_NUM   : return (mask & LT_ALLOWNUM ) != 0;
 		case SINK_TYPE_STR   : return (mask & LT_ALLOWSTR ) != 0;
-		case SINK_TYPE_LIST  : return (mask & LT_ALLOWLIST) != 0;
+		case SINK_TYPE_LIST  : return false;
 		case SINK_TYPE_ASYNC : return false;
 	}
 }
@@ -9956,11 +9956,13 @@ static inline sink_val opi_str_trim(context ctx, sink_val a){
 	if (len1 == 0 && len2 == 0)
 		return a;
 	int size = s->size - len1 - len2;
-	uint8_t *b = mem_alloc(sizeof(uint8_t) * (size + 1));
-	if (size > 0)
+	uint8_t *b = NULL;
+	if (size > 0){
+		b = mem_alloc(sizeof(uint8_t) * (size + 1));
 		memcpy(b, &s->bytes[len1], sizeof(uint8_t) * size);
-	b[size] = 0;
-	return sink_str_newblobgive(ctx, size, b);
+		b[size] = 0;
+	}
+	return sink_str_newblobgive(ctx, size < 0 ? 0 : size, b);
 }
 
 static inline sink_val opi_str_rev(context ctx, sink_val a){
@@ -14379,6 +14381,7 @@ static char *compiler_process(compiler cmp){
 						return cmp->msg;
 					case PGR_FORVARS:
 						// impossible
+						assert(false);
 						break;
 				}
 			}
@@ -14620,6 +14623,8 @@ int sink_scr_level(sink_scr scr){
 void sink_scr_dump(sink_scr scr, bool debug, void *user, sink_dump_f f_dump){
 	// all integer values are little endian
 
+	program prg = ((script)scr)->prg;
+
 	// output header
 	// 4 bytes: header: 0xFC, 'S', 'k', file format version (always 0x01)
 	// 4 bytes: string table size
@@ -14627,9 +14632,11 @@ void sink_scr_dump(sink_scr scr, bool debug, void *user, sink_dump_f f_dump){
 	// 4 bytes: debug string table size
 	// 4 bytes: pos table size
 	// 4 bytes: call table size
-	uint8_t header[24] = { 0xFC, 0x53, 0x6B, 0x01,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-	program prg = ((script)scr)->prg;
+	uint8_t header[24] = {0};
+	header[ 0] = 0xFC;
+	header[ 1] = 0x53;
+	header[ 2] = 0x6B;
+	header[ 3] = 0x01,
 	header[ 4] = (prg->strTable->size            ) & 0xFF;
 	header[ 5] = (prg->strTable->size       >>  8) & 0xFF;
 	header[ 6] = (prg->strTable->size       >> 16) & 0xFF;
@@ -14647,10 +14654,10 @@ void sink_scr_dump(sink_scr scr, bool debug, void *user, sink_dump_f f_dump){
 		header[17] = (prg->posTable->size   >>  8) & 0xFF;
 		header[18] = (prg->posTable->size   >> 16) & 0xFF;
 		header[19] = (prg->posTable->size   >> 24) & 0xFF;
-		header[20] = (prg->cmdTable->size       ) & 0xFF;
-		header[21] = (prg->cmdTable->size  >>  8) & 0xFF;
-		header[22] = (prg->cmdTable->size  >> 16) & 0xFF;
-		header[23] = (prg->cmdTable->size  >> 24) & 0xFF;
+		header[20] = (prg->cmdTable->size        ) & 0xFF;
+		header[21] = (prg->cmdTable->size   >>  8) & 0xFF;
+		header[22] = (prg->cmdTable->size   >> 16) & 0xFF;
+		header[23] = (prg->cmdTable->size   >> 24) & 0xFF;
 	}
 	f_dump(header, 1, 24, user);
 
@@ -14746,10 +14753,10 @@ void sink_scr_dump(sink_scr scr, bool debug, void *user, sink_dump_f f_dump){
 				(p->pc       >>  8) & 0xFF,
 				(p->pc       >> 16) & 0xFF,
 				(p->pc       >> 24) & 0xFF,
-				(p->cmdhint      ) & 0xFF,
-				(p->cmdhint >>  8) & 0xFF,
-				(p->cmdhint >> 16) & 0xFF,
-				(p->cmdhint >> 24) & 0xFF
+				(p->cmdhint       ) & 0xFF,
+				(p->cmdhint  >>  8) & 0xFF,
+				(p->cmdhint  >> 16) & 0xFF,
+				(p->cmdhint  >> 24) & 0xFF
 			};
 			f_dump(plcb, 1, 8, user);
 		}
