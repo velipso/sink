@@ -9984,8 +9984,11 @@ static inline sink_val opi_str_rep(context ctx, sink_val a, int rep){
 	sink_str s = var_caststr(ctx, a);
 	if (s->size <= 0)
 		return a;
-	int size = s->size * rep;
-	// TODO: max length?
+	int64_t size = (int64_t)s->size * (int64_t)rep;
+	if (size > 100000000){
+		opi_abortcstr(ctx, "Constructed string is too large");
+		return SINK_NIL;
+	}
 	uint8_t *b = mem_alloc(sizeof(uint8_t) * (size + 1));
 	for (int i = 0; i < rep; i++)
 		memcpy(&b[i * s->size], s->bytes, sizeof(uint8_t) * s->size);
@@ -13711,6 +13714,8 @@ static sink_run context_run(context ctx){
 				else if (!sink_isnum(Y))
 					RETURN_FAIL("Expecting number");
 				var_set(ctx, A, B, opi_str_rep(ctx, X, Y.f));
+				if (ctx->failed)
+					return SINK_RUN_FAIL;
 			} break;
 
 			case OP_STR_LIST       : { // [TGT], [SRC]
@@ -15770,3 +15775,58 @@ sink_val sink_abortformat(sink_ctx ctx, const char *fmt, ...){
 	opi_abort(ctx, buf);
 	return SINK_NIL;
 }
+
+/*
+
+TODO:
+
+// strings
+sink_val sink_str_new(sink_ctx ctx, int size, sink_val *vals);
+sink_val sink_str_cat(sink_ctx ctx, int size, sink_val *vals);
+sink_val sink_str_slice(sink_ctx ctx, sink_val a, sink_val start, sink_val len);
+sink_val sink_str_splice(sink_ctx ctx, sink_val a, sink_val start, sink_val len, sink_val b);
+sink_val sink_str_split(sink_ctx ctx, sink_val a, sink_val b);
+sink_val sink_str_replace(sink_ctx ctx, sink_val a, sink_val b, sink_val c);
+bool     sink_str_begins(sink_ctx ctx, sink_val a, sink_val b);
+bool     sink_str_ends(sink_ctx ctx, sink_val a, sink_val b);
+sink_val sink_str_pad(sink_ctx ctx, sink_val a, sink_val b);
+sink_val sink_str_find(sink_ctx ctx, sink_val a, sink_val b, sink_val c);
+sink_val sink_str_rfind(sink_ctx ctx, sink_val a, sink_val b, sink_val c);
+sink_val sink_str_lower(sink_ctx ctx, sink_val a);
+sink_val sink_str_upper(sink_ctx ctx, sink_val a);
+sink_val sink_str_trim(sink_ctx ctx, sink_val a);
+sink_val sink_str_rev(sink_ctx ctx, sink_val a);
+sink_val sink_str_rep(sink_ctx ctx, int rep);
+sink_val sink_str_list(sink_ctx ctx, sink_val a);
+sink_val sink_str_byte(sink_ctx ctx, sink_val a, sink_val b);
+sink_val sink_str_hash(sink_ctx ctx, sink_val a, sink_val b);
+
+// utf8
+bool     sink_utf8_valid(sink_ctx ctx, sink_val a);
+sink_val sink_utf8_list(sink_ctx ctx, sink_val a);
+sink_val sink_utf8_str(sink_ctx ctx, sink_val a);
+
+// structs
+sink_val sink_struct_size(sink_ctx ctx, sink_val tpl);
+sink_val sink_struct_str(sink_ctx ctx, sink_val ls, sink_val tpl);
+sink_val sink_struct_list(sink_ctx ctx, sink_val a, sink_val tpl);
+bool     sink_struct_isLE();
+
+// lists
+sink_val sink_list_cat(sink_ctx ctx, int size, sink_val *vals);
+sink_val sink_list_slice(sink_ctx ctx, sink_val ls, sink_val start, sink_val len);
+void     sink_list_splice(sink_ctx ctx, sink_val ls, sink_val start, sink_val len, sink_val ls2);
+sink_val sink_list_shift(sink_ctx ctx, sink_val ls);
+sink_val sink_list_pop(sink_ctx ctx, sink_val ls);
+void     sink_list_unshift(sink_ctx ctx, sink_val ls, sink_val a);
+void     sink_list_append(sink_ctx ctx, sink_val ls, sink_val ls2);
+void     sink_list_prepend(sink_ctx ctx, sink_val ls, sink_val ls2);
+sink_val sink_list_find(sink_ctx ctx, sink_val ls, sink_val a, sink_val b);
+sink_val sink_list_rfind(sink_ctx ctx, sink_val ls, sink_val a, sink_val b);
+sink_val sink_list_join(sink_ctx ctx, sink_val ls, sink_val a);
+void     sink_list_rev(sink_ctx ctx, sink_val ls);
+sink_val sink_list_str(sink_ctx ctx, sink_val ls);
+void     sink_list_sort(sink_ctx ctx, sink_val ls);
+void     sink_list_rsort(sink_ctx ctx, sink_val ls);
+
+*/

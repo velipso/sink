@@ -381,7 +381,7 @@ sink_val sink_str_lower(sink_ctx ctx, sink_val a);
 sink_val sink_str_upper(sink_ctx ctx, sink_val a);
 sink_val sink_str_trim(sink_ctx ctx, sink_val a);
 sink_val sink_str_rev(sink_ctx ctx, sink_val a);
-sink_val sink_str_rep(sink_ctx ctx, sink_val a);
+sink_val sink_str_rep(sink_ctx ctx, int rep);
 sink_val sink_str_list(sink_ctx ctx, sink_val a);
 sink_val sink_str_byte(sink_ctx ctx, sink_val a, sink_val b);
 sink_val sink_str_hash(sink_ctx ctx, sink_val a, sink_val b);
@@ -422,25 +422,6 @@ void     sink_list_rev(sink_ctx ctx, sink_val ls);
 sink_val sink_list_str(sink_ctx ctx, sink_val ls);
 void     sink_list_sort(sink_ctx ctx, sink_val ls);
 void     sink_list_rsort(sink_ctx ctx, sink_val ls);
-
-// user helper
-static inline sink_val sink_user_new(sink_ctx ctx, sink_user usertype, void *user){
-	sink_val hint = sink_str_newcstr(ctx, sink_ctx_getuserhint(ctx, usertype));
-	sink_val ls = sink_list_newblob(ctx, 1, &hint);
-	sink_list_setuser(ctx, ls, usertype, user);
-	return ls;
-}
-
-static inline bool sink_isuser(sink_ctx ctx, sink_val v, sink_user usertype, void **user){
-	if (!sink_islist(v))
-		return false;
-	sink_list ls = sink_castlist(ctx, v);
-	if (ls->usertype != usertype)
-		return false;
-	if (user)
-		*user = ls->user;
-	return true;
-}
 
 // pickle
 sink_val sink_pickle_json(sink_ctx ctx, sink_val a);
@@ -486,6 +467,24 @@ static inline sink_val sink_abortcstr(sink_ctx ctx, const char *msg){
 	sink_val a = sink_str_newcstr(ctx, msg);
 	sink_abort(ctx, 1, &a);
 	return SINK_NIL;
+}
+
+static inline sink_val sink_user_new(sink_ctx ctx, sink_user usertype, void *user){
+	sink_val hint = sink_str_newcstr(ctx, sink_ctx_getuserhint(ctx, usertype));
+	sink_val ls = sink_list_newblob(ctx, 1, &hint);
+	sink_list_setuser(ctx, ls, usertype, user);
+	return ls;
+}
+
+static inline bool sink_isuser(sink_ctx ctx, sink_val v, sink_user usertype, void **user){
+	if (!sink_islist(v))
+		return false;
+	sink_list ls = sink_castlist(ctx, v);
+	if (ls->usertype != usertype)
+		return false;
+	if (user)
+		*user = ls->user;
+	return true;
 }
 
 static void sink_stdio_say(sink_ctx ctx, sink_str str, void *iouser){
