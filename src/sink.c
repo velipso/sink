@@ -1502,10 +1502,10 @@ static inline op_enum ks_toMutateOp(ks_enum k){
 //
 
 typedef struct {
-	int fullfile; // index into script's files
-	int basefile; // index into program's debug strings
-	int line;
-	int chr;
+	int32_t fullfile; // index into script's files
+	int32_t basefile; // index into program's debug strings
+	int32_t line;
+	int32_t chr;
 } filepos_st;
 
 static const filepos_st FILEPOS_NULL = { .basefile = -1, .fullfile = -1, .line = -1, .chr = -1 };
@@ -5923,7 +5923,7 @@ typedef struct {
 	list_u64 keyTable;
 	list_ptr debugTable;
 	list_ptr posTable;
-	list_ptr callTable;
+	list_ptr cmdTable;
 	list_byte ops;
 	bool repl;
 } program_st, *program;
@@ -6090,7 +6090,7 @@ static inline void program_free(program prg){
 	list_u64_free(prg->keyTable);
 	list_ptr_free(prg->debugTable);
 	list_ptr_free(prg->posTable);
-	list_ptr_free(prg->callTable);
+	list_ptr_free(prg->cmdTable);
 	list_byte_free(prg->ops);
 	mem_free(prg);
 }
@@ -6101,7 +6101,7 @@ static inline program program_new(bool repl){
 	prg->keyTable = list_u64_new();
 	prg->debugTable = list_ptr_new(mem_free_func);
 	prg->posTable = list_ptr_new(mem_free_func);
-	prg->callTable = list_ptr_new(mem_free_func);
+	prg->cmdTable = list_ptr_new(mem_free_func);
 	prg->ops = list_byte_new();
 	prg->repl = repl;
 	return prg;
@@ -6339,7 +6339,7 @@ static bool program_validate(program prg){
 }
 
 typedef struct {
-	int pc;
+	int32_t pc;
 	filepos_st flp;
 } prgflp_st, *prgflp;
 
@@ -6369,32 +6369,39 @@ static inline void program_flp(program prg, filepos_st flp){
 }
 
 typedef struct {
-	int pc;
-	int callhint;
+	int32_t pc;
+	int32_t cmdhint;
 } prgch_st, *prgch;
 
-static inline void program_callhint(program prg, list_ptr names){
-	int hint_tot = 1;
-	for (int i = 0; i < names->size; i++){
-		list_byte n = names->ptrs[i];
-		hint_tot += (i == 0 ? 0 : 1) + n->size;
+static inline void program_cmdhint(program prg, list_ptr names){
+	char *hint = NULL;
+	if (names){
+		int hint_tot = 1;
+		for (int i = 0; i < names->size; i++){
+			list_byte n = names->ptrs[i];
+			hint_tot += (i == 0 ? 0 : 1) + n->size;
+		}
+		hint = mem_alloc(sizeof(char) * hint_tot);
+		hint_tot = 0;
+		for (int i = 0; i < names->size; i++){
+			if (i > 0)
+				hint[hint_tot++] = '.';
+			list_byte n = names->ptrs[i];
+			memcpy(&hint[hint_tot], n->bytes, sizeof(char) * n->size);
+			hint_tot += n->size;
+		}
+		hint[hint_tot] = 0;
+		oplogf("#cmd %s", hint);
 	}
-	char *hint = mem_alloc(sizeof(char) * hint_tot);
-	hint_tot = 0;
-	for (int i = 0; i < names->size; i++){
-		if (i > 0)
-			hint[hint_tot++] = '.';
-		list_byte n = names->ptrs[i];
-		memcpy(&hint[hint_tot], n->bytes, sizeof(char) * n->size);
-		hint_tot += n->size;
+	else{
+		oplog("#cmd <tail>");
 	}
-	hint[hint_tot] = 0;
-	oplogf("#call %s", hint);
 	prgch p = mem_alloc(sizeof(prgch_st));
 	p->pc = prg->ops->size;
-	p->callhint = program_adddebugstr(prg, hint);
-	mem_free(hint);
-	list_ptr_push(prg->callTable, p);
+	p->cmdhint = hint ? program_adddebugstr(prg, hint) : -1;
+	if (hint)
+		mem_free(hint);
+	list_ptr_push(prg->cmdTable, p);
 }
 
 typedef struct {
@@ -7093,7 +7100,7 @@ static void embed_end(bool success, const char *file, efu_st *efu){
 static inline const char *script_getfile(script scr, int file);
 
 static per_st program_evalCall(pgen_st pgen, pem_enum mode, varloc_st intoVlc,
-	filepos_st flp, nsname nsn, expr params, list_ptr names_hint){
+	filepos_st flp, nsname nsn, expr params){
 	program prg = pgen.prg;
 	symtbl sym = pgen.sym;
 
@@ -7239,9 +7246,6 @@ static per_st program_evalCall(pgen_st pgen, pem_enum mode, varloc_st intoVlc,
 			op_arg(prg->ops, p[i]);
 		symtbl_clearTemp(sym, p[i]);
 	}
-
-	// save the hint immediately *after* call happens, so the call stack PC can be checked exactly
-	program_callhint(prg, names_hint);
 
 	if (mode == PEM_EMPTY){
 		symtbl_clearTemp(sym, intoVlc);
@@ -7649,8 +7653,7 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 				case NSN_CMD_LOCAL:
 				case NSN_CMD_NATIVE:
 				case NSN_CMD_OPCODE:
-					return program_evalCall(pgen, mode, intoVlc, ex->flp, sl.u.nsn, NULL,
-						ex->u.names);
+					return program_evalCall(pgen, mode, intoVlc, ex->flp, sl.u.nsn, NULL);
 
 				case NSN_NAMESPACE:
 					return per_error(ex->flp, sink_format("Invalid expression"));
@@ -7905,8 +7908,7 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 			stl_st sl = symtbl_lookup(sym, ex->u.call.cmd->u.names);
 			if (sl.type == STL_ERROR)
 				return per_error(ex->flp, sl.u.msg);
-			return program_evalCall(pgen, mode, intoVlc, ex->flp, sl.u.nsn, ex->u.call.params,
-				ex->u.call.cmd->u.names);
+			return program_evalCall(pgen, mode, intoVlc, ex->flp, sl.u.nsn, ex->u.call.params);
 		} break;
 
 		case EXPR_INDEX: {
@@ -8427,6 +8429,7 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 			label_declare(lbl, prg->ops);
 			symtbl_pushFrame(sym);
 
+			program_cmdhint(prg, stmt->u.def1.names);
 			op_cmdhead(prg->ops, level, rest);
 
 			// reserve our argument registers as explicit registers 0 to lvs-1
@@ -8486,6 +8489,7 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 		} break;
 
 		case AST_DEF2: {
+			program_cmdhint(prg, NULL);
 			op_cmdtail(prg->ops);
 			symtbl_popFrame(sym);
 			label skip = state;
@@ -10891,40 +10895,45 @@ static inline filepos_st callstack_flp(context ctx, int pc){
 	return flp;
 }
 
-static inline int callstack_callhint(context ctx, int pc){
-	for (int i = 0; i < ctx->prg->callTable->size; i++){
-		prgch p = ctx->prg->callTable->ptrs[i];
-		if (p->pc == pc)
-			return p->callhint;
+static inline int callstack_cmdhint(context ctx, int pc){
+	for (int i = 0; i < ctx->prg->cmdTable->size; i++){
+		prgch p = ctx->prg->cmdTable->ptrs[i];
+		if (p->pc > pc){
+			// start working backwards
+			int nest = 0;
+			for (int j = i - 1; j >= 0; j--){
+				p = ctx->prg->cmdTable->ptrs[j];
+				if (p->cmdhint < 0)
+					nest++;
+				else{
+					nest--;
+					if (nest < 0)
+						return p->cmdhint;
+				}
+			}
+		}
 	}
 	return -1;
 }
 
-static char *callstack_append(context ctx, char *err, int pc, bool first){
+static char *callstack_append(context ctx, char *err, int pc){
 	filepos_st flp = callstack_flp(ctx, pc);
-	int callhint = first ? -1 : callstack_callhint(ctx, pc);
+	int cmdhint = callstack_cmdhint(ctx, pc);
 	if (flp.line >= 0){
-		if (first){
-			char *err2 = program_errormsg(ctx->prg, flp, err);
-			mem_free(err);
-			return err2;
+		char *err2 = program_errormsg(ctx->prg, flp, NULL);
+		char *err3;
+		if (cmdhint >= 0){
+			err3 = sink_format("%s\n    at %s (%s)", err,
+				program_getdebugstr(ctx->prg, cmdhint), err2);
 		}
-		else{
-			char *err2 = program_errormsg(ctx->prg, flp, NULL);
-			char *err3;
-			if (callhint >= 0){
-				err3 = sink_format("%s\n    from %s (%s)", err,
-					program_getdebugstr(ctx->prg, callhint), err2);
-			}
-			else
-				err3 = sink_format("%s\n    from %s", err, err2);
-			mem_free(err2);
-			mem_free(err);
-			return err3;
-		}
+		else
+			err3 = sink_format("%s\n    at %s", err, err2);
+		mem_free(err2);
+		mem_free(err);
+		return err3;
 	}
-	else if (callhint >= 0){
-		char *err2 = sink_format("%s\n    at %s", err, program_getdebugstr(ctx->prg, callhint));
+	else if (cmdhint >= 0){
+		char *err2 = sink_format("%s\n    at %s", err, program_getdebugstr(ctx->prg, cmdhint));
 		mem_free(err);
 		return err2;
 	}
@@ -10935,10 +10944,10 @@ static inline sink_run opi_abort(context ctx, char *err){
 	ctx->failed = true;
 	if (err == NULL)
 		return SINK_RUN_FAIL;
-	err = callstack_append(ctx, err, ctx->lastpc, true);
+	err = callstack_append(ctx, err, ctx->lastpc);
 	for (int i = ctx->call_stk->size - 1, j = 0; i >= 0 && j < 9; i--, j++){
 		ccs here = ctx->call_stk->ptrs[i];
-		err = callstack_append(ctx, err, here->pc, false);
+		err = callstack_append(ctx, err, here->pc - 1);
 	}
 	if (ctx->err)
 		mem_free(ctx->err);
@@ -14489,10 +14498,10 @@ void sink_scr_dump(sink_scr scr, bool debug, void *user, sink_dump_f f_dump){
 		header[17] = (prg->posTable->size   >>  8) & 0xFF;
 		header[18] = (prg->posTable->size   >> 16) & 0xFF;
 		header[19] = (prg->posTable->size   >> 24) & 0xFF;
-		header[20] = (prg->callTable->size       ) & 0xFF;
-		header[21] = (prg->callTable->size  >>  8) & 0xFF;
-		header[22] = (prg->callTable->size  >> 16) & 0xFF;
-		header[23] = (prg->callTable->size  >> 24) & 0xFF;
+		header[20] = (prg->cmdTable->size       ) & 0xFF;
+		header[21] = (prg->cmdTable->size  >>  8) & 0xFF;
+		header[22] = (prg->cmdTable->size  >> 16) & 0xFF;
+		header[23] = (prg->cmdTable->size  >> 24) & 0xFF;
 	}
 	f_dump(header, 1, 24, user);
 
@@ -14581,17 +14590,17 @@ void sink_scr_dump(sink_scr scr, bool debug, void *user, sink_dump_f f_dump){
 		// output call table
 		// 4 bytes: return PC
 		// 4 bytes: hint debug string index
-		for (int i = 0; i < prg->callTable->size; i++){
-			prgch p = prg->callTable->ptrs[i];
+		for (int i = 0; i < prg->cmdTable->size; i++){
+			prgch p = prg->cmdTable->ptrs[i];
 			uint8_t plcb[8] = {
 				(p->pc            ) & 0xFF,
 				(p->pc       >>  8) & 0xFF,
 				(p->pc       >> 16) & 0xFF,
 				(p->pc       >> 24) & 0xFF,
-				(p->callhint      ) & 0xFF,
-				(p->callhint >>  8) & 0xFF,
-				(p->callhint >> 16) & 0xFF,
-				(p->callhint >> 24) & 0xFF
+				(p->cmdhint      ) & 0xFF,
+				(p->cmdhint >>  8) & 0xFF,
+				(p->cmdhint >> 16) & 0xFF,
+				(p->cmdhint >> 24) & 0xFF
 			};
 			f_dump(plcb, 1, 8, user);
 		}
