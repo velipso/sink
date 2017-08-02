@@ -7211,21 +7211,19 @@ static per_st program_evalCall(pgen_st pgen, pem_enum mode, varloc_st intoVlc,
 		list_byte str = NULL;
 		double seed = 0;
 		expr ex = params;
-		if (ex->type == EXPR_GROUP){
-			if (ex->u.group->size == 2){
-				expr ex2 = ex->u.group->ptrs[1];
-				ex = ex->u.group->ptrs[0];
-				while (ex->type == EXPR_PAREN)
-					ex = ex->u.ex;
-				if (ex->type == EXPR_STR){
-					pen_st p = program_exprToNum(pgen, ex2);
-					if (p.success){
-						str = ex->u.str;
-						seed = p.u.value;
-					}
-					else
-						mem_free(p.u.msg);
+		if (ex->type == EXPR_GROUP && ex->u.group->size == 2){
+			expr ex2 = ex->u.group->ptrs[1];
+			ex = ex->u.group->ptrs[0];
+			while (ex->type == EXPR_PAREN)
+				ex = ex->u.ex;
+			if (ex->type == EXPR_STR){
+				pen_st p = program_exprToNum(pgen, ex2);
+				if (p.success){
+					str = ex->u.str;
+					seed = p.u.value;
 				}
+				else
+					mem_free(p.u.msg);
 			}
 		}
 		else{
@@ -9150,6 +9148,13 @@ static inline void context_native(context ctx, uint64_t hash, void *natuser,
 		for (int i = 0; i < ctx->natives->size; i++){
 			native nat = ctx->natives->ptrs[i];
 			if (nat->hash == hash){
+				if (nat->f_native){
+					// already defined, hash collision
+					sink_abortcstr(ctx,
+						"Hash collision; cannot redefine native command "
+						"(did you call sink_ctx_native twice for the same command?)");
+					return;
+				}
 				nat->natuser = natuser;
 				nat->f_native = f_native;
 				return;
@@ -12630,6 +12635,45 @@ static inline sink_val opi_pickle_copy(context ctx, sink_val a){
 static inline uint8_t *opi_list_joinplain(sink_ctx ctx, int size, sink_val *vals, int sepz,
 	const uint8_t *sep, int *totv);
 
+// op descriptions for error messages
+static const char *txt_num_neg      = "negating";
+static const char *txt_num_add      = "adding";
+static const char *txt_num_sub      = "subtracting";
+static const char *txt_num_mul      = "multiplying";
+static const char *txt_num_div      = "dividing";
+static const char *txt_num_mod      = "taking modular";
+static const char *txt_num_pow      = "exponentiating";
+static const char *txt_num_abs      = "taking absolute value";
+static const char *txt_num_sign     = "taking sign";
+static const char *txt_num_clamp    = "clamping";
+static const char *txt_num_floor    = "taking floor";
+static const char *txt_num_ceil     = "taking ceil";
+static const char *txt_num_round    = "rounding";
+static const char *txt_num_trunc    = "truncating";
+static const char *txt_num_isnan    = "testing if NaN";
+static const char *txt_num_isfinite = "testing if finite";
+static const char *txt_num_sin      = "taking sin";
+static const char *txt_num_cos      = "taking cos";
+static const char *txt_num_tan      = "taking tan";
+static const char *txt_num_asin     = "taking arc-sin";
+static const char *txt_num_acos     = "taking arc-cos";
+static const char *txt_num_atan     = "taking arc-tan";
+static const char *txt_num_log      = "taking logarithm";
+static const char *txt_num_lerp     = "lerping";
+static const char *txt_num_hex      = "converting to hex";
+static const char *txt_num_oct      = "converting to oct";
+static const char *txt_num_bin      = "converting to bin";
+static const char *txt_int_new      = "casting to int";
+static const char *txt_int_not      = "NOTing";
+static const char *txt_int_and      = "ANDing";
+static const char *txt_int_or       = "ORing";
+static const char *txt_int_xor      = "XORing";
+static const char *txt_int_shl      = "shifting left";
+static const char *txt_int_shr      = "shifting right";
+static const char *txt_int_clz      = "counting leading zeros";
+static const char *txt_int_pop      = "population count";
+static const char *txt_int_bswap    = "byte swaping";
+
 static sink_run context_run(context ctx){
 	#ifdef SINK_DEBUG
 	if (!program_validate(ctx->prg)){
@@ -13248,39 +13292,39 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_NUM_NEG        : { // [TGT], [SRC]
-				INLINE_UNOP(unop_num_neg, "negating")
+				INLINE_UNOP(unop_num_neg, txt_num_neg)
 			} break;
 
 			case OP_NUM_ADD        : { // [TGT], [SRC1], [SRC2]
-				INLINE_BINOP(binop_num_add, "adding")
+				INLINE_BINOP(binop_num_add, txt_num_add)
 			} break;
 
 			case OP_NUM_SUB        : { // [TGT], [SRC1], [SRC2]
-				INLINE_BINOP(binop_num_sub, "subtracting")
+				INLINE_BINOP(binop_num_sub, txt_num_sub)
 			} break;
 
 			case OP_NUM_MUL        : { // [TGT], [SRC1], [SRC2]
-				INLINE_BINOP(binop_num_mul, "multiplying")
+				INLINE_BINOP(binop_num_mul, txt_num_mul)
 			} break;
 
 			case OP_NUM_DIV        : { // [TGT], [SRC1], [SRC2]
-				INLINE_BINOP(binop_num_div, "dividing")
+				INLINE_BINOP(binop_num_div, txt_num_div)
 			} break;
 
 			case OP_NUM_MOD        : { // [TGT], [SRC1], [SRC2]
-				INLINE_BINOP(binop_num_mod, "taking modular")
+				INLINE_BINOP(binop_num_mod, txt_num_mod)
 			} break;
 
 			case OP_NUM_POW        : { // [TGT], [SRC1], [SRC2]
-				INLINE_BINOP(binop_num_pow, "exponentiating")
+				INLINE_BINOP(binop_num_pow, txt_num_pow)
 			} break;
 
 			case OP_NUM_ABS        : { // [TGT], [SRC]
-				INLINE_UNOP(unop_num_abs, "taking absolute value")
+				INLINE_UNOP(unop_num_abs, txt_num_abs)
 			} break;
 
 			case OP_NUM_SIGN       : { // [TGT], [SRC]
-				INLINE_UNOP(unop_num_sign, "taking sign")
+				INLINE_UNOP(unop_num_sign, txt_num_sign)
 			} break;
 
 			case OP_NUM_MAX        : { // [TGT], ARGCOUNT, [ARGS]...
@@ -13302,23 +13346,23 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_NUM_CLAMP      : { // [TGT], [SRC1], [SRC2], [SRC3]
-				INLINE_TRIOP(triop_num_clamp, "clamping")
+				INLINE_TRIOP(triop_num_clamp, txt_num_clamp)
 			} break;
 
 			case OP_NUM_FLOOR      : { // [TGT], [SRC]
-				INLINE_UNOP(unop_num_floor, "taking floor")
+				INLINE_UNOP(unop_num_floor, txt_num_floor)
 			} break;
 
 			case OP_NUM_CEIL       : { // [TGT], [SRC]
-				INLINE_UNOP(unop_num_ceil, "taking ceil")
+				INLINE_UNOP(unop_num_ceil, txt_num_ceil)
 			} break;
 
 			case OP_NUM_ROUND      : { // [TGT], [SRC]
-				INLINE_UNOP(unop_num_round, "rounding")
+				INLINE_UNOP(unop_num_round, txt_num_round)
 			} break;
 
 			case OP_NUM_TRUNC      : { // [TGT], [SRC]
-				INLINE_UNOP(unop_num_trunc, "truncating")
+				INLINE_UNOP(unop_num_trunc, txt_num_trunc)
 			} break;
 
 			case OP_NUM_NAN        : { // [TGT]
@@ -13332,82 +13376,82 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_NUM_ISNAN      : { // [TGT], [SRC]
-				INLINE_UNOP(unop_num_isnan, "testing if NaN")
+				INLINE_UNOP(unop_num_isnan, txt_num_isnan)
 			} break;
 
 			case OP_NUM_ISFINITE   : { // [TGT], [SRC]
-				INLINE_UNOP(unop_num_isfinite, "testing if finite")
+				INLINE_UNOP(unop_num_isfinite, txt_num_isfinite)
 			} break;
 
 			case OP_NUM_SIN        : { // [TGT], [SRC]
-				INLINE_UNOP(unop_num_sin, "taking sin")
+				INLINE_UNOP(unop_num_sin, txt_num_sin)
 			} break;
 
 			case OP_NUM_COS        : { // [TGT], [SRC]
-				INLINE_UNOP(unop_num_cos, "taking cos")
+				INLINE_UNOP(unop_num_cos, txt_num_cos)
 			} break;
 
 			case OP_NUM_TAN        : { // [TGT], [SRC]
-				INLINE_UNOP(unop_num_tan, "taking tan")
+				INLINE_UNOP(unop_num_tan, txt_num_tan)
 			} break;
 
 			case OP_NUM_ASIN       : { // [TGT], [SRC]
-				INLINE_UNOP(unop_num_asin, "taking arc-sin")
+				INLINE_UNOP(unop_num_asin, txt_num_asin)
 			} break;
 
 			case OP_NUM_ACOS       : { // [TGT], [SRC]
-				INLINE_UNOP(unop_num_acos, "taking arc-cos")
+				INLINE_UNOP(unop_num_acos, txt_num_acos)
 			} break;
 
 			case OP_NUM_ATAN       : { // [TGT], [SRC]
-				INLINE_UNOP(unop_num_atan, "taking arc-tan")
+				INLINE_UNOP(unop_num_atan, txt_num_atan)
 			} break;
 
 			case OP_NUM_ATAN2      : { // [TGT], [SRC1], [SRC2]
-				INLINE_BINOP(binop_num_atan2, "taking arc-tan")
+				INLINE_BINOP(binop_num_atan2, txt_num_atan)
 			} break;
 
 			case OP_NUM_LOG        : { // [TGT], [SRC]
-				INLINE_UNOP(unop_num_log, "taking logarithm")
+				INLINE_UNOP(unop_num_log, txt_num_log)
 			} break;
 
 			case OP_NUM_LOG2       : { // [TGT], [SRC]
-				INLINE_UNOP(unop_num_log2, "taking logarithm")
+				INLINE_UNOP(unop_num_log2, txt_num_log)
 			} break;
 
 			case OP_NUM_LOG10      : { // [TGT], [SRC]
-				INLINE_UNOP(unop_num_log10, "taking logarithm")
+				INLINE_UNOP(unop_num_log10, txt_num_log)
 			} break;
 
 			case OP_NUM_EXP        : { // [TGT], [SRC]
-				INLINE_UNOP(unop_num_exp, "exponentiating")
+				INLINE_UNOP(unop_num_exp, txt_num_pow)
 			} break;
 
 			case OP_NUM_LERP       : { // [TGT], [SRC1], [SRC2], [SRC3]
-				INLINE_TRIOP(triop_num_lerp, "lerping")
+				INLINE_TRIOP(triop_num_lerp, txt_num_lerp)
 			} break;
 
 			case OP_NUM_HEX        : { // [TGT], [SRC1], [SRC2]
-				INLINE_BINOP_T(binop_num_hex, "converting to hex", LT_ALLOWNUM,
+				INLINE_BINOP_T(binop_num_hex, txt_num_hex, LT_ALLOWNUM,
 					LT_ALLOWNUM | LT_ALLOWNIL)
 			} break;
 
 			case OP_NUM_OCT        : { // [TGT], [SRC1], [SRC2]
-				INLINE_BINOP_T(binop_num_oct, "converting to oct", LT_ALLOWNUM,
+				INLINE_BINOP_T(binop_num_oct, txt_num_oct, LT_ALLOWNUM,
 					LT_ALLOWNUM | LT_ALLOWNIL)
 			} break;
 
 			case OP_NUM_BIN        : { // [TGT], [SRC1], [SRC2]
-				INLINE_BINOP_T(binop_num_bin, "converting to bin", LT_ALLOWNUM,
+				INLINE_BINOP_T(binop_num_bin, txt_num_bin, LT_ALLOWNUM,
 					LT_ALLOWNUM | LT_ALLOWNIL)
 			} break;
 
 			case OP_INT_NEW        : { // [TGT], [SRC]
-				INLINE_UNOP(unop_int_new, "casting to int")
+				INLINE_UNOP(unop_int_new, txt_int_new)
 			} break;
 
 			case OP_INT_NOT        : { // [TGT], [SRC]
-				INLINE_UNOP(unop_int_not, "NOTing")
+				INLINE_UNOP(unop_int_not, txt_int_not)
 			} break;
 
 			case OP_INT_AND        : { // [TGT], ARGCOUNT, [ARGS]...
@@ -13416,7 +13460,7 @@ static sink_run context_run(context ctx){
 					E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
 					p[D] = var_get(ctx, E, F);
 				}
-				X = opi_combop(ctx, C, p, binop_int_and, "ANDing");
+				X = opi_combop(ctx, C, p, binop_int_and, txt_int_and);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
@@ -13428,7 +13472,7 @@ static sink_run context_run(context ctx){
 					E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
 					p[D] = var_get(ctx, E, F);
 				}
-				X = opi_combop(ctx, C, p, binop_int_or, "ORing");
+				X = opi_combop(ctx, C, p, binop_int_or, txt_int_or);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
@@ -13440,54 +13484,54 @@ static sink_run context_run(context ctx){
 					E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
 					p[D] = var_get(ctx, E, F);
 				}
-				X = opi_combop(ctx, C, p, binop_int_xor, "XORing");
+				X = opi_combop(ctx, C, p, binop_int_xor, txt_int_xor);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_INT_SHL        : { // [TGT], [SRC1], [SRC2]
-				INLINE_BINOP(binop_int_shl, "shifting left")
+				INLINE_BINOP(binop_int_shl, txt_int_shl)
 			} break;
 
 			case OP_INT_SHR        : { // [TGT], [SRC1], [SRC2]
-				INLINE_BINOP(binop_int_shr, "shifting right")
+				INLINE_BINOP(binop_int_shr, txt_int_shr)
 			} break;
 
 			case OP_INT_SAR        : { // [TGT], [SRC1], [SRC2]
-				INLINE_BINOP(binop_int_sar, "shifting right")
+				INLINE_BINOP(binop_int_sar, txt_int_shr)
 			} break;
 
 			case OP_INT_ADD        : { // [TGT], [SRC1], [SRC2]
-				INLINE_BINOP(binop_int_add, "adding")
+				INLINE_BINOP(binop_int_add, txt_num_add)
 			} break;
 
 			case OP_INT_SUB        : { // [TGT], [SRC1], [SRC2]
-				INLINE_BINOP(binop_int_sub, "subtracting");
+				INLINE_BINOP(binop_int_sub, txt_num_sub);
 			} break;
 
 			case OP_INT_MUL        : { // [TGT], [SRC1], [SRC2]
-				INLINE_BINOP(binop_int_mul, "multiplying")
+				INLINE_BINOP(binop_int_mul, txt_num_mul)
 			} break;
 
 			case OP_INT_DIV        : { // [TGT], [SRC1], [SRC2]
-				INLINE_BINOP(binop_int_div, "dividing")
+				INLINE_BINOP(binop_int_div, txt_num_div)
 			} break;
 
 			case OP_INT_MOD        : { // [TGT], [SRC1], [SRC2]
-				INLINE_BINOP(binop_int_mod, "taking modular")
+				INLINE_BINOP(binop_int_mod, txt_num_mod)
 			} break;
 
 			case OP_INT_CLZ        : { // [TGT], [SRC]
-				INLINE_UNOP(unop_int_clz, "counting leading zeros")
+				INLINE_UNOP(unop_int_clz, txt_int_clz)
 			} break;
 
 			case OP_INT_POP        : { // [TGT], [SRC]
-				INLINE_UNOP(unop_int_pop, "population count")
+				INLINE_UNOP(unop_int_pop, txt_int_pop)
 			} break;
 
 			case OP_INT_BSWAP      : { // [TGT], [SRC]
-				INLINE_UNOP(unop_int_bswap, "byte swaping")
+				INLINE_UNOP(unop_int_bswap, txt_int_bswap)
 			} break;
 
 			case OP_RAND_SEED      : { // [TGT], [SRC]
@@ -14546,7 +14590,7 @@ bool sink_scr_write(sink_scr scr, int size, const uint8_t *bytes){
 	}
 }
 
-const char *sink_scr_err(sink_scr scr){
+const char *sink_scr_geterr(sink_scr scr){
 	return ((script)scr)->err;
 }
 
@@ -14820,7 +14864,7 @@ sink_run sink_ctx_run(sink_ctx ctx){
 	return r;
 }
 
-const char *sink_ctx_err(sink_ctx ctx){
+const char *sink_ctx_geterr(sink_ctx ctx){
 	return ((context)ctx)->err;
 }
 
@@ -14896,6 +14940,10 @@ bool sink_arg_user(sink_ctx ctx, int size, sink_val *args, int index, sink_user 
 	#undef ABORT
 
 	return true;
+}
+
+sink_val sink_tonum(sink_ctx ctx, sink_val v){
+	return opi_tonum(ctx, v);
 }
 
 static sink_str_st sinkhelp_tostr(context ctx, list_int li, sink_val v){
@@ -15004,6 +15052,10 @@ sink_val sink_tostr(sink_ctx ctx, sink_val v){
 	return sink_str_newblobgive(ctx, s.size, s.bytes);
 }
 
+int sink_size(sink_ctx ctx, sink_val v){
+	return opi_size(ctx, v);
+}
+
 void sink_say(sink_ctx ctx, int size, sink_val *vals){
 	opi_say(ctx, size, vals);
 }
@@ -15042,6 +15094,135 @@ int sink_order(sink_ctx ctx, sink_val a, sink_val b){
 sink_val sink_stacktrace(sink_ctx ctx){
 	return opi_stacktrace(ctx);
 }
+
+// numbers
+sink_val sink_num_neg(sink_ctx ctx, sink_val a){
+	return opi_unop(ctx, a, unop_num_neg, txt_num_neg);
+}
+
+sink_val sink_num_add(sink_ctx ctx, sink_val a, sink_val b){
+	return opi_binop(ctx, a, b, binop_num_add, txt_num_add, LT_ALLOWNUM, LT_ALLOWNUM);
+}
+
+sink_val sink_num_sub(sink_ctx ctx, sink_val a, sink_val b){
+	return opi_binop(ctx, a, b, binop_num_sub, txt_num_sub, LT_ALLOWNUM, LT_ALLOWNUM);
+}
+
+sink_val sink_num_mul(sink_ctx ctx, sink_val a, sink_val b){
+	return opi_binop(ctx, a, b, binop_num_mul, txt_num_mul, LT_ALLOWNUM, LT_ALLOWNUM);
+}
+
+sink_val sink_num_div(sink_ctx ctx, sink_val a, sink_val b){
+	return opi_binop(ctx, a, b, binop_num_div, txt_num_div, LT_ALLOWNUM, LT_ALLOWNUM);
+}
+
+sink_val sink_num_mod(sink_ctx ctx, sink_val a, sink_val b){
+	return opi_binop(ctx, a, b, binop_num_mod, txt_num_mod, LT_ALLOWNUM, LT_ALLOWNUM);
+}
+
+sink_val sink_num_pow(sink_ctx ctx, sink_val a, sink_val b){
+	return opi_binop(ctx, a, b, binop_num_pow, txt_num_pow, LT_ALLOWNUM, LT_ALLOWNUM);
+}
+
+sink_val sink_num_abs(sink_ctx ctx, sink_val a){
+	return opi_unop(ctx, a, unop_num_abs, txt_num_abs);
+}
+
+sink_val sink_num_sign(sink_ctx ctx, sink_val a){
+	return opi_unop(ctx, a, unop_num_sign, txt_num_sign);
+}
+
+sink_val sink_num_max(sink_ctx ctx, int size, sink_val *vals){
+	return opi_num_max(ctx, size, vals);
+}
+
+sink_val sink_num_min(sink_ctx ctx, int size, sink_val *vals){
+	return opi_num_min(ctx, size, vals);
+}
+
+sink_val sink_num_clamp(sink_ctx ctx, sink_val a, sink_val b, sink_val c){
+	return opi_triop(ctx, a, b, c, triop_num_clamp, txt_num_clamp);
+}
+
+sink_val sink_num_floor(sink_ctx ctx, sink_val a){
+	return opi_unop(ctx, a, unop_num_floor, txt_num_floor);
+}
+
+sink_val sink_num_ceil(sink_ctx ctx, sink_val a){
+	return opi_unop(ctx, a, unop_num_ceil, txt_num_ceil);
+}
+
+sink_val sink_num_round(sink_ctx ctx, sink_val a){
+	return opi_unop(ctx, a, unop_num_round, txt_num_round);
+}
+
+sink_val sink_num_trunc(sink_ctx ctx, sink_val a){
+	return opi_unop(ctx, a, unop_num_trunc, txt_num_trunc);
+}
+
+sink_val sink_num_sin(sink_ctx ctx, sink_val a){
+	return opi_unop(ctx, a, unop_num_sin, txt_num_sin);
+}
+
+sink_val sink_num_cos(sink_ctx ctx, sink_val a){
+	return opi_unop(ctx, a, unop_num_cos, txt_num_cos);
+}
+
+sink_val sink_num_tan(sink_ctx ctx, sink_val a){
+	return opi_unop(ctx, a, unop_num_tan, txt_num_tan);
+}
+
+sink_val sink_num_asin(sink_ctx ctx, sink_val a){
+	return opi_unop(ctx, a, unop_num_asin, txt_num_asin);
+}
+
+sink_val sink_num_acos(sink_ctx ctx, sink_val a){
+	return opi_unop(ctx, a, unop_num_acos, txt_num_acos);
+}
+
+sink_val sink_num_atan(sink_ctx ctx, sink_val a){
+	return opi_unop(ctx, a, unop_num_atan, txt_num_atan);
+}
+
+sink_val sink_num_atan2(sink_ctx ctx, sink_val a, sink_val b){
+	return opi_binop(ctx, a, b, binop_num_atan2, txt_num_atan, LT_ALLOWNUM, LT_ALLOWNUM);
+}
+
+sink_val sink_num_log(sink_ctx ctx, sink_val a){
+	return opi_unop(ctx, a, unop_num_log, txt_num_log);
+}
+
+sink_val sink_num_log2(sink_ctx ctx, sink_val a){
+	return opi_unop(ctx, a, unop_num_log2, txt_num_log);
+}
+
+sink_val sink_num_log10(sink_ctx ctx, sink_val a){
+	return opi_unop(ctx, a, unop_num_log10, txt_num_log);
+}
+
+sink_val sink_num_exp(sink_ctx ctx, sink_val a){
+	return opi_unop(ctx, a, unop_num_exp, txt_num_pow);
+}
+
+sink_val sink_num_lerp(sink_ctx ctx, sink_val a, sink_val b, sink_val t){
+	return opi_triop(ctx, a, b, t, triop_num_lerp, txt_num_lerp);
+}
+
+sink_val sink_num_hex(sink_ctx ctx, sink_val a, sink_val b){
+	return opi_binop(ctx, a, b, binop_num_hex, txt_num_hex, LT_ALLOWNUM, LT_ALLOWNUM | LT_ALLOWNIL);
+}
+
+sink_val sink_num_oct(sink_ctx ctx, sink_val a, sink_val b){
+	return opi_binop(ctx, a, b, binop_num_oct, txt_num_oct, LT_ALLOWNUM, LT_ALLOWNUM | LT_ALLOWNIL);
+}
+
+sink_val sink_num_bin(sink_ctx ctx, sink_val a, sink_val b){
+	return opi_binop(ctx, a, b, binop_num_bin, txt_num_bin, LT_ALLOWNUM, LT_ALLOWNUM | LT_ALLOWNIL);
+}
+
+// integers
+
+// random
 
 // strings
 sink_val sink_str_newcstr(sink_ctx ctx, const char *str){

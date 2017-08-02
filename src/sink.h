@@ -167,7 +167,7 @@ static const uint64_t SINK_NAN_MASK   =        UINT64_C(0x7FF8000000000000);
 //     //   check for error at that point too
 //     if (!sink_scr_loadfile(scr, "thefile")){
 //         // the file failed to load
-//         const char *err = sink_scr_err(scr);
+//         const char *err = sink_scr_geterr(scr);
 //         fprintf(stderr, "%s\n", err ? err : "Error: Unknown");
 //         sink_scr_free(scr);
 //         return;
@@ -185,7 +185,7 @@ static const uint64_t SINK_NAN_MASK   =        UINT64_C(0x7FF8000000000000);
 //         readinput(buf, sink_scr_level(scr)); // use `sink_scr_level` to detect nesting level
 //         if (!sink_scr_write(scr, strlen(buf), (const uint8_t *)buf)){
 //             // the line failed to compile
-//             const char *err = sink_scr_err(scr);
+//             const char *err = sink_scr_geterr(scr);
 //             fprintf(stderr, "%s\n", err ? err : "Error: Unknown");
 //             // don't worry, you can keep entering more REPL lines, the compiler fixes itself
 //         }
@@ -203,7 +203,7 @@ static const uint64_t SINK_NAN_MASK   =        UINT64_C(0x7FF8000000000000);
 //     // intialize using `sink_scr_addpath`, `sink_scr_inc`, and `sink_scr_cleanup`
 //     if (!sink_scr_write(scr, rawBufferSize, rawBuffer)){
 //         // the buffer failed to compile
-//         const char *err = sink_scr_err(scr);
+//         const char *err = sink_scr_geterr(scr);
 //         fprintf(stderr, "%s\n", err ? err : "Error: Unknown");
 //         sink_scr_free(scr);
 //         return;
@@ -215,12 +215,12 @@ sink_scr    sink_scr_new(sink_inc_st inc, const char *curdir, sink_scr_type type
 void        sink_scr_addpath(sink_scr scr, const char *path);
 void        sink_scr_incbody(sink_scr scr, const char *name, const char *body);
 void        sink_scr_incfile(sink_scr scr, const char *name, const char *file);
-void        sink_scr_cleanup(sink_scr scr, void *cuser, sink_free_f f_free);
-bool        sink_scr_loadfile(sink_scr scr, const char *file);
 const char *sink_scr_getfile(sink_scr scr);
 const char *sink_scr_getcwd(sink_scr scr);
+const char *sink_scr_geterr(sink_scr scr);
+void        sink_scr_cleanup(sink_scr scr, void *cuser, sink_free_f f_free);
+bool        sink_scr_loadfile(sink_scr scr, const char *file);
 bool        sink_scr_write(sink_scr scr, int size, const uint8_t *bytes);
-const char *sink_scr_err(sink_scr scr);
 int         sink_scr_level(sink_scr scr);
 void        sink_scr_dump(sink_scr scr, bool debug, void *user, sink_dump_f f_dump);
 void        sink_scr_free(sink_scr scr);
@@ -228,6 +228,7 @@ void        sink_scr_free(sink_scr scr);
 // context
 sink_ctx        sink_ctx_new(sink_scr scr, sink_io_st io);
 sink_ctx_status sink_ctx_getstatus(sink_ctx ctx);
+const char *    sink_ctx_geterr(sink_ctx ctx);
 void            sink_ctx_native(sink_ctx ctx, const char *name, void *natuser,
 	sink_native_f f_native);
 void            sink_ctx_nativehash(sink_ctx ctx, uint64_t hash, void *natuser,
@@ -236,14 +237,13 @@ void            sink_ctx_cleanup(sink_ctx ctx, void *cuser, sink_free_f f_cleanu
 void            sink_ctx_setuser(sink_ctx ctx, void *user, sink_free_f f_free);
 void *          sink_ctx_getuser(sink_ctx ctx);
 sink_user       sink_ctx_addusertype(sink_ctx ctx, const char *hint, sink_free_f f_free);
-sink_free_f  sink_ctx_getuserfree(sink_ctx ctx, sink_user usertype);
+sink_free_f     sink_ctx_getuserfree(sink_ctx ctx, sink_user usertype);
 const char *    sink_ctx_getuserhint(sink_ctx ctx, sink_user usertype);
 void            sink_ctx_asyncresult(sink_ctx ctx, sink_val v);
 void            sink_ctx_settimeout(sink_ctx ctx, int timeout);
 int             sink_ctx_gettimeout(sink_ctx ctx);
 void            sink_ctx_forcetimeout(sink_ctx ctx);
 sink_run        sink_ctx_run(sink_ctx ctx);
-const char *    sink_ctx_err(sink_ctx ctx);
 void            sink_ctx_free(sink_ctx ctx);
 
 // value

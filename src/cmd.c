@@ -99,10 +99,7 @@ static inline sink_ctx newctx(sink_scr scr, int argc, char **argv){
 }
 
 static inline void printline(int line, int level){
-	if (line < 10)
-		printf(" %d", line);
-	else
-		printf("%d", line);
+	printf("%2d", line);
 	if (level <= 0)
 		printf(": ");
 	else{
@@ -114,12 +111,12 @@ static inline void printline(int line, int level){
 }
 
 static inline void printscrerr(sink_scr scr){
-	const char *err = sink_scr_err(scr);
+	const char *err = sink_scr_geterr(scr);
 	fprintf(stderr, "%s\n", err ? err : "Error: Unknown");
 }
 
 static inline void printctxerr(sink_ctx ctx){
-	const char *err = sink_ctx_err(ctx);
+	const char *err = sink_ctx_geterr(ctx);
 	fprintf(stderr, "%s\n", err ? err : "Error: Unknown");
 }
 
@@ -139,7 +136,7 @@ static int main_repl(sink_scr scr, int argc, char **argv){
 	catchint();
 	printline(line, sink_scr_level(scr));
 	while (!done){
-		int ch = fgetc(stdin);
+		int ch = getchar();
 		if (ch == EOF){
 			ch = '\n';
 			done = true;
