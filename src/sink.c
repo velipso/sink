@@ -5368,6 +5368,7 @@ static inline nl_st namespace_lookupImmediate(namespace ns, list_ptr names){
 	// should perform the most ideal lookup... if it fails, then there is room to add a symbol
 	for (int ni = 0; ni < names->size; ni++){
 		list_byte name = names->ptrs[ni];
+		bool found = false;
 		for (int nsni = 0; nsni < ns->names->size; nsni++){
 			nsname nsn = ns->names->ptrs[nsni];
 			if (list_byte_equ(nsn->name, name)){
@@ -5376,9 +5377,12 @@ static inline nl_st namespace_lookupImmediate(namespace ns, list_ptr names){
 				if (nsn->type != NSN_NAMESPACE)
 					return nl_notfound();
 				ns = nsn->u.ns;
+				found = true;
 				break;
 			}
 		}
+		if (!found)
+			return nl_notfound();
 	}
 	return nl_notfound();
 }
@@ -8440,14 +8444,16 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 				lbl = n.nsn->u.cmdLocal.lbl;
 				if (!sym->repl && lbl->pos >= 0){ // if already defined, error
 					list_byte b = stmt->u.def1.names->ptrs[0];
-					char *join = sink_format("Cannot redefine \"%.*s\"", b->size, b->bytes);
+					char *join = sink_format("Cannot redefine \"%.*s", b->size, b->bytes);
 					for (int i = 1; i < stmt->u.def1.names->size; i++){
 						b = stmt->u.def1.names->ptrs[i];
 						char *join2 = sink_format("%s.%.*s", join, b->size, b->bytes);
 						mem_free(join);
 						join = join2;
 					}
-					return pgr_error(stmt->u.def1.flpN, join);
+					char *join2 = sink_format("%s\"", join);
+					mem_free(join);
+					return pgr_error(stmt->u.def1.flpN, join2);
 				}
 			}
 			else{
