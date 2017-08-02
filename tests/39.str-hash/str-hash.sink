@@ -7,3 +7,10 @@ end
 # test static hashes
 say str.hash "test\0one", 123
 say str.hash "test\0two"
+
+# compared to runtime hashing
+var s1 = "test\0one"
+var n1 = 123
+var s2 = "test\0two"
+say str.hash s1, n1
+say str.hash s2

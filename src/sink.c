@@ -7211,11 +7211,7 @@ static per_st program_evalCall(pgen_st pgen, pem_enum mode, varloc_st intoVlc,
 		list_byte str = NULL;
 		double seed = 0;
 		expr ex = params;
-		while (ex->type == EXPR_PAREN)
-			ex = ex->u.ex;
-		if (ex->type == EXPR_STR)
-			str = ex->u.str;
-		else if (ex->type == EXPR_GROUP){
+		if (ex->type == EXPR_GROUP){
 			if (ex->u.group->size == 2){
 				expr ex2 = ex->u.group->ptrs[1];
 				ex = ex->u.group->ptrs[0];
@@ -7231,6 +7227,12 @@ static per_st program_evalCall(pgen_st pgen, pem_enum mode, varloc_st intoVlc,
 						mem_free(p.u.msg);
 				}
 			}
+		}
+		else{
+			while (ex->type == EXPR_PAREN)
+				ex = ex->u.ex;
+			if (ex->type == EXPR_STR)
+				str = ex->u.str;
 		}
 		if (str){
 			// we can perform a static hash!
