@@ -6278,6 +6278,11 @@ static bool program_validate(program prg){
 			case OPPC_RETURNTAIL : { // [[LOCATION]], ARGCOUNT, [VARS]...
 				READLOC(2); // need valid call target
 				READCNT();
+				if (jumploc < ops->size - 1){
+					// check that the call target's level matches this level
+					if (ops->bytes[jumploc] != OP_CMDHEAD || ops->bytes[jumploc + 1] != level)
+						goto fail;
+				}
 			} break;
 
 			case OPPC_VVVV       :   // [VAR], [VAR], [VAR], [VAR]
@@ -13095,10 +13100,9 @@ static sink_run context_run(context ctx){
 					E = C + 1;
 				}
 				lxs lx = ctx->lex_stk->ptrs[ctx->lex_index];
-				ctx->lex_stk->ptrs[ctx->lex_index] = lx->next;
+				lxs lx2 = lx->next;
 				lxs_release(ctx, lx);
-				ctx->lex_stk->ptrs[ctx->lex_index] =
-					lxs_get(ctx, E, p, ctx->lex_stk->ptrs[ctx->lex_index]);
+				ctx->lex_stk->ptrs[ctx->lex_index] = lxs_get(ctx, E, p, lx2);
 			} break;
 
 			case OP_RANGE          : { // [TGT], [SRC1], [SRC2], [SRC3]
