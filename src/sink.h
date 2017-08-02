@@ -335,9 +335,9 @@ sink_val sink_num_bin(sink_ctx ctx, sink_val a, sink_val b);
 // integers
 sink_val sink_int_new(sink_ctx ctx, sink_val a);
 sink_val sink_int_not(sink_ctx ctx, sink_val a);
-sink_val sink_int_and(sink_ctx ctx, sink_val a, sink_val b);
-sink_val sink_int_or(sink_ctx ctx, sink_val a, sink_val b);
-sink_val sink_int_xor(sink_ctx ctx, sink_val a, sink_val b);
+sink_val sink_int_and(sink_ctx ctx, int size, sink_val *vals);
+sink_val sink_int_or (sink_ctx ctx, int size, sink_val *vals);
+sink_val sink_int_xor(sink_ctx ctx, int size, sink_val *vals);
 sink_val sink_int_shl(sink_ctx ctx, sink_val a, sink_val b);
 sink_val sink_int_shr(sink_ctx ctx, sink_val a, sink_val b);
 sink_val sink_int_sar(sink_ctx ctx, sink_val a, sink_val b);

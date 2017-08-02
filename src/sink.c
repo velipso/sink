@@ -13507,7 +13507,7 @@ static sink_run context_run(context ctx){
 			} break;
 
 			case OP_INT_SUB        : { // [TGT], [SRC1], [SRC2]
-				INLINE_BINOP(binop_int_sub, txt_num_sub);
+				INLINE_BINOP(binop_int_sub, txt_num_sub)
 			} break;
 
 			case OP_INT_MUL        : { // [TGT], [SRC1], [SRC2]
@@ -15221,6 +15221,69 @@ sink_val sink_num_bin(sink_ctx ctx, sink_val a, sink_val b){
 }
 
 // integers
+sink_val sink_int_new(sink_ctx ctx, sink_val a){
+	return opi_unop(ctx, a, unop_int_new, txt_int_new);
+}
+
+sink_val sink_int_not(sink_ctx ctx, sink_val a){
+	return opi_unop(ctx, a, unop_int_not, txt_int_not);
+}
+
+sink_val sink_int_and(sink_ctx ctx, int size, sink_val *vals){
+	return opi_combop(ctx, size, vals, binop_int_and, txt_int_and);
+}
+
+sink_val sink_int_or(sink_ctx ctx, int size, sink_val *vals){
+	return opi_combop(ctx, size, vals, binop_int_or, txt_int_or);
+}
+
+sink_val sink_int_xor(sink_ctx ctx, int size, sink_val *vals){
+	return opi_combop(ctx, size, vals, binop_int_xor, txt_int_xor);
+}
+
+sink_val sink_int_shl(sink_ctx ctx, sink_val a, sink_val b){
+	return opi_binop(ctx, a, b, binop_int_shl, txt_int_shl, LT_ALLOWNUM, LT_ALLOWNUM);
+}
+
+sink_val sink_int_shr(sink_ctx ctx, sink_val a, sink_val b){
+	return opi_binop(ctx, a, b, binop_int_shr, txt_int_shr, LT_ALLOWNUM, LT_ALLOWNUM);
+}
+
+sink_val sink_int_sar(sink_ctx ctx, sink_val a, sink_val b){
+	return opi_binop(ctx, a, b, binop_int_sar, txt_int_shr, LT_ALLOWNUM, LT_ALLOWNUM);
+}
+
+sink_val sink_int_add(sink_ctx ctx, sink_val a, sink_val b){
+	return opi_binop(ctx, a, b, binop_int_add, txt_num_add, LT_ALLOWNUM, LT_ALLOWNUM);
+}
+
+sink_val sink_int_sub(sink_ctx ctx, sink_val a, sink_val b){
+	return opi_binop(ctx, a, b, binop_int_sub, txt_num_sub, LT_ALLOWNUM, LT_ALLOWNUM);
+}
+
+sink_val sink_int_mul(sink_ctx ctx, sink_val a, sink_val b){
+	return opi_binop(ctx, a, b, binop_int_mul, txt_num_mul, LT_ALLOWNUM, LT_ALLOWNUM);
+}
+
+sink_val sink_int_div(sink_ctx ctx, sink_val a, sink_val b){
+	return opi_binop(ctx, a, b, binop_int_div, txt_num_div, LT_ALLOWNUM, LT_ALLOWNUM);
+}
+
+sink_val sink_int_mod(sink_ctx ctx, sink_val a, sink_val b){
+	return opi_binop(ctx, a, b, binop_int_mod, txt_num_mod, LT_ALLOWNUM, LT_ALLOWNUM);
+}
+
+sink_val sink_int_clz(sink_ctx ctx, sink_val a){
+	return opi_unop(ctx, a, unop_int_clz, txt_int_clz);
+}
+
+sink_val sink_int_pop(sink_ctx ctx, sink_val a){
+	return opi_unop(ctx, a, unop_int_pop, txt_int_pop);
+}
+
+sink_val sink_int_bswap(sink_ctx ctx, sink_val a){
+	return opi_unop(ctx, a, unop_int_bswap, txt_int_bswap);
+}
 
 // random
 
