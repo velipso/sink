@@ -7105,6 +7105,23 @@ static void embed_end(bool success, const char *file, efu_st *efu){
 	efu->pgen.scr->capture_write = NULL;
 }
 
+typedef struct {
+	bool success;
+	union {
+		double value;
+		char *msg;
+	} u;
+} pen_st;
+
+static inline pen_st pen_ok(double value){
+	return (pen_st){ .success = true, .u.value = value };
+}
+
+static inline pen_st pen_err(char *msg){
+	return (pen_st){ .success = false, .u.msg = msg };
+}
+
+static pen_st program_exprToNum(pgen_st pgen, expr ex);
 static inline const char *script_getfile(script scr, int file);
 
 static per_st program_evalCall(pgen_st pgen, pem_enum mode, varloc_st intoVlc,
@@ -7188,6 +7205,46 @@ static per_st program_evalCall(pgen_st pgen, pem_enum mode, varloc_st intoVlc,
 		if (!res)
 			return per_error(flp, sink_format("Failed to embed: %s", (const char *)fstr->bytes));
 		return efu.pe;
+	}
+	else if (nsn->type == NSN_CMD_OPCODE && nsn->u.cmdOpcode.opcode == OP_STR_HASH && params){
+		// attempt to str.hash at compile-time if possible
+		list_byte str = NULL;
+		double seed = 0;
+		expr ex = params;
+		while (ex->type == EXPR_PAREN)
+			ex = ex->u.ex;
+		if (ex->type == EXPR_STR)
+			str = ex->u.str;
+		else if (ex->type == EXPR_GROUP){
+			if (ex->u.group->size == 2){
+				expr ex2 = ex->u.group->ptrs[1];
+				ex = ex->u.group->ptrs[0];
+				while (ex->type == EXPR_PAREN)
+					ex = ex->u.ex;
+				if (ex->type == EXPR_STR){
+					pen_st p = program_exprToNum(pgen, ex2);
+					if (p.success){
+						str = ex->u.str;
+						seed = p.u.value;
+					}
+					else
+						mem_free(p.u.msg);
+				}
+			}
+		}
+		if (str){
+			// we can perform a static hash!
+			uint32_t out[4];
+			sink_str_hashplain(str->size, str->bytes, (uint32_t)seed, out);
+			expr ex = expr_list(flp, expr_group(flp, expr_group(flp, expr_group(flp,
+					expr_num(flp, out[0]),
+					expr_num(flp, out[1])),
+					expr_num(flp, out[2])),
+					expr_num(flp, out[3])));
+			per_st p = program_eval(pgen, mode, intoVlc, ex);
+			expr_free(ex);
+			return p;
+		}
 	}
 
 	if (mode == PEM_EMPTY || mode == PEM_CREATE){
@@ -7982,22 +8039,6 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 	}
 	assert(false);
 	return per_ok(VARLOC_NULL);
-}
-
-typedef struct {
-	bool success;
-	union {
-		double value;
-		char *msg;
-	} u;
-} pen_st;
-
-static inline pen_st pen_ok(double value){
-	return (pen_st){ .success = true, .u.value = value };
-}
-
-static inline pen_st pen_err(char *msg){
-	return (pen_st){ .success = false, .u.msg = msg };
 }
 
 static pen_st program_exprToNum(pgen_st pgen, expr ex){
