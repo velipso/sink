@@ -14855,9 +14855,10 @@ bool sink_scr_write(sink_scr scr, int size, const uint8_t *bytes){
 					}
 					break;
 				case BIS_DONE:
-					// EOF, trim rest of file
-					debugf("binary trim %d bytes", size);
-					size = 0;
+					if (size > 0){
+						sc->err = sink_format("Error: Invalid data at end of file");
+						return false;
+					}
 					break;
 			}
 		}
