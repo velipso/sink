@@ -6,7 +6,7 @@
 #include "sink_shell.h"
 #include <string.h>
 
-#ifdef SINK_WIN32
+#ifdef SINK_WIN
 #	include <direct.h> // _getcwd
 #	define getcwd _getcwd
 #else
@@ -15,7 +15,7 @@
 
 static volatile bool done = false;
 
-#if defined(SINK_POSIX) || defined(SINK_MACOSX)
+#if defined(SINK_POSIX) || defined(SINK_MAC)
 
 #include <signal.h>
 
@@ -33,7 +33,7 @@ static inline void catchint(){
 #	error Don't know how to catch Ctrl+C for other platforms
 #endif
 
-#if defined(SINK_POSIX) || defined(SINK_MACOSX)
+#if defined(SINK_POSIX) || defined(SINK_MAC)
 
 #include <dirent.h>
 #include <sys/stat.h>

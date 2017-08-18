@@ -14,25 +14,12 @@
 #include <stdarg.h>
 
 // platform detection
-#if !defined(SINK_WIN32) && !defined(SINK_IOS) && !defined(SINK_MACOSX) && !defined(SINK_POSIX)
+#if !defined(SINK_WIN) && !defined(SINK_MAC) && !defined(SINK_POSIX)
 #	ifdef _WIN32
-#		define SINK_WIN32
+#		define SINK_WIN
 #	elif __APPLE__
-#		include "TargetConditionals.h"
-#		if TARGET_IPHONE_SIMULATOR
-#			define SINK_IOS
-#		elif TARGET_OS_IPHONE
-#			define SINK_IOS
-#		elif TARGET_OS_MAC
-#			define SINK_MACOSX
-#		else
-#			error "Unknown Apple platform"
-#		endif
-#	elif __linux__
-#		define SINK_POSIX
-#	elif __unix__
-#		define SINK_POSIX
-#	elif defined(_POSIX_VERSION)
+#		define SINK_MAC
+#	elif __linux__ || __unix__ || defined(_POSIX_VERSION)
 #		define SINK_POSIX
 #	else
 #		error "Unknown compiler"

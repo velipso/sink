@@ -5,7 +5,7 @@
 #include "sink.h"
 #include <time.h>
 
-#ifdef SINK_MACOSX
+#ifdef SINK_MAC
 #	include <strings.h>  // ffsll
 #	define BITSCAN_FFSLL
 #else
