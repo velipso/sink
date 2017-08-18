@@ -18,8 +18,8 @@ compile_c() { # production compile
 	# $1 : the input .c file
 	# $2 : the output .o file
 	if which clang > /dev/null; then
-		#clang -c -o "$2" -fwrapv -Werror -DSINK_MEMTEST "$1"; echo '(memtest)'
-		clang -c -o "$2" -O2 -fwrapv -Werror "$1"
+		clang -c -o "$2" -fwrapv -Werror -DSINK_MEMTEST "$1"; echo '(memtest)'
+		#clang -c -o "$2" -O2 -fwrapv -Werror "$1"
 	else
 		echo 'ERROR:'
 		echo 'Missing "clang" which is required for building.'
@@ -216,7 +216,29 @@ run_test() {
 			status=$?
 			set -e
 			if [ "$status" = "0" ]; then
-				echo PASS
+				# passed running text file, let's try compiling now
+				if [ "$test_prog" = "js" ]; then
+					# TODO: compile using JS
+					echo PASS
+				else
+					out2=$(mktemp "$TGT_DIR"/test_output.stdout.XXXXXX)
+					$TGT_DIR/sink -c -d "$test_dir"/"$test_name".sink > $TGT_DIR/bin.sink
+					$TGT_DIR/sink $TGT_DIR/bin.sink > "$out2"
+					set +e
+					d=$(diff -u --label 'Expected Output' "$out" --label 'Actual Output' "$out2")
+					status=$?
+					set -e
+					rm -f "$out2"
+					if [ "$status" = "0" ]; then
+						echo PASS
+					else
+						echo FAIL on compile
+						echo "$d"
+						rm -f "$out"
+						rm -f "$err"
+						exit 1
+					fi
+				fi
 			else
 				echo FAIL
 				echo "$d"

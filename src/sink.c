@@ -213,6 +213,12 @@ static inline sink_str_st list_byte_freetostr(list_byte b){
 	return res;
 }
 
+static inline char *list_byte_freetochar(list_byte b){
+	char *ret = (char *)b->bytes;
+	mem_free(b);
+	return ret;
+}
+
 static inline list_byte list_byte_new(){
 	list_byte b = mem_alloc(sizeof(list_byte_st));
 	b->size = 0;
@@ -5935,6 +5941,30 @@ typedef struct {
 	bool repl;
 } program_st, *program;
 
+typedef struct {
+	enum {
+		BIS_HEADER,
+		BIS_STR_HEAD,
+		BIS_STR_BODY,
+		BIS_KEY,
+		BIS_DEBUG_HEAD,
+		BIS_DEBUG_BODY,
+		BIS_POS,
+		BIS_CMD,
+		BIS_OPS,
+		BIS_DONE
+	} state;
+	int str_size; // strTable
+	int key_size; // keyTable
+	int dbg_size; // debugTable
+	int pos_size; // posTable
+	int cmd_size; // cmdTable
+	int ops_size; // ops
+	int left; // size left to read
+	int item; // item count for the various tables
+	list_byte buf;
+} binstate_st;
+
 typedef struct compiler_struct compiler_st, *compiler;
 typedef struct staticinc_struct staticinc_st, *staticinc;
 typedef struct {
@@ -5955,6 +5985,7 @@ typedef struct {
 		SCM_BINARY,
 		SCM_TEXT
 	} mode;
+	binstate_st binstate;
 } script_st, *script;
 
 //
@@ -6138,7 +6169,7 @@ static int program_addfile(program prg, const char *str){
 	return program_adddebugstr(prg, &str[i]);
 }
 
-static const char *program_getdebugstr(program prg, int str){
+static inline const char *program_getdebugstr(program prg, int str){
 	return str < 0 ? NULL : prg->debugTable->ptrs[str];
 }
 
@@ -12703,12 +12734,6 @@ static const char *txt_int_pop      = "population count";
 static const char *txt_int_bswap    = "byte swaping";
 
 static sink_run context_run(context ctx){
-	#ifdef SINK_DEBUG
-	if (!program_validate(ctx->prg)){
-		debug("Program failed to validate");
-		return SINK_RUN_FAIL;
-	}
-	#endif
 	if (ctx->passed) return SINK_RUN_PASS;
 	if (ctx->failed) return SINK_RUN_FAIL;
 	if (ctx->async ) return SINK_RUN_ASYNC;
@@ -14482,6 +14507,7 @@ sink_scr sink_scr_new(sink_inc_st inc, const char *curdir, sink_scr_type type){
 	sc->err = NULL;
 	sc->type = type;
 	sc->mode = SCM_UNKNOWN;
+	sc->binstate.buf = NULL;
 	return sc;
 }
 
@@ -14528,6 +14554,32 @@ static bool sfr_begin(const char *file, script sc){
 	return true;
 }
 
+static inline void binary_validate(script sc){
+	if (sc->err)
+		return;
+	if (sc->binstate.state == BIS_DONE){
+		if (!program_validate(sc->prg))
+			sc->err = sink_format("Error: Invalid program code");
+	}
+	else
+		sc->err = sink_format("Error: Invalid end of file");
+}
+
+static inline void text_validate(script sc, bool close, bool resetonclose){
+	if (sc->err && sc->prg->repl)
+		compiler_reset(sc->cmp);
+	if (close){
+		char *err2 = compiler_close(sc->cmp);
+		if (err2){
+			if (sc->err)
+				mem_free(sc->err);
+			sc->err = sink_format("Error: %s", err2);
+		}
+		if (resetonclose)
+			compiler_reset(sc->cmp);
+	}
+}
+
 static void sfr_end(bool success, const char *file, script sc){
 	if (!success){
 		if (sc->err)
@@ -14535,11 +14587,16 @@ static void sfr_end(bool success, const char *file, script sc){
 		sc->err = sink_format("Error: %s", sc->cmp->msg);
 	}
 	else{
-		char *err = compiler_close(sc->cmp);
-		if (err){
-			if (sc->err)
-				mem_free(sc->err);
-			sc->err = sink_format("Error: %s", err);
+		switch (sc->mode){
+			case SCM_UNKNOWN:
+				// empty file, do nothing
+				break;
+			case SCM_BINARY:
+				binary_validate(sc);
+				break;
+			case SCM_TEXT:
+				text_validate(sc, true, false);
+				break;
 		}
 	}
 }
@@ -14565,6 +14622,14 @@ const char *sink_scr_getcwd(sink_scr scr){
 	return ((script)scr)->curdir;
 }
 
+// byte size of each section of the binary file
+static const int BSZ_HEADER     = 28;
+static const int BSZ_STR_HEAD   =  4;
+static const int BSZ_KEY        =  8;
+static const int BSZ_DEBUG_HEAD =  4;
+static const int BSZ_POS        = 16;
+static const int BSZ_CMD        =  8;
+
 bool sink_scr_write(sink_scr scr, int size, const uint8_t *bytes){
 	if (size <= 0)
 		return true;
@@ -14580,8 +14645,12 @@ bool sink_scr_write(sink_scr scr, int size, const uint8_t *bytes){
 	// sink binary files start with 0xFC (invalid UTF8 start byte), so we can tell if we're binary
 	// just by looking at the first byte
 	if (sc->mode == SCM_UNKNOWN){
-		if (bytes[0] == 0xFC)
+		if (bytes[0] == 0xFC){
 			sc->mode = SCM_BINARY;
+			sc->binstate.state = BIS_HEADER;
+			sc->binstate.left = BSZ_HEADER;
+			sc->binstate.buf = list_byte_new();
+		}
 		else{
 			sc->mode = SCM_TEXT;
 			sc->cmp = compiler_new(sc, sc->prg, sc->sinc, sc->inc, sc->file, sc->paths);
@@ -14589,10 +14658,214 @@ bool sink_scr_write(sink_scr scr, int size, const uint8_t *bytes){
 	}
 
 	if (sc->mode == SCM_BINARY){
-		fprintf(stderr, "TODO: read/write binary sink file\n");
-		// TODO: make sure to append NULL to string table strings, since they are newblobgive'd
-		abort();
-		return false;
+		if (sc->err){
+			mem_free(sc->err);
+			sc->err = NULL;
+		}
+
+		binstate_st *bs = &sc->binstate;
+		program prg = sc->prg;
+
+		// read a 4 byte integer (LE)
+		#define GETINT(i)    (                             \
+			(((uint32_t)bs->buf->bytes[(i) + 0])      ) |  \
+			(((uint32_t)bs->buf->bytes[(i) + 1]) <<  8) |  \
+			(((uint32_t)bs->buf->bytes[(i) + 2]) << 16) |  \
+			(((uint32_t)bs->buf->bytes[(i) + 3]) << 24))
+
+		// write to the buffer up to a certain total bytes (bs->left)
+		#define WRITE()                                      \
+			if (size > bs->left){                            \
+				/* partial write to buf */                   \
+				list_byte_append(bs->buf, bs->left, bytes);  \
+				bytes += bs->left;                           \
+				size -= bs->left;                            \
+				bs->left = 0;                                \
+			}                                                \
+			else{                                            \
+				/* full write to buf */                      \
+				list_byte_append(bs->buf, size, bytes);      \
+				bs->left -= size;                            \
+				size = 0;                                    \
+			}
+
+		while (size > 0){
+			switch (bs->state){
+				case BIS_HEADER:
+					WRITE()
+					if (bs->left == 0){
+						// finished reading entire header
+						uint32_t magic = GETINT(0);
+						bs->str_size = GETINT(4);
+						bs->key_size = GETINT(8);
+						bs->dbg_size = GETINT(12);
+						bs->pos_size = GETINT(16);
+						bs->cmd_size = GETINT(20);
+						bs->ops_size = GETINT(24);
+						if (magic != 0x016B53FC){
+							sc->err = sink_format("Error: Invalid binary header");
+							return false;
+						}
+						debugf("binary header: strs %d, keys %d, dbgs %d, poss %d, cmds %d, ops %d",
+							bs->str_size, bs->key_size, bs->dbg_size, bs->pos_size,
+							bs->cmd_size, bs->ops_size);
+						bs->state = BIS_STR_HEAD;
+						bs->left = BSZ_STR_HEAD;
+						bs->item = 0;
+						bs->buf->size = 0;
+					}
+					break;
+				case BIS_STR_HEAD:
+					if (bs->item >= bs->str_size){
+						bs->state = BIS_KEY;
+						bs->left = BSZ_KEY;
+						bs->item = 0;
+						break;
+					}
+					WRITE()
+					if (bs->left == 0){
+						bs->state = BIS_STR_BODY;
+						bs->left = GETINT(0);
+						bs->buf->size = 0;
+					}
+					break;
+				case BIS_STR_BODY: // variable
+					WRITE()
+					if (bs->left == 0){
+						list_byte_null(bs->buf);
+						debugf("str[%d] = \"%s\"", bs->item, (const char *)bs->buf->bytes);
+						list_ptr_push(prg->strTable, bs->buf);
+						bs->buf = list_byte_new();
+						bs->state = BIS_STR_HEAD;
+						bs->left = BSZ_STR_HEAD;
+						bs->item++;
+					}
+					break;
+				case BIS_KEY:
+					if (bs->item >= bs->key_size){
+						bs->state = BIS_DEBUG_HEAD;
+						bs->left = BSZ_DEBUG_HEAD;
+						bs->item = 0;
+						break;
+					}
+					WRITE()
+					if (bs->left == 0){
+						uint64_t key =
+							(((uint64_t)bs->buf->bytes[0])      ) |
+							(((uint64_t)bs->buf->bytes[1]) <<  8) |
+							(((uint64_t)bs->buf->bytes[2]) << 16) |
+							(((uint64_t)bs->buf->bytes[3]) << 24) |
+							(((uint64_t)bs->buf->bytes[4]) << 32) |
+							(((uint64_t)bs->buf->bytes[5]) << 40) |
+							(((uint64_t)bs->buf->bytes[6]) << 48) |
+							(((uint64_t)bs->buf->bytes[7]) << 56);
+						list_u64_push(prg->keyTable, key);
+						debugf("key[%d] = %016llX", bs->item, key);
+						bs->item++;
+						bs->left = BSZ_KEY;
+						bs->buf->size = 0;
+					}
+					break;
+				case BIS_DEBUG_HEAD:
+					if (bs->item >= bs->dbg_size){
+						bs->state = BIS_POS;
+						bs->left = BSZ_POS;
+						bs->item = 0;
+						break;
+					}
+					WRITE()
+					if (bs->left == 0){
+						bs->state = BIS_DEBUG_BODY;
+						bs->left = GETINT(0);
+						bs->buf->size = 0;
+					}
+					break;
+				case BIS_DEBUG_BODY: // variable
+					WRITE()
+					if (bs->left == 0){
+						list_byte_null(bs->buf);
+						debugf("dbg[%d] = \"%s\"", bs->item, (const char *)bs->buf->bytes);
+						list_ptr_push(prg->debugTable, list_byte_freetochar(bs->buf));
+						bs->buf = list_byte_new();
+						bs->state = BIS_DEBUG_HEAD;
+						bs->left = BSZ_DEBUG_HEAD;
+						bs->item++;
+					}
+					break;
+				case BIS_POS:
+					if (bs->item >= bs->pos_size){
+						bs->state = BIS_CMD;
+						bs->left = BSZ_CMD;
+						bs->item = 0;
+						break;
+					}
+					WRITE()
+					if (bs->left == 0){
+						prgflp p = mem_alloc(sizeof(prgflp_st));
+						p->pc           = GETINT( 0);
+						p->flp.line     = GETINT( 4);
+						p->flp.chr      = GETINT( 8);
+						p->flp.basefile = GETINT(12);
+						p->flp.fullfile = -1;
+						debugf("pos[%d] = pc %d, line %d, chr %d, bsf %d", bs->item,
+							p->pc, p->flp.line, p->flp.chr, p->flp.basefile);
+						list_ptr_push(prg->posTable, p);
+						bs->buf->size = 0;
+						bs->left = BSZ_POS;
+						bs->item++;
+						// silently validate basefile
+						if (p->flp.basefile >= bs->dbg_size)
+							p->flp.basefile = -1;
+					}
+					break;
+				case BIS_CMD:
+					if (bs->item >= bs->cmd_size){
+						bs->state = BIS_OPS;
+						bs->left = bs->ops_size + 1; // add 1 to read the terminating byte
+						break;
+					}
+					WRITE()
+					if (bs->left == 0){
+						prgch p = mem_alloc(sizeof(prgch_st));
+						p->pc      = GETINT(0);
+						p->cmdhint = GETINT(4);
+						debugf("cmd[%d] = pc %d, cmh %d", bs->item, p->pc, p->cmdhint);
+						list_ptr_push(prg->cmdTable, p);
+						bs->buf->size = 0;
+						bs->left = BSZ_CMD;
+						bs->item++;
+						// silently validate cmdhint
+						if (p->cmdhint >= bs->dbg_size)
+							p->cmdhint = -1;
+					}
+					break;
+				case BIS_OPS: // variable
+					WRITE()
+					if (bs->left == 0){
+						// validate terminating byte
+						if (bs->buf->bytes[bs->buf->size - 1] != 0xFD){
+							sc->err = sink_format("Error: Invalid binary file");
+							return false;
+						}
+						bs->buf->size--; // trim off terminating byte
+						list_byte_free(prg->ops);
+						prg->ops = bs->buf;
+						bs->buf = NULL;
+						bs->state = BIS_DONE;
+					}
+					break;
+				case BIS_DONE:
+					// EOF, trim rest of file
+					debugf("binary trim %d bytes", size);
+					size = 0;
+					break;
+			}
+		}
+		#undef GETINT
+		#undef WRITE
+		if (sc->type == SINK_SCR_EVAL)
+			binary_validate(sc);
+		return sc->err == NULL;
 	}
 	else{
 		if (sc->err){
@@ -14602,16 +14875,7 @@ bool sink_scr_write(sink_scr scr, int size, const uint8_t *bytes){
 		char *err = compiler_write(sc->cmp, size, bytes);
 		if (err)
 			sc->err = sink_format("Error: %s", err);
-		if (err && sc->prg->repl)
-			compiler_reset(sc->cmp);
-		if (sc->type == SINK_SCR_EVAL){
-			char *err2 = compiler_close(sc->cmp);
-			if (err2){
-				if (sc->err)
-					mem_free(sc->err);
-				sc->err = sink_format("Error: %s", err2);
-			}
-		}
+		text_validate(sc, sc->type == SINK_SCR_EVAL, true);
 		return sc->err == NULL;
 	}
 }
@@ -14637,12 +14901,13 @@ void sink_scr_dump(sink_scr scr, bool debug, void *user, sink_dump_f f_dump){
 	// 4 bytes: key table size
 	// 4 bytes: debug string table size
 	// 4 bytes: pos table size
-	// 4 bytes: call table size
-	uint8_t header[24] = {0};
+	// 4 bytes: cmd table size
+	// 4 bytes: opcode size
+	uint8_t header[28] = {0};
 	header[ 0] = 0xFC;
 	header[ 1] = 0x53;
 	header[ 2] = 0x6B;
-	header[ 3] = 0x01,
+	header[ 3] = 0x01;
 	header[ 4] = (prg->strTable->size            ) & 0xFF;
 	header[ 5] = (prg->strTable->size       >>  8) & 0xFF;
 	header[ 6] = (prg->strTable->size       >> 16) & 0xFF;
@@ -14665,7 +14930,11 @@ void sink_scr_dump(sink_scr scr, bool debug, void *user, sink_dump_f f_dump){
 		header[22] = (prg->cmdTable->size   >> 16) & 0xFF;
 		header[23] = (prg->cmdTable->size   >> 24) & 0xFF;
 	}
-	f_dump(header, 1, 24, user);
+	header[24] = (prg->ops->size                 ) & 0xFF;
+	header[25] = (prg->ops->size            >>  8) & 0xFF;
+	header[26] = (prg->ops->size            >> 16) & 0xFF;
+	header[27] = (prg->ops->size            >> 24) & 0xFF;
+	f_dump(header, 1, 28, user);
 
 	// output strTable
 	// 4 bytes: string size
@@ -14749,7 +15018,7 @@ void sink_scr_dump(sink_scr scr, bool debug, void *user, sink_dump_f f_dump){
 			f_dump(plcb, 1, 16, user);
 		}
 
-		// output call table
+		// output cmd table
 		// 4 bytes: return PC
 		// 4 bytes: hint debug string index
 		for (int i = 0; i < prg->cmdTable->size; i++){
@@ -14773,7 +15042,7 @@ void sink_scr_dump(sink_scr scr, bool debug, void *user, sink_dump_f f_dump){
 	if (prg->ops->size > 0)
 		f_dump(prg->ops->bytes, 1, prg->ops->size, user);
 
-	// output end
+	// output terminating byte
 	// single 0xFD byte which is an invalid op
 	uint8_t end = 0xFD;
 	f_dump(&end, 1, 1, user);
@@ -14796,6 +15065,8 @@ void sink_scr_free(sink_scr scr){
 		mem_free(sc->file);
 	if (sc->err)
 		mem_free(sc->err);
+	if (sc->binstate.buf)
+		list_byte_free(sc->binstate.buf);
 	mem_free(sc);
 	mem_done();
 }
