@@ -374,17 +374,17 @@ sink_val sink_str_split(sink_ctx ctx, sink_val a, sink_val b);
 sink_val sink_str_replace(sink_ctx ctx, sink_val a, sink_val b, sink_val c);
 bool     sink_str_begins(sink_ctx ctx, sink_val a, sink_val b);
 bool     sink_str_ends(sink_ctx ctx, sink_val a, sink_val b);
-sink_val sink_str_pad(sink_ctx ctx, sink_val a, sink_val b);
+sink_val sink_str_pad(sink_ctx ctx, sink_val a, int b);
 sink_val sink_str_find(sink_ctx ctx, sink_val a, sink_val b, sink_val c);
 sink_val sink_str_rfind(sink_ctx ctx, sink_val a, sink_val b, sink_val c);
 sink_val sink_str_lower(sink_ctx ctx, sink_val a);
 sink_val sink_str_upper(sink_ctx ctx, sink_val a);
 sink_val sink_str_trim(sink_ctx ctx, sink_val a);
 sink_val sink_str_rev(sink_ctx ctx, sink_val a);
-sink_val sink_str_rep(sink_ctx ctx, int rep);
+sink_val sink_str_rep(sink_ctx ctx, sink_val a, int rep);
 sink_val sink_str_list(sink_ctx ctx, sink_val a);
-sink_val sink_str_byte(sink_ctx ctx, sink_val a, sink_val b);
-sink_val sink_str_hash(sink_ctx ctx, sink_val a, sink_val b);
+sink_val sink_str_byte(sink_ctx ctx, sink_val a, int b);
+sink_val sink_str_hash(sink_ctx ctx, sink_val a, uint32_t seed);
 void     sink_str_hashplain(int size, const uint8_t *bytes, uint32_t seed, uint32_t *out);
 
 // utf8

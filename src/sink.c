@@ -9847,7 +9847,16 @@ static inline sink_val opi_str_replace(context ctx, sink_val a, sink_val b, sink
 	return opi_list_join(ctx, ls, c);
 }
 
-static inline sink_val opi_str_find(context ctx, sink_val a, sink_val b, int hx){
+static inline sink_val opi_str_find(context ctx, sink_val a, sink_val b, sink_val c){
+	int hx;
+	if (sink_isnil(c))
+		hx = 0;
+	else if (sink_isnum(c))
+		hx = sink_castnum(c);
+	else{
+		opi_abortcstr(ctx, "Expecting number");
+		return SINK_NIL;
+	}
 	a = sink_tostr(ctx, a);
 	b = sink_tostr(ctx, b);
 	sink_str haystack = var_caststr(ctx, a);
@@ -9876,6 +9885,13 @@ static inline sink_val opi_str_find(context ctx, sink_val a, sink_val b, int hx)
 }
 
 static inline sink_val opi_str_rfind(context ctx, sink_val a, sink_val b, sink_val c){
+	int hx;
+	if (sink_isnum(c))
+		hx = sink_castnum(c);
+	else if (!sink_isnil(c)){
+		opi_abortcstr(ctx, "Expecting number");
+		return SINK_NIL;
+	}
 	a = sink_tostr(ctx, a);
 	b = sink_tostr(ctx, b);
 	sink_str haystack = var_caststr(ctx, a);
@@ -9886,16 +9902,14 @@ static inline sink_val opi_str_rfind(context ctx, sink_val a, sink_val b, sink_v
 	if (nlen <= 0)
 		return sink_num(hlen);
 
+	if (sink_isnil(c))
+		hx = hlen - nlen;
+
 	int delta[256];
 	for (int i = 0; i < 256; i++)
 		delta[i] = nlen + 1;
 	for (int i = nlen - 1; i >= 0; i--)
 		delta[needle->bytes[i]] = i + 1;
-	int hx;
-	if (sink_isnil(c))
-		hx = hlen - nlen;
-	else
-		hx = c.f;
 	if (hx < 0)
 		hx += hlen;
 	if (hx > hlen - nlen)
@@ -9913,18 +9927,18 @@ static inline sink_val opi_str_rfind(context ctx, sink_val a, sink_val b, sink_v
 	return SINK_NIL;
 }
 
-static inline sink_val opi_str_begins(context ctx, sink_val a, sink_val b){
+static inline bool opi_str_begins(context ctx, sink_val a, sink_val b){
 	sink_str s1 = var_caststr(ctx, sink_tostr(ctx, a));
 	sink_str s2 = var_caststr(ctx, sink_tostr(ctx, b));
-	return sink_bool(s1->size >= s2->size &&
-		memcmp(s1->bytes, s2->bytes, sizeof(uint8_t) * s2->size) == 0);
+	return s1->size >= s2->size &&
+		memcmp(s1->bytes, s2->bytes, sizeof(uint8_t) * s2->size) == 0;
 }
 
-static inline sink_val opi_str_ends(context ctx, sink_val a, sink_val b){
+static inline bool opi_str_ends(context ctx, sink_val a, sink_val b){
 	sink_str s1 = var_caststr(ctx, sink_tostr(ctx, a));
 	sink_str s2 = var_caststr(ctx, sink_tostr(ctx, b));
-	return sink_bool(s1->size >= s2->size &&
-		memcmp(&s1->bytes[s1->size - s2->size], s2->bytes, sizeof(uint8_t) * s2->size) == 0);
+	return s1->size >= s2->size &&
+		memcmp(&s1->bytes[s1->size - s2->size], s2->bytes, sizeof(uint8_t) * s2->size) == 0;
 }
 
 static inline sink_val opi_str_pad(context ctx, sink_val a, int b){
@@ -10076,7 +10090,7 @@ static inline bool opihelp_codepoint(sink_val b){
 		(b.f < 0xD800 || b.f >= 0xE000); // must not be a surrogate
 }
 
-static inline sink_val opi_utf8_valid(context ctx, sink_val a){
+static inline bool opi_utf8_valid(context ctx, sink_val a){
 	if (sink_isstr(a)){
 		sink_str s = var_caststr(ctx, a);
 		int state = 0;
@@ -10088,7 +10102,7 @@ static inline sink_val opi_utf8_valid(context ctx, sink_val a){
 				if (b < 0x80) // 0x00 to 0x7F
 					continue;
 				else if (b < 0xC0) // 0x80 to 0xBF
-					return sink_bool(false);
+					return false;
 				else if (b < 0xE0){ // 0xC0 to 0xDF
 					codepoint = b & 0x1F;
 					min = 0x80;
@@ -10105,32 +10119,32 @@ static inline sink_val opi_utf8_valid(context ctx, sink_val a){
 					state = 3;
 				}
 				else
-					return sink_bool(false);
+					return false;
 			}
 			else{
 				if (b < 0x80 || b >= 0xC0)
-					return sink_bool(false);
+					return false;
 				codepoint = (codepoint << 6) | (b & 0x3F);
 				state--;
 				if (state == 0){ // codepoint finished, check if invalid
 					if (codepoint < min || // no overlong
 						codepoint >= 0x110000 || // no huge
 						(codepoint >= 0xD800 && codepoint < 0xE000)) // no surrogates
-						return sink_bool(false);
+						return false;
 				}
 			}
 		}
-		return sink_bool(state == 0);
+		return state == 0;
 	}
 	else if (sink_islist(a)){
 		sink_list ls = var_castlist(ctx, a);
 		for (int i = 0; i < ls->size; i++){
 			if (!opihelp_codepoint(ls->vals[i]))
-				return sink_bool(false);
+				return false;
 		}
-		return sink_bool(true);
+		return true;
 	}
-	return sink_bool(false);
+	return false;
 }
 
 static inline sink_val opi_utf8_list(context ctx, sink_val a){
@@ -11290,7 +11304,11 @@ static inline sink_val opi_str_splice(context ctx, sink_val a, sink_val b, sink_
 }
 
 static inline sink_val opi_list_new(context ctx, sink_val a, sink_val b){
-	int size = sink_isnil(a) ? 0 : a.f;
+	if (!sink_isnil(a) && !sink_isnum(a)){
+		opi_abortcstr(ctx, "Expecting number for list.new");
+		return SINK_NIL;
+	}
+	int size = sink_isnil(a) ? 0 : sink_castnum(a);
 	if (size <= 0)
 		return sink_list_newempty(ctx);
 	sink_val *vals = mem_alloc(sizeof(sink_val) * size);
@@ -11367,6 +11385,10 @@ static inline void opi_list_splice(context ctx, sink_val a, sink_val b, sink_val
 }
 
 static inline sink_val opi_list_shift(context ctx, sink_val a){
+	if (!sink_islist(a)){
+		opi_abortcstr(ctx, "Expecting list when shifting");
+		return SINK_NIL;
+	}
 	sink_list ls = var_castlist(ctx, a);
 	if (ls->size <= 0)
 		return SINK_NIL;
@@ -11381,6 +11403,10 @@ static inline sink_val opi_list_shift(context ctx, sink_val a){
 }
 
 static inline sink_val opi_list_pop(context ctx, sink_val a){
+	if (!sink_islist(a)){
+		opi_abortcstr(ctx, "Expecting list when popping");
+		return SINK_NIL;
+	}
 	sink_list ls = var_castlist(ctx, a);
 	if (ls->size <= 0)
 		return SINK_NIL;
@@ -11390,6 +11416,10 @@ static inline sink_val opi_list_pop(context ctx, sink_val a){
 
 static const int sink_list_grow = 200;
 static inline sink_val opi_list_push(context ctx, sink_val a, sink_val b){
+	if (!sink_islist(a)){
+		opi_abortcstr(ctx, "Expecting list when pushing");
+		return SINK_NIL;
+	}
 	sink_list ls = var_castlist(ctx, a);
 	if (ls->size >= ls->count){
 		ls->count += sink_list_grow;
@@ -11411,6 +11441,10 @@ static inline void opi_list_pushnils(context ctx, sink_list ls, int totalsize){
 }
 
 static inline sink_val opi_list_unshift(context ctx, sink_val a, sink_val b){
+	if (!sink_islist(a)){
+		opi_abortcstr(ctx, "Expecting list when unshifting");
+		return SINK_NIL;
+	}
 	sink_list ls = var_castlist(ctx, a);
 	if (ls->size >= ls->count){
 		ls->count += sink_list_grow;
@@ -11424,6 +11458,10 @@ static inline sink_val opi_list_unshift(context ctx, sink_val a, sink_val b){
 }
 
 static inline sink_val opi_list_append(context ctx, sink_val a, sink_val b){
+	if (!sink_islist(a) || !sink_islist(b)){
+		opi_abortcstr(ctx, "Expecting list when appending");
+		return SINK_NIL;
+	}
 	sink_list ls2 = var_castlist(ctx, b);
 	if (ls2->size > 0){
 		sink_list ls = var_castlist(ctx, a);
@@ -11438,6 +11476,10 @@ static inline sink_val opi_list_append(context ctx, sink_val a, sink_val b){
 }
 
 static inline sink_val opi_list_prepend(context ctx, sink_val a, sink_val b){
+	if (!sink_islist(a) || !sink_islist(b)){
+		opi_abortcstr(ctx, "Expecting list when prepending");
+		return SINK_NIL;
+	}
 	sink_list ls2 = var_castlist(ctx, b);
 	if (ls2->size > 0){
 		sink_list ls = var_castlist(ctx, a);
@@ -11454,6 +11496,14 @@ static inline sink_val opi_list_prepend(context ctx, sink_val a, sink_val b){
 }
 
 static inline sink_val opi_list_find(context ctx, sink_val a, sink_val b, sink_val c){
+	if (!sink_islist(a)){
+		opi_abortcstr(ctx, "Expecting list for list.find");
+		return SINK_NIL;
+	}
+	if (!sink_isnil(c) && !sink_isnum(c)){
+		opi_abortcstr(ctx, "Expecting number for list.find");
+		return SINK_NIL;
+	}
 	sink_list ls = var_castlist(ctx, a);
 	int pos = (sink_isnil(c) || sink_num_isnan(c)) ? 0 : c.f;
 	if (pos < 0)
@@ -11466,6 +11516,14 @@ static inline sink_val opi_list_find(context ctx, sink_val a, sink_val b, sink_v
 }
 
 static inline sink_val opi_list_rfind(context ctx, sink_val a, sink_val b, sink_val c){
+	if (!sink_islist(a)){
+		opi_abortcstr(ctx, "Expecting list for list.rfind");
+		return SINK_NIL;
+	}
+	if (!sink_isnil(c) && !sink_isnum(c)){
+		opi_abortcstr(ctx, "Expecting number for list.rfind");
+		return SINK_NIL;
+	}
 	sink_list ls = var_castlist(ctx, a);
 	int pos = (sink_isnil(c) || sink_num_isnan(c)) ? ls->size - 1 : c.f;
 	if (pos < 0 || pos >= ls->size)
@@ -11478,6 +11536,10 @@ static inline sink_val opi_list_rfind(context ctx, sink_val a, sink_val b, sink_
 }
 
 static inline sink_val opi_list_join(context ctx, sink_val a, sink_val b){
+	if (!sink_islist(a)){
+		opi_abortcstr(ctx, "Expecting list for list.join");
+		return SINK_NIL;
+	}
 	sink_list ls = var_castlist(ctx, a);
 	if (sink_isnil(b))
 		b = sink_str_newblobgive(ctx, 0, NULL);
@@ -11488,6 +11550,10 @@ static inline sink_val opi_list_join(context ctx, sink_val a, sink_val b){
 }
 
 static inline sink_val opi_list_rev(context ctx, sink_val a){
+	if (!sink_islist(a)){
+		opi_abortcstr(ctx, "Expecting list for list.rev");
+		return SINK_NIL;
+	}
 	sink_list ls = var_castlist(ctx, a);
 	int max = ls->size / 2;
 	for (int i = 0, ri = ls->size - 1; i < max; i++, ri--){
@@ -11496,6 +11562,31 @@ static inline sink_val opi_list_rev(context ctx, sink_val a){
 		ls->vals[ri] = temp;
 	}
 	return a;
+}
+
+static inline sink_val opi_list_str(context ctx, sink_val a){
+	if (!sink_islist(a)){
+		opi_abortcstr(ctx, "Expecting list for list.str");
+		return SINK_NIL;
+	}
+	sink_list ls = var_castlist(ctx, a);
+	uint8_t *bytes = mem_alloc(sizeof(uint8_t) * (ls->size + 1));
+	for (int i = 0; i < ls->size; i++){
+		sink_val b = ls->vals[i];
+		if (!sink_isnum(b)){
+			mem_free(bytes);
+			opi_abortcstr(ctx, "Expecting list of integers for list.str");
+			return SINK_NIL;
+		}
+		int c = (int)sink_castnum(b);
+		if (c < 0)
+			c = 0;
+		if (c > 255)
+			c = 255;
+		bytes[i] = c;
+	}
+	bytes[ls->size] = 0;
+	return sink_str_newblobgive(ctx, ls->size, bytes);
 }
 
 static inline int sortboth(context ctx, list_int li, const sink_val *a, const sink_val *b, int mul){
@@ -11601,6 +11692,10 @@ static int sortrev(sortu u, const sink_val *a, const sink_val *b){
 }
 
 static inline void opi_list_sort(context ctx, sink_val a){
+	if (!sink_islist(a)){
+		opi_abortcstr(ctx, "Expecting list for list.sort");
+		return;
+	}
 	sortu_st u = { .ctx = ctx, .li = list_int_new() };
 	sink_list ls = var_castlist(ctx, a);
 	qsort_r(ls->vals, ls->size, sizeof(sink_val), &u,
@@ -11609,6 +11704,10 @@ static inline void opi_list_sort(context ctx, sink_val a){
 }
 
 static inline void opi_list_rsort(context ctx, sink_val a){
+	if (!sink_islist(a)){
+		opi_abortcstr(ctx, "Expecting list for list.rsort");
+		return;
+	}
 	sortu_st u = { .ctx = ctx, .li = list_int_new() };
 	sink_list ls = var_castlist(ctx, a);
 	qsort_r(ls->vals, ls->size, sizeof(sink_val), &u,
@@ -13671,14 +13770,14 @@ static sink_run context_run(context ctx){
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				var_set(ctx, A, B, opi_str_begins(ctx, X, Y));
+				var_set(ctx, A, B, sink_bool(opi_str_begins(ctx, X, Y)));
 			} break;
 
 			case OP_STR_ENDS       : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				var_set(ctx, A, B, opi_str_ends(ctx, X, Y));
+				var_set(ctx, A, B, sink_bool(opi_str_ends(ctx, X, Y)));
 			} break;
 
 			case OP_STR_PAD        : { // [TGT], [SRC1], [SRC2]
@@ -13697,11 +13796,9 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
-				if (sink_isnil(Z))
-					Z.f = 0;
-				else if (!sink_isnum(Z))
-					RETURN_FAIL("Expecting number");
-				var_set(ctx, A, B, opi_str_find(ctx, X, Y, Z.f));
+				var_set(ctx, A, B, opi_str_find(ctx, X, Y, Z));
+				if (ctx->failed)
+					return SINK_RUN_FAIL;
 			} break;
 
 			case OP_STR_RFIND      : { // [TGT], [SRC1], [SRC2], [SRC3]
@@ -13709,9 +13806,9 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
-				if (!sink_isnil(Z) && !sink_isnum(Z))
-					RETURN_FAIL("Expecting number");
 				var_set(ctx, A, B, opi_str_rfind(ctx, X, Y, Z));
+				if (ctx->failed)
+					return SINK_RUN_FAIL;
 			} break;
 
 			case OP_STR_LOWER      : { // [TGT], [SRC]
@@ -13782,7 +13879,7 @@ static sink_run context_run(context ctx){
 			case OP_UTF8_VALID     : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, opi_utf8_valid(ctx, X));
+				var_set(ctx, A, B, sink_bool(opi_utf8_valid(ctx, X)));
 			} break;
 
 			case OP_UTF8_LIST      : { // [TGT], [SRC]
@@ -13847,91 +13944,85 @@ static sink_run context_run(context ctx){
 			case OP_LIST_NEW       : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
-				if (!sink_isnil(X) && !sink_isnum(X))
-					RETURN_FAIL("Expecting number for list.new");
 				Y = var_get(ctx, E, F);
 				var_set(ctx, A, B, opi_list_new(ctx, X, Y));
+				if (ctx->failed)
+					return SINK_RUN_FAIL;
 			} break;
 
 			case OP_LIST_SHIFT     : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				if (!sink_islist(X))
-					RETURN_FAIL("Expecting list when shifting");
 				var_set(ctx, A, B, opi_list_shift(ctx, X));
+				if (ctx->failed)
+					return SINK_RUN_FAIL;
 			} break;
 
 			case OP_LIST_POP       : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				if (!sink_islist(X))
-					RETURN_FAIL("Expecting list when popping");
 				var_set(ctx, A, B, opi_list_pop(ctx, X));
+				if (ctx->failed)
+					return SINK_RUN_FAIL;
 			} break;
 
 			case OP_LIST_PUSH      : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
-				if (!sink_islist(X))
-					RETURN_FAIL("Expecting list when pushing");
 				var_set(ctx, A, B, opi_list_push(ctx, X, var_get(ctx, E, F)));
+				if (ctx->failed)
+					return SINK_RUN_FAIL;
 			} break;
 
 			case OP_LIST_UNSHIFT   : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
-				if (!sink_islist(X))
-					RETURN_FAIL("Expecting list when unshifting");
 				var_set(ctx, A, B, opi_list_unshift(ctx, X, var_get(ctx, E, F)));
+				if (ctx->failed)
+					return SINK_RUN_FAIL;
 			} break;
 
 			case OP_LIST_APPEND    : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				if (!sink_islist(X) || !sink_islist(Y))
-					RETURN_FAIL("Expecting list when appending");
 				var_set(ctx, A, B, opi_list_append(ctx, X, Y));
+				if (ctx->failed)
+					return SINK_RUN_FAIL;
 			} break;
 
 			case OP_LIST_PREPEND   : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				if (!sink_islist(X) || !sink_islist(Y))
-					RETURN_FAIL("Expecting list when prepending");
 				var_set(ctx, A, B, opi_list_prepend(ctx, X, Y));
+				if (ctx->failed)
+					return SINK_RUN_FAIL;
 			} break;
 
 			case OP_LIST_FIND      : { // [TGT], [SRC1], [SRC2], [SRC3]
 				LOAD_abcdefgh();
 				X = var_get(ctx, C, D);
-				if (!sink_islist(X))
-					RETURN_FAIL("Expecting list for list.find");
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
-				if (!sink_isnil(Z) && !sink_isnum(Z))
-					RETURN_FAIL("Expecting number for list.find");
 				var_set(ctx, A, B, opi_list_find(ctx, X, Y, Z));
+				if (ctx->failed)
+					return SINK_RUN_FAIL;
 			} break;
 
 			case OP_LIST_RFIND     : { // [TGT], [SRC1], [SRC2], [SRC3]
 				LOAD_abcdefgh();
 				X = var_get(ctx, C, D);
-				if (!sink_islist(X))
-					RETURN_FAIL("Expecting list for list.rfind");
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
-				if (!sink_isnil(Z) && !sink_isnum(Z))
-					RETURN_FAIL("Expecting number for list.rfind");
 				var_set(ctx, A, B, opi_list_rfind(ctx, X, Y, Z));
+				if (ctx->failed)
+					return SINK_RUN_FAIL;
 			} break;
 
 			case OP_LIST_JOIN      : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
-				if (!sink_islist(X))
-					RETURN_FAIL("Expecting list for list.join");
 				Y = var_get(ctx, E, F);
 				var_set(ctx, A, B, opi_list_join(ctx, X, Y));
 				if (ctx->failed)
@@ -13941,40 +14032,22 @@ static sink_run context_run(context ctx){
 			case OP_LIST_REV       : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				if (!sink_islist(X))
-					RETURN_FAIL("Expecting list for list.rev");
 				var_set(ctx, A, B, opi_list_rev(ctx, X));
+				if (ctx->failed)
+					return SINK_RUN_FAIL;
 			} break;
 
 			case OP_LIST_STR       : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				if (!sink_islist(X))
-					RETURN_FAIL("Expecting list for list.str");
-				ls = var_castlist(ctx, X);
-				uint8_t *bytes = mem_alloc(sizeof(uint8_t) * (ls->size + 1));
-				for (I = 0; I < ls->size; I++){
-					X = ls->vals[I];
-					if (!sink_isnum(X)){
-						mem_free(bytes);
-						RETURN_FAIL("Expecting list of integers for list.str");
-					}
-					H = (int)sink_castnum(X);
-					if (H < 0)
-						H = 0;
-					if (H > 255)
-						H = 255;
-					bytes[I] = H;
-				}
-				bytes[ls->size] = 0;
-				var_set(ctx, A, B, sink_str_newblobgive(ctx, ls->size, bytes));
+				var_set(ctx, A, B, opi_list_str(ctx, X));
+				if (ctx->failed)
+					return SINK_RUN_FAIL;
 			} break;
 
 			case OP_LIST_SORT      : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				if (!sink_islist(X))
-					RETURN_FAIL("Expecting list for list.sort");
 				opi_list_sort(ctx, X);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
@@ -13984,8 +14057,6 @@ static sink_run context_run(context ctx){
 			case OP_LIST_RSORT     : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				if (!sink_islist(X))
-					RETURN_FAIL("Expecting list for list.sort");
 				opi_list_rsort(ctx, X);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
@@ -14667,10 +14738,10 @@ bool sink_scr_write(sink_scr scr, int size, const uint8_t *bytes){
 		program prg = sc->prg;
 
 		// read a 4 byte integer (LE)
-		#define GETINT(i)    (                             \
-			(((uint32_t)bs->buf->bytes[(i) + 0])      ) |  \
-			(((uint32_t)bs->buf->bytes[(i) + 1]) <<  8) |  \
-			(((uint32_t)bs->buf->bytes[(i) + 2]) << 16) |  \
+		#define GETINT(i)    (                               \
+			(((uint32_t)bs->buf->bytes[(i) + 0])      ) |    \
+			(((uint32_t)bs->buf->bytes[(i) + 1]) <<  8) |    \
+			(((uint32_t)bs->buf->bytes[(i) + 2]) << 16) |    \
 			(((uint32_t)bs->buf->bytes[(i) + 3]) << 24))
 
 		// write to the buffer up to a certain total bytes (bs->left)
@@ -14855,11 +14926,8 @@ bool sink_scr_write(sink_scr scr, int size, const uint8_t *bytes){
 					}
 					break;
 				case BIS_DONE:
-					if (size > 0){
-						sc->err = sink_format("Error: Invalid data at end of file");
-						return false;
-					}
-					break;
+					sc->err = sink_format("Error: Invalid data at end of file");
+					return false;
 			}
 		}
 		#undef GETINT
@@ -15669,6 +15737,82 @@ sink_val sink_str_newformat(sink_ctx ctx, const char *fmt, ...){
 	return sink_str_newblobgive(ctx, (int)s, (uint8_t *)buf);
 }
 
+sink_val sink_str_new(sink_ctx ctx, int size, sink_val *vals){
+	return opi_str_new(ctx, size, vals);
+}
+
+sink_val sink_str_cat(sink_ctx ctx, int size, sink_val *vals){
+	return opi_str_cat(ctx, size, vals);
+}
+
+sink_val sink_str_slice(sink_ctx ctx, sink_val a, sink_val start, sink_val len){
+	return opi_str_slice(ctx, a, start, len);
+}
+
+sink_val sink_str_splice(sink_ctx ctx, sink_val a, sink_val start, sink_val len, sink_val b){
+	return opi_str_splice(ctx, a, start, len, b);
+}
+
+sink_val sink_str_split(sink_ctx ctx, sink_val a, sink_val b){
+	return opi_str_split(ctx, a, b);
+}
+
+sink_val sink_str_replace(sink_ctx ctx, sink_val a, sink_val b, sink_val c){
+	return opi_str_replace(ctx, a, b, c);
+}
+
+bool sink_str_begins(sink_ctx ctx, sink_val a, sink_val b){
+	return opi_str_begins(ctx, a, b);
+}
+
+bool sink_str_ends(sink_ctx ctx, sink_val a, sink_val b){
+	return opi_str_ends(ctx, a, b);
+}
+
+sink_val sink_str_pad(sink_ctx ctx, sink_val a, int b){
+	return opi_str_pad(ctx, a, b);
+}
+
+sink_val sink_str_find(sink_ctx ctx, sink_val a, sink_val b, sink_val c){
+	return opi_str_find(ctx, a, b, c);
+}
+
+sink_val sink_str_rfind(sink_ctx ctx, sink_val a, sink_val b, sink_val c){
+	return opi_str_rfind(ctx, a, b, c);
+}
+
+sink_val sink_str_lower(sink_ctx ctx, sink_val a){
+	return opi_str_lower(ctx, a);
+}
+
+sink_val sink_str_upper(sink_ctx ctx, sink_val a){
+	return opi_str_upper(ctx, a);
+}
+
+sink_val sink_str_trim(sink_ctx ctx, sink_val a){
+	return opi_str_trim(ctx, a);
+}
+
+sink_val sink_str_rev(sink_ctx ctx, sink_val a){
+	return opi_str_rev(ctx, a);
+}
+
+sink_val sink_str_rep(sink_ctx ctx, sink_val a, int rep){
+	return opi_str_rep(ctx, a, rep);
+}
+
+sink_val sink_str_list(sink_ctx ctx, sink_val a){
+	return opi_str_list(ctx, a);
+}
+
+sink_val sink_str_byte(sink_ctx ctx, sink_val a, int b){
+	return sink_str_byte(ctx, a, b);
+}
+
+sink_val sink_str_hash(sink_ctx ctx, sink_val a, uint32_t seed){
+	return opi_str_hash(ctx, a, seed);
+}
+
 static inline uint64_t rotl64(uint64_t x, int8_t r){
 	return (x << r) | (x >> (64 - r));
 }
@@ -15879,6 +16023,37 @@ void sink_str_hashplain(int size, const uint8_t *str, uint32_t seed, uint32_t *o
 		hash_be(size, str, seed, out);
 }
 
+// utf8
+bool sink_utf8_valid(sink_ctx ctx, sink_val a){
+	return opi_utf8_valid(ctx, a);
+}
+
+sink_val sink_utf8_list(sink_ctx ctx, sink_val a){
+	return opi_utf8_list(ctx, a);
+}
+
+sink_val sink_utf8_str(sink_ctx ctx, sink_val a){
+	return opi_utf8_str(ctx, a);
+}
+
+
+// structs
+sink_val sink_struct_size(sink_ctx ctx, sink_val tpl){
+	return opi_struct_size(ctx, tpl);
+}
+
+sink_val sink_struct_str(sink_ctx ctx, sink_val ls, sink_val tpl){
+	return opi_struct_str(ctx, ls, tpl);
+}
+
+sink_val sink_struct_list(sink_ctx ctx, sink_val a, sink_val tpl){
+	return opi_struct_list(ctx, a, tpl);
+}
+
+bool sink_struct_isLE(){
+	return opi_struct_isLE();
+}
+
 // lists
 void sink_list_setuser(sink_ctx ctx, sink_val ls, sink_user usertype, void *user){
 	sink_list ls2 = var_castlist(ctx, ls);
@@ -15940,12 +16115,52 @@ sink_val sink_list_new(sink_ctx ctx, sink_val a, sink_val b){
 	return sink_list_newblobgive(ctx, size, count, vals);
 }
 
+sink_val sink_list_cat(sink_ctx ctx, int size, sink_val *vals){
+	return opi_list_cat(ctx, size, vals);
+}
+
+sink_val sink_list_slice(sink_ctx ctx, sink_val ls, sink_val start, sink_val len){
+	return opi_list_slice(ctx, ls, start, len);
+}
+
+void sink_list_splice(sink_ctx ctx, sink_val ls, sink_val start, sink_val len, sink_val ls2){
+	opi_list_splice(ctx, ls, start, len, ls2);
+}
+
+sink_val sink_list_shift(sink_ctx ctx, sink_val ls){
+	return opi_list_shift(ctx, ls);
+}
+
+sink_val sink_list_pop(sink_ctx ctx, sink_val ls){
+	return opi_list_pop(ctx, ls);
+}
+
 void sink_list_push(sink_ctx ctx, sink_val ls, sink_val a){
-	if (!sink_islist(ls)){
-		sink_abortcstr(ctx, "Expecting list");
-		return;
-	}
 	opi_list_push(ctx, ls, a);
+}
+
+void sink_list_unshift(sink_ctx ctx, sink_val ls, sink_val a){
+	opi_list_unshift(ctx, ls, a);
+}
+
+void sink_list_append(sink_ctx ctx, sink_val ls, sink_val ls2){
+	opi_list_append(ctx, ls, ls2);
+}
+
+void sink_list_prepend(sink_ctx ctx, sink_val ls, sink_val ls2){
+	opi_list_prepend(ctx, ls, ls2);
+}
+
+sink_val sink_list_find(sink_ctx ctx, sink_val ls, sink_val a, sink_val b){
+	return opi_list_find(ctx, ls, a, b);
+}
+
+sink_val sink_list_rfind(sink_ctx ctx, sink_val ls, sink_val a, sink_val b){
+	return opi_list_rfind(ctx, ls, a, b);
+}
+
+sink_val sink_list_join(sink_ctx ctx, sink_val ls, sink_val a){
+	return opi_list_join(ctx, ls, a);
 }
 
 static inline uint8_t *opi_list_joinplain(sink_ctx ctx, int size, sink_val *vals, int sepz,
@@ -15984,6 +16199,22 @@ sink_val sink_list_joinplain(sink_ctx ctx, int size, sink_val *vals, int sepz, c
 	int tot;
 	uint8_t *bytes = opi_list_joinplain(ctx, size, vals, sepz, sep, &tot);
 	return sink_str_newblobgive(ctx, tot, bytes);
+}
+
+void sink_list_rev(sink_ctx ctx, sink_val ls){
+	opi_list_rev(ctx, ls);
+}
+
+sink_val sink_list_str(sink_ctx ctx, sink_val ls){
+	return opi_list_str(ctx, ls);
+}
+
+void sink_list_sort(sink_ctx ctx, sink_val ls){
+	opi_list_sort(ctx, ls);
+}
+
+void sink_list_rsort(sink_ctx ctx, sink_val ls){
+	opi_list_rsort(ctx, ls);
 }
 
 // pickle
@@ -16060,58 +16291,3 @@ sink_val sink_abortformat(sink_ctx ctx, const char *fmt, ...){
 	opi_abort(ctx, buf);
 	return SINK_NIL;
 }
-
-/*
-
-TODO:
-
-// strings
-sink_val sink_str_new(sink_ctx ctx, int size, sink_val *vals);
-sink_val sink_str_cat(sink_ctx ctx, int size, sink_val *vals);
-sink_val sink_str_slice(sink_ctx ctx, sink_val a, sink_val start, sink_val len);
-sink_val sink_str_splice(sink_ctx ctx, sink_val a, sink_val start, sink_val len, sink_val b);
-sink_val sink_str_split(sink_ctx ctx, sink_val a, sink_val b);
-sink_val sink_str_replace(sink_ctx ctx, sink_val a, sink_val b, sink_val c);
-bool     sink_str_begins(sink_ctx ctx, sink_val a, sink_val b);
-bool     sink_str_ends(sink_ctx ctx, sink_val a, sink_val b);
-sink_val sink_str_pad(sink_ctx ctx, sink_val a, sink_val b);
-sink_val sink_str_find(sink_ctx ctx, sink_val a, sink_val b, sink_val c);
-sink_val sink_str_rfind(sink_ctx ctx, sink_val a, sink_val b, sink_val c);
-sink_val sink_str_lower(sink_ctx ctx, sink_val a);
-sink_val sink_str_upper(sink_ctx ctx, sink_val a);
-sink_val sink_str_trim(sink_ctx ctx, sink_val a);
-sink_val sink_str_rev(sink_ctx ctx, sink_val a);
-sink_val sink_str_rep(sink_ctx ctx, int rep);
-sink_val sink_str_list(sink_ctx ctx, sink_val a);
-sink_val sink_str_byte(sink_ctx ctx, sink_val a, sink_val b);
-sink_val sink_str_hash(sink_ctx ctx, sink_val a, sink_val b);
-
-// utf8
-bool     sink_utf8_valid(sink_ctx ctx, sink_val a);
-sink_val sink_utf8_list(sink_ctx ctx, sink_val a);
-sink_val sink_utf8_str(sink_ctx ctx, sink_val a);
-
-// structs
-sink_val sink_struct_size(sink_ctx ctx, sink_val tpl);
-sink_val sink_struct_str(sink_ctx ctx, sink_val ls, sink_val tpl);
-sink_val sink_struct_list(sink_ctx ctx, sink_val a, sink_val tpl);
-bool     sink_struct_isLE();
-
-// lists
-sink_val sink_list_cat(sink_ctx ctx, int size, sink_val *vals);
-sink_val sink_list_slice(sink_ctx ctx, sink_val ls, sink_val start, sink_val len);
-void     sink_list_splice(sink_ctx ctx, sink_val ls, sink_val start, sink_val len, sink_val ls2);
-sink_val sink_list_shift(sink_ctx ctx, sink_val ls);
-sink_val sink_list_pop(sink_ctx ctx, sink_val ls);
-void     sink_list_unshift(sink_ctx ctx, sink_val ls, sink_val a);
-void     sink_list_append(sink_ctx ctx, sink_val ls, sink_val ls2);
-void     sink_list_prepend(sink_ctx ctx, sink_val ls, sink_val ls2);
-sink_val sink_list_find(sink_ctx ctx, sink_val ls, sink_val a, sink_val b);
-sink_val sink_list_rfind(sink_ctx ctx, sink_val ls, sink_val a, sink_val b);
-sink_val sink_list_join(sink_ctx ctx, sink_val ls, sink_val a);
-void     sink_list_rev(sink_ctx ctx, sink_val ls);
-sink_val sink_list_str(sink_ctx ctx, sink_val ls);
-void     sink_list_sort(sink_ctx ctx, sink_val ls);
-void     sink_list_rsort(sink_ctx ctx, sink_val ls);
-
-*/
