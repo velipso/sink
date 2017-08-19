@@ -873,7 +873,7 @@ Or, more compactly:
 include foo './file'
 ```
 
-If you include a file more than once, any definitions will fail the second time, because it as seen
+If you include a file more than once, any definitions will fail the second time, because it is seen
 as trying to define something more than once.  Instead, it might be useful to use the syntax:
 
 ```

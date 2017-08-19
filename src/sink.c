@@ -6042,21 +6042,15 @@ typedef void (*f_fileres_end_f)(bool success, const char *file, void *fuser);
 static bool fileres_try(script scr, bool postfix, const char *file,
 	f_fileres_begin_f f_begin, f_fileres_end_f f_end, void *fuser){
 	sink_inc_st inc = scr->inc;
-	char *fix = (char *)file;
-	bool freefix = false;
-	if (inc.f_fixpath){
-		fix = inc.f_fixpath(file, inc.user);
-		freefix = true;
-	}
-	if (fix == NULL)
+	if (file == NULL)
 		return false;
-	sink_fstype fst = inc.f_fstype(fix, inc.user);
+	sink_fstype fst = inc.f_fstype(file, inc.user);
 	bool result = false;
 	switch (fst){
 		case SINK_FSTYPE_FILE: {
 			result = true;
-			if (f_begin(fix, fuser))
-				f_end(inc.f_fsread(scr, fix, inc.user), fix, fuser);
+			if (f_begin(file, fuser))
+				f_end(inc.f_fsread(scr, file, inc.user), file, fuser);
 		} break;
 		case SINK_FSTYPE_NONE: {
 			if (!postfix)
@@ -6085,8 +6079,6 @@ static bool fileres_try(script scr, bool postfix, const char *file,
 			mem_free(join);
 		} break;
 	}
-	if (freefix)
-		mem_free(fix);
 	return result;
 }
 
@@ -9761,8 +9753,8 @@ static inline void opi_rand_setstate(context ctx, sink_val a){
 		opi_abortcstr(ctx, "Expecting list of two integers");
 		return;
 	}
-	ctx->rand_seed = (uint32_t)sink_castnum(ls->vals[0]);
-	ctx->rand_i = (uint32_t)sink_castnum(ls->vals[1]);
+	ctx->rand_seed = (uint32_t)ls->vals[0].f;
+	ctx->rand_i = (uint32_t)ls->vals[1].f;
 }
 
 static inline sink_val opi_rand_pick(context ctx, sink_val a){
@@ -9852,7 +9844,7 @@ static inline sink_val opi_str_find(context ctx, sink_val a, sink_val b, sink_va
 	if (sink_isnil(c))
 		hx = 0;
 	else if (sink_isnum(c))
-		hx = sink_castnum(c);
+		hx = c.f;
 	else{
 		opi_abortcstr(ctx, "Expecting number");
 		return SINK_NIL;
@@ -9887,7 +9879,7 @@ static inline sink_val opi_str_find(context ctx, sink_val a, sink_val b, sink_va
 static inline sink_val opi_str_rfind(context ctx, sink_val a, sink_val b, sink_val c){
 	int hx;
 	if (sink_isnum(c))
-		hx = sink_castnum(c);
+		hx = c.f;
 	else if (!sink_isnil(c)){
 		opi_abortcstr(ctx, "Expecting number");
 		return SINK_NIL;
@@ -10887,7 +10879,7 @@ static sink_val triop_num_lerp(context ctx, sink_val a, sink_val b, sink_val c){
 }
 
 static inline int32_t toint(sink_val v){
-	return (int32_t)(uint32_t)sink_castnum(v);
+	return (int32_t)(uint32_t)v.f;
 }
 
 static inline sink_val intnum(int32_t v){
@@ -11359,7 +11351,7 @@ static inline sink_val opi_list_new(context ctx, sink_val a, sink_val b){
 		opi_abortcstr(ctx, "Expecting number for list.new");
 		return SINK_NIL;
 	}
-	int size = sink_isnil(a) ? 0 : sink_castnum(a);
+	int size = sink_isnil(a) ? 0 : a.f;
 	if (size <= 0)
 		return sink_list_newempty(ctx);
 	sink_val *vals = mem_alloc(sizeof(sink_val) * size);
@@ -11649,7 +11641,7 @@ static inline sink_val opi_list_str(context ctx, sink_val a){
 			opi_abortcstr(ctx, "Expecting list of integers for list.str");
 			return SINK_NIL;
 		}
-		int c = (int)sink_castnum(b);
+		int c = (int)b.f;
 		if (c < 0)
 			c = 0;
 		if (c > 255)
@@ -11690,7 +11682,7 @@ static inline int sortboth(context ctx, list_int li, const sink_val *a, const si
 		}
 		else if (sink_num_isnan(*b))
 			return mul;
-		return sink_castnum(*a) < sink_castnum(*b) ? -mul : mul;
+		return a->f < b->f ? -mul : mul;
 	}
 	else if (atype == SINK_TYPE_STR){
 		sink_str s1 = var_caststr(ctx, *a);
@@ -12084,7 +12076,7 @@ static bool pk_tojson(context ctx, sink_val a, list_int li, sink_str s){
 		case SINK_TYPE_NUM: {
 			char buf[64];
 			int sz;
-			numtostr(sink_castnum(a), buf, sizeof(buf), &sz);
+			numtostr(a.f, buf, sizeof(buf), &sz);
 			sink_str_st s2 = { .size = sz, .bytes = (uint8_t *)buf };
 			if (pk_isjson(&s2)){
 				s->size = sz;
@@ -13036,11 +13028,6 @@ static sink_run context_run(context ctx){
 		if (ctx->failed)                                                                   \
 			return SINK_RUN_FAIL;
 
-	#define RETURN_FAIL(msg)   do{           \
-			opi_abortcstr(ctx, msg);         \
-			return SINK_RUN_FAIL;            \
-		} while(false)
-
 	while (ctx->pc < ops->size){
 		ctx->lastpc = ctx->pc;
 		switch ((op_enum)ops->bytes[ctx->pc]){
@@ -13057,7 +13044,7 @@ static sink_run context_run(context ctx){
 				LOAD_ab();
 				X = var_get(ctx, A, B);
 				if (!sink_isnum(X))
-					RETURN_FAIL("Expecting number when incrementing");
+					return opi_abortcstr(ctx, "Expecting number when incrementing");
 				var_set(ctx, A, B, sink_num(X.f + 1));
 			} break;
 
@@ -13209,7 +13196,7 @@ static sink_run context_run(context ctx){
 				else if (sink_isnum(X) && sink_isnum(Y))
 					var_set(ctx, A, B, sink_bool(X.f < Y.f));
 				else
-					RETURN_FAIL("Expecting numbers or strings");
+					return opi_abortcstr(ctx, "Expecting numbers or strings");
 			} break;
 
 			case OP_LTE            : { // [TGT], [SRC1], [SRC2]
@@ -13227,7 +13214,7 @@ static sink_run context_run(context ctx){
 				else if (sink_isnum(X) && sink_isnum(Y))
 					var_set(ctx, A, B, sink_bool(X.f <= Y.f));
 				else
-					RETURN_FAIL("Expecting numbers or strings");
+					return opi_abortcstr(ctx, "Expecting numbers or strings");
 			} break;
 
 			case OP_NEQ            : { // [TGT], [SRC1], [SRC2]
@@ -13248,10 +13235,10 @@ static sink_run context_run(context ctx){
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X) && !sink_isstr(X))
-					RETURN_FAIL("Expecting list or string when indexing");
+					return opi_abortcstr(ctx, "Expecting list or string when indexing");
 				Y = var_get(ctx, E, F);
 				if (!sink_isnum(Y))
-					RETURN_FAIL("Expecting index to be number");
+					return opi_abortcstr(ctx, "Expecting index to be number");
 				if (sink_islist(X))
 					var_set(ctx, A, B, opi_list_at(ctx, X, Y));
 				else
@@ -13275,10 +13262,10 @@ static sink_run context_run(context ctx){
 				LOAD_abcdef();
 				X = var_get(ctx, A, B);
 				if (!sink_islist(X))
-					RETURN_FAIL("Expecting list when setting index");
+					return opi_abortcstr(ctx, "Expecting list when setting index");
 				Y = var_get(ctx, C, D);
 				if (!sink_isnum(Y))
-					RETURN_FAIL("Expecting index to be number");
+					return opi_abortcstr(ctx, "Expecting index to be number");
 				ls = var_castlist(ctx, X);
 				A = (int)Y.f;
 				if (A < 0)
@@ -13299,7 +13286,7 @@ static sink_run context_run(context ctx){
 				else if (sink_isstr(X))
 					var_set(ctx, A, B, opi_str_splice(ctx, X, Y, Z, W));
 				else
-					RETURN_FAIL("Expecting list or string when splicing");
+					return opi_abortcstr(ctx, "Expecting list or string when splicing");
 			} break;
 
 			case OP_JUMP           : { // [[LOCATION]]
@@ -13465,21 +13452,21 @@ static sink_run context_run(context ctx){
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
 				if (!sink_isnum(X))
-					RETURN_FAIL("Expecting number for range");
+					return opi_abortcstr(ctx, "Expecting number for range");
 				if (sink_isnum(Y)){
 					if (sink_isnil(Z))
 						Z = sink_num(1);
 					if (!sink_isnum(Z))
-						RETURN_FAIL("Expecting number for range step");
-					X = opi_range(ctx, sink_castnum(X), sink_castnum(Y), sink_castnum(Z));
+						return opi_abortcstr(ctx, "Expecting number for range step");
+					X = opi_range(ctx, X.f, Y.f, Z.f);
 				}
 				else if (sink_isnil(Y)){
 					if (!sink_isnil(Z))
-						RETURN_FAIL("Expecting number for range stop");
-					X = opi_range(ctx, 0, sink_castnum(X), 1);
+						return opi_abortcstr(ctx, "Expecting number for range stop");
+					X = opi_range(ctx, 0, X.f, 1);
 				}
 				else
-					RETURN_FAIL("Expecting number for range stop");
+					return opi_abortcstr(ctx, "Expecting number for range stop");
 				var_set(ctx, A, B, X);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
@@ -13807,7 +13794,7 @@ static sink_run context_run(context ctx){
 				if (sink_isnil(X))
 					X.f = 0;
 				else if (!sink_isnum(X))
-					RETURN_FAIL("Expecting number");
+					return opi_abortcstr(ctx, "Expecting number");
 				opi_rand_seed(ctx, X.f);
 				var_set(ctx, A, B, SINK_NIL);
 			} break;
@@ -13902,7 +13889,7 @@ static sink_run context_run(context ctx){
 				if (sink_isnil(Y))
 					Y.f = 0;
 				else if (!sink_isnum(Y))
-					RETURN_FAIL("Expecting number");
+					return opi_abortcstr(ctx, "Expecting number");
 				var_set(ctx, A, B, opi_str_pad(ctx, X, Y.f));
 			} break;
 
@@ -13957,7 +13944,7 @@ static sink_run context_run(context ctx){
 				if (sink_isnil(Y))
 					Y.f = 0;
 				else if (!sink_isnum(Y))
-					RETURN_FAIL("Expecting number");
+					return opi_abortcstr(ctx, "Expecting number");
 				var_set(ctx, A, B, opi_str_rep(ctx, X, Y.f));
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
@@ -13976,7 +13963,7 @@ static sink_run context_run(context ctx){
 				if (sink_isnil(Y))
 					Y.f = 0;
 				else if (!sink_isnum(Y))
-					RETURN_FAIL("Expecting number");
+					return opi_abortcstr(ctx, "Expecting number");
 				var_set(ctx, A, B, opi_str_byte(ctx, X, Y.f));
 			} break;
 
@@ -13987,7 +13974,7 @@ static sink_run context_run(context ctx){
 				if (sink_isnil(Y))
 					Y.f = 0;
 				else if (!sink_isnum(Y))
-					RETURN_FAIL("Expecting number");
+					return opi_abortcstr(ctx, "Expecting number");
 				var_set(ctx, A, B, opi_str_hash(ctx, X, Y.f));
 			} break;
 
@@ -14224,7 +14211,7 @@ static sink_run context_run(context ctx){
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				if (!sink_isstr(X))
-					RETURN_FAIL("Expecting one of 'none', 'default', or 'lowmem'");
+					return opi_abortcstr(ctx, "Expecting one of 'none', 'default', or 'lowmem'");
 				str = var_caststr(ctx, X);
 				if (strcmp((const char *)str->bytes, "none") == 0)
 					ctx->gc_level = SINK_GC_NONE;
@@ -14237,7 +14224,7 @@ static sink_run context_run(context ctx){
 					context_gcleft(ctx, false);
 				}
 				else
-					RETURN_FAIL("Expecting one of 'none', 'default', or 'lowmem'");
+					return opi_abortcstr(ctx, "Expecting one of 'none', 'default', or 'lowmem'");
 				var_set(ctx, A, B, SINK_NIL);
 			} break;
 
@@ -15356,7 +15343,7 @@ bool sink_arg_num(sink_ctx ctx, int size, sink_val *args, int index, double *num
 		return true;
 	}
 	if (sink_isnum(args[index])){
-		*num = sink_castnum(args[index]);
+		*num = args[index].f;
 		return true;
 	}
 	sink_abortformat(ctx, "Expecting number for argument %d", index + 1);
@@ -16199,7 +16186,7 @@ sink_val sink_list_newblobgive(sink_ctx ctx, int size, int count, sink_val *vals
 sink_val sink_list_new(sink_ctx ctx, sink_val a, sink_val b){
 	if (!sink_isnum(a))
 		return sink_abortformat(ctx, "Expecting number");
-	int size = (int)sink_castnum(a);
+	int size = (int)a.f;
 	if (size < 0)
 		size = 0;
 	int count = size < sink_list_grow ? sink_list_grow : size;

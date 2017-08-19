@@ -83,7 +83,6 @@ typedef enum {
 typedef void (*sink_output_f)(sink_ctx ctx, sink_str str, void *iouser);
 typedef sink_val (*sink_input_f)(sink_ctx ctx, sink_str str, void *iouser);
 typedef sink_val (*sink_native_f)(sink_ctx ctx, int size, sink_val *args, void *natuser);
-typedef char *(*sink_fixpath_f)(const char *file, void *incuser);
 typedef sink_fstype (*sink_fstype_f)(const char *file, void *incuser);
 typedef bool (*sink_fsread_f)(sink_scr scr, const char *file, void *incuser);
 typedef size_t (*sink_dump_f)(const void *restrict ptr, size_t size, size_t nitems,
@@ -97,7 +96,6 @@ typedef struct {
 } sink_io_st;
 
 typedef struct {
-	sink_fixpath_f f_fixpath;
 	sink_fstype_f f_fstype;
 	sink_fsread_f f_fsread;
 	void *user; // passed as incuser to functions
@@ -501,51 +499,5 @@ static sink_io_st sink_stdio = (sink_io_st){
 	.f_ask = sink_stdio_ask,
 	.user = NULL
 };
-
-static char *sink_win32_fixpath(const char *file, void *user){
-	// Converts POSIX-style paths (exclusively used by sink during includes) into Windows paths
-	//
-	// Best docs I could find: https://msdn.microsoft.com/en-us/library/aa365247(v=vs.85).aspx
-	//
-	// The basic strategy is pretty simple:
-	//   1. Prefix \\? to the string to force Windows to use extended-length paths
-	//   2. Convert all forward slashes to back slashes
-	//   3. Convert top level paths to drive letters (if single character letter)
-	//
-	// Examples:
-	//   /c/test                  =>   \\?\c:\test
-	//   /UNC/server/share/file   =>   \\?\UNC\server\share\file
-	//   /foo/bar/baz             =>   \\?\foo\bar\baz
-	//   /f/oo/bar/baz            =>   \\?\f:\oo\bar\baz
-	//
-	// Must return a string allocated with sink_malloc, because caller will free via sink_free
-
-	int len = strlen(file);
-	char *out = sink_malloc(sizeof(char) * (len + 5));
-	if (out == NULL){
-		fprintf(stderr, "Out of memory!\n");
-		exit(1);
-		return NULL;
-	}
-	int j = 0;
-	out[j++] = '\\';
-	out[j++] = '\\';
-	out[j++] = '?';
-	for (int i = 0; i < len; i++){
-		if (i == 2 && file[2] == '/' &&
-			((file[1] >= 'a' && file[1] <= 'z') || (file[1] >= 'A' && file[1] <= 'Z')))
-			out[j++] = ':';
-		out[j++] = file[i] == '/' ? '\\' : file[i];
-	}
-	out[j++] = 0;
-	return out;
-}
-
-static char *sink_win32_unfixpath(const char *file){
-	// Converts a Windows path to a POSIX-style path (i.e., the reverse of `sink_win32_fixpath`)
-	fprintf(stderr, "TODO: sink_win32_sinkpath\n");
-	abort();
-	return NULL;
-}
 
 #endif // SINK__H

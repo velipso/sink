@@ -38,8 +38,6 @@ static inline void catchint(){
 #include <dirent.h>
 #include <sys/stat.h>
 
-#define FIXPATH NULL
-
 static bool isdir(const char *dir){
 	struct stat buf;
 	if (stat(dir, &buf) != 0)
@@ -47,24 +45,12 @@ static bool isdir(const char *dir){
 	return S_ISDIR(buf.st_mode);
 }
 
-#else
-#	error Don't know how to perform includes for other platforms
-#endif
-
 static bool isfile(const char *file){
 	FILE *fp = fopen(file, "rb");
 	if (fp == NULL)
 		return false;
 	fclose(fp);
 	return true;
-}
-
-static sink_fstype fstype(const char *file, void *user){
-	if (isdir(file))
-		return SINK_FSTYPE_DIR;
-	else if (isfile(file))
-		return SINK_FSTYPE_FILE;
-	return SINK_FSTYPE_NONE;
 }
 
 static bool fsread(sink_scr scr, const char *file, void *user){
@@ -81,8 +67,19 @@ static bool fsread(sink_scr scr, const char *file, void *user){
 	return true; // `true` indicates that the file was read
 }
 
+#else
+#	error Don't know how to perform includes for other platforms
+#endif
+
+static sink_fstype fstype(const char *file, void *user){
+	if (isdir(file))
+		return SINK_FSTYPE_DIR;
+	else if (isfile(file))
+		return SINK_FSTYPE_FILE;
+	return SINK_FSTYPE_NONE;
+}
+
 static sink_inc_st inc = {
-	.f_fixpath = FIXPATH,
 	.f_fstype = fstype,
 	.f_fsread = fsread,
 	.user = NULL
