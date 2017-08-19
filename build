@@ -313,7 +313,7 @@ if [ "$TEST_JS" = "1" ]; then
 			echo 'ERROR:'
 			echo 'Missing JavaScript build of sink.'
 			echo ''
-			echo 'Aborting tests for Javascript build.'
+			echo 'Aborting tests for JavaScript build.'
 			echo ''
 			echo 'You can build the JavaScript version of sink via:'
 			echo '   ./build js'

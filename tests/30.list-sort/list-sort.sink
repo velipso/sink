@@ -55,3 +55,19 @@ say list.rsort {'a', 0, num.nan, num.inf}
 x = {1, 2, 3}
 list.rsort x
 say x
+
+rand.seed 1234
+for: range 1000
+	var ls = {}
+	for: range 500 + rand.int % 100
+		list.push ls, rand.int % 1000
+	end
+	list.sort ls
+	for var i: range 1, &ls
+		if ls[i - 1] > ls[i]
+			say 'fail'
+			say ls
+		end
+	end
+end
+say 'done'

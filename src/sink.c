@@ -11691,6 +11691,60 @@ static int sortrev(sortu u, const sink_val *a, const sink_val *b){
 	return sortboth(u->ctx, u->li, a, b, -1);
 }
 
+typedef int (*sink_qsort_compare)(void *, const void *, const void *);
+
+static void memswap(void *a, void *b, size_t size){
+	#define WORD_TYPE uint64_t
+	WORD_TYPE t;
+	const size_t word_size = sizeof(WORD_TYPE);
+	size_t words = size / word_size;
+	size_t bytes = size % word_size;
+	uint8_t *x = (uint8_t *)a;
+	uint8_t *y = (uint8_t *)b;
+	while (words--){
+		memcpy(&t, x, word_size);
+		memcpy(x, y, word_size);
+		memcpy(y, &t, word_size);
+		x += word_size;
+		y += word_size;
+	}
+	while (bytes--){
+		uint8_t t = *x;
+		*x = *y;
+		*y = t;
+		x++;
+		y++;
+	}
+	#undef WORD_TYPE
+}
+
+static void sink_qsort_r_helper(uint8_t *base, size_t m, size_t n, size_t elsize, void *thunk,
+	sink_qsort_compare compare){
+	const uint8_t *key = base + m * elsize;
+	size_t i = m + 1;
+	size_t j = n;
+	while (i <= j){
+		while (i <= n && compare(thunk, base + i * elsize, key) <= 0)
+			i++;
+		while (j >= m && compare(thunk, base + j * elsize, key) > 0)
+			j--;
+		if (i < j)
+			memswap(base + i * elsize, base + j * elsize, elsize);
+	}
+	memswap(base + m * elsize, base + j * elsize, elsize);
+	if (j > m + 1)
+		sink_qsort_r_helper(base, m, j - 1, elsize, thunk, compare);
+	if (n > j + 1)
+		sink_qsort_r_helper(base, j + 1, n, elsize, thunk, compare);
+}
+
+static inline void sink_qsort_r(void *base, size_t elems, size_t elsize, void *thunk,
+	sink_qsort_compare compare){
+	if (elems <= 1)
+		return;
+	sink_qsort_r_helper(base, 0, elems - 1, elsize, thunk, compare);
+}
+
 static inline void opi_list_sort(context ctx, sink_val a){
 	if (!sink_islist(a)){
 		opi_abortcstr(ctx, "Expecting list for list.sort");
@@ -11698,7 +11752,7 @@ static inline void opi_list_sort(context ctx, sink_val a){
 	}
 	sortu_st u = { .ctx = ctx, .li = list_int_new() };
 	sink_list ls = var_castlist(ctx, a);
-	qsort_r(ls->vals, ls->size, sizeof(sink_val), &u,
+	sink_qsort_r(ls->vals, ls->size, sizeof(sink_val), &u,
 		(int (*)(void *, const void *, const void *))sortfwd);
 	list_int_free(u.li);
 }
@@ -11710,7 +11764,7 @@ static inline void opi_list_rsort(context ctx, sink_val a){
 	}
 	sortu_st u = { .ctx = ctx, .li = list_int_new() };
 	sink_list ls = var_castlist(ctx, a);
-	qsort_r(ls->vals, ls->size, sizeof(sink_val), &u,
+	sink_qsort_r(ls->vals, ls->size, sizeof(sink_val), &u,
 		(int (*)(void *, const void *, const void *))sortrev);
 	list_int_free(u.li);
 }
