@@ -10148,6 +10148,10 @@ static inline bool opi_utf8_valid(context ctx, sink_val a){
 }
 
 static inline sink_val opi_utf8_list(context ctx, sink_val a){
+	if (!sink_isstr(a)){
+		opi_abortcstr(ctx, "Expecting string");
+		return SINK_NIL;
+	}
 	sink_str s = var_caststr(ctx, a);
 	sink_val res = sink_list_newempty(ctx);
 	int state = 0;
@@ -10159,7 +10163,7 @@ static inline sink_val opi_utf8_list(context ctx, sink_val a){
 			if (b < 0x80) // 0x00 to 0x7F
 				opi_list_push(ctx, res, sink_num(b));
 			else if (b < 0xC0) // 0x80 to 0xBF
-				return SINK_NIL;
+				goto fail;
 			else if (b < 0xE0){ // 0xC0 to 0xDF
 				codepoint = b & 0x1F;
 				min = 0x80;
@@ -10176,32 +10180,41 @@ static inline sink_val opi_utf8_list(context ctx, sink_val a){
 				state = 3;
 			}
 			else
-				return SINK_NIL;
+				goto fail;
 		}
 		else{
 			if (b < 0x80 || b >= 0xC0)
-				return SINK_NIL;
+				goto fail;
 			codepoint = (codepoint << 6) | (b & 0x3F);
 			state--;
 			if (state == 0){ // codepoint finished, check if invalid
 				if (codepoint < min || // no overlong
 					codepoint >= 0x110000 || // no huge
 					(codepoint >= 0xD800 && codepoint < 0xE000)) // no surrogates
-					return SINK_NIL;
+					goto fail;
 				opi_list_push(ctx, res, sink_num(codepoint));
 			}
 		}
 	}
 	return res;
+	fail:
+	opi_abortcstr(ctx, "Invalid UTF-8 string");
+	return SINK_NIL;
 }
 
 static inline sink_val opi_utf8_str(context ctx, sink_val a){
+	if (!sink_islist(a)){
+		opi_abortcstr(ctx, "Expecting list");
+		return SINK_NIL;
+	}
 	sink_list ls = var_castlist(ctx, a);
 	int tot = 0;
 	for (int i = 0; i < ls->size; i++){
 		sink_val b = ls->vals[i];
-		if (!opihelp_codepoint(b))
+		if (!opihelp_codepoint(b)){
+			opi_abortcstr(ctx, "Invalid list of codepoints");
 			return SINK_NIL;
+		}
 		if (b.f < 0x80)
 			tot++;
 		else if (b.f < 0x800)
@@ -10286,19 +10299,23 @@ static inline sink_val opi_struct_size(context ctx, sink_val a){
 }
 
 static inline sink_val opi_struct_str(context ctx, sink_val a, sink_val b){
+	if (!sink_islist(a) || !sink_islist(b)){
+		opi_abortcstr(ctx, "Expecting list");
+		return SINK_NIL;
+	}
 	sink_list data = var_castlist(ctx, a);
 	sink_list type = var_castlist(ctx, b);
 	if (type->size <= 0)
-		return SINK_NIL;
+		goto fail;
 	if (data->size % type->size != 0)
-		return SINK_NIL;
+		goto fail;
 	for (int i = 0; i < data->size; i++){
 		if (!sink_isnum(data->vals[i]))
-			return SINK_NIL;
+			goto fail;
 	}
 	sink_val sizev = opi_struct_size(ctx, b);
 	if (sink_isnil(sizev))
-		return SINK_NIL;
+		goto fail;
 	int arsize = data->size / type->size;
 	int size = sizev.f * arsize;
 	uint8_t *bytes = mem_alloc(sizeof(uint8_t) * (size + 1));
@@ -10393,16 +10410,27 @@ static inline sink_val opi_struct_str(context ctx, sink_val a, sink_val b){
 	}
 	bytes[size] = 0;
 	return sink_str_newblobgive(ctx, size, bytes);
+	fail:
+	opi_abortcstr(ctx, "Invalid conversion");
+	return SINK_NIL;
 }
 
 static inline sink_val opi_struct_list(context ctx, sink_val a, sink_val b){
+	if (!sink_isstr(a)){
+		opi_abortcstr(ctx, "Expecting string");
+		return SINK_NIL;
+	}
+	if (!sink_islist(b)){
+		opi_abortcstr(ctx, "Expecting list");
+		return SINK_NIL;
+	}
 	sink_str s = var_caststr(ctx, a);
 	sink_val stsizev = opi_struct_size(ctx, b);
 	if (sink_isnil(stsizev))
-		return SINK_NIL;
+		goto fail;
 	int stsize = stsizev.f;
 	if (s->size % stsize != 0)
-		return SINK_NIL;
+		goto fail;
 	sink_list type = var_castlist(ctx, b);
 	sink_val res = sink_list_newempty(ctx);
 	int pos = 0;
@@ -10560,6 +10588,9 @@ static inline sink_val opi_struct_list(context ctx, sink_val a, sink_val b){
 		}
 	}
 	return res;
+	fail:
+	opi_abortcstr(ctx, "Invalid conversion");
+	return SINK_NIL;
 }
 
 static inline bool opi_struct_isLE(){
@@ -11256,6 +11287,14 @@ static inline fix_slice_st fix_slice(sink_val startv, sink_val lenv, int objsize
 }
 
 static inline sink_val opi_str_slice(context ctx, sink_val a, sink_val b, sink_val c){
+	if (!sink_isstr(a)){
+		opi_abortcstr(ctx, "Expecting list or string when slicing");
+		return SINK_NIL;
+	}
+	if (!sink_isnum(b) || (!sink_isnil(c) && !sink_isnum(c))){
+		opi_abortcstr(ctx, "Expecting slice values to be numbers");
+		return SINK_NIL;
+	}
 	sink_str s = var_caststr(ctx, a);
 	if (s->size <= 0)
 		return a;
@@ -11266,6 +11305,18 @@ static inline sink_val opi_str_slice(context ctx, sink_val a, sink_val b, sink_v
 }
 
 static inline sink_val opi_str_splice(context ctx, sink_val a, sink_val b, sink_val c, sink_val d){
+	if (!sink_isstr(a)){
+		opi_abortcstr(ctx, "Expecting list or string when splicing");
+		return SINK_NIL;
+	}
+	if (!sink_isnum(b) || (!sink_isnil(c) && !sink_isnum(c))){
+		opi_abortcstr(ctx, "Expecting splice values to be numbers");
+		return SINK_NIL;
+	}
+	if (!sink_isnil(d) && !sink_isstr(d)){
+		opi_abortcstr(ctx, "Expecting spliced value to be a string");
+		return SINK_NIL;
+	}
 	sink_str s = var_caststr(ctx, a);
 	fix_slice_st sl = fix_slice(b, c, s->size);
 	if (sink_isnil(d)){
@@ -11346,6 +11397,14 @@ static inline sink_val opi_list_cat(context ctx, int argcount, sink_val *args){
 }
 
 static inline sink_val opi_list_slice(context ctx, sink_val a, sink_val b, sink_val c){
+	if (!sink_islist(a)){
+		opi_abortcstr(ctx, "Expecting list or string when slicing");
+		return SINK_NIL;
+	}
+	if (!sink_isnum(b) || (!sink_isnil(c) && !sink_isnum(c))){
+		opi_abortcstr(ctx, "Expecting slice values to be numbers");
+		return SINK_NIL;
+	}
 	sink_list ls = var_castlist(ctx, a);
 	fix_slice_st sl = fix_slice(b, c, ls->size);
 	if (ls->size <= 0 || sl.len <= 0)
@@ -11354,6 +11413,18 @@ static inline sink_val opi_list_slice(context ctx, sink_val a, sink_val b, sink_
 }
 
 static inline void opi_list_splice(context ctx, sink_val a, sink_val b, sink_val c, sink_val d){
+	if (!sink_islist(a)){
+		opi_abortcstr(ctx, "Expecting list or string when splicing");
+		return;
+	}
+	if (!sink_isnum(b) || (!sink_isnil(c) && !sink_isnum(c))){
+		opi_abortcstr(ctx, "Expecting splice values to be numbers");
+		return;
+	}
+	if (!sink_isnil(d) && !sink_islist(d)){
+		opi_abortcstr(ctx, "Expecting spliced value to be a list");
+		return;
+	}
 	sink_list ls = var_castlist(ctx, a);
 	fix_slice_st sl = fix_slice(b, c, ls->size);
 	if (sink_isnil(d)){
@@ -11777,13 +11848,15 @@ static inline int opi_order(context ctx, sink_val a, sink_val b){
 }
 
 static inline sink_val opi_range(context ctx, double start, double stop, double step){
-	int count = ceil((stop - start) / step);
-	if (count > 10000000)
+	int64_t count = ceil((stop - start) / step);
+	if (count > 10000000){
+		opi_abortcstr(ctx, "Range too large (maximum 10000000)");
 		return SINK_NIL;
+	}
 	if (count <= 0)
 		return sink_list_newempty(ctx);
 	sink_val *ret = mem_alloc(sizeof(sink_val) * count);
-	for (int i = 0; i < count; i++)
+	for (int64_t i = 0; i < count; i++)
 		ret[i] = sink_num(start + (double)i * step);
 	return sink_list_newblobgive(ctx, count, count, ret);
 }
@@ -13188,16 +13261,14 @@ static sink_run context_run(context ctx){
 			case OP_SLICE          : { // [TGT], [SRC1], [SRC2], [SRC3]
 				LOAD_abcdefgh();
 				X = var_get(ctx, C, D);
-				if (!sink_islist(X) && !sink_isstr(X))
-					RETURN_FAIL("Expecting list or string when slicing");
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
-				if (!sink_isnum(Y) || (!sink_isnil(Z) && !sink_isnum(Z)))
-					RETURN_FAIL("Expecting slice values to be numbers");
 				if (sink_islist(X))
 					var_set(ctx, A, B, opi_list_slice(ctx, X, Y, Z));
 				else
 					var_set(ctx, A, B, opi_str_slice(ctx, X, Y, Z));
+				if (ctx->failed)
+					return SINK_RUN_FAIL;
 			} break;
 
 			case OP_SETAT          : { // [SRC1], [SRC2], [SRC3]
@@ -13220,23 +13291,13 @@ static sink_run context_run(context ctx){
 			case OP_SPLICE         : { // [SRC1], [SRC2], [SRC3], [SRC4]
 				LOAD_abcdefgh();
 				X = var_get(ctx, A, B);
-				if (!sink_islist(X) && !sink_isstr(X))
-					RETURN_FAIL("Expecting list or string when splicing");
 				Y = var_get(ctx, C, D);
 				Z = var_get(ctx, E, F);
-				if (!sink_isnum(Y) || (!sink_isnil(Z) && !sink_isnum(Z)))
-					RETURN_FAIL("Expecting splice values to be numbers");
 				W = var_get(ctx, G, H);
-				if (sink_islist(X)){
-					if (!sink_isnil(W) && !sink_islist(W))
-						RETURN_FAIL("Expecting spliced value to be a list");
+				if (sink_islist(X))
 					opi_list_splice(ctx, X, Y, Z, W);
-				}
-				else if (sink_isstr(X)){
-					if (!sink_isnil(W) && !sink_isstr(W))
-						RETURN_FAIL("Expecting spliced value to be a string");
+				else if (sink_isstr(X))
 					var_set(ctx, A, B, opi_str_splice(ctx, X, Y, Z, W));
-				}
 				else
 					RETURN_FAIL("Expecting list or string when splicing");
 			} break;
@@ -13419,9 +13480,9 @@ static sink_run context_run(context ctx){
 				}
 				else
 					RETURN_FAIL("Expecting number for range stop");
-				if (sink_isnil(X))
-					RETURN_FAIL("Range too large (over 10000000)");
 				var_set(ctx, A, B, X);
+				if (ctx->failed)
+					return SINK_RUN_FAIL;
 			} break;
 
 			case OP_ORDER          : { // [TGT], [SRC1], [SRC2]
@@ -13938,56 +13999,35 @@ static sink_run context_run(context ctx){
 
 			case OP_UTF8_LIST      : { // [TGT], [SRC]
 				LOAD_abcd();
-				X = var_get(ctx, C, D);
-				if (!sink_isstr(X))
-					RETURN_FAIL("Expecting string");
-				X = opi_utf8_list(ctx, X);
-				if (sink_isnil(X))
-					RETURN_FAIL("Invalid UTF-8 string");
-				var_set(ctx, A, B, X);
+				var_set(ctx, A, B, opi_utf8_list(ctx, var_get(ctx, C, D)));
+				if (ctx->failed)
+					return SINK_RUN_FAIL;
 			} break;
 
 			case OP_UTF8_STR       : { // [TGT], [SRC]
 				LOAD_abcd();
-				X = var_get(ctx, C, D);
-				if (!sink_islist(X))
-					RETURN_FAIL("Expecting list");
-				X = opi_utf8_str(ctx, X);
-				if (sink_isnil(X))
-					RETURN_FAIL("Invalid list of codepoints");
-				var_set(ctx, A, B, X);
+				var_set(ctx, A, B, opi_utf8_str(ctx, var_get(ctx, C, D)));
+				if (ctx->failed)
+					return SINK_RUN_FAIL;
 			} break;
 
 			case OP_STRUCT_SIZE    : { // [TGT], [SRC]
 				LOAD_abcd();
-				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, opi_struct_size(ctx, X));
+				var_set(ctx, A, B, opi_struct_size(ctx, var_get(ctx, C, D)));
 			} break;
 
 			case OP_STRUCT_STR     : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
-				X = var_get(ctx, C, D);
-				Y = var_get(ctx, E, F);
-				if (!sink_islist(X) || !sink_islist(Y))
-					RETURN_FAIL("Expecting list");
-				X = opi_struct_str(ctx, X, Y);
-				if (sink_isnil(X))
-					RETURN_FAIL("Invalid conversion");
-				var_set(ctx, A, B, X);
+				var_set(ctx, A, B, opi_struct_str(ctx, var_get(ctx, C, D), var_get(ctx, E, F)));
+				if (ctx->failed)
+					return SINK_RUN_FAIL;
 			} break;
 
 			case OP_STRUCT_LIST    : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
-				X = var_get(ctx, C, D);
-				Y = var_get(ctx, E, F);
-				if (!sink_isstr(X))
-					RETURN_FAIL("Expecting string");
-				if (!sink_islist(Y))
-					RETURN_FAIL("Expecting list");
-				X = opi_struct_list(ctx, X, Y);
-				if (sink_isnil(X))
-					RETURN_FAIL("Invalid conversion");
-				var_set(ctx, A, B, X);
+				var_set(ctx, A, B, opi_struct_list(ctx, var_get(ctx, C, D), var_get(ctx, E, F)));
+				if (ctx->failed)
+					return SINK_RUN_FAIL;
 			} break;
 
 			case OP_STRUCT_ISLE    : { // [TGT]
