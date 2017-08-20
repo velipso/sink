@@ -3,6 +3,8 @@
 // Project Home: https://github.com/voidqk/sink
 
 #include "sink.h"
+#include <stdio.h>
+#include <string.h>
 #include <time.h>
 
 #ifdef SINK_MAC
@@ -174,7 +176,7 @@ static void mem_free_func(void *p){
 // string creation
 //
 
-char *sink_format(const char *fmt, ...){
+static char *format(const char *fmt, ...){
 	va_list args, args2;
 	va_start(args, fmt);
 	va_copy(args2, args);
@@ -2010,7 +2012,7 @@ static void lex_process(lex lx, list_ptr tks){
 						break;
 					}
 					else
-						list_ptr_push(tks, tok_error(flp, sink_format("Mismatched brace")));
+						list_ptr_push(tks, tok_error(flp, format("Mismatched brace")));
 				}
 				lx->state = LEX_SPECIAL1;
 			}
@@ -2047,7 +2049,7 @@ static void lex_process(lex lx, list_ptr tks){
 			else if (isSpace(ch1))
 				/* do nothing */;
 			else
-				list_ptr_push(tks, tok_error(flp, sink_format("Unexpected character: %c", ch1)));
+				list_ptr_push(tks, tok_error(flp, format("Unexpected character: %c", ch1)));
 			break;
 
 		case LEX_COMMENT_LINE:
@@ -2066,7 +2068,7 @@ static void lex_process(lex lx, list_ptr tks){
 				lx->state = LEX_START;
 			else if (!isSpace(ch1)){
 				list_ptr_push(tks,
-					tok_error(flp, sink_format("Invalid character after backslash")));
+					tok_error(flp, format("Invalid character after backslash")));
 			}
 			break;
 
@@ -2151,7 +2153,7 @@ static void lex_process(lex lx, list_ptr tks){
 			else{
 				list_byte_push(lx->str, ch1);
 				if (lx->str->size > 1024)
-					list_ptr_push(tks, tok_error(flpS, sink_format("Identifier too long")));
+					list_ptr_push(tks, tok_error(flpS, format("Identifier too long")));
 			}
 			break;
 
@@ -2180,19 +2182,19 @@ static void lex_process(lex lx, list_ptr tks){
 				lex_process(lx, tks);
 			}
 			else
-				list_ptr_push(tks, tok_error(flpS, sink_format("Invalid number")));
+				list_ptr_push(tks, tok_error(flpS, format("Invalid number")));
 			break;
 
 		case LEX_NUM_2:
 			if (isHex(ch1)){
 				lx->npi.val = toHex(ch1);
 				if (lx->npi.val >= lx->npi.base)
-					list_ptr_push(tks, tok_error(flpS, sink_format("Invalid number")));
+					list_ptr_push(tks, tok_error(flpS, format("Invalid number")));
 				else
 					lx->state = LEX_NUM_BODY;
 			}
 			else if (ch1 != '_')
-				list_ptr_push(tks, tok_error(flpS, sink_format("Invalid number")));
+				list_ptr_push(tks, tok_error(flpS, format("Invalid number")));
 			break;
 
 		case LEX_NUM_BODY:
@@ -2206,7 +2208,7 @@ static void lex_process(lex lx, list_ptr tks){
 			else if (isHex(ch1)){
 				int v = toHex(ch1);
 				if (v >= lx->npi.base)
-					list_ptr_push(tks, tok_error(flpS, sink_format("Invalid number")));
+					list_ptr_push(tks, tok_error(flpS, format("Invalid number")));
 				else
 					lx->npi.val = lx->npi.val * lx->npi.base + v;
 			}
@@ -2216,7 +2218,7 @@ static void lex_process(lex lx, list_ptr tks){
 				lex_process(lx, tks);
 			}
 			else
-				list_ptr_push(tks, tok_error(flpS, sink_format("Invalid number")));
+				list_ptr_push(tks, tok_error(flpS, format("Invalid number")));
 			break;
 
 		case LEX_NUM_FRAC:
@@ -2228,7 +2230,7 @@ static void lex_process(lex lx, list_ptr tks){
 			else if (isHex(ch1)){
 				int v = toHex(ch1);
 				if (v >= lx->npi.base)
-					list_ptr_push(tks, tok_error(flpS, sink_format("Invalid number")));
+					list_ptr_push(tks, tok_error(flpS, format("Invalid number")));
 				else{
 					lx->npi.frac = lx->npi.frac * lx->npi.base + v;
 					lx->npi.flen++;
@@ -2236,7 +2238,7 @@ static void lex_process(lex lx, list_ptr tks){
 			}
 			else if (!isAlpha(ch1)){
 				if (lx->npi.flen <= 0)
-					list_ptr_push(tks, tok_error(flpS, sink_format("Invalid number")));
+					list_ptr_push(tks, tok_error(flpS, format("Invalid number")));
 				else{
 					list_ptr_push(tks, tok_num(flpS, numpart_calc(lx->npi)));
 					lx->state = LEX_START;
@@ -2244,7 +2246,7 @@ static void lex_process(lex lx, list_ptr tks){
 				}
 			}
 			else
-				list_ptr_push(tks, tok_error(flpS, sink_format("Invalid number")));
+				list_ptr_push(tks, tok_error(flpS, format("Invalid number")));
 			break;
 
 		case LEX_NUM_EXP:
@@ -2266,7 +2268,7 @@ static void lex_process(lex lx, list_ptr tks){
 			}
 			else if (!isAlpha(ch1)){
 				if (!lx->numexp)
-					list_ptr_push(tks, tok_error(flpS, sink_format("Invalid number")));
+					list_ptr_push(tks, tok_error(flpS, format("Invalid number")));
 				else{
 					list_ptr_push(tks, tok_num(flpS, numpart_calc(lx->npi)));
 					lx->state = LEX_START;
@@ -2274,12 +2276,12 @@ static void lex_process(lex lx, list_ptr tks){
 				}
 			}
 			else
-				list_ptr_push(tks, tok_error(flpS, sink_format("Invalid number")));
+				list_ptr_push(tks, tok_error(flpS, format("Invalid number")));
 			break;
 
 		case LEX_STR_BASIC:
 			if (ch1 == '\r' || ch1 == '\n')
-				list_ptr_push(tks, tok_error(lx->flp2, sink_format("Missing end of string")));
+				list_ptr_push(tks, tok_error(lx->flp2, format("Missing end of string")));
 			else if (ch1 == '\'')
 				lx->state = LEX_STR_BASIC_ESC;
 			else
@@ -2303,7 +2305,7 @@ static void lex_process(lex lx, list_ptr tks){
 
 		case LEX_STR_INTERP:
 			if (ch1 == '\r' || ch1 == '\n')
-				list_ptr_push(tks, tok_error(lx->flp2, sink_format("Missing end of string")));
+				list_ptr_push(tks, tok_error(lx->flp2, format("Missing end of string")));
 			else if (ch1 == '"'){
 				lx->state = LEX_START;
 				list_ptr_push(tks, tok_str(flpS, lx->str));
@@ -2335,13 +2337,13 @@ static void lex_process(lex lx, list_ptr tks){
 				lx->flpS = flp; // save start position of ident
 			}
 			else
-				list_ptr_push(tks, tok_error(flp, sink_format("Invalid substitution")));
+				list_ptr_push(tks, tok_error(flp, format("Invalid substitution")));
 			break;
 
 		case LEX_STR_INTERP_DLR_ID:
 			if (!isIdentBody(ch1)){
 				if (ks_str(lx->str) != KS_INVALID)
-					list_ptr_push(tks, tok_error(flpS, sink_format("Invalid substitution")));
+					list_ptr_push(tks, tok_error(flpS, format("Invalid substitution")));
 				else{
 					list_ptr_push(tks, tok_ident(flpS, lx->str));
 					if (ch1 == '"'){
@@ -2360,13 +2362,13 @@ static void lex_process(lex lx, list_ptr tks){
 			else{
 				list_byte_push(lx->str, ch1);
 				if (lx->str->size > 1024)
-					list_ptr_push(tks, tok_error(flpS, sink_format("Identifier too long")));
+					list_ptr_push(tks, tok_error(flpS, format("Identifier too long")));
 			}
 			break;
 
 		case LEX_STR_INTERP_ESC:
 			if (ch1 == '\r' || ch1 == '\n')
-				list_ptr_push(tks, tok_error(lx->flp2, sink_format("Missing end of string")));
+				list_ptr_push(tks, tok_error(lx->flp2, format("Missing end of string")));
 			else if (ch1 == 'x'){
 				lx->str_hexval = 0;
 				lx->str_hexleft = 2;
@@ -2410,7 +2412,7 @@ static void lex_process(lex lx, list_ptr tks){
 			}
 			else{
 				list_ptr_push(tks,
-					tok_error(flp, sink_format("Invalid escape sequence: \\%c", ch1)));
+					tok_error(flp, format("Invalid escape sequence: \\%c", ch1)));
 			}
 			break;
 
@@ -2425,7 +2427,7 @@ static void lex_process(lex lx, list_ptr tks){
 			}
 			else{
 				list_ptr_push(tks,
-					tok_error(flp, sink_format("Invalid escape sequence; expecting hex value")));
+					tok_error(flp, format("Invalid escape sequence; expecting hex value")));
 			}
 			break;
 	}
@@ -2438,7 +2440,7 @@ static inline void lex_add(lex lx, filepos_st flp, char ch, list_ptr tks){
 
 static void lex_close(lex lx, filepos_st flp, list_ptr tks){
 	if (lx->braces->size > 1){
-		list_ptr_push(tks, tok_error(flp, sink_format("Missing end of string")));
+		list_ptr_push(tks, tok_error(flp, format("Missing end of string")));
 		return;
 	}
 	switch (lx->state){
@@ -2449,7 +2451,7 @@ static void lex_close(lex lx, filepos_st flp, list_ptr tks){
 			break;
 
 		case LEX_COMMENT_BLOCK:
-			list_ptr_push(tks, tok_error(lx->flpS, sink_format("Missing end of block comment")));
+			list_ptr_push(tks, tok_error(lx->flpS, format("Missing end of block comment")));
 			return;
 
 		case LEX_SPECIAL1:
@@ -2482,7 +2484,7 @@ static void lex_close(lex lx, filepos_st flp, list_ptr tks){
 			break;
 
 		case LEX_NUM_2:
-			list_ptr_push(tks, tok_error(lx->flpS, sink_format("Invalid number")));
+			list_ptr_push(tks, tok_error(lx->flpS, format("Invalid number")));
 			break;
 
 		case LEX_NUM_BODY:
@@ -2491,18 +2493,18 @@ static void lex_close(lex lx, filepos_st flp, list_ptr tks){
 
 		case LEX_NUM_FRAC:
 			if (lx->npi.flen <= 0)
-				list_ptr_push(tks, tok_error(lx->flpS, sink_format("Invalid number")));
+				list_ptr_push(tks, tok_error(lx->flpS, format("Invalid number")));
 			else
 				list_ptr_push(tks, tok_num(lx->flpS, numpart_calc(lx->npi)));
 			break;
 
 		case LEX_NUM_EXP:
-			list_ptr_push(tks, tok_error(lx->flpS, sink_format("Invalid number")));
+			list_ptr_push(tks, tok_error(lx->flpS, format("Invalid number")));
 			break;
 
 		case LEX_NUM_EXP_BODY:
 			if (!lx->numexp)
-				list_ptr_push(tks, tok_error(lx->flpS, sink_format("Invalid number")));
+				list_ptr_push(tks, tok_error(lx->flpS, format("Invalid number")));
 			else
 				list_ptr_push(tks, tok_num(lx->flpS, numpart_calc(lx->npi)));
 			break;
@@ -2520,7 +2522,7 @@ static void lex_close(lex lx, filepos_st flp, list_ptr tks){
 		case LEX_STR_INTERP_DLR_ID:
 		case LEX_STR_INTERP_ESC:
 		case LEX_STR_INTERP_ESC_HEX:
-			list_ptr_push(tks, tok_error(lx->flpS, sink_format("Missing end of string")));
+			list_ptr_push(tks, tok_error(lx->flpS, format("Missing end of string")));
 			break;
 	}
 	list_ptr_push(tks, tok_newline(flp, false));
@@ -5497,7 +5499,7 @@ static sfn_st symtbl_findNamespace(symtbl sym, list_ptr names, int max){
 			if (list_byte_equ(nsn->name, name)){
 				if (nsn->type != NSN_NAMESPACE){
 					if (!sym->repl){
-						return sfn_error(sink_format(
+						return sfn_error(format(
 							"Not a namespace: \"%.*s\"", nsn->name->size, nsn->name->bytes));
 					}
 					nsname_free(ns->names->ptrs[i]);
@@ -5611,10 +5613,10 @@ static stl_st symtbl_lookup(symtbl sym, list_ptr names){
 	if (res.type == STL_ERROR){
 		// create an error message
 		list_byte lb = names->ptrs[0];
-		char *join = sink_format("Not found: %.*s", lb->size, lb->bytes);
+		char *join = format("Not found: %.*s", lb->size, lb->bytes);
 		for (int i = 1; i < names->size; i++){
 			lb = names->ptrs[i];
-			char *join2 = sink_format("%s.%.*s", join, lb->size, lb->bytes);
+			char *join2 = format("%s.%.*s", join, lb->size, lb->bytes);
 			mem_free(join);
 			join = join2;
 		}
@@ -5657,7 +5659,7 @@ static sta_st symtbl_addTemp(symtbl sym){
 		}
 	}
 	if (sym->fr->vars->size >= 256)
-		return sta_error(sink_format("Too many variables in frame"));
+		return sta_error(format("Too many variables in frame"));
 	list_int_push(sym->fr->vars, FVR_TEMP_INUSE);
 	return sta_var(varloc_new(sym->fr->level, sym->fr->vars->size - 1));
 }
@@ -5688,7 +5690,7 @@ static sta_st symtbl_addVar(symtbl sym, list_ptr names, int slot){
 		if (list_byte_equ(nsn->name, names->ptrs[names->size - 1])){
 			if (!sym->repl){
 				return sta_error(
-					sink_format("Cannot redefine \"%.*s\"", nsn->name->size, nsn->name->bytes));
+					format("Cannot redefine \"%.*s\"", nsn->name->size, nsn->name->bytes));
 			}
 			if (nsn->type == NSN_VAR)
 				return sta_var(varloc_new(nsn->u.var.fr->level, nsn->u.var.index));
@@ -5697,7 +5699,7 @@ static sta_st symtbl_addVar(symtbl sym, list_ptr names, int slot){
 				list_int_push(sym->fr->vars, FVR_VAR);
 			}
 			if (slot >= 256)
-				return sta_error(sink_format("Too many variables in frame"));
+				return sta_error(format("Too many variables in frame"));
 			nsname_free(ns->names->ptrs[i]);
 			ns->names->ptrs[i] = nsname_var(names->ptrs[names->size - 1], sym->fr, slot);
 			return sta_var(varloc_new(sym->fr->level, slot));
@@ -5708,7 +5710,7 @@ static sta_st symtbl_addVar(symtbl sym, list_ptr names, int slot){
 		list_int_push(sym->fr->vars, FVR_VAR);
 	}
 	if (slot >= 256)
-		return sta_error(sink_format("Too many variables in frame"));
+		return sta_error(format("Too many variables in frame"));
 	list_ptr_push(ns->names, nsname_var(names->ptrs[names->size - 1], sym->fr, slot));
 	return sta_var(varloc_new(sym->fr->level, slot));
 }
@@ -5722,7 +5724,7 @@ static char *symtbl_addEnum(symtbl sym, list_ptr names, double val){
 		nsname nsn = ns->names->ptrs[i];
 		if (list_byte_equ(nsn->name, names->ptrs[names->size - 1])){
 			if (!sym->repl)
-				return sink_format("Cannot redefine \"%.*s\"", nsn->name->size, nsn->name->bytes);
+				return format("Cannot redefine \"%.*s\"", nsn->name->size, nsn->name->bytes);
 			nsname_free(ns->names->ptrs[i]);
 			ns->names->ptrs[i] = nsname_enum(names->ptrs[names->size - 1], val, false);
 			return NULL;
@@ -5747,7 +5749,7 @@ static char *symtbl_addCmdLocal(symtbl sym, list_ptr names, label lbl){
 		nsname nsn = ns->names->ptrs[i];
 		if (list_byte_equ(nsn->name, names->ptrs[names->size - 1])){
 			if (!sym->repl)
-				return sink_format("Cannot redefine \"%.*s\"", nsn->name->size, nsn->name->bytes);
+				return format("Cannot redefine \"%.*s\"", nsn->name->size, nsn->name->bytes);
 			nsname_free(ns->names->ptrs[i]);
 			ns->names->ptrs[i] = nsname_cmdLocal(names->ptrs[names->size - 1], sym->fr, lbl);
 			return NULL;
@@ -5766,7 +5768,7 @@ static char *symtbl_addCmdNative(symtbl sym, list_ptr names, uint64_t hash){
 		nsname nsn = ns->names->ptrs[i];
 		if (list_byte_equ(nsn->name, names->ptrs[names->size - 1])){
 			if (!sym->repl)
-				return sink_format("Cannot redefine \"%.*s\"", nsn->name->size, nsn->name->bytes);
+				return format("Cannot redefine \"%.*s\"", nsn->name->size, nsn->name->bytes);
 			nsname_free(ns->names->ptrs[i]);
 			ns->names->ptrs[i] = nsname_cmdNative(names->ptrs[names->size - 1], hash);
 			return NULL;
@@ -6142,7 +6144,7 @@ static int program_adddebugstr(program prg, const char *str){
 		if (strcmp(prg->debugTable->ptrs[i], str) == 0)
 			return i;
 	}
-	list_ptr_push(prg->debugTable, sink_format("%s", str));
+	list_ptr_push(prg->debugTable, format("%s", str));
 	return prg->debugTable->size - 1;
 }
 
@@ -6168,12 +6170,12 @@ static inline const char *program_getdebugstr(program prg, int str){
 static char *program_errormsg(program prg, filepos_st flp, const char *msg){
 	if (msg == NULL){
 		if (flp.basefile < 0)
-			return sink_format("%d:%d", flp.line, flp.chr);
-		return sink_format("%s:%d:%d", program_getdebugstr(prg, flp.basefile), flp.line, flp.chr);
+			return format("%d:%d", flp.line, flp.chr);
+		return format("%s:%d:%d", program_getdebugstr(prg, flp.basefile), flp.line, flp.chr);
 	}
 	if (flp.basefile < 0)
-		return sink_format("%d:%d: %s", flp.line, flp.chr, msg);
-	return sink_format("%s:%d:%d: %s",
+		return format("%d:%d: %s", flp.line, flp.chr, msg);
+	return format("%s:%d:%d: %s",
 		program_getdebugstr(prg, flp.basefile), flp.line, flp.chr, msg);
 }
 
@@ -6654,7 +6656,7 @@ static lvp_st lval_addVars(symtbl sym, expr ex, int slot){
 	}
 	else if (ex->type == EXPR_LIST){
 		if (ex->u.ex == NULL)
-			return lvp_error(ex->flp, sink_format("Invalid assignment"));
+			return lvp_error(ex->flp, format("Invalid assignment"));
 		list_ptr body = list_ptr_new(lvr_free);
 		lvr rest = NULL;
 		if (ex->u.ex->type == EXPR_GROUP){
@@ -6689,7 +6691,7 @@ static lvp_st lval_addVars(symtbl sym, expr ex, int slot){
 		}
 		return lvp_ok(lvr_list(ex->flp, body, rest));
 	}
-	return lvp_error(ex->flp, sink_format("Invalid assignment"));
+	return lvp_error(ex->flp, format("Invalid assignment"));
 }
 
 static lvp_st lval_prepare(pgen_st pgen, expr ex){
@@ -6698,7 +6700,7 @@ static lvp_st lval_prepare(pgen_st pgen, expr ex){
 		if (sl.type == STL_ERROR)
 			return lvp_error(ex->flp, sl.u.msg);
 		if (sl.u.nsn->type != NSN_VAR)
-			return lvp_error(ex->flp, sink_format("Invalid assignment"));
+			return lvp_error(ex->flp, format("Invalid assignment"));
 		return lvp_ok(lvr_var(ex->flp,
 			varloc_new(sl.u.nsn->u.var.fr->level, sl.u.nsn->u.var.index)));
 	}
@@ -6745,7 +6747,7 @@ static lvp_st lval_prepare(pgen_st pgen, expr ex){
 		lvr rest = NULL;
 		if (ex->u.ex == NULL){
 			list_ptr_free(body);
-			return lvp_error(ex->flp, sink_format("Invalid assignment"));
+			return lvp_error(ex->flp, format("Invalid assignment"));
 		}
 		else if (ex->u.ex->type == EXPR_GROUP){
 			for (int i = 0; i < ex->u.ex->u.group->size; i++){
@@ -6789,7 +6791,7 @@ static lvp_st lval_prepare(pgen_st pgen, expr ex){
 		}
 		return lvp_ok(lvr_list(ex->flp, body, rest));
 	}
-	return lvp_error(ex->flp, sink_format("Invalid assignment"));
+	return lvp_error(ex->flp, format("Invalid assignment"));
 }
 
 static void lval_clearTemps(lvr lv, symtbl sym){
@@ -7127,7 +7129,7 @@ static void embed_end(bool success, const char *file, efu_st *efu){
 	}
 	else{
 		list_byte_free(efu->pgen.scr->capture_write);
-		efu->pe = per_error(efu->flp, sink_format("Failed to read file for `embed`: %s", file));
+		efu->pe = per_error(efu->flp, format("Failed to read file for `embed`: %s", file));
 	}
 	efu->pgen.scr->capture_write = NULL;
 }
@@ -7157,13 +7159,13 @@ static per_st program_evalCall(pgen_st pgen, pem_enum mode, varloc_st intoVlc,
 	symtbl sym = pgen.sym;
 
 	if (nsn->type != NSN_CMD_LOCAL && nsn->type != NSN_CMD_NATIVE && nsn->type != NSN_CMD_OPCODE)
-		return per_error(flp, sink_format("Invalid call - not a command"));
+		return per_error(flp, format("Invalid call - not a command"));
 
 	// params can be NULL to indicate emptiness
 	if (nsn->type == NSN_CMD_OPCODE && nsn->u.cmdOpcode.opcode == OP_PICK){
 		if (params == NULL || params->type != EXPR_GROUP ||
 			params->u.group->size != 3)
-			return per_error(flp, sink_format("Using `pick` requires exactly three arguments"));
+			return per_error(flp, format("Using `pick` requires exactly three arguments"));
 
 		per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, params->u.group->ptrs[0]);
 		if (pe.type == PER_ERROR)
@@ -7213,7 +7215,7 @@ static per_st program_evalCall(pgen_st pgen, pem_enum mode, varloc_st intoVlc,
 		while (file && file->type == EXPR_PAREN)
 			file = file->u.ex;
 		if (file == NULL || file->type != EXPR_STR)
-			return per_error(flp, sink_format("Expecting constant string for `embed`"));
+			return per_error(flp, format("Expecting constant string for `embed`"));
 		char *cwd = NULL;
 		efu_st efu = (efu_st){
 			.pgen = pgen,
@@ -7230,7 +7232,7 @@ static per_st program_evalCall(pgen_st pgen, pem_enum mode, varloc_st intoVlc,
 		if (cwd)
 			mem_free(cwd);
 		if (!res)
-			return per_error(flp, sink_format("Failed to embed: %s", (const char *)fstr->bytes));
+			return per_error(flp, format("Failed to embed: %s", (const char *)fstr->bytes));
 		return efu.pe;
 	}
 	else if (nsn->type == NSN_CMD_OPCODE && nsn->u.cmdOpcode.opcode == OP_STR_HASH && params){
@@ -7303,7 +7305,7 @@ static per_st program_evalCall(pgen_st pgen, pem_enum mode, varloc_st intoVlc,
 		}
 		if (!found){
 			if (prg->keyTable->size >= 0x7FFFFFFF) // using too many native calls?
-				return per_error(flp, sink_format("Too many native commands"));
+				return per_error(flp, format("Too many native commands"));
 			index = prg->keyTable->size;
 			list_u64_push(prg->keyTable, nsn->u.hash);
 		}
@@ -7644,7 +7646,7 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 			}
 			if (!found){
 				if (index >= 0x7FFFFFFF)
-					return per_error(ex->flp, sink_format("Too many string constants"));
+					return per_error(ex->flp, format("Too many string constants"));
 				list_ptr_push(prg->strTable, ex->u.str);
 				ex->u.str = NULL;
 			}
@@ -7748,7 +7750,7 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 					return program_evalCall(pgen, mode, intoVlc, ex->flp, sl.u.nsn, NULL);
 
 				case NSN_NAMESPACE:
-					return per_error(ex->flp, sink_format("Invalid expression"));
+					return per_error(ex->flp, format("Invalid expression"));
 			}
 			assert(false);
 		} break;
@@ -7819,7 +7821,7 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 		case EXPR_PREFIX: {
 			op_enum unop = ks_toUnaryOp(ex->u.prefix.k);
 			if (unop == OP_INVALID)
-				return per_error(ex->flp, sink_format("Invalid unary operator"));
+				return per_error(ex->flp, format("Invalid unary operator"));
 			per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex->u.prefix.ex);
 			if (pe.type == PER_ERROR)
 				return pe;
@@ -7985,7 +7987,7 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 				label_free(finish);
 			}
 			else
-				return per_error(ex->flp, sink_format("Invalid operation"));
+				return per_error(ex->flp, format("Invalid operation"));
 
 			if (mode == PEM_EMPTY){
 				symtbl_clearTemp(sym, intoVlc);
@@ -7996,7 +7998,7 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 
 		case EXPR_CALL: {
 			if (ex->u.call.cmd->type != EXPR_NAMES)
-				return per_error(ex->flp, sink_format("Invalid call"));
+				return per_error(ex->flp, format("Invalid call"));
 			stl_st sl = symtbl_lookup(sym, ex->u.call.cmd->u.names);
 			if (sl.type == STL_ERROR)
 				return per_error(ex->flp, sl.u.msg);
@@ -8101,7 +8103,7 @@ static pen_st program_exprToNum(pgen_st pgen, expr ex){
 		else if (binop == OP_NUM_DIV) return pen_ok(n1.u.value / n2.u.value);
 		else if (binop == OP_NUM_POW) return pen_ok(pow(n1.u.value, n2.u.value));
 	}
-	return pen_err(sink_format("Enums must be a constant number"));
+	return pen_err(format("Enums must be a constant number"));
 }
 
 typedef struct {
@@ -8280,7 +8282,7 @@ static inline pfvs_res_st program_forVarsSingle(symtbl sym, bool forVar, list_pt
 		if (sl.u.nsn->type != NSN_VAR){
 			return (pfvs_res_st){
 				.vlc = VARLOC_NULL,
-				.err = sink_format("Cannot use non-variable in for loop")
+				.err = format("Cannot use non-variable in for loop")
 			};
 		}
 		return (pfvs_res_st){
@@ -8428,14 +8430,14 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 	switch (stmt->type){
 		case AST_BREAK: {
 			if (sym->sc->lblBreak == NULL)
-				return pgr_error(stmt->flp, sink_format("Invalid `break`"));
+				return pgr_error(stmt->flp, format("Invalid `break`"));
 			label_jump(sym->sc->lblBreak, prg->ops);
 			return pgr_ok();
 		} break;
 
 		case AST_CONTINUE: {
 			if (sym->sc->lblContinue == NULL)
-				return pgr_error(stmt->flp, sink_format("Invalid `continue`"));
+				return pgr_error(stmt->flp, format("Invalid `continue`"));
 			label_jump(sym->sc->lblContinue, prg->ops);
 			return pgr_ok();
 		} break;
@@ -8467,14 +8469,14 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 				lbl = n.nsn->u.cmdLocal.lbl;
 				if (!sym->repl && lbl->pos >= 0){ // if already defined, error
 					list_byte b = stmt->u.def1.names->ptrs[0];
-					char *join = sink_format("Cannot redefine \"%.*s", b->size, b->bytes);
+					char *join = format("Cannot redefine \"%.*s", b->size, b->bytes);
 					for (int i = 1; i < stmt->u.def1.names->size; i++){
 						b = stmt->u.def1.names->ptrs[i];
-						char *join2 = sink_format("%s.%.*s", join, b->size, b->bytes);
+						char *join2 = format("%s.%.*s", join, b->size, b->bytes);
 						mem_free(join);
 						join = join2;
 					}
-					char *join2 = sink_format("%s\"", join);
+					char *join2 = format("%s\"", join);
 					mem_free(join);
 					return pgr_error(stmt->u.def1.flpN, join2);
 				}
@@ -8489,11 +8491,11 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 
 			int level = sym->fr->level + 1;
 			if (level > 255)
-				return pgr_error(stmt->flp, sink_format("Too many nested commands"));
+				return pgr_error(stmt->flp, format("Too many nested commands"));
 			int rest = 0xFF;
 			int lvs = stmt->u.def1.lvalues->size;
 			if (lvs > 255)
-				return pgr_error(stmt->flp, sink_format("Too many parameters"));
+				return pgr_error(stmt->flp, format("Too many parameters"));
 			if (lvs > 0){
 				expr last_ex = stmt->u.def1.lvalues->ptrs[lvs - 1];
 				// is the last expression a `...rest`?
@@ -8634,7 +8636,7 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 				}
 				if (ex->u.infix.left->type != EXPR_NAMES){
 					return pgr_error(stmt->flp,
-						sink_format("Enum name must only consist of identifiers"));
+						format("Enum name must only consist of identifiers"));
 				}
 				last_val = v;
 				char *smsg = symtbl_addEnum(sym, ex->u.infix.left->u.names, v);
@@ -8813,7 +8815,7 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 			// check for tail call
 			if (ex->type == EXPR_CALL){
 				if (ex->u.call.cmd->type != EXPR_NAMES)
-					return pgr_error(ex->flp, sink_format("Invalid call"));
+					return pgr_error(ex->flp, format("Invalid call"));
 				stl_st sl = symtbl_lookup(sym, ex->u.call.cmd->u.names);
 				if (sl.type == STL_ERROR)
 					return pgr_error(ex->flp, sl.u.msg);
@@ -8863,7 +8865,7 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 			}
 			else{
 				if (sl.u.nsn->type != NSN_NAMESPACE)
-					return pgr_error(stmt->flp, sink_format("Expecting namespace"));
+					return pgr_error(stmt->flp, format("Expecting namespace"));
 				ns = sl.u.nsn->u.ns;
 			}
 			if (!list_ptr_has(sym->sc->ns->usings, ns))
@@ -8926,7 +8928,7 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 				lbl = sym->fr->lbls->ptrs[i];
 				if (lbl->name && list_byte_equ(lbl->name, stmt->u.ident)){
 					if (lbl->pos >= 0){
-						return pgr_error(stmt->flp, sink_format("Cannot redeclare label \"%.*s\"",
+						return pgr_error(stmt->flp, format("Cannot redeclare label \"%.*s\"",
 							stmt->u.ident->size, stmt->u.ident->bytes));
 					}
 					found = true;
@@ -9170,6 +9172,8 @@ static inline void context_cleanup(context ctx, void *cuser, sink_free_f f_free)
 	cleanup_add(ctx->cup, cuser, f_free);
 }
 
+static inline sink_run opi_abortcstr(context ctx, const char *msg);
+
 static inline void context_native(context ctx, uint64_t hash, void *natuser,
 	sink_native_f f_native){
 	if (ctx->prg->repl)
@@ -9180,7 +9184,7 @@ static inline void context_native(context ctx, uint64_t hash, void *natuser,
 			if (nat->hash == hash){
 				if (nat->f_native){
 					// already defined, hash collision
-					sink_abortcstr(ctx,
+					opi_abortcstr(ctx,
 						"Hash collision; cannot redefine native command "
 						"(did you call sink_ctx_native twice for the same command?)");
 					return;
@@ -9458,8 +9462,6 @@ static inline void context_reset(context ctx){
 	ctx->pc = ctx->prg->ops->size;
 	ctx->timeout_left = ctx->timeout;
 }
-
-static inline sink_run opi_abortcstr(context ctx, const char *msg);
 
 static inline sink_val var_get(context ctx, int frame, int index){
 	return ((lxs)ctx->lex_stk->ptrs[frame])->vals[index];
@@ -11080,13 +11082,13 @@ static char *callstack_append(context ctx, char *err, int pc){
 		char *err3;
 		if (chn){
 			if (err)
-				err3 = sink_format("%s\n    at %s (%s)", err, chn, err2);
+				err3 = format("%s\n    at %s (%s)", err, chn, err2);
 			else
-				err3 = sink_format("%s (%s)", chn, err2);
+				err3 = format("%s (%s)", chn, err2);
 		}
 		else{
 			if (err)
-				err3 = sink_format("%s\n    at %s", err, err2);
+				err3 = format("%s\n    at %s", err, err2);
 			else{
 				err3 = err2;
 				err2 = NULL;
@@ -11101,11 +11103,11 @@ static char *callstack_append(context ctx, char *err, int pc){
 	else if (chn){
 		char *err2;
 		if (err){
-			err2 = sink_format("%s\n    at %s", err, chn);
+			err2 = format("%s\n    at %s", err, chn);
 			mem_free(err);
 		}
 		else
-			err2 = sink_format("%s", chn);
+			err2 = format("%s", chn);
 		return err2;
 	}
 	return err;
@@ -11122,7 +11124,7 @@ static inline sink_run opi_abort(context ctx, char *err){
 	}
 	if (ctx->err)
 		mem_free(ctx->err);
-	ctx->err = sink_format("Error: %s", err);
+	ctx->err = format("Error: %s", err);
 	mem_free(err);
 	return SINK_RUN_FAIL;
 }
@@ -11142,7 +11144,7 @@ static inline sink_val opi_stacktrace(context ctx){
 }
 
 static inline sink_run opi_abortcstr(context ctx, const char *msg){
-	return opi_abort(ctx, sink_format("%s", msg));
+	return opi_abort(ctx, format("%s", msg));
 }
 
 static inline sink_val opi_abortformat(context ctx, const char *fmt, ...){
@@ -14428,7 +14430,7 @@ static void compiler_endinc_cfu(bool success, const char *file, compiler_fileres
 		compiler_closeLexer(cfu->cmp);
 	compiler_endinc(cfu->cmp, cfu->names != NULL);
 	if (!success && cfu->cmp->msg == NULL)
-		compiler_setmsg(cfu->cmp, sink_format("Failed to read file: %s", file));
+		compiler_setmsg(cfu->cmp, format("Failed to read file: %s", file));
 }
 
 static bool compiler_staticinc(compiler cmp, list_ptr names, const char *file, const char *body){
@@ -14510,7 +14512,7 @@ static char *compiler_process(compiler cmp){
 									script_getfile(cmp->scr, stmt->flp.fullfile));
 								if (!success){
 									compiler_setmsg(cmp,
-										sink_format("Failed to include: %s", file));
+										format("Failed to include: %s", file));
 								}
 							}
 							if (!success){
@@ -14526,7 +14528,7 @@ static char *compiler_process(compiler cmp){
 						bool found = compiler_dynamicinc(cmp, inc->names, file,
 							script_getfile(cmp->scr, stmt->flp.fullfile));
 						if (!found && cmp->msg == NULL)
-							compiler_setmsg(cmp, sink_format("Failed to include: %s", file));
+							compiler_setmsg(cmp, format("Failed to include: %s", file));
 						if (cmp->msg){
 							ast_free(stmt);
 							list_ptr_free(stmts);
@@ -14654,7 +14656,7 @@ sink_scr sink_scr_new(sink_inc_st inc, const char *curdir, sink_scr_type type){
 	sc->paths = list_ptr_new(mem_free_func);
 	sc->inc = inc;
 	sc->capture_write = NULL;
-	sc->curdir = curdir ? sink_format("%s", curdir) : NULL;
+	sc->curdir = curdir ? format("%s", curdir) : NULL;
 	sc->file = NULL;
 	sc->err = NULL;
 	sc->type = type;
@@ -14670,7 +14672,7 @@ static inline int script_addfile(script scr, const char *file){
 		if (strcmp(scr->files->ptrs[i], file) == 0)
 			return i;
 	}
-	list_ptr_push(scr->files, sink_format("%s", file));
+	list_ptr_push(scr->files, format("%s", file));
 	return scr->files->size - 1;
 }
 
@@ -14681,7 +14683,7 @@ static inline const char *script_getfile(script scr, int file){
 }
 
 void sink_scr_addpath(sink_scr scr, const char *path){
-	list_ptr_push(((script)scr)->paths, sink_format("%s", path));
+	list_ptr_push(((script)scr)->paths, format("%s", path));
 }
 
 void sink_scr_incbody(sink_scr scr, const char *name, const char *body){
@@ -14702,7 +14704,7 @@ static bool sfr_begin(const char *file, script sc){
 		sc->file = NULL;
 	}
 	if (file)
-		sc->file = sink_format("%s", file);
+		sc->file = format("%s", file);
 	return true;
 }
 
@@ -14711,10 +14713,10 @@ static inline void binary_validate(script sc){
 		return;
 	if (sc->binstate.state == BIS_DONE){
 		if (!program_validate(sc->prg))
-			sc->err = sink_format("Error: Invalid program code");
+			sc->err = format("Error: Invalid program code");
 	}
 	else
-		sc->err = sink_format("Error: Invalid end of file");
+		sc->err = format("Error: Invalid end of file");
 }
 
 static inline void text_validate(script sc, bool close, bool resetonclose){
@@ -14725,7 +14727,7 @@ static inline void text_validate(script sc, bool close, bool resetonclose){
 		if (err2){
 			if (sc->err)
 				mem_free(sc->err);
-			sc->err = sink_format("Error: %s", err2);
+			sc->err = format("Error: %s", err2);
 		}
 		if (resetonclose)
 			compiler_reset(sc->cmp);
@@ -14736,7 +14738,7 @@ static void sfr_end(bool success, const char *file, script sc){
 	if (!success){
 		if (sc->err)
 			mem_free(sc->err);
-		sc->err = sink_format("Error: %s", sc->cmp->msg);
+		sc->err = format("Error: %s", sc->cmp->msg);
 	}
 	else{
 		switch (sc->mode){
@@ -14762,7 +14764,7 @@ bool sink_scr_loadfile(sink_scr scr, const char *file){
 	bool read = fileres_read(sc, true, file, NULL,
 		(f_fileres_begin_f)sfr_begin, (f_fileres_end_f)sfr_end, sc);
 	if (!read && sc->err == NULL)
-		sc->err = sink_format("Error: Failed to read file: %s", file);
+		sc->err = format("Error: Failed to read file: %s", file);
 	return sc->err == NULL;
 }
 
@@ -14855,7 +14857,7 @@ bool sink_scr_write(sink_scr scr, int size, const uint8_t *bytes){
 						bs->cmd_size = GETINT(20);
 						bs->ops_size = GETINT(24);
 						if (magic != 0x016B53FC){
-							sc->err = sink_format("Error: Invalid binary header");
+							sc->err = format("Error: Invalid binary header");
 							return false;
 						}
 						debugf("binary header: strs %d, keys %d, dbgs %d, poss %d, cmds %d, ops %d",
@@ -14996,7 +14998,7 @@ bool sink_scr_write(sink_scr scr, int size, const uint8_t *bytes){
 					if (bs->left == 0){
 						// validate terminating byte
 						if (bs->buf->bytes[bs->buf->size - 1] != 0xFD){
-							sc->err = sink_format("Error: Invalid binary file");
+							sc->err = format("Error: Invalid binary file");
 							return false;
 						}
 						bs->buf->size--; // trim off terminating byte
@@ -15007,7 +15009,7 @@ bool sink_scr_write(sink_scr scr, int size, const uint8_t *bytes){
 					}
 					break;
 				case BIS_DONE:
-					sc->err = sink_format("Error: Invalid data at end of file");
+					sc->err = format("Error: Invalid data at end of file");
 					return false;
 			}
 		}
@@ -15024,7 +15026,7 @@ bool sink_scr_write(sink_scr scr, int size, const uint8_t *bytes){
 		}
 		char *err = compiler_write(sc->cmp, size, bytes);
 		if (err)
-			sc->err = sink_format("Error: %s", err);
+			sc->err = format("Error: %s", err);
 		text_validate(sc, sc->type == SINK_SCR_EVAL, true);
 		return sc->err == NULL;
 	}
@@ -15346,13 +15348,13 @@ bool sink_arg_num(sink_ctx ctx, int size, sink_val *args, int index, double *num
 		*num = args[index].f;
 		return true;
 	}
-	sink_abortformat(ctx, "Expecting number for argument %d", index + 1);
+	opi_abortformat(ctx, "Expecting number for argument %d", index + 1);
 	return false;
 }
 
 bool sink_arg_str(sink_ctx ctx, int size, sink_val *args, int index, sink_str *str){
 	if (index < 0 || index >= size || !sink_isstr(args[index])){
-		sink_abortformat(ctx, "Expecting string for argument %d", index + 1);
+		opi_abortformat(ctx, "Expecting string for argument %d", index + 1);
 		return false;
 	}
 	*str = var_caststr(ctx, args[index]);
@@ -15361,7 +15363,7 @@ bool sink_arg_str(sink_ctx ctx, int size, sink_val *args, int index, sink_str *s
 
 bool sink_arg_list(sink_ctx ctx, int size, sink_val *args, int index, sink_list *ls){
 	if (index < 0 || index >= size || !sink_islist(args[index])){
-		sink_abortformat(ctx, "Expecting list for argument %d", index + 1);
+		opi_abortformat(ctx, "Expecting list for argument %d", index + 1);
 		*ls = NULL;
 		return false;
 	}
@@ -15375,7 +15377,7 @@ bool sink_arg_user(sink_ctx ctx, int size, sink_val *args, int index, sink_user 
 	const char *hint = ctx2->user_hint->ptrs[usertype];
 
 	#define ABORT() \
-		sink_abortformat(ctx, "Expecting user type%s%s for argument %d", \
+		opi_abortformat(ctx, "Expecting user type%s%s for argument %d", \
 			hint == NULL ? "" : " ", hint == NULL ? "" : hint, index + 1)
 
 	if (index < 0 || index >= size || !sink_islist(args[index])){
@@ -16164,7 +16166,7 @@ sink_val sink_list_newblob(sink_ctx ctx, int size, const sink_val *vals){
 
 sink_val sink_list_newblobgive(sink_ctx ctx, int size, int count, sink_val *vals){
 	if (vals == NULL || count == 0){
-		sink_abortcstr(ctx,
+		opi_abortcstr(ctx,
 			"Native run-time error: sink_list_newblobgive() must be given a buffer with some "
 			"positive count");
 		if (vals)
@@ -16185,7 +16187,7 @@ sink_val sink_list_newblobgive(sink_ctx ctx, int size, int count, sink_val *vals
 
 sink_val sink_list_new(sink_ctx ctx, sink_val a, sink_val b){
 	if (!sink_isnum(a))
-		return sink_abortformat(ctx, "Expecting number");
+		return opi_abortformat(ctx, "Expecting number");
 	int size = (int)a.f;
 	if (size < 0)
 		size = 0;
@@ -16360,7 +16362,7 @@ void sink_gc_run(sink_ctx ctx){
 	context_gc((context)ctx);
 }
 
-sink_val sink_abortformat(sink_ctx ctx, const char *fmt, ...){
+sink_val sink_abortstr(sink_ctx ctx, const char *fmt, ...){
 	va_list args, args2;
 	va_start(args, fmt);
 	va_copy(args2, args);

@@ -3,6 +3,7 @@
 // Project Home: https://github.com/voidqk/sink
 
 #include "sink_shell.h"
+#include <stdio.h>
 
 #ifdef SINK_WIN32
 #	include <direct.h> // _getcwd
@@ -28,7 +29,7 @@ static sink_val L_args(sink_ctx ctx, int size, sink_val *args, uargs a){
 static sink_val L_pwd(sink_ctx ctx, int size, sink_val *args, void *nuser){
 	char *cwd = getcwd(NULL, 0);
 	if (cwd == NULL)
-		return sink_abortcstr(ctx, "Failed to get current directory");
+		return sink_abortstr(ctx, "Failed to get current directory");
 	sink_val a = sink_str_newcstr(ctx, cwd);
 	free(cwd);
 	return a;

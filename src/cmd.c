@@ -5,6 +5,7 @@
 #include "sink.h"
 #include "sink_shell.h"
 #include <string.h>
+#include <stdio.h>
 
 #ifdef SINK_WIN
 #	include <direct.h> // _getcwd
@@ -12,6 +13,34 @@
 #else
 #	include <unistd.h> // getcwd
 #endif
+
+static void sink_stdio_say(sink_ctx ctx, sink_str str, void *iouser){
+	printf("%.*s\n", str->size, str->bytes);
+}
+
+static void sink_stdio_warn(sink_ctx ctx, sink_str str, void *iouser){
+	fprintf(stderr, "%.*s\n", str->size, str->bytes);
+}
+
+static sink_val sink_stdio_ask(sink_ctx ctx, sink_str str, void *iouser){
+	printf("%.*s", str->size, str->bytes);
+	char buf[1000];
+	if (fgets(buf, sizeof(buf), stdin) == NULL)
+		return SINK_NIL;
+	int sz = strlen(buf);
+	if (sz <= 0)
+		return sink_str_newcstr(ctx, "");
+	if (buf[sz - 1] == '\n')
+		buf[--sz] = 0; // TODO: do I need to check for \r as well..? test on windows
+	return sink_str_newblob(ctx, sz, (const uint8_t *)buf);
+}
+
+static sink_io_st sink_stdio = (sink_io_st){
+	.f_say = sink_stdio_say,
+	.f_warn = sink_stdio_warn,
+	.f_ask = sink_stdio_ask,
+	.user = NULL
+};
 
 static volatile bool done = false;
 

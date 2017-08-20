@@ -5,13 +5,11 @@
 #ifndef SINK__H
 #define SINK__H
 
-#include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <math.h>
-#include <stdlib.h>
-#include <string.h>
 #include <stdarg.h>
+#include <stdlib.h>
 
 // platform detection
 #if !defined(SINK_WIN) && !defined(SINK_MAC) && !defined(SINK_POSIX)
@@ -269,6 +267,7 @@ void     sink_warn(sink_ctx ctx, int size, sink_val *vals);
 sink_val sink_ask(sink_ctx ctx, int size, sink_val *vals);
 void     sink_exit(sink_ctx ctx, int size, sink_val *vals);
 void     sink_abort(sink_ctx ctx, int size, sink_val *vals);
+sink_val sink_abortstr(sink_ctx ctx, const char *fmt, ...); // always returns SINK_NIL
 sink_val sink_range(sink_ctx ctx, double start, double stop, double step);
 int      sink_order(sink_ctx ctx, sink_val a, sink_val b);
 sink_val sink_stacktrace(sink_ctx ctx);
@@ -444,16 +443,7 @@ sink_gc_level sink_gc_getlevel(sink_ctx ctx);
 void          sink_gc_setlevel(sink_ctx ctx, sink_gc_level level);
 void          sink_gc_run(sink_ctx ctx);
 
-// helpers
-char *sink_format(const char *fmt, ...);
-sink_val sink_abortformat(sink_ctx ctx, const char *fmt, ...); // always returns SINK_NIL
-
-static inline sink_val sink_abortcstr(sink_ctx ctx, const char *msg){
-	sink_val a = sink_str_newcstr(ctx, msg);
-	sink_abort(ctx, 1, &a);
-	return SINK_NIL;
-}
-
+// user helpers
 static inline sink_val sink_user_new(sink_ctx ctx, sink_user usertype, void *user){
 	sink_val hint = sink_str_newcstr(ctx, sink_ctx_getuserhint(ctx, usertype));
 	sink_val ls = sink_list_newblob(ctx, 1, &hint);
@@ -471,33 +461,5 @@ static inline bool sink_isuser(sink_ctx ctx, sink_val v, sink_user usertype, voi
 		*user = ls->user;
 	return true;
 }
-
-static void sink_stdio_say(sink_ctx ctx, sink_str str, void *iouser){
-	printf("%.*s\n", str->size, str->bytes);
-}
-
-static void sink_stdio_warn(sink_ctx ctx, sink_str str, void *iouser){
-	fprintf(stderr, "%.*s\n", str->size, str->bytes);
-}
-
-static sink_val sink_stdio_ask(sink_ctx ctx, sink_str str, void *iouser){
-	printf("%.*s", str->size, str->bytes);
-	char buf[1000];
-	if (fgets(buf, sizeof(buf), stdin) == NULL)
-		return SINK_NIL;
-	int sz = strlen(buf);
-	if (sz <= 0)
-		return sink_str_newcstr(ctx, "");
-	if (buf[sz - 1] == '\n')
-		buf[--sz] = 0; // TODO: do I need to check for \r as well..? test on windows
-	return sink_str_newblob(ctx, sz, (const uint8_t *)buf);
-}
-
-static sink_io_st sink_stdio = (sink_io_st){
-	.f_say = sink_stdio_say,
-	.f_warn = sink_stdio_warn,
-	.f_ask = sink_stdio_ask,
-	.user = NULL
-};
 
 #endif // SINK__H
