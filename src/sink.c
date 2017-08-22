@@ -173,6 +173,13 @@ static void mem_free_func(void *p){
 #endif
 
 //
+// setup seedauto defaulting to clock() from time.h
+//
+
+static uint32_t wrap_clock(){ return (uint32_t)clock(); }
+sink_seedauto_src_f sink_seedauto_src = wrap_clock;
+
+//
 // string creation
 //
 
@@ -9711,8 +9718,8 @@ static sink_val opi_num_base(context ctx, double num, int len, int base){
 static inline uint32_t opi_rand_int(context ctx);
 
 static inline void opi_rand_seedauto(context ctx){
-	ctx->rand_seed = (uint32_t)clock();
-	ctx->rand_i = (uint32_t)clock();
+	ctx->rand_seed = sink_seedauto_src();
+	ctx->rand_i = sink_seedauto_src();
 	for (int i = 0; i < 1000; i++)
 		opi_rand_int(ctx);
 	ctx->rand_i = 0;

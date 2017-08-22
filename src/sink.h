@@ -34,6 +34,10 @@ extern sink_malloc_f  sink_malloc;
 extern sink_realloc_f sink_relloc;
 extern sink_free_f    sink_free;
 
+// the source of randomness when performing `rand.seedauto`
+typedef uint32_t (*sink_seedauto_src_f)();
+extern sink_seedauto_src_f sink_seedauto_src;
+
 typedef enum {
 	SINK_TYPE_NIL,
 	SINK_TYPE_NUM,
