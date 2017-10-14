@@ -1071,485 +1071,386 @@ function ks_toMutateOp(k: ks_enum): op_enum {
 	return op_enum.INVALID;
 }
 
-/*
-//
-// tokens
-//
+interface filepos_st {
+	fullfile: number;
+	basefile: number;
+	line: number;
+	chr: number;
+};
 
-typedef struct {
-	int32_t fullfile; // index into script's files
-	int32_t basefile; // index into program's debug strings
-	int32_t line;
-	int32_t chr;
-} filepos_st;
+const FILEPOS_NULL: filepos_st = { basefile: -1, fullfile: -1, line: -1, chr: -1 };
 
-static const filepos_st FILEPOS_NULL = { .basefile = -1, .fullfile = -1, .line = -1, .chr = -1 };
+enum tok_enum {
+	NEWLINE,
+	KS,
+	IDENT,
+	NUM,
+	STR,
+	ERROR
+};
 
-typedef enum {
-	TOK_NEWLINE,
-	TOK_KS,
-	TOK_IDENT,
-	TOK_NUM,
-	TOK_STR,
-	TOK_ERROR
-} tok_enum;
+interface tok_st {
+	type: tok_enum;
+	flp: filepos_st;
+	soft?: boolean;
+	k?: ks_enum;
+	ident?: string;
+	num?: number;
+	str?: string;
+	msg?: string;
+};
 
-typedef struct {
-	tok_enum type;
-	filepos_st flp;
-	union {
-		bool soft;
-		ks_enum k;
-		list_byte ident;
-		double num;
-		list_byte str;
-		char *msg;
-	} u;
-} tok_st, *tok;
-
-static void tok_free(tok tk){
-	switch (tk->type){
-		case TOK_NEWLINE:
-		case TOK_KS:
-			break;
-		case TOK_IDENT:
-			if (tk->u.ident)
-				list_byte_free(tk->u.ident);
-			break;
-		case TOK_NUM:
-			break;
-		case TOK_STR:
-			if (tk->u.str)
-				list_byte_free(tk->u.str);
-			break;
-		case TOK_ERROR:
-			if (tk->u.msg)
-				mem_free(tk->u.msg);
-			break;
-	}
-	mem_free(tk);
+function tok_newline(flp: filepos_st, soft: boolean): tok_st {
+	return {
+		type: tok_enum.NEWLINE,
+		flp: flp,
+		soft: soft
+	};
 }
 
-static void tok_print(tok tk){
-	#ifdef SINK_DEBUG
-	switch (tk->type){
-		case TOK_NEWLINE:
-			debugf("TOK_NEWLINE [%d/%d/%d:%d]",
-				tk->flp.basefile, tk->flp.fullfile, tk->flp.line, tk->flp.chr);
-			break;
-		case TOK_KS:
-			debugf("TOK_KS [%d/%d/%d:%d] %s",
-				tk->flp.basefile, tk->flp.fullfile, tk->flp.line, tk->flp.chr, ks_name(tk->u.k));
-			break;
-		case TOK_IDENT:
-			if (tk->u.ident){
-				debugf("TOK_IDENT [%d/%d/%d:%d] \"%.*s\"",
-					tk->flp.basefile, tk->flp.fullfile, tk->flp.line, tk->flp.chr,
-					tk->u.ident->size, tk->u.ident->bytes);
-			}
-			else{
-				debugf("TOK_IDENT [%d/%d/%d:%d] NULL",
-					tk->flp.basefile, tk->flp.fullfile, tk->flp.line, tk->flp.chr);
-			}
-			break;
-		case TOK_NUM:
-			debugf("TOK_NUM [%d/%d/%d:%d] %g",
-				tk->flp.basefile, tk->flp.fullfile, tk->flp.line, tk->flp.chr, tk->u.num);
-			break;
-		case TOK_STR:
-			if (tk->u.str){
-				debugf("TOK_STR [%d/%d/%d:%d] \"%.*s\"",
-					tk->flp.basefile, tk->flp.fullfile, tk->flp.line, tk->flp.chr,
-					tk->u.str->size, tk->u.str->bytes);
-			}
-			else{
-				debugf("TOK_STR [%d/%d/%d:%d] NULL",
-					tk->flp.basefile, tk->flp.fullfile, tk->flp.line, tk->flp.chr);
-			}
-			break;
-		case TOK_ERROR:
-			if (tk->u.msg){
-				debugf("TOK_ERROR [%d/%d/%d:%d] \"%s\"",
-					tk->flp.basefile, tk->flp.fullfile, tk->flp.line, tk->flp.chr, tk->u.msg);
-			}
-			else{
-				debugf("TOK_ERROR [%d/%d/%d:%d] NULL",
-					tk->flp.basefile, tk->flp.fullfile, tk->flp.line, tk->flp.chr);
-			}
-			break;
-	}
-	#endif
+function tok_ks(flp: filepos_st, k: ks_enum): tok_st {
+	return {
+		type: tok_enum.KS,
+		flp: flp,
+		k: k
+	};
 }
 
-#ifdef SINK_DEBUG
-static inline void assertflp(filepos_st flp){
-	assert(flp.line >= 1 && flp.chr >= 1);
-}
-#else
-#	define assertflp(f)
-#endif
-
-static inline tok tok_newline(filepos_st flp, bool soft){
-	assertflp(flp);
-	tok tk = mem_alloc(sizeof(tok_st));
-	tk->type = TOK_NEWLINE;
-	tk->flp = flp;
-	tk->u.soft = soft;
-	return tk;
+function tok_ident(flp: filepos_st, ident: string): tok_st {
+	return {
+		type: tok_enum.IDENT,
+		flp: flp,
+		ident: ident
+	};
 }
 
-static inline tok tok_ks(filepos_st flp, ks_enum k){
-	assertflp(flp);
-	tok tk = mem_alloc(sizeof(tok_st));
-	tk->type = TOK_KS;
-	tk->flp = flp;
-	tk->u.k = k;
-	return tk;
+function tok_num(flp: filepos_st, num: number): tok_st {
+	return {
+		type: tok_enum.NUM,
+		flp: flp,
+		num: num
+	};
 }
 
-static inline tok tok_ident(filepos_st flp, list_byte ident){
-	assertflp(flp);
-	tok tk = mem_alloc(sizeof(tok_st));
-	tk->type = TOK_IDENT;
-	tk->flp = flp;
-	tk->u.ident = ident;
-	return tk;
+function tok_str(flp: filepos_st, str: string): tok_st {
+	return {
+		type: tok_enum.STR,
+		flp: flp,
+		str: str
+	};
 }
 
-static inline tok tok_num(filepos_st flp, double num){
-	assertflp(flp);
-	tok tk = mem_alloc(sizeof(tok_st));
-	tk->type = TOK_NUM;
-	tk->flp = flp;
-	tk->u.num = num;
-	return tk;
+function tok_error(flp: filepos_st, msg: string): tok_st {
+	return {
+		type: tok_enum.ERROR,
+		flp: flp,
+		msg: msg
+	};
 }
 
-static inline tok tok_str(filepos_st flp, list_byte str){
-	assertflp(flp);
-	tok tk = mem_alloc(sizeof(tok_st));
-	tk->type = TOK_STR;
-	tk->flp = flp;
-	list_byte_null(str);
-	tk->u.str = str;
-	return tk;
+function tok_isKS(tk: tok_st, k: ks_enum): boolean {
+	return tk.type === tok_enum.KS && tk.k === k;
 }
 
-static inline tok tok_error(filepos_st flp, char *msg){
-	assertflp(flp);
-	tok tk = mem_alloc(sizeof(tok_st));
-	tk->type = TOK_ERROR;
-	tk->flp = flp;
-	tk->u.msg = msg;
-	return tk;
+function tok_isMidStmt(tk: tok_st): boolean {
+	return tk.type === tok_enum.KS && (tk.k === ks_enum.END || tk.k === ks_enum.ELSE ||
+		tk.k === ks_enum.ELSEIF || tk.k === ks_enum.WHILE);
 }
 
-static inline bool tok_isKS(tok tk, ks_enum k){
-	return tk->type == TOK_KS && tk->u.k == k;
-}
-
-static inline bool tok_isMidStmt(tok tk){
-	return tk->type == TOK_KS &&
-		(tk->u.k == KS_END || tk->u.k == KS_ELSE || tk->u.k == KS_ELSEIF || tk->u.k == KS_WHILE);
-}
-
-static inline bool tok_isPre(tok tk){
-	if (tk->type != TOK_KS)
+function tok_isPre(tk: tok_st): boolean {
+	if (tk.type !== tok_enum.KS)
 		return false;
-	ks_enum k = tk->u.k;
+	let k = tk.k;
 	return false ||
-		k == KS_PLUS    ||
-		k == KS_UNPLUS  ||
-		k == KS_MINUS   ||
-		k == KS_UNMINUS ||
-		k == KS_AMP     ||
-		k == KS_BANG    ||
-		k == KS_PERIOD3;
+		k === ks_enum.PLUS    ||
+		k === ks_enum.UNPLUS  ||
+		k === ks_enum.MINUS   ||
+		k === ks_enum.UNMINUS ||
+		k === ks_enum.AMP     ||
+		k === ks_enum.BANG    ||
+		k === ks_enum.PERIOD3;
 }
 
-static inline bool tok_isMid(tok tk, bool allowComma, bool allowPipe){
-	if (tk->type != TOK_KS)
+function tok_isMid(tk: tok_st, allowComma: boolean, allowPipe: boolean): boolean {
+	if (tk.type !== tok_enum.KS)
 		return false;
-	ks_enum k = tk->u.k;
+	let k = tk.k;
 	return false ||
-		k == KS_PLUS       ||
-		k == KS_PLUSEQU    ||
-		k == KS_MINUS      ||
-		k == KS_MINUSEQU   ||
-		k == KS_PERCENT    ||
-		k == KS_PERCENTEQU ||
-		k == KS_STAR       ||
-		k == KS_STAREQU    ||
-		k == KS_SLASH      ||
-		k == KS_SLASHEQU   ||
-		k == KS_CARET      ||
-		k == KS_CARETEQU   ||
-		k == KS_LT         ||
-		k == KS_LTEQU      ||
-		k == KS_GT         ||
-		k == KS_GTEQU      ||
-		k == KS_BANGEQU    ||
-		k == KS_EQU        ||
-		k == KS_EQU2       ||
-		k == KS_TILDE      ||
-		k == KS_TILDEEQU   ||
-		k == KS_AMP2       ||
-		k == KS_PIPE2      ||
-		k == KS_AMP2EQU    ||
-		k == KS_PIPE2EQU   ||
-		(allowComma && k == KS_COMMA) ||
-		(allowPipe  && k == KS_PIPE );
+		k == ks_enum.PLUS       ||
+		k == ks_enum.PLUSEQU    ||
+		k == ks_enum.MINUS      ||
+		k == ks_enum.MINUSEQU   ||
+		k == ks_enum.PERCENT    ||
+		k == ks_enum.PERCENTEQU ||
+		k == ks_enum.STAR       ||
+		k == ks_enum.STAREQU    ||
+		k == ks_enum.SLASH      ||
+		k == ks_enum.SLASHEQU   ||
+		k == ks_enum.CARET      ||
+		k == ks_enum.CARETEQU   ||
+		k == ks_enum.LT         ||
+		k == ks_enum.LTEQU      ||
+		k == ks_enum.GT         ||
+		k == ks_enum.GTEQU      ||
+		k == ks_enum.BANGEQU    ||
+		k == ks_enum.EQU        ||
+		k == ks_enum.EQU2       ||
+		k == ks_enum.TILDE      ||
+		k == ks_enum.TILDEEQU   ||
+		k == ks_enum.AMP2       ||
+		k == ks_enum.PIPE2      ||
+		k == ks_enum.AMP2EQU    ||
+		k == ks_enum.PIPE2EQU   ||
+		(allowComma && k == ks_enum.COMMA) ||
+		(allowPipe  && k == ks_enum.PIPE );
 }
 
-static inline bool tok_isTerm(tok tk){
+function tok_isTerm(tk: tok_st): boolean {
 	return false ||
-		(tk->type == TOK_KS &&
-			(tk->u.k == KS_NIL || tk->u.k == KS_LPAREN || tk->u.k == KS_LBRACE)) ||
-		tk->type == TOK_IDENT ||
-		tk->type == TOK_NUM   ||
-		tk->type == TOK_STR;
+		(tk.type == tok_enum.KS &&
+			(tk.k === ks_enum.NIL || tk.k === ks_enum.LPAREN || tk.k === ks_enum.LBRACE)) ||
+		tk.type == tok_enum.IDENT ||
+		tk.type == tok_enum.NUM   ||
+		tk.type == tok_enum.STR;
 }
 
-static inline bool tok_isPreBeforeMid(tok pre, tok mid){
-	assert(pre->type == TOK_KS);
-	assert(mid->type == TOK_KS);
-	// -5^2 is -25, not 25
-	if ((pre->u.k == KS_MINUS || pre->u.k == KS_UNMINUS) && mid->u.k == KS_CARET)
+function tok_isPreBeforeMid(pre: tok_st, mid: tok_st): boolean {
+	if ((pre.k == ks_enum.MINUS || pre.k == ks_enum.UNMINUS) && mid.k == ks_enum.CARET)
 		return false;
-	// otherwise, apply the Pre first
 	return true;
 }
 
-static inline int tok_midPrecedence(tok tk){
-	assert(tk->type == TOK_KS);
-	ks_enum k = tk->u.k;
-	if      (k == KS_CARET     ) return  1;
-	else if (k == KS_STAR      ) return  2;
-	else if (k == KS_SLASH     ) return  2;
-	else if (k == KS_PERCENT   ) return  2;
-	else if (k == KS_PLUS      ) return  3;
-	else if (k == KS_MINUS     ) return  3;
-	else if (k == KS_TILDE     ) return  4;
-	else if (k == KS_LTEQU     ) return  5;
-	else if (k == KS_LT        ) return  5;
-	else if (k == KS_GTEQU     ) return  5;
-	else if (k == KS_GT        ) return  5;
-	else if (k == KS_BANGEQU   ) return  6;
-	else if (k == KS_EQU2      ) return  6;
-	else if (k == KS_AMP2      ) return  7;
-	else if (k == KS_PIPE2     ) return  8;
-	else if (k == KS_COMMA     ) return  9;
-	else if (k == KS_PIPE      ) return 10;
-	else if (k == KS_EQU       ) return 20;
-	else if (k == KS_PLUSEQU   ) return 20;
-	else if (k == KS_PERCENTEQU) return 20;
-	else if (k == KS_MINUSEQU  ) return 20;
-	else if (k == KS_STAREQU   ) return 20;
-	else if (k == KS_SLASHEQU  ) return 20;
-	else if (k == KS_CARETEQU  ) return 20;
-	else if (k == KS_TILDEEQU  ) return 20;
-	else if (k == KS_AMP2EQU   ) return 20;
-	else if (k == KS_PIPE2EQU  ) return 20;
-	assert(false);
-	return -1;
+function tok_midPrecedence(tk: tok_st): number {
+	let k = tk.k;
+	if      (k === ks_enum.CARET     ) return  1;
+	else if (k === ks_enum.STAR      ) return  2;
+	else if (k === ks_enum.SLASH     ) return  2;
+	else if (k === ks_enum.PERCENT   ) return  2;
+	else if (k === ks_enum.PLUS      ) return  3;
+	else if (k === ks_enum.MINUS     ) return  3;
+	else if (k === ks_enum.TILDE     ) return  4;
+	else if (k === ks_enum.LTEQU     ) return  5;
+	else if (k === ks_enum.LT        ) return  5;
+	else if (k === ks_enum.GTEQU     ) return  5;
+	else if (k === ks_enum.GT        ) return  5;
+	else if (k === ks_enum.BANGEQU   ) return  6;
+	else if (k === ks_enum.EQU2      ) return  6;
+	else if (k === ks_enum.AMP2      ) return  7;
+	else if (k === ks_enum.PIPE2     ) return  8;
+	else if (k === ks_enum.COMMA     ) return  9;
+	else if (k === ks_enum.PIPE      ) return 10;
+	else if (k === ks_enum.EQU       ) return 20;
+	else if (k === ks_enum.PLUSEQU   ) return 20;
+	else if (k === ks_enum.PERCENTEQU) return 20;
+	else if (k === ks_enum.MINUSEQU  ) return 20;
+	else if (k === ks_enum.STAREQU   ) return 20;
+	else if (k === ks_enum.SLASHEQU  ) return 20;
+	else if (k === ks_enum.CARETEQU  ) return 20;
+	else if (k === ks_enum.TILDEEQU  ) return 20;
+	else if (k === ks_enum.AMP2EQU   ) return 20;
+	else if (k === ks_enum.PIPE2EQU  ) return 20;
+	throw new Error('Assertion failed');
 }
 
-static inline bool tok_isMidBeforeMid(tok lmid, tok rmid){
-	assert(lmid->type == TOK_KS);
-	assert(rmid->type == TOK_KS);
-	int lp = tok_midPrecedence(lmid);
-	int rp = tok_midPrecedence(rmid);
+function tok_isMidBeforeMid(lmid: tok_st, rmid: tok_st): boolean {
+	let lp = tok_midPrecedence(lmid);
+	let rp = tok_midPrecedence(rmid);
 	if (lp < rp)
 		return true;
 	else if (lp > rp)
 		return false;
-	// otherwise, same precedence...
-	if (lp == 20 || lp == 1) // mutation and pow are right to left
+	if (lp == 20 || lp == 1)
 		return false;
 	return true;
 }
 
-//
-// lexer helper functions
-//
-
-static inline bool isSpace(char c){
-	return c == ' ' || c == '\n' || c == '\r' || c == '\t';
+function isSpace(c: string): boolean {
+	return c === ' ' || c === '\n' || c === '\r' || c === '\t';
 }
 
-static inline bool isAlpha(char c){
+function isAlpha(c: string): boolean {
 	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
 }
 
-static inline bool isNum(char c){
+function isNum(c: string): boolean {
 	return c >= '0' && c <= '9';
 }
 
-static inline bool isIdentStart(char c){
-	return isAlpha(c) || c == '_';
+function isIdentStart(c: string): boolean {
+	return isAlpha(c) || c === '_';
 }
 
-static inline bool isIdentBody(char c){
+function isIdentBody(c: string): boolean {
 	return isIdentStart(c) || isNum(c);
 }
 
-static inline bool isHex(char c){
+function isHex(c: string): boolean {
 	return isNum(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
 }
 
-static inline int toHex(char c){
+function toHex(c: string): number {
 	if (isNum(c))
-		return c - 48;
+		return c.charCodeAt(0) - 48;
 	else if (c >= 'a')
-		return c - 87;
-	return c - 55;
+		return c.charCodeAt(0) - 87;
+	return c.charCodeAt(0) - 55;
 }
 
-static inline char toNibble(int n){
-	if (n >= 0 && n <= 9)
-		return '0' + n;
-	else if (n < 16)
-		return 'A' + (n - 10);
-	return '0';
+function toNibble(n: number): string {
+	return n.toString(16).toUpperCase();
 }
 
-//
-// lexer
-//
+enum lex_enum {
+	START,
+	COMMENT_LINE,
+	BACKSLASH,
+	RETURN,
+	COMMENT_BLOCK,
+	SPECIAL1,
+	SPECIAL2,
+	IDENT,
+	NUM_0,
+	NUM_2,
+	NUM_BODY,
+	NUM_FRAC,
+	NUM_EXP,
+	NUM_EXP_BODY,
+	STR_BASIC,
+	STR_BASIC_ESC,
+	STR_INTERP,
+	STR_INTERP_DLR,
+	STR_INTERP_DLR_ID,
+	STR_INTERP_ESC,
+	STR_INTERP_ESC_HEX
+};
 
-typedef enum {
-	LEX_START,
-	LEX_COMMENT_LINE,
-	LEX_BACKSLASH,
-	LEX_RETURN,
-	LEX_COMMENT_BLOCK,
-	LEX_SPECIAL1,
-	LEX_SPECIAL2,
-	LEX_IDENT,
-	LEX_NUM_0,
-	LEX_NUM_2,
-	LEX_NUM_BODY,
-	LEX_NUM_FRAC,
-	LEX_NUM_EXP,
-	LEX_NUM_EXP_BODY,
-	LEX_STR_BASIC,
-	LEX_STR_BASIC_ESC,
-	LEX_STR_INTERP,
-	LEX_STR_INTERP_DLR,
-	LEX_STR_INTERP_DLR_ID,
-	LEX_STR_INTERP_ESC,
-	LEX_STR_INTERP_ESC_HEX
-} lex_enum;
+interface numpart_info {
+	sign: number;
+	val: number;
+	base: number;
+	frac: number;
+	flen: number;
+	esign: number;
+	eval: number;
+};
 
-typedef struct {
-	int    sign;  // value sign -1 or 1
-	double val;   // integer part
-	int    base;  // number base 2, 8, 10, or 16
-	double frac;  // fractional part >= 0
-	int    flen;  // number of fractional digits
-	int    esign; // exponent sign -1 or 1
-	int    eval;  // exponent value >= 0
-} numpart_info;
-
-static inline void numpart_new(numpart_info *info){
-	info->sign  = 1;
-	info->val   = 0;
-	info->base  = 10;
-	info->frac  = 0;
-	info->flen  = 0;
-	info->esign = 1;
-	info->eval  = 0;
+function numpart_new(info?: numpart_info): numpart_info {
+	if (info){
+		info.sign  = 1;
+		info.val   = 0;
+		info.base  = 10;
+		info.frac  = 0;
+		info.flen  = 0;
+		info.esign = 1;
+		info.eval  = 0;
+	}
+	else{
+		info = {
+			sign : 1,
+			val  : 0,
+			base : 10,
+			frac : 0,
+			flen : 0,
+			esign: 1,
+			eval : 0
+		};
+	}
+	return info;
 }
 
-static inline double numpart_calc(numpart_info info){
-	double val = info.val;
-	double e = 1;
+function numpart_calc(info: numpart_info): number {
+	let val = info.val;
+	let e = 1;
 	if (info.eval > 0){
-		e = pow(info.base == 10 ? 10.0 : 2.0, info.esign * info.eval);
+		e = Math.pow(info.base === 10 ? 10.0 : 2.0, info.esign * info.eval);
 		val *= e;
 	}
 	if (info.flen > 0){
-		double d = pow(info.base, info.flen);
+		let d = Math.pow(info.base, info.flen);
 		val = (val * d + info.frac * e) / d;
 	}
 	return info.sign * val;
 }
 
-typedef struct {
-	list_byte str;
-	list_int braces;
-	lex_enum state;
-	numpart_info npi;
-	filepos_st flpS; // filepos when state was LEX_START
-	filepos_st flpR;
-	filepos_st flp1;
-	filepos_st flp2;
-	filepos_st flp3;
-	filepos_st flp4;
-	char chR;
-	char ch1;
-	char ch2;
-	char ch3;
-	char ch4;
-	int str_hexval;
-	int str_hexleft;
-	bool numexp;
-} lex_st, *lex;
+interface lex_st {
+	str: string;
+	braces: number[];
+	state: lex_enum;
+	npi: numpart_info;
+	flpS: filepos_st;
+	flpR: filepos_st;
+	flp1: filepos_st;
+	flp2: filepos_st;
+	flp3: filepos_st;
+	flp4: filepos_st;
+	chR: string;
+	ch1: string;
+	ch2: string;
+	ch3: string;
+	ch4: string;
+	str_hexval: number;
+	str_hexleft: number;
+	numexp: boolean;
+};
 
-static inline void lex_free(lex lx){
-	if (lx->str)
-		list_byte_free(lx->str);
-	list_int_free(lx->braces);
-	mem_free(lx);
+function lex_reset(lx: lex_st): void {
+	lx.state = lex_enum.START;
+	lx.flpS = lx.flpR = lx.flp1 = lx.flp2 = lx.flp3 = lx.flp4 = FILEPOS_NULL;
+	lx.chR = lx.ch1 = lx.ch2 = lx.ch3 = lx.ch4 = '';
+	lx.str = '';
+	lx.braces = [0];
+	lx.str_hexval = 0;
+	lx.str_hexleft = 0;
 }
 
-static void lex_reset(lex lx){
-	lx->state = LEX_START;
-	lx->flpS = lx->flpR = lx->flp1 = lx->flp2 = lx->flp3 = lx->flp4 = FILEPOS_NULL;
-	lx->chR = lx->ch1 = lx->ch2 = lx->ch3 = lx->ch4 = 0;
-	if (lx->str)
-		list_byte_free(lx->str);
-	lx->str = NULL;
-	if (lx->braces)
-		list_int_free(lx->braces);
-	lx->braces = list_int_new();
-	list_int_push(lx->braces, 0);
-	lx->str_hexval = 0;
-	lx->str_hexleft = 0;
+function lex_new(): lex_st {
+	return {
+		str: '',
+		braces: [0],
+		state: lex_enum.START,
+		npi: numpart_new(),
+		flpS: FILEPOS_NULL,
+		flpR: FILEPOS_NULL,
+		flp1: FILEPOS_NULL,
+		flp2: FILEPOS_NULL,
+		flp3: FILEPOS_NULL,
+		flp4: FILEPOS_NULL,
+		chR: '',
+		ch1: '',
+		ch2: '',
+		ch3: '',
+		ch4: '',
+		str_hexval: 0,
+		str_hexleft: 0,
+		numexp: false
+	};
 }
 
-static lex lex_new(){
-	lex lx = mem_alloc(sizeof(lex_st));
-	lx->str = NULL;
-	lx->braces = NULL;
-	lex_reset(lx);
-	return lx;
+function lex_fwd(lx: lex_st, flp: filepos_st, ch: string): void {
+	lx.ch4 = lx.ch3;
+	lx.ch3 = lx.ch2;
+	lx.ch2 = lx.ch1;
+	lx.ch1 = ch;
+	lx.flp4 = lx.flp3;
+	lx.flp3 = lx.flp2;
+	lx.flp2 = lx.flp1;
+	lx.flp1 = flp;
 }
 
-static void lex_fwd(lex lx, filepos_st flp, char ch){
-	lx->ch4 = lx->ch3;
-	lx->ch3 = lx->ch2;
-	lx->ch2 = lx->ch1;
-	lx->ch1 = ch;
-	lx->flp4 = lx->flp3;
-	lx->flp3 = lx->flp2;
-	lx->flp2 = lx->flp1;
-	lx->flp1 = flp;
+function lex_rev(lx: lex_st): void {
+	lx.chR = lx.ch1;
+	lx.ch1 = lx.ch2;
+	lx.ch2 = lx.ch3;
+	lx.ch3 = lx.ch4;
+	lx.ch4 = '';
+	lx.flpR = lx.flp1;
+	lx.flp1 = lx.flp2;
+	lx.flp2 = lx.flp3;
+	lx.flp3 = lx.flp4;
+	lx.flp4 = FILEPOS_NULL;
 }
 
-static void lex_rev(lex lx){
-	lx->chR = lx->ch1;
-	lx->ch1 = lx->ch2;
-	lx->ch2 = lx->ch3;
-	lx->ch3 = lx->ch4;
-	lx->ch4 = 0;
-	lx->flpR = lx->flp1;
-	lx->flp1 = lx->flp2;
-	lx->flp2 = lx->flp3;
-	lx->flp3 = lx->flp4;
-	lx->flp4 = FILEPOS_NULL;
-}
-
+/*
 static void lex_process(lex lx, list_ptr tks){
 	char ch1 = lx->ch1;
 	filepos_st flp = lx->flp1;
