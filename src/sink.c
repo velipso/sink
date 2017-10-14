@@ -1217,8 +1217,7 @@ static inline void op_call(list_byte b, varloc_st ret, uint32_t index, int argco
 	list_byte hint){
 	oplogf("CALL %d:%d, %.*s, %d", ret.frame, ret.index, hint->size, hint->bytes, argcount);
 	list_byte_push8(b, OP_CALL, ret.frame, ret.index,
-		index % 256, (index >> 8) % 256, (index >> 16) % 256, (index >> 24) % 256,
-		argcount);
+		index % 256, (index >> 8) % 256, (index >> 16) % 256, (index >> 24) % 256, argcount);
 }
 
 static inline void op_native(list_byte b, varloc_st ret, int index, int argcount){

@@ -320,7 +320,7 @@ export function sink_isuser(ctx: sink_ctx, v: sink_val, usertype: sink_user): [b
 function wrap_clock(): number { return (new Date()).getTime(); }
 export let sink_seedauto_src: () => number = wrap_clock;
 
-function byteequ(b: number[], str: string): boolean {
+function byteequ(b: number[], str: string): boolean { // TODO: do I actually need this?
 	let i: number;
 	for (i = 0; i < str.length; i++){
 		if (b.length <= i)
@@ -756,457 +756,322 @@ function op_numint(b: number[], tgt: varloc_st, num: number): void {
 	}
 }
 
-/*
-static inline void op_numdbl(list_byte b, varloc_st tgt, sink_val num){
-	oplogf("NUMDBL %d:%d, %g", tgt.frame, tgt.index, num.f);
-	list_byte_push11(b, OP_NUMDBL, tgt.frame, tgt.index,
-		num.u & 0xFF, (num.u >> 8) & 0xFF, (num.u >> 16) & 0xFF, (num.u >> 24) & 0xFF,
-		(num.u >> 32) & 0xFF, (num.u >> 40) & 0xFF, (num.u >> 48) & 0xFF, (num.u >> 56) & 0xFF);
+let dview = new DataView(new ArrayBuffer(8));
+function op_numdbl(b: number[], tgt: varloc_st, num: number): void {
+	dview.setFloat64(0, num, true);
+	b.push(op_enum.NUMDBL, tgt.frame, tgt.index,
+		dview.getUint8(0), dview.getUint8(1), dview.getUint8(2), dview.getUint8(3),
+		dview.getUint8(4), dview.getUint8(5), dview.getUint8(6), dview.getUint8(7));
 }
 
-static inline void op_num(list_byte b, varloc_st tgt, double num){
-	if (floor(num) == num && num >= -4294967296.0 && num < 4294967296.0)
-		op_numint(b, tgt, (int64_t)num);
+function op_num(b: number[], tgt: varloc_st, num: number): void {
+	if (Math.floor(num) === num && num >= -4294967296 && num < 4294967296)
+		op_numint(b, tgt, num);
 	else
-		op_numdbl(b, tgt, (sink_val){ .f = num });
+		op_numdbl(b, tgt, num);
 }
 
-static inline void op_str(list_byte b, varloc_st tgt, int index){
-	oplogf("STR %d:%d, %d", tgt.frame, tgt.index, index);
-	list_byte_push7(b, OP_STR, tgt.frame, tgt.index,
+function op_str(b: number[], tgt: varloc_st, index: number): void {
+	b.push(op_enum.STR, tgt.frame, tgt.index,
 		index % 256, (index >> 8) % 256, (index >> 16) % 256, (index >> 24) % 256);
 }
 
-static inline void op_list(list_byte b, varloc_st tgt, int hint){
+function op_list(b: number[], tgt: varloc_st, hint: number): void {
 	if (hint > 255)
 		hint = 255;
-	oplogf("LIST %d:%d, %d", tgt.frame, tgt.index, hint);
-	list_byte_push4(b, OP_LIST, tgt.frame, tgt.index, hint);
+	b.push(op_enum.LIST, tgt.frame, tgt.index, hint);
 }
 
-static inline void op_unop(list_byte b, op_enum opcode, varloc_st tgt, varloc_st src){
-	#ifdef SINK_DEBUG
-	const char *opstr = "???";
-	if      (opcode == OP_ISNUM     ) opstr = "ISNUM";
-	else if (opcode == OP_ISSTR     ) opstr = "ISSTR";
-	else if (opcode == OP_ISLIST    ) opstr = "ISLIST";
-	else if (opcode == OP_NOT       ) opstr = "NOT";
-	else if (opcode == OP_SIZE      ) opstr = "SIZE";
-	else if (opcode == OP_TONUM     ) opstr = "TONUM";
-	else if (opcode == OP_NUM_NEG   ) opstr = "NUM_NEG";
-	else if (opcode == OP_LIST_SHIFT) opstr = "LIST_SHIFT";
-	else if (opcode == OP_LIST_POP  ) opstr = "LIST_POP";
-	oplogf("%s %d:%d, %d:%d", opstr, tgt.frame, tgt.index, src.frame, src.index);
-	#endif
-	list_byte_push5(b, opcode, tgt.frame, tgt.index, src.frame, src.index);
+function op_unop(b: number[], opcode: op_enum, tgt: varloc_st, src: varloc_st): void {
+	b.push(opcode, tgt.frame, tgt.index, src.frame, src.index);
 }
 
-static inline void op_cat(list_byte b, varloc_st tgt, int argcount){
-	oplogf("CAT %d:%d, %d", tgt.frame, tgt.index, argcount);
-	list_byte_push4(b, OP_CAT, tgt.frame, tgt.index, argcount);
+function op_cat(b: number[], tgt: varloc_st, argcount: number): void {
+	b.push(op_enum.CAT, tgt.frame, tgt.index, argcount);
 }
 
-static inline void op_arg(list_byte b, varloc_st arg){
-	oplogf("  ARG: %d:%d", arg.frame, arg.index);
-	list_byte_push2(b, arg.frame, arg.index);
+function op_arg(b: number[], arg: varloc_st): void {
+	b.push(arg.frame, arg.index);
 }
 
-static inline void op_binop(list_byte b, op_enum opcode, varloc_st tgt, varloc_st src1,
-	varloc_st src2){
-	// intercept cat
-	if (opcode == OP_CAT){
+function op_binop(b: number[], opcode: op_enum, tgt: varloc_st, src1: varloc_st, src2: varloc_st):
+	void {
+	if (opcode == op_enum.CAT){
 		op_cat(b, tgt, 2);
 		op_arg(b, src1);
 		op_arg(b, src2);
 		return;
 	}
 
-	// rewire GT to LT and GTE to LTE
-	if (opcode == OP_GT || opcode == OP_GTE){
-		opcode = opcode == OP_GT ? OP_LT : OP_LTE;
-		varloc_st t = src1;
+	if (opcode === op_enum.GT || opcode == op_enum.GTE){
+		opcode = opcode === op_enum.GT ? op_enum.LT : op_enum.LTE;
+		let t = src1;
 		src1 = src2;
 		src2 = t;
 	}
 
-	#ifdef SINK_DEBUG
-	const char *opstr = "???";
-	if      (opcode == OP_LT     ) opstr = "LT";
-	else if (opcode == OP_LTE    ) opstr = "LTE";
-	else if (opcode == OP_NEQ    ) opstr = "NEQ";
-	else if (opcode == OP_EQU    ) opstr = "EQU";
-	else if (opcode == OP_NUM_ADD) opstr = "NUM_ADD";
-	else if (opcode == OP_NUM_SUB) opstr = "NUM_SUB";
-	else if (opcode == OP_NUM_MUL) opstr = "NUM_MUL";
-	else if (opcode == OP_NUM_DIV) opstr = "NUM_DIV";
-	else if (opcode == OP_NUM_MOD) opstr = "NUM_MOD";
-	else if (opcode == OP_NUM_POW) opstr = "NUM_POW";
-	oplogf("%s %d:%d, %d:%d, %d:%d", opstr, tgt.frame, tgt.index, src1.frame, src1.index,
-		src2.frame, src2.index);
-	#endif
-	list_byte_push7(b, opcode, tgt.frame, tgt.index, src1.frame, src1.index,
-		src2.frame, src2.index);
+	b.push(opcode, tgt.frame, tgt.index, src1.frame, src1.index, src2.frame, src2.index);
 }
 
-static inline void op_getat(list_byte b, varloc_st tgt, varloc_st src1, varloc_st src2){
-	oplogf("GETAT %d:%d, %d:%d, %d:%d", tgt.frame, tgt.index, src1.frame, src1.index,
-		src2.frame, src2.index);
-	list_byte_push7(b, OP_GETAT, tgt.frame, tgt.index, src1.frame, src1.index,
-		src2.frame, src2.index);
+function op_getat(b: number[], tgt: varloc_st, src1: varloc_st, src2: varloc_st): void {
+	b.push(op_enum.GETAT, tgt.frame, tgt.index, src1.frame, src1.index, src2.frame, src2.index);
 }
 
-static inline void op_slice(list_byte b, varloc_st tgt, varloc_st src1, varloc_st src2,
-	varloc_st src3){
-	oplogf("SLICE %d:%d, %d:%d, %d:%d, %d:%d", tgt.frame, tgt.index, src1.frame, src1.index,
-		src2.frame, src2.index, src3.frame, src3.index);
-	list_byte_push9(b, OP_SLICE, tgt.frame, tgt.index, src1.frame, src1.index,
-		src2.frame, src2.index, src3.frame, src3.index);
-}
-
-static inline void op_setat(list_byte b, varloc_st src1, varloc_st src2, varloc_st src3){
-	oplogf("SETAT %d:%d, %d:%d, %d:%d", src1.frame, src1.index, src2.frame, src2.index,
-		src3.frame, src3.index);
-	list_byte_push7(b, OP_SETAT, src1.frame, src1.index, src2.frame, src2.index,
+function op_slice(b: number[], tgt: varloc_st, src1: varloc_st, src2: varloc_st, src3: varloc_st):
+	void {
+	b.push(op_enum.SLICE, tgt.frame, tgt.index, src1.frame, src1.index, src2.frame, src2.index,
 		src3.frame, src3.index);
 }
 
-static inline void op_splice(list_byte b, varloc_st src1, varloc_st src2, varloc_st src3,
-	varloc_st src4){
-	oplogf("SPLICE %d:%d, %d:%d, %d:%d, %d:%d", src1.frame, src1.index, src2.frame, src2.index,
-		src3.frame, src3.index, src4.frame, src4.index);
-	list_byte_push9(b, OP_SPLICE, src1.frame, src1.index, src2.frame, src2.index,
-		src3.frame, src3.index, src4.frame, src4.index);
+function op_setat(b: number[], src1: varloc_st, src2: varloc_st, src3: varloc_st): void {
+	b.push(op_enum.SETAT, src1.frame, src1.index, src2.frame, src2.index, src3.frame, src3.index);
 }
 
-static inline void op_jump(list_byte b, uint32_t index, list_byte hint){
-	oplogf("JUMP %.*s", hint->size, hint->bytes);
-	list_byte_push5(b, OP_JUMP,
+function op_splice(b: number[], src1: varloc_st, src2: varloc_st, src3: varloc_st, src4: varloc_st):
+	void {
+	b.push(op_enum.SPLICE, src1.frame, src1.index, src2.frame, src2.index, src3.frame, src3.index,
+		src4.frame, src4.index);
+}
+
+function op_jump(b: number[], index: number, hint: string): void {
+	b.push(op_enum.JUMP, index % 256, (index >> 8) % 256, (index >> 16) % 256, (index >> 24) % 256);
+}
+
+function op_jumptrue(b: number[], src: varloc_st, index: number, hint: string): void {
+	b.push(op_enum.JUMPTRUE, src.frame, src.index,
 		index % 256, (index >> 8) % 256, (index >> 16) % 256, (index >> 24) % 256);
 }
 
-static inline void op_jumptrue(list_byte b, varloc_st src, uint32_t index, list_byte hint){
-	oplogf("JUMPTRUE %d:%d, %.*s", src.frame, src.index, hint->size, hint->bytes);
-	list_byte_push7(b, OP_JUMPTRUE, src.frame, src.index,
+function op_jumpfalse(b: number[], src: varloc_st, index: number, hint: string): void {
+	b.push(op_enum.JUMPFALSE, src.frame, src.index,
 		index % 256, (index >> 8) % 256, (index >> 16) % 256, (index >> 24) % 256);
 }
 
-static inline void op_jumpfalse(list_byte b, varloc_st src, uint32_t index, list_byte hint){
-	oplogf("JUMPFALSE %d:%d, %.*s", src.frame, src.index, hint->size, hint->bytes);
-	list_byte_push7(b, OP_JUMPFALSE, src.frame, src.index,
-		index % 256, (index >> 8) % 256, (index >> 16) % 256, (index >> 24) % 256);
+function op_cmdhead(b: number[], level: number, restpos: number): void {
+	b.push(op_enum.CMDHEAD, level, restpos);
 }
 
-static inline void op_cmdhead(list_byte b, int level, int restpos){
-	oplogf("CMDHEAD %d, %d", level, restpos);
-	list_byte_push3(b, OP_CMDHEAD, level, restpos);
+function op_cmdtail(b: number[]): void {
+	b.push(op_enum.CMDTAIL);
 }
 
-static inline void op_cmdtail(list_byte b){
-	oplog("CMDTAIL");
-	list_byte_push(b, OP_CMDTAIL);
-}
-
-static inline void op_call(list_byte b, varloc_st ret, uint32_t index, int argcount,
-	list_byte hint){
-	oplogf("CALL %d:%d, %.*s, %d", ret.frame, ret.index, hint->size, hint->bytes, argcount);
-	list_byte_push8(b, OP_CALL, ret.frame, ret.index,
-		index % 256, (index >> 8) % 256, (index >> 16) % 256, (index >> 24) % 256,
-		argcount);
-}
-
-static inline void op_native(list_byte b, varloc_st ret, int index, int argcount){
-	oplogf("NATIVE %d:%d, %d, %d", ret.frame, ret.index, index, argcount);
-	list_byte_push8(b, OP_NATIVE, ret.frame, ret.index,
+function op_call(b: number[], ret: varloc_st, index: number, argcount: number, hint: string): void {
+	b.push(op_enum.CALL, ret.frame, ret.index,
 		index % 256, (index >> 8) % 256, (index >> 16) % 256, (index >> 24) % 256, argcount);
 }
 
-static inline void op_return(list_byte b, varloc_st src){
-	oplogf("RETURN %d:%d", src.frame, src.index);
-	list_byte_push3(b, OP_RETURN, src.frame, src.index);
-}
-
-static inline void op_returntail(list_byte b, uint32_t index, int argcount, list_byte hint){
-	oplogf("RETURNTAIL %.*s, %d", hint->size, hint->bytes, argcount);
-	list_byte_push6(b, OP_RETURNTAIL,
+function op_native(b: number[], ret: varloc_st, index: number, argcount: number): void {
+	b.push(op_enum.NATIVE, ret.frame, ret.index,
 		index % 256, (index >> 8) % 256, (index >> 16) % 256, (index >> 24) % 256, argcount);
 }
 
-static inline void op_parama(list_byte b, op_enum opcode, varloc_st tgt, int argcount){
-	oplogf("0x%02X %d:%d, %d", opcode, tgt.frame, tgt.index, argcount);
-	list_byte_push4(b, opcode, tgt.frame, tgt.index, argcount);
+function op_return(b: number[], src: varloc_st): void {
+	b.push(op_enum.RETURN, src.frame, src.index);
 }
 
-static inline void op_param0(list_byte b, op_enum opcode, varloc_st tgt){
-	oplogf("0x%02X %d:%d", opcode, tgt.frame, tgt.index);
-	list_byte_push3(b, opcode, tgt.frame, tgt.index);
+function op_returntail(b: number[], index: number, argcount: number, hint: string): void {
+	b.push(op_enum.RETURNTAIL,
+		index % 256, (index >> 8) % 256, (index >> 16) % 256, (index >> 24) % 256, argcount);
 }
 
-static inline void op_param1(list_byte b, op_enum opcode, varloc_st tgt, varloc_st src){
-	oplogf("0x%02X %d:%d, %d:%d", opcode, tgt.frame, tgt.index, src.frame, src.index);
-	list_byte_push5(b, opcode, tgt.frame, tgt.index, src.frame, src.index);
+function op_parama(b: number[], opcode: op_enum, tgt: varloc_st, argcount: number): void {
+	b.push(opcode, tgt.frame, tgt.index, argcount);
 }
 
-static inline void op_param2(list_byte b, op_enum opcode, varloc_st tgt, varloc_st src1,
-	varloc_st src2){
-	oplogf("0x%02X %d:%d, %d:%d, %d:%d", opcode, tgt.frame, tgt.index, src1.frame, src1.index,
-		src2.frame, src2.index);
-	list_byte_push7(b, opcode, tgt.frame, tgt.index, src1.frame, src1.index,
-		src2.frame, src2.index);
+function op_param0(b: number[], opcode: op_enum, tgt: varloc_st): void {
+	b.push(opcode, tgt.frame, tgt.index);
 }
 
-static inline void op_param3(list_byte b, op_enum opcode, varloc_st tgt, varloc_st src1,
-	varloc_st src2, varloc_st src3){
-	oplogf("0x%02X %d:%d, %d:%d, %d:%d, %d:%d", opcode, tgt.frame, tgt.index,
-		src1.frame, src1.index, src2.frame, src2.index, src3.frame, src3.index);
-	list_byte_push9(b, opcode, tgt.frame, tgt.index, src1.frame, src1.index,
-		src2.frame, src2.index, src3.frame, src3.index);
+function op_param1(b: number[], opcode: op_enum, tgt: varloc_st, src: varloc_st): void {
+	b.push(opcode, tgt.frame, tgt.index, src.frame, src.index);
 }
 
-//
-// keywords/specials
-//
-
-typedef enum {
-	KS_INVALID,
-	KS_PLUS,
-	KS_UNPLUS,
-	KS_MINUS,
-	KS_UNMINUS,
-	KS_PERCENT,
-	KS_STAR,
-	KS_SLASH,
-	KS_CARET,
-	KS_AMP,
-	KS_LT,
-	KS_GT,
-	KS_BANG,
-	KS_EQU,
-	KS_TILDE,
-	KS_COLON,
-	KS_COMMA,
-	KS_PERIOD,
-	KS_PIPE,
-	KS_LPAREN,
-	KS_LBRACKET,
-	KS_LBRACE,
-	KS_RPAREN,
-	KS_RBRACKET,
-	KS_RBRACE,
-	KS_PLUSEQU,
-	KS_MINUSEQU,
-	KS_PERCENTEQU,
-	KS_STAREQU,
-	KS_SLASHEQU,
-	KS_CARETEQU,
-	KS_LTEQU,
-	KS_GTEQU,
-	KS_BANGEQU,
-	KS_EQU2,
-	KS_TILDEEQU,
-	KS_AMP2,
-	KS_PIPE2,
-	KS_PERIOD3,
-	KS_PIPE2EQU,
-	KS_AMP2EQU,
-	KS_BREAK,
-	KS_CONTINUE,
-	KS_DECLARE,
-	KS_DEF,
-	KS_DO,
-	KS_ELSE,
-	KS_ELSEIF,
-	KS_END,
-	KS_ENUM,
-	KS_FOR,
-	KS_GOTO,
-	KS_IF,
-	KS_INCLUDE,
-	KS_NAMESPACE,
-	KS_NIL,
-	KS_RETURN,
-	KS_USING,
-	KS_VAR,
-	KS_WHILE
-} ks_enum;
-
-#ifdef SINK_DEBUG
-static const char *ks_name(ks_enum k){
-	switch (k){
-		case KS_INVALID:    return "KS_INVALID";
-		case KS_PLUS:       return "KS_PLUS";
-		case KS_UNPLUS:     return "KS_UNPLUS";
-		case KS_MINUS:      return "KS_MINUS";
-		case KS_UNMINUS:    return "KS_UNMINUS";
-		case KS_PERCENT:    return "KS_PERCENT";
-		case KS_STAR:       return "KS_STAR";
-		case KS_SLASH:      return "KS_SLASH";
-		case KS_CARET:      return "KS_CARET";
-		case KS_AMP:        return "KS_AMP";
-		case KS_LT:         return "KS_LT";
-		case KS_GT:         return "KS_GT";
-		case KS_BANG:       return "KS_BANG";
-		case KS_EQU:        return "KS_EQU";
-		case KS_TILDE:      return "KS_TILDE";
-		case KS_COLON:      return "KS_COLON";
-		case KS_COMMA:      return "KS_COMMA";
-		case KS_PERIOD:     return "KS_PERIOD";
-		case KS_PIPE:       return "KS_PIPE";
-		case KS_LPAREN:     return "KS_LPAREN";
-		case KS_LBRACKET:   return "KS_LBRACKET";
-		case KS_LBRACE:     return "KS_LBRACE";
-		case KS_RPAREN:     return "KS_RPAREN";
-		case KS_RBRACKET:   return "KS_RBRACKET";
-		case KS_RBRACE:     return "KS_RBRACE";
-		case KS_PLUSEQU:    return "KS_PLUSEQU";
-		case KS_MINUSEQU:   return "KS_MINUSEQU";
-		case KS_PERCENTEQU: return "KS_PERCENTEQU";
-		case KS_STAREQU:    return "KS_STAREQU";
-		case KS_SLASHEQU:   return "KS_SLASHEQU";
-		case KS_CARETEQU:   return "KS_CARETEQU";
-		case KS_LTEQU:      return "KS_LTEQU";
-		case KS_GTEQU:      return "KS_GTEQU";
-		case KS_BANGEQU:    return "KS_BANGEQU";
-		case KS_EQU2:       return "KS_EQU2";
-		case KS_TILDEEQU:   return "KS_TILDEEQU";
-		case KS_AMP2:       return "KS_AMP2";
-		case KS_PIPE2:      return "KS_PIPE2";
-		case KS_PERIOD3:    return "KS_PERIOD3";
-		case KS_PIPE2EQU:   return "KS_PIPE2EQU";
-		case KS_AMP2EQU:    return "KS_AMP2EQU";
-		case KS_BREAK:      return "KS_BREAK";
-		case KS_CONTINUE:   return "KS_CONTINUE";
-		case KS_DECLARE:    return "KS_DECLARE";
-		case KS_DEF:        return "KS_DEF";
-		case KS_DO:         return "KS_DO";
-		case KS_ELSE:       return "KS_ELSE";
-		case KS_ELSEIF:     return "KS_ELSEIF";
-		case KS_END:        return "KS_END";
-		case KS_ENUM:       return "KS_ENUM";
-		case KS_FOR:        return "KS_FOR";
-		case KS_GOTO:       return "KS_GOTO";
-		case KS_IF:         return "KS_IF";
-		case KS_INCLUDE:    return "KS_INCLUDE";
-		case KS_NAMESPACE:  return "KS_NAMESPACE";
-		case KS_NIL:        return "KS_NIL";
-		case KS_RETURN:     return "KS_RETURN";
-		case KS_USING:      return "KS_USING";
-		case KS_VAR:        return "KS_VAR";
-		case KS_WHILE:      return "KS_WHILE";
-	}
-}
-#endif
-
-static inline ks_enum ks_char(char c){
-	if      (c == '+') return KS_PLUS;
-	else if (c == '-') return KS_MINUS;
-	else if (c == '%') return KS_PERCENT;
-	else if (c == '*') return KS_STAR;
-	else if (c == '/') return KS_SLASH;
-	else if (c == '^') return KS_CARET;
-	else if (c == '&') return KS_AMP;
-	else if (c == '<') return KS_LT;
-	else if (c == '>') return KS_GT;
-	else if (c == '!') return KS_BANG;
-	else if (c == '=') return KS_EQU;
-	else if (c == '~') return KS_TILDE;
-	else if (c == ':') return KS_COLON;
-	else if (c == ',') return KS_COMMA;
-	else if (c == '.') return KS_PERIOD;
-	else if (c == '|') return KS_PIPE;
-	else if (c == '(') return KS_LPAREN;
-	else if (c == '[') return KS_LBRACKET;
-	else if (c == '{') return KS_LBRACE;
-	else if (c == ')') return KS_RPAREN;
-	else if (c == ']') return KS_RBRACKET;
-	else if (c == '}') return KS_RBRACE;
-	return KS_INVALID;
+function op_param2(b: number[], opcode: op_enum, tgt: varloc_st, src1: varloc_st, src2: varloc_st):
+	void {
+	b.push(opcode, tgt.frame, tgt.index, src1.frame, src1.index, src2.frame, src2.index);
 }
 
-static inline ks_enum ks_char2(char c1, char c2){
-	if      (c1 == '+' && c2 == '=') return KS_PLUSEQU;
-	else if (c1 == '-' && c2 == '=') return KS_MINUSEQU;
-	else if (c1 == '%' && c2 == '=') return KS_PERCENTEQU;
-	else if (c1 == '*' && c2 == '=') return KS_STAREQU;
-	else if (c1 == '/' && c2 == '=') return KS_SLASHEQU;
-	else if (c1 == '^' && c2 == '=') return KS_CARETEQU;
-	else if (c1 == '<' && c2 == '=') return KS_LTEQU;
-	else if (c1 == '>' && c2 == '=') return KS_GTEQU;
-	else if (c1 == '!' && c2 == '=') return KS_BANGEQU;
-	else if (c1 == '=' && c2 == '=') return KS_EQU2;
-	else if (c1 == '~' && c2 == '=') return KS_TILDEEQU;
-	else if (c1 == '&' && c2 == '&') return KS_AMP2;
-	else if (c1 == '|' && c2 == '|') return KS_PIPE2;
-	return KS_INVALID;
+function op_param3(b: number[], opcode: op_enum, tgt: varloc_st, src1: varloc_st, src2: varloc_st,
+	src3: varloc_st): void {
+	b.push(opcode, tgt.frame, tgt.index, src1.frame, src1.index, src2.frame, src2.index,
+		src3.frame, src3.index);
 }
 
-static inline ks_enum ks_char3(char c1, char c2, char c3){
-	if      (c1 == '.' && c2 == '.' && c3 == '.') return KS_PERIOD3;
-	else if (c1 == '|' && c2 == '|' && c3 == '=') return KS_PIPE2EQU;
-	else if (c1 == '&' && c2 == '&' && c3 == '=') return KS_AMP2EQU;
-	return KS_INVALID;
+enum ks_enum {
+	INVALID,
+	PLUS,
+	UNPLUS,
+	MINUS,
+	UNMINUS,
+	PERCENT,
+	STAR,
+	SLASH,
+	CARET,
+	AMP,
+	LT,
+	GT,
+	BANG,
+	EQU,
+	TILDE,
+	COLON,
+	COMMA,
+	PERIOD,
+	PIPE,
+	LPAREN,
+	LBRACKET,
+	LBRACE,
+	RPAREN,
+	RBRACKET,
+	RBRACE,
+	PLUSEQU,
+	MINUSEQU,
+	PERCENTEQU,
+	STAREQU,
+	SLASHEQU,
+	CARETEQU,
+	LTEQU,
+	GTEQU,
+	BANGEQU,
+	EQU2,
+	TILDEEQU,
+	AMP2,
+	PIPE2,
+	PERIOD3,
+	PIPE2EQU,
+	AMP2EQU,
+	BREAK,
+	CONTINUE,
+	DECLARE,
+	DEF,
+	DO,
+	ELSE,
+	ELSEIF,
+	END,
+	ENUM,
+	FOR,
+	GOTO,
+	IF,
+	INCLUDE,
+	NAMESPACE,
+	NIL,
+	RETURN,
+	USING,
+	VAR,
+	WHILE
+};
+
+function ks_char(c: string): ks_enum{
+	if      (c === '+') return ks_enum.PLUS;
+	else if (c === '-') return ks_enum.MINUS;
+	else if (c === '%') return ks_enum.PERCENT;
+	else if (c === '*') return ks_enum.STAR;
+	else if (c === '/') return ks_enum.SLASH;
+	else if (c === '^') return ks_enum.CARET;
+	else if (c === '&') return ks_enum.AMP;
+	else if (c === '<') return ks_enum.LT;
+	else if (c === '>') return ks_enum.GT;
+	else if (c === '!') return ks_enum.BANG;
+	else if (c === '=') return ks_enum.EQU;
+	else if (c === '~') return ks_enum.TILDE;
+	else if (c === ':') return ks_enum.COLON;
+	else if (c === ',') return ks_enum.COMMA;
+	else if (c === '.') return ks_enum.PERIOD;
+	else if (c === '|') return ks_enum.PIPE;
+	else if (c === '(') return ks_enum.LPAREN;
+	else if (c === '[') return ks_enum.LBRACKET;
+	else if (c === '{') return ks_enum.LBRACE;
+	else if (c === ')') return ks_enum.RPAREN;
+	else if (c === ']') return ks_enum.RBRACKET;
+	else if (c === '}') return ks_enum.RBRACE;
+	return ks_enum.INVALID;
 }
 
-static inline ks_enum ks_str(list_byte s){
-	if      (byteequ(s, "break"    )) return KS_BREAK;
-	else if (byteequ(s, "continue" )) return KS_CONTINUE;
-	else if (byteequ(s, "declare"  )) return KS_DECLARE;
-	else if (byteequ(s, "def"      )) return KS_DEF;
-	else if (byteequ(s, "do"       )) return KS_DO;
-	else if (byteequ(s, "else"     )) return KS_ELSE;
-	else if (byteequ(s, "elseif"   )) return KS_ELSEIF;
-	else if (byteequ(s, "end"      )) return KS_END;
-	else if (byteequ(s, "enum"     )) return KS_ENUM;
-	else if (byteequ(s, "for"      )) return KS_FOR;
-	else if (byteequ(s, "goto"     )) return KS_GOTO;
-	else if (byteequ(s, "if"       )) return KS_IF;
-	else if (byteequ(s, "include"  )) return KS_INCLUDE;
-	else if (byteequ(s, "namespace")) return KS_NAMESPACE;
-	else if (byteequ(s, "nil"      )) return KS_NIL;
-	else if (byteequ(s, "return"   )) return KS_RETURN;
-	else if (byteequ(s, "using"    )) return KS_USING;
-	else if (byteequ(s, "var"      )) return KS_VAR;
-	else if (byteequ(s, "while"    )) return KS_WHILE;
-	return KS_INVALID;
+function ks_char2(c1: string, c2: string): ks_enum{
+	if      (c1 === '+' && c2 === '=') return ks_enum.PLUSEQU;
+	else if (c1 === '-' && c2 === '=') return ks_enum.MINUSEQU;
+	else if (c1 === '%' && c2 === '=') return ks_enum.PERCENTEQU;
+	else if (c1 === '*' && c2 === '=') return ks_enum.STAREQU;
+	else if (c1 === '/' && c2 === '=') return ks_enum.SLASHEQU;
+	else if (c1 === '^' && c2 === '=') return ks_enum.CARETEQU;
+	else if (c1 === '<' && c2 === '=') return ks_enum.LTEQU;
+	else if (c1 === '>' && c2 === '=') return ks_enum.GTEQU;
+	else if (c1 === '!' && c2 === '=') return ks_enum.BANGEQU;
+	else if (c1 === '=' && c2 === '=') return ks_enum.EQU2;
+	else if (c1 === '~' && c2 === '=') return ks_enum.TILDEEQU;
+	else if (c1 === '&' && c2 === '&') return ks_enum.AMP2;
+	else if (c1 === '|' && c2 === '|') return ks_enum.PIPE2;
+	return ks_enum.INVALID;
 }
 
-static inline op_enum ks_toUnaryOp(ks_enum k){
-	if      (k == KS_PLUS   ) return OP_TONUM;
-	else if (k == KS_UNPLUS ) return OP_TONUM;
-	else if (k == KS_MINUS  ) return OP_NUM_NEG;
-	else if (k == KS_UNMINUS) return OP_NUM_NEG;
-	else if (k == KS_AMP    ) return OP_SIZE;
-	else if (k == KS_BANG   ) return OP_NOT;
-	return OP_INVALID;
+function ks_char3(c1: string, c2: string, c3: string): ks_enum {
+	if      (c1 === '.' && c2 === '.' && c3 === '.') return ks_enum.PERIOD3;
+	else if (c1 === '|' && c2 === '|' && c3 === '=') return ks_enum.PIPE2EQU;
+	else if (c1 === '&' && c2 === '&' && c3 === '=') return ks_enum.AMP2EQU;
+	return ks_enum.INVALID;
 }
 
-static inline op_enum ks_toBinaryOp(ks_enum k){
-	if      (k == KS_PLUS   ) return OP_NUM_ADD;
-	else if (k == KS_MINUS  ) return OP_NUM_SUB;
-	else if (k == KS_PERCENT) return OP_NUM_MOD;
-	else if (k == KS_STAR   ) return OP_NUM_MUL;
-	else if (k == KS_SLASH  ) return OP_NUM_DIV;
-	else if (k == KS_CARET  ) return OP_NUM_POW;
-	else if (k == KS_LT     ) return OP_LT;
-	else if (k == KS_GT     ) return OP_GT;
-	else if (k == KS_TILDE  ) return OP_CAT;
-	else if (k == KS_LTEQU  ) return OP_LTE;
-	else if (k == KS_GTEQU  ) return OP_GTE;
-	else if (k == KS_BANGEQU) return OP_NEQ;
-	else if (k == KS_EQU2   ) return OP_EQU;
-	return OP_INVALID;
+function ks_str(s: number[]): ks_enum { // TODO: is `s` actually a number[] or a string?
+	if      (byteequ(s, "break"    )) return ks_enum.BREAK;
+	else if (byteequ(s, "continue" )) return ks_enum.CONTINUE;
+	else if (byteequ(s, "declare"  )) return ks_enum.DECLARE;
+	else if (byteequ(s, "def"      )) return ks_enum.DEF;
+	else if (byteequ(s, "do"       )) return ks_enum.DO;
+	else if (byteequ(s, "else"     )) return ks_enum.ELSE;
+	else if (byteequ(s, "elseif"   )) return ks_enum.ELSEIF;
+	else if (byteequ(s, "end"      )) return ks_enum.END;
+	else if (byteequ(s, "enum"     )) return ks_enum.ENUM;
+	else if (byteequ(s, "for"      )) return ks_enum.FOR;
+	else if (byteequ(s, "goto"     )) return ks_enum.GOTO;
+	else if (byteequ(s, "if"       )) return ks_enum.IF;
+	else if (byteequ(s, "include"  )) return ks_enum.INCLUDE;
+	else if (byteequ(s, "namespace")) return ks_enum.NAMESPACE;
+	else if (byteequ(s, "nil"      )) return ks_enum.NIL;
+	else if (byteequ(s, "return"   )) return ks_enum.RETURN;
+	else if (byteequ(s, "using"    )) return ks_enum.USING;
+	else if (byteequ(s, "var"      )) return ks_enum.VAR;
+	else if (byteequ(s, "while"    )) return ks_enum.WHILE;
+	return ks_enum.INVALID;
 }
 
-static inline op_enum ks_toMutateOp(ks_enum k){
-	if      (k == KS_PLUSEQU   ) return OP_NUM_ADD;
-	else if (k == KS_PERCENTEQU) return OP_NUM_MOD;
-	else if (k == KS_MINUSEQU  ) return OP_NUM_SUB;
-	else if (k == KS_STAREQU   ) return OP_NUM_MUL;
-	else if (k == KS_SLASHEQU  ) return OP_NUM_DIV;
-	else if (k == KS_CARETEQU  ) return OP_NUM_POW;
-	else if (k == KS_TILDEEQU  ) return OP_CAT;
-	return OP_INVALID;
+function ks_toUnaryOp(k: ks_enum): op_enum {
+	if      (k === ks_enum.PLUS   ) return op_enum.TONUM;
+	else if (k === ks_enum.UNPLUS ) return op_enum.TONUM;
+	else if (k === ks_enum.MINUS  ) return op_enum.NUM_NEG;
+	else if (k === ks_enum.UNMINUS) return op_enum.NUM_NEG;
+	else if (k === ks_enum.AMP    ) return op_enum.SIZE;
+	else if (k === ks_enum.BANG   ) return op_enum.NOT;
+	return op_enum.INVALID;
 }
 
+function ks_toBinaryOp(k: ks_enum): op_enum {
+	if      (k === ks_enum.PLUS   ) return op_enum.NUM_ADD;
+	else if (k === ks_enum.MINUS  ) return op_enum.NUM_SUB;
+	else if (k === ks_enum.PERCENT) return op_enum.NUM_MOD;
+	else if (k === ks_enum.STAR   ) return op_enum.NUM_MUL;
+	else if (k === ks_enum.SLASH  ) return op_enum.NUM_DIV;
+	else if (k === ks_enum.CARET  ) return op_enum.NUM_POW;
+	else if (k === ks_enum.LT     ) return op_enum.LT;
+	else if (k === ks_enum.GT     ) return op_enum.GT;
+	else if (k === ks_enum.TILDE  ) return op_enum.CAT;
+	else if (k === ks_enum.LTEQU  ) return op_enum.LTE;
+	else if (k === ks_enum.GTEQU  ) return op_enum.GTE;
+	else if (k === ks_enum.BANGEQU) return op_enum.NEQ;
+	else if (k === ks_enum.EQU2   ) return op_enum.EQU;
+	return op_enum.INVALID;
+}
+
+function ks_toMutateOp(k: ks_enum): op_enum {
+	if      (k === ks_enum.PLUSEQU   ) return op_enum.NUM_ADD;
+	else if (k === ks_enum.PERCENTEQU) return op_enum.NUM_MOD;
+	else if (k === ks_enum.MINUSEQU  ) return op_enum.NUM_SUB;
+	else if (k === ks_enum.STAREQU   ) return op_enum.NUM_MUL;
+	else if (k === ks_enum.SLASHEQU  ) return op_enum.NUM_DIV;
+	else if (k === ks_enum.CARETEQU  ) return op_enum.NUM_POW;
+	else if (k === ks_enum.TILDEEQU  ) return op_enum.CAT;
+	return op_enum.INVALID;
+}
+
+/*
 //
 // tokens
 //
@@ -5029,7 +4894,7 @@ static nl_st namespace_lookup(namespace ns, list_ptr names, int start, list_ptr 
 static nl_st namespace_lookupLevel(namespace ns, list_ptr names, int start, list_ptr tried){
 	for (int nsni = 0; nsni < ns->names->size; nsni++){
 		nsname nsn = ns->names->ptrs[nsni];
-		if (list_byte_equ(nsn->name, names->ptrs[start])){
+		if (list_ƒ(nsn->name, names->ptrs[start])){
 			if (start == names->size - 1) // if we're at the end of names, then report the find
 				return nl_found(nsn);
 			// otherwise, we need to traverse
