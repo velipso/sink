@@ -423,48 +423,49 @@ Structured Data
 
 ### Structure Templates
 
-Structure templates are lists of strings, where each case-sensitive string represents one data type:
+Structure templates are lists of numbers, where each number is defined by symbols in the `struct`
+namespace, and describe the type of data:
 
-| Code     | Size | Signed?  | Endian | C Type     |
-|----------|------|----------|--------|------------|
-| `'U8'`   |    1 | Unsigned | N/A    | `uint8_t`  |
-| `'U16'`  |    2 | Unsigned | Native | `uint16_t` |
-| `'UL16'` |    2 | Unsigned | Little | `uint16_t` |
-| `'UB16'` |    2 | Unsigned | Big    | `uint16_t` |
-| `'U32'`  |    4 | Unsigned | Native | `uint32_t` |
-| `'UL32'` |    4 | Unsigned | Little | `uint32_t` |
-| `'UB32'` |    4 | Unsigned | Big    | `uint32_t` |
-| `'S8'`   |    1 | Signed   | N/A    | `int8_t`   |
-| `'S16'`  |    2 | Signed   | Native | `int16_t`  |
-| `'SL16'` |    2 | Signed   | Little | `int16_t`  |
-| `'SB16'` |    2 | Signed   | Big    | `int16_t`  |
-| `'S32'`  |    4 | Signed   | Native | `int32_t`  |
-| `'SL32'` |    4 | Signed   | Little | `int32_t`  |
-| `'SB32'` |    4 | Signed   | Big    | `int32_t`  |
-| `'F32'`  |    4 | N/A      | Native | `float`    |
-| `'FL32'` |    4 | N/A      | Little | `float`    |
-| `'FB32'` |    4 | N/A      | Big    | `float`    |
-| `'F64'`  |    8 | N/A      | Native | `double`   |
-| `'FL64'` |    8 | N/A      | Little | `double`   |
-| `'FB64'` |    8 | N/A      | Big    | `double`   |
+| Code          | Size | Signed?  | Endian | C Type     |
+|---------------|------|----------|--------|------------|
+| `struct.U8`   |    1 | Unsigned | N/A    | `uint8_t`  |
+| `struct.U16`  |    2 | Unsigned | Native | `uint16_t` |
+| `struct.UL16` |    2 | Unsigned | Little | `uint16_t` |
+| `struct.UB16` |    2 | Unsigned | Big    | `uint16_t` |
+| `struct.U32`  |    4 | Unsigned | Native | `uint32_t` |
+| `struct.UL32` |    4 | Unsigned | Little | `uint32_t` |
+| `struct.UB32` |    4 | Unsigned | Big    | `uint32_t` |
+| `struct.S8`   |    1 | Signed   | N/A    | `int8_t`   |
+| `struct.S16`  |    2 | Signed   | Native | `int16_t`  |
+| `struct.SL16` |    2 | Signed   | Little | `int16_t`  |
+| `struct.SB16` |    2 | Signed   | Big    | `int16_t`  |
+| `struct.S32`  |    4 | Signed   | Native | `int32_t`  |
+| `struct.SL32` |    4 | Signed   | Little | `int32_t`  |
+| `struct.SB32` |    4 | Signed   | Big    | `int32_t`  |
+| `struct.F32`  |    4 | N/A      | Native | `float`    |
+| `struct.FL32` |    4 | N/A      | Little | `float`    |
+| `struct.FB32` |    4 | N/A      | Big    | `float`    |
+| `struct.F64`  |    8 | N/A      | Native | `double`   |
+| `struct.FL64` |    8 | N/A      | Little | `double`   |
+| `struct.FB64` |    8 | N/A      | Big    | `double`   |
 
 ```
-struct.str {0x41, 0x42}, {'U8', 'U8'}  # => 'AB'
-struct.list 'AAAB', {'UL32'}           # => { 0x42414141 }
-struct.list 'AAAB', {'UB32'}           # => { 0x41414142 }
-struct.size {'F32', 'U8', 'S16'}       # => 7 (bytes)
-struct.size {'hello'}                  # => nil because template is invalid
+struct.str {0x41, 0x42}, {'U8', 'U8'}            # => 'AB'
+struct.list 'AAAB', {struct.UL32}                # => { 0x42414141 }
+struct.list 'AAAB', {struct.UB32}                # => { 0x41414142 }
+struct.size {struct.F32, struct.U8, struct.S16}  # => 7 (bytes)
+struct.size {'hello'}                            # => nil; template is invalid
 ```
 
 The data can be an array of structures, as long as the data length is a multiple of the template
 size:
 
 ```
-struct.str {0x41, 0x42, 0x43}, {'U8'}    # => 'ABC'
-struct.str {1, 2, 3, 4}, {'U8', 'UL16'}  # => "\x01\x02\x00\x03\x04\x00"
-struct.list 'ABC', {'U8'}                # => { 0x41, 0x42, 0x43 }
-struct.list 'ABCD', {'UL16'}             # => { 0x4241, 0x4443 }
-struct.list 'ABCDEF', {'U8', 'UL16'}     # => { 0x41, 0x4342, 0x44, 0x4645 }
+struct.str {0x41, 0x42, 0x43}, {struct.U8}         # => 'ABC'
+struct.str {1, 2, 3, 4}, {struct.U8, struct.UL16}  # => "\x01\x02\x00\x03\x04\x00"
+struct.list 'ABC', {struct.U8}                     # => { 0x41, 0x42, 0x43 }
+struct.list 'ABCD', {struct.UL16}                  # => { 0x4241, 0x4443 }
+struct.list 'ABCDEF', {struct.U8, struct.UL16}     # => { 0x41, 0x4342, 0x44, 0x4645 }
 ```
 
 List

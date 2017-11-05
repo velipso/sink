@@ -5798,6 +5798,29 @@ static inline list_ptr NSS(const char *str){
 	return list_ptr_newsingle((sink_free_f)list_byte_free, list_byte_newstr(str));
 }
 
+typedef enum {
+	STRUCT_U8   =  1,
+	STRUCT_U16  =  2,
+	STRUCT_UL16 =  3,
+	STRUCT_UB16 =  4,
+	STRUCT_U32  =  5,
+	STRUCT_UL32 =  6,
+	STRUCT_UB32 =  7,
+	STRUCT_S8   =  8,
+	STRUCT_S16  =  9,
+	STRUCT_SL16 = 10,
+	STRUCT_SB16 = 11,
+	STRUCT_S32  = 12,
+	STRUCT_SL32 = 13,
+	STRUCT_SB32 = 14,
+	STRUCT_F32  = 15,
+	STRUCT_FL32 = 16,
+	STRUCT_FB32 = 17,
+	STRUCT_F64  = 18,
+	STRUCT_FL64 = 19,
+	STRUCT_FB64 = 20
+} struct_enum;
+
 static inline void symtbl_loadStdlib(symtbl sym){
 	list_ptr nss;
 	SAC(sym, "say"           , OP_SAY            , -1);
@@ -5902,6 +5925,26 @@ static inline void symtbl_loadStdlib(symtbl sym){
 		SAC(sym, "str"       , OP_STRUCT_STR     ,  2);
 		SAC(sym, "list"      , OP_STRUCT_LIST    ,  2);
 		SAC(sym, "isLE"      , OP_STRUCT_ISLE    ,  0);
+		SAE(sym, "U8"        , STRUCT_U8             );
+		SAE(sym, "U16"       , STRUCT_U16            );
+		SAE(sym, "UL16"      , STRUCT_UL16           );
+		SAE(sym, "UB16"      , STRUCT_UB16           );
+		SAE(sym, "U32"       , STRUCT_U32            );
+		SAE(sym, "UL32"      , STRUCT_UL32           );
+		SAE(sym, "UB32"      , STRUCT_UB32           );
+		SAE(sym, "S8"        , STRUCT_S8             );
+		SAE(sym, "S16"       , STRUCT_S16            );
+		SAE(sym, "SL16"      , STRUCT_SL16           );
+		SAE(sym, "SB16"      , STRUCT_SB16           );
+		SAE(sym, "S32"       , STRUCT_S32            );
+		SAE(sym, "SL32"      , STRUCT_SL32           );
+		SAE(sym, "SB32"      , STRUCT_SB32           );
+		SAE(sym, "F32"       , STRUCT_F32            );
+		SAE(sym, "FL32"      , STRUCT_FL32           );
+		SAE(sym, "FB32"      , STRUCT_FB32           );
+		SAE(sym, "F64"       , STRUCT_F64            );
+		SAE(sym, "FL64"      , STRUCT_FL64           );
+		SAE(sym, "FB64"      , STRUCT_FB64           );
 	symtbl_popNamespace(sym);
 	nss = NSS("list"); symtbl_pushNamespace(sym, nss); list_ptr_free(nss);
 		SAC(sym, "new"       , OP_LIST_NEW       ,  2);
@@ -10257,43 +10300,33 @@ static inline sink_val opi_struct_size(context ctx, sink_val a){
 	int tot = 0;
 	for (int i = 0; i < ls->size; i++){
 		sink_val b = ls->vals[i];
-		if (!sink_isstr(b))
+		if (!sink_isnum(b))
 			return SINK_NIL;
-		sink_str t = var_caststr(ctx, b);
-		if (t->size == 2){
-			if      (strcmp((const char *)t->bytes, "U8"  ) == 0) tot += 1;
-			else if (strcmp((const char *)t->bytes, "S8"  ) == 0) tot += 1;
-			else
+		struct_enum bi = (struct_enum)b.f;
+		switch (bi){
+			case STRUCT_U8  : tot += 1; break;
+			case STRUCT_U16 : tot += 2; break;
+			case STRUCT_UL16: tot += 2; break;
+			case STRUCT_UB16: tot += 2; break;
+			case STRUCT_U32 : tot += 4; break;
+			case STRUCT_UL32: tot += 4; break;
+			case STRUCT_UB32: tot += 4; break;
+			case STRUCT_S8  : tot += 1; break;
+			case STRUCT_S16 : tot += 2; break;
+			case STRUCT_SL16: tot += 2; break;
+			case STRUCT_SB16: tot += 2; break;
+			case STRUCT_S32 : tot += 4; break;
+			case STRUCT_SL32: tot += 4; break;
+			case STRUCT_SB32: tot += 4; break;
+			case STRUCT_F32 : tot += 4; break;
+			case STRUCT_FL32: tot += 4; break;
+			case STRUCT_FB32: tot += 4; break;
+			case STRUCT_F64 : tot += 8; break;
+			case STRUCT_FL64: tot += 8; break;
+			case STRUCT_FB64: tot += 8; break;
+			default:
 				return SINK_NIL;
 		}
-		else if (t->size == 3){
-			if      (strcmp((const char *)t->bytes, "U16" ) == 0) tot += 2;
-			else if (strcmp((const char *)t->bytes, "U32" ) == 0) tot += 4;
-			else if (strcmp((const char *)t->bytes, "S16" ) == 0) tot += 2;
-			else if (strcmp((const char *)t->bytes, "S32" ) == 0) tot += 4;
-			else if (strcmp((const char *)t->bytes, "F32" ) == 0) tot += 4;
-			else if (strcmp((const char *)t->bytes, "F64" ) == 0) tot += 8;
-			else
-				return SINK_NIL;
-		}
-		else if (t->size == 4){
-			if      (strcmp((const char *)t->bytes, "UL16") == 0) tot += 2;
-			else if (strcmp((const char *)t->bytes, "UB16") == 0) tot += 2;
-			else if (strcmp((const char *)t->bytes, "UL32") == 0) tot += 4;
-			else if (strcmp((const char *)t->bytes, "UB32") == 0) tot += 4;
-			else if (strcmp((const char *)t->bytes, "SL16") == 0) tot += 2;
-			else if (strcmp((const char *)t->bytes, "SB16") == 0) tot += 2;
-			else if (strcmp((const char *)t->bytes, "SL32") == 0) tot += 4;
-			else if (strcmp((const char *)t->bytes, "SB32") == 0) tot += 4;
-			else if (strcmp((const char *)t->bytes, "FL32") == 0) tot += 4;
-			else if (strcmp((const char *)t->bytes, "FB32") == 0) tot += 4;
-			else if (strcmp((const char *)t->bytes, "FL64") == 0) tot += 8;
-			else if (strcmp((const char *)t->bytes, "FB64") == 0) tot += 8;
-			else
-				return SINK_NIL;
-		}
-		else
-			return SINK_NIL;
 	}
 	return tot <= 0 ? SINK_NIL : sink_num(tot);
 }
@@ -10323,88 +10356,86 @@ static inline sink_val opi_struct_str(context ctx, sink_val a, sink_val b){
 	for (int ar = 0; ar < arsize; ar++){
 		for (int i = 0; i < type->size; i++){
 			sink_val d = data->vals[i + ar * type->size];
-			sink_str t = var_caststr(ctx, type->vals[i]);
-			if (t->size == 2){
-				// U8 or S8
-				uint8_t v = d.f;
-				bytes[pos++] = v;
-			}
-			else if (t->size == 3){
-				if (strcmp((const char *)t->bytes, "U16") == 0 ||
-					strcmp((const char *)t->bytes, "S16") == 0){
+			struct_enum bi = type->vals[i].f;
+			switch (bi){
+				case STRUCT_U8:
+				case STRUCT_S8: {
+					uint8_t v = d.f;
+					bytes[pos++] = v;
+				} break;
+				case STRUCT_U16:
+				case STRUCT_S16: {
 					uint16_t v = d.f;
 					uint8_t *vp = (uint8_t *)&v;
 					bytes[pos++] = vp[0]; bytes[pos++] = vp[1];
-				}
-				else if (strcmp((const char *)t->bytes, "U32") == 0 ||
-					strcmp((const char *)t->bytes, "S32") == 0){
+				} break;
+				case STRUCT_U32:
+				case STRUCT_S32: {
 					uint32_t v = d.f;
 					uint8_t *vp = (uint8_t *)&v;
 					bytes[pos++] = vp[0]; bytes[pos++] = vp[1];
 					bytes[pos++] = vp[2]; bytes[pos++] = vp[3];
-				}
-				else if (strcmp((const char *)t->bytes, "F32") == 0){
+				} break;
+				case STRUCT_F32: {
 					float v = d.f;
 					uint8_t *vp = (uint8_t *)&v;
 					bytes[pos++] = vp[0]; bytes[pos++] = vp[1];
 					bytes[pos++] = vp[2]; bytes[pos++] = vp[3];
-				}
-				else{ // F64
+				} break;
+				case STRUCT_F64: {
 					double v = d.f;
 					uint8_t *vp = (uint8_t *)&v;
 					bytes[pos++] = vp[0]; bytes[pos++] = vp[1];
 					bytes[pos++] = vp[2]; bytes[pos++] = vp[3];
 					bytes[pos++] = vp[4]; bytes[pos++] = vp[5];
 					bytes[pos++] = vp[6]; bytes[pos++] = vp[7];
-				}
-			}
-			else{ // t->size == 4
-				if (strcmp((const char *)t->bytes, "UL16") == 0 ||
-					strcmp((const char *)t->bytes, "SL16") == 0){
+				} break;
+				case STRUCT_UL16:
+				case STRUCT_SL16: {
 					uint16_t v = d.f;
 					bytes[pos++] = (v      ) & 0xFF; bytes[pos++] = (v >>  8) & 0xFF;
-				}
-				else if (strcmp((const char *)t->bytes, "UB16") == 0 ||
-					strcmp((const char *)t->bytes, "SB16") == 0){
+				} break;
+				case STRUCT_UB16:
+				case STRUCT_SB16: {
 					uint16_t v = d.f;
 					bytes[pos++] = (v >>  8) & 0xFF; bytes[pos++] = (v      ) & 0xFF;
-				}
-				else if (strcmp((const char *)t->bytes, "UL32") == 0 ||
-					strcmp((const char *)t->bytes, "SL32") == 0){
+				} break;
+				case STRUCT_UL32:
+				case STRUCT_SL32: {
 					uint32_t v = d.f;
 					bytes[pos++] = (v      ) & 0xFF; bytes[pos++] = (v >>  8) & 0xFF;
 					bytes[pos++] = (v >> 16) & 0xFF; bytes[pos++] = (v >> 24) & 0xFF;
-				}
-				else if (strcmp((const char *)t->bytes, "UB32") == 0 ||
-					strcmp((const char *)t->bytes, "SB32") == 0){
+				} break;
+				case STRUCT_UB32:
+				case STRUCT_SB32: {
 					uint32_t v = d.f;
 					bytes[pos++] = (v >> 24) & 0xFF; bytes[pos++] = (v >> 16) & 0xFF;
 					bytes[pos++] = (v >>  8) & 0xFF; bytes[pos++] = (v      ) & 0xFF;
-				}
-				else if (strcmp((const char *)t->bytes, "FL32") == 0){
+				} break;
+				case STRUCT_FL32: {
 					union { float f; uint32_t u; } v = { .f = d.f };
 					bytes[pos++] = (v.u      ) & 0xFF; bytes[pos++] = (v.u >>  8) & 0xFF;
 					bytes[pos++] = (v.u >> 16) & 0xFF; bytes[pos++] = (v.u >> 24) & 0xFF;
-				}
-				else if (strcmp((const char *)t->bytes, "FB32") == 0){
+				} break;
+				case STRUCT_FB32: {
 					union { float f; uint32_t u; } v = { .f = d.f };
 					bytes[pos++] = (v.u >> 24) & 0xFF; bytes[pos++] = (v.u >> 16) & 0xFF;
 					bytes[pos++] = (v.u >>  8) & 0xFF; bytes[pos++] = (v.u      ) & 0xFF;
-				}
-				else if (strcmp((const char *)t->bytes, "FL64") == 0){
+				} break;
+				case STRUCT_FL64: {
 					union { double f; uint64_t u; } v = { .f = d.f };
 					bytes[pos++] = (v.u      ) & 0xFF; bytes[pos++] = (v.u >>  8) & 0xFF;
 					bytes[pos++] = (v.u >> 16) & 0xFF; bytes[pos++] = (v.u >> 24) & 0xFF;
 					bytes[pos++] = (v.u >> 32) & 0xFF; bytes[pos++] = (v.u >> 40) & 0xFF;
 					bytes[pos++] = (v.u >> 48) & 0xFF; bytes[pos++] = (v.u >> 56) & 0xFF;
-				}
-				else{ // FB64
+				} break;
+				case STRUCT_FB64: {
 					union { double f; uint64_t u; } v = { .f = d.f };
 					bytes[pos++] = (v.u >> 56) & 0xFF; bytes[pos++] = (v.u >> 48) & 0xFF;
 					bytes[pos++] = (v.u >> 40) & 0xFF; bytes[pos++] = (v.u >> 32) & 0xFF;
 					bytes[pos++] = (v.u >> 24) & 0xFF; bytes[pos++] = (v.u >> 16) & 0xFF;
 					bytes[pos++] = (v.u >>  8) & 0xFF; bytes[pos++] = (v.u      ) & 0xFF;
-				}
+				} break;
 			}
 		}
 	}
@@ -10436,103 +10467,101 @@ static inline sink_val opi_struct_list(context ctx, sink_val a, sink_val b){
 	int pos = 0;
 	while (pos < s->size){
 		for (int i = 0; i < type->size; i++){
-			sink_str t = var_caststr(ctx, type->vals[i]);
-			if (t->size == 2){
-				if (strcmp((const char *)t->bytes, "U8") == 0)
+			struct_enum bi = type->vals[i].f;
+			switch (bi){
+				case STRUCT_U8:
 					sink_list_push(ctx, res, sink_num(s->bytes[pos++]));
-				else // S8
+					break;
+				case STRUCT_S8:
 					sink_list_push(ctx, res, sink_num((int8_t)s->bytes[pos++]));
-			}
-			else if (t->size == 3){
-				if (strcmp((const char *)t->bytes, "U16") == 0){
+					break;
+				case STRUCT_U16: {
 					uint16_t *v = (uint16_t *)&s->bytes[pos];
 					sink_list_push(ctx, res, sink_num(*v));
 					pos += 2;
-				}
-				else if (strcmp((const char *)t->bytes, "U32") == 0){
+				} break;
+				case STRUCT_U32: {
 					uint32_t *v = (uint32_t *)&s->bytes[pos];
 					sink_list_push(ctx, res, sink_num(*v));
 					pos += 4;
-				}
-				else if (strcmp((const char *)t->bytes, "S16") == 0){
+				} break;
+				case STRUCT_S16: {
 					int16_t *v = (int16_t *)&s->bytes[pos];
 					sink_list_push(ctx, res, sink_num(*v));
 					pos += 2;
-				}
-				else if (strcmp((const char *)t->bytes, "S32") == 0){
+				} break;
+				case STRUCT_S32: {
 					int32_t *v = (int32_t *)&s->bytes[pos];
 					sink_list_push(ctx, res, sink_num(*v));
 					pos += 4;
-				}
-				else if (strcmp((const char *)t->bytes, "F32") == 0){
+				} break;
+				case STRUCT_F32: {
 					float *v = (float *)&s->bytes[pos];
 					sink_list_push(ctx, res, sink_num(*v));
 					pos += 4;
-				}
-				else{ // F64
+				} break;
+				case STRUCT_F64: {
 					double *v = (double *)&s->bytes[pos];
 					sink_list_push(ctx, res, sink_num(*v));
 					pos += 8;
-				}
-			}
-			else{ // t->size == 4
-				if (strcmp((const char *)t->bytes, "UL16") == 0){
+				} break;
+				case STRUCT_UL16: {
 					uint16_t v = 0;
 					v |= s->bytes[pos++];
 					v |= ((uint16_t)s->bytes[pos++]) << 8;
 					sink_list_push(ctx, res, sink_num(v));
-				}
-				else if (strcmp((const char *)t->bytes, "UB16") == 0){
+				} break;
+				case STRUCT_UB16: {
 					uint16_t v = 0;
 					v |= ((uint16_t)s->bytes[pos++]) << 8;
 					v |= s->bytes[pos++];
 					sink_list_push(ctx, res, sink_num(v));
-				}
-				else if (strcmp((const char *)t->bytes, "UL32") == 0){
+				} break;
+				case STRUCT_UL32: {
 					uint32_t v = 0;
 					v |= s->bytes[pos++];
 					v |= ((uint32_t)s->bytes[pos++]) <<  8;
 					v |= ((uint32_t)s->bytes[pos++]) << 16;
 					v |= ((uint32_t)s->bytes[pos++]) << 24;
 					sink_list_push(ctx, res, sink_num(v));
-				}
-				else if (strcmp((const char *)t->bytes, "UB32") == 0){
+				} break;
+				case STRUCT_UB32: {
 					uint32_t v = 0;
 					v |= ((uint32_t)s->bytes[pos++]) << 24;
 					v |= ((uint32_t)s->bytes[pos++]) << 16;
 					v |= ((uint32_t)s->bytes[pos++]) <<  8;
 					v |= s->bytes[pos++];
 					sink_list_push(ctx, res, sink_num(v));
-				}
-				else if (strcmp((const char *)t->bytes, "SL16") == 0){
+				} break;
+				case STRUCT_SL16: {
 					uint16_t v = 0;
 					v |= s->bytes[pos++];
 					v |= ((uint16_t)s->bytes[pos++]) << 8;
 					sink_list_push(ctx, res, sink_num((int16_t)v));
-				}
-				else if (strcmp((const char *)t->bytes, "SB16") == 0){
+				} break;
+				case STRUCT_SB16: {
 					uint16_t v = 0;
 					v |= ((uint16_t)s->bytes[pos++]) << 8;
 					v |= s->bytes[pos++];
 					sink_list_push(ctx, res, sink_num((int16_t)v));
-				}
-				else if (strcmp((const char *)t->bytes, "SL32") == 0){
+				} break;
+				case STRUCT_SL32: {
 					uint32_t v = 0;
 					v |= s->bytes[pos++];
 					v |= ((uint32_t)s->bytes[pos++]) <<  8;
 					v |= ((uint32_t)s->bytes[pos++]) << 16;
 					v |= ((uint32_t)s->bytes[pos++]) << 24;
 					sink_list_push(ctx, res, sink_num((int32_t)v));
-				}
-				else if (strcmp((const char *)t->bytes, "SB32") == 0){
+				} break;
+				case STRUCT_SB32: {
 					uint32_t v = 0;
 					v |= ((uint32_t)s->bytes[pos++]) << 24;
 					v |= ((uint32_t)s->bytes[pos++]) << 16;
 					v |= ((uint32_t)s->bytes[pos++]) <<  8;
 					v |= s->bytes[pos++];
 					sink_list_push(ctx, res, sink_num((int32_t)v));
-				}
-				else if (strcmp((const char *)t->bytes, "FL32") == 0){
+				} break;
+				case STRUCT_FL32: {
 					union { float f; uint32_t u; } v = { .u = 0 };
 					v.u |= s->bytes[pos++];
 					v.u |= ((uint32_t)s->bytes[pos++]) <<  8;
@@ -10542,8 +10571,8 @@ static inline sink_val opi_struct_list(context ctx, sink_val a, sink_val b){
 						sink_list_push(ctx, res, sink_num_nan());
 					else
 						sink_list_push(ctx, res, sink_num(v.f));
-				}
-				else if (strcmp((const char *)t->bytes, "FB32") == 0){
+				} break;
+				case STRUCT_FB32: {
 					union { float f; uint32_t u; } v = { .u = 0 };
 					v.u |= ((uint32_t)s->bytes[pos++]) << 24;
 					v.u |= ((uint32_t)s->bytes[pos++]) << 16;
@@ -10553,8 +10582,8 @@ static inline sink_val opi_struct_list(context ctx, sink_val a, sink_val b){
 						sink_list_push(ctx, res, sink_num_nan());
 					else
 						sink_list_push(ctx, res, sink_num(v.f));
-				}
-				else if (strcmp((const char *)t->bytes, "FL64") == 0){
+				} break;
+				case STRUCT_FL64: {
 					union { double f; uint64_t u; } v = { .u = 0 };
 					v.u |= s->bytes[pos++];
 					v.u |= ((uint64_t)s->bytes[pos++]) <<  8;
@@ -10568,8 +10597,8 @@ static inline sink_val opi_struct_list(context ctx, sink_val a, sink_val b){
 						sink_list_push(ctx, res, sink_num_nan());
 					else
 						sink_list_push(ctx, res, sink_num(v.f));
-				}
-				else{ // FB64
+				} break;
+				case STRUCT_FB64: {
 					union { double f; uint64_t u; } v = { .u = 0 };
 					v.u |= ((uint64_t)s->bytes[pos++]) << 56;
 					v.u |= ((uint64_t)s->bytes[pos++]) << 48;
@@ -10583,7 +10612,7 @@ static inline sink_val opi_struct_list(context ctx, sink_val a, sink_val b){
 						sink_list_push(ctx, res, sink_num_nan());
 					else
 						sink_list_push(ctx, res, sink_num(v.f));
-				}
+				} break;
 			}
 		}
 	}
