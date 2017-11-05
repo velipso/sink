@@ -450,7 +450,7 @@ namespace, and describe the type of data:
 | `struct.FB64` |    8 | N/A      | Big    | `double`   |
 
 ```
-struct.str {0x41, 0x42}, {'U8', 'U8'}            # => 'AB'
+struct.str {0x41, 0x42}, {struct.U8, struct.U8}  # => 'AB'
 struct.list 'AAAB', {struct.UL32}                # => { 0x42414141 }
 struct.list 'AAAB', {struct.UB32}                # => { 0x41414142 }
 struct.size {struct.F32, struct.U8, struct.S16}  # => 7 (bytes)
