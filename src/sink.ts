@@ -1868,15 +1868,15 @@ function lex_process(lx: lex_st, tks: tok_st[]): void {
 			break;
 	}
 }
-/*
-static inline void lex_add(lex lx, filepos_st flp, char ch, list_ptr tks){
+
+function lex_add(lx: lex_st, flp: filepos_st, ch: string, tks: tok_st[]): void {
 	lex_fwd(lx, flp, ch);
 	lex_process(lx, tks);
 }
 
-static void lex_close(lex lx, filepos_st flp, list_ptr tks){
-	if (lx.braces.size > 1){
-		list_ptr_push(tks, tok_error(flp, format("Missing end of string")));
+function lex_close(lx: lex_st, flp: filepos_st, tks: tok_st[]): void {
+	if (lx.braces.length > 1){
+		tks.push(tok_error(flp, 'Missing end of string'));
 		return;
 	}
 	switch (lx.state){
@@ -1887,69 +1887,65 @@ static void lex_close(lex lx, filepos_st flp, list_ptr tks){
 			break;
 
 		case lex_enum.COMMENT_BLOCK:
-			list_ptr_push(tks, tok_error(lx.flpS, format("Missing end of block comment")));
+			tks.push(tok_error(lx.flpS, 'Missing end of block comment'));
 			return;
 
 		case lex_enum.SPECIAL1:
-			list_ptr_push(tks, tok_ks(lx.flp1, ks_char(lx.ch1)));
+			tks.push(tok_ks(lx.flp1, ks_char(lx.ch1)));
 			break;
 
 		case lex_enum.SPECIAL2: {
-			ks_enum ks2 = ks_char2(lx.ch2, lx.ch1);
+			let ks2 = ks_char2(lx.ch2, lx.ch1);
 			if (ks2 !== ks_enum.INVALID)
-				list_ptr_push(tks, tok_ks(lx.flp2, ks2));
+				tks.push(tok_ks(lx.flp2, ks2));
 			else{
-				list_ptr_push(tks, tok_ks(lx.flp2, ks_char(lx.ch2)));
-				list_ptr_push(tks, tok_ks(lx.flp1, ks_char(lx.ch1)));
+				tks.push(tok_ks(lx.flp2, ks_char(lx.ch2)));
+				tks.push(tok_ks(lx.flp1, ks_char(lx.ch1)));
 			}
 		} break;
 
 		case lex_enum.IDENT: {
-			ks_enum ksk = ks_str(lx.str);
-			if (ksk !== ks_enum.INVALID){
-				list_ptr_push(tks, tok_ks(lx.flpS, ksk));
-				list_byte_free(lx.str);
-			}
+			let ksk = ks_str(lx.str);
+			if (ksk !== ks_enum.INVALID)
+				tks.push(tok_ks(lx.flpS, ksk));
 			else
-				list_ptr_push(tks, tok_ident(lx.flpS, lx.str));
-			lx.str = NULL;
+				tks.push(tok_ident(lx.flpS, lx.str));
 		} break;
 
 		case lex_enum.NUM_0:
-			list_ptr_push(tks, tok_num(lx.flpS, 0));
+			tks.push(tok_num(lx.flpS, 0));
 			break;
 
 		case lex_enum.NUM_2:
-			list_ptr_push(tks, tok_error(lx.flpS, format("Invalid number")));
+			tks.push(tok_error(lx.flpS, 'Invalid number'));
 			break;
 
 		case lex_enum.NUM_BODY:
-			list_ptr_push(tks, tok_num(lx.flpS, numpart_calc(lx.npi)));
+			tks.push(tok_num(lx.flpS, numpart_calc(lx.npi)));
 			break;
 
 		case lex_enum.NUM_FRAC:
 			if (lx.npi.flen <= 0)
-				list_ptr_push(tks, tok_error(lx.flpS, format("Invalid number")));
+				tks.push(tok_error(lx.flpS, 'Invalid number'));
 			else
-				list_ptr_push(tks, tok_num(lx.flpS, numpart_calc(lx.npi)));
+				tks.push(tok_num(lx.flpS, numpart_calc(lx.npi)));
 			break;
 
 		case lex_enum.NUM_EXP:
-			list_ptr_push(tks, tok_error(lx.flpS, format("Invalid number")));
+			tks.push(tok_error(lx.flpS, 'Invalid number'));
 			break;
 
 		case lex_enum.NUM_EXP_BODY:
 			if (!lx.numexp)
-				list_ptr_push(tks, tok_error(lx.flpS, format("Invalid number")));
+				tks.push(tok_error(lx.flpS, 'Invalid number'));
 			else
-				list_ptr_push(tks, tok_num(lx.flpS, numpart_calc(lx.npi)));
+				tks.push(tok_num(lx.flpS, numpart_calc(lx.npi)));
 			break;
 
 		case lex_enum.STR_BASIC_ESC:
-			list_ptr_push(tks, tok_ks(lx.flpS, ks_enum.LPAREN));
-			list_ptr_push(tks, tok_str(lx.flpS, lx.str));
-			list_ptr_push(tks, tok_ks(flp, ks_enum.RPAREN));
-			lx.str = NULL;
+			tks.push(tok_ks(lx.flpS, ks_enum.LPAREN));
+			tks.push(tok_str(lx.flpS, lx.str));
+			tks.push(tok_ks(flp, ks_enum.RPAREN));
 			break;
 
 		case lex_enum.STR_BASIC:
@@ -1958,460 +1954,251 @@ static void lex_close(lex lx, filepos_st flp, list_ptr tks){
 		case lex_enum.STR_INTERP_DLR_ID:
 		case lex_enum.STR_INTERP_ESC:
 		case lex_enum.STR_INTERP_ESC_HEX:
-			list_ptr_push(tks, tok_error(lx.flpS, format("Missing end of string")));
+			tks.push(tok_error(lx.flpS, 'Missing end of string'));
 			break;
 	}
-	list_ptr_push(tks, tok_newline(flp, false));
+	tks.push(tok_newline(flp, false));
 }
 
 //
 // expr
 //
 
-typedef enum {
-	EXPR_NIL,
-	EXPR_NUM,
-	EXPR_STR,
-	EXPR_LIST,
-	EXPR_NAMES,
-	EXPR_PAREN,
-	EXPR_GROUP,
-	EXPR_CAT,
-	EXPR_PREFIX,
-	EXPR_INFIX,
-	EXPR_CALL,
-	EXPR_INDEX,
-	EXPR_SLICE
-} expr_enum;
-
-typedef struct expr_struct expr_st, *expr;
-struct expr_struct {
-	expr_enum type;
-	filepos_st flp;
-	union {
-		double num;
-		list_byte str;
-		expr ex;
-		list_ptr names;
-		varloc_st vlc;
-		list_ptr group;
-		list_ptr cat;
-		struct {
-			expr ex;
-			ks_enum k;
-		} prefix;
-		struct {
-			expr left;
-			expr right;
-			ks_enum k;
-		} infix;
-		struct {
-			expr cmd;
-			expr params;
-		} call;
-		struct {
-			expr obj;
-			expr key;
-		} index;
-		struct {
-			expr obj;
-			expr start;
-			expr len;
-		} slice;
-	} u;
+enum expr_enum {
+	NIL,
+	NUM,
+	STR,
+	LIST,
+	NAMES,
+	PAREN,
+	GROUP,
+	CAT,
+	PREFIX,
+	INFIX,
+	CALL,
+	INDEX,
+	SLICE
 };
 
-static void expr_free(expr ex){
-	switch (ex.type){
-		case EXPR_NIL:
-		case EXPR_NUM:
-			break;
+interface expr_st_NIL {
+	type: expr_enum.NIL;
+	flp: filepos_st;
+}
+interface expr_st_NUM {
+	type: expr_enum.NUM;
+	flp: filepos_st;
+	num: number;
+}
+interface expr_st_STR {
+	type: expr_enum.STR;
+	flp: filepos_st;
+	str: string;
+}
+interface expr_st_LIST {
+	type: expr_enum.LIST;
+	flp: filepos_st;
+	ex: expr_st | null;
+}
+interface expr_st_NAMES {
+	type: expr_enum.NAMES;
+	flp: filepos_st;
+	names: string[];
+}
+interface expr_st_PAREN {
+	type: expr_enum.PAREN;
+	flp: filepos_st;
+	ex: expr_st;
+}
+interface expr_st_GROUP {
+	type: expr_enum.GROUP;
+	flp: filepos_st;
+	group: expr_st[];
+}
+interface expr_st_CAT {
+	type: expr_enum.CAT;
+	flp: filepos_st;
+	cat: expr_st[];
+}
+interface expr_st_PREFIX {
+	type: expr_enum.PREFIX;
+	flp: filepos_st;
+	ex: expr_st;
+	k: ks_enum;
+}
+interface expr_st_INFIX {
+	type: expr_enum.INFIX;
+	flp: filepos_st;
+	left: expr_st;
+	right: expr_st;
+	k: ks_enum;
+}
+interface expr_st_CALL {
+	type: expr_enum.CALL;
+	flp: filepos_st;
+	cmd: expr_st;
+	params: expr_st;
+}
+interface expr_st_INDEX {
+	type: expr_enum.INDEX;
+	flp: filepos_st;
+	obj: expr_st;
+	key: expr_st;
+}
+interface expr_st_SLICE {
+	type: expr_enum.SLICE;
+	flp: filepos_st;
+	obj: expr_st;
+	start: expr_st;
+	len: expr_st;
+}
+type expr_st = expr_st_NIL | expr_st_NUM | expr_st_STR | expr_st_LIST | expr_st_NAMES |
+	expr_st_PAREN | expr_st_GROUP | expr_st_CAT | expr_st_PREFIX | expr_st_INFIX | expr_st_CALL |
+	expr_st_INDEX | expr_st_SLICE;
 
-		case EXPR_STR:
-			if (ex.u.str)
-				list_byte_free(ex.u.str);
-			break;
-
-		case EXPR_LIST:
-			if (ex.u.ex)
-				expr_free(ex.u.ex);
-			break;
-
-		case EXPR_NAMES:
-			if (ex.u.names)
-				list_ptr_free(ex.u.names);
-			break;
-
-		case EXPR_PAREN:
-			if (ex.u.ex)
-				expr_free(ex.u.ex);
-			break;
-
-		case EXPR_GROUP:
-			if (ex.u.group)
-				list_ptr_free(ex.u.group);
-			break;
-
-		case EXPR_CAT:
-			if (ex.u.cat)
-				list_ptr_free(ex.u.cat);
-			break;
-
-		case EXPR_PREFIX:
-			if (ex.u.prefix.ex)
-				expr_free(ex.u.prefix.ex);
-			break;
-
-		case EXPR_INFIX:
-			if (ex.u.infix.left)
-				expr_free(ex.u.infix.left);
-			if (ex.u.infix.right)
-				expr_free(ex.u.infix.right);
-			break;
-
-		case EXPR_CALL:
-			if (ex.u.call.cmd)
-				expr_free(ex.u.call.cmd);
-			if (ex.u.call.params)
-				expr_free(ex.u.call.params);
-			break;
-
-		case EXPR_INDEX:
-			if (ex.u.index.obj)
-				expr_free(ex.u.index.obj);
-			if (ex.u.index.key)
-				expr_free(ex.u.index.key);
-			break;
-
-		case EXPR_SLICE:
-			if (ex.u.slice.obj)
-				expr_free(ex.u.slice.obj);
-			if (ex.u.slice.start)
-				expr_free(ex.u.slice.start);
-			if (ex.u.slice.len)
-				expr_free(ex.u.slice.len);
-			break;
-	}
-	mem_free(ex);
+function expr_nil(flp: filepos_st): expr_st {
+	return {
+		flp: flp,
+		type: expr_enum.NIL
+	};
 }
 
-#ifdef SINK_DEBUG
-static void expr_print(expr ex, int depth){
-	char *tab = mem_alloc(sizeof(char) * (depth * 2 + 1));
-	for (int i = 0; i < depth * 2; i++)
-		tab[i] = ' ';
-	tab[depth * 2] = 0;
-	switch (ex.type){
-		case EXPR_NIL:
-			debugf("%sEXPR_NIL %d:%d", tab, ex.flp.line, ex.flp.chr);
-			break;
-
-		case EXPR_NUM:
-			debugf("%sEXPR_NUM %d:%d %g", tab, ex.flp.line, ex.flp.chr, ex.u.num);
-			break;
-
-		case EXPR_STR:
-			if (ex.u.str){
-				debugf("%sEXPR_STR %d:%d \"%.*s\"", tab, ex.flp.line, ex.flp.chr,
-					ex.u.str.size, ex.u.str.bytes);
-			}
-			else
-				debugf("%sEXPR_STR %d:%d NULL", tab, ex.flp.line, ex.flp.chr);
-			break;
-
-		case EXPR_LIST:
-			if (ex.u.ex){
-				debugf("%sEXPR_LIST:", tab);
-				expr_print(ex.u.ex, depth + 1);
-			}
-			else
-				debugf("%sEXPR_LIST NULL", tab);
-			break;
-
-		case EXPR_NAMES:
-			if (ex.u.names){
-				debugf("%sEXPR_NAMES: %d:%d", tab, ex.flp.line, ex.flp.chr);
-				for (int i = 0; i < ex.u.names.size; i++){
-					list_byte b = ex.u.names.ptrs[i];
-					debugf("%s  \"%.*s\"", tab, b.size, b.bytes);
-				}
-			}
-			else
-				debugf("%sEXPR_NAMES NULL", tab);
-			break;
-
-		case EXPR_PAREN:
-			if (ex.u.ex){
-				debugf("%sEXPR_PAREN:", tab);
-				expr_print(ex.u.ex, depth + 1);
-			}
-			else
-				debugf("%sEXPR_PAREN NULL", tab);
-			break;
-
-		case EXPR_GROUP:
-			if (ex.u.group){
-				debugf("%sEXPR_GROUP:", tab);
-				for (int i = 0; i < ex.u.group.size; i++)
-					expr_print(ex.u.group.ptrs[i], depth + 1);
-			}
-			else
-				debugf("%sEXPR_GROUP NULL", tab);
-			break;
-
-		case EXPR_CAT:
-			if (ex.u.cat){
-				debugf("%sEXPR_CAT:", tab);
-				for (int i = 0; i < ex.u.cat.size; i++)
-					expr_print(ex.u.cat.ptrs[i], depth + 1);
-			}
-			else
-				debugf("%sEXPR_CAT NULL", tab);
-			break;
-
-		case EXPR_PREFIX:
-			if (ex.u.prefix.ex){
-				debugf("%sEXPR_PREFIX %s:", tab, ks_name(ex.u.prefix.k));
-				expr_print(ex.u.prefix.ex, depth + 1);
-			}
-			else
-				debugf("%sEXPR_PREFIX %s NULL", tab, ks_name(ex.u.prefix.k));
-			break;
-
-		case EXPR_INFIX:
-			debugf("%sEXPR_INFIX: %d:%d", tab, ex.flp.line, ex.flp.chr);
-			if (ex.u.infix.left)
-				expr_print(ex.u.infix.left, depth + 1);
-			else
-				debugf("%s  NULL", tab);
-			debugf("%s.%s", tab, ks_name(ex.u.infix.k));
-			if (ex.u.infix.right)
-				expr_print(ex.u.infix.right, depth + 1);
-			else
-				debugf("%s  NULL", tab);
-			break;
-
-		case EXPR_CALL:
-			debugf("%sEXPR_CALL:", tab);
-			if (ex.u.call.cmd)
-				expr_print(ex.u.call.cmd, depth + 1);
-			else
-				debugf("%s  NULL", tab);
-			debugf("%s.", tab);
-			if (ex.u.call.params)
-				expr_print(ex.u.call.params, depth + 1);
-			else
-				debugf("%s  NULL", tab);
-			break;
-
-		case EXPR_INDEX:
-			debugf("%sEXPR_INDEX:", tab);
-			if (ex.u.index.obj)
-				expr_print(ex.u.index.obj, depth + 1);
-			else
-				debugf("%s  NULL", tab);
-			debugf("%s.", tab);
-			if (ex.u.index.key)
-				expr_print(ex.u.index.key, depth + 1);
-			else
-				debugf("%s  NULL", tab);
-			break;
-
-		case EXPR_SLICE:
-			debugf("%sEXPR_SLICE:", tab);
-			if (ex.u.slice.obj)
-				expr_print(ex.u.slice.obj, depth + 1);
-			else
-				debugf("%s  NULL", tab);
-			debugf("%s.", tab);
-			if (ex.u.slice.start)
-				expr_print(ex.u.slice.start, depth + 1);
-			else
-				debugf("%s  NULL", tab);
-			debugf("%s.", tab);
-			if (ex.u.slice.len)
-				expr_print(ex.u.slice.len, depth + 1);
-			else
-				debugf("%s  NULL", tab);
-			break;
-	}
-	mem_free(tab);
-}
-#endif
-
-static inline expr expr_nil(filepos_st flp){
-	expr ex = mem_alloc(sizeof(expr_st));
-	ex.flp = flp;
-	ex.type = EXPR_NIL;
-	return ex;
+function expr_num(flp: filepos_st, num: number): expr_st {
+	return {
+		flp: flp,
+		type: expr_enum.NUM,
+		num: num
+	};
 }
 
-static inline expr expr_num(filepos_st flp, double num){
-	expr ex = mem_alloc(sizeof(expr_st));
-	ex.flp = flp;
-	ex.type = EXPR_NUM;
-	ex.u.num = num;
-	return ex;
+function expr_str(flp: filepos_st, str: string): expr_st {
+	return {
+		flp: flp,
+		type: expr_enum.STR,
+		str: str
+	};
 }
 
-static inline expr expr_str(filepos_st flp, list_byte str){
-	expr ex = mem_alloc(sizeof(expr_st));
-	ex.flp = flp;
-	ex.type = EXPR_STR;
-	ex.u.str = str;
-	return ex;
+function expr_list(flp: filepos_st, ex: expr_st): expr_st {
+	return {
+		flp: flp,
+		type: expr_enum.LIST,
+		ex: ex
+	};
 }
 
-static inline expr expr_list(filepos_st flp, expr ex){
-	expr ex2 = mem_alloc(sizeof(expr_st));
-	ex2.flp = flp;
-	ex2.type = EXPR_LIST;
-	ex2.u.ex = ex;
-	return ex2;
+function expr_names(flp: filepos_st, names: string[]): expr_st {
+	return {
+		flp: flp,
+		type: expr_enum.NAMES,
+		names: names
+	};
 }
 
-static inline expr expr_names(filepos_st flp, list_ptr names){
-	expr ex = mem_alloc(sizeof(expr_st));
-	ex.flp = flp;
-	ex.type = EXPR_NAMES;
-	ex.u.names = names;
-	return ex;
-}
-
-static inline expr expr_paren(filepos_st flp, expr ex){
-	if (ex.type === EXPR_NUM)
+function expr_paren(flp: filepos_st, ex: expr_st): expr_st {
+	if (ex.type === expr_enum.NUM)
 		return ex;
-	expr ex2 = mem_alloc(sizeof(expr_st));
-	ex2.flp = flp;
-	ex2.type = EXPR_PAREN;
-	ex2.u.ex = ex;
-	return ex2;
+	return {
+		flp: flp,
+		type: expr_enum.PAREN,
+		ex: ex
+	};
 }
 
-static inline expr expr_group(filepos_st flp, expr left, expr right){
-	list_ptr g = list_ptr_new(expr_free);
-	if (left.type === EXPR_GROUP){
-		list_ptr_append(g, left.u.group);
-		left.u.group.size = 0;
-		expr_free(left);
-	}
+function expr_group(flp: filepos_st, left: expr_st, right: expr_st): expr_st {
+	let g: expr_st[] = [];
+	if (left.type === expr_enum.GROUP)
+		g = g.concat(left.group);
 	else
-		list_ptr_push(g, left);
-	if (right.type === EXPR_GROUP){
-		list_ptr_append(g, right.u.group);
-		right.u.group.size = 0;
-		expr_free(right);
-	}
+		g.push(left);
+	if (right.type === expr_enum.GROUP)
+		g = g.concat(right.group);
 	else
-		list_ptr_push(g, right);
-	expr ex = mem_alloc(sizeof(expr_st));
-	ex.flp = flp;
-	ex.type = EXPR_GROUP;
-	ex.u.group = g;
-	return ex;
+		g.push(right);
+	return {
+		flp: flp,
+		type: expr_enum.GROUP,
+		group: g
+	};
 }
 
-static inline expr expr_cat(filepos_st flp, expr left, expr right){
+function expr_cat(flp: filepos_st, left: expr_st, right: expr_st): expr_st {
 	// unwrap any parens
-	while (left.type === EXPR_PAREN){
-		expr lf = left.u.ex;
-		left.u.ex = NULL;
-		expr_free(left);
-		left = lf;
-	}
-	while (right.type === EXPR_PAREN){
-		expr rt = right.u.ex;
-		right.u.ex = NULL;
-		expr_free(right);
-		right = rt;
-	}
+	while (left.type === expr_enum.PAREN)
+		left = left.ex;
+	while (right.type === expr_enum.PAREN)
+		right = right.ex;
 
 	// check for static concat
-	if (left.type === EXPR_STR && right.type === EXPR_STR){
-		list_byte_append(left.u.str, right.u.str.size, right.u.str.bytes);
-		expr_free(right);
+	if (left.type === expr_enum.STR && right.type === expr_enum.STR){
+		left.str += right.str;
 		return left;
 	}
-	else if (left.type === EXPR_LIST && right.type === EXPR_LIST){
-		if (right.u.ex){
-			if (left.u.ex)
-				left.u.ex = expr_group(flp, left.u.ex, right.u.ex);
+	else if (left.type === expr_enum.LIST && right.type === expr_enum.LIST){
+		if (right.ex){
+			if (left.ex)
+				left.ex = expr_group(flp, left.ex, right.ex);
 			else
-				left.u.ex = right.u.ex;
-			right.u.ex = NULL;
+				left.ex = right.ex;
 		}
-		expr_free(right);
 		return left;
 	}
 
-	list_ptr c = list_ptr_new(expr_free);
-	if (left.type === EXPR_CAT){
-		list_ptr_append(c, left.u.cat);
-		left.u.cat.size = 0;
-		expr_free(left);
-	}
+	let c: expr_st[] = [];
+	if (left.type === expr_enum.CAT)
+		c = c.concat(left.cat);
 	else
-		list_ptr_push(c, left);
-	if (right.type === EXPR_CAT){
-		list_ptr_append(c, right.u.cat);
-		right.u.cat.size = 0;
-		expr_free(right);
-	}
+		c.push(left);
+	if (right.type === expr_enum.CAT)
+		c = c.concat(right.cat);
 	else
-		list_ptr_push(c, right);
-	expr ex = mem_alloc(sizeof(expr_st));
-	ex.flp = flp;
-	ex.type = EXPR_CAT;
-	ex.u.cat = c;
-	return ex;
+		c.push(right);
+	return {
+		flp: flp,
+		type: expr_enum.CAT,
+		cat: c
+	};
 }
 
-static inline expr expr_prefix(filepos_st flp, ks_enum k, expr ex){
-	if ((k === ks_enum.MINUS || k === ks_enum.UNMINUS) && ex.type === EXPR_NUM){
-		ex.u.num = -ex.u.num;
+function expr_prefix(flp: filepos_st, k: ks_enum, ex: expr_st): expr_st {
+	if ((k === ks_enum.MINUS || k === ks_enum.UNMINUS) && ex.type === expr_enum.NUM){
+		ex.num = -ex.num;
 		return ex;
 	}
-	else if ((k === ks_enum.PLUS || k === ks_enum.UNPLUS) && ex.type === EXPR_NUM)
+	else if ((k === ks_enum.PLUS || k === ks_enum.UNPLUS) && ex.type === expr_enum.NUM)
 		return ex;
-	expr ex2 = mem_alloc(sizeof(expr_st));
-	ex2.flp = flp;
-	ex2.type = EXPR_PREFIX;
-	ex2.u.prefix.k = k;
-	ex2.u.prefix.ex = ex;
-	return ex2;
+	return {
+		flp: flp,
+		type: expr_enum.PREFIX,
+		k: k,
+		ex: ex
+	};
 }
 
-static inline expr expr_infix(filepos_st flp, ks_enum k, expr left, expr right){
-	if (left.type === EXPR_NUM && right.type === EXPR_NUM){
+function expr_infix(flp: filepos_st, k: ks_enum, left: expr_st, right: expr_st): expr_st {
+	if (left.type === expr_enum.NUM && right.type === expr_enum.NUM){
 		// check for compile-time numeric optimizations
 		if (k === ks_enum.PLUS){
-			left.u.num += right.u.num;
-			expr_free(right);
+			left.num += right.num;
 			return left;
 		}
 		else if (k === ks_enum.MINUS){
-			left.u.num -= right.u.num;
-			expr_free(right);
+			left.num -= right.num;
 			return left;
 		}
 		else if (k === ks_enum.PERCENT){
-			left.u.num = fmod(left.u.num, right.u.num);
-			expr_free(right);
+			left.num = left.num % right.num;
 			return left;
 		}
 		else if (k === ks_enum.STAR){
-			left.u.num *= right.u.num;
-			expr_free(right);
+			left.num *= right.num;
 			return left;
 		}
 		else if (k === ks_enum.SLASH){
-			left.u.num /= right.u.num;
-			expr_free(right);
+			left.num /= right.num;
 			return left;
 		}
 		else if (k === ks_enum.CARET){
-			left.u.num = pow(left.u.num, right.u.num);
-			expr_free(right);
+			left.num = Math.pow(left.num, right.num);
 			return left;
 		}
 	}
@@ -2419,43 +2206,43 @@ static inline expr expr_infix(filepos_st flp, ks_enum k, expr left, expr right){
 		return expr_group(flp, left, right);
 	else if (k === ks_enum.TILDE)
 		return expr_cat(flp, left, right);
-	expr ex = mem_alloc(sizeof(expr_st));
-	ex.flp = flp;
-	ex.type = EXPR_INFIX;
-	ex.u.infix.k = k;
-	ex.u.infix.left = left;
-	ex.u.infix.right = right;
-	return ex;
+	return {
+		flp: flp,
+		type: expr_enum.INFIX,
+		k: k,
+		left: left,
+		right: right
+	};
 }
 
-static inline expr expr_call(filepos_st flp, expr cmd, expr params){
-	expr ex = mem_alloc(sizeof(expr_st));
-	ex.flp = flp;
-	ex.type = EXPR_CALL;
-	ex.u.call.cmd = cmd;
-	ex.u.call.params = params;
-	return ex;
+function expr_call(flp: filepos_st, cmd: expr_st, params: expr_st): expr_st {
+	return {
+		flp: flp,
+		type: expr_enum.CALL,
+		cmd: cmd,
+		params: params
+	};
 }
 
-static inline expr expr_index(filepos_st flp, expr obj, expr key){
-	expr ex = mem_alloc(sizeof(expr_st));
-	ex.flp = flp;
-	ex.type = EXPR_INDEX;
-	ex.u.index.obj = obj;
-	ex.u.index.key = key;
-	return ex;
+function expr_index(flp: filepos_st, obj: expr_st, key: expr_st): expr_st {
+	return {
+		flp: flp,
+		type: expr_enum.INDEX,
+		obj: obj,
+		key: key
+	};
 }
 
-static inline expr expr_slice(filepos_st flp, expr obj, expr start, expr len){
-	expr ex = mem_alloc(sizeof(expr_st));
-	ex.flp = flp;
-	ex.type = EXPR_SLICE;
-	ex.u.slice.obj = obj;
-	ex.u.slice.start = start;
-	ex.u.slice.len = len;
-	return ex;
+function expr_slice(flp: filepos_st, obj: expr_st, start: expr_st, len: expr_st): expr_st {
+	return {
+		flp: flp,
+		type: expr_enum.SLICE,
+		obj: obj,
+		start: start,
+		len: len
+	};
 }
-
+/*
 //
 // ast
 //
@@ -2480,7 +2267,7 @@ static inline void decl_free(decl dc){
 	mem_free(dc);
 }
 
-static inline decl decl_local(filepos_st flp, list_ptr names){
+static inline decl decl_local(flp: filepos_st, list_ptr names){
 	decl dc = mem_alloc(sizeof(decl_st));
 	dc.type = DECL_LOCAL;
 	dc.flp = flp;
@@ -2489,7 +2276,7 @@ static inline decl decl_local(filepos_st flp, list_ptr names){
 	return dc;
 }
 
-static inline decl decl_native(filepos_st flp, list_ptr names, list_byte key){
+static inline decl decl_native(flp: filepos_st, list_ptr names, list_byte key){
 	decl dc = mem_alloc(sizeof(decl_st));
 	dc.type = DECL_NATIVE;
 	dc.flp = flp;
@@ -2826,7 +2613,7 @@ static inline ast ast_continue(filepos_st flp){
 	return stmt;
 }
 
-static inline ast ast_declare(filepos_st flp, decl dc){
+static inline ast ast_declare(flp: filepos_st, decl dc){
 	ast stmt = mem_alloc(sizeof(ast_st));
 	stmt.flp = flp;
 	stmt.type = AST_DECLARE;
@@ -2834,7 +2621,7 @@ static inline ast ast_declare(filepos_st flp, decl dc){
 	return stmt;
 }
 
-static inline ast ast_def1(filepos_st flp, filepos_st flpN, list_ptr names, list_ptr lvalues){
+static inline ast ast_def1(flp: filepos_st, filepos_st flpN, list_ptr names, list_ptr lvalues){
 	ast stmt = mem_alloc(sizeof(ast_st));
 	stmt.flp = flp;
 	stmt.type = AST_DEF1;
@@ -2858,7 +2645,7 @@ static inline ast ast_dowhile1(filepos_st flp){
 	return stmt;
 }
 
-static inline ast ast_dowhile2(filepos_st flp, expr cond){
+static inline ast ast_dowhile2(flp: filepos_st, expr cond){
 	ast stmt = mem_alloc(sizeof(ast_st));
 	stmt.flp = flp;
 	stmt.type = AST_DOWHILE2;
@@ -2873,7 +2660,7 @@ static inline ast ast_dowhile3(filepos_st flp){
 	return stmt;
 }
 
-static inline ast ast_enum(filepos_st flp, list_ptr lvalues){
+static inline ast ast_enum(flp: filepos_st, list_ptr lvalues){
 	ast stmt = mem_alloc(sizeof(ast_st));
 	stmt.flp = flp;
 	stmt.type = AST_ENUM;
@@ -2881,7 +2668,7 @@ static inline ast ast_enum(filepos_st flp, list_ptr lvalues){
 	return stmt;
 }
 
-static inline ast ast_for1(filepos_st flp, bool forVar, list_ptr names1, list_ptr names2, expr ex){
+static inline ast ast_for1(flp: filepos_st, bool forVar, list_ptr names1, list_ptr names2, expr ex){
 	ast stmt = mem_alloc(sizeof(ast_st));
 	stmt.flp = flp;
 	stmt.type = AST_FOR1;
@@ -2913,7 +2700,7 @@ static inline ast ast_loop2(filepos_st flp){
 	return stmt;
 }
 
-static inline ast ast_goto(filepos_st flp, list_byte ident){
+static inline ast ast_goto(flp: filepos_st, list_byte ident){
 	ast stmt = mem_alloc(sizeof(ast_st));
 	stmt.flp = flp;
 	stmt.type = AST_GOTO;
@@ -2928,7 +2715,7 @@ static inline ast ast_if1(filepos_st flp){
 	return stmt;
 }
 
-static inline ast ast_if2(filepos_st flp, expr cond){
+static inline ast ast_if2(flp: filepos_st, expr cond){
 	ast stmt = mem_alloc(sizeof(ast_st));
 	stmt.flp = flp;
 	stmt.type = AST_IF2;
@@ -2973,7 +2760,7 @@ static inline incl incl_new(list_ptr names, list_byte file){
 	return inc;
 }
 
-static inline ast ast_include(filepos_st flp, list_ptr incls){
+static inline ast ast_include(flp: filepos_st, list_ptr incls){
 	assertflp(flp);
 	ast stmt = mem_alloc(sizeof(ast_st));
 	stmt.flp = flp;
@@ -2982,7 +2769,7 @@ static inline ast ast_include(filepos_st flp, list_ptr incls){
 	return stmt;
 }
 
-static inline ast ast_namespace1(filepos_st flp, list_ptr names){
+static inline ast ast_namespace1(flp: filepos_st, list_ptr names){
 	assertflp(flp);
 	ast stmt = mem_alloc(sizeof(ast_st));
 	stmt.flp = flp;
@@ -2999,7 +2786,7 @@ static inline ast ast_namespace2(filepos_st flp){
 	return stmt;
 }
 
-static inline ast ast_return(filepos_st flp, expr ex){
+static inline ast ast_return(flp: filepos_st, expr ex){
 	assertflp(flp);
 	ast stmt = mem_alloc(sizeof(ast_st));
 	stmt.flp = flp;
@@ -3008,7 +2795,7 @@ static inline ast ast_return(filepos_st flp, expr ex){
 	return stmt;
 }
 
-static inline ast ast_using(filepos_st flp, list_ptr names){
+static inline ast ast_using(flp: filepos_st, list_ptr names){
 	assertflp(flp);
 	ast stmt = mem_alloc(sizeof(ast_st));
 	stmt.flp = flp;
@@ -3017,7 +2804,7 @@ static inline ast ast_using(filepos_st flp, list_ptr names){
 	return stmt;
 }
 
-static inline ast ast_var(filepos_st flp, list_ptr lvalues){
+static inline ast ast_var(flp: filepos_st, list_ptr lvalues){
 	assertflp(flp);
 	ast stmt = mem_alloc(sizeof(ast_st));
 	stmt.flp = flp;
@@ -3026,7 +2813,7 @@ static inline ast ast_var(filepos_st flp, list_ptr lvalues){
 	return stmt;
 }
 
-static inline ast ast_eval(filepos_st flp, expr ex){
+static inline ast ast_eval(flp: filepos_st, expr ex){
 	assertflp(flp);
 	ast stmt = mem_alloc(sizeof(ast_st));
 	stmt.flp = flp;
@@ -3035,7 +2822,7 @@ static inline ast ast_eval(filepos_st flp, expr ex){
 	return stmt;
 }
 
-static inline ast ast_label(filepos_st flp, list_byte ident){
+static inline ast ast_label(flp: filepos_st, list_byte ident){
 	assertflp(flp);
 	ast stmt = mem_alloc(sizeof(ast_st));
 	stmt.flp = flp;
@@ -3400,14 +3187,14 @@ static inline pri_st pri_error(char *msg){
 	return (pri_st){ .type = PRI_ERROR, .u.msg = msg };
 }
 
-static inline pri_st parser_infix(filepos_st flp, ks_enum k, expr left, expr right){
+static inline pri_st parser_infix(flp: filepos_st, ks_enum k, expr left, expr right){
 	if (k === ks_enum.PIPE){
-		if (right.type === EXPR_CALL){
+		if (right.type === expr_enum.CALL){
 			right.u.call.params = expr_infix(flp, ks_enum.COMMA, expr_paren(left.flp, left),
 				right.u.call.params);
 			return pri_ok(right);
 		}
-		else if (right.type === EXPR_NAMES)
+		else if (right.type === expr_enum.NAMES)
 			return pri_ok(expr_call(right.flp, right, expr_paren(left.flp, left)));
 		return pri_error("Invalid pipe");
 	}
@@ -5949,7 +5736,7 @@ static inline per_st per_ok(varloc_st vlc){
 	return (per_st){ .type = PER_OK, .u.vlc = vlc };
 }
 
-static inline per_st per_error(filepos_st flp, char *msg){
+static inline per_st per_error(flp: filepos_st, char *msg){
 	return (per_st){ .type = PER_ERROR, .u.error.flp = flp, .u.error.msg = msg };
 }
 
@@ -5984,7 +5771,7 @@ static inline psr_st psr_ok(varloc_st start, varloc_st len){
 	return (psr_st){ .type = PSR_OK, .u.ok.start = start, .u.ok.len = len };
 }
 
-static inline psr_st psr_error(filepos_st flp, char *msg){
+static inline psr_st psr_error(flp: filepos_st, char *msg){
 	return (psr_st){ .type = PSR_ERROR, .u.error.flp = flp, .u.error.msg = msg };
 }
 
@@ -6043,7 +5830,7 @@ static inline void lvr_free(lvr lv){
 	mem_free(lv);
 }
 
-static inline lvr lvr_var(filepos_st flp, varloc_st vlc){
+static inline lvr lvr_var(flp: filepos_st, varloc_st vlc){
 	lvr lv = mem_alloc(sizeof(lvr_st));
 	lv.flp = flp;
 	lv.vlc = vlc;
@@ -6051,7 +5838,7 @@ static inline lvr lvr_var(filepos_st flp, varloc_st vlc){
 	return lv;
 }
 
-static inline lvr lvr_index(filepos_st flp, varloc_st obj, varloc_st key){
+static inline lvr lvr_index(flp: filepos_st, varloc_st obj, varloc_st key){
 	lvr lv = mem_alloc(sizeof(lvr_st));
 	lv.flp = flp;
 	lv.vlc = VARLOC_NULL;
@@ -6061,7 +5848,7 @@ static inline lvr lvr_index(filepos_st flp, varloc_st obj, varloc_st key){
 	return lv;
 }
 
-static inline lvr lvr_slice(filepos_st flp, varloc_st obj, varloc_st start, varloc_st len){
+static inline lvr lvr_slice(flp: filepos_st, varloc_st obj, varloc_st start, varloc_st len){
 	lvr lv = mem_alloc(sizeof(lvr_st));
 	lv.flp = flp;
 	lv.vlc = VARLOC_NULL;
@@ -6072,7 +5859,7 @@ static inline lvr lvr_slice(filepos_st flp, varloc_st obj, varloc_st start, varl
 	return lv;
 }
 
-static inline lvr lvr_sliceindex(filepos_st flp, varloc_st obj, varloc_st key, varloc_st start,
+static inline lvr lvr_sliceindex(flp: filepos_st, varloc_st obj, varloc_st key, varloc_st start,
 	varloc_st len){
 	lvr lv = mem_alloc(sizeof(lvr_st));
 	lv.flp = flp;
@@ -6086,7 +5873,7 @@ static inline lvr lvr_sliceindex(filepos_st flp, varloc_st obj, varloc_st key, v
 	return lv;
 }
 
-static inline lvr lvr_list(filepos_st flp, list_ptr body, lvr rest){
+static inline lvr lvr_list(flp: filepos_st, list_ptr body, lvr rest){
 	lvr lv = mem_alloc(sizeof(lvr_st));
 	lv.flp = flp;
 	lv.vlc = VARLOC_NULL;
@@ -6124,26 +5911,26 @@ static inline lvp_st lvp_ok(lvr lv){
 	return (lvp_st){ .type = LVP_OK, .u.lv = lv };
 }
 
-static inline lvp_st lvp_error(filepos_st flp, char *msg){
+static inline lvp_st lvp_error(flp: filepos_st, char *msg){
 	return (lvp_st){ .type = LVP_ERROR, .u.error.flp = flp, .u.error.msg = msg };
 }
 
 static lvp_st lval_addVars(symtbl sym, expr ex, int slot){
-	if (ex.type === EXPR_NAMES){
+	if (ex.type === expr_enum.NAMES){
 		sta_st sr = symtbl_addVar(sym, ex.u.names, slot);
 		if (sr.type === STA_ERROR)
 			return lvp_error(ex.flp, sr.u.msg);
 		return lvp_ok(lvr_var(ex.flp, sr.u.vlc));
 	}
-	else if (ex.type === EXPR_LIST){
+	else if (ex.type === expr_enum.LIST){
 		if (ex.u.ex === NULL)
 			return lvp_error(ex.flp, format("Invalid assignment"));
 		list_ptr body = list_ptr_new(lvr_free);
 		lvr rest = NULL;
-		if (ex.u.ex.type === EXPR_GROUP){
+		if (ex.u.ex.type === expr_enum.GROUP){
 			for (int i = 0; i < ex.u.ex.u.group.size; i++){
 				expr gex = ex.u.ex.u.group.ptrs[i];
-				if (i === ex.u.ex.u.group.size - 1 && gex.type === EXPR_PREFIX &&
+				if (i === ex.u.ex.u.group.size - 1 && gex.type === expr_enum.PREFIX &&
 					gex.u.prefix.k === ks_enum.PERIOD3){
 					lvp_st lp = lval_addVars(sym, gex.u.prefix.ex, -1);
 					if (lp.type === LVP_ERROR)
@@ -6158,7 +5945,7 @@ static lvp_st lval_addVars(symtbl sym, expr ex, int slot){
 				}
 			}
 		}
-		else if (ex.u.ex.type === EXPR_PREFIX && ex.u.ex.u.prefix.k === ks_enum.PERIOD3){
+		else if (ex.u.ex.type === expr_enum.PREFIX && ex.u.ex.u.prefix.k === ks_enum.PERIOD3){
 			lvp_st lp = lval_addVars(sym, ex.u.ex.u.ex, -1);
 			if (lp.type === LVP_ERROR)
 				return lp;
@@ -6176,7 +5963,7 @@ static lvp_st lval_addVars(symtbl sym, expr ex, int slot){
 }
 
 static lvp_st lval_prepare(pgen_st pgen, expr ex){
-	if (ex.type === EXPR_NAMES){
+	if (ex.type === expr_enum.NAMES){
 		stl_st sl = symtbl_lookup(pgen.sym, ex.u.names);
 		if (sl.type === STL_ERROR)
 			return lvp_error(ex.flp, sl.u.msg);
@@ -6185,7 +5972,7 @@ static lvp_st lval_prepare(pgen_st pgen, expr ex){
 		return lvp_ok(lvr_var(ex.flp,
 			varloc_new(sl.u.nsn.u.var.fr.level, sl.u.nsn.u.var.index)));
 	}
-	else if (ex.type === EXPR_INDEX){
+	else if (ex.type === expr_enum.INDEX){
 		per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex.u.index.obj);
 		if (pe.type === PER_ERROR)
 			return lvp_error(pe.u.error.flp, pe.u.error.msg);
@@ -6195,8 +5982,8 @@ static lvp_st lval_prepare(pgen_st pgen, expr ex){
 			return lvp_error(pe.u.error.flp, pe.u.error.msg);
 		return lvp_ok(lvr_index(ex.flp, obj, pe.u.vlc));
 	}
-	else if (ex.type === EXPR_SLICE){
-		if (ex.u.slice.obj.type === EXPR_INDEX){
+	else if (ex.type === expr_enum.SLICE){
+		if (ex.u.slice.obj.type === expr_enum.INDEX){
 			// we have a slice of an index `foo[1][2:3]`
 			per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL,
 				ex.u.slice.obj.u.index.obj);
@@ -6223,17 +6010,17 @@ static lvp_st lval_prepare(pgen_st pgen, expr ex){
 			return lvp_ok(lvr_slice(ex.flp, obj, sr.u.ok.start, sr.u.ok.len));
 		}
 	}
-	else if (ex.type === EXPR_LIST){
+	else if (ex.type === expr_enum.LIST){
 		list_ptr body = list_ptr_new(lvr_free);
 		lvr rest = NULL;
 		if (ex.u.ex === NULL){
 			list_ptr_free(body);
 			return lvp_error(ex.flp, format("Invalid assignment"));
 		}
-		else if (ex.u.ex.type === EXPR_GROUP){
+		else if (ex.u.ex.type === expr_enum.GROUP){
 			for (int i = 0; i < ex.u.ex.u.group.size; i++){
 				expr gex = ex.u.ex.u.group.ptrs[i];
-				if (i === ex.u.ex.u.group.size - 1 && gex.type === EXPR_PREFIX &&
+				if (i === ex.u.ex.u.group.size - 1 && gex.type === expr_enum.PREFIX &&
 					gex.u.prefix.k === ks_enum.PERIOD3){
 					lvp_st lp = lval_prepare(pgen, gex.u.ex);
 					if (lp.type === LVP_ERROR){
@@ -6253,7 +6040,7 @@ static lvp_st lval_prepare(pgen_st pgen, expr ex){
 			}
 		}
 		else{
-			if (ex.u.ex.type === EXPR_PREFIX && ex.u.ex.u.prefix.k === ks_enum.PERIOD3){
+			if (ex.u.ex.type === expr_enum.PREFIX && ex.u.ex.u.prefix.k === ks_enum.PERIOD3){
 				lvp_st lp = lval_prepare(pgen, ex.u.ex.u.ex);
 				if (lp.type === LVP_ERROR){
 					list_ptr_free(body);
@@ -6563,7 +6350,7 @@ static inline bool program_evalCallArgcount(pgen_st pgen, expr params, int *argc
 	// returns false on error, with error inside of `pe`
 	*argcount = 0;
 	if (params){
-		if (params.type === EXPR_GROUP){
+		if (params.type === expr_enum.GROUP){
 			*argcount = params.u.group.size;
 			if (*argcount > 254)
 				*argcount = 254;
@@ -6644,7 +6431,7 @@ static per_st program_evalCall(pgen_st pgen, pem_enum mode, varloc_st intoVlc,
 
 	// params can be NULL to indicate emptiness
 	if (nsn.type === NSN_CMD_OPCODE && nsn.u.cmdOpcode.opcode === OP_PICK){
-		if (params === NULL || params.type !== EXPR_GROUP ||
+		if (params === NULL || params.type !== expr_enum.GROUP ||
 			params.u.group.size !== 3)
 			return per_error(flp, format("Using `pick` requires exactly three arguments"));
 
@@ -6693,9 +6480,9 @@ static per_st program_evalCall(pgen_st pgen, pem_enum mode, varloc_st intoVlc,
 	}
 	else if (nsn.type === NSN_CMD_OPCODE && nsn.u.cmdOpcode.opcode === OP_EMBED){
 		expr file = params;
-		while (file && file.type === EXPR_PAREN)
+		while (file && file.type === expr_enum.PAREN)
 			file = file.u.ex;
-		if (file === NULL || file.type !== EXPR_STR)
+		if (file === NULL || file.type !== expr_enum.STR)
 			return per_error(flp, format("Expecting constant string for `embed`"));
 		char *cwd = NULL;
 		efu_st efu = (efu_st){
@@ -6721,12 +6508,12 @@ static per_st program_evalCall(pgen_st pgen, pem_enum mode, varloc_st intoVlc,
 		list_byte str = NULL;
 		double seed = 0;
 		expr ex = params;
-		if (ex.type === EXPR_GROUP && ex.u.group.size === 2){
+		if (ex.type === expr_enum.GROUP && ex.u.group.size === 2){
 			expr ex2 = ex.u.group.ptrs[1];
 			ex = ex.u.group.ptrs[0];
-			while (ex.type === EXPR_PAREN)
+			while (ex.type === expr_enum.PAREN)
 				ex = ex.u.ex;
-			if (ex.type === EXPR_STR){
+			if (ex.type === expr_enum.STR){
 				pen_st p = program_exprToNum(pgen, ex2);
 				if (p.success){
 					str = ex.u.str;
@@ -6737,9 +6524,9 @@ static per_st program_evalCall(pgen_st pgen, pem_enum mode, varloc_st intoVlc,
 			}
 		}
 		else{
-			while (ex.type === EXPR_PAREN)
+			while (ex.type === expr_enum.PAREN)
 				ex = ex.u.ex;
-			if (ex.type === EXPR_STR)
+			if (ex.type === expr_enum.STR)
 				str = ex.u.str;
 		}
 		if (str){
@@ -7082,7 +6869,7 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 	symtbl sym = pgen.sym;
 	program_flp(prg, ex.flp);
 	switch (ex.type){
-		case EXPR_NIL: {
+		case expr_enum.NIL: {
 			if (mode === PEM_EMPTY)
 				return per_ok(VARLOC_NULL);
 			else if (mode === PEM_CREATE){
@@ -7095,7 +6882,7 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 			return per_ok(intoVlc);
 		} break;
 
-		case EXPR_NUM: {
+		case expr_enum.NUM: {
 			if (mode === PEM_EMPTY)
 				return per_ok(VARLOC_NULL);
 			else if (mode === PEM_CREATE){
@@ -7108,7 +6895,7 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 			return per_ok(intoVlc);
 		} break;
 
-		case EXPR_STR: {
+		case expr_enum.STR: {
 			if (mode === PEM_EMPTY)
 				return per_ok(VARLOC_NULL);
 			else if (mode === PEM_CREATE){
@@ -7135,7 +6922,7 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 			return per_ok(intoVlc);
 		} break;
 
-		case EXPR_LIST: {
+		case expr_enum.LIST: {
 			if (mode === PEM_EMPTY){
 				if (ex.u.ex !== NULL)
 					return program_eval(pgen, PEM_EMPTY, VARLOC_NULL, ex.u.ex);
@@ -7148,7 +6935,7 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 				intoVlc = ts.u.vlc;
 			}
 			if (ex.u.ex !== NULL){
-				if (ex.u.ex.type === EXPR_GROUP){
+				if (ex.u.ex.type === expr_enum.GROUP){
 					varloc_st ls = intoVlc;
 					if (mode === PEM_INTO){
 						sta_st ts = symtbl_addTemp(sym);
@@ -7197,7 +6984,7 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 			return per_ok(intoVlc);
 		} break;
 
-		case EXPR_NAMES: {
+		case expr_enum.NAMES: {
 			stl_st sl = symtbl_lookup(sym, ex.u.names);
 			if (sl.type === STL_ERROR)
 				return per_error(ex.flp, sl.u.msg);
@@ -7236,10 +7023,10 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 			assert(false);
 		} break;
 
-		case EXPR_PAREN:
+		case expr_enum.PAREN:
 			return program_eval(pgen, mode, intoVlc, ex.u.ex);
 
-		case EXPR_GROUP:
+		case expr_enum.GROUP:
 			for (int i = 0; i < ex.u.group.size; i++){
 				if (i === ex.u.group.size - 1)
 					return program_eval(pgen, mode, intoVlc, ex.u.group.ptrs[i]);
@@ -7249,7 +7036,7 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 			}
 			break;
 
-		case EXPR_CAT: {
+		case expr_enum.CAT: {
 			if (mode === PEM_EMPTY || mode === PEM_CREATE){
 				sta_st ts = symtbl_addTemp(sym);
 				if (ts.type === STA_ERROR)
@@ -7299,7 +7086,7 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 			return per_ok(intoVlc);
 		} break;
 
-		case EXPR_PREFIX: {
+		case expr_enum.PREFIX: {
 			op_enum unop = ks_toUnaryOp(ex.u.prefix.k);
 			if (unop === OP_INVALID)
 				return per_error(ex.flp, format("Invalid unary operator"));
@@ -7321,7 +7108,7 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 			return per_ok(intoVlc);
 		} break;
 
-		case EXPR_INFIX: {
+		case expr_enum.INFIX: {
 			op_enum mutop = ks_toMutateOp(ex.u.infix.k);
 			if (ex.u.infix.k === ks_enum.EQU || ex.u.infix.k === ks_enum.AMP2EQU ||
 				ex.u.infix.k === ks_enum.PIPE2EQU || mutop !== OP_INVALID){
@@ -7477,8 +7264,8 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 			return per_ok(intoVlc);
 		} break;
 
-		case EXPR_CALL: {
-			if (ex.u.call.cmd.type !== EXPR_NAMES)
+		case expr_enum.CALL: {
+			if (ex.u.call.cmd.type !== expr_enum.NAMES)
 				return per_error(ex.flp, format("Invalid call"));
 			stl_st sl = symtbl_lookup(sym, ex.u.call.cmd.u.names);
 			if (sl.type === STL_ERROR)
@@ -7486,7 +7273,7 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 			return program_evalCall(pgen, mode, intoVlc, ex.flp, sl.u.nsn, ex.u.call.params);
 		} break;
 
-		case EXPR_INDEX: {
+		case expr_enum.INDEX: {
 			if (mode === PEM_EMPTY){
 				per_st pe = program_eval(pgen, PEM_EMPTY, VARLOC_NULL, ex.u.index.obj);
 				if (pe.type === PER_ERROR)
@@ -7519,7 +7306,7 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 			return per_ok(intoVlc);
 		} break;
 
-		case EXPR_SLICE: {
+		case expr_enum.SLICE: {
 			if (mode === PEM_EMPTY || mode === PEM_CREATE){
 				sta_st ts = symtbl_addTemp(sym);
 				if (ts.type === STA_ERROR)
@@ -7552,24 +7339,24 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 }
 
 static pen_st program_exprToNum(pgen_st pgen, expr ex){
-	if (ex.type === EXPR_NUM)
+	if (ex.type === expr_enum.NUM)
 		return pen_ok(ex.u.num);
-	else if (ex.type === EXPR_NAMES){
+	else if (ex.type === expr_enum.NAMES){
 		stl_st sl = symtbl_lookup(pgen.sym, ex.u.names);
 		if (sl.type === STL_ERROR)
 			return pen_err(sl.u.msg);
 		if (sl.u.nsn.type === NSN_ENUM)
 			return pen_ok(sl.u.nsn.u.val);
 	}
-	else if (ex.type === EXPR_PAREN)
+	else if (ex.type === expr_enum.PAREN)
 		return program_exprToNum(pgen, ex.u.ex);
-	else if (ex.type === EXPR_PREFIX){
+	else if (ex.type === expr_enum.PREFIX){
 		pen_st n = program_exprToNum(pgen, ex.u.prefix.ex);
 		if (n.success && ks_toUnaryOp(ex.u.prefix.k) === OP_NUM_NEG)
 			return pen_ok(-n.u.value);
 		return n;
 	}
-	else if (ex.type === EXPR_INFIX){
+	else if (ex.type === expr_enum.INFIX){
 		pen_st n1 = program_exprToNum(pgen, ex.u.infix.left);
 		if (!n1.success)
 			return n1;
@@ -7642,7 +7429,7 @@ static inline pgr_st pgr_pop(){
 	return (pgr_st){ .type = PGR_POP };
 }
 
-static inline pgr_st pgr_error(filepos_st flp, char *msg){
+static inline pgr_st pgr_error(flp: filepos_st, char *msg){
 	return (pgr_st){ .type = PGR_ERROR, .u.error.flp = flp, .u.error.msg = msg };
 }
 
@@ -7980,7 +7767,7 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 			if (lvs > 0){
 				expr last_ex = stmt.u.def1.lvalues.ptrs[lvs - 1];
 				// is the last expression a `...rest`?
-				if (last_ex.type === EXPR_PREFIX && last_ex.u.prefix.k === ks_enum.PERIOD3)
+				if (last_ex.type === expr_enum.PREFIX && last_ex.u.prefix.k === ks_enum.PERIOD3)
 					rest = lvs - 1;
 			}
 
@@ -7999,7 +7786,7 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 			// initialize our arguments as needed
 			for (int i = 0; i < lvs; i++){
 				expr ex = stmt.u.def1.lvalues.ptrs[i];
-				if (ex.type === EXPR_INFIX){
+				if (ex.type === expr_enum.INFIX){
 					// the argument is the i-th register
 					varloc_st arg = varloc_new(level, i);
 
@@ -8034,7 +7821,7 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 						return pgr_error(pe.u.error.flp, pe.u.error.msg);
 					}
 				}
-				else if (i === lvs - 1 && ex.type === EXPR_PREFIX && ex.u.prefix.k === ks_enum.PERIOD3){
+				else if (i === lvs - 1 && ex.type === expr_enum.PREFIX && ex.u.prefix.k === ks_enum.PERIOD3){
 					lvp_st lr = lval_addVars(sym, ex.u.prefix.ex, i);
 					if (lr.type === LVP_ERROR){
 						label_free(skip);
@@ -8107,7 +7894,7 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 			double last_val = -1;
 			for (int i = 0; i < stmt.u.lvalues.size; i++){
 				expr ex = stmt.u.lvalues.ptrs[i];
-				assert(ex.type === EXPR_INFIX);
+				assert(ex.type === expr_enum.INFIX);
 				double v = last_val + 1;
 				if (ex.u.infix.right !== NULL){
 					pen_st n = program_exprToNum(pgen, ex.u.infix.right);
@@ -8115,7 +7902,7 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 						return pgr_error(stmt.flp, n.u.msg);
 					v = n.u.value;
 				}
-				if (ex.u.infix.left.type !== EXPR_NAMES){
+				if (ex.u.infix.left.type !== expr_enum.NAMES){
 					return pgr_error(stmt.flp,
 						format("Enum name must only consist of identifiers"));
 				}
@@ -8128,9 +7915,9 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 		} break;
 
 		case AST_FOR1: {
-			if (stmt.u.for1.ex.type === EXPR_CALL){
+			if (stmt.u.for1.ex.type === expr_enum.CALL){
 				expr c = stmt.u.for1.ex;
-				if (c.u.call.cmd.type === EXPR_NAMES){
+				if (c.u.call.cmd.type === expr_enum.NAMES){
 					expr n = c.u.call.cmd;
 					stl_st sl = symtbl_lookup(sym, n.u.names);
 					if (sl.type === STL_ERROR)
@@ -8139,7 +7926,7 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 					if (nsn.type === NSN_CMD_OPCODE && nsn.u.cmdOpcode.opcode === OP_RANGE){
 						expr p = c.u.call.params;
 						varloc_st rp[3] = { VARLOC_NULL, VARLOC_NULL, VARLOC_NULL };
-						if (p.type !== EXPR_GROUP){
+						if (p.type !== expr_enum.GROUP){
 							sta_st ts = symtbl_addTemp(sym);
 							if (ts.type === STA_ERROR)
 								return pgr_error(stmt.flp, ts.u.msg);
@@ -8294,8 +8081,8 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 			expr ex = stmt.u.ex;
 
 			// check for tail call
-			if (ex.type === EXPR_CALL){
-				if (ex.u.call.cmd.type !== EXPR_NAMES)
+			if (ex.type === expr_enum.CALL){
+				if (ex.u.call.cmd.type !== expr_enum.NAMES)
 					return pgr_error(ex.flp, format("Invalid call"));
 				stl_st sl = symtbl_lookup(sym, ex.u.call.cmd.u.names);
 				if (sl.type === STL_ERROR)
@@ -8303,7 +8090,7 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 				nsn = sl.u.nsn;
 				params = ex.u.call.params;
 			}
-			else if (ex.type === EXPR_NAMES){
+			else if (ex.type === expr_enum.NAMES){
 				stl_st sl = symtbl_lookup(sym, ex.u.names);
 				if (sl.type === STL_ERROR)
 					return pgr_error(ex.flp, sl.u.msg);
@@ -8357,7 +8144,7 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 		case AST_VAR: {
 			for (int i = 0; i < stmt.u.lvalues.size; i++){
 				expr ex = stmt.u.lvalues.ptrs[i];
-				assert(ex.type === EXPR_INFIX);
+				assert(ex.type === expr_enum.INFIX);
 				per_st pr;
 				if (ex.u.infix.right !== NULL){
 					pr = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex.u.infix.right);
