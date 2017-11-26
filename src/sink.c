@@ -2202,9 +2202,7 @@ static void lex_process(lex lx, list_ptr tks){
 			break;
 
 		case LEX_NUM_BODY:
-			if (ch1 == '_')
-				/* do nothing */;
-			else if (ch1 == '.')
+			if (ch1 == '.')
 				lx->state = LEX_NUM_FRAC;
 			else if ((lx->npi.base == 10 && (ch1 == 'e' || ch1 == 'E')) ||
 				(lx->npi.base != 10 && (ch1 == 'p' || ch1 == 'P')))
@@ -2221,14 +2219,12 @@ static void lex_process(lex lx, list_ptr tks){
 				lx->state = LEX_START;
 				lex_process(lx, tks);
 			}
-			else
+			else if (ch1 != '_')
 				list_ptr_push(tks, tok_error(flpS, format("Invalid number")));
 			break;
 
 		case LEX_NUM_FRAC:
-			if (ch1 == '_')
-				/* do nothing */;
-			else if ((lx->npi.base == 10 && (ch1 == 'e' || ch1 == 'E')) ||
+			if ((lx->npi.base == 10 && (ch1 == 'e' || ch1 == 'E')) ||
 				(lx->npi.base != 10 && (ch1 == 'p' || ch1 == 'P')))
 				lx->state = LEX_NUM_EXP;
 			else if (isHex(ch1)){
@@ -2249,7 +2245,7 @@ static void lex_process(lex lx, list_ptr tks){
 					lex_process(lx, tks);
 				}
 			}
-			else
+			else if (ch1 != '_')
 				list_ptr_push(tks, tok_error(flpS, format("Invalid number")));
 			break;
 
@@ -2264,9 +2260,7 @@ static void lex_process(lex lx, list_ptr tks){
 			break;
 
 		case LEX_NUM_EXP_BODY:
-			if (ch1 == '_')
-				/* do nothing */;
-			else if (isNum(ch1)){
+			if (isNum(ch1)){
 				lx->npi.eval = lx->npi.eval * 10.0 + toHex(ch1);
 				lx->numexp = true;
 			}
@@ -2279,7 +2273,7 @@ static void lex_process(lex lx, list_ptr tks){
 					lex_process(lx, tks);
 				}
 			}
-			else
+			else if (ch1 != '_')
 				list_ptr_push(tks, tok_error(flpS, format("Invalid number")));
 			break;
 

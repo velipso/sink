@@ -790,14 +790,14 @@ function op_arg(b: number[], arg: varloc_st): void {
 
 function op_binop(b: number[], opcode: op_enum, tgt: varloc_st, src1: varloc_st, src2: varloc_st):
 	void {
-	if (opcode == op_enum.CAT){
+	if (opcode === op_enum.CAT){
 		op_cat(b, tgt, 2);
 		op_arg(b, src1);
 		op_arg(b, src2);
 		return;
 	}
 
-	if (opcode === op_enum.GT || opcode == op_enum.GTE){
+	if (opcode === op_enum.GT || opcode === op_enum.GTE){
 		opcode = opcode === op_enum.GT ? op_enum.LT : op_enum.LTE;
 		let t = src1;
 		src1 = src2;
@@ -1004,26 +1004,26 @@ function ks_char3(c1: string, c2: string, c3: string): ks_enum {
 	return ks_enum.INVALID;
 }
 
-function ks_str(s: number[]): ks_enum { // TODO: is `s` actually a number[] or a string?
-	if      (byteequ(s, "break"    )) return ks_enum.BREAK;
-	else if (byteequ(s, "continue" )) return ks_enum.CONTINUE;
-	else if (byteequ(s, "declare"  )) return ks_enum.DECLARE;
-	else if (byteequ(s, "def"      )) return ks_enum.DEF;
-	else if (byteequ(s, "do"       )) return ks_enum.DO;
-	else if (byteequ(s, "else"     )) return ks_enum.ELSE;
-	else if (byteequ(s, "elseif"   )) return ks_enum.ELSEIF;
-	else if (byteequ(s, "end"      )) return ks_enum.END;
-	else if (byteequ(s, "enum"     )) return ks_enum.ENUM;
-	else if (byteequ(s, "for"      )) return ks_enum.FOR;
-	else if (byteequ(s, "goto"     )) return ks_enum.GOTO;
-	else if (byteequ(s, "if"       )) return ks_enum.IF;
-	else if (byteequ(s, "include"  )) return ks_enum.INCLUDE;
-	else if (byteequ(s, "namespace")) return ks_enum.NAMESPACE;
-	else if (byteequ(s, "nil"      )) return ks_enum.NIL;
-	else if (byteequ(s, "return"   )) return ks_enum.RETURN;
-	else if (byteequ(s, "using"    )) return ks_enum.USING;
-	else if (byteequ(s, "var"      )) return ks_enum.VAR;
-	else if (byteequ(s, "while"    )) return ks_enum.WHILE;
+function ks_str(s: string): ks_enum {
+	if      (s === 'break'    ) return ks_enum.BREAK;
+	else if (s === 'continue' ) return ks_enum.CONTINUE;
+	else if (s === 'declare'  ) return ks_enum.DECLARE;
+	else if (s === 'def'      ) return ks_enum.DEF;
+	else if (s === 'do'       ) return ks_enum.DO;
+	else if (s === 'else'     ) return ks_enum.ELSE;
+	else if (s === 'elseif'   ) return ks_enum.ELSEIF;
+	else if (s === 'end'      ) return ks_enum.END;
+	else if (s === 'enum'     ) return ks_enum.ENUM;
+	else if (s === 'for'      ) return ks_enum.FOR;
+	else if (s === 'goto'     ) return ks_enum.GOTO;
+	else if (s === 'if'       ) return ks_enum.IF;
+	else if (s === 'include'  ) return ks_enum.INCLUDE;
+	else if (s === 'namespace') return ks_enum.NAMESPACE;
+	else if (s === 'nil'      ) return ks_enum.NIL;
+	else if (s === 'return'   ) return ks_enum.RETURN;
+	else if (s === 'using'    ) return ks_enum.USING;
+	else if (s === 'var'      ) return ks_enum.VAR;
+	else if (s === 'while'    ) return ks_enum.WHILE;
 	return ks_enum.INVALID;
 }
 
@@ -1170,46 +1170,46 @@ function tok_isMid(tk: tok_st, allowComma: boolean, allowPipe: boolean): boolean
 		return false;
 	let k = tk.k;
 	return false ||
-		k == ks_enum.PLUS       ||
-		k == ks_enum.PLUSEQU    ||
-		k == ks_enum.MINUS      ||
-		k == ks_enum.MINUSEQU   ||
-		k == ks_enum.PERCENT    ||
-		k == ks_enum.PERCENTEQU ||
-		k == ks_enum.STAR       ||
-		k == ks_enum.STAREQU    ||
-		k == ks_enum.SLASH      ||
-		k == ks_enum.SLASHEQU   ||
-		k == ks_enum.CARET      ||
-		k == ks_enum.CARETEQU   ||
-		k == ks_enum.LT         ||
-		k == ks_enum.LTEQU      ||
-		k == ks_enum.GT         ||
-		k == ks_enum.GTEQU      ||
-		k == ks_enum.BANGEQU    ||
-		k == ks_enum.EQU        ||
-		k == ks_enum.EQU2       ||
-		k == ks_enum.TILDE      ||
-		k == ks_enum.TILDEEQU   ||
-		k == ks_enum.AMP2       ||
-		k == ks_enum.PIPE2      ||
-		k == ks_enum.AMP2EQU    ||
-		k == ks_enum.PIPE2EQU   ||
-		(allowComma && k == ks_enum.COMMA) ||
-		(allowPipe  && k == ks_enum.PIPE );
+		k === ks_enum.PLUS       ||
+		k === ks_enum.PLUSEQU    ||
+		k === ks_enum.MINUS      ||
+		k === ks_enum.MINUSEQU   ||
+		k === ks_enum.PERCENT    ||
+		k === ks_enum.PERCENTEQU ||
+		k === ks_enum.STAR       ||
+		k === ks_enum.STAREQU    ||
+		k === ks_enum.SLASH      ||
+		k === ks_enum.SLASHEQU   ||
+		k === ks_enum.CARET      ||
+		k === ks_enum.CARETEQU   ||
+		k === ks_enum.LT         ||
+		k === ks_enum.LTEQU      ||
+		k === ks_enum.GT         ||
+		k === ks_enum.GTEQU      ||
+		k === ks_enum.BANGEQU    ||
+		k === ks_enum.EQU        ||
+		k === ks_enum.EQU2       ||
+		k === ks_enum.TILDE      ||
+		k === ks_enum.TILDEEQU   ||
+		k === ks_enum.AMP2       ||
+		k === ks_enum.PIPE2      ||
+		k === ks_enum.AMP2EQU    ||
+		k === ks_enum.PIPE2EQU   ||
+		(allowComma && k === ks_enum.COMMA) ||
+		(allowPipe  && k === ks_enum.PIPE );
 }
 
 function tok_isTerm(tk: tok_st): boolean {
 	return false ||
-		(tk.type == tok_enum.KS &&
+		(tk.type === tok_enum.KS &&
 			(tk.k === ks_enum.NIL || tk.k === ks_enum.LPAREN || tk.k === ks_enum.LBRACE)) ||
-		tk.type == tok_enum.IDENT ||
-		tk.type == tok_enum.NUM   ||
-		tk.type == tok_enum.STR;
+		tk.type === tok_enum.IDENT ||
+		tk.type === tok_enum.NUM   ||
+		tk.type === tok_enum.STR;
 }
 
 function tok_isPreBeforeMid(pre: tok_st, mid: tok_st): boolean {
-	if ((pre.k == ks_enum.MINUS || pre.k == ks_enum.UNMINUS) && mid.k == ks_enum.CARET)
+	if ((pre.k === ks_enum.MINUS || pre.k === ks_enum.UNMINUS) && mid.k === ks_enum.CARET)
 		return false;
 	return true;
 }
@@ -1253,7 +1253,7 @@ function tok_isMidBeforeMid(lmid: tok_st, rmid: tok_st): boolean {
 		return true;
 	else if (lp > rp)
 		return false;
-	if (lp == 20 || lp == 1)
+	if (lp === 20 || lp === 1)
 		return false;
 	return true;
 }
@@ -1482,7 +1482,7 @@ function lex_process(lx: lex_st, tks: tok_st[]): void {
 			else if (isNum(ch1)){
 				numpart_new(lx.npi);
 				lx.npi.val = toHex(ch1);
-				if (lx.npi.val == 0)
+				if (lx.npi.val === 0)
 					lx.state = lex_enum.NUM_0;
 				else
 					lx.state = lex_enum.NUM_BODY;
@@ -1511,7 +1511,7 @@ function lex_process(lx: lex_st, tks: tok_st[]): void {
 		case lex_enum.COMMENT_LINE:
 			if (ch1 === '\r')
 				lx.state = lex_enum.RETURN;
-			else if (ch1 == '\n')
+			else if (ch1 === '\n')
 				lx.state = lex_enum.START;
 			break;
 
@@ -1560,423 +1560,405 @@ function lex_process(lx: lex_st, tks: tok_st[]): void {
 				lex_process(lx, tks);
 			}
 			break;
-}}/*
-		case LEX_SPECIAL2: {
-			ks_enum ks3 = ks_char3(lx->ch3, lx->ch2, ch1);
-			if (ks3 != KS_INVALID){
-				lx->state = LEX_START;
-				list_ptr_push(tks, tok_ks(lx->flp3, ks3));
+
+		case lex_enum.SPECIAL2: {
+			let ks3 = ks_char3(lx.ch3, lx.ch2, ch1);
+			if (ks3 !== ks_enum.INVALID){
+				lx.state = lex_enum.START;
+				tks.push(tok_ks(lx.flp3, ks3));
 			}
 			else{
-				ks_enum ks2 = ks_char2(lx->ch3, lx->ch2);
-				if (ks2 != KS_INVALID){
-					list_ptr_push(tks, tok_ks(lx->flp3, ks2));
-					lx->state = LEX_START;
+				let ks2 = ks_char2(lx.ch3, lx.ch2);
+				if (ks2 !== ks_enum.INVALID){
+					tks.push(tok_ks(lx.flp3, ks2));
+					lx.state = lex_enum.START;
 					lex_process(lx, tks);
 				}
 				else{
-					ks_enum ks1 = ks_char(lx->ch3);
+					let ks1 = ks_char(lx.ch3);
 					// hack to detect difference between binary and unary +/-
-					if (ks1 == KS_PLUS && isSpace(lx->ch4))
-						ks1 = KS_UNPLUS;
-					else if (ks1 == KS_MINUS && isSpace(lx->ch4))
-						ks1 = KS_UNMINUS;
-					list_ptr_push(tks, tok_ks(lx->flp3, ks1));
-					lx->state = LEX_START;
+					if (ks1 === ks_enum.PLUS && isSpace(lx.ch4))
+						ks1 = ks_enum.UNPLUS;
+					else if (ks1 === ks_enum.MINUS && isSpace(lx.ch4))
+						ks1 = ks_enum.UNMINUS;
+					tks.push(tok_ks(lx.flp3, ks1));
+					lx.state = lex_enum.START;
 					lex_rev(lx);
 					lex_process(lx, tks);
-					lex_fwd(lx, lx->flpR, lx->chR);
+					lex_fwd(lx, lx.flpR, lx.chR);
 					lex_process(lx, tks);
 				}
 			}
 		} break;
 
-		case LEX_IDENT:
+		case lex_enum.IDENT:
 			if (!isIdentBody(ch1)){
-				ks_enum ksk = ks_str(lx->str);
-				if (ksk != KS_INVALID){
-					list_ptr_push(tks, tok_ks(flpS, ksk));
-					list_byte_free(lx->str);
-				}
+				let ksk = ks_str(lx.str);
+				if (ksk !== ks_enum.INVALID)
+					tks.push(tok_ks(flpS, ksk));
 				else
-					list_ptr_push(tks, tok_ident(flpS, lx->str));
-				lx->str = NULL;
-				lx->state = LEX_START;
+					tks.push(tok_ident(flpS, lx.str));
+				lx.state = lex_enum.START;
 				lex_process(lx, tks);
 			}
 			else{
-				list_byte_push(lx->str, ch1);
-				if (lx->str->size > 1024)
-					list_ptr_push(tks, tok_error(flpS, format("Identifier too long")));
+				lx.str += ch1;
+				if (lx.str.length > 1024)
+					tks.push(tok_error(flpS, 'Identifier too long'));
 			}
 			break;
 
-		case LEX_NUM_0:
-			if (ch1 == 'b'){
-				lx->npi.base = 2;
-				lx->state = LEX_NUM_2;
+		case lex_enum.NUM_0:
+			if (ch1 === 'b'){
+				lx.npi.base = 2;
+				lx.state = lex_enum.NUM_2;
 			}
-			else if (ch1 == 'c'){
-				lx->npi.base = 8;
-				lx->state = LEX_NUM_2;
+			else if (ch1 === 'c'){
+				lx.npi.base = 8;
+				lx.state = lex_enum.NUM_2;
 			}
-			else if (ch1 == 'x'){
-				lx->npi.base = 16;
-				lx->state = LEX_NUM_2;
+			else if (ch1 === 'x'){
+				lx.npi.base = 16;
+				lx.state = lex_enum.NUM_2;
 			}
-			else if (ch1 == '_')
-				lx->state = LEX_NUM_BODY;
-			else if (ch1 == '.')
-				lx->state = LEX_NUM_FRAC;
-			else if (ch1 == 'e' || ch1 == 'E')
-				lx->state = LEX_NUM_EXP;
+			else if (ch1 === '_')
+				lx.state = lex_enum.NUM_BODY;
+			else if (ch1 === '.')
+				lx.state = lex_enum.NUM_FRAC;
+			else if (ch1 === 'e' || ch1 === 'E')
+				lx.state = lex_enum.NUM_EXP;
 			else if (!isIdentStart(ch1)){
-				list_ptr_push(tks, tok_num(flpS, 0));
-				lx->state = LEX_START;
+				tks.push(tok_num(flpS, 0));
+				lx.state = lex_enum.START;
 				lex_process(lx, tks);
 			}
 			else
-				list_ptr_push(tks, tok_error(flpS, format("Invalid number")));
+				tks.push(tok_error(flpS, 'Invalid number'));
 			break;
 
-		case LEX_NUM_2:
+		case lex_enum.NUM_2:
 			if (isHex(ch1)){
-				lx->npi.val = toHex(ch1);
-				if (lx->npi.val >= lx->npi.base)
-					list_ptr_push(tks, tok_error(flpS, format("Invalid number")));
+				lx.npi.val = toHex(ch1);
+				if (lx.npi.val >= lx.npi.base)
+					tks.push(tok_error(flpS, 'Invalid number'));
 				else
-					lx->state = LEX_NUM_BODY;
+					lx.state = lex_enum.NUM_BODY;
 			}
-			else if (ch1 != '_')
-				list_ptr_push(tks, tok_error(flpS, format("Invalid number")));
+			else if (ch1 !== '_')
+				tks.push(tok_error(flpS, 'Invalid number'));
 			break;
 
-		case LEX_NUM_BODY:
-			if (ch1 == '_')
-				/* do nothing * /;
-			else if (ch1 == '.')
-				lx->state = LEX_NUM_FRAC;
-			else if ((lx->npi.base == 10 && (ch1 == 'e' || ch1 == 'E')) ||
-				(lx->npi.base != 10 && (ch1 == 'p' || ch1 == 'P')))
-				lx->state = LEX_NUM_EXP;
+		case lex_enum.NUM_BODY:
+			if (ch1 === '.')
+				lx.state = lex_enum.NUM_FRAC;
+			else if ((lx.npi.base === 10 && (ch1 === 'e' || ch1 === 'E')) ||
+				(lx.npi.base !== 10 && (ch1 === 'p' || ch1 === 'P')))
+				lx.state = lex_enum.NUM_EXP;
 			else if (isHex(ch1)){
-				int v = toHex(ch1);
-				if (v >= lx->npi.base)
-					list_ptr_push(tks, tok_error(flpS, format("Invalid number")));
+				let v = toHex(ch1);
+				if (v >= lx.npi.base)
+					tks.push(tok_error(flpS, 'Invalid number'));
 				else
-					lx->npi.val = lx->npi.val * lx->npi.base + v;
+					lx.npi.val = lx.npi.val * lx.npi.base + v;
 			}
 			else if (!isAlpha(ch1)){
-				list_ptr_push(tks, tok_num(flpS, numpart_calc(lx->npi)));
-				lx->state = LEX_START;
+				tks.push(tok_num(flpS, numpart_calc(lx.npi)));
+				lx.state = lex_enum.START;
 				lex_process(lx, tks);
 			}
-			else
-				list_ptr_push(tks, tok_error(flpS, format("Invalid number")));
+			else if (ch1 !== '_')
+				tks.push(tok_error(flpS, 'Invalid number'));
 			break;
 
-		case LEX_NUM_FRAC:
-			if (ch1 == '_')
-				/* do nothing * /;
-			else if ((lx->npi.base == 10 && (ch1 == 'e' || ch1 == 'E')) ||
-				(lx->npi.base != 10 && (ch1 == 'p' || ch1 == 'P')))
-				lx->state = LEX_NUM_EXP;
+		case lex_enum.NUM_FRAC:
+			if ((lx.npi.base === 10 && (ch1 === 'e' || ch1 === 'E')) ||
+				(lx.npi.base !== 10 && (ch1 === 'p' || ch1 === 'P')))
+				lx.state = lex_enum.NUM_EXP;
 			else if (isHex(ch1)){
-				int v = toHex(ch1);
-				if (v >= lx->npi.base)
-					list_ptr_push(tks, tok_error(flpS, format("Invalid number")));
+				let v = toHex(ch1);
+				if (v >= lx.npi.base)
+					tks.push(tok_error(flpS, 'Invalid number'));
 				else{
-					lx->npi.frac = lx->npi.frac * lx->npi.base + v;
-					lx->npi.flen++;
+					lx.npi.frac = lx.npi.frac * lx.npi.base + v;
+					lx.npi.flen++;
 				}
 			}
 			else if (!isAlpha(ch1)){
-				if (lx->npi.flen <= 0)
-					list_ptr_push(tks, tok_error(flpS, format("Invalid number")));
+				if (lx.npi.flen <= 0)
+					tks.push(tok_error(flpS, 'Invalid number'));
 				else{
-					list_ptr_push(tks, tok_num(flpS, numpart_calc(lx->npi)));
-					lx->state = LEX_START;
+					tks.push(tok_num(flpS, numpart_calc(lx.npi)));
+					lx.state = lex_enum.START;
 					lex_process(lx, tks);
 				}
 			}
-			else
-				list_ptr_push(tks, tok_error(flpS, format("Invalid number")));
+			else if (ch1 !== '_')
+				tks.push(tok_error(flpS, 'Invalid number'));
 			break;
 
-		case LEX_NUM_EXP:
-			if (ch1 != '_'){
-				lx->npi.esign = ch1 == '-' ? -1 : 1;
-				lx->state = LEX_NUM_EXP_BODY;
-				lx->numexp = false;
-				if (ch1 != '+' && ch1 != '-')
+		case lex_enum.NUM_EXP:
+			if (ch1 !== '_'){
+				lx.npi.esign = ch1 === '-' ? -1 : 1;
+				lx.state = lex_enum.NUM_EXP_BODY;
+				lx.numexp = false;
+				if (ch1 !== '+' && ch1 !== '-')
 					lex_process(lx, tks);
 			}
 			break;
 
-		case LEX_NUM_EXP_BODY:
-			if (ch1 == '_')
-				/* do nothing * /;
-			else if (isNum(ch1)){
-				lx->npi.eval = lx->npi.eval * 10.0 + toHex(ch1);
-				lx->numexp = true;
+		case lex_enum.NUM_EXP_BODY:
+			if (isNum(ch1)){
+				lx.npi.eval = lx.npi.eval * 10.0 + toHex(ch1);
+				lx.numexp = true;
 			}
 			else if (!isAlpha(ch1)){
-				if (!lx->numexp)
-					list_ptr_push(tks, tok_error(flpS, format("Invalid number")));
+				if (!lx.numexp)
+					tks.push(tok_error(flpS, 'Invalid number'));
 				else{
-					list_ptr_push(tks, tok_num(flpS, numpart_calc(lx->npi)));
-					lx->state = LEX_START;
+					tks.push(tok_num(flpS, numpart_calc(lx.npi)));
+					lx.state = lex_enum.START;
 					lex_process(lx, tks);
 				}
 			}
-			else
-				list_ptr_push(tks, tok_error(flpS, format("Invalid number")));
+			else if (ch1 !== '_')
+				tks.push(tok_error(flpS, 'Invalid number'));
 			break;
 
-		case LEX_STR_BASIC:
-			if (ch1 == '\r' || ch1 == '\n')
-				list_ptr_push(tks, tok_error(lx->flp2, format("Missing end of string")));
-			else if (ch1 == '\'')
-				lx->state = LEX_STR_BASIC_ESC;
+		case lex_enum.STR_BASIC:
+			if (ch1 === '\r' || ch1 === '\n')
+				tks.push(tok_error(lx.flp2, 'Missing end of string'));
+			else if (ch1 === '\'')
+				lx.state = lex_enum.STR_BASIC_ESC;
 			else
-				list_byte_push(lx->str, ch1);
+				lx.str += ch1;
 			break;
 
-		case LEX_STR_BASIC_ESC:
-			if (ch1 == '\''){
-				list_byte_push(lx->str, ch1);
-				lx->state = LEX_STR_BASIC;
+		case lex_enum.STR_BASIC_ESC:
+			if (ch1 === '\''){
+				lx.str += ch1;
+				lx.state = lex_enum.STR_BASIC;
 			}
 			else{
-				lx->state = LEX_START;
-				list_ptr_push(tks, tok_ks(flpS, KS_LPAREN));
-				list_ptr_push(tks, tok_str(flpS, lx->str));
-				list_ptr_push(tks, tok_ks(lx->flp2, KS_RPAREN));
-				lx->str = NULL;
+				lx.state = lex_enum.START;
+				tks.push(tok_ks(flpS, ks_enum.LPAREN));
+				tks.push(tok_str(flpS, lx.str));
+				tks.push(tok_ks(lx.flp2, ks_enum.RPAREN));
 				lex_process(lx, tks);
 			}
 			break;
 
-		case LEX_STR_INTERP:
-			if (ch1 == '\r' || ch1 == '\n')
-				list_ptr_push(tks, tok_error(lx->flp2, format("Missing end of string")));
-			else if (ch1 == '"'){
-				lx->state = LEX_START;
-				list_ptr_push(tks, tok_str(flpS, lx->str));
-				list_ptr_push(tks, tok_ks(flp, KS_RPAREN));
-				lx->str = NULL;
+		case lex_enum.STR_INTERP:
+			if (ch1 === '\r' || ch1 === '\n')
+				tks.push(tok_error(lx.flp2, 'Missing end of string'));
+			else if (ch1 === '"'){
+				lx.state = lex_enum.START;
+				tks.push(tok_str(flpS, lx.str));
+				tks.push(tok_ks(flp, ks_enum.RPAREN));
 			}
-			else if (ch1 == '$'){
-				lx->state = LEX_STR_INTERP_DLR;
-				list_ptr_push(tks, tok_str(flpS, lx->str));
-				list_ptr_push(tks, tok_ks(flp, KS_TILDE));
-				lx->str = NULL;
+			else if (ch1 === '$'){
+				lx.state = lex_enum.STR_INTERP_DLR;
+				tks.push(tok_str(flpS, lx.str));
+				tks.push(tok_ks(flp, ks_enum.TILDE));
 			}
-			else if (ch1 == '\\')
-				lx->state = LEX_STR_INTERP_ESC;
+			else if (ch1 === '\\')
+				lx.state = lex_enum.STR_INTERP_ESC;
 			else
-				list_byte_push(lx->str, ch1);
+				lx.str += ch1;
 			break;
 
-		case LEX_STR_INTERP_DLR:
-			if (ch1 == '{'){
-				list_int_push(lx->braces, 0);
-				lx->state = LEX_START;
-				list_ptr_push(tks, tok_ks(flp, KS_LPAREN));
+		case lex_enum.STR_INTERP_DLR:
+			if (ch1 === '{'){
+				lx.braces.push(0);
+				lx.state = lex_enum.START;
+				tks.push(tok_ks(flp, ks_enum.LPAREN));
 			}
 			else if (isIdentStart(ch1)){
-				lx->str = list_byte_new();
-				list_byte_push(lx->str, ch1);
-				lx->state = LEX_STR_INTERP_DLR_ID;
-				lx->flpS = flp; // save start position of ident
+				lx.str = ch1;
+				lx.state = lex_enum.STR_INTERP_DLR_ID;
+				lx.flpS = flp; // save start position of ident
 			}
 			else
-				list_ptr_push(tks, tok_error(flp, format("Invalid substitution")));
+				tks.push(tok_error(flp, 'Invalid substitution'));
 			break;
 
-		case LEX_STR_INTERP_DLR_ID:
+		case lex_enum.STR_INTERP_DLR_ID:
 			if (!isIdentBody(ch1)){
-				if (ks_str(lx->str) != KS_INVALID)
-					list_ptr_push(tks, tok_error(flpS, format("Invalid substitution")));
+				if (ks_str(lx.str) !== ks_enum.INVALID)
+					tks.push(tok_error(flpS, 'Invalid substitution'));
 				else{
-					list_ptr_push(tks, tok_ident(flpS, lx->str));
-					if (ch1 == '"'){
-						lx->state = LEX_START;
-						lx->str = NULL;
-						list_ptr_push(tks, tok_ks(flp, KS_RPAREN));
+					tks.push(tok_ident(flpS, lx.str));
+					if (ch1 === '"'){
+						lx.state = lex_enum.START;
+						tks.push(tok_ks(flp, ks_enum.RPAREN));
 					}
 					else{
-						lx->str = list_byte_new();
-						lx->state = LEX_STR_INTERP;
-						list_ptr_push(tks, tok_ks(flp, KS_TILDE));
+						lx.str = '';
+						lx.state = lex_enum.STR_INTERP;
+						tks.push(tok_ks(flp, ks_enum.TILDE));
 						lex_process(lx, tks);
 					}
 				}
 			}
 			else{
-				list_byte_push(lx->str, ch1);
-				if (lx->str->size > 1024)
-					list_ptr_push(tks, tok_error(flpS, format("Identifier too long")));
+				lx.str += ch1;
+				if (lx.str.length > 1024)
+					tks.push(tok_error(flpS, 'Identifier too long'));
 			}
 			break;
 
-		case LEX_STR_INTERP_ESC:
-			if (ch1 == '\r' || ch1 == '\n')
-				list_ptr_push(tks, tok_error(lx->flp2, format("Missing end of string")));
-			else if (ch1 == 'x'){
-				lx->str_hexval = 0;
-				lx->str_hexleft = 2;
-				lx->state = LEX_STR_INTERP_ESC_HEX;
+		case lex_enum.STR_INTERP_ESC:
+			if (ch1 === '\r' || ch1 === '\n')
+				tks.push(tok_error(lx.flp2, 'Missing end of string'));
+			else if (ch1 === 'x'){
+				lx.str_hexval = 0;
+				lx.str_hexleft = 2;
+				lx.state = lex_enum.STR_INTERP_ESC_HEX;
 			}
-			else if (ch1 == '0'){
-				list_byte_push(lx->str, 0);
-				lx->state = LEX_STR_INTERP;
+			else if (ch1 === '0'){
+				lx.str += String.fromCharCode(0);
+				lx.state = lex_enum.STR_INTERP;
 			}
-			else if (ch1 == 'b'){
-				list_byte_push(lx->str, 8);
-				lx->state = LEX_STR_INTERP;
+			else if (ch1 === 'b'){
+				lx.str += String.fromCharCode(8);
+				lx.state = lex_enum.STR_INTERP;
 			}
-			else if (ch1 == 't'){
-				list_byte_push(lx->str, 9);
-				lx->state = LEX_STR_INTERP;
+			else if (ch1 === 't'){
+				lx.str += String.fromCharCode(9);
+				lx.state = lex_enum.STR_INTERP;
 			}
-			else if (ch1 == 'n'){
-				list_byte_push(lx->str, 10);
-				lx->state = LEX_STR_INTERP;
+			else if (ch1 === 'n'){
+				lx.str += String.fromCharCode(10);
+				lx.state = lex_enum.STR_INTERP;
 			}
-			else if (ch1 == 'v'){
-				list_byte_push(lx->str, 11);
-				lx->state = LEX_STR_INTERP;
+			else if (ch1 === 'v'){
+				lx.str += String.fromCharCode(11);
+				lx.state = lex_enum.STR_INTERP;
 			}
-			else if (ch1 == 'f'){
-				list_byte_push(lx->str, 12);
-				lx->state = LEX_STR_INTERP;
+			else if (ch1 === 'f'){
+				lx.str += String.fromCharCode(12);
+				lx.state = lex_enum.STR_INTERP;
 			}
-			else if (ch1 == 'r'){
-				list_byte_push(lx->str, 13);
-				lx->state = LEX_STR_INTERP;
+			else if (ch1 === 'r'){
+				lx.str += String.fromCharCode(13);
+				lx.state = lex_enum.STR_INTERP;
 			}
-			else if (ch1 == 'e'){
-				list_byte_push(lx->str, 27);
-				lx->state = LEX_STR_INTERP;
+			else if (ch1 === 'e'){
+				lx.str += String.fromCharCode(27);
+				lx.state = lex_enum.STR_INTERP;
 			}
-			else if (ch1 == '\\' || ch1 == '\'' || ch1 == '"' || ch1 == '$'){
-				list_byte_push(lx->str, ch1);
-				lx->state = LEX_STR_INTERP;
+			else if (ch1 === '\\' || ch1 === '\'' || ch1 === '"' || ch1 === '$'){
+				lx.str += ch1;
+				lx.state = lex_enum.STR_INTERP;
 			}
-			else{
-				list_ptr_push(tks,
-					tok_error(flp, format("Invalid escape sequence: \\%c", ch1)));
-			}
+			else
+				tks.push(tok_error(flp, 'Invalid escape sequence: \\' + ch1));
 			break;
 
-		case LEX_STR_INTERP_ESC_HEX:
+		case lex_enum.STR_INTERP_ESC_HEX:
 			if (isHex(ch1)){
-				lx->str_hexval = (lx->str_hexval << 4) + toHex(ch1);
-				lx->str_hexleft--;
-				if (lx->str_hexleft <= 0){
-					list_byte_push(lx->str, lx->str_hexval);
-					lx->state = LEX_STR_INTERP;
+				lx.str_hexval = (lx.str_hexval << 4) + toHex(ch1);
+				lx.str_hexleft--;
+				if (lx.str_hexleft <= 0){
+					lx.str += String.fromCharCode(lx.str_hexval);
+					lx.state = lex_enum.STR_INTERP;
 				}
 			}
-			else{
-				list_ptr_push(tks,
-					tok_error(flp, format("Invalid escape sequence; expecting hex value")));
-			}
+			else
+				tks.push(tok_error(flp, 'Invalid escape sequence; expecting hex value'));
 			break;
 	}
 }
-
+/*
 static inline void lex_add(lex lx, filepos_st flp, char ch, list_ptr tks){
 	lex_fwd(lx, flp, ch);
 	lex_process(lx, tks);
 }
 
 static void lex_close(lex lx, filepos_st flp, list_ptr tks){
-	if (lx->braces->size > 1){
+	if (lx.braces.size > 1){
 		list_ptr_push(tks, tok_error(flp, format("Missing end of string")));
 		return;
 	}
-	switch (lx->state){
-		case LEX_START:
-		case LEX_COMMENT_LINE:
-		case LEX_BACKSLASH:
-		case LEX_RETURN:
+	switch (lx.state){
+		case lex_enum.START:
+		case lex_enum.COMMENT_LINE:
+		case lex_enum.BACKSLASH:
+		case lex_enum.RETURN:
 			break;
 
-		case LEX_COMMENT_BLOCK:
-			list_ptr_push(tks, tok_error(lx->flpS, format("Missing end of block comment")));
+		case lex_enum.COMMENT_BLOCK:
+			list_ptr_push(tks, tok_error(lx.flpS, format("Missing end of block comment")));
 			return;
 
-		case LEX_SPECIAL1:
-			list_ptr_push(tks, tok_ks(lx->flp1, ks_char(lx->ch1)));
+		case lex_enum.SPECIAL1:
+			list_ptr_push(tks, tok_ks(lx.flp1, ks_char(lx.ch1)));
 			break;
 
-		case LEX_SPECIAL2: {
-			ks_enum ks2 = ks_char2(lx->ch2, lx->ch1);
-			if (ks2 != KS_INVALID)
-				list_ptr_push(tks, tok_ks(lx->flp2, ks2));
+		case lex_enum.SPECIAL2: {
+			ks_enum ks2 = ks_char2(lx.ch2, lx.ch1);
+			if (ks2 !== ks_enum.INVALID)
+				list_ptr_push(tks, tok_ks(lx.flp2, ks2));
 			else{
-				list_ptr_push(tks, tok_ks(lx->flp2, ks_char(lx->ch2)));
-				list_ptr_push(tks, tok_ks(lx->flp1, ks_char(lx->ch1)));
+				list_ptr_push(tks, tok_ks(lx.flp2, ks_char(lx.ch2)));
+				list_ptr_push(tks, tok_ks(lx.flp1, ks_char(lx.ch1)));
 			}
 		} break;
 
-		case LEX_IDENT: {
-			ks_enum ksk = ks_str(lx->str);
-			if (ksk != KS_INVALID){
-				list_ptr_push(tks, tok_ks(lx->flpS, ksk));
-				list_byte_free(lx->str);
+		case lex_enum.IDENT: {
+			ks_enum ksk = ks_str(lx.str);
+			if (ksk !== ks_enum.INVALID){
+				list_ptr_push(tks, tok_ks(lx.flpS, ksk));
+				list_byte_free(lx.str);
 			}
 			else
-				list_ptr_push(tks, tok_ident(lx->flpS, lx->str));
-			lx->str = NULL;
+				list_ptr_push(tks, tok_ident(lx.flpS, lx.str));
+			lx.str = NULL;
 		} break;
 
-		case LEX_NUM_0:
-			list_ptr_push(tks, tok_num(lx->flpS, 0));
+		case lex_enum.NUM_0:
+			list_ptr_push(tks, tok_num(lx.flpS, 0));
 			break;
 
-		case LEX_NUM_2:
-			list_ptr_push(tks, tok_error(lx->flpS, format("Invalid number")));
+		case lex_enum.NUM_2:
+			list_ptr_push(tks, tok_error(lx.flpS, format("Invalid number")));
 			break;
 
-		case LEX_NUM_BODY:
-			list_ptr_push(tks, tok_num(lx->flpS, numpart_calc(lx->npi)));
+		case lex_enum.NUM_BODY:
+			list_ptr_push(tks, tok_num(lx.flpS, numpart_calc(lx.npi)));
 			break;
 
-		case LEX_NUM_FRAC:
-			if (lx->npi.flen <= 0)
-				list_ptr_push(tks, tok_error(lx->flpS, format("Invalid number")));
+		case lex_enum.NUM_FRAC:
+			if (lx.npi.flen <= 0)
+				list_ptr_push(tks, tok_error(lx.flpS, format("Invalid number")));
 			else
-				list_ptr_push(tks, tok_num(lx->flpS, numpart_calc(lx->npi)));
+				list_ptr_push(tks, tok_num(lx.flpS, numpart_calc(lx.npi)));
 			break;
 
-		case LEX_NUM_EXP:
-			list_ptr_push(tks, tok_error(lx->flpS, format("Invalid number")));
+		case lex_enum.NUM_EXP:
+			list_ptr_push(tks, tok_error(lx.flpS, format("Invalid number")));
 			break;
 
-		case LEX_NUM_EXP_BODY:
-			if (!lx->numexp)
-				list_ptr_push(tks, tok_error(lx->flpS, format("Invalid number")));
+		case lex_enum.NUM_EXP_BODY:
+			if (!lx.numexp)
+				list_ptr_push(tks, tok_error(lx.flpS, format("Invalid number")));
 			else
-				list_ptr_push(tks, tok_num(lx->flpS, numpart_calc(lx->npi)));
+				list_ptr_push(tks, tok_num(lx.flpS, numpart_calc(lx.npi)));
 			break;
 
-		case LEX_STR_BASIC_ESC:
-			list_ptr_push(tks, tok_ks(lx->flpS, KS_LPAREN));
-			list_ptr_push(tks, tok_str(lx->flpS, lx->str));
-			list_ptr_push(tks, tok_ks(flp, KS_RPAREN));
-			lx->str = NULL;
+		case lex_enum.STR_BASIC_ESC:
+			list_ptr_push(tks, tok_ks(lx.flpS, ks_enum.LPAREN));
+			list_ptr_push(tks, tok_str(lx.flpS, lx.str));
+			list_ptr_push(tks, tok_ks(flp, ks_enum.RPAREN));
+			lx.str = NULL;
 			break;
 
-		case LEX_STR_BASIC:
-		case LEX_STR_INTERP:
-		case LEX_STR_INTERP_DLR:
-		case LEX_STR_INTERP_DLR_ID:
-		case LEX_STR_INTERP_ESC:
-		case LEX_STR_INTERP_ESC_HEX:
-			list_ptr_push(tks, tok_error(lx->flpS, format("Missing end of string")));
+		case lex_enum.STR_BASIC:
+		case lex_enum.STR_INTERP:
+		case lex_enum.STR_INTERP_DLR:
+		case lex_enum.STR_INTERP_DLR_ID:
+		case lex_enum.STR_INTERP_ESC:
+		case lex_enum.STR_INTERP_ESC_HEX:
+			list_ptr_push(tks, tok_error(lx.flpS, format("Missing end of string")));
 			break;
 	}
 	list_ptr_push(tks, tok_newline(flp, false));
@@ -2040,74 +2022,74 @@ struct expr_struct {
 };
 
 static void expr_free(expr ex){
-	switch (ex->type){
+	switch (ex.type){
 		case EXPR_NIL:
 		case EXPR_NUM:
 			break;
 
 		case EXPR_STR:
-			if (ex->u.str)
-				list_byte_free(ex->u.str);
+			if (ex.u.str)
+				list_byte_free(ex.u.str);
 			break;
 
 		case EXPR_LIST:
-			if (ex->u.ex)
-				expr_free(ex->u.ex);
+			if (ex.u.ex)
+				expr_free(ex.u.ex);
 			break;
 
 		case EXPR_NAMES:
-			if (ex->u.names)
-				list_ptr_free(ex->u.names);
+			if (ex.u.names)
+				list_ptr_free(ex.u.names);
 			break;
 
 		case EXPR_PAREN:
-			if (ex->u.ex)
-				expr_free(ex->u.ex);
+			if (ex.u.ex)
+				expr_free(ex.u.ex);
 			break;
 
 		case EXPR_GROUP:
-			if (ex->u.group)
-				list_ptr_free(ex->u.group);
+			if (ex.u.group)
+				list_ptr_free(ex.u.group);
 			break;
 
 		case EXPR_CAT:
-			if (ex->u.cat)
-				list_ptr_free(ex->u.cat);
+			if (ex.u.cat)
+				list_ptr_free(ex.u.cat);
 			break;
 
 		case EXPR_PREFIX:
-			if (ex->u.prefix.ex)
-				expr_free(ex->u.prefix.ex);
+			if (ex.u.prefix.ex)
+				expr_free(ex.u.prefix.ex);
 			break;
 
 		case EXPR_INFIX:
-			if (ex->u.infix.left)
-				expr_free(ex->u.infix.left);
-			if (ex->u.infix.right)
-				expr_free(ex->u.infix.right);
+			if (ex.u.infix.left)
+				expr_free(ex.u.infix.left);
+			if (ex.u.infix.right)
+				expr_free(ex.u.infix.right);
 			break;
 
 		case EXPR_CALL:
-			if (ex->u.call.cmd)
-				expr_free(ex->u.call.cmd);
-			if (ex->u.call.params)
-				expr_free(ex->u.call.params);
+			if (ex.u.call.cmd)
+				expr_free(ex.u.call.cmd);
+			if (ex.u.call.params)
+				expr_free(ex.u.call.params);
 			break;
 
 		case EXPR_INDEX:
-			if (ex->u.index.obj)
-				expr_free(ex->u.index.obj);
-			if (ex->u.index.key)
-				expr_free(ex->u.index.key);
+			if (ex.u.index.obj)
+				expr_free(ex.u.index.obj);
+			if (ex.u.index.key)
+				expr_free(ex.u.index.key);
 			break;
 
 		case EXPR_SLICE:
-			if (ex->u.slice.obj)
-				expr_free(ex->u.slice.obj);
-			if (ex->u.slice.start)
-				expr_free(ex->u.slice.start);
-			if (ex->u.slice.len)
-				expr_free(ex->u.slice.len);
+			if (ex.u.slice.obj)
+				expr_free(ex.u.slice.obj);
+			if (ex.u.slice.start)
+				expr_free(ex.u.slice.start);
+			if (ex.u.slice.len)
+				expr_free(ex.u.slice.len);
 			break;
 	}
 	mem_free(ex);
@@ -2119,39 +2101,39 @@ static void expr_print(expr ex, int depth){
 	for (int i = 0; i < depth * 2; i++)
 		tab[i] = ' ';
 	tab[depth * 2] = 0;
-	switch (ex->type){
+	switch (ex.type){
 		case EXPR_NIL:
-			debugf("%sEXPR_NIL %d:%d", tab, ex->flp.line, ex->flp.chr);
+			debugf("%sEXPR_NIL %d:%d", tab, ex.flp.line, ex.flp.chr);
 			break;
 
 		case EXPR_NUM:
-			debugf("%sEXPR_NUM %d:%d %g", tab, ex->flp.line, ex->flp.chr, ex->u.num);
+			debugf("%sEXPR_NUM %d:%d %g", tab, ex.flp.line, ex.flp.chr, ex.u.num);
 			break;
 
 		case EXPR_STR:
-			if (ex->u.str){
-				debugf("%sEXPR_STR %d:%d \"%.*s\"", tab, ex->flp.line, ex->flp.chr,
-					ex->u.str->size, ex->u.str->bytes);
+			if (ex.u.str){
+				debugf("%sEXPR_STR %d:%d \"%.*s\"", tab, ex.flp.line, ex.flp.chr,
+					ex.u.str.size, ex.u.str.bytes);
 			}
 			else
-				debugf("%sEXPR_STR %d:%d NULL", tab, ex->flp.line, ex->flp.chr);
+				debugf("%sEXPR_STR %d:%d NULL", tab, ex.flp.line, ex.flp.chr);
 			break;
 
 		case EXPR_LIST:
-			if (ex->u.ex){
+			if (ex.u.ex){
 				debugf("%sEXPR_LIST:", tab);
-				expr_print(ex->u.ex, depth + 1);
+				expr_print(ex.u.ex, depth + 1);
 			}
 			else
 				debugf("%sEXPR_LIST NULL", tab);
 			break;
 
 		case EXPR_NAMES:
-			if (ex->u.names){
-				debugf("%sEXPR_NAMES: %d:%d", tab, ex->flp.line, ex->flp.chr);
-				for (int i = 0; i < ex->u.names->size; i++){
-					list_byte b = ex->u.names->ptrs[i];
-					debugf("%s  \"%.*s\"", tab, b->size, b->bytes);
+			if (ex.u.names){
+				debugf("%sEXPR_NAMES: %d:%d", tab, ex.flp.line, ex.flp.chr);
+				for (int i = 0; i < ex.u.names.size; i++){
+					list_byte b = ex.u.names.ptrs[i];
+					debugf("%s  \"%.*s\"", tab, b.size, b.bytes);
 				}
 			}
 			else
@@ -2159,96 +2141,96 @@ static void expr_print(expr ex, int depth){
 			break;
 
 		case EXPR_PAREN:
-			if (ex->u.ex){
+			if (ex.u.ex){
 				debugf("%sEXPR_PAREN:", tab);
-				expr_print(ex->u.ex, depth + 1);
+				expr_print(ex.u.ex, depth + 1);
 			}
 			else
 				debugf("%sEXPR_PAREN NULL", tab);
 			break;
 
 		case EXPR_GROUP:
-			if (ex->u.group){
+			if (ex.u.group){
 				debugf("%sEXPR_GROUP:", tab);
-				for (int i = 0; i < ex->u.group->size; i++)
-					expr_print(ex->u.group->ptrs[i], depth + 1);
+				for (int i = 0; i < ex.u.group.size; i++)
+					expr_print(ex.u.group.ptrs[i], depth + 1);
 			}
 			else
 				debugf("%sEXPR_GROUP NULL", tab);
 			break;
 
 		case EXPR_CAT:
-			if (ex->u.cat){
+			if (ex.u.cat){
 				debugf("%sEXPR_CAT:", tab);
-				for (int i = 0; i < ex->u.cat->size; i++)
-					expr_print(ex->u.cat->ptrs[i], depth + 1);
+				for (int i = 0; i < ex.u.cat.size; i++)
+					expr_print(ex.u.cat.ptrs[i], depth + 1);
 			}
 			else
 				debugf("%sEXPR_CAT NULL", tab);
 			break;
 
 		case EXPR_PREFIX:
-			if (ex->u.prefix.ex){
-				debugf("%sEXPR_PREFIX %s:", tab, ks_name(ex->u.prefix.k));
-				expr_print(ex->u.prefix.ex, depth + 1);
+			if (ex.u.prefix.ex){
+				debugf("%sEXPR_PREFIX %s:", tab, ks_name(ex.u.prefix.k));
+				expr_print(ex.u.prefix.ex, depth + 1);
 			}
 			else
-				debugf("%sEXPR_PREFIX %s NULL", tab, ks_name(ex->u.prefix.k));
+				debugf("%sEXPR_PREFIX %s NULL", tab, ks_name(ex.u.prefix.k));
 			break;
 
 		case EXPR_INFIX:
-			debugf("%sEXPR_INFIX: %d:%d", tab, ex->flp.line, ex->flp.chr);
-			if (ex->u.infix.left)
-				expr_print(ex->u.infix.left, depth + 1);
+			debugf("%sEXPR_INFIX: %d:%d", tab, ex.flp.line, ex.flp.chr);
+			if (ex.u.infix.left)
+				expr_print(ex.u.infix.left, depth + 1);
 			else
 				debugf("%s  NULL", tab);
-			debugf("%s->%s", tab, ks_name(ex->u.infix.k));
-			if (ex->u.infix.right)
-				expr_print(ex->u.infix.right, depth + 1);
+			debugf("%s.%s", tab, ks_name(ex.u.infix.k));
+			if (ex.u.infix.right)
+				expr_print(ex.u.infix.right, depth + 1);
 			else
 				debugf("%s  NULL", tab);
 			break;
 
 		case EXPR_CALL:
 			debugf("%sEXPR_CALL:", tab);
-			if (ex->u.call.cmd)
-				expr_print(ex->u.call.cmd, depth + 1);
+			if (ex.u.call.cmd)
+				expr_print(ex.u.call.cmd, depth + 1);
 			else
 				debugf("%s  NULL", tab);
-			debugf("%s->", tab);
-			if (ex->u.call.params)
-				expr_print(ex->u.call.params, depth + 1);
+			debugf("%s.", tab);
+			if (ex.u.call.params)
+				expr_print(ex.u.call.params, depth + 1);
 			else
 				debugf("%s  NULL", tab);
 			break;
 
 		case EXPR_INDEX:
 			debugf("%sEXPR_INDEX:", tab);
-			if (ex->u.index.obj)
-				expr_print(ex->u.index.obj, depth + 1);
+			if (ex.u.index.obj)
+				expr_print(ex.u.index.obj, depth + 1);
 			else
 				debugf("%s  NULL", tab);
-			debugf("%s->", tab);
-			if (ex->u.index.key)
-				expr_print(ex->u.index.key, depth + 1);
+			debugf("%s.", tab);
+			if (ex.u.index.key)
+				expr_print(ex.u.index.key, depth + 1);
 			else
 				debugf("%s  NULL", tab);
 			break;
 
 		case EXPR_SLICE:
 			debugf("%sEXPR_SLICE:", tab);
-			if (ex->u.slice.obj)
-				expr_print(ex->u.slice.obj, depth + 1);
+			if (ex.u.slice.obj)
+				expr_print(ex.u.slice.obj, depth + 1);
 			else
 				debugf("%s  NULL", tab);
-			debugf("%s->", tab);
-			if (ex->u.slice.start)
-				expr_print(ex->u.slice.start, depth + 1);
+			debugf("%s.", tab);
+			if (ex.u.slice.start)
+				expr_print(ex.u.slice.start, depth + 1);
 			else
 				debugf("%s  NULL", tab);
-			debugf("%s->", tab);
-			if (ex->u.slice.len)
-				expr_print(ex->u.slice.len, depth + 1);
+			debugf("%s.", tab);
+			if (ex.u.slice.len)
+				expr_print(ex.u.slice.len, depth + 1);
 			else
 				debugf("%s  NULL", tab);
 			break;
@@ -2259,218 +2241,218 @@ static void expr_print(expr ex, int depth){
 
 static inline expr expr_nil(filepos_st flp){
 	expr ex = mem_alloc(sizeof(expr_st));
-	ex->flp = flp;
-	ex->type = EXPR_NIL;
+	ex.flp = flp;
+	ex.type = EXPR_NIL;
 	return ex;
 }
 
 static inline expr expr_num(filepos_st flp, double num){
 	expr ex = mem_alloc(sizeof(expr_st));
-	ex->flp = flp;
-	ex->type = EXPR_NUM;
-	ex->u.num = num;
+	ex.flp = flp;
+	ex.type = EXPR_NUM;
+	ex.u.num = num;
 	return ex;
 }
 
 static inline expr expr_str(filepos_st flp, list_byte str){
 	expr ex = mem_alloc(sizeof(expr_st));
-	ex->flp = flp;
-	ex->type = EXPR_STR;
-	ex->u.str = str;
+	ex.flp = flp;
+	ex.type = EXPR_STR;
+	ex.u.str = str;
 	return ex;
 }
 
 static inline expr expr_list(filepos_st flp, expr ex){
 	expr ex2 = mem_alloc(sizeof(expr_st));
-	ex2->flp = flp;
-	ex2->type = EXPR_LIST;
-	ex2->u.ex = ex;
+	ex2.flp = flp;
+	ex2.type = EXPR_LIST;
+	ex2.u.ex = ex;
 	return ex2;
 }
 
 static inline expr expr_names(filepos_st flp, list_ptr names){
 	expr ex = mem_alloc(sizeof(expr_st));
-	ex->flp = flp;
-	ex->type = EXPR_NAMES;
-	ex->u.names = names;
+	ex.flp = flp;
+	ex.type = EXPR_NAMES;
+	ex.u.names = names;
 	return ex;
 }
 
 static inline expr expr_paren(filepos_st flp, expr ex){
-	if (ex->type == EXPR_NUM)
+	if (ex.type === EXPR_NUM)
 		return ex;
 	expr ex2 = mem_alloc(sizeof(expr_st));
-	ex2->flp = flp;
-	ex2->type = EXPR_PAREN;
-	ex2->u.ex = ex;
+	ex2.flp = flp;
+	ex2.type = EXPR_PAREN;
+	ex2.u.ex = ex;
 	return ex2;
 }
 
 static inline expr expr_group(filepos_st flp, expr left, expr right){
 	list_ptr g = list_ptr_new(expr_free);
-	if (left->type == EXPR_GROUP){
-		list_ptr_append(g, left->u.group);
-		left->u.group->size = 0;
+	if (left.type === EXPR_GROUP){
+		list_ptr_append(g, left.u.group);
+		left.u.group.size = 0;
 		expr_free(left);
 	}
 	else
 		list_ptr_push(g, left);
-	if (right->type == EXPR_GROUP){
-		list_ptr_append(g, right->u.group);
-		right->u.group->size = 0;
+	if (right.type === EXPR_GROUP){
+		list_ptr_append(g, right.u.group);
+		right.u.group.size = 0;
 		expr_free(right);
 	}
 	else
 		list_ptr_push(g, right);
 	expr ex = mem_alloc(sizeof(expr_st));
-	ex->flp = flp;
-	ex->type = EXPR_GROUP;
-	ex->u.group = g;
+	ex.flp = flp;
+	ex.type = EXPR_GROUP;
+	ex.u.group = g;
 	return ex;
 }
 
 static inline expr expr_cat(filepos_st flp, expr left, expr right){
 	// unwrap any parens
-	while (left->type == EXPR_PAREN){
-		expr lf = left->u.ex;
-		left->u.ex = NULL;
+	while (left.type === EXPR_PAREN){
+		expr lf = left.u.ex;
+		left.u.ex = NULL;
 		expr_free(left);
 		left = lf;
 	}
-	while (right->type == EXPR_PAREN){
-		expr rt = right->u.ex;
-		right->u.ex = NULL;
+	while (right.type === EXPR_PAREN){
+		expr rt = right.u.ex;
+		right.u.ex = NULL;
 		expr_free(right);
 		right = rt;
 	}
 
 	// check for static concat
-	if (left->type == EXPR_STR && right->type == EXPR_STR){
-		list_byte_append(left->u.str, right->u.str->size, right->u.str->bytes);
+	if (left.type === EXPR_STR && right.type === EXPR_STR){
+		list_byte_append(left.u.str, right.u.str.size, right.u.str.bytes);
 		expr_free(right);
 		return left;
 	}
-	else if (left->type == EXPR_LIST && right->type == EXPR_LIST){
-		if (right->u.ex){
-			if (left->u.ex)
-				left->u.ex = expr_group(flp, left->u.ex, right->u.ex);
+	else if (left.type === EXPR_LIST && right.type === EXPR_LIST){
+		if (right.u.ex){
+			if (left.u.ex)
+				left.u.ex = expr_group(flp, left.u.ex, right.u.ex);
 			else
-				left->u.ex = right->u.ex;
-			right->u.ex = NULL;
+				left.u.ex = right.u.ex;
+			right.u.ex = NULL;
 		}
 		expr_free(right);
 		return left;
 	}
 
 	list_ptr c = list_ptr_new(expr_free);
-	if (left->type == EXPR_CAT){
-		list_ptr_append(c, left->u.cat);
-		left->u.cat->size = 0;
+	if (left.type === EXPR_CAT){
+		list_ptr_append(c, left.u.cat);
+		left.u.cat.size = 0;
 		expr_free(left);
 	}
 	else
 		list_ptr_push(c, left);
-	if (right->type == EXPR_CAT){
-		list_ptr_append(c, right->u.cat);
-		right->u.cat->size = 0;
+	if (right.type === EXPR_CAT){
+		list_ptr_append(c, right.u.cat);
+		right.u.cat.size = 0;
 		expr_free(right);
 	}
 	else
 		list_ptr_push(c, right);
 	expr ex = mem_alloc(sizeof(expr_st));
-	ex->flp = flp;
-	ex->type = EXPR_CAT;
-	ex->u.cat = c;
+	ex.flp = flp;
+	ex.type = EXPR_CAT;
+	ex.u.cat = c;
 	return ex;
 }
 
 static inline expr expr_prefix(filepos_st flp, ks_enum k, expr ex){
-	if ((k == KS_MINUS || k == KS_UNMINUS) && ex->type == EXPR_NUM){
-		ex->u.num = -ex->u.num;
+	if ((k === ks_enum.MINUS || k === ks_enum.UNMINUS) && ex.type === EXPR_NUM){
+		ex.u.num = -ex.u.num;
 		return ex;
 	}
-	else if ((k == KS_PLUS || k == KS_UNPLUS) && ex->type == EXPR_NUM)
+	else if ((k === ks_enum.PLUS || k === ks_enum.UNPLUS) && ex.type === EXPR_NUM)
 		return ex;
 	expr ex2 = mem_alloc(sizeof(expr_st));
-	ex2->flp = flp;
-	ex2->type = EXPR_PREFIX;
-	ex2->u.prefix.k = k;
-	ex2->u.prefix.ex = ex;
+	ex2.flp = flp;
+	ex2.type = EXPR_PREFIX;
+	ex2.u.prefix.k = k;
+	ex2.u.prefix.ex = ex;
 	return ex2;
 }
 
 static inline expr expr_infix(filepos_st flp, ks_enum k, expr left, expr right){
-	if (left->type == EXPR_NUM && right->type == EXPR_NUM){
+	if (left.type === EXPR_NUM && right.type === EXPR_NUM){
 		// check for compile-time numeric optimizations
-		if (k == KS_PLUS){
-			left->u.num += right->u.num;
+		if (k === ks_enum.PLUS){
+			left.u.num += right.u.num;
 			expr_free(right);
 			return left;
 		}
-		else if (k == KS_MINUS){
-			left->u.num -= right->u.num;
+		else if (k === ks_enum.MINUS){
+			left.u.num -= right.u.num;
 			expr_free(right);
 			return left;
 		}
-		else if (k == KS_PERCENT){
-			left->u.num = fmod(left->u.num, right->u.num);
+		else if (k === ks_enum.PERCENT){
+			left.u.num = fmod(left.u.num, right.u.num);
 			expr_free(right);
 			return left;
 		}
-		else if (k == KS_STAR){
-			left->u.num *= right->u.num;
+		else if (k === ks_enum.STAR){
+			left.u.num *= right.u.num;
 			expr_free(right);
 			return left;
 		}
-		else if (k == KS_SLASH){
-			left->u.num /= right->u.num;
+		else if (k === ks_enum.SLASH){
+			left.u.num /= right.u.num;
 			expr_free(right);
 			return left;
 		}
-		else if (k == KS_CARET){
-			left->u.num = pow(left->u.num, right->u.num);
+		else if (k === ks_enum.CARET){
+			left.u.num = pow(left.u.num, right.u.num);
 			expr_free(right);
 			return left;
 		}
 	}
-	if (k == KS_COMMA)
+	if (k === ks_enum.COMMA)
 		return expr_group(flp, left, right);
-	else if (k == KS_TILDE)
+	else if (k === ks_enum.TILDE)
 		return expr_cat(flp, left, right);
 	expr ex = mem_alloc(sizeof(expr_st));
-	ex->flp = flp;
-	ex->type = EXPR_INFIX;
-	ex->u.infix.k = k;
-	ex->u.infix.left = left;
-	ex->u.infix.right = right;
+	ex.flp = flp;
+	ex.type = EXPR_INFIX;
+	ex.u.infix.k = k;
+	ex.u.infix.left = left;
+	ex.u.infix.right = right;
 	return ex;
 }
 
 static inline expr expr_call(filepos_st flp, expr cmd, expr params){
 	expr ex = mem_alloc(sizeof(expr_st));
-	ex->flp = flp;
-	ex->type = EXPR_CALL;
-	ex->u.call.cmd = cmd;
-	ex->u.call.params = params;
+	ex.flp = flp;
+	ex.type = EXPR_CALL;
+	ex.u.call.cmd = cmd;
+	ex.u.call.params = params;
 	return ex;
 }
 
 static inline expr expr_index(filepos_st flp, expr obj, expr key){
 	expr ex = mem_alloc(sizeof(expr_st));
-	ex->flp = flp;
-	ex->type = EXPR_INDEX;
-	ex->u.index.obj = obj;
-	ex->u.index.key = key;
+	ex.flp = flp;
+	ex.type = EXPR_INDEX;
+	ex.u.index.obj = obj;
+	ex.u.index.key = key;
 	return ex;
 }
 
 static inline expr expr_slice(filepos_st flp, expr obj, expr start, expr len){
 	expr ex = mem_alloc(sizeof(expr_st));
-	ex->flp = flp;
-	ex->type = EXPR_SLICE;
-	ex->u.slice.obj = obj;
-	ex->u.slice.start = start;
-	ex->u.slice.len = len;
+	ex.flp = flp;
+	ex.type = EXPR_SLICE;
+	ex.u.slice.obj = obj;
+	ex.u.slice.start = start;
+	ex.u.slice.len = len;
 	return ex;
 }
 
@@ -2491,28 +2473,28 @@ typedef struct {
 } decl_st, *decl;
 
 static inline void decl_free(decl dc){
-	if (dc->names)
-		list_ptr_free(dc->names);
-	if (dc->key)
-		list_byte_free(dc->key);
+	if (dc.names)
+		list_ptr_free(dc.names);
+	if (dc.key)
+		list_byte_free(dc.key);
 	mem_free(dc);
 }
 
 static inline decl decl_local(filepos_st flp, list_ptr names){
 	decl dc = mem_alloc(sizeof(decl_st));
-	dc->type = DECL_LOCAL;
-	dc->flp = flp;
-	dc->names = names;
-	dc->key = NULL;
+	dc.type = DECL_LOCAL;
+	dc.flp = flp;
+	dc.names = names;
+	dc.key = NULL;
 	return dc;
 }
 
 static inline decl decl_native(filepos_st flp, list_ptr names, list_byte key){
 	decl dc = mem_alloc(sizeof(decl_st));
-	dc->type = DECL_NATIVE;
-	dc->flp = flp;
-	dc->names = names;
-	dc->key = key;
+	dc.type = DECL_NATIVE;
+	dc.flp = flp;
+	dc.names = names;
+	dc.key = key;
 	return dc;
 }
 
@@ -2571,21 +2553,21 @@ typedef struct {
 } ast_st, *ast;
 
 static void ast_free(ast stmt){
-	switch (stmt->type){
+	switch (stmt.type){
 		case AST_BREAK:
 		case AST_CONTINUE:
 			break;
 
 		case AST_DECLARE:
-			if (stmt->u.declare)
-				decl_free(stmt->u.declare);
+			if (stmt.u.declare)
+				decl_free(stmt.u.declare);
 			break;
 
 		case AST_DEF1:
-			if (stmt->u.def1.names)
-				list_ptr_free(stmt->u.def1.names);
-			if (stmt->u.def1.lvalues)
-				list_ptr_free(stmt->u.def1.lvalues);
+			if (stmt.u.def1.names)
+				list_ptr_free(stmt.u.def1.names);
+			if (stmt.u.def1.lvalues)
+				list_ptr_free(stmt.u.def1.lvalues);
 			break;
 
 		case AST_DEF2:
@@ -2595,25 +2577,25 @@ static void ast_free(ast stmt){
 			break;
 
 		case AST_DOWHILE2:
-			if (stmt->u.cond)
-				expr_free(stmt->u.cond);
+			if (stmt.u.cond)
+				expr_free(stmt.u.cond);
 			break;
 
 		case AST_DOWHILE3:
 			break;
 
 		case AST_ENUM:
-			if (stmt->u.lvalues)
-				list_ptr_free(stmt->u.lvalues);
+			if (stmt.u.lvalues)
+				list_ptr_free(stmt.u.lvalues);
 			break;
 
 		case AST_FOR1:
-			if (stmt->u.for1.names1)
-				list_ptr_free(stmt->u.for1.names1);
-			if (stmt->u.for1.names2)
-				list_ptr_free(stmt->u.for1.names2);
-			if (stmt->u.for1.ex)
-				expr_free(stmt->u.for1.ex);
+			if (stmt.u.for1.names1)
+				list_ptr_free(stmt.u.for1.names1);
+			if (stmt.u.for1.names2)
+				list_ptr_free(stmt.u.for1.names2);
+			if (stmt.u.for1.ex)
+				expr_free(stmt.u.for1.ex);
 			break;
 
 		case AST_FOR2:
@@ -2622,16 +2604,16 @@ static void ast_free(ast stmt){
 			break;
 
 		case AST_GOTO:
-			if (stmt->u.ident)
-				list_byte_free(stmt->u.ident);
+			if (stmt.u.ident)
+				list_byte_free(stmt.u.ident);
 			break;
 
 		case AST_IF1:
 			break;
 
 		case AST_IF2:
-			if (stmt->u.cond)
-				expr_free(stmt->u.cond);
+			if (stmt.u.cond)
+				expr_free(stmt.u.cond);
 			break;
 
 		case AST_IF3:
@@ -2639,41 +2621,41 @@ static void ast_free(ast stmt){
 			break;
 
 		case AST_INCLUDE:
-			if (stmt->u.incls)
-				list_ptr_free(stmt->u.incls);
+			if (stmt.u.incls)
+				list_ptr_free(stmt.u.incls);
 			break;
 
 		case AST_NAMESPACE1:
-			if (stmt->u.names)
-				list_ptr_free(stmt->u.names);
+			if (stmt.u.names)
+				list_ptr_free(stmt.u.names);
 			break;
 
 		case AST_NAMESPACE2:
 			break;
 
 		case AST_RETURN:
-			if (stmt->u.ex)
-				expr_free(stmt->u.ex);
+			if (stmt.u.ex)
+				expr_free(stmt.u.ex);
 			break;
 
 		case AST_USING:
-			if (stmt->u.names)
-				list_ptr_free(stmt->u.names);
+			if (stmt.u.names)
+				list_ptr_free(stmt.u.names);
 			break;
 
 		case AST_VAR:
-			if (stmt->u.lvalues)
-				list_ptr_free(stmt->u.lvalues);
+			if (stmt.u.lvalues)
+				list_ptr_free(stmt.u.lvalues);
 			break;
 
 		case AST_EVAL:
-			if (stmt->u.ex)
-				expr_free(stmt->u.ex);
+			if (stmt.u.ex)
+				expr_free(stmt.u.ex);
 			break;
 
 		case AST_LABEL:
-			if (stmt->u.ident)
-				list_byte_free(stmt->u.ident);
+			if (stmt.u.ident)
+				list_byte_free(stmt.u.ident);
 			break;
 	}
 	mem_free(stmt);
@@ -2681,7 +2663,7 @@ static void ast_free(ast stmt){
 
 static void ast_print(ast stmt){
 	#ifdef SINK_DEBUG
-	switch (stmt->type){
+	switch (stmt.type){
 		case AST_BREAK:
 			debug("AST_BREAK");
 			break;
@@ -2691,13 +2673,13 @@ static void ast_print(ast stmt){
 			break;
 
 		case AST_DECLARE:
-			//if (stmt->u.declare)
+			//if (stmt.u.declare)
 			debug("AST_DECLARE");
 			break;
 
 		case AST_DEF1:
-			//if (stmt->u.def1.names)
-			//if (stmt->u.def1.lvalues)
+			//if (stmt.u.def1.names)
+			//if (stmt.u.def1.lvalues)
 			debug("AST_DEF1");
 			break;
 
@@ -2711,8 +2693,8 @@ static void ast_print(ast stmt){
 
 		case AST_DOWHILE2:
 			debug("AST_DOWHILE2:");
-			if (stmt->u.cond)
-				expr_print(stmt->u.cond, 1);
+			if (stmt.u.cond)
+				expr_print(stmt.u.cond, 1);
 			else
 				debug("  NULL");
 			break;
@@ -2726,11 +2708,11 @@ static void ast_print(ast stmt){
 			break;
 
 		case AST_FOR1:
-			//if (stmt->u.afor.names1)
-			//if (stmt->u.afor.names2)
+			//if (stmt.u.afor.names1)
+			//if (stmt.u.afor.names2)
 			debug("AST_FOR:");
-			if (stmt->u.for1.ex)
-				expr_print(stmt->u.for1.ex, 1);
+			if (stmt.u.for1.ex)
+				expr_print(stmt.u.for1.ex, 1);
 			else
 				debug("  NULL");
 			break;
@@ -2748,8 +2730,8 @@ static void ast_print(ast stmt){
 			break;
 
 		case AST_GOTO:
-			if (stmt->u.ident)
-				debugf("AST_GOTO \"%.*s\"", stmt->u.ident->size, stmt->u.ident->bytes);
+			if (stmt.u.ident)
+				debugf("AST_GOTO \"%.*s\"", stmt.u.ident.size, stmt.u.ident.bytes);
 			else
 				debug("AST_GOTO NULL");
 			break;
@@ -2759,10 +2741,10 @@ static void ast_print(ast stmt){
 			break;
 
 		case AST_IF2:
-			//if (stmt->u.aif.conds)
+			//if (stmt.u.aif.conds)
 			debug("AST_IF2:");
-			if (stmt->u.cond)
-				expr_print(stmt->u.cond, 1);
+			if (stmt.u.cond)
+				expr_print(stmt.u.cond, 1);
 			else
 				debug("  NULL");
 			break;
@@ -2776,12 +2758,12 @@ static void ast_print(ast stmt){
 			break;
 
 		case AST_INCLUDE:
-			//if (stmt->u.incls)
+			//if (stmt.u.incls)
 			debug("AST_INCLUDE");
 			break;
 
 		case AST_NAMESPACE1:
-			//if (stmt->u.names)
+			//if (stmt.u.names)
 			debug("AST_NAMESPACE1");
 			break;
 
@@ -2791,38 +2773,38 @@ static void ast_print(ast stmt){
 
 		case AST_RETURN:
 			debug("AST_RETURN:");
-			if (stmt->u.ex)
-				expr_print(stmt->u.ex, 1);
+			if (stmt.u.ex)
+				expr_print(stmt.u.ex, 1);
 			else
 				debug("  NULL");
 			break;
 
 		case AST_USING:
-			//if (stmt->u.names)
+			//if (stmt.u.names)
 			debug("AST_USING");
 			break;
 
 		case AST_VAR:
 			debug("AST_VAR:");
-			if (stmt->u.lvalues){
-				for (int i = 0 ;i < stmt->u.lvalues->size; i++)
-					expr_print(stmt->u.lvalues->ptrs[i], 1);
+			if (stmt.u.lvalues){
+				for (int i = 0 ;i < stmt.u.lvalues.size; i++)
+					expr_print(stmt.u.lvalues.ptrs[i], 1);
 			}
 			else
 				debug("  NULL");
 			break;
 
 		case AST_EVAL:
-			debugf("AST_EVAL: %d:%d", stmt->flp.line, stmt->flp.chr);
-			if (stmt->u.ex)
-				expr_print(stmt->u.ex, 1);
+			debugf("AST_EVAL: %d:%d", stmt.flp.line, stmt.flp.chr);
+			if (stmt.u.ex)
+				expr_print(stmt.u.ex, 1);
 			else
 				debug("  NULL");
 			break;
 
 		case AST_LABEL:
-			if (stmt->u.ident)
-				debugf("AST_LABEL \"%.*s\"", stmt->u.ident->size, stmt->u.ident->bytes);
+			if (stmt.u.ident)
+				debugf("AST_LABEL \"%.*s\"", stmt.u.ident.size, stmt.u.ident.bytes);
 			else
 				debug("AST_LABEL NULL");
 			break;
@@ -2832,139 +2814,139 @@ static void ast_print(ast stmt){
 
 static inline ast ast_break(filepos_st flp){
 	ast stmt = mem_alloc(sizeof(ast_st));
-	stmt->flp = flp;
-	stmt->type = AST_BREAK;
+	stmt.flp = flp;
+	stmt.type = AST_BREAK;
 	return stmt;
 }
 
 static inline ast ast_continue(filepos_st flp){
 	ast stmt = mem_alloc(sizeof(ast_st));
-	stmt->flp = flp;
-	stmt->type = AST_CONTINUE;
+	stmt.flp = flp;
+	stmt.type = AST_CONTINUE;
 	return stmt;
 }
 
 static inline ast ast_declare(filepos_st flp, decl dc){
 	ast stmt = mem_alloc(sizeof(ast_st));
-	stmt->flp = flp;
-	stmt->type = AST_DECLARE;
-	stmt->u.declare = dc;
+	stmt.flp = flp;
+	stmt.type = AST_DECLARE;
+	stmt.u.declare = dc;
 	return stmt;
 }
 
 static inline ast ast_def1(filepos_st flp, filepos_st flpN, list_ptr names, list_ptr lvalues){
 	ast stmt = mem_alloc(sizeof(ast_st));
-	stmt->flp = flp;
-	stmt->type = AST_DEF1;
-	stmt->u.def1.flpN = flpN;
-	stmt->u.def1.names = names;
-	stmt->u.def1.lvalues = lvalues;
+	stmt.flp = flp;
+	stmt.type = AST_DEF1;
+	stmt.u.def1.flpN = flpN;
+	stmt.u.def1.names = names;
+	stmt.u.def1.lvalues = lvalues;
 	return stmt;
 }
 
 static inline ast ast_def2(filepos_st flp){
 	ast stmt = mem_alloc(sizeof(ast_st));
-	stmt->flp = flp;
-	stmt->type = AST_DEF2;
+	stmt.flp = flp;
+	stmt.type = AST_DEF2;
 	return stmt;
 }
 
 static inline ast ast_dowhile1(filepos_st flp){
 	ast stmt = mem_alloc(sizeof(ast_st));
-	stmt->flp = flp;
-	stmt->type = AST_DOWHILE1;
+	stmt.flp = flp;
+	stmt.type = AST_DOWHILE1;
 	return stmt;
 }
 
 static inline ast ast_dowhile2(filepos_st flp, expr cond){
 	ast stmt = mem_alloc(sizeof(ast_st));
-	stmt->flp = flp;
-	stmt->type = AST_DOWHILE2;
-	stmt->u.cond = cond;
+	stmt.flp = flp;
+	stmt.type = AST_DOWHILE2;
+	stmt.u.cond = cond;
 	return stmt;
 }
 
 static inline ast ast_dowhile3(filepos_st flp){
 	ast stmt = mem_alloc(sizeof(ast_st));
-	stmt->flp = flp;
-	stmt->type = AST_DOWHILE3;
+	stmt.flp = flp;
+	stmt.type = AST_DOWHILE3;
 	return stmt;
 }
 
 static inline ast ast_enum(filepos_st flp, list_ptr lvalues){
 	ast stmt = mem_alloc(sizeof(ast_st));
-	stmt->flp = flp;
-	stmt->type = AST_ENUM;
-	stmt->u.lvalues = lvalues;
+	stmt.flp = flp;
+	stmt.type = AST_ENUM;
+	stmt.u.lvalues = lvalues;
 	return stmt;
 }
 
 static inline ast ast_for1(filepos_st flp, bool forVar, list_ptr names1, list_ptr names2, expr ex){
 	ast stmt = mem_alloc(sizeof(ast_st));
-	stmt->flp = flp;
-	stmt->type = AST_FOR1;
-	stmt->u.for1.forVar = forVar;
-	stmt->u.for1.names1 = names1;
-	stmt->u.for1.names2 = names2;
-	stmt->u.for1.ex = ex;
+	stmt.flp = flp;
+	stmt.type = AST_FOR1;
+	stmt.u.for1.forVar = forVar;
+	stmt.u.for1.names1 = names1;
+	stmt.u.for1.names2 = names2;
+	stmt.u.for1.ex = ex;
 	return stmt;
 }
 
 static inline ast ast_for2(filepos_st flp){
 	ast stmt = mem_alloc(sizeof(ast_st));
-	stmt->flp = flp;
-	stmt->type = AST_FOR2;
+	stmt.flp = flp;
+	stmt.type = AST_FOR2;
 	return stmt;
 }
 
 static inline ast ast_loop1(filepos_st flp){
 	ast stmt = mem_alloc(sizeof(ast_st));
-	stmt->flp = flp;
-	stmt->type = AST_LOOP1;
+	stmt.flp = flp;
+	stmt.type = AST_LOOP1;
 	return stmt;
 }
 
 static inline ast ast_loop2(filepos_st flp){
 	ast stmt = mem_alloc(sizeof(ast_st));
-	stmt->flp = flp;
-	stmt->type = AST_LOOP2;
+	stmt.flp = flp;
+	stmt.type = AST_LOOP2;
 	return stmt;
 }
 
 static inline ast ast_goto(filepos_st flp, list_byte ident){
 	ast stmt = mem_alloc(sizeof(ast_st));
-	stmt->flp = flp;
-	stmt->type = AST_GOTO;
-	stmt->u.ident = ident;
+	stmt.flp = flp;
+	stmt.type = AST_GOTO;
+	stmt.u.ident = ident;
 	return stmt;
 }
 
 static inline ast ast_if1(filepos_st flp){
 	ast stmt = mem_alloc(sizeof(ast_st));
-	stmt->flp = flp;
-	stmt->type = AST_IF1;
+	stmt.flp = flp;
+	stmt.type = AST_IF1;
 	return stmt;
 }
 
 static inline ast ast_if2(filepos_st flp, expr cond){
 	ast stmt = mem_alloc(sizeof(ast_st));
-	stmt->flp = flp;
-	stmt->type = AST_IF2;
-	stmt->u.cond = cond;
+	stmt.flp = flp;
+	stmt.type = AST_IF2;
+	stmt.u.cond = cond;
 	return stmt;
 }
 
 static inline ast ast_if3(filepos_st flp){
 	ast stmt = mem_alloc(sizeof(ast_st));
-	stmt->flp = flp;
-	stmt->type = AST_IF3;
+	stmt.flp = flp;
+	stmt.type = AST_IF3;
 	return stmt;
 }
 
 static inline ast ast_if4(filepos_st flp){
 	ast stmt = mem_alloc(sizeof(ast_st));
-	stmt->flp = flp;
-	stmt->type = AST_IF4;
+	stmt.flp = flp;
+	stmt.type = AST_IF4;
 	return stmt;
 }
 
@@ -2977,88 +2959,88 @@ typedef struct {
 } incl_st, *incl;
 
 static void incl_free(incl inc){
-	if (inc->names && inc->names != INCL_UNIQUE)
-		list_ptr_free(inc->names);
-	if (inc->file)
-		list_byte_free(inc->file);
+	if (inc.names && inc.names !== INCL_UNIQUE)
+		list_ptr_free(inc.names);
+	if (inc.file)
+		list_byte_free(inc.file);
 	mem_free(inc);
 }
 
 static inline incl incl_new(list_ptr names, list_byte file){
 	incl inc = mem_alloc(sizeof(incl_st));
-	inc->names = names;
-	inc->file = file;
+	inc.names = names;
+	inc.file = file;
 	return inc;
 }
 
 static inline ast ast_include(filepos_st flp, list_ptr incls){
 	assertflp(flp);
 	ast stmt = mem_alloc(sizeof(ast_st));
-	stmt->flp = flp;
-	stmt->type = AST_INCLUDE;
-	stmt->u.incls = incls;
+	stmt.flp = flp;
+	stmt.type = AST_INCLUDE;
+	stmt.u.incls = incls;
 	return stmt;
 }
 
 static inline ast ast_namespace1(filepos_st flp, list_ptr names){
 	assertflp(flp);
 	ast stmt = mem_alloc(sizeof(ast_st));
-	stmt->flp = flp;
-	stmt->type = AST_NAMESPACE1;
-	stmt->u.names = names;
+	stmt.flp = flp;
+	stmt.type = AST_NAMESPACE1;
+	stmt.u.names = names;
 	return stmt;
 }
 
 static inline ast ast_namespace2(filepos_st flp){
 	assertflp(flp);
 	ast stmt = mem_alloc(sizeof(ast_st));
-	stmt->flp = flp;
-	stmt->type = AST_NAMESPACE2;
+	stmt.flp = flp;
+	stmt.type = AST_NAMESPACE2;
 	return stmt;
 }
 
 static inline ast ast_return(filepos_st flp, expr ex){
 	assertflp(flp);
 	ast stmt = mem_alloc(sizeof(ast_st));
-	stmt->flp = flp;
-	stmt->type = AST_RETURN;
-	stmt->u.ex = ex;
+	stmt.flp = flp;
+	stmt.type = AST_RETURN;
+	stmt.u.ex = ex;
 	return stmt;
 }
 
 static inline ast ast_using(filepos_st flp, list_ptr names){
 	assertflp(flp);
 	ast stmt = mem_alloc(sizeof(ast_st));
-	stmt->flp = flp;
-	stmt->type = AST_USING;
-	stmt->u.names = names;
+	stmt.flp = flp;
+	stmt.type = AST_USING;
+	stmt.u.names = names;
 	return stmt;
 }
 
 static inline ast ast_var(filepos_st flp, list_ptr lvalues){
 	assertflp(flp);
 	ast stmt = mem_alloc(sizeof(ast_st));
-	stmt->flp = flp;
-	stmt->type = AST_VAR;
-	stmt->u.lvalues = lvalues;
+	stmt.flp = flp;
+	stmt.type = AST_VAR;
+	stmt.u.lvalues = lvalues;
 	return stmt;
 }
 
 static inline ast ast_eval(filepos_st flp, expr ex){
 	assertflp(flp);
 	ast stmt = mem_alloc(sizeof(ast_st));
-	stmt->flp = flp;
-	stmt->type = AST_EVAL;
-	stmt->u.ex = ex;
+	stmt.flp = flp;
+	stmt.type = AST_EVAL;
+	stmt.u.ex = ex;
 	return stmt;
 }
 
 static inline ast ast_label(filepos_st flp, list_byte ident){
 	assertflp(flp);
 	ast stmt = mem_alloc(sizeof(ast_st));
-	stmt->flp = flp;
-	stmt->type = AST_LABEL;
-	stmt->u.ident = ident;
+	stmt.flp = flp;
+	stmt.type = AST_LABEL;
+	stmt.u.ident = ident;
 	return stmt;
 }
 
@@ -3073,15 +3055,15 @@ struct ets_struct {
 };
 
 static inline void ets_free(ets e){
-	if (e->tk)
-		tok_free(e->tk);
+	if (e.tk)
+		tok_free(e.tk);
 	mem_free(e);
 }
 
 static inline ets ets_new(tok tk, ets next){ // exprPreStack, exprMidStack
 	ets e = mem_alloc(sizeof(ets_st));
-	e->tk = tk;
-	e->next = next;
+	e.tk = tk;
+	e.next = next;
 	return e;
 }
 
@@ -3092,15 +3074,15 @@ struct exs_struct {
 };
 
 static inline void exs_free(exs e){
-	if (e->ex)
-		expr_free(e->ex);
+	if (e.ex)
+		expr_free(e.ex);
 	mem_free(e);
 }
 
 static inline exs exs_new(expr ex, exs next){ // exprStack
 	exs e = mem_alloc(sizeof(exs_st));
-	e->ex = ex;
-	e->next = next;
+	e.ex = ex;
+	e.next = next;
 	return e;
 }
 
@@ -3111,10 +3093,10 @@ struct eps_struct {
 };
 
 static inline void eps_free(eps e){
-	ets here = e->e;
+	ets here = e.e;
 	while (here){
 		ets del = here;
-		here = here->next;
+		here = here.next;
 		ets_free(del);
 	}
 	mem_free(e);
@@ -3122,8 +3104,8 @@ static inline void eps_free(eps e){
 
 static inline eps eps_new(ets e, eps next){ // exprPreStackStack
 	eps e2 = mem_alloc(sizeof(eps_st));
-	e2->e = e;
-	e2->next = next;
+	e2.e = e;
+	e2.next = next;
 	return e2;
 }
 
@@ -3255,81 +3237,81 @@ struct prs_struct {
 };
 
 static void prs_free(prs pr){
-	if (pr->lvalues)
-		list_ptr_free(pr->lvalues);
-	if (pr->str)
-		list_byte_free(pr->str);
-	if (pr->exprPreStackStack){
-		eps here = pr->exprPreStackStack;
+	if (pr.lvalues)
+		list_ptr_free(pr.lvalues);
+	if (pr.str)
+		list_byte_free(pr.str);
+	if (pr.exprPreStackStack){
+		eps here = pr.exprPreStackStack;
 		while (here){
 			eps del = here;
-			here = here->next;
+			here = here.next;
 			eps_free(del);
 		}
 	}
-	if (pr->exprPreStack){
-		ets here = pr->exprPreStack;
+	if (pr.exprPreStack){
+		ets here = pr.exprPreStack;
 		while (here){
 			ets del = here;
-			here = here->next;
+			here = here.next;
 			ets_free(del);
 		}
 	}
-	if (pr->exprMidStack){
-		ets here = pr->exprMidStack;
+	if (pr.exprMidStack){
+		ets here = pr.exprMidStack;
 		while (here){
 			ets del = here;
-			here = here->next;
+			here = here.next;
 			ets_free(del);
 		}
 	}
-	if (pr->exprStack){
-		exs here = pr->exprStack;
+	if (pr.exprStack){
+		exs here = pr.exprStack;
 		while (here){
 			exs del = here;
-			here = here->next;
+			here = here.next;
 			exs_free(del);
 		}
 	}
-	if (pr->exprTerm)
-		expr_free(pr->exprTerm);
-	if (pr->exprTerm2)
-		expr_free(pr->exprTerm2);
-	if (pr->exprTerm3)
-		expr_free(pr->exprTerm3);
-	if (pr->names && pr->names != INCL_UNIQUE)
-		list_ptr_free(pr->names);
-	if (pr->names2)
-		list_ptr_free(pr->names2);
-	if (pr->incls)
-		list_ptr_free(pr->incls);
+	if (pr.exprTerm)
+		expr_free(pr.exprTerm);
+	if (pr.exprTerm2)
+		expr_free(pr.exprTerm2);
+	if (pr.exprTerm3)
+		expr_free(pr.exprTerm3);
+	if (pr.names && pr.names !== INCL_UNIQUE)
+		list_ptr_free(pr.names);
+	if (pr.names2)
+		list_ptr_free(pr.names2);
+	if (pr.incls)
+		list_ptr_free(pr.incls);
 	mem_free(pr);
 }
 
 static prs prs_new(prs_enum state, prs next){
 	prs pr = mem_alloc(sizeof(prs_st));
-	pr->state = state;
-	pr->lvalues = NULL;              // list of expr
-	pr->lvaluesMode = LVM_VAR;
-	pr->forVar = false;
-	pr->str = NULL;
-	pr->flpS = FILEPOS_NULL;
-	pr->flpL = FILEPOS_NULL;
-	pr->flpE = FILEPOS_NULL;
-	pr->exprAllowComma = true;
-	pr->exprAllowPipe = true;
-	pr->exprAllowTrailComma = false;
-	pr->exprPreStackStack = NULL;    // linked list of eps_new's
-	pr->exprPreStack = NULL;         // linked list of ets_new's
-	pr->exprMidStack = NULL;         // linked list of ets_new's
-	pr->exprStack = NULL;            // linked list of exs_new's
-	pr->exprTerm = NULL;             // expr
-	pr->exprTerm2 = NULL;            // expr
-	pr->exprTerm3 = NULL;            // expr
-	pr->names = NULL;                // list of strings
-	pr->names2 = NULL;               // list of strings
-	pr->incls = NULL;                // list of incl's
-	pr->next = next;
+	pr.state = state;
+	pr.lvalues = NULL;              // list of expr
+	pr.lvaluesMode = LVM_VAR;
+	pr.forVar = false;
+	pr.str = NULL;
+	pr.flpS = FILEPOS_NULL;
+	pr.flpL = FILEPOS_NULL;
+	pr.flpE = FILEPOS_NULL;
+	pr.exprAllowComma = true;
+	pr.exprAllowPipe = true;
+	pr.exprAllowTrailComma = false;
+	pr.exprPreStackStack = NULL;    // linked list of eps_new's
+	pr.exprPreStack = NULL;         // linked list of ets_new's
+	pr.exprMidStack = NULL;         // linked list of ets_new's
+	pr.exprStack = NULL;            // linked list of exs_new's
+	pr.exprTerm = NULL;             // expr
+	pr.exprTerm2 = NULL;            // expr
+	pr.exprTerm3 = NULL;            // expr
+	pr.names = NULL;                // list of strings
+	pr.names2 = NULL;               // list of strings
+	pr.incls = NULL;                // list of incl's
+	pr.next = next;
 	return pr;
 }
 
@@ -3346,54 +3328,54 @@ typedef struct {
 } parser_st, *parser;
 
 static inline void parser_free(parser pr){
-	prs here = pr->state;
+	prs here = pr.state;
 	while (here){
 		prs del = here;
-		here = here->next;
+		here = here.next;
 		prs_free(del);
 	}
-	if (pr->tk1)
-		tok_free(pr->tk1);
-	if (pr->tk2)
-		tok_free(pr->tk2);
-	if (pr->tkR)
-		tok_free(pr->tkR);
+	if (pr.tk1)
+		tok_free(pr.tk1);
+	if (pr.tk2)
+		tok_free(pr.tk2);
+	if (pr.tkR)
+		tok_free(pr.tkR);
 	mem_free(pr);
 }
 
 static inline parser parser_new(){
 	parser pr = mem_alloc(sizeof(parser_st));
-	pr->state = prs_new(PRS_STATEMENT, NULL);
-	pr->tkR = NULL;
-	pr->tk1 = NULL;
-	pr->tk2 = NULL;
-	pr->level = 0;
+	pr.state = prs_new(PRS_STATEMENT, NULL);
+	pr.tkR = NULL;
+	pr.tk1 = NULL;
+	pr.tk2 = NULL;
+	pr.level = 0;
 	return pr;
 }
 
 static inline void parser_fwd(parser pr, tok tk){
-	if (pr->tk2)
-		tok_free(pr->tk2);
-	pr->tk2 = pr->tk1;
-	pr->tk1 = tk;
-	pr->tkR = NULL;
+	if (pr.tk2)
+		tok_free(pr.tk2);
+	pr.tk2 = pr.tk1;
+	pr.tk1 = tk;
+	pr.tkR = NULL;
 }
 
 static inline void parser_rev(parser pr){
-	if (pr->tkR)
-		tok_free(pr->tkR);
-	pr->tkR = pr->tk1;
-	pr->tk1 = pr->tk2;
-	pr->tk2 = NULL;
+	if (pr.tkR)
+		tok_free(pr.tkR);
+	pr.tkR = pr.tk1;
+	pr.tk1 = pr.tk2;
+	pr.tk2 = NULL;
 }
 
 static inline void parser_push(parser pr, prs_enum state){
-	pr->state = prs_new(state, pr->state);
+	pr.state = prs_new(state, pr.state);
 }
 
 static inline void parser_pop(parser pr){
-	prs p = pr->state;
-	pr->state = p->next;
+	prs p = pr.state;
+	pr.state = p.next;
 	prs_free(p);
 }
 
@@ -3419,35 +3401,35 @@ static inline pri_st pri_error(char *msg){
 }
 
 static inline pri_st parser_infix(filepos_st flp, ks_enum k, expr left, expr right){
-	if (k == KS_PIPE){
-		if (right->type == EXPR_CALL){
-			right->u.call.params = expr_infix(flp, KS_COMMA, expr_paren(left->flp, left),
-				right->u.call.params);
+	if (k === ks_enum.PIPE){
+		if (right.type === EXPR_CALL){
+			right.u.call.params = expr_infix(flp, ks_enum.COMMA, expr_paren(left.flp, left),
+				right.u.call.params);
 			return pri_ok(right);
 		}
-		else if (right->type == EXPR_NAMES)
-			return pri_ok(expr_call(right->flp, right, expr_paren(left->flp, left)));
+		else if (right.type === EXPR_NAMES)
+			return pri_ok(expr_call(right.flp, right, expr_paren(left.flp, left)));
 		return pri_error("Invalid pipe");
 	}
 	return pri_ok(expr_infix(flp, k, left, right));
 }
 
 static inline void parser_lvalues(parser pr, prs_enum retstate, lvm_enum lvm){
-	pr->state->state = retstate;
+	pr.state.state = retstate;
 	parser_push(pr, PRS_LVALUES);
-	pr->state->lvalues = list_ptr_new(expr_free);
-	pr->state->lvaluesMode = lvm;
+	pr.state.lvalues = list_ptr_new(expr_free);
+	pr.state.lvaluesMode = lvm;
 }
 
 static inline void parser_expr(parser pr, prs_enum retstate){
-	pr->state->state = retstate;
+	pr.state.state = retstate;
 	parser_push(pr, PRS_EXPR);
 }
 
 static inline const char *parser_start(parser pr, filepos_st flpS, prs_enum state){
-	pr->level++;
-	pr->state->state = state;
-	pr->state->flpS = flpS;
+	pr.level++;
+	pr.state.state = state;
+	pr.state.flpS = flpS;
 	return NULL;
 }
 
@@ -3455,57 +3437,57 @@ static inline const char *parser_start(parser pr, filepos_st flpS, prs_enum stat
 static const char *parser_process(parser pr, list_ptr stmts);
 
 static inline const char *parser_statement(parser pr, list_ptr stmts, bool more){
-	pr->level--;
-	pr->state->state = PRS_STATEMENT_END;
+	pr.level--;
+	pr.state.state = PRS_STATEMENT_END;
 	return more ? NULL : parser_process(pr, stmts);
 }
 
 static inline const char *parser_lookup(parser pr, filepos_st flpL, prs_enum retstate){
-	pr->state->state = retstate;
-	pr->state->flpL = flpL;
+	pr.state.state = retstate;
+	pr.state.flpL = flpL;
 	parser_push(pr, PRS_LOOKUP);
-	pr->state->names = list_ptr_new(list_byte_free);
-	list_ptr_push(pr->state->names, pr->tk1->u.ident);
-	pr->tk1->u.ident = NULL;
+	pr.state.names = list_ptr_new(list_byte_free);
+	list_ptr_push(pr.state.names, pr.tk1.u.ident);
+	pr.tk1.u.ident = NULL;
 	return NULL;
 }
 
 static const char *parser_process(parser pr, list_ptr stmts){
-	tok tk1 = pr->tk1;
-	prs st = pr->state;
-	filepos_st flpT = tk1->flp;
-	filepos_st flpS = st->flpS;
-	filepos_st flpL = st->flpL;
-	filepos_st flpE = st->flpE;
-	switch (st->state){
+	tok tk1 = pr.tk1;
+	prs st = pr.state;
+	filepos_st flpT = tk1.flp;
+	filepos_st flpS = st.flpS;
+	filepos_st flpL = st.flpL;
+	filepos_st flpE = st.flpE;
+	switch (st.state){
 		case PRS_STATEMENT:
-			if      (tk1->type == TOK_NEWLINE   ) return NULL;
-			else if (tok_isKS(tk1, KS_BREAK    )) return parser_start(pr, flpT, PRS_BREAK    );
-			else if (tok_isKS(tk1, KS_CONTINUE )) return parser_start(pr, flpT, PRS_CONTINUE );
-			else if (tok_isKS(tk1, KS_DECLARE  )) return parser_start(pr, flpT, PRS_DECLARE  );
-			else if (tok_isKS(tk1, KS_DEF      )) return parser_start(pr, flpT, PRS_DEF      );
-			else if (tok_isKS(tk1, KS_DO       )) return parser_start(pr, flpT, PRS_DO       );
-			else if (tok_isKS(tk1, KS_ENUM     )) return parser_start(pr, flpT, PRS_ENUM     );
-			else if (tok_isKS(tk1, KS_FOR      )) return parser_start(pr, flpT, PRS_FOR      );
-			else if (tok_isKS(tk1, KS_GOTO     )) return parser_start(pr, flpT, PRS_GOTO     );
-			else if (tok_isKS(tk1, KS_IF       )) return parser_start(pr, flpT, PRS_IF       );
-			else if (tok_isKS(tk1, KS_INCLUDE  )) return parser_start(pr, flpT, PRS_INCLUDE  );
-			else if (tok_isKS(tk1, KS_NAMESPACE)) return parser_start(pr, flpT, PRS_NAMESPACE);
-			else if (tok_isKS(tk1, KS_RETURN   )) return parser_start(pr, flpT, PRS_RETURN   );
-			else if (tok_isKS(tk1, KS_USING    )) return parser_start(pr, flpT, PRS_USING    );
-			else if (tok_isKS(tk1, KS_VAR      )) return parser_start(pr, flpT, PRS_VAR      );
-			else if (tk1->type == TOK_IDENT){
-				st->flpS = flpT;
+			if      (tk1.type === TOK_NEWLINE   ) return NULL;
+			else if (tok_isKS(tk1, ks_enum.BREAK    )) return parser_start(pr, flpT, PRS_BREAK    );
+			else if (tok_isKS(tk1, ks_enum.CONTINUE )) return parser_start(pr, flpT, PRS_CONTINUE );
+			else if (tok_isKS(tk1, ks_enum.DECLARE  )) return parser_start(pr, flpT, PRS_DECLARE  );
+			else if (tok_isKS(tk1, ks_enum.DEF      )) return parser_start(pr, flpT, PRS_DEF      );
+			else if (tok_isKS(tk1, ks_enum.DO       )) return parser_start(pr, flpT, PRS_DO       );
+			else if (tok_isKS(tk1, ks_enum.ENUM     )) return parser_start(pr, flpT, PRS_ENUM     );
+			else if (tok_isKS(tk1, ks_enum.FOR      )) return parser_start(pr, flpT, PRS_FOR      );
+			else if (tok_isKS(tk1, ks_enum.GOTO     )) return parser_start(pr, flpT, PRS_GOTO     );
+			else if (tok_isKS(tk1, ks_enum.IF       )) return parser_start(pr, flpT, PRS_IF       );
+			else if (tok_isKS(tk1, ks_enum.INCLUDE  )) return parser_start(pr, flpT, PRS_INCLUDE  );
+			else if (tok_isKS(tk1, ks_enum.NAMESPACE)) return parser_start(pr, flpT, PRS_NAMESPACE);
+			else if (tok_isKS(tk1, ks_enum.RETURN   )) return parser_start(pr, flpT, PRS_RETURN   );
+			else if (tok_isKS(tk1, ks_enum.USING    )) return parser_start(pr, flpT, PRS_USING    );
+			else if (tok_isKS(tk1, ks_enum.VAR      )) return parser_start(pr, flpT, PRS_VAR      );
+			else if (tk1.type === TOK_IDENT){
+				st.flpS = flpT;
 				return parser_lookup(pr, flpT, PRS_IDENTS);
 			}
 			else if (tok_isPre(tk1) || tok_isTerm(tk1)){
-				pr->level++;
-				st->state = PRS_EVAL;
-				st->flpS = flpT;
+				pr.level++;
+				st.state = PRS_EVAL;
+				st.flpS = flpT;
 				return parser_process(pr, stmts);
 			}
 			else if (tok_isMidStmt(tk1)){
-				if (st->next == NULL)
+				if (st.next === NULL)
 					return "Invalid statement";
 				parser_pop(pr);
 				return parser_process(pr, stmts);
@@ -3513,31 +3495,31 @@ static const char *parser_process(parser pr, list_ptr stmts){
 			return "Invalid statement";
 
 		case PRS_STATEMENT_END:
-			if (tk1->type != TOK_NEWLINE)
+			if (tk1.type !== TOK_NEWLINE)
 				return "Missing newline or semicolon";
-			st->state = PRS_STATEMENT;
+			st.state = PRS_STATEMENT;
 			return NULL;
 
 		case PRS_LOOKUP:
-			if (!tok_isKS(tk1, KS_PERIOD)){
-				st->next->names = st->names;
-				st->names = NULL;
+			if (!tok_isKS(tk1, ks_enum.PERIOD)){
+				st.next.names = st.names;
+				st.names = NULL;
 				parser_pop(pr);
 				return parser_process(pr, stmts);
 			}
-			st->state = PRS_LOOKUP_IDENT;
+			st.state = PRS_LOOKUP_IDENT;
 			return NULL;
 
 		case PRS_LOOKUP_IDENT:
-			if (tk1->type != TOK_IDENT)
+			if (tk1.type !== TOK_IDENT)
 				return "Expecting identifier";
-			list_ptr_push(st->names, tk1->u.ident);
-			tk1->u.ident = NULL;
-			st->state = PRS_LOOKUP;
+			list_ptr_push(st.names, tk1.u.ident);
+			tk1.u.ident = NULL;
+			st.state = PRS_LOOKUP;
 			return NULL;
 
 		case PRS_BODY:
-			st->state = PRS_BODY_STATEMENT;
+			st.state = PRS_BODY_STATEMENT;
 			parser_push(pr, PRS_STATEMENT);
 			return parser_process(pr, stmts);
 
@@ -3550,178 +3532,178 @@ static const char *parser_process(parser pr, list_ptr stmts){
 			return NULL;
 
 		case PRS_LVALUES:
-			if (tk1->type == TOK_NEWLINE){
-				st->next->lvalues = st->lvalues;
-				st->lvalues = NULL;
+			if (tk1.type === TOK_NEWLINE){
+				st.next.lvalues = st.lvalues;
+				st.lvalues = NULL;
 				parser_pop(pr);
 				return parser_process(pr, stmts);
 			}
-			st->state = PRS_LVALUES_TERM_DONE;
+			st.state = PRS_LVALUES_TERM_DONE;
 			parser_push(pr, PRS_LVALUES_TERM);
-			pr->state->lvaluesMode = st->lvaluesMode;
+			pr.state.lvaluesMode = st.lvaluesMode;
 			return parser_process(pr, stmts);
 
 		case PRS_LVALUES_TERM:
-			if (tk1->type == TOK_IDENT)
+			if (tk1.type === TOK_IDENT)
 				return parser_lookup(pr, flpT, PRS_LVALUES_TERM_LOOKUP);
-			if (st->lvaluesMode == LVM_ENUM)
+			if (st.lvaluesMode === LVM_ENUM)
 				return "Expecting enumerator name";
-			if (tok_isKS(tk1, KS_LBRACE)){
-				st->state = PRS_LVALUES_TERM_LIST_DONE;
-				st->flpE = flpT;
+			if (tok_isKS(tk1, ks_enum.LBRACE)){
+				st.state = PRS_LVALUES_TERM_LIST_DONE;
+				st.flpE = flpT;
 				parser_push(pr, PRS_LVALUES_TERM_LIST);
 				return NULL;
 			}
-			else if (tok_isKS(tk1, KS_PERIOD3)){
-				if (st->lvaluesMode == LVM_DEF){
-					st->state = PRS_LVALUES_DEF_TAIL;
+			else if (tok_isKS(tk1, ks_enum.PERIOD3)){
+				if (st.lvaluesMode === LVM_DEF){
+					st.state = PRS_LVALUES_DEF_TAIL;
 					return NULL;
 				}
-				else if (st->lvaluesMode == LVM_LIST){
-					st->state = PRS_LVALUES_TERM_LIST_TAIL;
+				else if (st.lvaluesMode === LVM_LIST){
+					st.state = PRS_LVALUES_TERM_LIST_TAIL;
 					return NULL;
 				}
 			}
 			return "Expecting variable";
 
 		case PRS_LVALUES_TERM_LOOKUP:
-			st->next->exprTerm = expr_names(flpL, st->names);
-			st->names = NULL;
+			st.next.exprTerm = expr_names(flpL, st.names);
+			st.names = NULL;
 			parser_pop(pr);
 			return parser_process(pr, stmts);
 
 		case PRS_LVALUES_TERM_LIST:
-			if (tk1->type == TOK_NEWLINE && !tk1->u.soft)
+			if (tk1.type === TOK_NEWLINE && !tk1.u.soft)
 				return NULL;
-			else if (tok_isKS(tk1, KS_RBRACE)){
-				st->next->exprTerm = st->exprTerm;
-				st->exprTerm = NULL;
+			else if (tok_isKS(tk1, ks_enum.RBRACE)){
+				st.next.exprTerm = st.exprTerm;
+				st.exprTerm = NULL;
 				parser_pop(pr);
 				return NULL;
 			}
-			st->state = PRS_LVALUES_TERM_LIST_TERM_DONE;
+			st.state = PRS_LVALUES_TERM_LIST_TERM_DONE;
 			parser_push(pr, PRS_LVALUES_TERM);
-			pr->state->lvaluesMode = LVM_LIST;
+			pr.state.lvaluesMode = LVM_LIST;
 			return parser_process(pr, stmts);
 
 		case PRS_LVALUES_TERM_LIST_TERM_DONE:
-			if (tk1->type == TOK_NEWLINE && !tk1->u.soft)
+			if (tk1.type === TOK_NEWLINE && !tk1.u.soft)
 				return NULL;
-			if (st->exprTerm2 == NULL){
-				st->exprTerm2 = st->exprTerm;
-				st->exprTerm = NULL;
+			if (st.exprTerm2 === NULL){
+				st.exprTerm2 = st.exprTerm;
+				st.exprTerm = NULL;
 			}
 			else{
-				st->exprTerm2 =
-					expr_infix(st->exprTerm2->flp, KS_COMMA, st->exprTerm2, st->exprTerm);
-				st->exprTerm = NULL;
+				st.exprTerm2 =
+					expr_infix(st.exprTerm2.flp, ks_enum.COMMA, st.exprTerm2, st.exprTerm);
+				st.exprTerm = NULL;
 			}
-			if (tok_isKS(tk1, KS_RBRACE)){
-				st->next->exprTerm = st->exprTerm2;
-				st->exprTerm2 = NULL;
+			if (tok_isKS(tk1, ks_enum.RBRACE)){
+				st.next.exprTerm = st.exprTerm2;
+				st.exprTerm2 = NULL;
 				parser_pop(pr);
 				return NULL;
 			}
-			else if (tok_isKS(tk1, KS_COMMA)){
+			else if (tok_isKS(tk1, ks_enum.COMMA)){
 				parser_push(pr, PRS_LVALUES_TERM);
-				pr->state->lvaluesMode = LVM_LIST;
+				pr.state.lvaluesMode = LVM_LIST;
 				return NULL;
 			}
 			return "Invalid list";
 
 		case PRS_LVALUES_TERM_LIST_TAIL:
-			if (tk1->type != TOK_IDENT)
+			if (tk1.type !== TOK_IDENT)
 				return "Expecting identifier";
 			return parser_lookup(pr, flpT, PRS_LVALUES_TERM_LIST_TAIL_LOOKUP);
 
 		case PRS_LVALUES_TERM_LIST_TAIL_LOOKUP:
-			if (tk1->type == TOK_NEWLINE && !tk1->u.soft)
+			if (tk1.type === TOK_NEWLINE && !tk1.u.soft)
 				return NULL;
-			st->state = PRS_LVALUES_TERM_LIST_TAIL_DONE;
-			if (tok_isKS(tk1, KS_COMMA))
+			st.state = PRS_LVALUES_TERM_LIST_TAIL_DONE;
+			if (tok_isKS(tk1, ks_enum.COMMA))
 				return NULL;
 			return parser_process(pr, stmts);
 
 		case PRS_LVALUES_TERM_LIST_TAIL_DONE:
-			if (!tok_isKS(tk1, KS_RBRACE))
+			if (!tok_isKS(tk1, ks_enum.RBRACE))
 				return "Missing end of list";
-			st->next->exprTerm = expr_prefix(flpL, KS_PERIOD3, expr_names(flpL, st->names));
-			st->names = NULL;
+			st.next.exprTerm = expr_prefix(flpL, ks_enum.PERIOD3, expr_names(flpL, st.names));
+			st.names = NULL;
 			parser_pop(pr);
 			return parser_process(pr, stmts);
 
 		case PRS_LVALUES_TERM_LIST_DONE:
-			st->next->exprTerm = expr_list(flpE, st->exprTerm);
-			st->exprTerm = NULL;
+			st.next.exprTerm = expr_list(flpE, st.exprTerm);
+			st.exprTerm = NULL;
 			parser_pop(pr);
 			return parser_process(pr, stmts);
 
 		case PRS_LVALUES_TERM_DONE:
-			if (tk1->type == TOK_NEWLINE){
-				list_ptr_push(st->lvalues, expr_infix(flpT, KS_EQU, st->exprTerm, NULL));
-				st->exprTerm = NULL;
-				st->next->lvalues = st->lvalues;
-				st->lvalues = NULL;
+			if (tk1.type === TOK_NEWLINE){
+				list_ptr_push(st.lvalues, expr_infix(flpT, ks_enum.EQU, st.exprTerm, NULL));
+				st.exprTerm = NULL;
+				st.next.lvalues = st.lvalues;
+				st.lvalues = NULL;
 				parser_pop(pr);
 				return parser_process(pr, stmts);
 			}
-			else if (tok_isKS(tk1, KS_EQU)){
-				st->exprTerm2 = st->exprTerm;
-				st->exprTerm = NULL;
+			else if (tok_isKS(tk1, ks_enum.EQU)){
+				st.exprTerm2 = st.exprTerm;
+				st.exprTerm = NULL;
 				parser_expr(pr, PRS_LVALUES_TERM_EXPR);
-				pr->state->exprAllowComma = false;
+				pr.state.exprAllowComma = false;
 				return NULL;
 			}
-			else if (tok_isKS(tk1, KS_COMMA)){
-				list_ptr_push(st->lvalues,
-					expr_infix(st->exprTerm->flp, KS_EQU, st->exprTerm, NULL));
-				st->exprTerm = NULL;
-				st->state = PRS_LVALUES_MORE;
+			else if (tok_isKS(tk1, ks_enum.COMMA)){
+				list_ptr_push(st.lvalues,
+					expr_infix(st.exprTerm.flp, ks_enum.EQU, st.exprTerm, NULL));
+				st.exprTerm = NULL;
+				st.state = PRS_LVALUES_MORE;
 				return NULL;
 			}
 			return "Invalid declaration";
 
 		case PRS_LVALUES_TERM_EXPR:
-			list_ptr_push(st->lvalues,
-				expr_infix(st->exprTerm2->flp, KS_EQU, st->exprTerm2, st->exprTerm));
-			st->exprTerm2 = NULL;
-			st->exprTerm = NULL;
-			if (tk1->type == TOK_NEWLINE){
-				st->next->lvalues = st->lvalues;
-				st->lvalues = NULL;
+			list_ptr_push(st.lvalues,
+				expr_infix(st.exprTerm2.flp, ks_enum.EQU, st.exprTerm2, st.exprTerm));
+			st.exprTerm2 = NULL;
+			st.exprTerm = NULL;
+			if (tk1.type === TOK_NEWLINE){
+				st.next.lvalues = st.lvalues;
+				st.lvalues = NULL;
 				parser_pop(pr);
 				return parser_process(pr, stmts);
 			}
-			else if (tok_isKS(tk1, KS_COMMA)){
-				st->state = PRS_LVALUES_MORE;
+			else if (tok_isKS(tk1, ks_enum.COMMA)){
+				st.state = PRS_LVALUES_MORE;
 				return NULL;
 			}
 			return "Invalid declaration";
 
 		case PRS_LVALUES_MORE:
-			if (tk1->type == TOK_NEWLINE && !tk1->u.soft)
+			if (tk1.type === TOK_NEWLINE && !tk1.u.soft)
 				return NULL;
-			st->state = PRS_LVALUES_TERM_DONE;
+			st.state = PRS_LVALUES_TERM_DONE;
 			parser_push(pr, PRS_LVALUES_TERM);
-			pr->state->lvaluesMode = st->lvaluesMode;
+			pr.state.lvaluesMode = st.lvaluesMode;
 			return parser_process(pr, stmts);
 
 		case PRS_LVALUES_DEF_TAIL:
-			if (tk1->type != TOK_IDENT)
+			if (tk1.type !== TOK_IDENT)
 				return "Expecting identifier";
 			return parser_lookup(pr, flpT, PRS_LVALUES_DEF_TAIL_DONE);
 
 		case PRS_LVALUES_DEF_TAIL_DONE:
-			if (tk1->type != TOK_NEWLINE)
+			if (tk1.type !== TOK_NEWLINE)
 				return "Missing newline or semicolon";
-			st->next->names = st->names;
-			st->names = NULL;
+			st.next.names = st.names;
+			st.names = NULL;
 			parser_pop(pr);
-			st = pr->state;
-			list_ptr_push(st->lvalues, expr_prefix(flpL, KS_PERIOD3, expr_names(flpL, st->names)));
-			st->names = NULL;
-			st->next->lvalues = st->lvalues;
-			st->lvalues = NULL;
+			st = pr.state;
+			list_ptr_push(st.lvalues, expr_prefix(flpL, ks_enum.PERIOD3, expr_names(flpL, st.names)));
+			st.names = NULL;
+			st.next.lvalues = st.lvalues;
+			st.lvalues = NULL;
 			parser_pop(pr);
 			return parser_process(pr, stmts);
 
@@ -3734,49 +3716,49 @@ static const char *parser_process(parser pr, list_ptr stmts){
 			return parser_statement(pr, stmts, false);
 
 		case PRS_DECLARE:
-			if (tk1->type == TOK_NEWLINE && !tk1->u.soft)
+			if (tk1.type === TOK_NEWLINE && !tk1.u.soft)
 				return NULL;
-			if (tk1->type != TOK_IDENT)
+			if (tk1.type !== TOK_IDENT)
 				return "Expecting identifier";
 			return parser_lookup(pr, flpT, PRS_DECLARE_LOOKUP);
 
 		case PRS_DECLARE_LOOKUP:
-			if (tok_isKS(tk1, KS_LPAREN)){
-				st->state = PRS_DECLARE_STR;
+			if (tok_isKS(tk1, ks_enum.LPAREN)){
+				st.state = PRS_DECLARE_STR;
 				return NULL;
 			}
-			list_ptr_push(stmts, ast_declare(flpS, decl_local(flpL, st->names)));
-			st->names = NULL;
-			if (tok_isKS(tk1, KS_COMMA)){
-				st->state = PRS_DECLARE;
+			list_ptr_push(stmts, ast_declare(flpS, decl_local(flpL, st.names)));
+			st.names = NULL;
+			if (tok_isKS(tk1, ks_enum.COMMA)){
+				st.state = PRS_DECLARE;
 				return NULL;
 			}
 			return parser_statement(pr, stmts, false);
 
 		case PRS_DECLARE_STR:
-			if (tk1->type != TOK_STR)
+			if (tk1.type !== TOK_STR)
 				return "Expecting string constant";
-			list_ptr_push(stmts, ast_declare(flpS, decl_native(flpL, st->names, tk1->u.str)));
-			st->names = NULL;
-			tk1->u.str = NULL;
-			st->state = PRS_DECLARE_STR2;
+			list_ptr_push(stmts, ast_declare(flpS, decl_native(flpL, st.names, tk1.u.str)));
+			st.names = NULL;
+			tk1.u.str = NULL;
+			st.state = PRS_DECLARE_STR2;
 			return NULL;
 
 		case PRS_DECLARE_STR2:
-			if (!tok_isKS(tk1, KS_RPAREN))
+			if (!tok_isKS(tk1, ks_enum.RPAREN))
 				return "Expecting string constant";
-			st->state = PRS_DECLARE_STR3;
+			st.state = PRS_DECLARE_STR3;
 			return NULL;
 
 		case PRS_DECLARE_STR3:
-			if (tok_isKS(tk1, KS_COMMA)){
-				st->state = PRS_DECLARE;
+			if (tok_isKS(tk1, ks_enum.COMMA)){
+				st.state = PRS_DECLARE;
 				return NULL;
 			}
 			return parser_statement(pr, stmts, false);
 
 		case PRS_DEF:
-			if (tk1->type != TOK_IDENT)
+			if (tk1.type !== TOK_IDENT)
 				return "Expecting identifier";
 			return parser_lookup(pr, flpT, PRS_DEF_LOOKUP);
 
@@ -3785,33 +3767,33 @@ static const char *parser_process(parser pr, list_ptr stmts){
 			return parser_process(pr, stmts);
 
 		case PRS_DEF_LVALUES:
-			if (tk1->type != TOK_NEWLINE)
+			if (tk1.type !== TOK_NEWLINE)
 				return "Missing newline or semicolon";
-			list_ptr_push(stmts, ast_def1(flpS, flpL, st->names, st->lvalues));
-			st->names = NULL;
-			st->lvalues = NULL;
-			st->state = PRS_DEF_BODY;
+			list_ptr_push(stmts, ast_def1(flpS, flpL, st.names, st.lvalues));
+			st.names = NULL;
+			st.lvalues = NULL;
+			st.state = PRS_DEF_BODY;
 			parser_push(pr, PRS_BODY);
 			return NULL;
 
 		case PRS_DEF_BODY:
-			if (!tok_isKS(tk1, KS_END))
+			if (!tok_isKS(tk1, ks_enum.END))
 				return "Missing `end` of def block";
 			list_ptr_push(stmts, ast_def2(flpS));
 			return parser_statement(pr, stmts, true);
 
 		case PRS_DO:
 			list_ptr_push(stmts, ast_dowhile1(flpS));
-			st->state = PRS_DO_BODY;
+			st.state = PRS_DO_BODY;
 			parser_push(pr, PRS_BODY);
 			return parser_process(pr, stmts);
 
 		case PRS_DO_BODY:
-			if (tok_isKS(tk1, KS_WHILE)){
+			if (tok_isKS(tk1, ks_enum.WHILE)){
 				parser_expr(pr, PRS_DO_WHILE_EXPR);
 				return NULL;
 			}
-			else if (tok_isKS(tk1, KS_END)){
+			else if (tok_isKS(tk1, ks_enum.END)){
 				list_ptr_push(stmts, ast_dowhile2(flpS, NULL));
 				list_ptr_push(stmts, ast_dowhile3(flpS));
 				return parser_statement(pr, stmts, true);
@@ -3819,257 +3801,257 @@ static const char *parser_process(parser pr, list_ptr stmts){
 			return "Missing `while` or `end` of do block";
 
 		case PRS_DO_WHILE_EXPR:
-			list_ptr_push(stmts, ast_dowhile2(flpS, st->exprTerm));
-			st->exprTerm = NULL;
-			if (tk1->type == TOK_NEWLINE){
-				st->state = PRS_DO_WHILE_BODY;
+			list_ptr_push(stmts, ast_dowhile2(flpS, st.exprTerm));
+			st.exprTerm = NULL;
+			if (tk1.type === TOK_NEWLINE){
+				st.state = PRS_DO_WHILE_BODY;
 				parser_push(pr, PRS_BODY);
 				return NULL;
 			}
-			else if (tok_isKS(tk1, KS_END)){
+			else if (tok_isKS(tk1, ks_enum.END)){
 				list_ptr_push(stmts, ast_dowhile3(flpS));
 				return parser_statement(pr, stmts, true);
 			}
 			return "Missing newline or semicolon";
 
 		case PRS_DO_WHILE_BODY:
-			if (!tok_isKS(tk1, KS_END))
+			if (!tok_isKS(tk1, ks_enum.END))
 				return "Missing `end` of do-while block";
 			list_ptr_push(stmts, ast_dowhile3(flpS));
 			return parser_statement(pr, stmts, true);
 
 		case PRS_FOR:
-			if (tk1->type == TOK_NEWLINE){
+			if (tk1.type === TOK_NEWLINE){
 				list_ptr_push(stmts, ast_loop1(flpS));
-				st->state = PRS_LOOP_BODY;
+				st.state = PRS_LOOP_BODY;
 				parser_push(pr, PRS_BODY);
 				return NULL;
 			}
-			else if (tok_isKS(tk1, KS_COLON)){
-				st->state = PRS_FOR_VARS_DONE;
+			else if (tok_isKS(tk1, ks_enum.COLON)){
+				st.state = PRS_FOR_VARS_DONE;
 				return NULL;
 			}
-			st->state = PRS_FOR_VARS;
-			if (tok_isKS(tk1, KS_VAR)){
-				st->forVar = true;
+			st.state = PRS_FOR_VARS;
+			if (tok_isKS(tk1, ks_enum.VAR)){
+				st.forVar = true;
 				return NULL;
 			}
 			return parser_process(pr, stmts);
 
 		case PRS_LOOP_BODY:
-			if (!tok_isKS(tk1, KS_END))
+			if (!tok_isKS(tk1, ks_enum.END))
 				return "Missing `end` of for block";
 			list_ptr_push(stmts, ast_loop2(flpS));
 			return parser_statement(pr, stmts, true);
 
 		case PRS_FOR_VARS:
-			if (tk1->type != TOK_IDENT)
+			if (tk1.type !== TOK_IDENT)
 				return "Expecting identifier";
 			return parser_lookup(pr, flpT, PRS_FOR_VARS_LOOKUP);
 
 		case PRS_FOR_VARS_LOOKUP:
-			st->names2 = st->names;
-			st->names = NULL;
-			if (tok_isKS(tk1, KS_COMMA)){
-				st->state = PRS_FOR_VARS2;
+			st.names2 = st.names;
+			st.names = NULL;
+			if (tok_isKS(tk1, ks_enum.COMMA)){
+				st.state = PRS_FOR_VARS2;
 				return NULL;
 			}
-			else if (tok_isKS(tk1, KS_COLON)){
-				st->state = PRS_FOR_VARS_DONE;
+			else if (tok_isKS(tk1, ks_enum.COLON)){
+				st.state = PRS_FOR_VARS_DONE;
 				return NULL;
 			}
 			return "Invalid for loop";
 
 		case PRS_FOR_VARS2:
-			if (tk1->type != TOK_IDENT)
+			if (tk1.type !== TOK_IDENT)
 				return "Expecting identifier";
 			return parser_lookup(pr, flpT, PRS_FOR_VARS2_LOOKUP);
 
 		case PRS_FOR_VARS2_LOOKUP:
-			if (!tok_isKS(tk1, KS_COLON))
+			if (!tok_isKS(tk1, ks_enum.COLON))
 				return "Expecting `:`";
-			st->state = PRS_FOR_VARS_DONE;
+			st.state = PRS_FOR_VARS_DONE;
 			return NULL;
 
 		case PRS_FOR_VARS_DONE:
-			if (tk1->type == TOK_NEWLINE)
+			if (tk1.type === TOK_NEWLINE)
 				return "Expecting expression in for statement";
 			parser_expr(pr, PRS_FOR_EXPR);
 			return parser_process(pr, stmts);
 
 		case PRS_FOR_EXPR:
-			list_ptr_push(stmts, ast_for1(flpS, st->forVar, st->names2, st->names, st->exprTerm));
-			st->names2 = NULL;
-			st->names = NULL;
-			st->exprTerm = NULL;
-			if (tk1->type == TOK_NEWLINE){
-				st->state = PRS_FOR_BODY;
+			list_ptr_push(stmts, ast_for1(flpS, st.forVar, st.names2, st.names, st.exprTerm));
+			st.names2 = NULL;
+			st.names = NULL;
+			st.exprTerm = NULL;
+			if (tk1.type === TOK_NEWLINE){
+				st.state = PRS_FOR_BODY;
 				parser_push(pr, PRS_BODY);
 				return NULL;
 			}
-			else if (tok_isKS(tk1, KS_END)){
+			else if (tok_isKS(tk1, ks_enum.END)){
 				list_ptr_push(stmts, ast_for2(flpS));
 				return parser_statement(pr, stmts, true);
 			}
 			return "Missing newline or semicolon";
 
 		case PRS_FOR_BODY:
-			if (!tok_isKS(tk1, KS_END))
+			if (!tok_isKS(tk1, ks_enum.END))
 				return "Missing `end` of for block";
 			list_ptr_push(stmts, ast_for2(flpS));
 			return parser_statement(pr, stmts, true);
 
 		case PRS_GOTO:
-			if (tk1->type != TOK_IDENT)
+			if (tk1.type !== TOK_IDENT)
 				return "Expecting identifier";
-			list_ptr_push(stmts, ast_goto(flpS, tk1->u.ident));
-			tk1->u.ident = NULL;
+			list_ptr_push(stmts, ast_goto(flpS, tk1.u.ident));
+			tk1.u.ident = NULL;
 			return parser_statement(pr, stmts, true);
 
 		case PRS_IF:
 			list_ptr_push(stmts, ast_if1(flpS));
-			st->state = PRS_IF2;
+			st.state = PRS_IF2;
 			return parser_process(pr, stmts);
 
 		case PRS_IF2:
-			if (tk1->type == TOK_NEWLINE)
+			if (tk1.type === TOK_NEWLINE)
 				return "Missing conditional expression";
 			parser_expr(pr, PRS_IF_EXPR);
 			return parser_process(pr, stmts);
 
 		case PRS_IF_EXPR:
-			list_ptr_push(stmts, ast_if2(flpS, st->exprTerm));
-			st->exprTerm = NULL;
-			if (tk1->type == TOK_NEWLINE){
-				st->state = PRS_IF_BODY;
+			list_ptr_push(stmts, ast_if2(flpS, st.exprTerm));
+			st.exprTerm = NULL;
+			if (tk1.type === TOK_NEWLINE){
+				st.state = PRS_IF_BODY;
 				parser_push(pr, PRS_BODY);
 				return NULL;
 			}
-			else if (tok_isKS(tk1, KS_ELSEIF)){
-				st->state = PRS_IF2;
+			else if (tok_isKS(tk1, ks_enum.ELSEIF)){
+				st.state = PRS_IF2;
 				return NULL;
 			}
 			list_ptr_push(stmts, ast_if3(flpS));
-			if (tok_isKS(tk1, KS_ELSE)){
-				st->state = PRS_ELSE_BODY;
+			if (tok_isKS(tk1, ks_enum.ELSE)){
+				st.state = PRS_ELSE_BODY;
 				parser_push(pr, PRS_BODY);
 				return NULL;
 			}
-			else if (tok_isKS(tk1, KS_END)){
+			else if (tok_isKS(tk1, ks_enum.END)){
 				list_ptr_push(stmts, ast_if4(flpS));
 				return parser_statement(pr, stmts, true);
 			}
 			return "Missing newline or semicolon";
 
 		case PRS_IF_BODY:
-			if (tok_isKS(tk1, KS_ELSEIF)){
-				st->state = PRS_IF2;
+			if (tok_isKS(tk1, ks_enum.ELSEIF)){
+				st.state = PRS_IF2;
 				return NULL;
 			}
 			list_ptr_push(stmts, ast_if3(flpS));
-			if (tok_isKS(tk1, KS_ELSE)){
-				st->state = PRS_ELSE_BODY;
+			if (tok_isKS(tk1, ks_enum.ELSE)){
+				st.state = PRS_ELSE_BODY;
 				parser_push(pr, PRS_BODY);
 				return NULL;
 			}
-			else if (tok_isKS(tk1, KS_END)){
+			else if (tok_isKS(tk1, ks_enum.END)){
 				list_ptr_push(stmts, ast_if4(flpS));
 				return parser_statement(pr, stmts, true);
 			}
 			return "Missing `elseif`, `else`, or `end` of if block";
 
 		case PRS_ELSE_BODY:
-			if (!tok_isKS(tk1, KS_END))
+			if (!tok_isKS(tk1, ks_enum.END))
 				return "Missing `end` of if block";
 			list_ptr_push(stmts, ast_if4(flpS));
 			return parser_statement(pr, stmts, true);
 
 		case PRS_ENUM:
-			if (tk1->type == TOK_NEWLINE && !tk1->u.soft)
+			if (tk1.type === TOK_NEWLINE && !tk1.u.soft)
 				return NULL;
 			parser_lvalues(pr, PRS_ENUM_LVALUES, LVM_ENUM);
 			return parser_process(pr, stmts);
 
 		case PRS_ENUM_LVALUES:
-			if (st->lvalues->size <= 0)
+			if (st.lvalues.size <= 0)
 				return "Invalid enumerator declaration";
-			list_ptr_push(stmts, ast_enum(flpS, st->lvalues));
-			st->lvalues = NULL;
+			list_ptr_push(stmts, ast_enum(flpS, st.lvalues));
+			st.lvalues = NULL;
 			return parser_statement(pr, stmts, false);
 
 		case PRS_INCLUDE:
-			if (tk1->type == TOK_NEWLINE && !tk1->u.soft)
+			if (tk1.type === TOK_NEWLINE && !tk1.u.soft)
 				return NULL;
-			else if (tk1->type == TOK_IDENT)
+			else if (tk1.type === TOK_IDENT)
 				return parser_lookup(pr, flpT, PRS_INCLUDE_LOOKUP);
-			else if (tok_isKS(tk1, KS_LPAREN)){
-				st->state = PRS_INCLUDE_STR;
+			else if (tok_isKS(tk1, ks_enum.LPAREN)){
+				st.state = PRS_INCLUDE_STR;
 				return NULL;
 			}
-			else if (tok_isKS(tk1, KS_PLUS)){
-				st->names = INCL_UNIQUE;
-				st->state = PRS_INCLUDE_LOOKUP;
+			else if (tok_isKS(tk1, ks_enum.PLUS)){
+				st.names = INCL_UNIQUE;
+				st.state = PRS_INCLUDE_LOOKUP;
 				return NULL;
 			}
 			return "Expecting file as constant string literal";
 
 		case PRS_INCLUDE_LOOKUP:
-			if (!tok_isKS(tk1, KS_LPAREN))
+			if (!tok_isKS(tk1, ks_enum.LPAREN))
 				return "Expecting file as constant string literal";
-			st->state = PRS_INCLUDE_STR;
+			st.state = PRS_INCLUDE_STR;
 			return NULL;
 
 		case PRS_INCLUDE_STR:
-			if (tk1->type != TOK_STR)
+			if (tk1.type !== TOK_STR)
 				return "Expecting file as constant string literal";
-			st->str = tk1->u.str;
-			tk1->u.str = NULL;
-			st->state = PRS_INCLUDE_STR2;
+			st.str = tk1.u.str;
+			tk1.u.str = NULL;
+			st.state = PRS_INCLUDE_STR2;
 			return NULL;
 
 		case PRS_INCLUDE_STR2:
-			if (!tok_isKS(tk1, KS_RPAREN))
+			if (!tok_isKS(tk1, ks_enum.RPAREN))
 				return "Expecting file as constant string literal";
-			st->state = PRS_INCLUDE_STR3;
+			st.state = PRS_INCLUDE_STR3;
 			return NULL;
 
 		case PRS_INCLUDE_STR3:
-			if (st->incls == NULL)
-				st->incls = list_ptr_new(incl_free);
-			list_byte_null(st->str);
-			list_ptr_push(st->incls, incl_new(st->names, st->str));
-			st->names = NULL;
-			st->str = NULL;
-			if (tok_isKS(tk1, KS_COMMA)){
-				st->state = PRS_INCLUDE;
+			if (st.incls === NULL)
+				st.incls = list_ptr_new(incl_free);
+			list_byte_null(st.str);
+			list_ptr_push(st.incls, incl_new(st.names, st.str));
+			st.names = NULL;
+			st.str = NULL;
+			if (tok_isKS(tk1, ks_enum.COMMA)){
+				st.state = PRS_INCLUDE;
 				return NULL;
 			}
-			list_ptr_push(stmts, ast_include(flpS, st->incls));
-			st->incls = NULL;
+			list_ptr_push(stmts, ast_include(flpS, st.incls));
+			st.incls = NULL;
 			return parser_statement(pr, stmts, false);
 
 		case PRS_NAMESPACE:
-			if (tk1->type != TOK_IDENT)
+			if (tk1.type !== TOK_IDENT)
 				return "Expecting identifier";
 			return parser_lookup(pr, flpT, PRS_NAMESPACE_LOOKUP);
 
 		case PRS_NAMESPACE_LOOKUP:
-			if (tk1->type != TOK_NEWLINE)
+			if (tk1.type !== TOK_NEWLINE)
 				return "Missing newline or semicolon";
-			list_ptr_push(stmts, ast_namespace1(flpS, st->names));
-			st->names = NULL;
-			st->state = PRS_NAMESPACE_BODY;
+			list_ptr_push(stmts, ast_namespace1(flpS, st.names));
+			st.names = NULL;
+			st.state = PRS_NAMESPACE_BODY;
 			parser_push(pr, PRS_BODY);
 			return NULL;
 
 		case PRS_NAMESPACE_BODY:
-			if (!tok_isKS(tk1, KS_END))
+			if (!tok_isKS(tk1, ks_enum.END))
 				return "Missing `end` of namespace block";
 			list_ptr_push(stmts, ast_namespace2(flpS));
 			return parser_statement(pr, stmts, true);
 
 		case PRS_RETURN:
-			if (tk1->type == TOK_NEWLINE){
+			if (tk1.type === TOK_NEWLINE){
 				list_ptr_push(stmts, ast_return(flpS, expr_nil(flpS)));
 				return parser_statement(pr, stmts, false);
 			}
@@ -4077,52 +4059,52 @@ static const char *parser_process(parser pr, list_ptr stmts){
 			return parser_process(pr, stmts);
 
 		case PRS_RETURN_DONE:
-			list_ptr_push(stmts, ast_return(flpS, st->exprTerm));
-			st->exprTerm = NULL;
+			list_ptr_push(stmts, ast_return(flpS, st.exprTerm));
+			st.exprTerm = NULL;
 			return parser_statement(pr, stmts, false);
 
 		case PRS_USING:
-			if (tk1->type == TOK_NEWLINE && !tk1->u.soft)
+			if (tk1.type === TOK_NEWLINE && !tk1.u.soft)
 				return NULL;
-			if (tk1->type != TOK_IDENT)
+			if (tk1.type !== TOK_IDENT)
 				return "Expecting identifier";
 			return parser_lookup(pr, flpT, PRS_USING_LOOKUP);
 
 		case PRS_USING_LOOKUP:
-			list_ptr_push(stmts, ast_using(flpS, st->names));
-			st->names = NULL;
-			if (tok_isKS(tk1, KS_COMMA)){
-				st->state = PRS_USING;
+			list_ptr_push(stmts, ast_using(flpS, st.names));
+			st.names = NULL;
+			if (tok_isKS(tk1, ks_enum.COMMA)){
+				st.state = PRS_USING;
 				return NULL;
 			}
 			return parser_statement(pr, stmts, false);
 
 		case PRS_VAR:
-			if (tk1->type == TOK_NEWLINE && !tk1->u.soft)
+			if (tk1.type === TOK_NEWLINE && !tk1.u.soft)
 				return NULL;
 			parser_lvalues(pr, PRS_VAR_LVALUES, LVM_VAR);
 			return parser_process(pr, stmts);
 
 		case PRS_VAR_LVALUES:
-			if (st->lvalues->size <= 0)
+			if (st.lvalues.size <= 0)
 				return "Invalid variable declaration";
-			list_ptr_push(stmts, ast_var(flpS, st->lvalues));
-			st->lvalues = NULL;
+			list_ptr_push(stmts, ast_var(flpS, st.lvalues));
+			st.lvalues = NULL;
 			return parser_statement(pr, stmts, false);
 
 		case PRS_IDENTS:
-			if (st->names->size == 1 && tok_isKS(tk1, KS_COLON)){
-				list_ptr_push(stmts, ast_label(st->flpS, list_ptr_pop(st->names)));
-				list_ptr_free(st->names);
-				st->names = NULL;
-				st->state = PRS_STATEMENT;
+			if (st.names.size === 1 && tok_isKS(tk1, ks_enum.COLON)){
+				list_ptr_push(stmts, ast_label(st.flpS, list_ptr_pop(st.names)));
+				list_ptr_free(st.names);
+				st.names = NULL;
+				st.state = PRS_STATEMENT;
 				return NULL;
 			}
-			pr->level++;
-			st->state = PRS_EVAL_EXPR;
+			pr.level++;
+			st.state = PRS_EVAL_EXPR;
 			parser_push(pr, PRS_EXPR_POST);
-			pr->state->exprTerm = expr_names(flpL, st->names);
-			st->names = NULL;
+			pr.state.exprTerm = expr_names(flpL, st.names);
+			st.names = NULL;
 			return parser_process(pr, stmts);
 
 		case PRS_EVAL:
@@ -4130,258 +4112,258 @@ static const char *parser_process(parser pr, list_ptr stmts){
 			return parser_process(pr, stmts);
 
 		case PRS_EVAL_EXPR:
-			list_ptr_push(stmts, ast_eval(flpS, st->exprTerm));
-			st->exprTerm = NULL;
+			list_ptr_push(stmts, ast_eval(flpS, st.exprTerm));
+			st.exprTerm = NULL;
 			return parser_statement(pr, stmts, false);
 
 		case PRS_EXPR:
-			st->flpE = flpT;
-			st->state = PRS_EXPR_PRE;
+			st.flpE = flpT;
+			st.state = PRS_EXPR_PRE;
 			// fall through
 		case PRS_EXPR_PRE:
 			if (tok_isPre(tk1)){
-				st->exprPreStack = ets_new(tk1, st->exprPreStack);
-				pr->tk1 = NULL;
+				st.exprPreStack = ets_new(tk1, st.exprPreStack);
+				pr.tk1 = NULL;
 				return NULL;
 			}
-			st->state = PRS_EXPR_TERM;
+			st.state = PRS_EXPR_TERM;
 			return parser_process(pr, stmts);
 
 		case PRS_EXPR_TERM:
-			if (tk1->type == TOK_NEWLINE && !tk1->u.soft)
+			if (tk1.type === TOK_NEWLINE && !tk1.u.soft)
 				return NULL;
-			else if (tok_isKS(tk1, KS_NIL)){
-				st->state = PRS_EXPR_POST;
-				st->exprTerm = expr_nil(flpT);
-				return NULL;
-			}
-			else if (tk1->type == TOK_NUM){
-				st->state = PRS_EXPR_POST;
-				st->exprTerm = expr_num(flpT, tk1->u.num);
+			else if (tok_isKS(tk1, ks_enum.NIL)){
+				st.state = PRS_EXPR_POST;
+				st.exprTerm = expr_nil(flpT);
 				return NULL;
 			}
-			else if (tk1->type == TOK_STR){
-				st->state = PRS_EXPR_POST;
-				st->exprTerm = expr_str(flpT, tk1->u.str);
-				tk1->u.str = NULL;
+			else if (tk1.type === TOK_NUM){
+				st.state = PRS_EXPR_POST;
+				st.exprTerm = expr_num(flpT, tk1.u.num);
 				return NULL;
 			}
-			else if (tk1->type == TOK_IDENT)
+			else if (tk1.type === TOK_STR){
+				st.state = PRS_EXPR_POST;
+				st.exprTerm = expr_str(flpT, tk1.u.str);
+				tk1.u.str = NULL;
+				return NULL;
+			}
+			else if (tk1.type === TOK_IDENT)
 				return parser_lookup(pr, flpT, PRS_EXPR_TERM_LOOKUP);
-			else if (tok_isKS(tk1, KS_LBRACE)){
-				st->state = PRS_EXPR_TERM_ISEMPTYLIST;
+			else if (tok_isKS(tk1, ks_enum.LBRACE)){
+				st.state = PRS_EXPR_TERM_ISEMPTYLIST;
 				return NULL;
 			}
-			else if (tok_isKS(tk1, KS_LPAREN)){
+			else if (tok_isKS(tk1, ks_enum.LPAREN)){
 				parser_expr(pr, PRS_EXPR_TERM_CLOSEPAREN);
-				pr->state->exprAllowTrailComma = true;
+				pr.state.exprAllowTrailComma = true;
 				return NULL;
 			}
 			return "Invalid expression";
 
 		case PRS_EXPR_TERM_ISEMPTYLIST:
-			if (tk1->type == TOK_NEWLINE && !tk1->u.soft)
+			if (tk1.type === TOK_NEWLINE && !tk1.u.soft)
 				return NULL;
-			else if (tok_isKS(tk1, KS_RBRACE)){
-				st->state = PRS_EXPR_POST;
-				st->exprTerm = expr_list(flpE, NULL);
+			else if (tok_isKS(tk1, ks_enum.RBRACE)){
+				st.state = PRS_EXPR_POST;
+				st.exprTerm = expr_list(flpE, NULL);
 				return NULL;
 			}
 			parser_expr(pr, PRS_EXPR_TERM_CLOSEBRACE);
-			pr->state->exprAllowTrailComma = true;
+			pr.state.exprAllowTrailComma = true;
 			return parser_process(pr, stmts);
 
 		case PRS_EXPR_TERM_CLOSEBRACE:
-			if (tk1->type == TOK_NEWLINE && !tk1->u.soft)
+			if (tk1.type === TOK_NEWLINE && !tk1.u.soft)
 				return NULL;
-			if (!tok_isKS(tk1, KS_RBRACE))
+			if (!tok_isKS(tk1, ks_enum.RBRACE))
 				return "Expecting close brace";
-			st->exprTerm = expr_list(flpE, st->exprTerm);
-			st->state = PRS_EXPR_POST;
+			st.exprTerm = expr_list(flpE, st.exprTerm);
+			st.state = PRS_EXPR_POST;
 			return NULL;
 
 		case PRS_EXPR_TERM_CLOSEPAREN:
-			if (tk1->type == TOK_NEWLINE && !tk1->u.soft)
+			if (tk1.type === TOK_NEWLINE && !tk1.u.soft)
 				return NULL;
-			if (!tok_isKS(tk1, KS_RPAREN))
+			if (!tok_isKS(tk1, ks_enum.RPAREN))
 				return "Expecting close parenthesis";
-			st->exprTerm = expr_paren(st->exprTerm->flp, st->exprTerm);
-			st->state = PRS_EXPR_POST;
+			st.exprTerm = expr_paren(st.exprTerm.flp, st.exprTerm);
+			st.state = PRS_EXPR_POST;
 			return NULL;
 
 		case PRS_EXPR_TERM_LOOKUP:
-			st->exprTerm = expr_names(flpL, st->names);
-			st->names = NULL;
-			st->state = PRS_EXPR_POST;
+			st.exprTerm = expr_names(flpL, st.names);
+			st.names = NULL;
+			st.state = PRS_EXPR_POST;
 			return parser_process(pr, stmts);
 
 		case PRS_EXPR_POST:
-			if (tk1->type == TOK_NEWLINE ||
-				tok_isKS(tk1, KS_END) || tok_isKS(tk1, KS_ELSE) || tok_isKS(tk1, KS_ELSEIF)){
-				st->state = PRS_EXPR_FINISH;
+			if (tk1.type === TOK_NEWLINE ||
+				tok_isKS(tk1, ks_enum.END) || tok_isKS(tk1, ks_enum.ELSE) || tok_isKS(tk1, ks_enum.ELSEIF)){
+				st.state = PRS_EXPR_FINISH;
 				return parser_process(pr, stmts);
 			}
-			else if (tok_isKS(tk1, KS_LBRACKET)){
-				st->state = PRS_EXPR_INDEX_CHECK;
+			else if (tok_isKS(tk1, ks_enum.LBRACKET)){
+				st.state = PRS_EXPR_INDEX_CHECK;
 				return NULL;
 			}
-			else if (tok_isMid(tk1, st->exprAllowComma, st->exprAllowPipe)){
-				if (st->exprAllowTrailComma && tok_isKS(tk1, KS_COMMA)){
-					st->state = PRS_EXPR_COMMA;
+			else if (tok_isMid(tk1, st.exprAllowComma, st.exprAllowPipe)){
+				if (st.exprAllowTrailComma && tok_isKS(tk1, ks_enum.COMMA)){
+					st.state = PRS_EXPR_COMMA;
 					return NULL;
 				}
-				st->state = PRS_EXPR_MID;
+				st.state = PRS_EXPR_MID;
 				return parser_process(pr, stmts);
 			}
-			else if (tok_isKS(tk1, KS_RBRACE) || tok_isKS(tk1, KS_RBRACKET) ||
-				tok_isKS(tk1, KS_RPAREN) || tok_isKS(tk1, KS_COLON) || tok_isKS(tk1, KS_COMMA) ||
-				tok_isKS(tk1, KS_PIPE)){
-				st->state = PRS_EXPR_FINISH;
+			else if (tok_isKS(tk1, ks_enum.RBRACE) || tok_isKS(tk1, ks_enum.RBRACKET) ||
+				tok_isKS(tk1, ks_enum.RPAREN) || tok_isKS(tk1, ks_enum.COLON) || tok_isKS(tk1, ks_enum.COMMA) ||
+				tok_isKS(tk1, ks_enum.PIPE)){
+				st.state = PRS_EXPR_FINISH;
 				return parser_process(pr, stmts);
 			}
 			// otherwise, this should be a call
-			st->exprTerm2 = st->exprTerm;
-			st->exprTerm = NULL;
+			st.exprTerm2 = st.exprTerm;
+			st.exprTerm = NULL;
 			parser_expr(pr, PRS_EXPR_POST_CALL);
-			pr->state->exprAllowPipe = false;
+			pr.state.exprAllowPipe = false;
 			return parser_process(pr, stmts);
 
 		case PRS_EXPR_POST_CALL:
-			st->exprTerm = expr_call(st->exprTerm2->flp, st->exprTerm2, st->exprTerm);
-			st->exprTerm2 = NULL;
-			st->state = PRS_EXPR_POST;
+			st.exprTerm = expr_call(st.exprTerm2.flp, st.exprTerm2, st.exprTerm);
+			st.exprTerm2 = NULL;
+			st.state = PRS_EXPR_POST;
 			return parser_process(pr, stmts);
 
 		case PRS_EXPR_INDEX_CHECK:
-			if (tk1->type == TOK_NEWLINE && !tk1->u.soft)
+			if (tk1.type === TOK_NEWLINE && !tk1.u.soft)
 				return NULL;
-			if (tok_isKS(tk1, KS_COLON)){
-				st->state = PRS_EXPR_INDEX_COLON_CHECK;
+			if (tok_isKS(tk1, ks_enum.COLON)){
+				st.state = PRS_EXPR_INDEX_COLON_CHECK;
 				return NULL;
 			}
-			st->exprTerm2 = st->exprTerm;
-			st->exprTerm = NULL;
+			st.exprTerm2 = st.exprTerm;
+			st.exprTerm = NULL;
 			parser_expr(pr, PRS_EXPR_INDEX_EXPR_CHECK);
 			return parser_process(pr, stmts);
 
 		case PRS_EXPR_INDEX_COLON_CHECK:
-			if (tk1->type == TOK_NEWLINE && !tk1->u.soft)
+			if (tk1.type === TOK_NEWLINE && !tk1.u.soft)
 				return NULL;
-			if (tok_isKS(tk1, KS_RBRACKET)){
-				st->exprTerm = expr_slice(flpT, st->exprTerm, NULL, NULL);
-				st->state = PRS_EXPR_POST;
+			if (tok_isKS(tk1, ks_enum.RBRACKET)){
+				st.exprTerm = expr_slice(flpT, st.exprTerm, NULL, NULL);
+				st.state = PRS_EXPR_POST;
 				return NULL;
 			}
-			st->exprTerm2 = st->exprTerm;
-			st->exprTerm = NULL;
+			st.exprTerm2 = st.exprTerm;
+			st.exprTerm = NULL;
 			parser_expr(pr, PRS_EXPR_INDEX_COLON_EXPR);
 			return parser_process(pr, stmts);
 
 		case PRS_EXPR_INDEX_COLON_EXPR:
-			if (tk1->type == TOK_NEWLINE && !tk1->u.soft)
+			if (tk1.type === TOK_NEWLINE && !tk1.u.soft)
 				return NULL;
-			if (!tok_isKS(tk1, KS_RBRACKET))
+			if (!tok_isKS(tk1, ks_enum.RBRACKET))
 				return "Missing close bracket";
-			st->exprTerm = expr_slice(st->exprTerm->flp, st->exprTerm2, NULL, st->exprTerm);
-			st->exprTerm2 = NULL;
-			st->state = PRS_EXPR_POST;
+			st.exprTerm = expr_slice(st.exprTerm.flp, st.exprTerm2, NULL, st.exprTerm);
+			st.exprTerm2 = NULL;
+			st.state = PRS_EXPR_POST;
 			return NULL;
 
 		case PRS_EXPR_INDEX_EXPR_CHECK:
-			if (tk1->type == TOK_NEWLINE && !tk1->u.soft)
+			if (tk1.type === TOK_NEWLINE && !tk1.u.soft)
 				return NULL;
-			if (tok_isKS(tk1, KS_COLON)){
-				st->state = PRS_EXPR_INDEX_EXPR_COLON_CHECK;
+			if (tok_isKS(tk1, ks_enum.COLON)){
+				st.state = PRS_EXPR_INDEX_EXPR_COLON_CHECK;
 				return NULL;
 			}
-			if (!tok_isKS(tk1, KS_RBRACKET))
+			if (!tok_isKS(tk1, ks_enum.RBRACKET))
 				return "Missing close bracket";
-			st->exprTerm = expr_index(st->exprTerm->flp, st->exprTerm2, st->exprTerm);
-			st->exprTerm2 = NULL;
-			st->state = PRS_EXPR_POST;
+			st.exprTerm = expr_index(st.exprTerm.flp, st.exprTerm2, st.exprTerm);
+			st.exprTerm2 = NULL;
+			st.state = PRS_EXPR_POST;
 			return NULL;
 
 		case PRS_EXPR_INDEX_EXPR_COLON_CHECK:
-			if (tk1->type == TOK_NEWLINE && !tk1->u.soft)
+			if (tk1.type === TOK_NEWLINE && !tk1.u.soft)
 				return NULL;
-			if (tok_isKS(tk1, KS_RBRACKET)){
-				st->exprTerm = expr_slice(st->exprTerm->flp, st->exprTerm2, st->exprTerm, NULL);
-				st->exprTerm2 = NULL;
-				st->state = PRS_EXPR_POST;
+			if (tok_isKS(tk1, ks_enum.RBRACKET)){
+				st.exprTerm = expr_slice(st.exprTerm.flp, st.exprTerm2, st.exprTerm, NULL);
+				st.exprTerm2 = NULL;
+				st.state = PRS_EXPR_POST;
 				return NULL;
 			}
-			st->exprTerm3 = st->exprTerm;
-			st->exprTerm = NULL;
+			st.exprTerm3 = st.exprTerm;
+			st.exprTerm = NULL;
 			parser_expr(pr, PRS_EXPR_INDEX_EXPR_COLON_EXPR);
 			return parser_process(pr, stmts);
 
 		case PRS_EXPR_INDEX_EXPR_COLON_EXPR:
-			if (tk1->type == TOK_NEWLINE && !tk1->u.soft)
+			if (tk1.type === TOK_NEWLINE && !tk1.u.soft)
 				return NULL;
-			if (!tok_isKS(tk1, KS_RBRACKET))
+			if (!tok_isKS(tk1, ks_enum.RBRACKET))
 				return "Missing close bracket";
-			st->exprTerm =
-				expr_slice(st->exprTerm3->flp, st->exprTerm2, st->exprTerm3, st->exprTerm);
-			st->exprTerm2 = NULL;
-			st->exprTerm3 = NULL;
-			st->state = PRS_EXPR_POST;
+			st.exprTerm =
+				expr_slice(st.exprTerm3.flp, st.exprTerm2, st.exprTerm3, st.exprTerm);
+			st.exprTerm2 = NULL;
+			st.exprTerm3 = NULL;
+			st.state = PRS_EXPR_POST;
 			return NULL;
 
 		case PRS_EXPR_COMMA:
-			if (tk1->type == TOK_NEWLINE && !tk1->u.soft){
+			if (tk1.type === TOK_NEWLINE && !tk1.u.soft){
 				parser_rev(pr); // keep the comma in tk1
-				tok_free(pr->tkR); // free the newline
-				pr->tkR = NULL;
+				tok_free(pr.tkR); // free the newline
+				pr.tkR = NULL;
 				return NULL;
 			}
-			if (!tok_isKS(tk1, KS_RPAREN) && !tok_isKS(tk1, KS_RBRACE)){
-				st->state = PRS_EXPR_MID;
+			if (!tok_isKS(tk1, ks_enum.RPAREN) && !tok_isKS(tk1, ks_enum.RBRACE)){
+				st.state = PRS_EXPR_MID;
 				parser_rev(pr);
 				parser_process(pr, stmts);
-				parser_fwd(pr, pr->tkR);
+				parser_fwd(pr, pr.tkR);
 				return parser_process(pr, stmts);
 			}
 			// found a trailing comma
-			st->state = PRS_EXPR_FINISH;
+			st.state = PRS_EXPR_FINISH;
 			return parser_process(pr, stmts);
 
 		case PRS_EXPR_MID:
-			if (!tok_isMid(tk1, st->exprAllowComma, st->exprAllowPipe)){
-				st->state = PRS_EXPR_FINISH;
+			if (!tok_isMid(tk1, st.exprAllowComma, st.exprAllowPipe)){
+				st.state = PRS_EXPR_FINISH;
 				return parser_process(pr, stmts);
 			}
 			while (true){
 				// fight between the Pre and the Mid
-				while (st->exprPreStack != NULL && tok_isPreBeforeMid(st->exprPreStack->tk, tk1)){
+				while (st.exprPreStack !== NULL && tok_isPreBeforeMid(st.exprPreStack.tk, tk1)){
 					// apply the Pre
-					tok ptk = st->exprPreStack->tk;
-					st->exprTerm = expr_prefix(ptk->flp, ptk->u.k, st->exprTerm);
-					ets next = st->exprPreStack->next;
-					ets_free(st->exprPreStack);
-					st->exprPreStack = next;
+					tok ptk = st.exprPreStack.tk;
+					st.exprTerm = expr_prefix(ptk.flp, ptk.u.k, st.exprTerm);
+					ets next = st.exprPreStack.next;
+					ets_free(st.exprPreStack);
+					st.exprPreStack = next;
 				}
 
 				// if we've exhaused the exprPreStack, then check against the exprMidStack
-				if (st->exprPreStack == NULL && st->exprMidStack != NULL &&
-					tok_isMidBeforeMid(st->exprMidStack->tk, tk1)){
+				if (st.exprPreStack === NULL && st.exprMidStack !== NULL &&
+					tok_isMidBeforeMid(st.exprMidStack.tk, tk1)){
 					// apply the previous Mid
-					tok mtk = st->exprMidStack->tk;
-					pri_st pri = parser_infix(mtk->flp, mtk->u.k, st->exprStack->ex, st->exprTerm);
-					if (pri.type == PRI_ERROR)
+					tok mtk = st.exprMidStack.tk;
+					pri_st pri = parser_infix(mtk.flp, mtk.u.k, st.exprStack.ex, st.exprTerm);
+					if (pri.type === PRI_ERROR)
 						return pri.u.msg;
-					st->exprTerm = pri.u.ex;
-					st->exprStack->ex = NULL;
-					exs next = st->exprStack->next;
-					exs_free(st->exprStack);
-					st->exprStack = next;
-					st->exprPreStack = st->exprPreStackStack->e;
-					st->exprPreStackStack->e = NULL;
-					eps next2 = st->exprPreStackStack->next;
-					eps_free(st->exprPreStackStack);
-					st->exprPreStackStack = next2;
-					ets next3 = st->exprMidStack->next;
-					ets_free(st->exprMidStack);
-					st->exprMidStack = next3;
+					st.exprTerm = pri.u.ex;
+					st.exprStack.ex = NULL;
+					exs next = st.exprStack.next;
+					exs_free(st.exprStack);
+					st.exprStack = next;
+					st.exprPreStack = st.exprPreStackStack.e;
+					st.exprPreStackStack.e = NULL;
+					eps next2 = st.exprPreStackStack.next;
+					eps_free(st.exprPreStackStack);
+					st.exprPreStackStack = next2;
+					ets next3 = st.exprMidStack.next;
+					ets_free(st.exprMidStack);
+					st.exprMidStack = next3;
 				}
 				else // otherwise, the current Mid wins
 					break;
@@ -4389,68 +4371,68 @@ static const char *parser_process(parser pr, list_ptr stmts){
 			// finally, we're safe to apply the Mid...
 			// except instead of applying it, we need to schedule to apply it, in case another
 			// operator takes precedence over this one
-			st->exprPreStackStack = eps_new(st->exprPreStack, st->exprPreStackStack);
-			st->exprPreStack = NULL;
-			st->exprStack = exs_new(st->exprTerm, st->exprStack);
-			st->exprTerm = NULL;
-			st->exprMidStack = ets_new(tk1, st->exprMidStack);
-			pr->tk1 = NULL;
-			st->state = PRS_EXPR_PRE;
+			st.exprPreStackStack = eps_new(st.exprPreStack, st.exprPreStackStack);
+			st.exprPreStack = NULL;
+			st.exprStack = exs_new(st.exprTerm, st.exprStack);
+			st.exprTerm = NULL;
+			st.exprMidStack = ets_new(tk1, st.exprMidStack);
+			pr.tk1 = NULL;
+			st.state = PRS_EXPR_PRE;
 			return NULL;
 
 		case PRS_EXPR_FINISH:
 			while (true){
 				// apply any outstanding Pre's
-				while (st->exprPreStack != NULL){
-					tok ptk = st->exprPreStack->tk;
-					st->exprTerm = expr_prefix(ptk->flp, ptk->u.k, st->exprTerm);
-					ets next = st->exprPreStack->next;
-					ets_free(st->exprPreStack);
-					st->exprPreStack = next;
+				while (st.exprPreStack !== NULL){
+					tok ptk = st.exprPreStack.tk;
+					st.exprTerm = expr_prefix(ptk.flp, ptk.u.k, st.exprTerm);
+					ets next = st.exprPreStack.next;
+					ets_free(st.exprPreStack);
+					st.exprPreStack = next;
 				}
 
 				// grab left side's Pre's
-				if (st->exprPreStackStack != NULL){
-					st->exprPreStack = st->exprPreStackStack->e;
-					st->exprPreStackStack->e = NULL;
-					eps next2 = st->exprPreStackStack->next;
-					eps_free(st->exprPreStackStack);
-					st->exprPreStackStack = next2;
+				if (st.exprPreStackStack !== NULL){
+					st.exprPreStack = st.exprPreStackStack.e;
+					st.exprPreStackStack.e = NULL;
+					eps next2 = st.exprPreStackStack.next;
+					eps_free(st.exprPreStackStack);
+					st.exprPreStackStack = next2;
 				}
 
 				// fight between the left Pre and the Mid
-				while (st->exprPreStack != NULL &&
-					(st->exprMidStack == NULL ||
-						tok_isPreBeforeMid(st->exprPreStack->tk, st->exprMidStack->tk))){
+				while (st.exprPreStack !== NULL &&
+					(st.exprMidStack === NULL ||
+						tok_isPreBeforeMid(st.exprPreStack.tk, st.exprMidStack.tk))){
 					// apply the Pre to the left side
-					tok ptk = st->exprPreStack->tk;
-					st->exprStack->ex = expr_prefix(ptk->flp, ptk->u.k, st->exprStack->ex);
-					ets next = st->exprPreStack->next;
-					ets_free(st->exprPreStack);
-					st->exprPreStack = next;
+					tok ptk = st.exprPreStack.tk;
+					st.exprStack.ex = expr_prefix(ptk.flp, ptk.u.k, st.exprStack.ex);
+					ets next = st.exprPreStack.next;
+					ets_free(st.exprPreStack);
+					st.exprPreStack = next;
 				}
 
-				if (st->exprMidStack == NULL)
+				if (st.exprMidStack === NULL)
 					break;
 
 				// apply the Mid
-				tok mtk = st->exprMidStack->tk;
-				pri_st pri = parser_infix(mtk->flp, mtk->u.k, st->exprStack->ex, st->exprTerm);
+				tok mtk = st.exprMidStack.tk;
+				pri_st pri = parser_infix(mtk.flp, mtk.u.k, st.exprStack.ex, st.exprTerm);
 
-				if (pri.type == PRI_ERROR)
+				if (pri.type === PRI_ERROR)
 					return pri.u.msg;
-				st->exprTerm = pri.u.ex;
-				st->exprStack->ex = NULL;
-				exs next = st->exprStack->next;
-				exs_free(st->exprStack);
-				st->exprStack = next;
-				ets next3 = st->exprMidStack->next;
-				ets_free(st->exprMidStack);
-				st->exprMidStack = next3;
+				st.exprTerm = pri.u.ex;
+				st.exprStack.ex = NULL;
+				exs next = st.exprStack.next;
+				exs_free(st.exprStack);
+				st.exprStack = next;
+				ets next3 = st.exprMidStack.next;
+				ets_free(st.exprMidStack);
+				st.exprMidStack = next3;
 			}
 			// everything has been applied, and exprTerm has been set!
-			st->next->exprTerm = st->exprTerm;
-			st->exprTerm = NULL;
+			st.next.exprTerm = st.exprTerm;
+			st.exprTerm = NULL;
 			parser_pop(pr);
 			return parser_process(pr, stmts);
 	}
@@ -4462,7 +4444,7 @@ static inline const char *parser_add(parser pr, tok tk, list_ptr stmts){
 }
 
 static inline const char *parser_close(parser pr){
-	if (pr->state->next != NULL)
+	if (pr.state.next !== NULL)
 		return "Invalid end of file";
 	return NULL;
 }
@@ -4478,17 +4460,17 @@ typedef struct {
 } label_st, *label;
 
 static inline void label_free(label lbl){
-	if (lbl->name)
-		list_byte_free(lbl->name);
-	list_int_free(lbl->rewrites);
+	if (lbl.name)
+		list_byte_free(lbl.name);
+	list_int_free(lbl.rewrites);
 	mem_free(lbl);
 }
 
 static inline label label_new(list_byte name){
 	label lbl = mem_alloc(sizeof(label_st));
-	lbl->name = name;
-	lbl->pos = -1;
-	lbl->rewrites = list_int_new();
+	lbl.name = name;
+	lbl.pos = -1;
+	lbl.rewrites = list_int_new();
 	return lbl;
 }
 
@@ -4500,53 +4482,53 @@ static inline label label_new(list_byte name){
 #endif
 
 static void label_refresh(label lbl, list_byte ops, int start){
-	for (int i = start; i < lbl->rewrites->size; i++){
-		int index = lbl->rewrites->vals[i];
-		ops->bytes[index + 0] = lbl->pos % 256;
-		ops->bytes[index + 1] = (lbl->pos >> 8) % 256;
-		ops->bytes[index + 2] = (lbl->pos >> 16) % 256;
-		ops->bytes[index + 3] = (lbl->pos >> 24) % 256;
+	for (int i = start; i < lbl.rewrites.size; i++){
+		int index = lbl.rewrites.vals[i];
+		ops.bytes[index + 0] = lbl.pos % 256;
+		ops.bytes[index + 1] = (lbl.pos >> 8) % 256;
+		ops.bytes[index + 2] = (lbl.pos >> 16) % 256;
+		ops.bytes[index + 3] = (lbl.pos >> 24) % 256;
 	}
 }
 
 static inline void label_jump(label lbl, list_byte ops){
-	op_jump(ops, 0xFFFFFFFF, lbl->name);
-	list_int_push(lbl->rewrites, ops->size - 4);
-	if (lbl->pos >= 0)
-		label_refresh(lbl, ops, lbl->rewrites->size - 1);
+	op_jump(ops, 0xFFFFFFFF, lbl.name);
+	list_int_push(lbl.rewrites, ops.size - 4);
+	if (lbl.pos >= 0)
+		label_refresh(lbl, ops, lbl.rewrites.size - 1);
 }
 
 static inline void label_jumptrue(label lbl, list_byte ops, varloc_st src){
-	op_jumptrue(ops, src, 0xFFFFFFFF, lbl->name);
-	list_int_push(lbl->rewrites, ops->size - 4);
-	if (lbl->pos >= 0)
-		label_refresh(lbl, ops, lbl->rewrites->size - 1);
+	op_jumptrue(ops, src, 0xFFFFFFFF, lbl.name);
+	list_int_push(lbl.rewrites, ops.size - 4);
+	if (lbl.pos >= 0)
+		label_refresh(lbl, ops, lbl.rewrites.size - 1);
 }
 
 static inline void label_jumpfalse(label lbl, list_byte ops, varloc_st src){
-	op_jumpfalse(ops, src, 0xFFFFFFFF, lbl->name);
-	list_int_push(lbl->rewrites, ops->size - 4);
-	if (lbl->pos >= 0)
-		label_refresh(lbl, ops, lbl->rewrites->size - 1);
+	op_jumpfalse(ops, src, 0xFFFFFFFF, lbl.name);
+	list_int_push(lbl.rewrites, ops.size - 4);
+	if (lbl.pos >= 0)
+		label_refresh(lbl, ops, lbl.rewrites.size - 1);
 }
 
 static inline void label_call(label lbl, list_byte ops, varloc_st ret, int argcount){
-	op_call(ops, ret, 0xFFFFFFFF, argcount, lbl->name);
-	list_int_push(lbl->rewrites, ops->size - 5);
-	if (lbl->pos >= 0)
-		label_refresh(lbl, ops, lbl->rewrites->size - 1);
+	op_call(ops, ret, 0xFFFFFFFF, argcount, lbl.name);
+	list_int_push(lbl.rewrites, ops.size - 5);
+	if (lbl.pos >= 0)
+		label_refresh(lbl, ops, lbl.rewrites.size - 1);
 }
 
 static inline void label_returntail(label lbl, list_byte ops, int argcount){
-	op_returntail(ops, 0xFFFFFFFF, argcount, lbl->name);
-	list_int_push(lbl->rewrites, ops->size - 5);
-	if (lbl->pos >= 0)
-		label_refresh(lbl, ops, lbl->rewrites->size - 1);
+	op_returntail(ops, 0xFFFFFFFF, argcount, lbl.name);
+	list_int_push(lbl.rewrites, ops.size - 5);
+	if (lbl.pos >= 0)
+		label_refresh(lbl, ops, lbl.rewrites.size - 1);
 }
 
 static inline void label_declare(label lbl, list_byte ops){
-	debugf("%.*s:", lbl->name->size, lbl->name->bytes);
-	lbl->pos = ops->size;
+	debugf("%.*s:", lbl.name.size, lbl.name.bytes);
+	lbl.pos = ops.size;
 	label_refresh(lbl, ops, 0);
 }
 
@@ -4569,23 +4551,23 @@ struct frame_struct {
 };
 
 static inline void frame_free(frame fr){
-	list_int_free(fr->vars);
-	list_ptr_free(fr->lbls);
+	list_int_free(fr.vars);
+	list_ptr_free(fr.lbls);
 	mem_free(fr);
 }
 
 #ifdef SINK_DEBUG
 static void frame_print(frame fr){
 	debug("FRAME:");
-	for (int i = 0; i < fr->vars->size; i++){
-		debugf("  %d. %s", i, fr->vars->vals[i] == FVR_VAR ? "VAR" :
-			(fr->vars->vals[i] == FVR_TEMP_INUSE ? "TMP (Used)" : "TMP (Avlb)"));
+	for (int i = 0; i < fr.vars.size; i++){
+		debugf("  %d. %s", i, fr.vars.vals[i] === FVR_VAR ? "VAR" :
+			(fr.vars.vals[i] === FVR_TEMP_INUSE ? "TMP (Used)" : "TMP (Avlb)"));
 	}
-	if (fr->lbls->size > 0){
-		debug("  -> LABELS:");
-		for (int i = 0; i < fr->lbls->size; i++){
-			list_byte b = ((label)fr->lbls->ptrs[i])->name;
-			debugf("  %.*s", b->size, b->bytes);
+	if (fr.lbls.size > 0){
+		debug("  . LABELS:");
+		for (int i = 0; i < fr.lbls.size; i++){
+			list_byte b = ((label)fr.lbls.ptrs[i]).name;
+			debugf("  %.*s", b.size, b.bytes);
 		}
 	}
 }
@@ -4593,10 +4575,10 @@ static void frame_print(frame fr){
 
 static inline frame frame_new(frame parent){
 	frame fr = mem_alloc(sizeof(frame_st));
-	fr->vars = list_int_new();
-	fr->lbls = list_ptr_new(label_free);
-	fr->parent = parent;
-	fr->level = parent ? fr->parent->level + 1 : 0;
+	fr.vars = list_int_new();
+	fr.lbls = list_ptr_new(label_free);
+	fr.parent = parent;
+	fr.level = parent ? fr.parent.level + 1 : 0;
 	return fr;
 }
 
@@ -4635,8 +4617,8 @@ typedef struct {
 } nsname_st, *nsname;
 
 static void nsname_free(nsname nsn){
-	list_byte_free(nsn->name);
-	switch (nsn->type){
+	list_byte_free(nsn.name);
+	switch (nsn.type){
 		case NSN_VAR:
 		case NSN_ENUM:
 		case NSN_CMD_LOCAL:
@@ -4644,8 +4626,8 @@ static void nsname_free(nsname nsn){
 		case NSN_CMD_OPCODE:
 			break;
 		case NSN_NAMESPACE:
-			if (nsn->u.ns)
-				namespace_free(nsn->u.ns);
+			if (nsn.u.ns)
+				namespace_free(nsn.u.ns);
 			break;
 	}
 	mem_free(nsn);
@@ -4653,25 +4635,25 @@ static void nsname_free(nsname nsn){
 
 #ifdef SINK_DEBUG
 static void nsname_print(nsname nsn){
-	switch (nsn->type){
+	switch (nsn.type){
 		case NSN_VAR:
-			debugf("%.*s NSN_VAR %d", nsn->name->size, nsn->name->bytes, nsn->u.var.index);
+			debugf("%.*s NSN_VAR %d", nsn.name.size, nsn.name.bytes, nsn.u.var.index);
 			break;
 		case NSN_ENUM:
-			debugf("%.*s NSN_ENUM %g", nsn->name->size, nsn->name->bytes, nsn->u.val);
+			debugf("%.*s NSN_ENUM %g", nsn.name.size, nsn.name.bytes, nsn.u.val);
 			break;
 		case NSN_CMD_LOCAL:
-			debugf("%.*s NSN_CMD_LOCAL", nsn->name->size, nsn->name->bytes);
+			debugf("%.*s NSN_CMD_LOCAL", nsn.name.size, nsn.name.bytes);
 			break;
 		case NSN_CMD_NATIVE:
-			debugf("%.*s NSN_CMD_NATIVE", nsn->name->size, nsn->name->bytes);
+			debugf("%.*s NSN_CMD_NATIVE", nsn.name.size, nsn.name.bytes);
 			break;
 		case NSN_CMD_OPCODE:
-			debugf("%.*s NSN_CMD_OPCODE 0x%02X", nsn->name->size, nsn->name->bytes,
-				nsn->u.cmdOpcode.opcode);
+			debugf("%.*s NSN_CMD_OPCODE 0x%02X", nsn.name.size, nsn.name.bytes,
+				nsn.u.cmdOpcode.opcode);
 			break;
 		case NSN_NAMESPACE:
-			debugf("%.*s NSN_NAMESPACE", nsn->name->size, nsn->name->bytes);
+			debugf("%.*s NSN_NAMESPACE", nsn.name.size, nsn.name.bytes);
 			break;
 	}
 }
@@ -4679,52 +4661,52 @@ static void nsname_print(nsname nsn){
 
 static inline nsname nsname_var(list_byte name, frame fr, int index){
 	nsname nsn = mem_alloc(sizeof(nsname_st));
-	nsn->name = list_byte_newcopy(name);
-	nsn->type = NSN_VAR;
-	nsn->u.var.fr = fr;
-	nsn->u.var.index = index;
+	nsn.name = list_byte_newcopy(name);
+	nsn.type = NSN_VAR;
+	nsn.u.var.fr = fr;
+	nsn.u.var.index = index;
 	return nsn;
 }
 
 static inline nsname nsname_enum(list_byte name, double val, bool own){
 	nsname nsn = mem_alloc(sizeof(nsname_st));
-	nsn->name = own ? name : list_byte_newcopy(name);
-	nsn->type = NSN_ENUM;
-	nsn->u.val = val;
+	nsn.name = own ? name : list_byte_newcopy(name);
+	nsn.type = NSN_ENUM;
+	nsn.u.val = val;
 	return nsn;
 }
 
 static inline nsname nsname_cmdLocal(list_byte name, frame fr, label lbl){
 	nsname nsn = mem_alloc(sizeof(nsname_st));
-	nsn->name = list_byte_newcopy(name);
-	nsn->type = NSN_CMD_LOCAL;
-	nsn->u.cmdLocal.fr = fr;
-	nsn->u.cmdLocal.lbl = lbl;
+	nsn.name = list_byte_newcopy(name);
+	nsn.type = NSN_CMD_LOCAL;
+	nsn.u.cmdLocal.fr = fr;
+	nsn.u.cmdLocal.lbl = lbl;
 	return nsn;
 }
 
 static inline nsname nsname_cmdNative(list_byte name, uint64_t hash){
 	nsname nsn = mem_alloc(sizeof(nsname_st));
-	nsn->name = list_byte_newcopy(name);
-	nsn->type = NSN_CMD_NATIVE;
-	nsn->u.hash = hash;
+	nsn.name = list_byte_newcopy(name);
+	nsn.type = NSN_CMD_NATIVE;
+	nsn.u.hash = hash;
 	return nsn;
 }
 
 static inline nsname nsname_cmdOpcode(list_byte name, op_enum opcode, int params){
 	nsname nsn = mem_alloc(sizeof(nsname_st));
-	nsn->name = name; // don't copy because the only caller gives `name` to nsn
-	nsn->type = NSN_CMD_OPCODE;
-	nsn->u.cmdOpcode.opcode = opcode;
-	nsn->u.cmdOpcode.params = params;
+	nsn.name = name; // don't copy because the only caller gives `name` to nsn
+	nsn.type = NSN_CMD_OPCODE;
+	nsn.u.cmdOpcode.opcode = opcode;
+	nsn.u.cmdOpcode.params = params;
 	return nsn;
 }
 
 static inline nsname nsname_namespacegive(list_byte name, namespace ns){
 	nsname nsn = mem_alloc(sizeof(nsname_st));
-	nsn->name = name;
-	nsn->type = NSN_NAMESPACE;
-	nsn->u.ns = ns;
+	nsn.name = name;
+	nsn.type = NSN_NAMESPACE;
+	nsn.u.ns = ns;
 	return nsn;
 }
 
@@ -4739,24 +4721,24 @@ struct namespace_struct {
 };
 
 static inline void namespace_free(namespace ns){
-	list_ptr_free(ns->usings);
-	list_ptr_free(ns->names);
+	list_ptr_free(ns.usings);
+	list_ptr_free(ns.names);
 	mem_free(ns);
 }
 
 #ifdef SINK_DEBUG
 static void namespace_print(namespace ns){
 	debug("NAMESPACE:");
-	for (int i = 0; i < ns->names->size; i++)
-		nsname_print(ns->names->ptrs[i]);
+	for (int i = 0; i < ns.names.size; i++)
+		nsname_print(ns.names.ptrs[i]);
 }
 #endif
 
 static inline namespace namespace_new(frame fr){
 	namespace ns = mem_alloc(sizeof(namespace_st));
-	ns->fr = fr;
-	ns->usings = list_ptr_new(NULL);
-	ns->names = list_ptr_new(nsname_free);
+	ns.fr = fr;
+	ns.usings = list_ptr_new(NULL);
+	ns.names = list_ptr_new(nsname_free);
 	return ns;
 }
 
@@ -4781,14 +4763,14 @@ static inline nl_st nl_notfound(){
 static nl_st namespace_lookup(namespace ns, list_ptr names, int start, list_ptr tried);
 
 static nl_st namespace_lookupLevel(namespace ns, list_ptr names, int start, list_ptr tried){
-	for (int nsni = 0; nsni < ns->names->size; nsni++){
-		nsname nsn = ns->names->ptrs[nsni];
-		if (list_byte_equ(nsn->name, names->ptrs[start])){
-			if (start == names->size - 1) // if we're at the end of names, then report the find
+	for (int nsni = 0; nsni < ns.names.size; nsni++){
+		nsname nsn = ns.names.ptrs[nsni];
+		if (list_byte_equ(nsn.name, names.ptrs[start])){
+			if (start === names.size - 1) // if we're at the end of names, then report the find
 				return nl_found(nsn);
 			// otherwise, we need to traverse
-			if (nsn->type == NSN_NAMESPACE)
-				return namespace_lookup(nsn->u.ns, names, start + 1, tried);
+			if (nsn.type === NSN_NAMESPACE)
+				return namespace_lookup(nsn.u.ns, names, start + 1, tried);
 			return nl_notfound();
 		}
 	}
@@ -4799,8 +4781,8 @@ static void namespace_getSiblings(namespace ns, list_ptr res, list_ptr tried){
 	if (list_ptr_has(res, ns))
 		return;
 	list_ptr_push(res, ns);
-	for (int i = 0; i < ns->usings->size; i++){
-		namespace uns = ns->usings->ptrs[i];
+	for (int i = 0; i < ns.usings.size; i++){
+		namespace uns = ns.usings.ptrs[i];
 		if (list_ptr_has(tried, uns))
 			continue;
 		namespace_getSiblings(uns, res, tried);
@@ -4814,10 +4796,10 @@ static nl_st namespace_lookup(namespace ns, list_ptr names, int start, list_ptr 
 
 	list_ptr allns = list_ptr_new(NULL);
 	namespace_getSiblings(ns, allns, tried);
-	for (int i = 0; i < allns->size; i++){
-		namespace hns = allns->ptrs[i];
+	for (int i = 0; i < allns.size; i++){
+		namespace hns = allns.ptrs[i];
 		nl_st n = namespace_lookupLevel(hns, names, start, tried);
-		if (n.type == NL_FOUND){
+		if (n.type === NL_FOUND){
 			list_ptr_free(allns);
 			return n;
 		}
@@ -4828,17 +4810,17 @@ static nl_st namespace_lookup(namespace ns, list_ptr names, int start, list_ptr 
 
 static inline nl_st namespace_lookupImmediate(namespace ns, list_ptr names){
 	// should perform the most ideal lookup... if it fails, then there is room to add a symbol
-	for (int ni = 0; ni < names->size; ni++){
-		list_byte name = names->ptrs[ni];
+	for (int ni = 0; ni < names.size; ni++){
+		list_byte name = names.ptrs[ni];
 		bool found = false;
-		for (int nsni = 0; nsni < ns->names->size; nsni++){
-			nsname nsn = ns->names->ptrs[nsni];
-			if (list_byte_equ(nsn->name, name)){
-				if (ni == names->size - 1)
+		for (int nsni = 0; nsni < ns.names.size; nsni++){
+			nsname nsn = ns.names.ptrs[nsni];
+			if (list_byte_equ(nsn.name, name)){
+				if (ni === names.size - 1)
 					return nl_found(nsn);
-				if (nsn->type != NSN_NAMESPACE)
+				if (nsn.type !== NSN_NAMESPACE)
 					return nl_notfound();
-				ns = nsn->u.ns;
+				ns = nsn.u.ns;
 				found = true;
 				break;
 			}
@@ -4861,27 +4843,27 @@ struct scope_struct {
 static inline void scope_free(scope sc){
 	// only free the first namespace...
 	// this is because the first namespace will have all the child namespaces under it inside
-	// the ns->names field, which will be freed via nsname_free
-	namespace_free(sc->nsStack->ptrs[0]);
-	list_ptr_free(sc->nsStack);
+	// the ns.names field, which will be freed via nsname_free
+	namespace_free(sc.nsStack.ptrs[0]);
+	list_ptr_free(sc.nsStack);
 	mem_free(sc);
 }
 
 #ifdef SINK_DEBUG
 static void scope_print(scope sc){
-	for (int i = 0; i < sc->nsStack->size; i++)
-		namespace_print(sc->nsStack->ptrs[i]);
+	for (int i = 0; i < sc.nsStack.size; i++)
+		namespace_print(sc.nsStack.ptrs[i]);
 }
 #endif
 
 static inline scope scope_new(frame fr, label lblBreak, label lblContinue, scope parent){
 	scope sc = mem_alloc(sizeof(scope_st));
-	sc->ns = namespace_new(fr);
-	sc->nsStack = list_ptr_new(NULL);
-	list_ptr_push(sc->nsStack, sc->ns);
-	sc->lblBreak = lblBreak;
-	sc->lblContinue = lblContinue;
-	sc->parent = parent;
+	sc.ns = namespace_new(fr);
+	sc.nsStack = list_ptr_new(NULL);
+	list_ptr_push(sc.nsStack, sc.ns);
+	sc.lblBreak = lblBreak;
+	sc.lblContinue = lblContinue;
+	sc.parent = parent;
 	return sc;
 }
 
@@ -4892,16 +4874,16 @@ typedef struct {
 } symtbl_st, *symtbl;
 
 static inline void symtbl_free(symtbl sym){
-	frame here = sym->fr;
+	frame here = sym.fr;
 	while (here){
 		frame del = here;
-		here = here->parent;
+		here = here.parent;
 		frame_free(del);
 	}
-	scope here2 = sym->sc;
+	scope here2 = sym.sc;
 	while (here2){
 		scope del = here2;
-		here2 = here2->parent;
+		here2 = here2.parent;
 		scope_free(del);
 	}
 	mem_free(sym);
@@ -4909,16 +4891,16 @@ static inline void symtbl_free(symtbl sym){
 
 static void symtbl_print(symtbl sym){
 	#ifdef SINK_DEBUG
-	frame_print(sym->fr);
-	scope_print(sym->sc);
+	frame_print(sym.fr);
+	scope_print(sym.sc);
 	#endif
 }
 
 static inline symtbl symtbl_new(bool repl){
 	symtbl sym = mem_alloc(sizeof(symtbl_st));
-	sym->fr = frame_new(NULL);
-	sym->sc = scope_new(sym->fr, NULL, NULL, NULL);
-	sym->repl = repl;
+	sym.fr = frame_new(NULL);
+	sym.sc = scope_new(sym.fr, NULL, NULL, NULL);
+	sym.repl = repl;
 	return sym;
 }
 
@@ -4944,29 +4926,29 @@ static inline sfn_st sfn_error(char *msg){
 }
 
 static sfn_st symtbl_findNamespace(symtbl sym, list_ptr names, int max){
-	namespace ns = sym->sc->ns;
+	namespace ns = sym.sc.ns;
 	for (int ni = 0; ni < max; ni++){
-		list_byte name = names->ptrs[ni];
+		list_byte name = names.ptrs[ni];
 		bool found = false;
-		for (int i = 0; i < ns->names->size; i++){
-			nsname nsn = ns->names->ptrs[i];
-			if (list_byte_equ(nsn->name, name)){
-				if (nsn->type != NSN_NAMESPACE){
-					if (!sym->repl){
+		for (int i = 0; i < ns.names.size; i++){
+			nsname nsn = ns.names.ptrs[i];
+			if (list_byte_equ(nsn.name, name)){
+				if (nsn.type !== NSN_NAMESPACE){
+					if (!sym.repl){
 						return sfn_error(format(
-							"Not a namespace: \"%.*s\"", nsn->name->size, nsn->name->bytes));
+							"Not a namespace: \"%.*s\"", nsn.name.size, nsn.name.bytes));
 					}
-					nsname_free(ns->names->ptrs[i]);
-					nsn = ns->names->ptrs[i] = nsname_namespace(nsn->name, namespace_new(ns->fr));
+					nsname_free(ns.names.ptrs[i]);
+					nsn = ns.names.ptrs[i] = nsname_namespace(nsn.name, namespace_new(ns.fr));
 				}
-				ns = nsn->u.ns;
+				ns = nsn.u.ns;
 				found = true;
 				break;
 			}
 		}
 		if (!found){
-			namespace nns = namespace_new(ns->fr);
-			list_ptr_push(ns->names, nsname_namespace(name, nns));
+			namespace nns = namespace_new(ns.fr);
+			list_ptr_push(ns.names, nsname_namespace(name, nns));
 			ns = nns;
 		}
 	}
@@ -4975,50 +4957,50 @@ static sfn_st symtbl_findNamespace(symtbl sym, list_ptr names, int max){
 
 static inline char *symtbl_pushNamespace(symtbl sym, list_ptr names){
 	namespace ns;
-	if (names == INCL_UNIQUE){
+	if (names === INCL_UNIQUE){
 		// create a unique namespace and use it (via `using`) immediately
-		namespace nsp = sym->sc->ns;
-		ns = namespace_new(nsp->fr);
-		list_ptr_push(nsp->names, nsname_namespacegive(list_byte_newstr("."), ns));
-		list_ptr_push(nsp->usings, ns);
+		namespace nsp = sym.sc.ns;
+		ns = namespace_new(nsp.fr);
+		list_ptr_push(nsp.names, nsname_namespacegive(list_byte_newstr("."), ns));
+		list_ptr_push(nsp.usings, ns);
 	}
 	else{
 		// find (and create if non-existant) namespace
-		sfn_st nsr = symtbl_findNamespace(sym, names, names->size);
-		if (nsr.type == SFN_ERROR)
+		sfn_st nsr = symtbl_findNamespace(sym, names, names.size);
+		if (nsr.type === SFN_ERROR)
 			return nsr.u.msg;
 		ns = nsr.u.ns;
 	}
-	list_ptr_push(sym->sc->nsStack, ns);
-	sym->sc->ns = ns;
+	list_ptr_push(sym.sc.nsStack, ns);
+	sym.sc.ns = ns;
 	return NULL;
 }
 
 static inline void symtbl_popNamespace(symtbl sym){
-	sym->sc->nsStack->size--;
-	sym->sc->ns = sym->sc->nsStack->ptrs[sym->sc->nsStack->size - 1];
+	sym.sc.nsStack.size--;
+	sym.sc.ns = sym.sc.nsStack.ptrs[sym.sc.nsStack.size - 1];
 }
 
 static inline void symtbl_pushScope(symtbl sym){
-	sym->sc = scope_new(sym->fr, sym->sc->lblBreak, sym->sc->lblContinue, sym->sc);
+	sym.sc = scope_new(sym.fr, sym.sc.lblBreak, sym.sc.lblContinue, sym.sc);
 }
 
 static inline void symtbl_popScope(symtbl sym){
-	scope del = sym->sc;
-	sym->sc = sym->sc->parent;
+	scope del = sym.sc;
+	sym.sc = sym.sc.parent;
 	scope_free(del);
 }
 
 static inline void symtbl_pushFrame(symtbl sym){
-	sym->fr = frame_new(sym->fr);
-	sym->sc = scope_new(sym->fr, NULL, NULL, sym->sc);
+	sym.fr = frame_new(sym.fr);
+	sym.sc = scope_new(sym.fr, NULL, NULL, sym.sc);
 }
 
 static inline void symtbl_popFrame(symtbl sym){
-	scope del = sym->sc;
-	frame del2 = sym->fr;
-	sym->sc = sym->sc->parent;
-	sym->fr = sym->fr->parent;
+	scope del = sym.sc;
+	frame del2 = sym.fr;
+	sym.sc = sym.sc.parent;
+	sym.fr = sym.fr.parent;
 	scope_free(del);
 	frame_free(del2);
 }
@@ -5046,17 +5028,17 @@ static inline stl_st stl_error(char *msg){
 
 static stl_st symtbl_lookupfast(symtbl sym, list_ptr names){
 	list_ptr tried = list_ptr_new(NULL);
-	scope trysc = sym->sc;
-	while (trysc != NULL){
-		for (int trynsi = trysc->nsStack->size - 1; trynsi >= 0; trynsi--){
-			namespace tryns = trysc->nsStack->ptrs[trynsi];
+	scope trysc = sym.sc;
+	while (trysc !== NULL){
+		for (int trynsi = trysc.nsStack.size - 1; trynsi >= 0; trynsi--){
+			namespace tryns = trysc.nsStack.ptrs[trynsi];
 			nl_st n = namespace_lookup(tryns, names, 0, tried);
-			if (n.type == NL_FOUND){
+			if (n.type === NL_FOUND){
 				list_ptr_free(tried);
 				return stl_ok(n.nsn);
 			}
 		}
-		trysc = trysc->parent;
+		trysc = trysc.parent;
 	}
 	list_ptr_free(tried);
 	return stl_error(NULL); // don't create an error message (unless we need it)
@@ -5064,13 +5046,13 @@ static stl_st symtbl_lookupfast(symtbl sym, list_ptr names){
 
 static stl_st symtbl_lookup(symtbl sym, list_ptr names){
 	stl_st res = symtbl_lookupfast(sym, names);
-	if (res.type == STL_ERROR){
+	if (res.type === STL_ERROR){
 		// create an error message
-		list_byte lb = names->ptrs[0];
-		char *join = format("Not found: %.*s", lb->size, lb->bytes);
-		for (int i = 1; i < names->size; i++){
-			lb = names->ptrs[i];
-			char *join2 = format("%s.%.*s", join, lb->size, lb->bytes);
+		list_byte lb = names.ptrs[0];
+		char *join = format("Not found: %.*s", lb.size, lb.bytes);
+		for (int i = 1; i < names.size; i++){
+			lb = names.ptrs[i];
+			char *join2 = format("%s.%.*s", join, lb.size, lb.bytes);
 			mem_free(join);
 			join = join2;
 		}
@@ -5106,28 +5088,28 @@ static inline sta_st sta_error(char *msg){
 }
 
 static sta_st symtbl_addTemp(symtbl sym){
-	for (int i = 0; i < sym->fr->vars->size; i++){
-		if (sym->fr->vars->vals[i] == FVR_TEMP_AVAIL){
-			sym->fr->vars->vals[i] = FVR_TEMP_INUSE;
-			return sta_var(varloc_new(sym->fr->level, i));
+	for (int i = 0; i < sym.fr.vars.size; i++){
+		if (sym.fr.vars.vals[i] === FVR_TEMP_AVAIL){
+			sym.fr.vars.vals[i] = FVR_TEMP_INUSE;
+			return sta_var(varloc_new(sym.fr.level, i));
 		}
 	}
-	if (sym->fr->vars->size >= 256)
+	if (sym.fr.vars.size >= 256)
 		return sta_error(format("Too many variables in frame"));
-	list_int_push(sym->fr->vars, FVR_TEMP_INUSE);
-	return sta_var(varloc_new(sym->fr->level, sym->fr->vars->size - 1));
+	list_int_push(sym.fr.vars, FVR_TEMP_INUSE);
+	return sta_var(varloc_new(sym.fr.level, sym.fr.vars.size - 1));
 }
 
 static inline void symtbl_clearTemp(symtbl sym, varloc_st vlc){
 	assert(!varloc_isnull(vlc));
-	if (vlc.frame == sym->fr->level && sym->fr->vars->vals[vlc.index] == FVR_TEMP_INUSE)
-		sym->fr->vars->vals[vlc.index] = FVR_TEMP_AVAIL;
+	if (vlc.frame === sym.fr.level && sym.fr.vars.vals[vlc.index] === FVR_TEMP_INUSE)
+		sym.fr.vars.vals[vlc.index] = FVR_TEMP_AVAIL;
 }
 
 static inline int symtbl_tempAvail(symtbl sym){
-	int cnt = 256 - sym->fr->vars->size;
-	for (int i = 0; i < sym->fr->vars->size; i++){
-		if (sym->fr->vars->vals[i] == FVR_TEMP_AVAIL)
+	int cnt = 256 - sym.fr.vars.size;
+	for (int i = 0; i < sym.fr.vars.size; i++){
+		if (sym.fr.vars.vals[i] === FVR_TEMP_AVAIL)
 			cnt++;
 	}
 	return cnt;
@@ -5135,111 +5117,111 @@ static inline int symtbl_tempAvail(symtbl sym){
 
 static sta_st symtbl_addVar(symtbl sym, list_ptr names, int slot){
 	// set `slot` to negative to add variable at next available location
-	sfn_st nsr = symtbl_findNamespace(sym, names, names->size - 1);
-	if (nsr.type == SFN_ERROR)
+	sfn_st nsr = symtbl_findNamespace(sym, names, names.size - 1);
+	if (nsr.type === SFN_ERROR)
 		return sta_error(nsr.u.msg);
 	namespace ns = nsr.u.ns;
-	for (int i = 0; i < ns->names->size; i++){
-		nsname nsn = ns->names->ptrs[i];
-		if (list_byte_equ(nsn->name, names->ptrs[names->size - 1])){
-			if (!sym->repl){
+	for (int i = 0; i < ns.names.size; i++){
+		nsname nsn = ns.names.ptrs[i];
+		if (list_byte_equ(nsn.name, names.ptrs[names.size - 1])){
+			if (!sym.repl){
 				return sta_error(
-					format("Cannot redefine \"%.*s\"", nsn->name->size, nsn->name->bytes));
+					format("Cannot redefine \"%.*s\"", nsn.name.size, nsn.name.bytes));
 			}
-			if (nsn->type == NSN_VAR)
-				return sta_var(varloc_new(nsn->u.var.fr->level, nsn->u.var.index));
+			if (nsn.type === NSN_VAR)
+				return sta_var(varloc_new(nsn.u.var.fr.level, nsn.u.var.index));
 			if (slot < 0){
-				slot = sym->fr->vars->size;
-				list_int_push(sym->fr->vars, FVR_VAR);
+				slot = sym.fr.vars.size;
+				list_int_push(sym.fr.vars, FVR_VAR);
 			}
 			if (slot >= 256)
 				return sta_error(format("Too many variables in frame"));
-			nsname_free(ns->names->ptrs[i]);
-			ns->names->ptrs[i] = nsname_var(names->ptrs[names->size - 1], sym->fr, slot);
-			return sta_var(varloc_new(sym->fr->level, slot));
+			nsname_free(ns.names.ptrs[i]);
+			ns.names.ptrs[i] = nsname_var(names.ptrs[names.size - 1], sym.fr, slot);
+			return sta_var(varloc_new(sym.fr.level, slot));
 		}
 	}
 	if (slot < 0){
-		slot = sym->fr->vars->size;
-		list_int_push(sym->fr->vars, FVR_VAR);
+		slot = sym.fr.vars.size;
+		list_int_push(sym.fr.vars, FVR_VAR);
 	}
 	if (slot >= 256)
 		return sta_error(format("Too many variables in frame"));
-	list_ptr_push(ns->names, nsname_var(names->ptrs[names->size - 1], sym->fr, slot));
-	return sta_var(varloc_new(sym->fr->level, slot));
+	list_ptr_push(ns.names, nsname_var(names.ptrs[names.size - 1], sym.fr, slot));
+	return sta_var(varloc_new(sym.fr.level, slot));
 }
 
 static char *symtbl_addEnum(symtbl sym, list_ptr names, double val){
-	sfn_st nsr = symtbl_findNamespace(sym, names, names->size - 1);
-	if (nsr.type == SFN_ERROR)
+	sfn_st nsr = symtbl_findNamespace(sym, names, names.size - 1);
+	if (nsr.type === SFN_ERROR)
 		return nsr.u.msg;
 	namespace ns = nsr.u.ns;
-	for (int i = 0; i < ns->names->size; i++){
-		nsname nsn = ns->names->ptrs[i];
-		if (list_byte_equ(nsn->name, names->ptrs[names->size - 1])){
-			if (!sym->repl)
-				return format("Cannot redefine \"%.*s\"", nsn->name->size, nsn->name->bytes);
-			nsname_free(ns->names->ptrs[i]);
-			ns->names->ptrs[i] = nsname_enum(names->ptrs[names->size - 1], val, false);
+	for (int i = 0; i < ns.names.size; i++){
+		nsname nsn = ns.names.ptrs[i];
+		if (list_byte_equ(nsn.name, names.ptrs[names.size - 1])){
+			if (!sym.repl)
+				return format("Cannot redefine \"%.*s\"", nsn.name.size, nsn.name.bytes);
+			nsname_free(ns.names.ptrs[i]);
+			ns.names.ptrs[i] = nsname_enum(names.ptrs[names.size - 1], val, false);
 			return NULL;
 		}
 	}
-	list_ptr_push(ns->names, nsname_enum(names->ptrs[names->size - 1], val, false));
+	list_ptr_push(ns.names, nsname_enum(names.ptrs[names.size - 1], val, false));
 	return NULL;
 }
 
 static void symtbl_reserveVars(symtbl sym, int count){
 	// reserves the slots 0 to count-1 for arguments to be passed in for commands
 	for (int i = 0; i < count; i++)
-		list_int_push(sym->fr->vars, FVR_VAR);
+		list_int_push(sym.fr.vars, FVR_VAR);
 }
 
 static char *symtbl_addCmdLocal(symtbl sym, list_ptr names, label lbl){
-	sfn_st nsr = symtbl_findNamespace(sym, names, names->size - 1);
-	if (nsr.type == SFN_ERROR)
+	sfn_st nsr = symtbl_findNamespace(sym, names, names.size - 1);
+	if (nsr.type === SFN_ERROR)
 		return nsr.u.msg;
 	namespace ns = nsr.u.ns;
-	for (int i = 0; i < ns->names->size; i++){
-		nsname nsn = ns->names->ptrs[i];
-		if (list_byte_equ(nsn->name, names->ptrs[names->size - 1])){
-			if (!sym->repl)
-				return format("Cannot redefine \"%.*s\"", nsn->name->size, nsn->name->bytes);
-			nsname_free(ns->names->ptrs[i]);
-			ns->names->ptrs[i] = nsname_cmdLocal(names->ptrs[names->size - 1], sym->fr, lbl);
+	for (int i = 0; i < ns.names.size; i++){
+		nsname nsn = ns.names.ptrs[i];
+		if (list_byte_equ(nsn.name, names.ptrs[names.size - 1])){
+			if (!sym.repl)
+				return format("Cannot redefine \"%.*s\"", nsn.name.size, nsn.name.bytes);
+			nsname_free(ns.names.ptrs[i]);
+			ns.names.ptrs[i] = nsname_cmdLocal(names.ptrs[names.size - 1], sym.fr, lbl);
 			return NULL;
 		}
 	}
-	list_ptr_push(ns->names, nsname_cmdLocal(names->ptrs[names->size - 1], sym->fr, lbl));
+	list_ptr_push(ns.names, nsname_cmdLocal(names.ptrs[names.size - 1], sym.fr, lbl));
 	return NULL;
 }
 
 static char *symtbl_addCmdNative(symtbl sym, list_ptr names, uint64_t hash){
-	sfn_st nsr = symtbl_findNamespace(sym, names, names->size - 1);
-	if (nsr.type == SFN_ERROR)
+	sfn_st nsr = symtbl_findNamespace(sym, names, names.size - 1);
+	if (nsr.type === SFN_ERROR)
 		return nsr.u.msg;
 	namespace ns = nsr.u.ns;
-	for (int i = 0; i < ns->names->size; i++){
-		nsname nsn = ns->names->ptrs[i];
-		if (list_byte_equ(nsn->name, names->ptrs[names->size - 1])){
-			if (!sym->repl)
-				return format("Cannot redefine \"%.*s\"", nsn->name->size, nsn->name->bytes);
-			nsname_free(ns->names->ptrs[i]);
-			ns->names->ptrs[i] = nsname_cmdNative(names->ptrs[names->size - 1], hash);
+	for (int i = 0; i < ns.names.size; i++){
+		nsname nsn = ns.names.ptrs[i];
+		if (list_byte_equ(nsn.name, names.ptrs[names.size - 1])){
+			if (!sym.repl)
+				return format("Cannot redefine \"%.*s\"", nsn.name.size, nsn.name.bytes);
+			nsname_free(ns.names.ptrs[i]);
+			ns.names.ptrs[i] = nsname_cmdNative(names.ptrs[names.size - 1], hash);
 			return NULL;
 		}
 	}
-	list_ptr_push(ns->names, nsname_cmdNative(names->ptrs[names->size - 1], hash));
+	list_ptr_push(ns.names, nsname_cmdNative(names.ptrs[names.size - 1], hash));
 	return NULL;
 }
 
 // symtbl_addCmdOpcode
 // can simplify this function because it is only called internally
 static inline void SAC(symtbl sym, const char *name, op_enum opcode, int params){
-	list_ptr_push(sym->sc->ns->names, nsname_cmdOpcode(list_byte_newstr(name), opcode, params));
+	list_ptr_push(sym.sc.ns.names, nsname_cmdOpcode(list_byte_newstr(name), opcode, params));
 }
 
 static inline void SAE(symtbl sym, const char *name, double val){
-	list_ptr_push(sym->sc->ns->names, nsname_enum(list_byte_newstr(name), val, true));
+	list_ptr_push(sym.sc.ns.names, nsname_enum(list_byte_newstr(name), val, true));
 }
 
 static inline list_ptr NSS(const char *str){
@@ -5494,11 +5476,11 @@ export interface sink_scr {
 //
 
 static void pathjoin_apply(char *res, int *r, int len, const char *buf){
-	if (len <= 0 || (len == 1 && buf[0] == '.'))
+	if (len <= 0 || (len === 1 && buf[0] === '.'))
 		return;
-	if (len == 2 && buf[0] == '.' && buf[1] == '.'){
+	if (len === 2 && buf[0] === '.' && buf[1] === '.'){
 		for (int i = *r - 1; i >= 0; i--){
-			if (res[i] == '/'){
+			if (res[i] === '/'){
 				*r = i;
 				return;
 			}
@@ -5512,10 +5494,10 @@ static void pathjoin_apply(char *res, int *r, int len, const char *buf){
 
 static void pathjoin_helper(char *res, int *r, int len, const char *buf){
 	for (int i = 0; i < len; i++){
-		if (buf[i] == '/')
+		if (buf[i] === '/')
 			continue;
 		int start = i;
-		while (i < len && buf[i] != '/')
+		while (i < len && buf[i] !== '/')
 			i++;
 		pathjoin_apply(res, r, i - start, &buf[start]);
 	}
@@ -5542,8 +5524,8 @@ typedef void (*f_fileres_end_f)(bool success, const char *file, void *fuser);
 
 static bool fileres_try(script scr, bool postfix, const char *file,
 	f_fileres_begin_f f_begin, f_fileres_end_f f_end, void *fuser){
-	sink_inc_st inc = scr->inc;
-	if (file == NULL)
+	sink_inc_st inc = scr.inc;
+	if (file === NULL)
 		return false;
 	sink_fstype fst = inc.f_fstype(file, inc.user);
 	bool result = false;
@@ -5558,7 +5540,7 @@ static bool fileres_try(script scr, bool postfix, const char *file,
 				break;
 			// try adding a .sink extension
 			int len = (int)strlen(file);
-			if (len < 5 || strcmp(&file[len - 5], ".sink") != 0){
+			if (len < 5 || strcmp(&file[len - 5], ".sink") !== 0){
 				char *cat = mem_alloc(sizeof(char) * (len + 6));
 				memcpy(cat, file, sizeof(char) * len);
 				cat[len + 0] = '.';
@@ -5586,19 +5568,19 @@ static bool fileres_try(script scr, bool postfix, const char *file,
 static bool fileres_read(script scr, bool postfix, const char *file, const char *cwd,
 	f_fileres_begin_f f_begin, f_fileres_end_f f_end, void *fuser){
 	// if an absolute path, there is no searching, so just try to read it directly
-	if (file[0] == '/')
+	if (file[0] === '/')
 		return fileres_try(scr, postfix, file, f_begin, f_end, fuser);
 	// otherwise, we have a relative path, so we need to go through our search list
-	if (cwd == NULL)
-		cwd = scr->curdir;
-	list_ptr paths = scr->paths;
-	for (int i = 0; i < paths->size; i++){
-		char *path = paths->ptrs[i];
+	if (cwd === NULL)
+		cwd = scr.curdir;
+	list_ptr paths = scr.paths;
+	for (int i = 0; i < paths.size; i++){
+		char *path = paths.ptrs[i];
 		char *join;
-		if (path[0] == '/') // search path is absolute
+		if (path[0] === '/') // search path is absolute
 			join = pathjoin(path, file);
 		else{ // search path is relative
-			if (cwd == NULL)
+			if (cwd === NULL)
 				continue;
 			char *tmp = pathjoin(cwd, path);
 			join = pathjoin(tmp, file);
@@ -5617,44 +5599,44 @@ static bool fileres_read(script scr, bool postfix, const char *file, const char 
 //
 
 static inline void program_free(program prg){
-	list_ptr_free(prg->strTable);
-	list_u64_free(prg->keyTable);
-	list_ptr_free(prg->debugTable);
-	list_ptr_free(prg->posTable);
-	list_ptr_free(prg->cmdTable);
-	list_byte_free(prg->ops);
+	list_ptr_free(prg.strTable);
+	list_u64_free(prg.keyTable);
+	list_ptr_free(prg.debugTable);
+	list_ptr_free(prg.posTable);
+	list_ptr_free(prg.cmdTable);
+	list_byte_free(prg.ops);
 	mem_free(prg);
 }
 
 static inline program program_new(bool repl){
 	program prg = mem_alloc(sizeof(program_st));
-	prg->strTable = list_ptr_new(list_byte_free);
-	prg->keyTable = list_u64_new();
-	prg->debugTable = list_ptr_new(mem_free_func);
-	prg->posTable = list_ptr_new(mem_free_func);
-	prg->cmdTable = list_ptr_new(mem_free_func);
-	prg->ops = list_byte_new();
-	prg->repl = repl;
+	prg.strTable = list_ptr_new(list_byte_free);
+	prg.keyTable = list_u64_new();
+	prg.debugTable = list_ptr_new(mem_free_func);
+	prg.posTable = list_ptr_new(mem_free_func);
+	prg.cmdTable = list_ptr_new(mem_free_func);
+	prg.ops = list_byte_new();
+	prg.repl = repl;
 	return prg;
 }
 
 static int program_adddebugstr(program prg, const char *str){
-	for (int i = 0; i < prg->debugTable->size; i++){
-		if (strcmp(prg->debugTable->ptrs[i], str) == 0)
+	for (int i = 0; i < prg.debugTable.size; i++){
+		if (strcmp(prg.debugTable.ptrs[i], str) === 0)
 			return i;
 	}
-	list_ptr_push(prg->debugTable, format("%s", str));
-	return prg->debugTable->size - 1;
+	list_ptr_push(prg.debugTable, format("%s", str));
+	return prg.debugTable.size - 1;
 }
 
 static int program_addfile(program prg, const char *str){
-	if (str == NULL)
+	if (str === NULL)
 		return -1;
 	// get the basename
 	int len = strlen(str);
 	int i = 0;
 	for (i = len - 2; i > 0; i--){
-		if (str[i] == '/'){
+		if (str[i] === '/'){
 			i++;
 			break;
 		}
@@ -5663,11 +5645,11 @@ static int program_addfile(program prg, const char *str){
 }
 
 static inline const char *program_getdebugstr(program prg, int str){
-	return str < 0 ? NULL : prg->debugTable->ptrs[str];
+	return str < 0 ? NULL : prg.debugTable.ptrs[str];
 }
 
 static char *program_errormsg(program prg, filepos_st flp, const char *msg){
-	if (msg == NULL){
+	if (msg === NULL){
 		if (flp.basefile < 0)
 			return format("%d:%d", flp.line, flp.chr);
 		return format("%s:%d:%d", program_getdebugstr(prg, flp.basefile), flp.line, flp.chr);
@@ -5684,69 +5666,69 @@ static bool program_validate(program prg){
 	bool wasjump = false;
 	uint32_t jumploc;
 	uint32_t jumplocs[256];
-	list_byte ops = prg->ops;
+	list_byte ops = prg.ops;
 	int A, B, C, D;
 
 	// holds alignment information
 	// op_actual: the actual alignment of each byte
 	//   0 = invalid target, 1 = valid jump target, 2 = valid call target
-	uint8_t *op_actual = mem_alloc(sizeof(uint8_t) * ops->size);
-	memset(op_actual, 0, sizeof(uint8_t) * ops->size);
+	uint8_t *op_actual = mem_alloc(sizeof(uint8_t) * ops.size);
+	memset(op_actual, 0, sizeof(uint8_t) * ops.size);
 	// op_need: the required alignment of each byte
 	//   0 = don't care, 1 = valid jump target, 2 = valid call target
-	uint8_t *op_need = mem_alloc(sizeof(uint8_t) * ops->size);
-	memset(op_need, 0, sizeof(uint8_t) * ops->size);
+	uint8_t *op_need = mem_alloc(sizeof(uint8_t) * ops.size);
+	memset(op_need, 0, sizeof(uint8_t) * ops.size);
 
 	#define READVAR() do{                                              \
-			if (pc + 2 > ops->size)                                    \
+			if (pc + 2 > ops.size)                                    \
 				goto fail;                                             \
-			A = ops->bytes[pc++];                                      \
-			B = ops->bytes[pc++];                                      \
+			A = ops.bytes[pc++];                                      \
+			B = ops.bytes[pc++];                                      \
 			if (A > level)                                             \
 				goto fail;                                             \
 		} while (false)
 
 	#define READLOC(L) do{                                             \
-			if (pc + 4 > ops->size)                                    \
+			if (pc + 4 > ops.size)                                    \
 				goto fail;                                             \
-			A = ops->bytes[pc++];                                      \
-			B = ops->bytes[pc++];                                      \
-			C = ops->bytes[pc++];                                      \
-			D = ops->bytes[pc++];                                      \
+			A = ops.bytes[pc++];                                      \
+			B = ops.bytes[pc++];                                      \
+			C = ops.bytes[pc++];                                      \
+			D = ops.bytes[pc++];                                      \
 			jumploc = A + (B << 8) + (C << 16) + ((D << 23) * 2);      \
 			if (jumploc < 0)                                           \
 				goto fail;                                             \
-			if (jumploc < ops->size)                                   \
+			if (jumploc < ops.size)                                   \
 				op_need[jumploc] = L;                                  \
 		} while (false)
 
 	#define READDATA(S) do{                                            \
-			if (pc + S > ops->size)                                    \
+			if (pc + S > ops.size)                                    \
 				goto fail;                                             \
 			pc += S;                                                   \
 		} while (false)
 
 	#define READCNT() do{                                              \
-			if (pc + 1 > ops->size)                                    \
+			if (pc + 1 > ops.size)                                    \
 				goto fail;                                             \
-			C = ops->bytes[pc++];                                      \
+			C = ops.bytes[pc++];                                      \
 			for (D = 0; D < C; D++)                                    \
 				READVAR();                                             \
 		} while (false)
 
 	#define READINDEX() do{                                            \
-			if (pc + 4 > ops->size)                                    \
+			if (pc + 4 > ops.size)                                    \
 				goto fail;                                             \
-			A = ops->bytes[pc++];                                      \
-			B = ops->bytes[pc++];                                      \
-			C = ops->bytes[pc++];                                      \
-			D = ops->bytes[pc++];                                      \
+			A = ops.bytes[pc++];                                      \
+			B = ops.bytes[pc++];                                      \
+			C = ops.bytes[pc++];                                      \
+			D = ops.bytes[pc++];                                      \
 			A = A + (B << 8) + (C << 16) + ((D << 23) * 2);            \
 		} while (false)
 
-	while (pc < ops->size){
+	while (pc < ops.size){
 		op_actual[pc] = 1;
-		op_pcat opc = op_paramcat((op_enum)ops->bytes[pc++]);
+		op_pcat opc = op_paramcat((op_enum)ops.bytes[pc++]);
 		debug(op_pcat_name(opc));
 		switch (opc){
 			case OPPC_INVALID    : goto fail;
@@ -5754,29 +5736,29 @@ static bool program_validate(program prg){
 			case OPPC_STR        : { // [VAR], [INDEX]
 				READVAR();
 				READINDEX();
-				if (A < 0 || A >= prg->strTable->size)
+				if (A < 0 || A >= prg.strTable.size)
 					goto fail;
 			} break;
 
 			case OPPC_CMDHEAD    : { // LEVEL, RESTPOS
 				if (!wasjump)
 					goto fail;
-				if (pc + 2 > ops->size)
+				if (pc + 2 > ops.size)
 					goto fail;
 				op_actual[pc - 1] = 2; // valid call target
 				if (level > 255)
 					goto fail;
 				jumplocs[level++] = jumploc; // save previous jump target
-				A = ops->bytes[pc++];
-				B = ops->bytes[pc++];
-				if (A != level)
+				A = ops.bytes[pc++];
+				B = ops.bytes[pc++];
+				if (A !== level)
 					goto fail;
 			} break;
 
 			case OPPC_CMDTAIL    : { //
 				if (level <= 0)
 					goto fail;
-				if (jumplocs[--level] != pc) // force jump target to jump over command body
+				if (jumplocs[--level] !== pc) // force jump target to jump over command body
 					goto fail;
 			} break;
 
@@ -5798,7 +5780,7 @@ static bool program_validate(program prg){
 			case OPPC_NATIVE     : { // [VAR], [INDEX], ARGCOUNT, [VARS]...
 				READVAR();
 				READINDEX();
-				if (A < 0 || A >= prg->keyTable->size)
+				if (A < 0 || A >= prg.keyTable.size)
 					goto fail;
 				READCNT();
 			} break;
@@ -5806,9 +5788,9 @@ static bool program_validate(program prg){
 			case OPPC_RETURNTAIL : { // [[LOCATION]], ARGCOUNT, [VARS]...
 				READLOC(2); // need valid call target
 				READCNT();
-				if (jumploc < ops->size - 1){
+				if (jumploc < ops.size - 1){
 					// check that the call target's level matches this level
-					if (ops->bytes[jumploc] != OP_CMDHEAD || ops->bytes[jumploc + 1] != level)
+					if (ops.bytes[jumploc] !== OP_CMDHEAD || ops.bytes[jumploc + 1] !== level)
 						goto fail;
 				}
 			} break;
@@ -5849,7 +5831,7 @@ static bool program_validate(program prg){
 				READDATA(8);
 			} break;
 		}
-		wasjump = opc == OPPC_JUMP;
+		wasjump = opc === OPPC_JUMP;
 	}
 
 	#undef READVAR
@@ -5859,8 +5841,8 @@ static bool program_validate(program prg){
 	#undef READINDEX
 
 	// validate op_need alignments matches op_actual alignments
-	for (int i = 0; i < ops->size; i++){
-		if (op_need[i] != 0 && op_need[i] != op_actual[i])
+	for (int i = 0; i < ops.size; i++){
+		if (op_need[i] !== 0 && op_need[i] !== op_actual[i])
 			goto fail;
 	}
 
@@ -5880,11 +5862,11 @@ typedef struct {
 } prgflp_st, *prgflp;
 
 static inline void program_flp(program prg, filepos_st flp){
-	int i = prg->posTable->size - 1;
+	int i = prg.posTable.size - 1;
 	if (i >= 0){
-		prgflp p = prg->posTable->ptrs[i];
-		if (p->pc == prg->ops->size){
-			p->flp = flp;
+		prgflp p = prg.posTable.ptrs[i];
+		if (p.pc === prg.ops.size){
+			p.flp = flp;
 			#ifdef SINK_DEBUG
 			char *str = program_errormsg(prg, flp, NULL);
 			oplogf("#file %s", str);
@@ -5894,14 +5876,14 @@ static inline void program_flp(program prg, filepos_st flp){
 		}
 	}
 	prgflp p = mem_alloc(sizeof(prgflp_st));
-	p->pc = prg->ops->size;
-	p->flp = flp;
+	p.pc = prg.ops.size;
+	p.flp = flp;
 	#ifdef SINK_DEBUG
 	char *str = program_errormsg(prg, flp, NULL);
 	oplogf("#file %s", str);
 	mem_free(str);
 	#endif
-	list_ptr_push(prg->posTable, p);
+	list_ptr_push(prg.posTable, p);
 }
 
 typedef struct {
@@ -5913,18 +5895,18 @@ static inline void program_cmdhint(program prg, list_ptr names){
 	char *hint = NULL;
 	if (names){
 		int hint_tot = 1;
-		for (int i = 0; i < names->size; i++){
-			list_byte n = names->ptrs[i];
-			hint_tot += (i == 0 ? 0 : 1) + n->size;
+		for (int i = 0; i < names.size; i++){
+			list_byte n = names.ptrs[i];
+			hint_tot += (i === 0 ? 0 : 1) + n.size;
 		}
 		hint = mem_alloc(sizeof(char) * hint_tot);
 		hint_tot = 0;
-		for (int i = 0; i < names->size; i++){
+		for (int i = 0; i < names.size; i++){
 			if (i > 0)
 				hint[hint_tot++] = '.';
-			list_byte n = names->ptrs[i];
-			memcpy(&hint[hint_tot], n->bytes, sizeof(char) * n->size);
-			hint_tot += n->size;
+			list_byte n = names.ptrs[i];
+			memcpy(&hint[hint_tot], n.bytes, sizeof(char) * n.size);
+			hint_tot += n.size;
 		}
 		hint[hint_tot] = 0;
 		oplogf("#cmd %s", hint);
@@ -5933,11 +5915,11 @@ static inline void program_cmdhint(program prg, list_ptr names){
 		oplog("#cmd <tail>");
 	}
 	prgch p = mem_alloc(sizeof(prgch_st));
-	p->pc = prg->ops->size;
-	p->cmdhint = hint ? program_adddebugstr(prg, hint) : -1;
+	p.pc = prg.ops.size;
+	p.cmdhint = hint ? program_adddebugstr(prg, hint) : -1;
 	if (hint)
 		mem_free(hint);
-	list_ptr_push(prg->cmdTable, p);
+	list_ptr_push(prg.cmdTable, p);
 }
 
 typedef struct {
@@ -6046,16 +6028,16 @@ struct lvr_struct {
 };
 
 static inline void lvr_free(lvr lv){
-	switch (lv->type){
+	switch (lv.type){
 		case LVR_VAR:
 		case LVR_INDEX:
 		case LVR_SLICE:
 		case LVR_SLICEINDEX:
 			break;
 		case LVR_LIST:
-			list_ptr_free(lv->u.list.body);
-			if (lv->u.list.rest)
-				lvr_free(lv->u.list.rest);
+			list_ptr_free(lv.u.list.body);
+			if (lv.u.list.rest)
+				lvr_free(lv.u.list.rest);
 			break;
 	}
 	mem_free(lv);
@@ -6063,54 +6045,54 @@ static inline void lvr_free(lvr lv){
 
 static inline lvr lvr_var(filepos_st flp, varloc_st vlc){
 	lvr lv = mem_alloc(sizeof(lvr_st));
-	lv->flp = flp;
-	lv->vlc = vlc;
-	lv->type = LVR_VAR;
+	lv.flp = flp;
+	lv.vlc = vlc;
+	lv.type = LVR_VAR;
 	return lv;
 }
 
 static inline lvr lvr_index(filepos_st flp, varloc_st obj, varloc_st key){
 	lvr lv = mem_alloc(sizeof(lvr_st));
-	lv->flp = flp;
-	lv->vlc = VARLOC_NULL;
-	lv->type = LVR_INDEX;
-	lv->u.index.obj = obj;
-	lv->u.index.key = key;
+	lv.flp = flp;
+	lv.vlc = VARLOC_NULL;
+	lv.type = LVR_INDEX;
+	lv.u.index.obj = obj;
+	lv.u.index.key = key;
 	return lv;
 }
 
 static inline lvr lvr_slice(filepos_st flp, varloc_st obj, varloc_st start, varloc_st len){
 	lvr lv = mem_alloc(sizeof(lvr_st));
-	lv->flp = flp;
-	lv->vlc = VARLOC_NULL;
-	lv->type = LVR_SLICE;
-	lv->u.slice.obj = obj;
-	lv->u.slice.start = start;
-	lv->u.slice.len = len;
+	lv.flp = flp;
+	lv.vlc = VARLOC_NULL;
+	lv.type = LVR_SLICE;
+	lv.u.slice.obj = obj;
+	lv.u.slice.start = start;
+	lv.u.slice.len = len;
 	return lv;
 }
 
 static inline lvr lvr_sliceindex(filepos_st flp, varloc_st obj, varloc_st key, varloc_st start,
 	varloc_st len){
 	lvr lv = mem_alloc(sizeof(lvr_st));
-	lv->flp = flp;
-	lv->vlc = VARLOC_NULL;
-	lv->type = LVR_SLICEINDEX;
-	lv->u.sliceindex.indexvlc = VARLOC_NULL;
-	lv->u.sliceindex.obj = obj;
-	lv->u.sliceindex.key = key;
-	lv->u.sliceindex.start = start;
-	lv->u.sliceindex.len = len;
+	lv.flp = flp;
+	lv.vlc = VARLOC_NULL;
+	lv.type = LVR_SLICEINDEX;
+	lv.u.sliceindex.indexvlc = VARLOC_NULL;
+	lv.u.sliceindex.obj = obj;
+	lv.u.sliceindex.key = key;
+	lv.u.sliceindex.start = start;
+	lv.u.sliceindex.len = len;
 	return lv;
 }
 
 static inline lvr lvr_list(filepos_st flp, list_ptr body, lvr rest){
 	lvr lv = mem_alloc(sizeof(lvr_st));
-	lv->flp = flp;
-	lv->vlc = VARLOC_NULL;
-	lv->type = LVR_LIST;
-	lv->u.list.body = body;
-	lv->u.list.rest = rest;
+	lv.flp = flp;
+	lv.vlc = VARLOC_NULL;
+	lv.type = LVR_LIST;
+	lv.u.list.body = body;
+	lv.u.list.rest = rest;
 	return lv;
 }
 
@@ -6147,114 +6129,114 @@ static inline lvp_st lvp_error(filepos_st flp, char *msg){
 }
 
 static lvp_st lval_addVars(symtbl sym, expr ex, int slot){
-	if (ex->type == EXPR_NAMES){
-		sta_st sr = symtbl_addVar(sym, ex->u.names, slot);
-		if (sr.type == STA_ERROR)
-			return lvp_error(ex->flp, sr.u.msg);
-		return lvp_ok(lvr_var(ex->flp, sr.u.vlc));
+	if (ex.type === EXPR_NAMES){
+		sta_st sr = symtbl_addVar(sym, ex.u.names, slot);
+		if (sr.type === STA_ERROR)
+			return lvp_error(ex.flp, sr.u.msg);
+		return lvp_ok(lvr_var(ex.flp, sr.u.vlc));
 	}
-	else if (ex->type == EXPR_LIST){
-		if (ex->u.ex == NULL)
-			return lvp_error(ex->flp, format("Invalid assignment"));
+	else if (ex.type === EXPR_LIST){
+		if (ex.u.ex === NULL)
+			return lvp_error(ex.flp, format("Invalid assignment"));
 		list_ptr body = list_ptr_new(lvr_free);
 		lvr rest = NULL;
-		if (ex->u.ex->type == EXPR_GROUP){
-			for (int i = 0; i < ex->u.ex->u.group->size; i++){
-				expr gex = ex->u.ex->u.group->ptrs[i];
-				if (i == ex->u.ex->u.group->size - 1 && gex->type == EXPR_PREFIX &&
-					gex->u.prefix.k == KS_PERIOD3){
-					lvp_st lp = lval_addVars(sym, gex->u.prefix.ex, -1);
-					if (lp.type == LVP_ERROR)
+		if (ex.u.ex.type === EXPR_GROUP){
+			for (int i = 0; i < ex.u.ex.u.group.size; i++){
+				expr gex = ex.u.ex.u.group.ptrs[i];
+				if (i === ex.u.ex.u.group.size - 1 && gex.type === EXPR_PREFIX &&
+					gex.u.prefix.k === ks_enum.PERIOD3){
+					lvp_st lp = lval_addVars(sym, gex.u.prefix.ex, -1);
+					if (lp.type === LVP_ERROR)
 						return lp;
 					rest = lp.u.lv;
 				}
 				else{
 					lvp_st lp = lval_addVars(sym, gex, -1);
-					if (lp.type == LVP_ERROR)
+					if (lp.type === LVP_ERROR)
 						return lp;
 					list_ptr_push(body, lp.u.lv);
 				}
 			}
 		}
-		else if (ex->u.ex->type == EXPR_PREFIX && ex->u.ex->u.prefix.k == KS_PERIOD3){
-			lvp_st lp = lval_addVars(sym, ex->u.ex->u.ex, -1);
-			if (lp.type == LVP_ERROR)
+		else if (ex.u.ex.type === EXPR_PREFIX && ex.u.ex.u.prefix.k === ks_enum.PERIOD3){
+			lvp_st lp = lval_addVars(sym, ex.u.ex.u.ex, -1);
+			if (lp.type === LVP_ERROR)
 				return lp;
 			rest = lp.u.lv;
 		}
 		else{
-			lvp_st lp = lval_addVars(sym, ex->u.ex, -1);
-			if (lp.type == LVP_ERROR)
+			lvp_st lp = lval_addVars(sym, ex.u.ex, -1);
+			if (lp.type === LVP_ERROR)
 				return lp;
 			list_ptr_push(body, lp.u.lv);
 		}
-		return lvp_ok(lvr_list(ex->flp, body, rest));
+		return lvp_ok(lvr_list(ex.flp, body, rest));
 	}
-	return lvp_error(ex->flp, format("Invalid assignment"));
+	return lvp_error(ex.flp, format("Invalid assignment"));
 }
 
 static lvp_st lval_prepare(pgen_st pgen, expr ex){
-	if (ex->type == EXPR_NAMES){
-		stl_st sl = symtbl_lookup(pgen.sym, ex->u.names);
-		if (sl.type == STL_ERROR)
-			return lvp_error(ex->flp, sl.u.msg);
-		if (sl.u.nsn->type != NSN_VAR)
-			return lvp_error(ex->flp, format("Invalid assignment"));
-		return lvp_ok(lvr_var(ex->flp,
-			varloc_new(sl.u.nsn->u.var.fr->level, sl.u.nsn->u.var.index)));
+	if (ex.type === EXPR_NAMES){
+		stl_st sl = symtbl_lookup(pgen.sym, ex.u.names);
+		if (sl.type === STL_ERROR)
+			return lvp_error(ex.flp, sl.u.msg);
+		if (sl.u.nsn.type !== NSN_VAR)
+			return lvp_error(ex.flp, format("Invalid assignment"));
+		return lvp_ok(lvr_var(ex.flp,
+			varloc_new(sl.u.nsn.u.var.fr.level, sl.u.nsn.u.var.index)));
 	}
-	else if (ex->type == EXPR_INDEX){
-		per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex->u.index.obj);
-		if (pe.type == PER_ERROR)
+	else if (ex.type === EXPR_INDEX){
+		per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex.u.index.obj);
+		if (pe.type === PER_ERROR)
 			return lvp_error(pe.u.error.flp, pe.u.error.msg);
 		varloc_st obj = pe.u.vlc;
-		pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex->u.index.key);
-		if (pe.type == PER_ERROR)
+		pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex.u.index.key);
+		if (pe.type === PER_ERROR)
 			return lvp_error(pe.u.error.flp, pe.u.error.msg);
-		return lvp_ok(lvr_index(ex->flp, obj, pe.u.vlc));
+		return lvp_ok(lvr_index(ex.flp, obj, pe.u.vlc));
 	}
-	else if (ex->type == EXPR_SLICE){
-		if (ex->u.slice.obj->type == EXPR_INDEX){
+	else if (ex.type === EXPR_SLICE){
+		if (ex.u.slice.obj.type === EXPR_INDEX){
 			// we have a slice of an index `foo[1][2:3]`
 			per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL,
-				ex->u.slice.obj->u.index.obj);
-			if (pe.type == PER_ERROR)
+				ex.u.slice.obj.u.index.obj);
+			if (pe.type === PER_ERROR)
 				return lvp_error(pe.u.error.flp, pe.u.error.msg);
 			varloc_st obj = pe.u.vlc;
-			pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex->u.slice.obj->u.index.key);
-			if (pe.type == PER_ERROR)
+			pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex.u.slice.obj.u.index.key);
+			if (pe.type === PER_ERROR)
 				return lvp_error(pe.u.error.flp, pe.u.error.msg);
 			varloc_st key = pe.u.vlc;
 			psr_st sr = program_slice(pgen, ex);
-			if (sr.type == PSR_ERROR)
+			if (sr.type === PSR_ERROR)
 				return lvp_error(sr.u.error.flp, sr.u.error.msg);
-			return lvp_ok(lvr_sliceindex(ex->flp, obj, key, sr.u.ok.start, sr.u.ok.len));
+			return lvp_ok(lvr_sliceindex(ex.flp, obj, key, sr.u.ok.start, sr.u.ok.len));
 		}
 		else{
-			per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex->u.slice.obj);
-			if (pe.type == PER_ERROR)
+			per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex.u.slice.obj);
+			if (pe.type === PER_ERROR)
 				return lvp_error(pe.u.error.flp, pe.u.error.msg);
 			varloc_st obj = pe.u.vlc;
 			psr_st sr = program_slice(pgen, ex);
-			if (sr.type == PSR_ERROR)
+			if (sr.type === PSR_ERROR)
 				return lvp_error(sr.u.error.flp, sr.u.error.msg);
-			return lvp_ok(lvr_slice(ex->flp, obj, sr.u.ok.start, sr.u.ok.len));
+			return lvp_ok(lvr_slice(ex.flp, obj, sr.u.ok.start, sr.u.ok.len));
 		}
 	}
-	else if (ex->type == EXPR_LIST){
+	else if (ex.type === EXPR_LIST){
 		list_ptr body = list_ptr_new(lvr_free);
 		lvr rest = NULL;
-		if (ex->u.ex == NULL){
+		if (ex.u.ex === NULL){
 			list_ptr_free(body);
-			return lvp_error(ex->flp, format("Invalid assignment"));
+			return lvp_error(ex.flp, format("Invalid assignment"));
 		}
-		else if (ex->u.ex->type == EXPR_GROUP){
-			for (int i = 0; i < ex->u.ex->u.group->size; i++){
-				expr gex = ex->u.ex->u.group->ptrs[i];
-				if (i == ex->u.ex->u.group->size - 1 && gex->type == EXPR_PREFIX &&
-					gex->u.prefix.k == KS_PERIOD3){
-					lvp_st lp = lval_prepare(pgen, gex->u.ex);
-					if (lp.type == LVP_ERROR){
+		else if (ex.u.ex.type === EXPR_GROUP){
+			for (int i = 0; i < ex.u.ex.u.group.size; i++){
+				expr gex = ex.u.ex.u.group.ptrs[i];
+				if (i === ex.u.ex.u.group.size - 1 && gex.type === EXPR_PREFIX &&
+					gex.u.prefix.k === ks_enum.PERIOD3){
+					lvp_st lp = lval_prepare(pgen, gex.u.ex);
+					if (lp.type === LVP_ERROR){
 						list_ptr_free(body);
 						return lp;
 					}
@@ -6262,7 +6244,7 @@ static lvp_st lval_prepare(pgen_st pgen, expr ex){
 				}
 				else{
 					lvp_st lp = lval_prepare(pgen, gex);
-					if (lp.type == LVP_ERROR){
+					if (lp.type === LVP_ERROR){
 						list_ptr_free(body);
 						return lp;
 					}
@@ -6271,60 +6253,60 @@ static lvp_st lval_prepare(pgen_st pgen, expr ex){
 			}
 		}
 		else{
-			if (ex->u.ex->type == EXPR_PREFIX && ex->u.ex->u.prefix.k == KS_PERIOD3){
-				lvp_st lp = lval_prepare(pgen, ex->u.ex->u.ex);
-				if (lp.type == LVP_ERROR){
+			if (ex.u.ex.type === EXPR_PREFIX && ex.u.ex.u.prefix.k === ks_enum.PERIOD3){
+				lvp_st lp = lval_prepare(pgen, ex.u.ex.u.ex);
+				if (lp.type === LVP_ERROR){
 					list_ptr_free(body);
 					return lp;
 				}
 				rest = lp.u.lv;
 			}
 			else{
-				lvp_st lp = lval_prepare(pgen, ex->u.ex);
-				if (lp.type == LVP_ERROR){
+				lvp_st lp = lval_prepare(pgen, ex.u.ex);
+				if (lp.type === LVP_ERROR){
 					list_ptr_free(body);
 					return lp;
 				}
 				list_ptr_push(body, lp.u.lv);
 			}
 		}
-		return lvp_ok(lvr_list(ex->flp, body, rest));
+		return lvp_ok(lvr_list(ex.flp, body, rest));
 	}
-	return lvp_error(ex->flp, format("Invalid assignment"));
+	return lvp_error(ex.flp, format("Invalid assignment"));
 }
 
 static void lval_clearTemps(lvr lv, symtbl sym){
-	if (lv->type != LVR_VAR && !varloc_isnull(lv->vlc)){
-		symtbl_clearTemp(sym, lv->vlc);
-		lv->vlc = VARLOC_NULL;
+	if (lv.type !== LVR_VAR && !varloc_isnull(lv.vlc)){
+		symtbl_clearTemp(sym, lv.vlc);
+		lv.vlc = VARLOC_NULL;
 	}
-	switch (lv->type){
+	switch (lv.type){
 		case LVR_VAR:
 			return;
 		case LVR_INDEX:
-			symtbl_clearTemp(sym, lv->u.index.obj);
-			symtbl_clearTemp(sym, lv->u.index.key);
+			symtbl_clearTemp(sym, lv.u.index.obj);
+			symtbl_clearTemp(sym, lv.u.index.key);
 			return;
 		case LVR_SLICE:
-			symtbl_clearTemp(sym, lv->u.slice.obj);
-			symtbl_clearTemp(sym, lv->u.slice.start);
-			symtbl_clearTemp(sym, lv->u.slice.len);
+			symtbl_clearTemp(sym, lv.u.slice.obj);
+			symtbl_clearTemp(sym, lv.u.slice.start);
+			symtbl_clearTemp(sym, lv.u.slice.len);
 			return;
 		case LVR_SLICEINDEX:
-			if (!varloc_isnull(lv->u.sliceindex.indexvlc)){
-				symtbl_clearTemp(sym, lv->u.sliceindex.indexvlc);
-				lv->u.sliceindex.indexvlc = VARLOC_NULL;
+			if (!varloc_isnull(lv.u.sliceindex.indexvlc)){
+				symtbl_clearTemp(sym, lv.u.sliceindex.indexvlc);
+				lv.u.sliceindex.indexvlc = VARLOC_NULL;
 			}
-			symtbl_clearTemp(sym, lv->u.sliceindex.obj);
-			symtbl_clearTemp(sym, lv->u.sliceindex.key);
-			symtbl_clearTemp(sym, lv->u.sliceindex.start);
-			symtbl_clearTemp(sym, lv->u.sliceindex.len);
+			symtbl_clearTemp(sym, lv.u.sliceindex.obj);
+			symtbl_clearTemp(sym, lv.u.sliceindex.key);
+			symtbl_clearTemp(sym, lv.u.sliceindex.start);
+			symtbl_clearTemp(sym, lv.u.sliceindex.len);
 			return;
 		case LVR_LIST:
-			for (int i = 0; i < lv->u.list.body->size; i++)
-				lval_clearTemps(lv->u.list.body->ptrs[i], sym);
-			if (lv->u.list.rest != NULL)
-				lval_clearTemps(lv->u.list.rest, sym);
+			for (int i = 0; i < lv.u.list.body.size; i++)
+				lval_clearTemps(lv.u.list.body.ptrs[i], sym);
+			if (lv.u.list.rest !== NULL)
+				lval_clearTemps(lv.u.list.rest, sym);
 			return;
 	}
 }
@@ -6334,113 +6316,113 @@ static per_st program_evalLval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, l
 	program prg = pgen.prg;
 	symtbl sym = pgen.sym;
 	// first, perform the assignment of valueVlc into lv
-	switch (lv->type){
+	switch (lv.type){
 		case LVR_VAR:
-			if (mutop == OP_INVALID)
-				op_move(prg->ops, lv->vlc, valueVlc);
+			if (mutop === OP_INVALID)
+				op_move(prg.ops, lv.vlc, valueVlc);
 			else
-				op_binop(prg->ops, mutop, lv->vlc, lv->vlc, valueVlc);
+				op_binop(prg.ops, mutop, lv.vlc, lv.vlc, valueVlc);
 			break;
 
 		case LVR_INDEX: {
-			if (mutop == OP_INVALID)
-				op_setat(prg->ops, lv->u.index.obj, lv->u.index.key, valueVlc);
+			if (mutop === OP_INVALID)
+				op_setat(prg.ops, lv.u.index.obj, lv.u.index.key, valueVlc);
 			else{
 				per_st pe = program_lvalGet(pgen, PLM_CREATE, VARLOC_NULL, lv);
-				if (pe.type == PER_ERROR)
+				if (pe.type === PER_ERROR)
 					return pe;
-				op_binop(prg->ops, mutop, pe.u.vlc, pe.u.vlc, valueVlc);
-				op_setat(prg->ops, lv->u.index.obj, lv->u.index.key, pe.u.vlc);
+				op_binop(prg.ops, mutop, pe.u.vlc, pe.u.vlc, valueVlc);
+				op_setat(prg.ops, lv.u.index.obj, lv.u.index.key, pe.u.vlc);
 			}
 		} break;
 
 		case LVR_SLICE: {
-			if (mutop == OP_INVALID)
-				op_splice(prg->ops, lv->u.slice.obj, lv->u.slice.start, lv->u.slice.len, valueVlc);
+			if (mutop === OP_INVALID)
+				op_splice(prg.ops, lv.u.slice.obj, lv.u.slice.start, lv.u.slice.len, valueVlc);
 			else{
 				per_st pe = program_lvalGet(pgen, PLM_CREATE, VARLOC_NULL, lv);
-				if (pe.type == PER_ERROR)
+				if (pe.type === PER_ERROR)
 					return pe;
-				lvr lv2 = lvr_var(lv->flp, lv->vlc);
+				lvr lv2 = lvr_var(lv.flp, lv.vlc);
 				pe = program_evalLval(pgen, PEM_EMPTY, VARLOC_NULL, lv2, mutop, valueVlc, true);
 				lvr_free(lv2);
-				if (pe.type == PER_ERROR)
+				if (pe.type === PER_ERROR)
 					return pe;
 				sta_st ts = symtbl_addTemp(sym);
-				if (ts.type == STA_ERROR)
-					return per_error(lv->flp, ts.u.msg);
+				if (ts.type === STA_ERROR)
+					return per_error(lv.flp, ts.u.msg);
 				varloc_st t = ts.u.vlc;
-				op_numint(prg->ops, t, 0);
-				op_slice(prg->ops, t, lv->vlc, t, lv->u.slice.len);
-				op_splice(prg->ops, lv->u.slice.obj, lv->u.slice.start, lv->u.slice.len, t);
+				op_numint(prg.ops, t, 0);
+				op_slice(prg.ops, t, lv.vlc, t, lv.u.slice.len);
+				op_splice(prg.ops, lv.u.slice.obj, lv.u.slice.start, lv.u.slice.len, t);
 				symtbl_clearTemp(sym, t);
-				symtbl_clearTemp(sym, lv->vlc);
-				lv->vlc = VARLOC_NULL;
+				symtbl_clearTemp(sym, lv.vlc);
+				lv.vlc = VARLOC_NULL;
 			}
 		} break;
 
 		case LVR_SLICEINDEX: {
-			if (mutop == OP_INVALID){
+			if (mutop === OP_INVALID){
 				per_st pe = program_lvalGetIndex(pgen, lv);
-				if (pe.type == PER_ERROR)
+				if (pe.type === PER_ERROR)
 					return pe;
-				op_splice(prg->ops, pe.u.vlc, lv->u.sliceindex.start, lv->u.sliceindex.len,
+				op_splice(prg.ops, pe.u.vlc, lv.u.sliceindex.start, lv.u.sliceindex.len,
 					valueVlc);
-				op_setat(prg->ops, lv->u.sliceindex.obj, lv->u.sliceindex.key, pe.u.vlc);
+				op_setat(prg.ops, lv.u.sliceindex.obj, lv.u.sliceindex.key, pe.u.vlc);
 			}
 			else{
 				per_st pe = program_lvalGet(pgen, PLM_CREATE, VARLOC_NULL, lv);
-				if (pe.type == PER_ERROR)
+				if (pe.type === PER_ERROR)
 					return pe;
-				lvr lv2 = lvr_var(lv->flp, lv->vlc);
+				lvr lv2 = lvr_var(lv.flp, lv.vlc);
 				pe = program_evalLval(pgen, PEM_EMPTY, VARLOC_NULL, lv2, mutop, valueVlc, true);
 				lvr_free(lv2);
-				if (pe.type == PER_ERROR)
+				if (pe.type === PER_ERROR)
 					return pe;
 				sta_st ts = symtbl_addTemp(sym);
-				if (ts.type == STA_ERROR)
-					return per_error(lv->flp, ts.u.msg);
+				if (ts.type === STA_ERROR)
+					return per_error(lv.flp, ts.u.msg);
 				varloc_st t = ts.u.vlc;
-				op_numint(prg->ops, t, 0);
-				op_slice(prg->ops, t, lv->vlc, t, lv->u.sliceindex.len);
-				op_splice(prg->ops, lv->u.sliceindex.indexvlc, lv->u.sliceindex.start,
-					lv->u.sliceindex.len, t);
+				op_numint(prg.ops, t, 0);
+				op_slice(prg.ops, t, lv.vlc, t, lv.u.sliceindex.len);
+				op_splice(prg.ops, lv.u.sliceindex.indexvlc, lv.u.sliceindex.start,
+					lv.u.sliceindex.len, t);
 				symtbl_clearTemp(sym, t);
-				symtbl_clearTemp(sym, lv->u.sliceindex.indexvlc);
-				symtbl_clearTemp(sym, lv->vlc);
-				lv->u.sliceindex.indexvlc = VARLOC_NULL;
-				lv->vlc = VARLOC_NULL;
+				symtbl_clearTemp(sym, lv.u.sliceindex.indexvlc);
+				symtbl_clearTemp(sym, lv.vlc);
+				lv.u.sliceindex.indexvlc = VARLOC_NULL;
+				lv.vlc = VARLOC_NULL;
 			}
 		} break;
 
 		case LVR_LIST: {
 			sta_st ts = symtbl_addTemp(sym);
-			if (ts.type == STA_ERROR)
-				return per_error(lv->flp, ts.u.msg);
+			if (ts.type === STA_ERROR)
+				return per_error(lv.flp, ts.u.msg);
 			varloc_st t = ts.u.vlc;
 
-			for (int i = 0; i < lv->u.list.body->size; i++){
-				op_numint(prg->ops, t, i);
-				op_getat(prg->ops, t, valueVlc, t);
+			for (int i = 0; i < lv.u.list.body.size; i++){
+				op_numint(prg.ops, t, i);
+				op_getat(prg.ops, t, valueVlc, t);
 				per_st pe = program_evalLval(pgen, PEM_EMPTY, VARLOC_NULL,
-					lv->u.list.body->ptrs[i], mutop, t, false);
-				if (pe.type == PER_ERROR)
+					lv.u.list.body.ptrs[i], mutop, t, false);
+				if (pe.type === PER_ERROR)
 					return pe;
 			}
 
-			if (lv->u.list.rest != NULL){
+			if (lv.u.list.rest !== NULL){
 				ts = symtbl_addTemp(sym);
-				if (ts.type == STA_ERROR)
-					return per_error(lv->flp, ts.u.msg);
+				if (ts.type === STA_ERROR)
+					return per_error(lv.flp, ts.u.msg);
 				varloc_st t2 = ts.u.vlc;
 
-				op_numint(prg->ops, t, lv->u.list.body->size);
-				op_nil(prg->ops, t2);
-				op_slice(prg->ops, t, valueVlc, t, t2);
+				op_numint(prg.ops, t, lv.u.list.body.size);
+				op_nil(prg.ops, t2);
+				op_slice(prg.ops, t, valueVlc, t, t2);
 				symtbl_clearTemp(sym, t2);
-				per_st pe = program_evalLval(pgen, PEM_EMPTY, VARLOC_NULL, lv->u.list.rest,
+				per_st pe = program_evalLval(pgen, PEM_EMPTY, VARLOC_NULL, lv.u.list.rest,
 					mutop, t, false);
-				if (pe.type == PER_ERROR)
+				if (pe.type === PER_ERROR)
 					return pe;
 			}
 			symtbl_clearTemp(sym, t);
@@ -6448,20 +6430,20 @@ static per_st program_evalLval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, l
 	}
 
 	// now, see if we need to put the result into anything
-	if (mode == PEM_EMPTY){
+	if (mode === PEM_EMPTY){
 		if (clearTemps)
 			lval_clearTemps(lv, sym);
 		return per_ok(VARLOC_NULL);
 	}
-	else if (mode == PEM_CREATE){
+	else if (mode === PEM_CREATE){
 		sta_st ts = symtbl_addTemp(sym);
-		if (ts.type == STA_ERROR)
-			return per_error(lv->flp, ts.u.msg);
+		if (ts.type === STA_ERROR)
+			return per_error(lv.flp, ts.u.msg);
 		intoVlc = ts.u.vlc;
 	}
 
 	per_st pe = program_lvalGet(pgen, PLM_INTO, intoVlc, lv);
-	if (pe.type == PER_ERROR)
+	if (pe.type === PER_ERROR)
 		return pe;
 	if (clearTemps)
 		lval_clearTemps(lv, sym);
@@ -6470,31 +6452,31 @@ static per_st program_evalLval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, l
 
 static psr_st program_slice(pgen_st pgen, expr ex){
 	varloc_st start;
-	if (ex->u.slice.start == NULL){
+	if (ex.u.slice.start === NULL){
 		sta_st ts = symtbl_addTemp(pgen.sym);
-		if (ts.type == STA_ERROR)
-			return psr_error(ex->flp, ts.u.msg);
+		if (ts.type === STA_ERROR)
+			return psr_error(ex.flp, ts.u.msg);
 		start = ts.u.vlc;
-		op_numint(pgen.prg->ops, start, 0);
+		op_numint(pgen.prg.ops, start, 0);
 	}
 	else{
-		per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex->u.slice.start);
-		if (pe.type == PER_ERROR)
+		per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex.u.slice.start);
+		if (pe.type === PER_ERROR)
 			return psr_error(pe.u.error.flp, pe.u.error.msg);
 		start = pe.u.vlc;
 	}
 
 	varloc_st len;
-	if (ex->u.slice.len == NULL){
+	if (ex.u.slice.len === NULL){
 		sta_st ts = symtbl_addTemp(pgen.sym);
-		if (ts.type == STA_ERROR)
-			return psr_error(ex->flp, ts.u.msg);
+		if (ts.type === STA_ERROR)
+			return psr_error(ex.flp, ts.u.msg);
 		len = ts.u.vlc;
-		op_nil(pgen.prg->ops, len);
+		op_nil(pgen.prg.ops, len);
 	}
 	else{
-		per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex->u.slice.len);
-		if (pe.type == PER_ERROR)
+		per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex.u.slice.len);
+		if (pe.type === PER_ERROR)
 			return psr_error(pe.u.error.flp, pe.u.error.msg);
 		len = pe.u.vlc;
 	}
@@ -6504,70 +6486,70 @@ static psr_st program_slice(pgen_st pgen, expr ex){
 
 static per_st program_lvalGetIndex(pgen_st pgen, lvr lv){
 	// specifically for LVR_SLICEINDEX in order to fill lv.indexvlc
-	if (!varloc_isnull(lv->u.sliceindex.indexvlc))
-		return per_ok(lv->u.sliceindex.indexvlc);
+	if (!varloc_isnull(lv.u.sliceindex.indexvlc))
+		return per_ok(lv.u.sliceindex.indexvlc);
 
 	sta_st ts = symtbl_addTemp(pgen.sym);
-	if (ts.type == STA_ERROR)
-		return per_error(lv->flp, ts.u.msg);
-	lv->u.sliceindex.indexvlc = ts.u.vlc;
+	if (ts.type === STA_ERROR)
+		return per_error(lv.flp, ts.u.msg);
+	lv.u.sliceindex.indexvlc = ts.u.vlc;
 
-	op_getat(pgen.prg->ops, lv->u.sliceindex.indexvlc, lv->u.sliceindex.obj, lv->u.sliceindex.key);
-	return per_ok(lv->u.sliceindex.indexvlc);
+	op_getat(pgen.prg.ops, lv.u.sliceindex.indexvlc, lv.u.sliceindex.obj, lv.u.sliceindex.key);
+	return per_ok(lv.u.sliceindex.indexvlc);
 }
 
 static per_st program_lvalGet(pgen_st pgen, plm_enum mode, varloc_st intoVlc, lvr lv){
 	program prg = pgen.prg;
-	if (!varloc_isnull(lv->vlc)){
-		if (mode == PLM_CREATE)
-			return per_ok(lv->vlc);
-		op_move(prg->ops, intoVlc, lv->vlc);
+	if (!varloc_isnull(lv.vlc)){
+		if (mode === PLM_CREATE)
+			return per_ok(lv.vlc);
+		op_move(prg.ops, intoVlc, lv.vlc);
 		return per_ok(intoVlc);
 	}
 
-	if (mode == PLM_CREATE){
+	if (mode === PLM_CREATE){
 		sta_st ts = symtbl_addTemp(pgen.sym);
-		if (ts.type == STA_ERROR)
-			return per_error(lv->flp, ts.u.msg);
-		intoVlc = lv->vlc = ts.u.vlc;
+		if (ts.type === STA_ERROR)
+			return per_error(lv.flp, ts.u.msg);
+		intoVlc = lv.vlc = ts.u.vlc;
 	}
 
-	switch (lv->type){
+	switch (lv.type){
 		case LVR_VAR:
 			assert(false);
 			break;
 
 		case LVR_INDEX:
-			op_getat(prg->ops, intoVlc, lv->u.index.obj, lv->u.index.key);
+			op_getat(prg.ops, intoVlc, lv.u.index.obj, lv.u.index.key);
 			break;
 
 		case LVR_SLICE:
-			op_slice(prg->ops, intoVlc, lv->u.slice.obj, lv->u.slice.start, lv->u.slice.len);
+			op_slice(prg.ops, intoVlc, lv.u.slice.obj, lv.u.slice.start, lv.u.slice.len);
 			break;
 
 		case LVR_SLICEINDEX: {
 			per_st pe = program_lvalGetIndex(pgen, lv);
-			if (pe.type == PER_ERROR)
+			if (pe.type === PER_ERROR)
 				return pe;
-			op_slice(prg->ops, intoVlc, pe.u.vlc, lv->u.sliceindex.start, lv->u.sliceindex.len);
+			op_slice(prg.ops, intoVlc, pe.u.vlc, lv.u.sliceindex.start, lv.u.sliceindex.len);
 		} break;
 
 		case LVR_LIST: {
-			op_list(prg->ops, intoVlc, lv->u.list.body->size);
+			op_list(prg.ops, intoVlc, lv.u.list.body.size);
 
-			for (int i = 0; i < lv->u.list.body->size; i++){
+			for (int i = 0; i < lv.u.list.body.size; i++){
 				per_st pe = program_lvalGet(pgen, PLM_CREATE, VARLOC_NULL,
-					lv->u.list.body->ptrs[i]);
-				if (pe.type == PER_ERROR)
+					lv.u.list.body.ptrs[i]);
+				if (pe.type === PER_ERROR)
 					return pe;
-				op_param2(prg->ops, OP_LIST_PUSH, intoVlc, intoVlc, pe.u.vlc);
+				op_param2(prg.ops, OP_LIST_PUSH, intoVlc, intoVlc, pe.u.vlc);
 			}
 
-			if (lv->u.list.rest != NULL){
-				per_st pe = program_lvalGet(pgen, PLM_CREATE, VARLOC_NULL, lv->u.list.rest);
-				if (pe.type == PER_ERROR)
+			if (lv.u.list.rest !== NULL){
+				per_st pe = program_lvalGet(pgen, PLM_CREATE, VARLOC_NULL, lv.u.list.rest);
+				if (pe.type === PER_ERROR)
 					return pe;
-				op_param2(prg->ops, OP_LIST_APPEND, intoVlc, intoVlc, pe.u.vlc);
+				op_param2(prg.ops, OP_LIST_APPEND, intoVlc, intoVlc, pe.u.vlc);
 			}
 		} break;
 	}
@@ -6581,25 +6563,25 @@ static inline bool program_evalCallArgcount(pgen_st pgen, expr params, int *argc
 	// returns false on error, with error inside of `pe`
 	*argcount = 0;
 	if (params){
-		if (params->type == EXPR_GROUP){
-			*argcount = params->u.group->size;
+		if (params.type === EXPR_GROUP){
+			*argcount = params.u.group.size;
 			if (*argcount > 254)
 				*argcount = 254;
-			for (int i = 0; i < params->u.group->size; i++){
+			for (int i = 0; i < params.u.group.size; i++){
 				*pe = program_eval(pgen, i < *argcount ? PEM_CREATE : PEM_EMPTY, VARLOC_NULL,
-					params->u.group->ptrs[i]);
-				if (pe->type == PER_ERROR)
+					params.u.group.ptrs[i]);
+				if (pe.type === PER_ERROR)
 					return false;
 				if (i < *argcount)
-					p[i] = pe->u.vlc;
+					p[i] = pe.u.vlc;
 			}
 		}
 		else{
 			*argcount = 1;
 			*pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, params);
-			if (pe->type == PER_ERROR)
+			if (pe.type === PER_ERROR)
 				return false;
-			p[0] = pe->u.vlc;
+			p[0] = pe.u.vlc;
 		}
 	}
 	return true;
@@ -6615,22 +6597,22 @@ typedef struct {
 
 static bool embed_begin(const char *file, efu_st *efu){
 	// in order to capture the `sink_scr_write`, we need to set `capture_write`
-	efu->pgen.scr->capture_write = list_byte_new();
+	efu.pgen.scr.capture_write = list_byte_new();
 	return true;
 }
 
 static void embed_end(bool success, const char *file, efu_st *efu){
 	if (success){
 		// convert the data into a string expression, then load it
-		expr ex = expr_str(efu->flp, efu->pgen.scr->capture_write);
-		efu->pe = program_eval(efu->pgen, efu->mode, efu->intoVlc, ex);
+		expr ex = expr_str(efu.flp, efu.pgen.scr.capture_write);
+		efu.pe = program_eval(efu.pgen, efu.mode, efu.intoVlc, ex);
 		expr_free(ex);
 	}
 	else{
-		list_byte_free(efu->pgen.scr->capture_write);
-		efu->pe = per_error(efu->flp, format("Failed to read file for `embed`: %s", file));
+		list_byte_free(efu.pgen.scr.capture_write);
+		efu.pe = per_error(efu.flp, format("Failed to read file for `embed`: %s", file));
 	}
-	efu->pgen.scr->capture_write = NULL;
+	efu.pgen.scr.capture_write = NULL;
 }
 
 typedef struct {
@@ -6657,21 +6639,21 @@ static per_st program_evalCall(pgen_st pgen, pem_enum mode, varloc_st intoVlc,
 	program prg = pgen.prg;
 	symtbl sym = pgen.sym;
 
-	if (nsn->type != NSN_CMD_LOCAL && nsn->type != NSN_CMD_NATIVE && nsn->type != NSN_CMD_OPCODE)
+	if (nsn.type !== NSN_CMD_LOCAL && nsn.type !== NSN_CMD_NATIVE && nsn.type !== NSN_CMD_OPCODE)
 		return per_error(flp, format("Invalid call - not a command"));
 
 	// params can be NULL to indicate emptiness
-	if (nsn->type == NSN_CMD_OPCODE && nsn->u.cmdOpcode.opcode == OP_PICK){
-		if (params == NULL || params->type != EXPR_GROUP ||
-			params->u.group->size != 3)
+	if (nsn.type === NSN_CMD_OPCODE && nsn.u.cmdOpcode.opcode === OP_PICK){
+		if (params === NULL || params.type !== EXPR_GROUP ||
+			params.u.group.size !== 3)
 			return per_error(flp, format("Using `pick` requires exactly three arguments"));
 
-		per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, params->u.group->ptrs[0]);
-		if (pe.type == PER_ERROR)
+		per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, params.u.group.ptrs[0]);
+		if (pe.type === PER_ERROR)
 			return pe;
-		if (mode == PEM_CREATE){
+		if (mode === PEM_CREATE){
 			sta_st ts = symtbl_addTemp(sym);
-			if (ts.type == STA_ERROR)
+			if (ts.type === STA_ERROR)
 				return per_error(flp, ts.u.msg);
 			intoVlc = ts.u.vlc;
 		}
@@ -6679,41 +6661,41 @@ static per_st program_evalCall(pgen_st pgen, pem_enum mode, varloc_st intoVlc,
 		label pickfalse = label_newstr("pickfalse");
 		label finish = label_newstr("pickfinish");
 
-		label_jumpfalse(pickfalse, prg->ops, pe.u.vlc);
+		label_jumpfalse(pickfalse, prg.ops, pe.u.vlc);
 		symtbl_clearTemp(sym, pe.u.vlc);
 
-		if (mode == PEM_EMPTY)
-			pe = program_eval(pgen, PEM_EMPTY, intoVlc, params->u.group->ptrs[1]);
+		if (mode === PEM_EMPTY)
+			pe = program_eval(pgen, PEM_EMPTY, intoVlc, params.u.group.ptrs[1]);
 		else
-			pe = program_eval(pgen, PEM_INTO, intoVlc, params->u.group->ptrs[1]);
-		if (pe.type == PER_ERROR){
+			pe = program_eval(pgen, PEM_INTO, intoVlc, params.u.group.ptrs[1]);
+		if (pe.type === PER_ERROR){
 			label_free(pickfalse);
 			label_free(finish);
 			return pe;
 		}
-		label_jump(finish, prg->ops);
+		label_jump(finish, prg.ops);
 
-		label_declare(pickfalse, prg->ops);
-		if (mode == PEM_EMPTY)
-			pe = program_eval(pgen, PEM_EMPTY, intoVlc, params->u.group->ptrs[2]);
+		label_declare(pickfalse, prg.ops);
+		if (mode === PEM_EMPTY)
+			pe = program_eval(pgen, PEM_EMPTY, intoVlc, params.u.group.ptrs[2]);
 		else
-			pe = program_eval(pgen, PEM_INTO, intoVlc, params->u.group->ptrs[2]);
-		if (pe.type == PER_ERROR){
+			pe = program_eval(pgen, PEM_INTO, intoVlc, params.u.group.ptrs[2]);
+		if (pe.type === PER_ERROR){
 			label_free(pickfalse);
 			label_free(finish);
 			return pe;
 		}
 
-		label_declare(finish, prg->ops);
+		label_declare(finish, prg.ops);
 		label_free(pickfalse);
 		label_free(finish);
 		return per_ok(intoVlc);
 	}
-	else if (nsn->type == NSN_CMD_OPCODE && nsn->u.cmdOpcode.opcode == OP_EMBED){
+	else if (nsn.type === NSN_CMD_OPCODE && nsn.u.cmdOpcode.opcode === OP_EMBED){
 		expr file = params;
-		while (file && file->type == EXPR_PAREN)
-			file = file->u.ex;
-		if (file == NULL || file->type != EXPR_STR)
+		while (file && file.type === EXPR_PAREN)
+			file = file.u.ex;
+		if (file === NULL || file.type !== EXPR_STR)
 			return per_error(flp, format("Expecting constant string for `embed`"));
 		char *cwd = NULL;
 		efu_st efu = (efu_st){
@@ -6724,30 +6706,30 @@ static per_st program_evalCall(pgen_st pgen, pem_enum mode, varloc_st intoVlc,
 		};
 		if (pgen.from >= 0)
 			cwd = pathjoin(script_getfile(pgen.scr, pgen.from), "..");
-		list_byte fstr = file->u.str;
+		list_byte fstr = file.u.str;
 		list_byte_null(fstr);
-		bool res = fileres_read(pgen.scr, false, (const char *)fstr->bytes, cwd,
+		bool res = fileres_read(pgen.scr, false, (const char *)fstr.bytes, cwd,
 			(f_fileres_begin_f)embed_begin, (f_fileres_end_f)embed_end, &efu);
 		if (cwd)
 			mem_free(cwd);
 		if (!res)
-			return per_error(flp, format("Failed to embed: %s", (const char *)fstr->bytes));
+			return per_error(flp, format("Failed to embed: %s", (const char *)fstr.bytes));
 		return efu.pe;
 	}
-	else if (nsn->type == NSN_CMD_OPCODE && nsn->u.cmdOpcode.opcode == OP_STR_HASH && params){
+	else if (nsn.type === NSN_CMD_OPCODE && nsn.u.cmdOpcode.opcode === OP_STR_HASH && params){
 		// attempt to str.hash at compile-time if possible
 		list_byte str = NULL;
 		double seed = 0;
 		expr ex = params;
-		if (ex->type == EXPR_GROUP && ex->u.group->size == 2){
-			expr ex2 = ex->u.group->ptrs[1];
-			ex = ex->u.group->ptrs[0];
-			while (ex->type == EXPR_PAREN)
-				ex = ex->u.ex;
-			if (ex->type == EXPR_STR){
+		if (ex.type === EXPR_GROUP && ex.u.group.size === 2){
+			expr ex2 = ex.u.group.ptrs[1];
+			ex = ex.u.group.ptrs[0];
+			while (ex.type === EXPR_PAREN)
+				ex = ex.u.ex;
+			if (ex.type === EXPR_STR){
 				pen_st p = program_exprToNum(pgen, ex2);
 				if (p.success){
-					str = ex->u.str;
+					str = ex.u.str;
 					seed = p.u.value;
 				}
 				else
@@ -6755,15 +6737,15 @@ static per_st program_evalCall(pgen_st pgen, pem_enum mode, varloc_st intoVlc,
 			}
 		}
 		else{
-			while (ex->type == EXPR_PAREN)
-				ex = ex->u.ex;
-			if (ex->type == EXPR_STR)
-				str = ex->u.str;
+			while (ex.type === EXPR_PAREN)
+				ex = ex.u.ex;
+			if (ex.type === EXPR_STR)
+				str = ex.u.str;
 		}
 		if (str){
 			// we can perform a static hash!
 			uint32_t out[4];
-			sink_str_hashplain(str->size, str->bytes, (uint32_t)seed, out);
+			sink_str_hashplain(str.size, str.bytes, (uint32_t)seed, out);
 			expr ex = expr_list(flp, expr_group(flp, expr_group(flp, expr_group(flp,
 					expr_num(flp, out[0]),
 					expr_num(flp, out[1])),
@@ -6775,9 +6757,9 @@ static per_st program_evalCall(pgen_st pgen, pem_enum mode, varloc_st intoVlc,
 		}
 	}
 
-	if (mode == PEM_EMPTY || mode == PEM_CREATE){
+	if (mode === PEM_EMPTY || mode === PEM_CREATE){
 		sta_st ts = symtbl_addTemp(sym);
-		if (ts.type == STA_ERROR)
+		if (ts.type === STA_ERROR)
 			return per_error(flp, ts.u.msg);
 		intoVlc = ts.u.vlc;
 	}
@@ -6790,57 +6772,57 @@ static per_st program_evalCall(pgen_st pgen, pem_enum mode, varloc_st intoVlc,
 
 	program_flp(prg, flp);
 	bool oarg = true;
-	if (nsn->type == NSN_CMD_LOCAL)
-		label_call(nsn->u.cmdLocal.lbl, prg->ops, intoVlc, argcount);
-	else if (nsn->type == NSN_CMD_NATIVE){
+	if (nsn.type === NSN_CMD_LOCAL)
+		label_call(nsn.u.cmdLocal.lbl, prg.ops, intoVlc, argcount);
+	else if (nsn.type === NSN_CMD_NATIVE){
 		// search for the hash
 		int index;
 		bool found = false;
-		for (index = 0; index < prg->keyTable->size; index++){
-			if (prg->keyTable->vals[index] == nsn->u.hash){
+		for (index = 0; index < prg.keyTable.size; index++){
+			if (prg.keyTable.vals[index] === nsn.u.hash){
 				found = true;
 				break;
 			}
 		}
 		if (!found){
-			if (prg->keyTable->size >= 0x7FFFFFFF) // using too many native calls?
+			if (prg.keyTable.size >= 0x7FFFFFFF) // using too many native calls?
 				return per_error(flp, format("Too many native commands"));
-			index = prg->keyTable->size;
-			list_u64_push(prg->keyTable, nsn->u.hash);
+			index = prg.keyTable.size;
+			list_u64_push(prg.keyTable, nsn.u.hash);
 		}
-		op_native(prg->ops, intoVlc, index, argcount);
+		op_native(prg.ops, intoVlc, index, argcount);
 	}
 	else{ // NSN_CMD_OPCODE
-		if (nsn->u.cmdOpcode.params < 0)
-			op_parama(prg->ops, nsn->u.cmdOpcode.opcode, intoVlc, argcount);
+		if (nsn.u.cmdOpcode.params < 0)
+			op_parama(prg.ops, nsn.u.cmdOpcode.opcode, intoVlc, argcount);
 		else{
 			oarg = false;
-			if (nsn->u.cmdOpcode.params > argcount){
+			if (nsn.u.cmdOpcode.params > argcount){
 				sta_st ts = symtbl_addTemp(sym);
-				if (ts.type == STA_ERROR)
+				if (ts.type === STA_ERROR)
 					return per_error(flp, ts.u.msg);
 				p[argcount + 0] = p[argcount + 1] = p[argcount + 2] = ts.u.vlc;
-				op_nil(prg->ops, p[argcount]);
+				op_nil(prg.ops, p[argcount]);
 				argcount++;
 			}
-			if (nsn->u.cmdOpcode.params == 0)
-				op_param0(prg->ops, nsn->u.cmdOpcode.opcode, intoVlc);
-			else if (nsn->u.cmdOpcode.params == 1)
-				op_param1(prg->ops, nsn->u.cmdOpcode.opcode, intoVlc, p[0]);
-			else if (nsn->u.cmdOpcode.params == 2)
-				op_param2(prg->ops, nsn->u.cmdOpcode.opcode, intoVlc, p[0], p[1]);
-			else // nsn.params == 3
-				op_param3(prg->ops, nsn->u.cmdOpcode.opcode, intoVlc, p[0], p[1], p[2]);
+			if (nsn.u.cmdOpcode.params === 0)
+				op_param0(prg.ops, nsn.u.cmdOpcode.opcode, intoVlc);
+			else if (nsn.u.cmdOpcode.params === 1)
+				op_param1(prg.ops, nsn.u.cmdOpcode.opcode, intoVlc, p[0]);
+			else if (nsn.u.cmdOpcode.params === 2)
+				op_param2(prg.ops, nsn.u.cmdOpcode.opcode, intoVlc, p[0], p[1]);
+			else // nsn.params === 3
+				op_param3(prg.ops, nsn.u.cmdOpcode.opcode, intoVlc, p[0], p[1], p[2]);
 		}
 	}
 
 	for (int i = 0; i < argcount; i++){
 		if (oarg)
-			op_arg(prg->ops, p[i]);
+			op_arg(prg.ops, p[i]);
 		symtbl_clearTemp(sym, p[i]);
 	}
 
-	if (mode == PEM_EMPTY){
+	if (mode === PEM_EMPTY){
 		symtbl_clearTemp(sym, intoVlc);
 		return per_ok(VARLOC_NULL);
 	}
@@ -6850,16 +6832,16 @@ static per_st program_evalCall(pgen_st pgen, pem_enum mode, varloc_st intoVlc,
 static per_st program_lvalCheckNil(pgen_st pgen, lvr lv, bool jumpFalse, bool inverted, label skip){
 	program prg = pgen.prg;
 	symtbl sym = pgen.sym;
-	switch (lv->type){
+	switch (lv.type){
 		case LVR_VAR:
 		case LVR_INDEX: {
 			per_st pe = program_lvalGet(pgen, PLM_CREATE, VARLOC_NULL, lv);
-			if (pe.type == PER_ERROR)
+			if (pe.type === PER_ERROR)
 				return pe;
-			if (jumpFalse == !inverted)
-				label_jumpfalse(skip, prg->ops, pe.u.vlc);
+			if (jumpFalse === !inverted)
+				label_jumpfalse(skip, prg.ops, pe.u.vlc);
 			else
-				label_jumptrue(skip, prg->ops, pe.u.vlc);
+				label_jumptrue(skip, prg.ops, pe.u.vlc);
 			symtbl_clearTemp(sym, pe.u.vlc);
 		} break;
 
@@ -6868,57 +6850,57 @@ static per_st program_lvalCheckNil(pgen_st pgen, lvr lv, bool jumpFalse, bool in
 			varloc_st obj;
 			varloc_st start;
 			varloc_st len;
-			if (lv->type == LVR_SLICE){
-				obj = lv->u.slice.obj;
-				start = lv->u.slice.start;
-				len = lv->u.slice.len;
+			if (lv.type === LVR_SLICE){
+				obj = lv.u.slice.obj;
+				start = lv.u.slice.start;
+				len = lv.u.slice.len;
 			}
 			else{
 				per_st pe = program_lvalGetIndex(pgen, lv);
-				if (pe.type == PER_ERROR)
+				if (pe.type === PER_ERROR)
 					return pe;
 				obj = pe.u.vlc;
-				start = lv->u.sliceindex.start;
-				len = lv->u.sliceindex.len;
+				start = lv.u.sliceindex.start;
+				len = lv.u.sliceindex.len;
 			}
 
 			sta_st ts = symtbl_addTemp(sym);
-			if (ts.type == STA_ERROR)
-				return per_error(lv->flp, ts.u.msg);
+			if (ts.type === STA_ERROR)
+				return per_error(lv.flp, ts.u.msg);
 			varloc_st idx = ts.u.vlc;
 
 			ts = symtbl_addTemp(sym);
-			if (ts.type == STA_ERROR)
-				return per_error(lv->flp, ts.u.msg);
+			if (ts.type === STA_ERROR)
+				return per_error(lv.flp, ts.u.msg);
 			varloc_st t = ts.u.vlc;
 
-			op_numint(prg->ops, idx, 0);
+			op_numint(prg.ops, idx, 0);
 
 			label next = label_newstr("condslicenext");
 
-			op_nil(prg->ops, t);
-			op_binop(prg->ops, OP_EQU, t, t, len);
-			label_jumpfalse(next, prg->ops, t);
-			op_unop(prg->ops, OP_SIZE, t, obj);
-			op_binop(prg->ops, OP_NUM_SUB, len, t, start);
+			op_nil(prg.ops, t);
+			op_binop(prg.ops, OP_EQU, t, t, len);
+			label_jumpfalse(next, prg.ops, t);
+			op_unop(prg.ops, OP_SIZE, t, obj);
+			op_binop(prg.ops, OP_NUM_SUB, len, t, start);
 
-			label_declare(next, prg->ops);
+			label_declare(next, prg.ops);
 
-			op_binop(prg->ops, OP_LT, t, idx, len);
+			op_binop(prg.ops, OP_LT, t, idx, len);
 
 			label keep = label_newstr("condslicekeep");
-			label_jumpfalse(inverted ? keep : skip, prg->ops, t);
+			label_jumpfalse(inverted ? keep : skip, prg.ops, t);
 
-			op_binop(prg->ops, OP_NUM_ADD, t, idx, start);
-			op_getat(prg->ops, t, obj, t);
+			op_binop(prg.ops, OP_NUM_ADD, t, idx, start);
+			op_getat(prg.ops, t, obj, t);
 			if (jumpFalse)
-				label_jumptrue(inverted ? skip : keep, prg->ops, t);
+				label_jumptrue(inverted ? skip : keep, prg.ops, t);
 			else
-				label_jumpfalse(inverted ? skip : keep, prg->ops, t);
+				label_jumpfalse(inverted ? skip : keep, prg.ops, t);
 
-			op_inc(prg->ops, idx);
-			label_jump(next, prg->ops);
-			label_declare(keep, prg->ops);
+			op_inc(prg.ops, idx);
+			label_jump(next, prg.ops);
+			label_declare(keep, prg.ops);
 
 			symtbl_clearTemp(sym, idx);
 			symtbl_clearTemp(sym, t);
@@ -6928,17 +6910,17 @@ static per_st program_lvalCheckNil(pgen_st pgen, lvr lv, bool jumpFalse, bool in
 
 		case LVR_LIST: {
 			label keep = label_newstr("condkeep");
-			for (int i = 0; i < lv->u.list.body->size; i++){
-				program_lvalCheckNil(pgen, lv->u.list.body->ptrs[i], jumpFalse, true,
+			for (int i = 0; i < lv.u.list.body.size; i++){
+				program_lvalCheckNil(pgen, lv.u.list.body.ptrs[i], jumpFalse, true,
 					inverted ? skip : keep);
 			}
-			if (lv->u.list.rest != NULL){
-				program_lvalCheckNil(pgen, lv->u.list.rest, jumpFalse, true,
+			if (lv.u.list.rest !== NULL){
+				program_lvalCheckNil(pgen, lv.u.list.rest, jumpFalse, true,
 					inverted ? skip : keep);
 			}
 			if (!inverted)
-				label_jump(skip, prg->ops);
-			label_declare(keep, prg->ops);
+				label_jump(skip, prg.ops);
+			label_declare(keep, prg.ops);
 			label_free(keep);
 		} break;
 	}
@@ -6948,24 +6930,24 @@ static per_st program_lvalCheckNil(pgen_st pgen, lvr lv, bool jumpFalse, bool in
 static per_st program_lvalCondAssignPart(pgen_st pgen, lvr lv, bool jumpFalse, varloc_st valueVlc){
 	program prg = pgen.prg;
 	symtbl sym = pgen.sym;
-	switch (lv->type){
+	switch (lv.type){
 		case LVR_VAR:
 		case LVR_INDEX: {
 			per_st pe = program_lvalGet(pgen, PLM_CREATE, VARLOC_NULL, lv);
-			if (pe.type == PER_ERROR)
+			if (pe.type === PER_ERROR)
 				return pe;
 			label skip = label_newstr("condskippart");
 			if (jumpFalse)
-				label_jumpfalse(skip, prg->ops, pe.u.vlc);
+				label_jumpfalse(skip, prg.ops, pe.u.vlc);
 			else
-				label_jumptrue(skip, prg->ops, pe.u.vlc);
+				label_jumptrue(skip, prg.ops, pe.u.vlc);
 			symtbl_clearTemp(sym, pe.u.vlc);
 			pe = program_evalLval(pgen, PEM_EMPTY, VARLOC_NULL, lv, OP_INVALID, valueVlc, true);
-			if (pe.type == PER_ERROR){
+			if (pe.type === PER_ERROR){
 				label_free(skip);
 				return pe;
 			}
-			label_declare(skip, prg->ops);
+			label_declare(skip, prg.ops);
 			label_free(skip);
 		} break;
 
@@ -6974,67 +6956,67 @@ static per_st program_lvalCondAssignPart(pgen_st pgen, lvr lv, bool jumpFalse, v
 			varloc_st obj;
 			varloc_st start;
 			varloc_st len;
-			if (lv->type == LVR_SLICE){
-				obj = lv->u.slice.obj;
-				start = lv->u.slice.start;
-				len = lv->u.slice.len;
+			if (lv.type === LVR_SLICE){
+				obj = lv.u.slice.obj;
+				start = lv.u.slice.start;
+				len = lv.u.slice.len;
 			}
 			else{
 				per_st pe = program_lvalGetIndex(pgen, lv);
-				if (pe.type == PER_ERROR)
+				if (pe.type === PER_ERROR)
 					return pe;
 				obj = pe.u.vlc;
-				start = lv->u.sliceindex.start;
-				len = lv->u.sliceindex.len;
+				start = lv.u.sliceindex.start;
+				len = lv.u.sliceindex.len;
 			}
 
 			sta_st ts = symtbl_addTemp(sym);
-			if (ts.type == STA_ERROR)
-				return per_error(lv->flp, ts.u.msg);
+			if (ts.type === STA_ERROR)
+				return per_error(lv.flp, ts.u.msg);
 			varloc_st idx = ts.u.vlc;
 
 			ts = symtbl_addTemp(sym);
-			if (ts.type == STA_ERROR)
-				return per_error(lv->flp, ts.u.msg);
+			if (ts.type === STA_ERROR)
+				return per_error(lv.flp, ts.u.msg);
 			varloc_st t = ts.u.vlc;
 
 			ts = symtbl_addTemp(sym);
-			if (ts.type == STA_ERROR)
-				return per_error(lv->flp, ts.u.msg);
+			if (ts.type === STA_ERROR)
+				return per_error(lv.flp, ts.u.msg);
 			varloc_st t2 = ts.u.vlc;
 
-			op_numint(prg->ops, idx, 0);
+			op_numint(prg.ops, idx, 0);
 
 			label next = label_newstr("condpartslicenext");
 
-			op_nil(prg->ops, t);
-			op_binop(prg->ops, OP_EQU, t, t, len);
-			label_jumpfalse(next, prg->ops, t);
-			op_unop(prg->ops, OP_SIZE, t, obj);
-			op_binop(prg->ops, OP_NUM_SUB, len, t, start);
+			op_nil(prg.ops, t);
+			op_binop(prg.ops, OP_EQU, t, t, len);
+			label_jumpfalse(next, prg.ops, t);
+			op_unop(prg.ops, OP_SIZE, t, obj);
+			op_binop(prg.ops, OP_NUM_SUB, len, t, start);
 
-			label_declare(next, prg->ops);
+			label_declare(next, prg.ops);
 
-			op_binop(prg->ops, OP_LT, t, idx, len);
+			op_binop(prg.ops, OP_LT, t, idx, len);
 
 			label done = label_newstr("condpartslicedone");
-			label_jumpfalse(done, prg->ops, t);
+			label_jumpfalse(done, prg.ops, t);
 
 			label inc = label_newstr("condpartsliceinc");
-			op_binop(prg->ops, OP_NUM_ADD, t, idx, start);
-			op_getat(prg->ops, t2, obj, t);
+			op_binop(prg.ops, OP_NUM_ADD, t, idx, start);
+			op_getat(prg.ops, t2, obj, t);
 			if (jumpFalse)
-				label_jumpfalse(inc, prg->ops, t2);
+				label_jumpfalse(inc, prg.ops, t2);
 			else
-				label_jumptrue(inc, prg->ops, t2);
+				label_jumptrue(inc, prg.ops, t2);
 
-			op_getat(prg->ops, t2, valueVlc, idx);
-			op_setat(prg->ops, obj, t, t2);
+			op_getat(prg.ops, t2, valueVlc, idx);
+			op_setat(prg.ops, obj, t, t2);
 
-			label_declare(inc, prg->ops);
-			op_inc(prg->ops, idx);
-			label_jump(next, prg->ops);
-			label_declare(done, prg->ops);
+			label_declare(inc, prg.ops);
+			op_inc(prg.ops, idx);
+			label_jump(next, prg.ops);
+			label_declare(done, prg.ops);
 
 			symtbl_clearTemp(sym, idx);
 			symtbl_clearTemp(sym, t);
@@ -7046,28 +7028,28 @@ static per_st program_lvalCondAssignPart(pgen_st pgen, lvr lv, bool jumpFalse, v
 
 		case LVR_LIST: {
 			sta_st ts = symtbl_addTemp(sym);
-			if (ts.type == STA_ERROR)
-				return per_error(lv->flp, ts.u.msg);
+			if (ts.type === STA_ERROR)
+				return per_error(lv.flp, ts.u.msg);
 			varloc_st t = ts.u.vlc;
-			for (int i = 0; i < lv->u.list.body->size; i++){
-				op_numint(prg->ops, t, i);
-				op_getat(prg->ops, t, valueVlc, t);
-				per_st pe = program_lvalCondAssignPart(pgen, lv->u.list.body->ptrs[i],
+			for (int i = 0; i < lv.u.list.body.size; i++){
+				op_numint(prg.ops, t, i);
+				op_getat(prg.ops, t, valueVlc, t);
+				per_st pe = program_lvalCondAssignPart(pgen, lv.u.list.body.ptrs[i],
 					jumpFalse, t);
-				if (pe.type == PER_ERROR)
+				if (pe.type === PER_ERROR)
 					return pe;
 			}
-			if (lv->u.list.rest != NULL){
+			if (lv.u.list.rest !== NULL){
 				sta_st ts = symtbl_addTemp(sym);
-				if (ts.type == STA_ERROR)
-					return per_error(lv->flp, ts.u.msg);
+				if (ts.type === STA_ERROR)
+					return per_error(lv.flp, ts.u.msg);
 				varloc_st t2 = ts.u.vlc;
-				op_numint(prg->ops, t, lv->u.list.body->size);
-				op_nil(prg->ops, t2);
-				op_slice(prg->ops, t, valueVlc, t, t2);
+				op_numint(prg.ops, t, lv.u.list.body.size);
+				op_nil(prg.ops, t2);
+				op_slice(prg.ops, t, valueVlc, t, t2);
 				symtbl_clearTemp(sym, t2);
-				per_st pe = program_lvalCondAssignPart(pgen, lv->u.list.rest, jumpFalse, t);
-				if (pe.type == PER_ERROR)
+				per_st pe = program_lvalCondAssignPart(pgen, lv.u.list.rest, jumpFalse, t);
+				if (pe.type === PER_ERROR)
 					return pe;
 			}
 			symtbl_clearTemp(sym, t);
@@ -7077,12 +7059,12 @@ static per_st program_lvalCondAssignPart(pgen_st pgen, lvr lv, bool jumpFalse, v
 }
 
 static per_st program_lvalCondAssign(pgen_st pgen, lvr lv, bool jumpFalse, varloc_st valueVlc){
-	switch (lv->type){
+	switch (lv.type){
 		case LVR_VAR:
 		case LVR_INDEX: {
 			per_st pe = program_evalLval(pgen, PEM_EMPTY, VARLOC_NULL, lv, OP_INVALID,
 				valueVlc, true);
-			if (pe.type == PER_ERROR)
+			if (pe.type === PER_ERROR)
 				return pe;
 		} break;
 
@@ -7098,219 +7080,219 @@ static per_st program_lvalCondAssign(pgen_st pgen, lvr lv, bool jumpFalse, varlo
 static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr ex){
 	program prg = pgen.prg;
 	symtbl sym = pgen.sym;
-	program_flp(prg, ex->flp);
-	switch (ex->type){
+	program_flp(prg, ex.flp);
+	switch (ex.type){
 		case EXPR_NIL: {
-			if (mode == PEM_EMPTY)
+			if (mode === PEM_EMPTY)
 				return per_ok(VARLOC_NULL);
-			else if (mode == PEM_CREATE){
+			else if (mode === PEM_CREATE){
 				sta_st ts = symtbl_addTemp(sym);
-				if (ts.type == STA_ERROR)
-					return per_error(ex->flp, ts.u.msg);
+				if (ts.type === STA_ERROR)
+					return per_error(ex.flp, ts.u.msg);
 				intoVlc = ts.u.vlc;
 			}
-			op_nil(prg->ops, intoVlc);
+			op_nil(prg.ops, intoVlc);
 			return per_ok(intoVlc);
 		} break;
 
 		case EXPR_NUM: {
-			if (mode == PEM_EMPTY)
+			if (mode === PEM_EMPTY)
 				return per_ok(VARLOC_NULL);
-			else if (mode == PEM_CREATE){
+			else if (mode === PEM_CREATE){
 				sta_st ts = symtbl_addTemp(sym);
-				if (ts.type == STA_ERROR)
-					return per_error(ex->flp, ts.u.msg);
+				if (ts.type === STA_ERROR)
+					return per_error(ex.flp, ts.u.msg);
 				intoVlc = ts.u.vlc;
 			}
-			op_num(prg->ops, intoVlc, ex->u.num);
+			op_num(prg.ops, intoVlc, ex.u.num);
 			return per_ok(intoVlc);
 		} break;
 
 		case EXPR_STR: {
-			if (mode == PEM_EMPTY)
+			if (mode === PEM_EMPTY)
 				return per_ok(VARLOC_NULL);
-			else if (mode == PEM_CREATE){
+			else if (mode === PEM_CREATE){
 				sta_st ts = symtbl_addTemp(sym);
-				if (ts.type == STA_ERROR)
-					return per_error(ex->flp, ts.u.msg);
+				if (ts.type === STA_ERROR)
+					return per_error(ex.flp, ts.u.msg);
 				intoVlc = ts.u.vlc;
 			}
 			bool found = false;
 			int64_t index;
-			for (index = 0; index < prg->strTable->size; index++){
-				if (list_byte_equ(ex->u.str, prg->strTable->ptrs[index])){
+			for (index = 0; index < prg.strTable.size; index++){
+				if (list_byte_equ(ex.u.str, prg.strTable.ptrs[index])){
 					found = true;
 					break;
 				}
 			}
 			if (!found){
 				if (index >= 0x7FFFFFFF)
-					return per_error(ex->flp, format("Too many string constants"));
-				list_ptr_push(prg->strTable, ex->u.str);
-				ex->u.str = NULL;
+					return per_error(ex.flp, format("Too many string constants"));
+				list_ptr_push(prg.strTable, ex.u.str);
+				ex.u.str = NULL;
 			}
-			op_str(prg->ops, intoVlc, index);
+			op_str(prg.ops, intoVlc, index);
 			return per_ok(intoVlc);
 		} break;
 
 		case EXPR_LIST: {
-			if (mode == PEM_EMPTY){
-				if (ex->u.ex != NULL)
-					return program_eval(pgen, PEM_EMPTY, VARLOC_NULL, ex->u.ex);
+			if (mode === PEM_EMPTY){
+				if (ex.u.ex !== NULL)
+					return program_eval(pgen, PEM_EMPTY, VARLOC_NULL, ex.u.ex);
 				return per_ok(VARLOC_NULL);
 			}
-			else if (mode == PEM_CREATE){
+			else if (mode === PEM_CREATE){
 				sta_st ts = symtbl_addTemp(sym);
-				if (ts.type == STA_ERROR)
-					return per_error(ex->flp, ts.u.msg);
+				if (ts.type === STA_ERROR)
+					return per_error(ex.flp, ts.u.msg);
 				intoVlc = ts.u.vlc;
 			}
-			if (ex->u.ex != NULL){
-				if (ex->u.ex->type == EXPR_GROUP){
+			if (ex.u.ex !== NULL){
+				if (ex.u.ex.type === EXPR_GROUP){
 					varloc_st ls = intoVlc;
-					if (mode == PEM_INTO){
+					if (mode === PEM_INTO){
 						sta_st ts = symtbl_addTemp(sym);
-						if (ts.type == STA_ERROR)
-							return per_error(ex->flp, ts.u.msg);
+						if (ts.type === STA_ERROR)
+							return per_error(ex.flp, ts.u.msg);
 						ls = ts.u.vlc;
 					}
-					op_list(prg->ops, ls, ex->u.ex->u.group->size);
-					for (int i = 0; i < ex->u.ex->u.group->size; i++){
+					op_list(prg.ops, ls, ex.u.ex.u.group.size);
+					for (int i = 0; i < ex.u.ex.u.group.size; i++){
 						per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL,
-							ex->u.ex->u.group->ptrs[i]);
-						if (pe.type == PER_ERROR)
+							ex.u.ex.u.group.ptrs[i]);
+						if (pe.type === PER_ERROR)
 							return pe;
 						symtbl_clearTemp(sym, pe.u.vlc);
-						op_param2(prg->ops, OP_LIST_PUSH, ls, ls, pe.u.vlc);
+						op_param2(prg.ops, OP_LIST_PUSH, ls, ls, pe.u.vlc);
 					}
-					if (mode == PEM_INTO){
+					if (mode === PEM_INTO){
 						symtbl_clearTemp(sym, ls);
-						op_move(prg->ops, intoVlc, ls);
+						op_move(prg.ops, intoVlc, ls);
 					}
 				}
 				else{
-					per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex->u.ex);
-					if (pe.type == PER_ERROR)
+					per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex.u.ex);
+					if (pe.type === PER_ERROR)
 						return pe;
 					// check for `a = {a}`
-					if (intoVlc.frame == pe.u.vlc.frame && intoVlc.index == pe.u.vlc.index){
+					if (intoVlc.frame === pe.u.vlc.frame && intoVlc.index === pe.u.vlc.index){
 						sta_st ts = symtbl_addTemp(sym);
-						if (ts.type == STA_ERROR)
-							return per_error(ex->flp, ts.u.msg);
+						if (ts.type === STA_ERROR)
+							return per_error(ex.flp, ts.u.msg);
 						symtbl_clearTemp(sym, ts.u.vlc);
 						symtbl_clearTemp(sym, pe.u.vlc);
-						op_list(prg->ops, ts.u.vlc, 1);
-						op_param2(prg->ops, OP_LIST_PUSH, ts.u.vlc, ts.u.vlc, pe.u.vlc);
-						op_move(prg->ops, intoVlc, ts.u.vlc);
+						op_list(prg.ops, ts.u.vlc, 1);
+						op_param2(prg.ops, OP_LIST_PUSH, ts.u.vlc, ts.u.vlc, pe.u.vlc);
+						op_move(prg.ops, intoVlc, ts.u.vlc);
 					}
 					else{
 						symtbl_clearTemp(sym, pe.u.vlc);
-						op_list(prg->ops, intoVlc, 1);
-						op_param2(prg->ops, OP_LIST_PUSH, intoVlc, intoVlc, pe.u.vlc);
+						op_list(prg.ops, intoVlc, 1);
+						op_param2(prg.ops, OP_LIST_PUSH, intoVlc, intoVlc, pe.u.vlc);
 					}
 				}
 			}
 			else
-				op_list(prg->ops, intoVlc, 0);
+				op_list(prg.ops, intoVlc, 0);
 			return per_ok(intoVlc);
 		} break;
 
 		case EXPR_NAMES: {
-			stl_st sl = symtbl_lookup(sym, ex->u.names);
-			if (sl.type == STL_ERROR)
-				return per_error(ex->flp, sl.u.msg);
-			switch (sl.u.nsn->type){
+			stl_st sl = symtbl_lookup(sym, ex.u.names);
+			if (sl.type === STL_ERROR)
+				return per_error(ex.flp, sl.u.msg);
+			switch (sl.u.nsn.type){
 				case NSN_VAR: {
-					if (mode == PEM_EMPTY)
+					if (mode === PEM_EMPTY)
 						return per_ok(VARLOC_NULL);
-					varloc_st varVlc = varloc_new(sl.u.nsn->u.var.fr->level, sl.u.nsn->u.var.index);
-					if (mode == PEM_CREATE)
+					varloc_st varVlc = varloc_new(sl.u.nsn.u.var.fr.level, sl.u.nsn.u.var.index);
+					if (mode === PEM_CREATE)
 						return per_ok(varVlc);
-					op_move(prg->ops, intoVlc, varVlc);
+					op_move(prg.ops, intoVlc, varVlc);
 					return per_ok(intoVlc);
 				} break;
 
 				case NSN_ENUM: {
-					if (mode == PEM_EMPTY)
+					if (mode === PEM_EMPTY)
 						return per_ok(VARLOC_NULL);
-					if (mode == PEM_CREATE){
+					if (mode === PEM_CREATE){
 						sta_st ts = symtbl_addTemp(sym);
-						if (ts.type == STA_ERROR)
-							return per_error(ex->flp, ts.u.msg);
+						if (ts.type === STA_ERROR)
+							return per_error(ex.flp, ts.u.msg);
 						intoVlc = ts.u.vlc;
 					}
-					op_num(prg->ops, intoVlc, sl.u.nsn->u.val);
+					op_num(prg.ops, intoVlc, sl.u.nsn.u.val);
 					return per_ok(intoVlc);
 				} break;
 
 				case NSN_CMD_LOCAL:
 				case NSN_CMD_NATIVE:
 				case NSN_CMD_OPCODE:
-					return program_evalCall(pgen, mode, intoVlc, ex->flp, sl.u.nsn, NULL);
+					return program_evalCall(pgen, mode, intoVlc, ex.flp, sl.u.nsn, NULL);
 
 				case NSN_NAMESPACE:
-					return per_error(ex->flp, format("Invalid expression"));
+					return per_error(ex.flp, format("Invalid expression"));
 			}
 			assert(false);
 		} break;
 
 		case EXPR_PAREN:
-			return program_eval(pgen, mode, intoVlc, ex->u.ex);
+			return program_eval(pgen, mode, intoVlc, ex.u.ex);
 
 		case EXPR_GROUP:
-			for (int i = 0; i < ex->u.group->size; i++){
-				if (i == ex->u.group->size - 1)
-					return program_eval(pgen, mode, intoVlc, ex->u.group->ptrs[i]);
-				per_st pe = program_eval(pgen, PEM_EMPTY, VARLOC_NULL, ex->u.group->ptrs[i]);
-				if (pe.type == PER_ERROR)
+			for (int i = 0; i < ex.u.group.size; i++){
+				if (i === ex.u.group.size - 1)
+					return program_eval(pgen, mode, intoVlc, ex.u.group.ptrs[i]);
+				per_st pe = program_eval(pgen, PEM_EMPTY, VARLOC_NULL, ex.u.group.ptrs[i]);
+				if (pe.type === PER_ERROR)
 					return pe;
 			}
 			break;
 
 		case EXPR_CAT: {
-			if (mode == PEM_EMPTY || mode == PEM_CREATE){
+			if (mode === PEM_EMPTY || mode === PEM_CREATE){
 				sta_st ts = symtbl_addTemp(sym);
-				if (ts.type == STA_ERROR)
-					return per_error(ex->flp, ts.u.msg);
+				if (ts.type === STA_ERROR)
+					return per_error(ex.flp, ts.u.msg);
 				intoVlc = ts.u.vlc;
 			}
 			varloc_st t = VARLOC_NULL;
 			int tmax = symtbl_tempAvail(sym) - 128;
 			if (tmax < 16)
 				tmax = 16;
-			if (ex->u.cat->size > tmax){
+			if (ex.u.cat.size > tmax){
 				tmax--;
 				sta_st ts = symtbl_addTemp(sym);
-				if (ts.type == STA_ERROR)
-					return per_error(ex->flp, ts.u.msg);
+				if (ts.type === STA_ERROR)
+					return per_error(ex.flp, ts.u.msg);
 				t = ts.u.vlc;
 			}
 			varloc_st p[256];
-			for (int ci = 0; ci < ex->u.cat->size; ci += tmax){
-				int len = ex->u.cat->size - ci;
+			for (int ci = 0; ci < ex.u.cat.size; ci += tmax){
+				int len = ex.u.cat.size - ci;
 				if (len > tmax)
 					len = tmax;
 				for (int i = 0; i < len; i++){
 					per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL,
-						ex->u.cat->ptrs[ci + i]);
-					if (pe.type == PER_ERROR)
+						ex.u.cat.ptrs[ci + i]);
+					if (pe.type === PER_ERROR)
 						return pe;
 					p[i] = pe.u.vlc;
 				}
-				op_cat(prg->ops, ci > 0 ? t : intoVlc, len);
+				op_cat(prg.ops, ci > 0 ? t : intoVlc, len);
 				for (int i = 0; i < len; i++){
 					symtbl_clearTemp(sym, p[i]);
-					op_arg(prg->ops, p[i]);
+					op_arg(prg.ops, p[i]);
 				}
 				if (ci > 0){
-					op_cat(prg->ops, intoVlc, 2);
-					op_arg(prg->ops, intoVlc);
-					op_arg(prg->ops, t);
+					op_cat(prg.ops, intoVlc, 2);
+					op_arg(prg.ops, intoVlc);
+					op_arg(prg.ops, t);
 				}
 			}
 			if (!varloc_isnull(t))
 				symtbl_clearTemp(sym, t);
-			if (mode == PEM_EMPTY){
+			if (mode === PEM_EMPTY){
 				symtbl_clearTemp(sym, intoVlc);
 				return per_ok(VARLOC_NULL);
 			}
@@ -7318,21 +7300,21 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 		} break;
 
 		case EXPR_PREFIX: {
-			op_enum unop = ks_toUnaryOp(ex->u.prefix.k);
-			if (unop == OP_INVALID)
-				return per_error(ex->flp, format("Invalid unary operator"));
-			per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex->u.prefix.ex);
-			if (pe.type == PER_ERROR)
+			op_enum unop = ks_toUnaryOp(ex.u.prefix.k);
+			if (unop === OP_INVALID)
+				return per_error(ex.flp, format("Invalid unary operator"));
+			per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex.u.prefix.ex);
+			if (pe.type === PER_ERROR)
 				return pe;
-			if (mode == PEM_EMPTY || mode == PEM_CREATE){
+			if (mode === PEM_EMPTY || mode === PEM_CREATE){
 				sta_st ts = symtbl_addTemp(sym);
-				if (ts.type == STA_ERROR)
-					return per_error(ex->flp, ts.u.msg);
+				if (ts.type === STA_ERROR)
+					return per_error(ex.flp, ts.u.msg);
 				intoVlc = ts.u.vlc;
 			}
-			op_unop(prg->ops, unop, intoVlc, pe.u.vlc);
+			op_unop(prg.ops, unop, intoVlc, pe.u.vlc);
 			symtbl_clearTemp(sym, pe.u.vlc);
-			if (mode == PEM_EMPTY){
+			if (mode === PEM_EMPTY){
 				symtbl_clearTemp(sym, intoVlc);
 				return per_ok(VARLOC_NULL);
 			}
@@ -7340,61 +7322,61 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 		} break;
 
 		case EXPR_INFIX: {
-			op_enum mutop = ks_toMutateOp(ex->u.infix.k);
-			if (ex->u.infix.k == KS_EQU || ex->u.infix.k == KS_AMP2EQU ||
-				ex->u.infix.k == KS_PIPE2EQU || mutop != OP_INVALID){
-				lvp_st lp = lval_prepare(pgen, ex->u.infix.left);
-				if (lp.type == LVP_ERROR)
+			op_enum mutop = ks_toMutateOp(ex.u.infix.k);
+			if (ex.u.infix.k === ks_enum.EQU || ex.u.infix.k === ks_enum.AMP2EQU ||
+				ex.u.infix.k === ks_enum.PIPE2EQU || mutop !== OP_INVALID){
+				lvp_st lp = lval_prepare(pgen, ex.u.infix.left);
+				if (lp.type === LVP_ERROR)
 					return per_error(lp.u.error.flp, lp.u.error.msg);
 
-				if (ex->u.infix.k == KS_AMP2EQU || ex->u.infix.k == KS_PIPE2EQU){
+				if (ex.u.infix.k === ks_enum.AMP2EQU || ex.u.infix.k === ks_enum.PIPE2EQU){
 					label skip = label_newstr("condsetskip");
 
-					per_st pe = program_lvalCheckNil(pgen, lp.u.lv, ex->u.infix.k == KS_AMP2EQU,
+					per_st pe = program_lvalCheckNil(pgen, lp.u.lv, ex.u.infix.k === ks_enum.AMP2EQU,
 						false, skip);
-					if (pe.type == PER_ERROR){
+					if (pe.type === PER_ERROR){
 						lvr_free(lp.u.lv);
 						label_free(skip);
 						return pe;
 					}
 
-					pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex->u.infix.right);
-					if (pe.type == PER_ERROR){
+					pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex.u.infix.right);
+					if (pe.type === PER_ERROR){
 						lvr_free(lp.u.lv);
 						label_free(skip);
 						return pe;
 					}
 
-					pe = program_lvalCondAssign(pgen, lp.u.lv, ex->u.infix.k == KS_AMP2EQU,
+					pe = program_lvalCondAssign(pgen, lp.u.lv, ex.u.infix.k === ks_enum.AMP2EQU,
 						pe.u.vlc);
-					if (pe.type == PER_ERROR){
+					if (pe.type === PER_ERROR){
 						lvr_free(lp.u.lv);
 						label_free(skip);
 						return pe;
 					}
 
-					if (mode == PEM_EMPTY){
-						label_declare(skip, prg->ops);
+					if (mode === PEM_EMPTY){
+						label_declare(skip, prg.ops);
 						lval_clearTemps(lp.u.lv, sym);
 						lvr_free(lp.u.lv);
 						label_free(skip);
 						return per_ok(VARLOC_NULL);
 					}
 
-					label_declare(skip, prg->ops);
+					label_declare(skip, prg.ops);
 
-					if (mode == PEM_CREATE){
+					if (mode === PEM_CREATE){
 						sta_st ts = symtbl_addTemp(sym);
-						if (ts.type == STA_ERROR){
+						if (ts.type === STA_ERROR){
 							lvr_free(lp.u.lv);
 							label_free(skip);
-							return per_error(ex->flp, ts.u.msg);
+							return per_error(ex.flp, ts.u.msg);
 						}
 						intoVlc = ts.u.vlc;
 					}
 
 					per_st ple = program_lvalGet(pgen, PLM_INTO, intoVlc, lp.u.lv);
-					if (ple.type == PER_ERROR){
+					if (ple.type === PER_ERROR){
 						lvr_free(lp.u.lv);
 						label_free(skip);
 						return ple;
@@ -7407,31 +7389,31 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 				}
 
 				// special handling for basic variable assignment to avoid a temporary
-				if (ex->u.infix.k == KS_EQU && lp.u.lv->type == LVR_VAR){
-					per_st pe = program_eval(pgen, PEM_INTO, lp.u.lv->vlc, ex->u.infix.right);
-					if (pe.type == PER_ERROR){
+				if (ex.u.infix.k === ks_enum.EQU && lp.u.lv.type === LVR_VAR){
+					per_st pe = program_eval(pgen, PEM_INTO, lp.u.lv.vlc, ex.u.infix.right);
+					if (pe.type === PER_ERROR){
 						lvr_free(lp.u.lv);
 						return pe;
 					}
-					if (mode == PEM_EMPTY){
+					if (mode === PEM_EMPTY){
 						lvr_free(lp.u.lv);
 						return per_ok(VARLOC_NULL);
 					}
-					else if (mode == PEM_CREATE){
+					else if (mode === PEM_CREATE){
 						sta_st ts = symtbl_addTemp(sym);
-						if (ts.type == STA_ERROR){
+						if (ts.type === STA_ERROR){
 							lvr_free(lp.u.lv);
-							return per_error(ex->flp, ts.u.msg);
+							return per_error(ex.flp, ts.u.msg);
 						}
 						intoVlc = ts.u.vlc;
 					}
-					op_move(prg->ops, intoVlc, lp.u.lv->vlc);
+					op_move(prg.ops, intoVlc, lp.u.lv.vlc);
 					lvr_free(lp.u.lv);
 					return per_ok(intoVlc);
 				}
 
-				per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex->u.infix.right);
-				if (pe.type == PER_ERROR){
+				per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex.u.infix.right);
+				if (pe.type === PER_ERROR){
 					lvr_free(lp.u.lv);
 					return pe;
 				}
@@ -7440,55 +7422,55 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 				return pe;
 			}
 
-			if (mode == PEM_EMPTY || mode == PEM_CREATE){
+			if (mode === PEM_EMPTY || mode === PEM_CREATE){
 				sta_st ts = symtbl_addTemp(sym);
-				if (ts.type == STA_ERROR)
-					return per_error(ex->flp, ts.u.msg);
+				if (ts.type === STA_ERROR)
+					return per_error(ex.flp, ts.u.msg);
 				intoVlc = ts.u.vlc;
 			}
 
-			op_enum binop = ks_toBinaryOp(ex->u.infix.k);
-			if (binop != OP_INVALID){
-				per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex->u.infix.left);
-				if (pe.type == PER_ERROR)
+			op_enum binop = ks_toBinaryOp(ex.u.infix.k);
+			if (binop !== OP_INVALID){
+				per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex.u.infix.left);
+				if (pe.type === PER_ERROR)
 					return pe;
 				varloc_st left = pe.u.vlc;
-				pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex->u.infix.right);
-				if (pe.type == PER_ERROR)
+				pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex.u.infix.right);
+				if (pe.type === PER_ERROR)
 					return pe;
-				program_flp(prg, ex->flp);
-				op_binop(prg->ops, binop, intoVlc, left, pe.u.vlc);
+				program_flp(prg, ex.flp);
+				op_binop(prg.ops, binop, intoVlc, left, pe.u.vlc);
 				symtbl_clearTemp(sym, left);
 				symtbl_clearTemp(sym, pe.u.vlc);
 			}
-			else if (ex->u.infix.k == KS_AMP2 || ex->u.infix.k == KS_PIPE2){
-				per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex->u.infix.left);
-				if (pe.type == PER_ERROR)
+			else if (ex.u.infix.k === ks_enum.AMP2 || ex.u.infix.k === ks_enum.PIPE2){
+				per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex.u.infix.left);
+				if (pe.type === PER_ERROR)
 					return pe;
 				varloc_st left = pe.u.vlc;
 				label useleft = label_newstr("useleft");
-				if (ex->u.infix.k == KS_AMP2)
-					label_jumpfalse(useleft, prg->ops, left);
+				if (ex.u.infix.k === ks_enum.AMP2)
+					label_jumpfalse(useleft, prg.ops, left);
 				else
-					label_jumptrue(useleft, prg->ops, left);
-				pe = program_eval(pgen, PEM_INTO, intoVlc, ex->u.infix.right);
-				if (pe.type == PER_ERROR){
+					label_jumptrue(useleft, prg.ops, left);
+				pe = program_eval(pgen, PEM_INTO, intoVlc, ex.u.infix.right);
+				if (pe.type === PER_ERROR){
 					label_free(useleft);
 					return pe;
 				}
 				label finish = label_newstr("finish");
-				label_jump(finish, prg->ops);
-				label_declare(useleft, prg->ops);
-				op_move(prg->ops, intoVlc, left);
-				label_declare(finish, prg->ops);
+				label_jump(finish, prg.ops);
+				label_declare(useleft, prg.ops);
+				op_move(prg.ops, intoVlc, left);
+				label_declare(finish, prg.ops);
 				symtbl_clearTemp(sym, left);
 				label_free(useleft);
 				label_free(finish);
 			}
 			else
-				return per_error(ex->flp, format("Invalid operation"));
+				return per_error(ex.flp, format("Invalid operation"));
 
-			if (mode == PEM_EMPTY){
+			if (mode === PEM_EMPTY){
 				symtbl_clearTemp(sym, intoVlc);
 				return per_ok(VARLOC_NULL);
 			}
@@ -7496,69 +7478,69 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 		} break;
 
 		case EXPR_CALL: {
-			if (ex->u.call.cmd->type != EXPR_NAMES)
-				return per_error(ex->flp, format("Invalid call"));
-			stl_st sl = symtbl_lookup(sym, ex->u.call.cmd->u.names);
-			if (sl.type == STL_ERROR)
-				return per_error(ex->flp, sl.u.msg);
-			return program_evalCall(pgen, mode, intoVlc, ex->flp, sl.u.nsn, ex->u.call.params);
+			if (ex.u.call.cmd.type !== EXPR_NAMES)
+				return per_error(ex.flp, format("Invalid call"));
+			stl_st sl = symtbl_lookup(sym, ex.u.call.cmd.u.names);
+			if (sl.type === STL_ERROR)
+				return per_error(ex.flp, sl.u.msg);
+			return program_evalCall(pgen, mode, intoVlc, ex.flp, sl.u.nsn, ex.u.call.params);
 		} break;
 
 		case EXPR_INDEX: {
-			if (mode == PEM_EMPTY){
-				per_st pe = program_eval(pgen, PEM_EMPTY, VARLOC_NULL, ex->u.index.obj);
-				if (pe.type == PER_ERROR)
+			if (mode === PEM_EMPTY){
+				per_st pe = program_eval(pgen, PEM_EMPTY, VARLOC_NULL, ex.u.index.obj);
+				if (pe.type === PER_ERROR)
 					return pe;
-				pe = program_eval(pgen, PEM_EMPTY, VARLOC_NULL, ex->u.index.key);
-				if (pe.type == PER_ERROR)
+				pe = program_eval(pgen, PEM_EMPTY, VARLOC_NULL, ex.u.index.key);
+				if (pe.type === PER_ERROR)
 					return pe;
 				return per_ok(VARLOC_NULL);
 			}
-			else if (mode == PEM_CREATE){
+			else if (mode === PEM_CREATE){
 				sta_st ts = symtbl_addTemp(sym);
-				if (ts.type == STA_ERROR)
-					return per_error(ex->flp, ts.u.msg);
+				if (ts.type === STA_ERROR)
+					return per_error(ex.flp, ts.u.msg);
 				intoVlc = ts.u.vlc;
 			}
 
-			per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex->u.index.obj);
-			if (pe.type == PER_ERROR)
+			per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex.u.index.obj);
+			if (pe.type === PER_ERROR)
 				return pe;
 			varloc_st obj = pe.u.vlc;
 
-			pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex->u.index.key);
-			if (pe.type == PER_ERROR)
+			pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex.u.index.key);
+			if (pe.type === PER_ERROR)
 				return pe;
 			varloc_st key = pe.u.vlc;
 
-			op_getat(prg->ops, intoVlc, obj, key);
+			op_getat(prg.ops, intoVlc, obj, key);
 			symtbl_clearTemp(sym, obj);
 			symtbl_clearTemp(sym, key);
 			return per_ok(intoVlc);
 		} break;
 
 		case EXPR_SLICE: {
-			if (mode == PEM_EMPTY || mode == PEM_CREATE){
+			if (mode === PEM_EMPTY || mode === PEM_CREATE){
 				sta_st ts = symtbl_addTemp(sym);
-				if (ts.type == STA_ERROR)
-					return per_error(ex->flp, ts.u.msg);
+				if (ts.type === STA_ERROR)
+					return per_error(ex.flp, ts.u.msg);
 				intoVlc = ts.u.vlc;
 			}
 
-			per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex->u.slice.obj);
-			if (pe.type == PER_ERROR)
+			per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex.u.slice.obj);
+			if (pe.type === PER_ERROR)
 				return pe;
 			varloc_st obj = pe.u.vlc;
 
 			psr_st sr = program_slice(pgen, ex);
-			if (sr.type == PSR_ERROR)
+			if (sr.type === PSR_ERROR)
 				return per_error(sr.u.error.flp, sr.u.error.msg);
 
-			op_slice(prg->ops, intoVlc, obj, sr.u.ok.start, sr.u.ok.len);
+			op_slice(prg.ops, intoVlc, obj, sr.u.ok.start, sr.u.ok.len);
 			symtbl_clearTemp(sym, obj);
 			symtbl_clearTemp(sym, sr.u.ok.start);
 			symtbl_clearTemp(sym, sr.u.ok.len);
-			if (mode == PEM_EMPTY){
+			if (mode === PEM_EMPTY){
 				symtbl_clearTemp(sym, intoVlc);
 				return per_ok(VARLOC_NULL);
 			}
@@ -7570,37 +7552,37 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 }
 
 static pen_st program_exprToNum(pgen_st pgen, expr ex){
-	if (ex->type == EXPR_NUM)
-		return pen_ok(ex->u.num);
-	else if (ex->type == EXPR_NAMES){
-		stl_st sl = symtbl_lookup(pgen.sym, ex->u.names);
-		if (sl.type == STL_ERROR)
+	if (ex.type === EXPR_NUM)
+		return pen_ok(ex.u.num);
+	else if (ex.type === EXPR_NAMES){
+		stl_st sl = symtbl_lookup(pgen.sym, ex.u.names);
+		if (sl.type === STL_ERROR)
 			return pen_err(sl.u.msg);
-		if (sl.u.nsn->type == NSN_ENUM)
-			return pen_ok(sl.u.nsn->u.val);
+		if (sl.u.nsn.type === NSN_ENUM)
+			return pen_ok(sl.u.nsn.u.val);
 	}
-	else if (ex->type == EXPR_PAREN)
-		return program_exprToNum(pgen, ex->u.ex);
-	else if (ex->type == EXPR_PREFIX){
-		pen_st n = program_exprToNum(pgen, ex->u.prefix.ex);
-		if (n.success && ks_toUnaryOp(ex->u.prefix.k) == OP_NUM_NEG)
+	else if (ex.type === EXPR_PAREN)
+		return program_exprToNum(pgen, ex.u.ex);
+	else if (ex.type === EXPR_PREFIX){
+		pen_st n = program_exprToNum(pgen, ex.u.prefix.ex);
+		if (n.success && ks_toUnaryOp(ex.u.prefix.k) === OP_NUM_NEG)
 			return pen_ok(-n.u.value);
 		return n;
 	}
-	else if (ex->type == EXPR_INFIX){
-		pen_st n1 = program_exprToNum(pgen, ex->u.infix.left);
+	else if (ex.type === EXPR_INFIX){
+		pen_st n1 = program_exprToNum(pgen, ex.u.infix.left);
 		if (!n1.success)
 			return n1;
-		pen_st n2 = program_exprToNum(pgen, ex->u.infix.right);
+		pen_st n2 = program_exprToNum(pgen, ex.u.infix.right);
 		if (!n2.success)
 			return n2;
-		op_enum binop = ks_toBinaryOp(ex->u.infix.k);
-		if      (binop == OP_NUM_ADD) return pen_ok(n1.u.value + n2.u.value);
-		else if (binop == OP_NUM_SUB) return pen_ok(n1.u.value - n2.u.value);
-		else if (binop == OP_NUM_MOD) return pen_ok(fmod(n1.u.value, n2.u.value));
-		else if (binop == OP_NUM_MUL) return pen_ok(n1.u.value * n2.u.value);
-		else if (binop == OP_NUM_DIV) return pen_ok(n1.u.value / n2.u.value);
-		else if (binop == OP_NUM_POW) return pen_ok(pow(n1.u.value, n2.u.value));
+		op_enum binop = ks_toBinaryOp(ex.u.infix.k);
+		if      (binop === OP_NUM_ADD) return pen_ok(n1.u.value + n2.u.value);
+		else if (binop === OP_NUM_SUB) return pen_ok(n1.u.value - n2.u.value);
+		else if (binop === OP_NUM_MOD) return pen_ok(fmod(n1.u.value, n2.u.value));
+		else if (binop === OP_NUM_MUL) return pen_ok(n1.u.value * n2.u.value);
+		else if (binop === OP_NUM_DIV) return pen_ok(n1.u.value / n2.u.value);
+		else if (binop === OP_NUM_POW) return pen_ok(pow(n1.u.value, n2.u.value));
 	}
 	return pen_err(format("Enums must be a constant number"));
 }
@@ -7611,15 +7593,15 @@ typedef struct {
 } pgst_st, *pgst;
 
 static inline void pgst_free(pgst pgs){
-	if (pgs->f_free)
-		pgs->f_free(pgs->state);
+	if (pgs.f_free)
+		pgs.f_free(pgs.state);
 	mem_free(pgs);
 }
 
 static inline pgst pgst_new(void *state, sink_free_f f_free){
 	pgst pgs = mem_alloc(sizeof(pgst_st));
-	pgs->state = state;
-	pgs->f_free = f_free;
+	pgs.state = state;
+	pgs.f_free = f_free;
 	return pgs;
 }
 
@@ -7676,18 +7658,18 @@ typedef struct {
 } pgs_dowhile_st, *pgs_dowhile;
 
 static inline void pgs_dowhile_free(pgs_dowhile pst){
-	if (pst->top)
-		label_free(pst->top);
-	label_free(pst->cond);
-	label_free(pst->finish);
+	if (pst.top)
+		label_free(pst.top);
+	label_free(pst.cond);
+	label_free(pst.finish);
 	mem_free(pst);
 }
 
 static inline pgs_dowhile pgs_dowhile_new(label top, label cond, label finish){
 	pgs_dowhile pst = mem_alloc(sizeof(pgs_dowhile_st));
-	pst->top = top;
-	pst->cond = cond;
-	pst->finish = finish;
+	pst.top = top;
+	pst.cond = cond;
+	pst.finish = finish;
 	return pst;
 }
 
@@ -7704,24 +7686,24 @@ typedef struct {
 } pgs_for_st, *pgs_for;
 
 static inline void pgs_for_free(pgs_for pst){
-	label_free(pst->top);
-	label_free(pst->inc);
-	label_free(pst->finish);
+	label_free(pst.top);
+	label_free(pst.inc);
+	label_free(pst.finish);
 	mem_free(pst);
 }
 
 static inline pgs_for pgs_for_new(varloc_st t1, varloc_st t2, varloc_st t3, varloc_st t4,
 	varloc_st val_vlc, varloc_st idx_vlc, label top, label inc, label finish){
 	pgs_for pst = mem_alloc(sizeof(pgs_for_st));
-	pst->t1 = t1;
-	pst->t2 = t2;
-	pst->t3 = t3;
-	pst->t4 = t4;
-	pst->val_vlc = val_vlc;
-	pst->idx_vlc = idx_vlc;
-	pst->top = top;
-	pst->inc = inc;
-	pst->finish = finish;
+	pst.t1 = t1;
+	pst.t2 = t2;
+	pst.t3 = t3;
+	pst.t4 = t4;
+	pst.val_vlc = val_vlc;
+	pst.idx_vlc = idx_vlc;
+	pst.top = top;
+	pst.inc = inc;
+	pst.finish = finish;
 	return pst;
 }
 
@@ -7731,15 +7713,15 @@ typedef struct {
 } pgs_loop_st, *pgs_loop;
 
 static inline void pgs_loop_free(pgs_loop pst){
-	label_free(pst->lcont);
-	label_free(pst->lbrk);
+	label_free(pst.lcont);
+	label_free(pst.lbrk);
 	mem_free(pst);
 }
 
 static inline pgs_loop pgs_loop_new(label lcont, label lbrk){
 	pgs_loop pst = mem_alloc(sizeof(pgs_loop_st));
-	pst->lcont = lcont;
-	pst->lbrk = lbrk;
+	pst.lcont = lcont;
+	pst.lbrk = lbrk;
 	return pst;
 }
 
@@ -7749,16 +7731,16 @@ typedef struct {
 } pgs_if_st, *pgs_if;
 
 static inline void pgs_if_free(pgs_if pst){
-	if (pst->nextcond)
-		label_free(pst->nextcond);
-	label_free(pst->ifdone);
+	if (pst.nextcond)
+		label_free(pst.nextcond);
+	label_free(pst.ifdone);
 	mem_free(pst);
 }
 
 static inline pgs_if pgs_if_new(label nextcond, label ifdone){
 	pgs_if pst = mem_alloc(sizeof(pgs_if_st));
-	pst->nextcond = nextcond;
-	pst->ifdone = ifdone;
+	pst.nextcond = nextcond;
+	pst.ifdone = ifdone;
 	return pst;
 }
 
@@ -7768,24 +7750,24 @@ typedef struct {
 } pfvs_res_st;
 
 static inline pfvs_res_st program_forVarsSingle(symtbl sym, bool forVar, list_ptr names){
-	if (names == NULL || forVar){
-		sta_st ts = names == NULL ? symtbl_addTemp(sym) : symtbl_addVar(sym, names, -1);
-		if (ts.type == STA_ERROR)
+	if (names === NULL || forVar){
+		sta_st ts = names === NULL ? symtbl_addTemp(sym) : symtbl_addVar(sym, names, -1);
+		if (ts.type === STA_ERROR)
 			return (pfvs_res_st){ .vlc = VARLOC_NULL, .err = ts.u.msg };
 		return (pfvs_res_st){ .vlc = ts.u.vlc, .err = NULL };
 	}
 	else{
 		stl_st sl = symtbl_lookup(sym, names);
-		if (sl.type == STL_ERROR)
+		if (sl.type === STL_ERROR)
 			return (pfvs_res_st){ .vlc = VARLOC_NULL, .err = sl.u.msg };
-		if (sl.u.nsn->type != NSN_VAR){
+		if (sl.u.nsn.type !== NSN_VAR){
 			return (pfvs_res_st){
 				.vlc = VARLOC_NULL,
 				.err = format("Cannot use non-variable in for loop")
 			};
 		}
 		return (pfvs_res_st){
-			.vlc = varloc_new(sl.u.nsn->u.var.fr->level, sl.u.nsn->u.var.index),
+			.vlc = varloc_new(sl.u.nsn.u.var.fr.level, sl.u.nsn.u.var.index),
 			.err = NULL
 		};
 	}
@@ -7793,14 +7775,14 @@ static inline pfvs_res_st program_forVarsSingle(symtbl sym, bool forVar, list_pt
 
 static pgr_st program_forVars(symtbl sym, ast stmt){
 	pfvs_res_st pf1 = { .vlc = VARLOC_NULL };
-	if (stmt->u.for1.names1 != NULL){
-		pf1 = program_forVarsSingle(sym, stmt->u.for1.forVar, stmt->u.for1.names1);
+	if (stmt.u.for1.names1 !== NULL){
+		pf1 = program_forVarsSingle(sym, stmt.u.for1.forVar, stmt.u.for1.names1);
 		if (pf1.err)
-			return pgr_error(stmt->flp, pf1.err);
+			return pgr_error(stmt.flp, pf1.err);
 	}
-	pfvs_res_st pf2 = program_forVarsSingle(sym, stmt->u.for1.forVar, stmt->u.for1.names2);
+	pfvs_res_st pf2 = program_forVarsSingle(sym, stmt.u.for1.forVar, stmt.u.for1.names2);
 	if (pf2.err)
-		return pgr_error(stmt->flp, pf2.err);
+		return pgr_error(stmt.flp, pf2.err);
 	return pgr_forvars(pf1.vlc, pf2.vlc);
 }
 
@@ -7812,62 +7794,62 @@ static pgr_st program_genForRange(pgen_st pgen, ast stmt, varloc_st p1, varloc_s
 		zerostart = true;
 		p2 = p1;
 		sta_st ts = symtbl_addTemp(sym);
-		if (ts.type == STA_ERROR)
-			return pgr_error(stmt->flp, ts.u.msg);
+		if (ts.type === STA_ERROR)
+			return pgr_error(stmt.flp, ts.u.msg);
 		p1 = ts.u.vlc;
-		op_numint(prg->ops, p1, 0);
+		op_numint(prg.ops, p1, 0);
 	}
 
 	symtbl_pushScope(sym);
 	pgr_st pgi = program_forVars(sym, stmt);
-	if (pgi.type != PGR_FORVARS)
+	if (pgi.type !== PGR_FORVARS)
 		return pgi;
 	varloc_st val_vlc = pgi.u.forvars.val_vlc;
 	varloc_st idx_vlc = pgi.u.forvars.idx_vlc;
 
 	// clear the index
-	op_numint(prg->ops, idx_vlc, 0);
+	op_numint(prg.ops, idx_vlc, 0);
 
 	// calculate count
 	if (!zerostart)
-		op_binop(prg->ops, OP_NUM_SUB, p2, p2, p1);
+		op_binop(prg.ops, OP_NUM_SUB, p2, p2, p1);
 	if (!varloc_isnull(p3))
-		op_binop(prg->ops, OP_NUM_DIV, p2, p2, p3);
+		op_binop(prg.ops, OP_NUM_DIV, p2, p2, p3);
 
 	label top    = label_newstr("forR_top");
 	label inc    = label_newstr("forR_inc");
 	label finish = label_newstr("forR_finish");
 
 	sta_st ts = symtbl_addTemp(sym);
-	if (ts.type == STA_ERROR){
+	if (ts.type === STA_ERROR){
 		label_free(top);
 		label_free(inc);
 		label_free(finish);
-		return pgr_error(stmt->flp, ts.u.msg);
+		return pgr_error(stmt.flp, ts.u.msg);
 	}
 	varloc_st t = ts.u.vlc;
 
-	label_declare(top, prg->ops);
+	label_declare(top, prg.ops);
 
-	op_binop(prg->ops, OP_LT, t, idx_vlc, p2);
-	label_jumpfalse(finish, prg->ops, t);
+	op_binop(prg.ops, OP_LT, t, idx_vlc, p2);
+	label_jumpfalse(finish, prg.ops, t);
 
 	if (!varloc_isnull(val_vlc)){
 		if (varloc_isnull(p3)){
 			if (!zerostart)
-				op_binop(prg->ops, OP_NUM_ADD, val_vlc, p1, idx_vlc);
+				op_binop(prg.ops, OP_NUM_ADD, val_vlc, p1, idx_vlc);
 			else
-				op_move(prg->ops, val_vlc, idx_vlc);
+				op_move(prg.ops, val_vlc, idx_vlc);
 		}
 		else{
-			op_binop(prg->ops, OP_NUM_MUL, val_vlc, idx_vlc, p3);
+			op_binop(prg.ops, OP_NUM_MUL, val_vlc, idx_vlc, p3);
 			if (!zerostart)
-				op_binop(prg->ops, OP_NUM_ADD, val_vlc, p1, val_vlc);
+				op_binop(prg.ops, OP_NUM_ADD, val_vlc, p1, val_vlc);
 		}
 	}
 
-	sym->sc->lblBreak = finish;
-	sym->sc->lblContinue = inc;
+	sym.sc.lblBreak = finish;
+	sym.sc.lblContinue = inc;
 
 	return pgr_push(pgs_for_new(p1, p2, p3, t, val_vlc, idx_vlc, top, inc, finish),
 		(sink_free_f)pgs_for_free);
@@ -7876,8 +7858,8 @@ static pgr_st program_genForRange(pgen_st pgen, ast stmt, varloc_st p1, varloc_s
 static pgr_st program_genForGeneric(pgen_st pgen, ast stmt){
 	program prg = pgen.prg;
 	symtbl sym = pgen.sym;
-	per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, stmt->u.for1.ex);
-	if (pe.type == PER_ERROR)
+	per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, stmt.u.for1.ex);
+	if (pe.type === PER_ERROR)
 		return pgr_error(pe.u.error.flp, pe.u.error.msg);
 
 	symtbl_pushScope(sym);
@@ -7885,37 +7867,37 @@ static pgr_st program_genForGeneric(pgen_st pgen, ast stmt){
 	varloc_st exp_vlc = pe.u.vlc;
 
 	pgr_st pgi = program_forVars(sym, stmt);
-	if (pgi.type != PGR_FORVARS)
+	if (pgi.type !== PGR_FORVARS)
 		return pgi;
 	varloc_st val_vlc = pgi.u.forvars.val_vlc;
 	varloc_st idx_vlc = pgi.u.forvars.idx_vlc;
 
 	// clear the index
-	op_numint(prg->ops, idx_vlc, 0);
+	op_numint(prg.ops, idx_vlc, 0);
 
 	label top    = label_newstr("forG_top");
 	label inc    = label_newstr("forG_inc");
 	label finish = label_newstr("forG_finish");
 
 	sta_st ts = symtbl_addTemp(sym);
-	if (ts.type == STA_ERROR){
+	if (ts.type === STA_ERROR){
 		label_free(top);
 		label_free(inc);
 		label_free(finish);
-		return pgr_error(stmt->flp, ts.u.msg);
+		return pgr_error(stmt.flp, ts.u.msg);
 	}
 	varloc_st t = ts.u.vlc;
 
-	label_declare(top, prg->ops);
+	label_declare(top, prg.ops);
 
-	op_unop(prg->ops, OP_SIZE, t, exp_vlc);
-	op_binop(prg->ops, OP_LT, t, idx_vlc, t);
-	label_jumpfalse(finish, prg->ops, t);
+	op_unop(prg.ops, OP_SIZE, t, exp_vlc);
+	op_binop(prg.ops, OP_LT, t, idx_vlc, t);
+	label_jumpfalse(finish, prg.ops, t);
 
 	if (!varloc_isnull(val_vlc))
-		op_getat(prg->ops, val_vlc, exp_vlc, idx_vlc);
-	sym->sc->lblBreak = finish;
-	sym->sc->lblContinue = inc;
+		op_getat(prg.ops, val_vlc, exp_vlc, idx_vlc);
+	sym.sc.lblBreak = finish;
+	sym.sc.lblContinue = inc;
 
 	return pgr_push(
 		pgs_for_new(t, exp_vlc, VARLOC_NULL, VARLOC_NULL, val_vlc, idx_vlc, top, inc, finish),
@@ -7925,120 +7907,120 @@ static pgr_st program_genForGeneric(pgen_st pgen, ast stmt){
 static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayexpr){
 	program prg = pgen.prg;
 	symtbl sym = pgen.sym;
-	program_flp(prg, stmt->flp);
-	switch (stmt->type){
+	program_flp(prg, stmt.flp);
+	switch (stmt.type){
 		case AST_BREAK: {
-			if (sym->sc->lblBreak == NULL)
-				return pgr_error(stmt->flp, format("Invalid `break`"));
-			label_jump(sym->sc->lblBreak, prg->ops);
+			if (sym.sc.lblBreak === NULL)
+				return pgr_error(stmt.flp, format("Invalid `break`"));
+			label_jump(sym.sc.lblBreak, prg.ops);
 			return pgr_ok();
 		} break;
 
 		case AST_CONTINUE: {
-			if (sym->sc->lblContinue == NULL)
-				return pgr_error(stmt->flp, format("Invalid `continue`"));
-			label_jump(sym->sc->lblContinue, prg->ops);
+			if (sym.sc.lblContinue === NULL)
+				return pgr_error(stmt.flp, format("Invalid `continue`"));
+			label_jump(sym.sc.lblContinue, prg.ops);
 			return pgr_ok();
 		} break;
 
 		case AST_DECLARE: {
-			decl dc = stmt->u.declare;
-			switch (dc->type){
+			decl dc = stmt.u.declare;
+			switch (dc.type){
 				case DECL_LOCAL: {
 					label lbl = label_newstr("def");
-					list_ptr_push(sym->fr->lbls, lbl);
-					char *smsg = symtbl_addCmdLocal(sym, dc->names, lbl);
+					list_ptr_push(sym.fr.lbls, lbl);
+					char *smsg = symtbl_addCmdLocal(sym, dc.names, lbl);
 					if (smsg)
-						return pgr_error(dc->flp, smsg);
+						return pgr_error(dc.flp, smsg);
 				} break;
 				case DECL_NATIVE: {
-					char *smsg = symtbl_addCmdNative(sym, dc->names,
-						native_hash(dc->key->size, dc->key->bytes));
+					char *smsg = symtbl_addCmdNative(sym, dc.names,
+						native_hash(dc.key.size, dc.key.bytes));
 					if (smsg)
-						return pgr_error(dc->flp, smsg);
+						return pgr_error(dc.flp, smsg);
 				} break;
 			}
 			return pgr_ok();
 		} break;
 
 		case AST_DEF1: {
-			nl_st n = namespace_lookupImmediate(sym->sc->ns, stmt->u.def1.names);
+			nl_st n = namespace_lookupImmediate(sym.sc.ns, stmt.u.def1.names);
 			label lbl;
-			if (n.type == NL_FOUND && n.nsn->type == NSN_CMD_LOCAL){
-				lbl = n.nsn->u.cmdLocal.lbl;
-				if (!sym->repl && lbl->pos >= 0){ // if already defined, error
-					list_byte b = stmt->u.def1.names->ptrs[0];
-					char *join = format("Cannot redefine \"%.*s", b->size, b->bytes);
-					for (int i = 1; i < stmt->u.def1.names->size; i++){
-						b = stmt->u.def1.names->ptrs[i];
-						char *join2 = format("%s.%.*s", join, b->size, b->bytes);
+			if (n.type === NL_FOUND && n.nsn.type === NSN_CMD_LOCAL){
+				lbl = n.nsn.u.cmdLocal.lbl;
+				if (!sym.repl && lbl.pos >= 0){ // if already defined, error
+					list_byte b = stmt.u.def1.names.ptrs[0];
+					char *join = format("Cannot redefine \"%.*s", b.size, b.bytes);
+					for (int i = 1; i < stmt.u.def1.names.size; i++){
+						b = stmt.u.def1.names.ptrs[i];
+						char *join2 = format("%s.%.*s", join, b.size, b.bytes);
 						mem_free(join);
 						join = join2;
 					}
 					char *join2 = format("%s\"", join);
 					mem_free(join);
-					return pgr_error(stmt->u.def1.flpN, join2);
+					return pgr_error(stmt.u.def1.flpN, join2);
 				}
 			}
 			else{
 				lbl = label_newstr("def");
-				list_ptr_push(sym->fr->lbls, lbl);
-				char *smsg = symtbl_addCmdLocal(sym, stmt->u.def1.names, lbl);
+				list_ptr_push(sym.fr.lbls, lbl);
+				char *smsg = symtbl_addCmdLocal(sym, stmt.u.def1.names, lbl);
 				if (smsg)
-					return pgr_error(stmt->u.def1.flpN, smsg);
+					return pgr_error(stmt.u.def1.flpN, smsg);
 			}
 
-			int level = sym->fr->level + 1;
+			int level = sym.fr.level + 1;
 			if (level > 255)
-				return pgr_error(stmt->flp, format("Too many nested commands"));
+				return pgr_error(stmt.flp, format("Too many nested commands"));
 			int rest = 0xFF;
-			int lvs = stmt->u.def1.lvalues->size;
+			int lvs = stmt.u.def1.lvalues.size;
 			if (lvs > 255)
-				return pgr_error(stmt->flp, format("Too many parameters"));
+				return pgr_error(stmt.flp, format("Too many parameters"));
 			if (lvs > 0){
-				expr last_ex = stmt->u.def1.lvalues->ptrs[lvs - 1];
+				expr last_ex = stmt.u.def1.lvalues.ptrs[lvs - 1];
 				// is the last expression a `...rest`?
-				if (last_ex->type == EXPR_PREFIX && last_ex->u.prefix.k == KS_PERIOD3)
+				if (last_ex.type === EXPR_PREFIX && last_ex.u.prefix.k === ks_enum.PERIOD3)
 					rest = lvs - 1;
 			}
 
 			label skip = label_newstr("after_def");
-			label_jump(skip, prg->ops);
+			label_jump(skip, prg.ops);
 
-			label_declare(lbl, prg->ops);
+			label_declare(lbl, prg.ops);
 			symtbl_pushFrame(sym);
 
-			program_cmdhint(prg, stmt->u.def1.names);
-			op_cmdhead(prg->ops, level, rest);
+			program_cmdhint(prg, stmt.u.def1.names);
+			op_cmdhead(prg.ops, level, rest);
 
 			// reserve our argument registers as explicit registers 0 to lvs-1
 			symtbl_reserveVars(sym, lvs);
 
 			// initialize our arguments as needed
 			for (int i = 0; i < lvs; i++){
-				expr ex = stmt->u.def1.lvalues->ptrs[i];
-				if (ex->type == EXPR_INFIX){
+				expr ex = stmt.u.def1.lvalues.ptrs[i];
+				if (ex.type === EXPR_INFIX){
 					// the argument is the i-th register
 					varloc_st arg = varloc_new(level, i);
 
 					// check for initialization -- must happen before the symbols are added so that
 					// `def a x = x` binds the seconds `x` to the outer scope
-					if (ex->u.infix.right != NULL){
+					if (ex.u.infix.right !== NULL){
 						label argset = label_newstr("argset");
-						label_jumptrue(argset, prg->ops, arg);
-						per_st pr = program_eval(pgen, PEM_INTO, arg, ex->u.infix.right);
-						if (pr.type == PER_ERROR){
+						label_jumptrue(argset, prg.ops, arg);
+						per_st pr = program_eval(pgen, PEM_INTO, arg, ex.u.infix.right);
+						if (pr.type === PER_ERROR){
 							label_free(skip);
 							label_free(argset);
 							return pgr_error(pr.u.error.flp, pr.u.error.msg);
 						}
-						label_declare(argset, prg->ops);
+						label_declare(argset, prg.ops);
 						label_free(argset);
 					}
 
 					// now we can add the param symbols
-					lvp_st lr = lval_addVars(sym, ex->u.infix.left, i);
-					if (lr.type == LVP_ERROR){
+					lvp_st lr = lval_addVars(sym, ex.u.infix.left, i);
+					if (lr.type === LVP_ERROR){
 						label_free(skip);
 						return pgr_error(lr.u.error.flp, lr.u.error.msg);
 					}
@@ -8047,18 +8029,18 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 					per_st pe = program_evalLval(pgen, PEM_EMPTY, VARLOC_NULL, lr.u.lv,
 						OP_INVALID, arg, true);
 					lvr_free(lr.u.lv);
-					if (pe.type == PER_ERROR){
+					if (pe.type === PER_ERROR){
 						label_free(skip);
 						return pgr_error(pe.u.error.flp, pe.u.error.msg);
 					}
 				}
-				else if (i == lvs - 1 && ex->type == EXPR_PREFIX && ex->u.prefix.k == KS_PERIOD3){
-					lvp_st lr = lval_addVars(sym, ex->u.prefix.ex, i);
-					if (lr.type == LVP_ERROR){
+				else if (i === lvs - 1 && ex.type === EXPR_PREFIX && ex.u.prefix.k === ks_enum.PERIOD3){
+					lvp_st lr = lval_addVars(sym, ex.u.prefix.ex, i);
+					if (lr.type === LVP_ERROR){
 						label_free(skip);
 						return pgr_error(lr.u.error.flp, lr.u.error.msg);
 					}
-					assert(lr.u.lv->type == LVR_VAR);
+					assert(lr.u.lv.type === LVR_VAR);
 					lvr_free(lr.u.lv);
 				}
 				else
@@ -8069,10 +8051,10 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 
 		case AST_DEF2: {
 			program_cmdhint(prg, NULL);
-			op_cmdtail(prg->ops);
+			op_cmdtail(prg.ops);
 			symtbl_popFrame(sym);
 			label skip = state;
-			label_declare(skip, prg->ops);
+			label_declare(skip, prg.ops);
 			return pgr_pop();
 		} break;
 
@@ -8082,31 +8064,31 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 			label finish = label_newstr("dowhile_finish");
 
 			symtbl_pushScope(sym);
-			sym->sc->lblBreak = finish;
-			sym->sc->lblContinue = cond;
+			sym.sc.lblBreak = finish;
+			sym.sc.lblContinue = cond;
 
-			label_declare(top, prg->ops);
+			label_declare(top, prg.ops);
 			return pgr_push(pgs_dowhile_new(top, cond, finish), (sink_free_f)pgs_dowhile_free);
 		} break;
 
 		case AST_DOWHILE2: {
 			pgs_dowhile pst = state;
 
-			label_declare(pst->cond, prg->ops);
-			if (stmt->u.cond){
+			label_declare(pst.cond, prg.ops);
+			if (stmt.u.cond){
 				// do while end
-				per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, stmt->u.cond);
-				if (pe.type == PER_ERROR)
+				per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, stmt.u.cond);
+				if (pe.type === PER_ERROR)
 					return pgr_error(pe.u.error.flp, pe.u.error.msg);
-				label_jumpfalse(pst->finish, prg->ops, pe.u.vlc);
+				label_jumpfalse(pst.finish, prg.ops, pe.u.vlc);
 				symtbl_clearTemp(sym, pe.u.vlc);
-				sym->sc->lblContinue = pst->top;
+				sym.sc.lblContinue = pst.top;
 				return pgr_ok();
 			}
 			else{
 				// do end
-				label_free(pst->top);
-				pst->top = NULL;
+				label_free(pst.top);
+				pst.top = NULL;
 				return pgr_ok();
 			}
 		} break;
@@ -8114,71 +8096,71 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 		case AST_DOWHILE3: {
 			pgs_dowhile pst = state;
 
-			if (pst->top)
-				label_jump(pst->top, prg->ops);
-			label_declare(pst->finish, prg->ops);
+			if (pst.top)
+				label_jump(pst.top, prg.ops);
+			label_declare(pst.finish, prg.ops);
 			symtbl_popScope(sym);
 			return pgr_pop();
 		} break;
 
 		case AST_ENUM: {
 			double last_val = -1;
-			for (int i = 0; i < stmt->u.lvalues->size; i++){
-				expr ex = stmt->u.lvalues->ptrs[i];
-				assert(ex->type == EXPR_INFIX);
+			for (int i = 0; i < stmt.u.lvalues.size; i++){
+				expr ex = stmt.u.lvalues.ptrs[i];
+				assert(ex.type === EXPR_INFIX);
 				double v = last_val + 1;
-				if (ex->u.infix.right != NULL){
-					pen_st n = program_exprToNum(pgen, ex->u.infix.right);
+				if (ex.u.infix.right !== NULL){
+					pen_st n = program_exprToNum(pgen, ex.u.infix.right);
 					if (!n.success)
-						return pgr_error(stmt->flp, n.u.msg);
+						return pgr_error(stmt.flp, n.u.msg);
 					v = n.u.value;
 				}
-				if (ex->u.infix.left->type != EXPR_NAMES){
-					return pgr_error(stmt->flp,
+				if (ex.u.infix.left.type !== EXPR_NAMES){
+					return pgr_error(stmt.flp,
 						format("Enum name must only consist of identifiers"));
 				}
 				last_val = v;
-				char *smsg = symtbl_addEnum(sym, ex->u.infix.left->u.names, v);
+				char *smsg = symtbl_addEnum(sym, ex.u.infix.left.u.names, v);
 				if (smsg)
-					return pgr_error(stmt->flp, smsg);
+					return pgr_error(stmt.flp, smsg);
 			}
 			return pgr_ok();
 		} break;
 
 		case AST_FOR1: {
-			if (stmt->u.for1.ex->type == EXPR_CALL){
-				expr c = stmt->u.for1.ex;
-				if (c->u.call.cmd->type == EXPR_NAMES){
-					expr n = c->u.call.cmd;
-					stl_st sl = symtbl_lookup(sym, n->u.names);
-					if (sl.type == STL_ERROR)
-						return pgr_error(stmt->flp, sl.u.msg);
+			if (stmt.u.for1.ex.type === EXPR_CALL){
+				expr c = stmt.u.for1.ex;
+				if (c.u.call.cmd.type === EXPR_NAMES){
+					expr n = c.u.call.cmd;
+					stl_st sl = symtbl_lookup(sym, n.u.names);
+					if (sl.type === STL_ERROR)
+						return pgr_error(stmt.flp, sl.u.msg);
 					nsname nsn = sl.u.nsn;
-					if (nsn->type == NSN_CMD_OPCODE && nsn->u.cmdOpcode.opcode == OP_RANGE){
-						expr p = c->u.call.params;
+					if (nsn.type === NSN_CMD_OPCODE && nsn.u.cmdOpcode.opcode === OP_RANGE){
+						expr p = c.u.call.params;
 						varloc_st rp[3] = { VARLOC_NULL, VARLOC_NULL, VARLOC_NULL };
-						if (p->type != EXPR_GROUP){
+						if (p.type !== EXPR_GROUP){
 							sta_st ts = symtbl_addTemp(sym);
-							if (ts.type == STA_ERROR)
-								return pgr_error(stmt->flp, ts.u.msg);
+							if (ts.type === STA_ERROR)
+								return pgr_error(stmt.flp, ts.u.msg);
 							rp[0] = ts.u.vlc;
 							per_st pe = program_eval(pgen, PEM_INTO, rp[0], p);
-							if (pe.type == PER_ERROR)
+							if (pe.type === PER_ERROR)
 								return pgr_error(pe.u.error.flp, pe.u.error.msg);
 						}
 						else{
-							for (int i = 0; i < p->u.group->size; i++){
+							for (int i = 0; i < p.u.group.size; i++){
 								if (i < 3){
 									sta_st ts = symtbl_addTemp(sym);
-									if (ts.type == STA_ERROR)
-										return pgr_error(stmt->flp, ts.u.msg);
+									if (ts.type === STA_ERROR)
+										return pgr_error(stmt.flp, ts.u.msg);
 									rp[i] = ts.u.vlc;
 								}
 								per_st pe = program_eval(pgen,
 									i < 3 ? PEM_INTO : PEM_EMPTY,
 									i < 3 ? rp[i] : VARLOC_NULL,
-									p->u.group->ptrs[i]);
-								if (pe.type == PER_ERROR)
+									p.u.group.ptrs[i]);
+								if (pe.type === PER_ERROR)
 									return pgr_error(pe.u.error.flp, pe.u.error.msg);
 							}
 						}
@@ -8192,20 +8174,20 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 		case AST_FOR2: {
 			pgs_for pst = state;
 
-			label_declare(pst->inc, prg->ops);
-			op_inc(prg->ops, pst->idx_vlc);
-			label_jump(pst->top, prg->ops);
+			label_declare(pst.inc, prg.ops);
+			op_inc(prg.ops, pst.idx_vlc);
+			label_jump(pst.top, prg.ops);
 
-			label_declare(pst->finish, prg->ops);
-			symtbl_clearTemp(sym, pst->t1);
-			symtbl_clearTemp(sym, pst->t2);
-			if (!varloc_isnull(pst->t3))
-				symtbl_clearTemp(sym, pst->t3);
-			if (!varloc_isnull(pst->t4))
-				symtbl_clearTemp(sym, pst->t4);
-			if (!varloc_isnull(pst->val_vlc))
-				symtbl_clearTemp(sym, pst->val_vlc);
-			symtbl_clearTemp(sym, pst->idx_vlc);
+			label_declare(pst.finish, prg.ops);
+			symtbl_clearTemp(sym, pst.t1);
+			symtbl_clearTemp(sym, pst.t2);
+			if (!varloc_isnull(pst.t3))
+				symtbl_clearTemp(sym, pst.t3);
+			if (!varloc_isnull(pst.t4))
+				symtbl_clearTemp(sym, pst.t4);
+			if (!varloc_isnull(pst.val_vlc))
+				symtbl_clearTemp(sym, pst.val_vlc);
+			symtbl_clearTemp(sym, pst.idx_vlc);
 			symtbl_popScope(sym);
 			return pgr_pop();
 		} break;
@@ -8214,34 +8196,34 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 			symtbl_pushScope(sym);
 			label lcont = label_newstr("loop_continue");
 			label lbrk = label_newstr("loop_break");
-			sym->sc->lblContinue = lcont;
-			sym->sc->lblBreak = lbrk;
-			label_declare(lcont, prg->ops);
+			sym.sc.lblContinue = lcont;
+			sym.sc.lblBreak = lbrk;
+			label_declare(lcont, prg.ops);
 			return pgr_push(pgs_loop_new(lcont, lbrk), (sink_free_f)pgs_loop_free);
 		} break;
 
 		case AST_LOOP2: {
 			pgs_loop pst = state;
 
-			label_jump(pst->lcont, prg->ops);
-			label_declare(pst->lbrk, prg->ops);
+			label_jump(pst.lcont, prg.ops);
+			label_declare(pst.lbrk, prg.ops);
 			symtbl_popScope(sym);
 			return pgr_pop();
 		} break;
 
 		case AST_GOTO: {
-			for (int i = 0; i < sym->fr->lbls->size; i++){
-				label lbl = sym->fr->lbls->ptrs[i];
-				if (lbl->name && list_byte_equ(lbl->name, stmt->u.ident)){
-					label_jump(lbl, prg->ops);
+			for (int i = 0; i < sym.fr.lbls.size; i++){
+				label lbl = sym.fr.lbls.ptrs[i];
+				if (lbl.name && list_byte_equ(lbl.name, stmt.u.ident)){
+					label_jump(lbl, prg.ops);
 					return pgr_ok();
 				}
 			}
 			// label doesn't exist yet, so we'll need to create it
-			label lbl = label_new(stmt->u.ident);
-			stmt->u.ident = NULL;
-			label_jump(lbl, prg->ops);
-			list_ptr_push(sym->fr->lbls, lbl);
+			label lbl = label_new(stmt.u.ident);
+			stmt.u.ident = NULL;
+			label_jump(lbl, prg.ops);
+			list_ptr_push(sym.fr.lbls, lbl);
 			return pgr_ok();
 		} break;
 
@@ -8252,19 +8234,19 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 		case AST_IF2: {
 			pgs_if pst = state;
 
-			if (pst->nextcond){
+			if (pst.nextcond){
 				symtbl_popScope(sym);
-				label_jump(pst->ifdone, prg->ops);
+				label_jump(pst.ifdone, prg.ops);
 
-				label_declare(pst->nextcond, prg->ops);
-				label_free(pst->nextcond);
+				label_declare(pst.nextcond, prg.ops);
+				label_free(pst.nextcond);
 			}
-			pst->nextcond = label_newstr("nextcond");
-			per_st pr = program_eval(pgen, PEM_CREATE, VARLOC_NULL, stmt->u.cond);
-			if (pr.type == PER_ERROR)
+			pst.nextcond = label_newstr("nextcond");
+			per_st pr = program_eval(pgen, PEM_CREATE, VARLOC_NULL, stmt.u.cond);
+			if (pr.type === PER_ERROR)
 				return pgr_error(pr.u.error.flp, pr.u.error.msg);
 
-			label_jumpfalse(pst->nextcond, prg->ops, pr.u.vlc);
+			label_jumpfalse(pst.nextcond, prg.ops, pr.u.vlc);
 			symtbl_clearTemp(sym, pr.u.vlc);
 
 			symtbl_pushScope(sym);
@@ -8275,9 +8257,9 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 			pgs_if pst = state;
 
 			symtbl_popScope(sym);
-			label_jump(pst->ifdone, prg->ops);
+			label_jump(pst.ifdone, prg.ops);
 
-			label_declare(pst->nextcond, prg->ops);
+			label_declare(pst.nextcond, prg.ops);
 			symtbl_pushScope(sym);
 			return pgr_ok();
 		} break;
@@ -8286,7 +8268,7 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 			pgs_if pst = state;
 
 			symtbl_popScope(sym);
-			label_declare(pst->ifdone, prg->ops);
+			label_declare(pst.ifdone, prg.ops);
 			return pgr_pop();
 		} break;
 
@@ -8295,9 +8277,9 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 		} break;
 
 		case AST_NAMESPACE1: {
-			char *smsg = symtbl_pushNamespace(sym, stmt->u.names);
+			char *smsg = symtbl_pushNamespace(sym, stmt.u.names);
 			if (smsg)
-				return pgr_error(stmt->flp, smsg);
+				return pgr_error(stmt.flp, smsg);
 			return pgr_push(NULL, NULL);
 		} break;
 
@@ -8309,87 +8291,87 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 		case AST_RETURN: {
 			nsname nsn = NULL;
 			expr params = NULL;
-			expr ex = stmt->u.ex;
+			expr ex = stmt.u.ex;
 
 			// check for tail call
-			if (ex->type == EXPR_CALL){
-				if (ex->u.call.cmd->type != EXPR_NAMES)
-					return pgr_error(ex->flp, format("Invalid call"));
-				stl_st sl = symtbl_lookup(sym, ex->u.call.cmd->u.names);
-				if (sl.type == STL_ERROR)
-					return pgr_error(ex->flp, sl.u.msg);
+			if (ex.type === EXPR_CALL){
+				if (ex.u.call.cmd.type !== EXPR_NAMES)
+					return pgr_error(ex.flp, format("Invalid call"));
+				stl_st sl = symtbl_lookup(sym, ex.u.call.cmd.u.names);
+				if (sl.type === STL_ERROR)
+					return pgr_error(ex.flp, sl.u.msg);
 				nsn = sl.u.nsn;
-				params = ex->u.call.params;
+				params = ex.u.call.params;
 			}
-			else if (ex->type == EXPR_NAMES){
-				stl_st sl = symtbl_lookup(sym, ex->u.names);
-				if (sl.type == STL_ERROR)
-					return pgr_error(ex->flp, sl.u.msg);
+			else if (ex.type === EXPR_NAMES){
+				stl_st sl = symtbl_lookup(sym, ex.u.names);
+				if (sl.type === STL_ERROR)
+					return pgr_error(ex.flp, sl.u.msg);
 				nsn = sl.u.nsn;
 			}
 
 			// can only tail call local commands at the same lexical level
-			if (nsn && nsn->type == NSN_CMD_LOCAL &&
-				nsn->u.cmdLocal.fr->level + 1 == sym->fr->level){
+			if (nsn && nsn.type === NSN_CMD_LOCAL &&
+				nsn.u.cmdLocal.fr.level + 1 === sym.fr.level){
 				int argcount;
 				per_st pe;
 				varloc_st p[256];
 				if (!program_evalCallArgcount(pgen, params, &argcount, &pe, p))
 					return pgr_error(pe.u.error.flp, pe.u.error.msg);
-				label_returntail(nsn->u.cmdLocal.lbl, prg->ops, argcount);
+				label_returntail(nsn.u.cmdLocal.lbl, prg.ops, argcount);
 				for (int i = 0; i < argcount; i++){
-					op_arg(prg->ops, p[i]);
+					op_arg(prg.ops, p[i]);
 					symtbl_clearTemp(sym, p[i]);
 				}
 				return pgr_ok();
 			}
 
 			per_st pr = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex);
-			if (pr.type == PER_ERROR)
+			if (pr.type === PER_ERROR)
 				return pgr_error(pr.u.error.flp, pr.u.error.msg);
 			symtbl_clearTemp(sym, pr.u.vlc);
-			op_return(prg->ops, pr.u.vlc);
+			op_return(prg.ops, pr.u.vlc);
 			return pgr_ok();
 		} break;
 
 		case AST_USING: {
-			stl_st sl = symtbl_lookupfast(sym, stmt->u.names);
+			stl_st sl = symtbl_lookupfast(sym, stmt.u.names);
 			namespace ns;
-			if (sl.type == STL_ERROR){ // not found, so create it
+			if (sl.type === STL_ERROR){ // not found, so create it
 				// don't have to free the error message because lookupfast doesn't create one
-				sfn_st sf = symtbl_findNamespace(sym, stmt->u.names, stmt->u.names->size);
-				if (sf.type == SFN_ERROR)
-					return pgr_error(stmt->flp, sf.u.msg);
+				sfn_st sf = symtbl_findNamespace(sym, stmt.u.names, stmt.u.names.size);
+				if (sf.type === SFN_ERROR)
+					return pgr_error(stmt.flp, sf.u.msg);
 				ns = sf.u.ns;
 			}
 			else{
-				if (sl.u.nsn->type != NSN_NAMESPACE)
-					return pgr_error(stmt->flp, format("Expecting namespace"));
-				ns = sl.u.nsn->u.ns;
+				if (sl.u.nsn.type !== NSN_NAMESPACE)
+					return pgr_error(stmt.flp, format("Expecting namespace"));
+				ns = sl.u.nsn.u.ns;
 			}
-			if (!list_ptr_has(sym->sc->ns->usings, ns))
-				list_ptr_push(sym->sc->ns->usings, ns);
+			if (!list_ptr_has(sym.sc.ns.usings, ns))
+				list_ptr_push(sym.sc.ns.usings, ns);
 			return pgr_ok();
 		} break;
 
 		case AST_VAR: {
-			for (int i = 0; i < stmt->u.lvalues->size; i++){
-				expr ex = stmt->u.lvalues->ptrs[i];
-				assert(ex->type == EXPR_INFIX);
+			for (int i = 0; i < stmt.u.lvalues.size; i++){
+				expr ex = stmt.u.lvalues.ptrs[i];
+				assert(ex.type === EXPR_INFIX);
 				per_st pr;
-				if (ex->u.infix.right != NULL){
-					pr = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex->u.infix.right);
-					if (pr.type == PER_ERROR)
+				if (ex.u.infix.right !== NULL){
+					pr = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex.u.infix.right);
+					if (pr.type === PER_ERROR)
 						return pgr_error(pr.u.error.flp, pr.u.error.msg);
 				}
-				lvp_st lr = lval_addVars(sym, ex->u.infix.left, -1);
-				if (lr.type == LVP_ERROR)
+				lvp_st lr = lval_addVars(sym, ex.u.infix.left, -1);
+				if (lr.type === LVP_ERROR)
 					return pgr_error(lr.u.error.flp, lr.u.error.msg);
-				if (ex->u.infix.right != NULL){
+				if (ex.u.infix.right !== NULL){
 					per_st pe = program_evalLval(pgen, PEM_EMPTY, VARLOC_NULL, lr.u.lv,
 						OP_INVALID, pr.u.vlc, true);
 					lvr_free(lr.u.lv);
-					if (pe.type == PER_ERROR)
+					if (pe.type === PER_ERROR)
 						return pgr_error(pe.u.error.flp, pe.u.error.msg);
 					symtbl_clearTemp(sym, pr.u.vlc);
 				}
@@ -8401,20 +8383,20 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 
 		case AST_EVAL: {
 			if (sayexpr){
-				per_st pr = program_eval(pgen, PEM_CREATE, VARLOC_NULL, stmt->u.ex);
-				if (pr.type == PER_ERROR)
+				per_st pr = program_eval(pgen, PEM_CREATE, VARLOC_NULL, stmt.u.ex);
+				if (pr.type === PER_ERROR)
 					return pgr_error(pr.u.error.flp, pr.u.error.msg);
 				sta_st ts = symtbl_addTemp(sym);
-				if (ts.type == STA_ERROR)
-					return pgr_error(stmt->flp, ts.u.msg);
-				op_parama(prg->ops, OP_SAY, ts.u.vlc, 1);
-				op_arg(prg->ops, pr.u.vlc);
+				if (ts.type === STA_ERROR)
+					return pgr_error(stmt.flp, ts.u.msg);
+				op_parama(prg.ops, OP_SAY, ts.u.vlc, 1);
+				op_arg(prg.ops, pr.u.vlc);
 				symtbl_clearTemp(sym, pr.u.vlc);
 				symtbl_clearTemp(sym, ts.u.vlc);
 			}
 			else{
-				per_st pr = program_eval(pgen, PEM_EMPTY, VARLOC_NULL, stmt->u.ex);
-				if (pr.type == PER_ERROR)
+				per_st pr = program_eval(pgen, PEM_EMPTY, VARLOC_NULL, stmt.u.ex);
+				if (pr.type === PER_ERROR)
 					return pgr_error(pr.u.error.flp, pr.u.error.msg);
 			}
 			return pgr_ok();
@@ -8423,23 +8405,23 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 		case AST_LABEL: {
 			label lbl = NULL;
 			bool found = false;
-			for (int i = 0; i < sym->fr->lbls->size; i++){
-				lbl = sym->fr->lbls->ptrs[i];
-				if (lbl->name && list_byte_equ(lbl->name, stmt->u.ident)){
-					if (lbl->pos >= 0){
-						return pgr_error(stmt->flp, format("Cannot redeclare label \"%.*s\"",
-							stmt->u.ident->size, stmt->u.ident->bytes));
+			for (int i = 0; i < sym.fr.lbls.size; i++){
+				lbl = sym.fr.lbls.ptrs[i];
+				if (lbl.name && list_byte_equ(lbl.name, stmt.u.ident)){
+					if (lbl.pos >= 0){
+						return pgr_error(stmt.flp, format("Cannot redeclare label \"%.*s\"",
+							stmt.u.ident.size, stmt.u.ident.bytes));
 					}
 					found = true;
 					break;
 				}
 			}
 			if (!found){
-				lbl = label_new(stmt->u.ident);
-				stmt->u.ident = NULL;
-				list_ptr_push(sym->fr->lbls, lbl);
+				lbl = label_new(stmt.u.ident);
+				stmt.u.ident = NULL;
+				list_ptr_push(sym.fr.lbls, lbl);
 			}
-			label_declare(lbl, prg->ops);
+			label_declare(lbl, prg.ops);
 			return pgr_ok();
 		} break;
 	}
@@ -8475,7 +8457,7 @@ static inline int bmp_alloc(uint64_t *bmp, int count){
 	// return -1 if nothing found
 	int loop = 0;
 	while (count > 0){
-		if (*bmp == UINT64_C(0xFFFFFFFFFFFFFFFF)){
+		if (*bmp === UINT64_C(0xFFFFFFFFFFFFFFFF)){
 			loop++;
 			count -= 64;
 			bmp++;
@@ -8531,10 +8513,10 @@ static inline void ccs_free(ccs c){
 
 static inline ccs ccs_new(int pc, int frame, int index, int lex_index){
 	ccs c = mem_alloc(sizeof(ccs_st));
-	c->pc = pc;
-	c->frame = frame;
-	c->index = index;
-	c->lex_index = lex_index;
+	c.pc = pc;
+	c.frame = frame;
+	c.index = index;
+	c.lex_index = lex_index;
 	return c;
 }
 
@@ -8552,7 +8534,7 @@ static void lxs_freeAll(lxs ls){
 	lxs here = ls;
 	while (here){
 		lxs del = here;
-		here = here->next;
+		here = here.next;
 		lxs_free(del);
 	}
 }
@@ -8562,10 +8544,10 @@ static inline lxs lxs_new(int argcount, sink_val *args, lxs next){
 		argcount = 256;
 	lxs ls = mem_alloc(sizeof(lxs_st));
 	if (argcount > 0)
-		memcpy(ls->vals, args, sizeof(sink_val) * argcount);
+		memcpy(ls.vals, args, sizeof(sink_val) * argcount);
 	for (int i = argcount; i < 256; i++)
-		ls->vals[i] = SINK_NIL;
-	ls->next = next;
+		ls.vals[i] = SINK_NIL;
+	ls.next = next;
 	return ls;
 }
 
@@ -8577,9 +8559,9 @@ typedef struct {
 
 static inline native native_new(uint64_t hash, void *natuser, sink_native_f f_native){
 	native nat = mem_alloc(sizeof(native_st));
-	nat->hash = hash;
-	nat->natuser = natuser;
-	nat->f_native = f_native;
+	nat.hash = hash;
+	nat.natuser = natuser;
+	nat.f_native = f_native;
 	return nat;
 }
 
@@ -8638,61 +8620,61 @@ export interface sink_ctx {
 }
 /*
 static inline lxs lxs_get(context ctx, int argcount, sink_val *args, lxs next){
-	if (ctx->lxs_avail->size > 0){
-		lxs ls = ctx->lxs_avail->ptrs[--ctx->lxs_avail->size];
+	if (ctx.lxs_avail.size > 0){
+		lxs ls = ctx.lxs_avail.ptrs[--ctx.lxs_avail.size];
 		if (argcount > 0)
-			memcpy(ls->vals, args, sizeof(sink_val) * argcount);
+			memcpy(ls.vals, args, sizeof(sink_val) * argcount);
 		for (int i = argcount; i < 256; i++)
-			ls->vals[i] = SINK_NIL;
-		ls->next = next;
+			ls.vals[i] = SINK_NIL;
+		ls.next = next;
 		return ls;
 	}
 	return lxs_new(argcount, args, next);
 }
 
 static inline void lxs_release(context ctx, lxs ls){
-	list_ptr_push(ctx->lxs_avail, ls);
+	list_ptr_push(ctx.lxs_avail, ls);
 }
 
 static inline ccs ccs_get(context ctx, int pc, int frame, int index, int lex_index){
-	if (ctx->ccs_avail->size > 0){
-		ccs c = ctx->ccs_avail->ptrs[--ctx->ccs_avail->size];
-		c->pc = pc;
-		c->frame = frame;
-		c->index = index;
-		c->lex_index = lex_index;
+	if (ctx.ccs_avail.size > 0){
+		ccs c = ctx.ccs_avail.ptrs[--ctx.ccs_avail.size];
+		c.pc = pc;
+		c.frame = frame;
+		c.index = index;
+		c.lex_index = lex_index;
 		return c;
 	}
 	return ccs_new(pc, frame, index, lex_index);
 }
 
 static inline void ccs_release(context ctx, ccs c){
-	list_ptr_push(ctx->ccs_avail, c);
+	list_ptr_push(ctx.ccs_avail, c);
 }
 
 static inline void context_cleanup(context ctx, void *cuser, sink_free_f f_free){
-	cleanup_add(ctx->cup, cuser, f_free);
+	cleanup_add(ctx.cup, cuser, f_free);
 }
 
 static inline sink_run opi_abortcstr(context ctx, const char *msg);
 
 static inline void context_native(context ctx, uint64_t hash, void *natuser,
 	sink_native_f f_native){
-	if (ctx->prg->repl)
-		list_ptr_push(ctx->natives, native_new(hash, natuser, f_native));
+	if (ctx.prg.repl)
+		list_ptr_push(ctx.natives, native_new(hash, natuser, f_native));
 	else{
-		for (int i = 0; i < ctx->natives->size; i++){
-			native nat = ctx->natives->ptrs[i];
-			if (nat->hash == hash){
-				if (nat->f_native){
+		for (int i = 0; i < ctx.natives.size; i++){
+			native nat = ctx.natives.ptrs[i];
+			if (nat.hash === hash){
+				if (nat.f_native){
 					// already defined, hash collision
 					opi_abortcstr(ctx,
 						"Hash collision; cannot redefine native command "
 						"(did you call sink_ctx_native twice for the same command?)");
 					return;
 				}
-				nat->natuser = natuser;
-				nat->f_native = f_native;
+				nat.natuser = natuser;
+				nat.f_native = f_native;
 				return;
 			}
 		}
@@ -8702,31 +8684,31 @@ static inline void context_native(context ctx, uint64_t hash, void *natuser,
 typedef void (*sweepfree_f)(context ctx, int index);
 
 static void context_sweepfree_str(context ctx, int index){
-	if (ctx->str_tbl[index].bytes)
-		mem_free(ctx->str_tbl[index].bytes);
+	if (ctx.str_tbl[index].bytes)
+		mem_free(ctx.str_tbl[index].bytes);
 }
 
 static void context_sweepfree_list(context ctx, int index){
-	sink_list ls = &ctx->list_tbl[index];
-	if (ls->usertype >= 0){
-		sink_free_f f_free = ctx->f_finalize->ptrs[ls->usertype];
+	sink_list ls = &ctx.list_tbl[index];
+	if (ls.usertype >= 0){
+		sink_free_f f_free = ctx.f_finalize.ptrs[ls.usertype];
 		if (f_free)
-			f_free(ls->user);
+			f_free(ls.user);
 	}
-	if (ls->vals)
-		mem_free(ls->vals);
+	if (ls.vals)
+		mem_free(ls.vals);
 }
 
 static inline void context_sweephelp(context ctx, int size, uint64_t *aloc, uint64_t *ref,
 	sweepfree_f f_free){
 	int ms = size / 64;
 	for (int i = 0; i < ms; i++){
-		if (aloc[i] == ref[i])
+		if (aloc[i] === ref[i])
 			continue;
 		int bi = 0;
-		for (uint64_t bit = 1; bit != 0; bit <<= 1, bi++){
+		for (uint64_t bit = 1; bit !== 0; bit <<= 1, bi++){
 			// if we're not allocated, or we are referenced, then skip
-			if ((aloc[i] & bit) == 0 || (ref[i] & bit) != 0)
+			if ((aloc[i] & bit) === 0 || (ref[i] & bit) !== 0)
 				continue;
 			// otherwise, free
 			aloc[i] ^= bit;
@@ -8736,8 +8718,8 @@ static inline void context_sweephelp(context ctx, int size, uint64_t *aloc, uint
 }
 
 static inline void context_sweep(context ctx){
-	context_sweephelp(ctx, ctx->str_size, ctx->str_aloc, ctx->str_ref, context_sweepfree_str);
-	context_sweephelp(ctx, ctx->list_size, ctx->list_aloc, ctx->list_ref, context_sweepfree_list);
+	context_sweephelp(ctx, ctx.str_size, ctx.str_aloc, ctx.str_ref, context_sweepfree_str);
+	context_sweephelp(ctx, ctx.list_size, ctx.list_aloc, ctx.list_ref, context_sweepfree_list);
 }
 
 static inline int var_index(sink_val v){
@@ -8748,53 +8730,53 @@ static void context_markvals(context ctx, int size, sink_val *vals){
 	for (int i = 0; i < size; i++){
 		if (sink_isstr(vals[i])){
 			int idx = var_index(vals[i]);
-			bmp_setbit(ctx->str_ref, idx);
+			bmp_setbit(ctx.str_ref, idx);
 		}
 		else if (sink_islist(vals[i])){
 			int idx = var_index(vals[i]);
-			if (!bmp_hassetbit(ctx->list_ref, idx)){
-				sink_list ls = &ctx->list_tbl[idx];
-				context_markvals(ctx, ls->size, ls->vals);
+			if (!bmp_hassetbit(ctx.list_ref, idx)){
+				sink_list ls = &ctx.list_tbl[idx];
+				context_markvals(ctx, ls.size, ls.vals);
 			}
 		}
 	}
 }
 
 static inline void context_clearref(context ctx){
-	memset(ctx->str_ref, 0, sizeof(uint64_t) * (ctx->str_size / 64));
-	memset(ctx->list_ref, 0, sizeof(uint64_t) * (ctx->list_size / 64));
+	memset(ctx.str_ref, 0, sizeof(uint64_t) * (ctx.str_size / 64));
+	memset(ctx.list_ref, 0, sizeof(uint64_t) * (ctx.list_size / 64));
 	// mark the string table since it isn't owned by the context
-	if (ctx->str_prealloc_memset > 0)
-		memset(ctx->str_ref, 0xFF, sizeof(uint64_t) * ctx->str_prealloc_memset);
-	ctx->str_ref[ctx->str_prealloc_memset] = ctx->str_prealloc_lastmask;
+	if (ctx.str_prealloc_memset > 0)
+		memset(ctx.str_ref, 0xFF, sizeof(uint64_t) * ctx.str_prealloc_memset);
+	ctx.str_ref[ctx.str_prealloc_memset] = ctx.str_prealloc_lastmask;
 }
 
 static inline void context_mark(context ctx){
-	context_markvals(ctx, ctx->pinned.size, ctx->pinned.vals);
-	for (int i = 0; i < ctx->lex_stk->size; i++){
-		lxs here = ctx->lex_stk->ptrs[i];
+	context_markvals(ctx, ctx.pinned.size, ctx.pinned.vals);
+	for (int i = 0; i < ctx.lex_stk.size; i++){
+		lxs here = ctx.lex_stk.ptrs[i];
 		while (here){
-			context_markvals(ctx, 256, here->vals);
-			here = here->next;
+			context_markvals(ctx, 256, here.vals);
+			here = here.next;
 		}
 	}
 }
 
 static inline void context_gcleft(context ctx, bool set){
 	if (set){
-		if (ctx->gc_level == SINK_GC_DEFAULT)
-			ctx->gc_left = 10000;
-		else if (ctx->gc_level == SINK_GC_LOWMEM)
-			ctx->gc_left = 1000;
+		if (ctx.gc_level === SINK_GC_DEFAULT)
+			ctx.gc_left = 10000;
+		else if (ctx.gc_level === SINK_GC_LOWMEM)
+			ctx.gc_left = 1000;
 	}
 	else{
-		if (ctx->gc_level == SINK_GC_DEFAULT){
-			if (ctx->gc_left > 10000)
-				ctx->gc_left = 10000;
+		if (ctx.gc_level === SINK_GC_DEFAULT){
+			if (ctx.gc_left > 10000)
+				ctx.gc_left = 10000;
 		}
-		else if (ctx->gc_level == SINK_GC_LOWMEM){
-			if (ctx->gc_left > 1000)
-				ctx->gc_left = 1000;
+		else if (ctx.gc_level === SINK_GC_LOWMEM){
+			if (ctx.gc_left > 1000)
+				ctx.gc_left = 1000;
 		}
 	}
 }
@@ -8804,18 +8786,18 @@ static inline void context_gc(context ctx){
 	context_mark(ctx);
 	context_sweep(ctx);
 	context_gcleft(ctx, true);
-	ctx->timeout_left -= 100; // GC counts as 100 "ticks" I suppose
+	ctx.timeout_left -= 100; // GC counts as 100 "ticks" I suppose
 }
 
 static const int sink_pin_grow = 50;
 static inline void context_gcpin(context ctx, sink_val v){
 	if (!sink_isstr(v) && !sink_islist(v))
 		return;
-	if (ctx->pinned.size >= ctx->pinned.count){
-		ctx->pinned.count += sink_pin_grow;
-		ctx->pinned.vals = mem_realloc(ctx->pinned.vals, sizeof(sink_val) * ctx->pinned.count);
+	if (ctx.pinned.size >= ctx.pinned.count){
+		ctx.pinned.count += sink_pin_grow;
+		ctx.pinned.vals = mem_realloc(ctx.pinned.vals, sizeof(sink_val) * ctx.pinned.count);
 	}
-	ctx->pinned.vals[ctx->pinned.size++] = v;
+	ctx.pinned.vals[ctx.pinned.size++] = v;
 }
 
 static inline void context_gcunpin(context ctx, sink_val v){
@@ -8823,40 +8805,40 @@ static inline void context_gcunpin(context ctx, sink_val v){
 		return;
 	// only remove the value once, even if it appears multiple times, so that the user can use
 	// pin/unpin as a stack-like operation
-	for (int i = 0; i < ctx->pinned.size; i++){
-		if (ctx->pinned.vals[i].u == v.u){
-			if (i < ctx->pinned.size - 1){
-				memmove(&ctx->pinned.vals[i], &ctx->pinned.vals[i + 1],
-					sizeof(sink_val) * (ctx->pinned.size - 1 - i));
+	for (int i = 0; i < ctx.pinned.size; i++){
+		if (ctx.pinned.vals[i].u === v.u){
+			if (i < ctx.pinned.size - 1){
+				memmove(&ctx.pinned.vals[i], &ctx.pinned.vals[i + 1],
+					sizeof(sink_val) * (ctx.pinned.size - 1 - i));
 			}
-			ctx->pinned.size--;
+			ctx.pinned.size--;
 			return;
 		}
 	}
 }
 
 static inline void context_free(context ctx){
-	cleanup_free(ctx->cup);
-	if (ctx->user && ctx->f_freeuser)
-		ctx->f_freeuser(ctx->user);
-	list_ptr_free(ctx->natives);
+	cleanup_free(ctx.cup);
+	if (ctx.user && ctx.f_freeuser)
+		ctx.f_freeuser(ctx.user);
+	list_ptr_free(ctx.natives);
 	context_clearref(ctx);
 	context_sweep(ctx);
-	list_ptr_free(ctx->ccs_avail);
-	list_ptr_free(ctx->lxs_avail);
-	list_ptr_free(ctx->call_stk);
-	list_ptr_free(ctx->lex_stk);
-	list_ptr_free(ctx->f_finalize);
-	list_ptr_free(ctx->user_hint);
-	if (ctx->err)
-		mem_free(ctx->err);
-	mem_free(ctx->list_tbl);
-	mem_free(ctx->str_tbl);
-	mem_free(ctx->list_aloc);
-	mem_free(ctx->str_aloc);
-	mem_free(ctx->list_ref);
-	mem_free(ctx->str_ref);
-	mem_free(ctx->pinned.vals);
+	list_ptr_free(ctx.ccs_avail);
+	list_ptr_free(ctx.lxs_avail);
+	list_ptr_free(ctx.call_stk);
+	list_ptr_free(ctx.lex_stk);
+	list_ptr_free(ctx.f_finalize);
+	list_ptr_free(ctx.user_hint);
+	if (ctx.err)
+		mem_free(ctx.err);
+	mem_free(ctx.list_tbl);
+	mem_free(ctx.str_tbl);
+	mem_free(ctx.list_aloc);
+	mem_free(ctx.str_aloc);
+	mem_free(ctx.list_ref);
+	mem_free(ctx.str_ref);
+	mem_free(ctx.pinned.vals);
 	mem_free(ctx);
 }
 
@@ -8864,80 +8846,80 @@ static void opi_rand_seedauto(context ctx);
 
 static inline context context_new(program prg, sink_io_st io){
 	context ctx = mem_alloc(sizeof(context_st));
-	ctx->user = NULL;
-	ctx->f_freeuser = NULL;
-	ctx->cup = cleanup_new();
-	ctx->natives = list_ptr_new(mem_free_func);
-	ctx->call_stk = list_ptr_new(ccs_free);
-	ctx->lex_stk = list_ptr_new(lxs_freeAll);
-	list_ptr_push(ctx->lex_stk, lxs_new(0, NULL, NULL));
-	ctx->ccs_avail = list_ptr_new(ccs_free);
-	ctx->lxs_avail = list_ptr_new(lxs_free);
-	ctx->prg = prg;
-	ctx->f_finalize = list_ptr_new(NULL);
-	ctx->user_hint = list_ptr_new(NULL);
+	ctx.user = NULL;
+	ctx.f_freeuser = NULL;
+	ctx.cup = cleanup_new();
+	ctx.natives = list_ptr_new(mem_free_func);
+	ctx.call_stk = list_ptr_new(ccs_free);
+	ctx.lex_stk = list_ptr_new(lxs_freeAll);
+	list_ptr_push(ctx.lex_stk, lxs_new(0, NULL, NULL));
+	ctx.ccs_avail = list_ptr_new(ccs_free);
+	ctx.lxs_avail = list_ptr_new(lxs_free);
+	ctx.prg = prg;
+	ctx.f_finalize = list_ptr_new(NULL);
+	ctx.user_hint = list_ptr_new(NULL);
 
-	ctx->io = io;
+	ctx.io = io;
 
-	if (prg->repl){
-		ctx->str_prealloc_size = 0;
-		ctx->str_size = 64;
+	if (prg.repl){
+		ctx.str_prealloc_size = 0;
+		ctx.str_size = 64;
 	}
 	else{
-		ctx->str_prealloc_size = ctx->prg->strTable->size;
-		ctx->str_size = ctx->str_prealloc_size + 64;
-		ctx->str_size += 64 - (ctx->str_size % 64); // round up to number divisible by 64
+		ctx.str_prealloc_size = ctx.prg.strTable.size;
+		ctx.str_size = ctx.str_prealloc_size + 64;
+		ctx.str_size += 64 - (ctx.str_size % 64); // round up to number divisible by 64
 		// if not a REPL, then natives can be built now
-		for (int i = 0; i < prg->keyTable->size; i++)
-			list_ptr_push(ctx->natives, native_new(prg->keyTable->vals[i], NULL, NULL));
+		for (int i = 0; i < prg.keyTable.size; i++)
+			list_ptr_push(ctx.natives, native_new(prg.keyTable.vals[i], NULL, NULL));
 	}
-	ctx->list_size = 64;
+	ctx.list_size = 64;
 
-	ctx->str_tbl = mem_alloc(sizeof(sink_str_st) * ctx->str_size);
-	ctx->list_tbl = mem_alloc(sizeof(sink_list_st) * ctx->list_size);
+	ctx.str_tbl = mem_alloc(sizeof(sink_str_st) * ctx.str_size);
+	ctx.list_tbl = mem_alloc(sizeof(sink_list_st) * ctx.list_size);
 
-	ctx->str_aloc = mem_alloc(sizeof(uint64_t) * (ctx->str_size / 64));
-	memset(ctx->str_aloc, 0, sizeof(uint64_t) * (ctx->str_size / 64));
-	ctx->list_aloc = mem_alloc(sizeof(uint64_t) * (ctx->list_size / 64));
-	memset(ctx->list_aloc, 0, sizeof(uint64_t) * (ctx->list_size / 64));
+	ctx.str_aloc = mem_alloc(sizeof(uint64_t) * (ctx.str_size / 64));
+	memset(ctx.str_aloc, 0, sizeof(uint64_t) * (ctx.str_size / 64));
+	ctx.list_aloc = mem_alloc(sizeof(uint64_t) * (ctx.list_size / 64));
+	memset(ctx.list_aloc, 0, sizeof(uint64_t) * (ctx.list_size / 64));
 
-	ctx->str_ref = mem_alloc(sizeof(uint64_t) * (ctx->str_size / 64));
-	ctx->list_ref = mem_alloc(sizeof(uint64_t) * (ctx->list_size / 64));
+	ctx.str_ref = mem_alloc(sizeof(uint64_t) * (ctx.str_size / 64));
+	ctx.list_ref = mem_alloc(sizeof(uint64_t) * (ctx.list_size / 64));
 
-	ctx->pinned.size = 0;
-	ctx->pinned.count = 50;
-	ctx->pinned.vals = mem_alloc(sizeof(sink_val) * ctx->pinned.count);
+	ctx.pinned.size = 0;
+	ctx.pinned.count = 50;
+	ctx.pinned.vals = mem_alloc(sizeof(sink_val) * ctx.pinned.count);
 
-	ctx->lex_index = 0;
-	ctx->pc = 0;
-	ctx->timeout = 0;
-	ctx->timeout_left = 0;
-	ctx->gc_level = SINK_GC_DEFAULT;
-	ctx->rand_seed = 0;
-	ctx->rand_i = 0;
+	ctx.lex_index = 0;
+	ctx.pc = 0;
+	ctx.timeout = 0;
+	ctx.timeout_left = 0;
+	ctx.gc_level = SINK_GC_DEFAULT;
+	ctx.rand_seed = 0;
+	ctx.rand_i = 0;
 
-	ctx->err = NULL;
-	ctx->passed = false;
-	ctx->failed = false;
-	ctx->async = false;
+	ctx.err = NULL;
+	ctx.passed = false;
+	ctx.failed = false;
+	ctx.async = false;
 
-	if (prg->repl){
-		ctx->str_prealloc_memset = 0;
-		ctx->str_prealloc_lastmask = 0;
+	if (prg.repl){
+		ctx.str_prealloc_memset = 0;
+		ctx.str_prealloc_lastmask = 0;
 	}
 	else{
-		// reserve locations for the string table, such that string table index == var_index
-		for (int i = 0; i < ctx->prg->strTable->size; i++){
-			list_byte s = ctx->prg->strTable->ptrs[i];
-			sink_str_newblobgive(ctx, s->size, s->bytes);
+		// reserve locations for the string table, such that string table index === var_index
+		for (int i = 0; i < ctx.prg.strTable.size; i++){
+			list_byte s = ctx.prg.strTable.ptrs[i];
+			sink_str_newblobgive(ctx, s.size, s.bytes);
 		}
 
 		// precalculate the values needed to mark the prealloc'ed string table quickly
-		ctx->str_prealloc_memset = ctx->str_prealloc_size / 64;
-		int str_left = ctx->str_prealloc_size % 64;
-		ctx->str_prealloc_lastmask = 0;
+		ctx.str_prealloc_memset = ctx.str_prealloc_size / 64;
+		int str_left = ctx.str_prealloc_size % 64;
+		ctx.str_prealloc_lastmask = 0;
 		while (str_left > 0){
-			ctx->str_prealloc_lastmask = (ctx->str_prealloc_lastmask << 1) | 1;
+			ctx.str_prealloc_lastmask = (ctx.str_prealloc_lastmask << 1) | 1;
 			str_left--;
 		}
 	}
@@ -8949,42 +8931,42 @@ static inline context context_new(program prg, sink_io_st io){
 
 static inline void context_reset(context ctx){
 	// return to the top level
-	while (ctx->call_stk->size > 0){
-		ccs s = list_ptr_pop(ctx->call_stk);
-		lxs lx = ctx->lex_stk->ptrs[ctx->lex_index];
-		ctx->lex_stk->ptrs[ctx->lex_index] = lx->next;
+	while (ctx.call_stk.size > 0){
+		ccs s = list_ptr_pop(ctx.call_stk);
+		lxs lx = ctx.lex_stk.ptrs[ctx.lex_index];
+		ctx.lex_stk.ptrs[ctx.lex_index] = lx.next;
 		lxs_release(ctx, lx);
-		ctx->lex_index = s->lex_index;
-		ctx->pc = s->pc;
+		ctx.lex_index = s.lex_index;
+		ctx.pc = s.pc;
 		ccs_release(ctx, s);
 	}
 	// reset variables and fast-forward to the end of the current program
-	ctx->passed = false;
-	ctx->failed = false;
-	ctx->pc = ctx->prg->ops->size;
-	ctx->timeout_left = ctx->timeout;
+	ctx.passed = false;
+	ctx.failed = false;
+	ctx.pc = ctx.prg.ops.size;
+	ctx.timeout_left = ctx.timeout;
 }
 
 static inline sink_val var_get(context ctx, int frame, int index){
-	return ((lxs)ctx->lex_stk->ptrs[frame])->vals[index];
+	return ((lxs)ctx.lex_stk.ptrs[frame]).vals[index];
 }
 
 static inline void var_set(context ctx, int frame, int index, sink_val val){
-	((lxs)ctx->lex_stk->ptrs[frame])->vals[index] = val;
+	((lxs)ctx.lex_stk.ptrs[frame]).vals[index] = val;
 }
 
 static inline sink_str var_caststr(context ctx, sink_val a){
-	return &ctx->str_tbl[var_index(a)];
+	return &ctx.str_tbl[var_index(a)];
 }
 
 static inline sink_list var_castlist(context ctx, sink_val a){
-	return &ctx->list_tbl[var_index(a)];
+	return &ctx.list_tbl[var_index(a)];
 }
 
 static inline sink_val arget(context ctx, sink_val ar, int index){
 	if (sink_islist(ar)){
 		sink_list ls = var_castlist(ctx, ar);
-		return index >= ls->size ? (sink_val){ .f = 0 } : ls->vals[index];
+		return index >= ls.size ? (sink_val){ .f = 0 } : ls.vals[index];
 	}
 	return ar;
 }
@@ -8992,7 +8974,7 @@ static inline sink_val arget(context ctx, sink_val ar, int index){
 static inline int arsize(context ctx, sink_val ar){
 	if (sink_islist(ar)){
 		sink_list ls = var_castlist(ctx, ar);
-		return ls->size;
+		return ls.size;
 	}
 	return 1;
 }
@@ -9003,9 +8985,9 @@ static const int LT_ALLOWSTR = 4;
 
 static inline bool oper_typemask(sink_val a, int mask){
 	switch (sink_typeof(a)){
-		case SINK_TYPE_NIL   : return (mask & LT_ALLOWNIL ) != 0;
-		case SINK_TYPE_NUM   : return (mask & LT_ALLOWNUM ) != 0;
-		case SINK_TYPE_STR   : return (mask & LT_ALLOWSTR ) != 0;
+		case SINK_TYPE_NIL   : return (mask & LT_ALLOWNIL ) !== 0;
+		case SINK_TYPE_NUM   : return (mask & LT_ALLOWNUM ) !== 0;
+		case SINK_TYPE_STR   : return (mask & LT_ALLOWSTR ) !== 0;
 		case SINK_TYPE_LIST  : return false;
 		case SINK_TYPE_ASYNC : return false;
 	}
@@ -9014,8 +8996,8 @@ static inline bool oper_typemask(sink_val a, int mask){
 static inline bool oper_typelist(context ctx, sink_val a, int mask){
 	if (sink_islist(a)){
 		sink_list ls = var_castlist(ctx, a);
-		for (int i = 0; i < ls->size; i++){
-			if (!oper_typemask(ls->vals[i], mask))
+		for (int i = 0; i < ls.size; i++){
+			if (!oper_typemask(ls.vals[i], mask))
 				return false;
 		}
 		return true;
@@ -9028,12 +9010,12 @@ typedef sink_val (*unary_f)(context ctx, sink_val v);
 static sink_val oper_un(context ctx, sink_val a, unary_f f_unary){
 	if (sink_islist(a)){
 		sink_list ls = var_castlist(ctx, a);
-		if (ls->size <= 0)
+		if (ls.size <= 0)
 			return sink_list_newempty(ctx);
-		sink_val *ret = mem_alloc(sizeof(sink_val) * ls->size);
-		for (int i = 0; i < ls->size; i++)
-			ret[i] = f_unary(ctx, ls->vals[i]);
-		return sink_list_newblobgive(ctx, ls->size, ls->size, ret);
+		sink_val *ret = mem_alloc(sizeof(sink_val) * ls.size);
+		for (int i = 0; i < ls.size; i++)
+			ret[i] = f_unary(ctx, ls.vals[i]);
+		return sink_list_newblobgive(ctx, ls.size, ls.size, ret);
 	}
 	return f_unary(ctx, a);
 }
@@ -9074,18 +9056,18 @@ static sink_val oper_tri(context ctx, sink_val a, sink_val b, sink_val c, trinar
 }
 
 static int str_cmp(sink_str a, sink_str b){
-	int m = a->size > b->size ? b->size : a->size;
+	int m = a.size > b.size ? b.size : a.size;
 	for (int i = 0; i < m; i++){
-		uint8_t c1 = a->bytes[i];
-		uint8_t c2 = b->bytes[i];
+		uint8_t c1 = a.bytes[i];
+		uint8_t c2 = b.bytes[i];
 		if (c1 < c2)
 			return -1;
 		else if (c2 < c1)
 			return 1;
 	}
-	if (a->size < b->size)
+	if (a.size < b.size)
 		return -1;
-	else if (b->size < a->size)
+	else if (b.size < a.size)
 		return 1;
 	return 0;
 }
@@ -9104,7 +9086,7 @@ static sink_val opihelp_num_max(context ctx, int size, sink_val *vals, list_int 
 			list_int_push(li, idx);
 
 			sink_list ls = var_castlist(ctx, vals[i]);
-			sink_val lm = opihelp_num_max(ctx, ls->size, ls->vals, li);
+			sink_val lm = opihelp_num_max(ctx, ls.size, ls.vals, li);
 			if (!sink_isnil(lm) && (sink_isnil(max) || lm.f > max.f))
 				max = lm;
 
@@ -9135,7 +9117,7 @@ static sink_val opihelp_num_min(context ctx, int size, sink_val *vals, list_int 
 			list_int_push(li, idx);
 
 			sink_list ls = var_castlist(ctx, vals[i]);
-			sink_val lm = opihelp_num_min(ctx, ls->size, ls->vals, li);
+			sink_val lm = opihelp_num_min(ctx, ls.size, ls.vals, li);
 			if (!sink_isnil(lm) && (sink_isnil(min) || lm.f < min.f))
 				min = lm;
 
@@ -9165,11 +9147,11 @@ static sink_val opi_num_base(context ctx, double num, int len, int base){
 	}
 
 	buf[p++] = '0';
-	if (base == 16)
+	if (base === 16)
 		buf[p++] = 'x';
-	else if (base == 8)
+	else if (base === 8)
 		buf[p++] = 'c';
-	else if (base == 2)
+	else if (base === 2)
 		buf[p++] = 'b';
 	else
 		assert(false);
@@ -9213,23 +9195,23 @@ static sink_val opi_num_base(context ctx, double num, int len, int base){
 static inline uint32_t opi_rand_int(context ctx);
 
 static inline void opi_rand_seedauto(context ctx){
-	ctx->rand_seed = sink_seedauto_src();
-	ctx->rand_i = sink_seedauto_src();
+	ctx.rand_seed = sink_seedauto_src();
+	ctx.rand_i = sink_seedauto_src();
 	for (int i = 0; i < 1000; i++)
 		opi_rand_int(ctx);
-	ctx->rand_i = 0;
+	ctx.rand_i = 0;
 }
 
 static inline void opi_rand_seed(context ctx, uint32_t n){
-	ctx->rand_seed = n;
-	ctx->rand_i = 0;
+	ctx.rand_seed = n;
+	ctx.rand_i = 0;
 }
 
 static inline uint32_t opi_rand_int(context ctx){
 	uint32_t m = 0x5bd1e995;
-	uint32_t k = ctx->rand_i++ * m;
-	ctx->rand_seed = (k ^ (k >> 24) ^ (ctx->rand_seed * m)) * m;
-	return ctx->rand_seed ^ (ctx->rand_seed >> 13);
+	uint32_t k = ctx.rand_i++ * m;
+	ctx.rand_seed = (k ^ (k >> 24) ^ (ctx.rand_seed * m)) * m;
+	return ctx.rand_seed ^ (ctx.rand_seed >> 13);
 }
 
 static inline double opi_rand_num(context ctx){
@@ -9243,7 +9225,7 @@ static inline double opi_rand_num(context ctx){
 }
 
 static inline sink_val opi_rand_getstate(context ctx){
-	double vals[2] = { ctx->rand_seed, ctx->rand_i };
+	double vals[2] = { ctx.rand_seed, ctx.rand_i };
 	return sink_list_newblob(ctx, 2, (sink_val *)vals);
 }
 
@@ -9253,12 +9235,12 @@ static inline void opi_rand_setstate(context ctx, sink_val a){
 		return;
 	}
 	sink_list ls = var_castlist(ctx, a);
-	if (ls->size < 2 || !sink_isnum(ls->vals[0]) || !sink_isnum(ls->vals[1])){
+	if (ls.size < 2 || !sink_isnum(ls.vals[0]) || !sink_isnum(ls.vals[1])){
 		opi_abortcstr(ctx, "Expecting list of two integers");
 		return;
 	}
-	ctx->rand_seed = (uint32_t)ls->vals[0].f;
-	ctx->rand_i = (uint32_t)ls->vals[1].f;
+	ctx.rand_seed = (uint32_t)ls.vals[0].f;
+	ctx.rand_i = (uint32_t)ls.vals[1].f;
 }
 
 static inline sink_val opi_rand_pick(context ctx, sink_val a){
@@ -9267,9 +9249,9 @@ static inline sink_val opi_rand_pick(context ctx, sink_val a){
 		return SINK_NIL;
 	}
 	sink_list ls = var_castlist(ctx, a);
-	if (ls->size <= 0)
+	if (ls.size <= 0)
 		return SINK_NIL;
-	return ls->vals[(int)(opi_rand_num(ctx) * ls->size)];
+	return ls.vals[(int)(opi_rand_num(ctx) * ls.size)];
 }
 
 static inline void opi_rand_shuffle(context ctx, sink_val a){
@@ -9278,14 +9260,14 @@ static inline void opi_rand_shuffle(context ctx, sink_val a){
 		return;
 	}
 	sink_list ls = var_castlist(ctx, a);
-	int m = ls->size;
+	int m = ls.size;
 	while (m > 1){
 		int i = (int)(opi_rand_num(ctx) * m);
 		m--;
-		if (m != i){
-			sink_val t = ls->vals[m];
-			ls->vals[m] = ls->vals[i];
-			ls->vals[i] = t;
+		if (m !== i){
+			sink_val t = ls.vals[m];
+			ls.vals[m] = ls.vals[i];
+			ls.vals[i] = t;
 		}
 	}
 }
@@ -9306,12 +9288,12 @@ static inline sink_val opi_str_split(context ctx, sink_val a, sink_val b){
 	sink_str needle = var_caststr(ctx, b);
 	sink_val result = sink_list_newempty(ctx);
 
-	int nlen = needle->size;
-	int hlen = haystack->size;
+	int nlen = needle.size;
+	int hlen = haystack.size;
 	if (nlen <= 0){
 		// split on every character
 		for (int i = 0; i < hlen; i++)
-			opi_list_push(ctx, result, sink_str_newblob(ctx, 1, &haystack->bytes[i]));
+			opi_list_push(ctx, result, sink_str_newblob(ctx, 1, &haystack.bytes[i]));
 		return result;
 	}
 
@@ -9319,25 +9301,25 @@ static inline sink_val opi_str_split(context ctx, sink_val a, sink_val b){
 	for (int i = 0; i < 256; i++)
 		delta[i] = nlen + 1;
 	for (int i = 0; i < nlen; i++)
-		delta[needle->bytes[i]] = nlen - i;
+		delta[needle.bytes[i]] = nlen - i;
 	int hx = 0;
 	int lastmatch = 0;
 	while (hx + nlen <= hlen){
-		if (memcmp(needle->bytes, &haystack->bytes[hx], sizeof(uint8_t) * nlen) == 0){
+		if (memcmp(needle.bytes, &haystack.bytes[hx], sizeof(uint8_t) * nlen) === 0){
 			opi_list_push(ctx, result,
-				sink_str_newblob(ctx, hx - lastmatch, &haystack->bytes[lastmatch]));
-			lastmatch = hx + needle->size;
-			hx += needle->size;
+				sink_str_newblob(ctx, hx - lastmatch, &haystack.bytes[lastmatch]));
+			lastmatch = hx + needle.size;
+			hx += needle.size;
 		}
 		else{
 			// note: in all these search string functions we use the same basic algorithm, and we
 			// are allowed to access hx+nlen because all sink strings are guaranteed to be NULL
 			// terminated
-			hx += delta[haystack->bytes[hx + nlen]];
+			hx += delta[haystack.bytes[hx + nlen]];
 		}
 	}
 	opi_list_push(ctx, result,
-		sink_str_newblob(ctx, haystack->size - lastmatch, &haystack->bytes[lastmatch]));
+		sink_str_newblob(ctx, haystack.size - lastmatch, &haystack.bytes[lastmatch]));
 	return result;
 }
 
@@ -9366,24 +9348,24 @@ static inline sink_val opi_str_find(context ctx, sink_val a, sink_val b, sink_va
 	sink_str haystack = var_caststr(ctx, a);
 	sink_str needle = var_caststr(ctx, b);
 
-	int nlen = needle->size;
+	int nlen = needle.size;
 	if (nlen <= 0)
 		return sink_num(0);
 
-	int hlen = haystack->size;
+	int hlen = haystack.size;
 	int delta[256];
 	for (int i = 0; i < 256; i++)
 		delta[i] = nlen + 1;
 	for (int i = 0; i < nlen; i++)
-		delta[needle->bytes[i]] = nlen - i;
+		delta[needle.bytes[i]] = nlen - i;
 	if (hx < 0)
 		hx += hlen;
 	if (hx < 0)
 		hx = 0;
 	while (hx + nlen <= hlen){
-		if (memcmp(needle->bytes, &haystack->bytes[hx], sizeof(uint8_t) * nlen) == 0)
+		if (memcmp(needle.bytes, &haystack.bytes[hx], sizeof(uint8_t) * nlen) === 0)
 			return sink_num(hx);
-		hx += delta[haystack->bytes[hx + nlen]];
+		hx += delta[haystack.bytes[hx + nlen]];
 	}
 	return SINK_NIL;
 }
@@ -9405,8 +9387,8 @@ static inline sink_val opi_str_rfind(context ctx, sink_val a, sink_val b, sink_v
 	sink_str haystack = var_caststr(ctx, a);
 	sink_str needle = var_caststr(ctx, b);
 
-	int nlen = needle->size;
-	int hlen = haystack->size;
+	int nlen = needle.size;
+	int hlen = haystack.size;
 	if (nlen <= 0)
 		return sink_num(hlen);
 
@@ -9417,20 +9399,20 @@ static inline sink_val opi_str_rfind(context ctx, sink_val a, sink_val b, sink_v
 	for (int i = 0; i < 256; i++)
 		delta[i] = nlen + 1;
 	for (int i = nlen - 1; i >= 0; i--)
-		delta[needle->bytes[i]] = i + 1;
+		delta[needle.bytes[i]] = i + 1;
 	if (hx < 0)
 		hx += hlen;
 	if (hx > hlen - nlen)
 		hx = hlen - nlen;
 	while (hx >= 0){
-		if (memcmp(needle->bytes, &haystack->bytes[hx], sizeof(uint8_t) * nlen) == 0)
+		if (memcmp(needle.bytes, &haystack.bytes[hx], sizeof(uint8_t) * nlen) === 0)
 			return sink_num(hx);
 		if (hx <= 0){
 			// searching backwards we can't access bytes[-1] because we aren't "reverse" NULL
 			// terminated... we would just crash
 			return SINK_NIL;
 		}
-		hx -= delta[haystack->bytes[hx - 1]];
+		hx -= delta[haystack.bytes[hx - 1]];
 	}
 	return SINK_NIL;
 }
@@ -9442,8 +9424,8 @@ static inline bool opi_str_begins(context ctx, sink_val a, sink_val b){
 	}
 	sink_str s1 = var_caststr(ctx, sink_tostr(ctx, a));
 	sink_str s2 = var_caststr(ctx, sink_tostr(ctx, b));
-	return s1->size >= s2->size &&
-		memcmp(s1->bytes, s2->bytes, sizeof(uint8_t) * s2->size) == 0;
+	return s1.size >= s2.size &&
+		memcmp(s1.bytes, s2.bytes, sizeof(uint8_t) * s2.size) === 0;
 }
 
 static inline bool opi_str_ends(context ctx, sink_val a, sink_val b){
@@ -9453,8 +9435,8 @@ static inline bool opi_str_ends(context ctx, sink_val a, sink_val b){
 	}
 	sink_str s1 = var_caststr(ctx, sink_tostr(ctx, a));
 	sink_str s2 = var_caststr(ctx, sink_tostr(ctx, b));
-	return s1->size >= s2->size &&
-		memcmp(&s1->bytes[s1->size - s2->size], s2->bytes, sizeof(uint8_t) * s2->size) == 0;
+	return s1.size >= s2.size &&
+		memcmp(&s1.bytes[s1.size - s2.size], s2.bytes, sizeof(uint8_t) * s2.size) === 0;
 }
 
 static inline sink_val opi_str_pad(context ctx, sink_val a, int b){
@@ -9466,22 +9448,22 @@ static inline sink_val opi_str_pad(context ctx, sink_val a, int b){
 	sink_str s = var_caststr(ctx, a);
 	if (b < 0){ // left pad
 		b = -b;
-		if (s->size >= b)
+		if (s.size >= b)
 			return a;
 		uint8_t *ns = mem_alloc(sizeof(uint8_t) * (b + 1));
-		memset(ns, 32, sizeof(uint8_t) * (b - s->size));
-		if (s->size > 0)
-			memcpy(&ns[b - s->size], s->bytes, sizeof(uint8_t) * s->size);
+		memset(ns, 32, sizeof(uint8_t) * (b - s.size));
+		if (s.size > 0)
+			memcpy(&ns[b - s.size], s.bytes, sizeof(uint8_t) * s.size);
 		ns[b] = 0;
 		return sink_str_newblobgive(ctx, b, ns);
 	}
 	else{ // right pad
-		if (s->size >= b)
+		if (s.size >= b)
 			return a;
 		uint8_t *ns = mem_alloc(sizeof(uint8_t) * (b + 1));
-		if (s->size > 0)
-			memcpy(ns, s->bytes, sizeof(uint8_t) * s->size);
-		memset(&ns[s->size], 32, sizeof(uint8_t) * (b - s->size));
+		if (s.size > 0)
+			memcpy(ns, s.bytes, sizeof(uint8_t) * s.size);
+		memset(&ns[s.size], 32, sizeof(uint8_t) * (b - s.size));
 		ns[b] = 0;
 		return sink_str_newblobgive(ctx, b, ns);
 	}
@@ -9493,14 +9475,14 @@ static inline sink_val opihelp_str_lower(context ctx, sink_val a){
 		return SINK_NIL;
 	}
 	sink_str s = var_caststr(ctx, sink_tostr(ctx, a));
-	uint8_t *b = mem_alloc(sizeof(uint8_t) * (s->size + 1));
-	for (int i = 0; i <= s->size; i++){
-		int ch = s->bytes[i];
+	uint8_t *b = mem_alloc(sizeof(uint8_t) * (s.size + 1));
+	for (int i = 0; i <= s.size; i++){
+		int ch = s.bytes[i];
 		if (ch >= 'A' && ch <= 'Z')
 			ch = ch - 'A' + 'a';
 		b[i] = ch;
 	}
-	return sink_str_newblobgive(ctx, s->size, b);
+	return sink_str_newblobgive(ctx, s.size, b);
 }
 
 static inline sink_val opihelp_str_upper(context ctx, sink_val a){
@@ -9509,18 +9491,18 @@ static inline sink_val opihelp_str_upper(context ctx, sink_val a){
 		return SINK_NIL;
 	}
 	sink_str s = var_caststr(ctx, sink_tostr(ctx, a));
-	uint8_t *b = mem_alloc(sizeof(uint8_t) * (s->size + 1));
-	for (int i = 0; i <= s->size; i++){
-		int ch = s->bytes[i];
+	uint8_t *b = mem_alloc(sizeof(uint8_t) * (s.size + 1));
+	for (int i = 0; i <= s.size; i++){
+		int ch = s.bytes[i];
 		if (ch >= 'a' && ch <= 'z')
 			ch = ch - 'a' + 'A';
 		b[i] = ch;
 	}
-	return sink_str_newblobgive(ctx, s->size, b);
+	return sink_str_newblobgive(ctx, s.size, b);
 }
 
 static inline bool shouldtrim(uint8_t c){
-	return (c >= 9 && c <= 13) || c == 32;
+	return (c >= 9 && c <= 13) || c === 32;
 }
 
 static inline sink_val opihelp_str_trim(context ctx, sink_val a){
@@ -9532,17 +9514,17 @@ static inline sink_val opihelp_str_trim(context ctx, sink_val a){
 	sink_str s = var_caststr(ctx, a);
 	int len1 = 0;
 	int len2 = 0;
-	while (len1 < s->size && shouldtrim(s->bytes[len1]))
+	while (len1 < s.size && shouldtrim(s.bytes[len1]))
 		len1++;
-	while (len2 < s->size && shouldtrim(s->bytes[s->size - 1 - len2]))
+	while (len2 < s.size && shouldtrim(s.bytes[s.size - 1 - len2]))
 		len2++;
-	if (len1 == 0 && len2 == 0)
+	if (len1 === 0 && len2 === 0)
 		return a;
-	int size = s->size - len1 - len2;
+	int size = s.size - len1 - len2;
 	uint8_t *b = NULL;
 	if (size > 0){
 		b = mem_alloc(sizeof(uint8_t) * (size + 1));
-		memcpy(b, &s->bytes[len1], sizeof(uint8_t) * size);
+		memcpy(b, &s.bytes[len1], sizeof(uint8_t) * size);
 		b[size] = 0;
 	}
 	return sink_str_newblobgive(ctx, size < 0 ? 0 : size, b);
@@ -9555,25 +9537,25 @@ static inline sink_val opihelp_str_rev(context ctx, sink_val a){
 	}
 	a = sink_tostr(ctx, a);
 	sink_str s = var_caststr(ctx, a);
-	if (s->size <= 0)
+	if (s.size <= 0)
 		return a;
-	uint8_t *b = mem_alloc(sizeof(uint8_t) * (s->size + 1));
-	for (int i = 0; i < s->size; i++)
-		b[s->size - i - 1] = s->bytes[i];
-	b[s->size] = 0;
-	return sink_str_newblobgive(ctx, s->size, b);
+	uint8_t *b = mem_alloc(sizeof(uint8_t) * (s.size + 1));
+	for (int i = 0; i < s.size; i++)
+		b[s.size - i - 1] = s.bytes[i];
+	b[s.size] = 0;
+	return sink_str_newblobgive(ctx, s.size, b);
 }
 
 #define OPI_STR_UNOP(name, single)                                       \
 	static inline sink_val name(context ctx, sink_val a){                \
 		if (sink_islist(a)){                                             \
 			sink_list ls = var_castlist(ctx, a);                         \
-			if (ls->size <= 0)                                           \
+			if (ls.size <= 0)                                           \
 				return sink_list_newempty(ctx);                          \
-			sink_val *ret = mem_alloc(sizeof(sink_val) * ls->size);      \
-			for (int i = 0; i < ls->size; i++)                           \
-				ret[i] = single(ctx, ls->vals[i]);                       \
-			return sink_list_newblobgive(ctx, ls->size, ls->size, ret);  \
+			sink_val *ret = mem_alloc(sizeof(sink_val) * ls.size);      \
+			for (int i = 0; i < ls.size; i++)                           \
+				ret[i] = single(ctx, ls.vals[i]);                       \
+			return sink_list_newblobgive(ctx, ls.size, ls.size, ret);  \
 		}                                                                \
 		return single(ctx, a);                                           \
 	}
@@ -9592,19 +9574,19 @@ static inline sink_val opi_str_rep(context ctx, sink_val a, int rep){
 	if (rep <= 0)
 		return sink_str_newblobgive(ctx, 0, NULL);
 	a = sink_tostr(ctx, a);
-	if (rep == 1)
+	if (rep === 1)
 		return a;
 	sink_str s = var_caststr(ctx, a);
-	if (s->size <= 0)
+	if (s.size <= 0)
 		return a;
-	int64_t size = (int64_t)s->size * (int64_t)rep;
+	int64_t size = (int64_t)s.size * (int64_t)rep;
 	if (size > 100000000){
 		opi_abortcstr(ctx, "Constructed string is too large");
 		return SINK_NIL;
 	}
 	uint8_t *b = mem_alloc(sizeof(uint8_t) * (size + 1));
 	for (int i = 0; i < rep; i++)
-		memcpy(&b[i * s->size], s->bytes, sizeof(uint8_t) * s->size);
+		memcpy(&b[i * s.size], s.bytes, sizeof(uint8_t) * s.size);
 	b[size] = 0;
 	return sink_str_newblobgive(ctx, size, b);
 }
@@ -9616,8 +9598,8 @@ static inline sink_val opi_str_list(context ctx, sink_val a){
 	}
 	sink_str s = var_caststr(ctx, sink_tostr(ctx, a));
 	sink_val r = sink_list_newempty(ctx);
-	for (int i = 0; i < s->size; i++)
-		opi_list_push(ctx, r, sink_num(s->bytes[i]));
+	for (int i = 0; i < s.size; i++)
+		opi_list_push(ctx, r, sink_num(s.bytes[i]));
 	return r;
 }
 
@@ -9628,10 +9610,10 @@ static inline sink_val opi_str_byte(context ctx, sink_val a, int b){
 	}
 	sink_str s = var_caststr(ctx, sink_tostr(ctx, a));
 	if (b < 0)
-		b += s->size;
-	if (b < 0 || b >= s->size)
+		b += s.size;
+	if (b < 0 || b >= s.size)
 		return SINK_NIL;
-	return sink_num(s->bytes[b]);
+	return sink_num(s.bytes[b]);
 }
 
 static inline sink_val opi_str_hash(context ctx, sink_val a, uint32_t seed){
@@ -9641,7 +9623,7 @@ static inline sink_val opi_str_hash(context ctx, sink_val a, uint32_t seed){
 	}
 	sink_str s = var_caststr(ctx, sink_tostr(ctx, a));
 	uint32_t out[4];
-	sink_str_hashplain(s->size, s->bytes, seed, out);
+	sink_str_hashplain(s.size, s.bytes, seed, out);
 	sink_val outv[4];
 	outv[0] = sink_num(out[0]);
 	outv[1] = sink_num(out[1]);
@@ -9657,7 +9639,7 @@ static inline sink_val opi_str_hash(context ctx, sink_val a, uint32_t seed){
 
 static inline bool opihelp_codepoint(sink_val b){
 	return sink_isnum(b) && // must be a number
-		floorf(b.f) == b.f && // must be an integer
+		floorf(b.f) === b.f && // must be an integer
 		b.f >= 0 && b.f < 0x110000 && // must be within total range
 		(b.f < 0xD800 || b.f >= 0xE000); // must not be a surrogate
 }
@@ -9668,9 +9650,9 @@ static inline bool opi_utf8_valid(context ctx, sink_val a){
 		int state = 0;
 		int codepoint = 0;
 		int min = 0;
-		for (int i = 0; i < s->size; i++){
-			uint8_t b = s->bytes[i];
-			if (state == 0){
+		for (int i = 0; i < s.size; i++){
+			uint8_t b = s.bytes[i];
+			if (state === 0){
 				if (b < 0x80) // 0x00 to 0x7F
 					continue;
 				else if (b < 0xC0) // 0x80 to 0xBF
@@ -9698,7 +9680,7 @@ static inline bool opi_utf8_valid(context ctx, sink_val a){
 					return false;
 				codepoint = (codepoint << 6) | (b & 0x3F);
 				state--;
-				if (state == 0){ // codepoint finished, check if invalid
+				if (state === 0){ // codepoint finished, check if invalid
 					if (codepoint < min || // no overlong
 						codepoint >= 0x110000 || // no huge
 						(codepoint >= 0xD800 && codepoint < 0xE000)) // no surrogates
@@ -9706,12 +9688,12 @@ static inline bool opi_utf8_valid(context ctx, sink_val a){
 				}
 			}
 		}
-		return state == 0;
+		return state === 0;
 	}
 	else if (sink_islist(a)){
 		sink_list ls = var_castlist(ctx, a);
-		for (int i = 0; i < ls->size; i++){
-			if (!opihelp_codepoint(ls->vals[i]))
+		for (int i = 0; i < ls.size; i++){
+			if (!opihelp_codepoint(ls.vals[i]))
 				return false;
 		}
 		return true;
@@ -9729,9 +9711,9 @@ static inline sink_val opi_utf8_list(context ctx, sink_val a){
 	int state = 0;
 	int codepoint = 0;
 	int min = 0;
-	for (int i = 0; i < s->size; i++){
-		uint8_t b = s->bytes[i];
-		if (state == 0){
+	for (int i = 0; i < s.size; i++){
+		uint8_t b = s.bytes[i];
+		if (state === 0){
 			if (b < 0x80) // 0x00 to 0x7F
 				opi_list_push(ctx, res, sink_num(b));
 			else if (b < 0xC0) // 0x80 to 0xBF
@@ -9759,7 +9741,7 @@ static inline sink_val opi_utf8_list(context ctx, sink_val a){
 				goto fail;
 			codepoint = (codepoint << 6) | (b & 0x3F);
 			state--;
-			if (state == 0){ // codepoint finished, check if invalid
+			if (state === 0){ // codepoint finished, check if invalid
 				if (codepoint < min || // no overlong
 					codepoint >= 0x110000 || // no huge
 					(codepoint >= 0xD800 && codepoint < 0xE000)) // no surrogates
@@ -9781,8 +9763,8 @@ static inline sink_val opi_utf8_str(context ctx, sink_val a){
 	}
 	sink_list ls = var_castlist(ctx, a);
 	int tot = 0;
-	for (int i = 0; i < ls->size; i++){
-		sink_val b = ls->vals[i];
+	for (int i = 0; i < ls.size; i++){
+		sink_val b = ls.vals[i];
 		if (!opihelp_codepoint(b)){
 			opi_abortcstr(ctx, "Invalid list of codepoints");
 			return SINK_NIL;
@@ -9798,8 +9780,8 @@ static inline sink_val opi_utf8_str(context ctx, sink_val a){
 	}
 	uint8_t *bytes = mem_alloc(sizeof(uint8_t) * (tot + 1));
 	int pos = 0;
-	for (int i = 0; i < ls->size; i++){
-		int b = ls->vals[i].f;
+	for (int i = 0; i < ls.size; i++){
+		int b = ls.vals[i].f;
 		if (b < 0x80)
 			bytes[pos++] = b;
 		else if (b < 0x800){
@@ -9827,8 +9809,8 @@ static inline sink_val opi_struct_size(context ctx, sink_val a){
 		return SINK_NIL;
 	sink_list ls = var_castlist(ctx, a);
 	int tot = 0;
-	for (int i = 0; i < ls->size; i++){
-		sink_val b = ls->vals[i];
+	for (int i = 0; i < ls.size; i++){
+		sink_val b = ls.vals[i];
 		if (!sink_isnum(b))
 			return SINK_NIL;
 		struct_enum bi = (struct_enum)b.f;
@@ -9867,25 +9849,25 @@ static inline sink_val opi_struct_str(context ctx, sink_val a, sink_val b){
 	}
 	sink_list data = var_castlist(ctx, a);
 	sink_list type = var_castlist(ctx, b);
-	if (type->size <= 0)
+	if (type.size <= 0)
 		goto fail;
-	if (data->size % type->size != 0)
+	if (data.size % type.size !== 0)
 		goto fail;
-	for (int i = 0; i < data->size; i++){
-		if (!sink_isnum(data->vals[i]))
+	for (int i = 0; i < data.size; i++){
+		if (!sink_isnum(data.vals[i]))
 			goto fail;
 	}
 	sink_val sizev = opi_struct_size(ctx, b);
 	if (sink_isnil(sizev))
 		goto fail;
-	int arsize = data->size / type->size;
+	int arsize = data.size / type.size;
 	int size = sizev.f * arsize;
 	uint8_t *bytes = mem_alloc(sizeof(uint8_t) * (size + 1));
 	int pos = 0;
 	for (int ar = 0; ar < arsize; ar++){
-		for (int i = 0; i < type->size; i++){
-			sink_val d = data->vals[i + ar * type->size];
-			struct_enum bi = type->vals[i].f;
+		for (int i = 0; i < type.size; i++){
+			sink_val d = data.vals[i + ar * type.size];
+			struct_enum bi = type.vals[i].f;
 			switch (bi){
 				case STRUCT_U8:
 				case STRUCT_S8: {
@@ -9989,113 +9971,113 @@ static inline sink_val opi_struct_list(context ctx, sink_val a, sink_val b){
 	if (sink_isnil(stsizev))
 		goto fail;
 	int stsize = stsizev.f;
-	if (s->size % stsize != 0)
+	if (s.size % stsize !== 0)
 		goto fail;
 	sink_list type = var_castlist(ctx, b);
 	sink_val res = sink_list_newempty(ctx);
 	int pos = 0;
-	while (pos < s->size){
-		for (int i = 0; i < type->size; i++){
-			struct_enum bi = type->vals[i].f;
+	while (pos < s.size){
+		for (int i = 0; i < type.size; i++){
+			struct_enum bi = type.vals[i].f;
 			switch (bi){
 				case STRUCT_U8:
-					sink_list_push(ctx, res, sink_num(s->bytes[pos++]));
+					sink_list_push(ctx, res, sink_num(s.bytes[pos++]));
 					break;
 				case STRUCT_S8:
-					sink_list_push(ctx, res, sink_num((int8_t)s->bytes[pos++]));
+					sink_list_push(ctx, res, sink_num((int8_t)s.bytes[pos++]));
 					break;
 				case STRUCT_U16: {
-					uint16_t *v = (uint16_t *)&s->bytes[pos];
+					uint16_t *v = (uint16_t *)&s.bytes[pos];
 					sink_list_push(ctx, res, sink_num(*v));
 					pos += 2;
 				} break;
 				case STRUCT_U32: {
-					uint32_t *v = (uint32_t *)&s->bytes[pos];
+					uint32_t *v = (uint32_t *)&s.bytes[pos];
 					sink_list_push(ctx, res, sink_num(*v));
 					pos += 4;
 				} break;
 				case STRUCT_S16: {
-					int16_t *v = (int16_t *)&s->bytes[pos];
+					int16_t *v = (int16_t *)&s.bytes[pos];
 					sink_list_push(ctx, res, sink_num(*v));
 					pos += 2;
 				} break;
 				case STRUCT_S32: {
-					int32_t *v = (int32_t *)&s->bytes[pos];
+					int32_t *v = (int32_t *)&s.bytes[pos];
 					sink_list_push(ctx, res, sink_num(*v));
 					pos += 4;
 				} break;
 				case STRUCT_F32: {
-					float *v = (float *)&s->bytes[pos];
+					float *v = (float *)&s.bytes[pos];
 					sink_list_push(ctx, res, sink_num(*v));
 					pos += 4;
 				} break;
 				case STRUCT_F64: {
-					double *v = (double *)&s->bytes[pos];
+					double *v = (double *)&s.bytes[pos];
 					sink_list_push(ctx, res, sink_num(*v));
 					pos += 8;
 				} break;
 				case STRUCT_UL16: {
 					uint16_t v = 0;
-					v |= s->bytes[pos++];
-					v |= ((uint16_t)s->bytes[pos++]) << 8;
+					v |= s.bytes[pos++];
+					v |= ((uint16_t)s.bytes[pos++]) << 8;
 					sink_list_push(ctx, res, sink_num(v));
 				} break;
 				case STRUCT_UB16: {
 					uint16_t v = 0;
-					v |= ((uint16_t)s->bytes[pos++]) << 8;
-					v |= s->bytes[pos++];
+					v |= ((uint16_t)s.bytes[pos++]) << 8;
+					v |= s.bytes[pos++];
 					sink_list_push(ctx, res, sink_num(v));
 				} break;
 				case STRUCT_UL32: {
 					uint32_t v = 0;
-					v |= s->bytes[pos++];
-					v |= ((uint32_t)s->bytes[pos++]) <<  8;
-					v |= ((uint32_t)s->bytes[pos++]) << 16;
-					v |= ((uint32_t)s->bytes[pos++]) << 24;
+					v |= s.bytes[pos++];
+					v |= ((uint32_t)s.bytes[pos++]) <<  8;
+					v |= ((uint32_t)s.bytes[pos++]) << 16;
+					v |= ((uint32_t)s.bytes[pos++]) << 24;
 					sink_list_push(ctx, res, sink_num(v));
 				} break;
 				case STRUCT_UB32: {
 					uint32_t v = 0;
-					v |= ((uint32_t)s->bytes[pos++]) << 24;
-					v |= ((uint32_t)s->bytes[pos++]) << 16;
-					v |= ((uint32_t)s->bytes[pos++]) <<  8;
-					v |= s->bytes[pos++];
+					v |= ((uint32_t)s.bytes[pos++]) << 24;
+					v |= ((uint32_t)s.bytes[pos++]) << 16;
+					v |= ((uint32_t)s.bytes[pos++]) <<  8;
+					v |= s.bytes[pos++];
 					sink_list_push(ctx, res, sink_num(v));
 				} break;
 				case STRUCT_SL16: {
 					uint16_t v = 0;
-					v |= s->bytes[pos++];
-					v |= ((uint16_t)s->bytes[pos++]) << 8;
+					v |= s.bytes[pos++];
+					v |= ((uint16_t)s.bytes[pos++]) << 8;
 					sink_list_push(ctx, res, sink_num((int16_t)v));
 				} break;
 				case STRUCT_SB16: {
 					uint16_t v = 0;
-					v |= ((uint16_t)s->bytes[pos++]) << 8;
-					v |= s->bytes[pos++];
+					v |= ((uint16_t)s.bytes[pos++]) << 8;
+					v |= s.bytes[pos++];
 					sink_list_push(ctx, res, sink_num((int16_t)v));
 				} break;
 				case STRUCT_SL32: {
 					uint32_t v = 0;
-					v |= s->bytes[pos++];
-					v |= ((uint32_t)s->bytes[pos++]) <<  8;
-					v |= ((uint32_t)s->bytes[pos++]) << 16;
-					v |= ((uint32_t)s->bytes[pos++]) << 24;
+					v |= s.bytes[pos++];
+					v |= ((uint32_t)s.bytes[pos++]) <<  8;
+					v |= ((uint32_t)s.bytes[pos++]) << 16;
+					v |= ((uint32_t)s.bytes[pos++]) << 24;
 					sink_list_push(ctx, res, sink_num((int32_t)v));
 				} break;
 				case STRUCT_SB32: {
 					uint32_t v = 0;
-					v |= ((uint32_t)s->bytes[pos++]) << 24;
-					v |= ((uint32_t)s->bytes[pos++]) << 16;
-					v |= ((uint32_t)s->bytes[pos++]) <<  8;
-					v |= s->bytes[pos++];
+					v |= ((uint32_t)s.bytes[pos++]) << 24;
+					v |= ((uint32_t)s.bytes[pos++]) << 16;
+					v |= ((uint32_t)s.bytes[pos++]) <<  8;
+					v |= s.bytes[pos++];
 					sink_list_push(ctx, res, sink_num((int32_t)v));
 				} break;
 				case STRUCT_FL32: {
 					union { float f; uint32_t u; } v = { .u = 0 };
-					v.u |= s->bytes[pos++];
-					v.u |= ((uint32_t)s->bytes[pos++]) <<  8;
-					v.u |= ((uint32_t)s->bytes[pos++]) << 16;
-					v.u |= ((uint32_t)s->bytes[pos++]) << 24;
+					v.u |= s.bytes[pos++];
+					v.u |= ((uint32_t)s.bytes[pos++]) <<  8;
+					v.u |= ((uint32_t)s.bytes[pos++]) << 16;
+					v.u |= ((uint32_t)s.bytes[pos++]) << 24;
 					if (isnan(v.f))
 						sink_list_push(ctx, res, sink_num_nan());
 					else
@@ -10103,10 +10085,10 @@ static inline sink_val opi_struct_list(context ctx, sink_val a, sink_val b){
 				} break;
 				case STRUCT_FB32: {
 					union { float f; uint32_t u; } v = { .u = 0 };
-					v.u |= ((uint32_t)s->bytes[pos++]) << 24;
-					v.u |= ((uint32_t)s->bytes[pos++]) << 16;
-					v.u |= ((uint32_t)s->bytes[pos++]) <<  8;
-					v.u |= s->bytes[pos++];
+					v.u |= ((uint32_t)s.bytes[pos++]) << 24;
+					v.u |= ((uint32_t)s.bytes[pos++]) << 16;
+					v.u |= ((uint32_t)s.bytes[pos++]) <<  8;
+					v.u |= s.bytes[pos++];
 					if (isnan(v.f))
 						sink_list_push(ctx, res, sink_num_nan());
 					else
@@ -10114,14 +10096,14 @@ static inline sink_val opi_struct_list(context ctx, sink_val a, sink_val b){
 				} break;
 				case STRUCT_FL64: {
 					union { double f; uint64_t u; } v = { .u = 0 };
-					v.u |= s->bytes[pos++];
-					v.u |= ((uint64_t)s->bytes[pos++]) <<  8;
-					v.u |= ((uint64_t)s->bytes[pos++]) << 16;
-					v.u |= ((uint64_t)s->bytes[pos++]) << 24;
-					v.u |= ((uint64_t)s->bytes[pos++]) << 32;
-					v.u |= ((uint64_t)s->bytes[pos++]) << 40;
-					v.u |= ((uint64_t)s->bytes[pos++]) << 48;
-					v.u |= ((uint64_t)s->bytes[pos++]) << 56;
+					v.u |= s.bytes[pos++];
+					v.u |= ((uint64_t)s.bytes[pos++]) <<  8;
+					v.u |= ((uint64_t)s.bytes[pos++]) << 16;
+					v.u |= ((uint64_t)s.bytes[pos++]) << 24;
+					v.u |= ((uint64_t)s.bytes[pos++]) << 32;
+					v.u |= ((uint64_t)s.bytes[pos++]) << 40;
+					v.u |= ((uint64_t)s.bytes[pos++]) << 48;
+					v.u |= ((uint64_t)s.bytes[pos++]) << 56;
 					if (isnan(v.f))
 						sink_list_push(ctx, res, sink_num_nan());
 					else
@@ -10129,14 +10111,14 @@ static inline sink_val opi_struct_list(context ctx, sink_val a, sink_val b){
 				} break;
 				case STRUCT_FB64: {
 					union { double f; uint64_t u; } v = { .u = 0 };
-					v.u |= ((uint64_t)s->bytes[pos++]) << 56;
-					v.u |= ((uint64_t)s->bytes[pos++]) << 48;
-					v.u |= ((uint64_t)s->bytes[pos++]) << 40;
-					v.u |= ((uint64_t)s->bytes[pos++]) << 32;
-					v.u |= ((uint64_t)s->bytes[pos++]) << 24;
-					v.u |= ((uint64_t)s->bytes[pos++]) << 16;
-					v.u |= ((uint64_t)s->bytes[pos++]) <<  8;
-					v.u |= s->bytes[pos++];
+					v.u |= ((uint64_t)s.bytes[pos++]) << 56;
+					v.u |= ((uint64_t)s.bytes[pos++]) << 48;
+					v.u |= ((uint64_t)s.bytes[pos++]) << 40;
+					v.u |= ((uint64_t)s.bytes[pos++]) << 32;
+					v.u |= ((uint64_t)s.bytes[pos++]) << 24;
+					v.u |= ((uint64_t)s.bytes[pos++]) << 16;
+					v.u |= ((uint64_t)s.bytes[pos++]) <<  8;
+					v.u |= s.bytes[pos++];
 					if (isnan(v.f))
 						sink_list_push(ctx, res, sink_num_nan());
 					else
@@ -10157,7 +10139,7 @@ static inline bool opi_struct_isLE(){
 		uint8_t b[2];
 	} v;
 	v.a = 0x1234;
-	return v.b[0] == 0x34;
+	return v.b[0] === 0x34;
 }
 
 // operators
@@ -10185,23 +10167,23 @@ static sink_val unop_tonum(context ctx, sink_val a){
 		TONUM_EXP_BODY
 	} state = TONUM_START;
 	bool hasval = false;
-	for (int i = 0; i < s->size; i++){
-		char ch = (char)s->bytes[i];
+	for (int i = 0; i < s.size; i++){
+		char ch = (char)s.bytes[i];
 		switch (state){
 			case TONUM_START:
 				if (isNum(ch)){
 					hasval = true;
 					npi.val = toHex(ch);
-					if (npi.val == 0)
+					if (npi.val === 0)
 						state = TONUM_0;
 					else
 						state = TONUM_BODY;
 				}
-				else if (ch == '-'){
+				else if (ch === '-'){
 					npi.sign = -1;
 					state = TONUM_NEG;
 				}
-				else if (ch == '.')
+				else if (ch === '.')
 					state = TONUM_FRAC;
 				else if (!isSpace(ch))
 					return SINK_NIL;
@@ -10211,35 +10193,35 @@ static sink_val unop_tonum(context ctx, sink_val a){
 				if (isNum(ch)){
 					hasval = true;
 					npi.val = toHex(ch);
-					if (npi.val == 0)
+					if (npi.val === 0)
 						state = TONUM_0;
 					else
 						state = TONUM_BODY;
 				}
-				else if (ch == '.')
+				else if (ch === '.')
 					state = TONUM_FRAC;
 				else
 					return SINK_NIL;
 				break;
 
 			case TONUM_0:
-				if (ch == 'b'){
+				if (ch === 'b'){
 					npi.base = 2;
 					state = TONUM_2;
 				}
-				else if (ch == 'c'){
+				else if (ch === 'c'){
 					npi.base = 8;
 					state = TONUM_2;
 				}
-				else if (ch == 'x'){
+				else if (ch === 'x'){
 					npi.base = 16;
 					state = TONUM_2;
 				}
-				else if (ch == '_')
+				else if (ch === '_')
 					state = TONUM_BODY;
-				else if (ch == '.')
+				else if (ch === '.')
 					state = TONUM_FRAC;
-				else if (ch == 'e' || ch == 'E')
+				else if (ch === 'e' || ch === 'E')
 					state = TONUM_EXP;
 				else if (isNum(ch)){
 					// number has a leading zero, so just ignore it
@@ -10258,17 +10240,17 @@ static sink_val unop_tonum(context ctx, sink_val a){
 						return sink_num(0);
 					state = TONUM_BODY;
 				}
-				else if (ch != '_')
+				else if (ch !== '_')
 					return sink_num(0);
 				break;
 
 			case TONUM_BODY:
-				if (ch == '_')
+				if (ch === '_')
 					/* do nothing * /;
-				else if (ch == '.')
+				else if (ch === '.')
 					state = TONUM_FRAC;
-				else if ((npi.base == 10 && (ch == 'e' || ch == 'E')) ||
-					(npi.base != 10 && (ch == 'p' || ch == 'P')))
+				else if ((npi.base === 10 && (ch === 'e' || ch === 'E')) ||
+					(npi.base !== 10 && (ch === 'p' || ch === 'P')))
 					state = TONUM_EXP;
 				else if (isHex(ch)){
 					int v = toHex(ch);
@@ -10282,10 +10264,10 @@ static sink_val unop_tonum(context ctx, sink_val a){
 				break;
 
 			case TONUM_FRAC:
-				if (ch == '_')
+				if (ch === '_')
 					/* do nothing * /;
-				else if (hasval && ((npi.base == 10 && (ch == 'e' || ch == 'E')) ||
-					(npi.base != 10 && (ch == 'p' || ch == 'P'))))
+				else if (hasval && ((npi.base === 10 && (ch === 'e' || ch === 'E')) ||
+					(npi.base !== 10 && (ch === 'p' || ch === 'P'))))
 					state = TONUM_EXP;
 				else if (isHex(ch)){
 					hasval = true;
@@ -10300,16 +10282,16 @@ static sink_val unop_tonum(context ctx, sink_val a){
 				break;
 
 			case TONUM_EXP:
-				if (ch != '_'){
-					npi.esign = ch == '-' ? -1 : 1;
+				if (ch !== '_'){
+					npi.esign = ch === '-' ? -1 : 1;
 					state = TONUM_EXP_BODY;
-					if (ch != '+' && ch != '-')
+					if (ch !== '+' && ch !== '-')
 						i--;
 				}
 				break;
 
 			case TONUM_EXP_BODY:
-				if (ch == '_')
+				if (ch === '_')
 					/* do nothing * /;
 				else if (isNum(ch))
 					npi.eval = npi.eval * 10.0 + toHex(ch);
@@ -10318,7 +10300,7 @@ static sink_val unop_tonum(context ctx, sink_val a){
 				break;
 		}
 	}
-	if (state == TONUM_START || state == TONUM_NEG || (state == TONUM_FRAC && !hasval))
+	if (state === TONUM_START || state === TONUM_NEG || (state === TONUM_FRAC && !hasval))
 		return SINK_NIL;
 	return sink_num(numpart_calc(npi));
 }
@@ -10530,24 +10512,24 @@ static sink_val binop_int_mod(context ctx, sink_val a, sink_val b){
 
 // inline operators
 static inline bool opi_equ(context ctx, sink_val a, sink_val b){
-	if (a.u == b.u){
+	if (a.u === b.u){
 		if (sink_isnum(a))
-			return a.f == b.f;
+			return a.f === b.f;
 		return true;
 	}
 	if (sink_isstr(a) && sink_isstr(b))
-		return str_cmp(var_caststr(ctx, a), var_caststr(ctx, b)) == 0;
+		return str_cmp(var_caststr(ctx, a), var_caststr(ctx, b)) === 0;
 	return false;
 }
 
 static inline int opi_size(context ctx, sink_val a){
 	if (sink_islist(a)){
 		sink_list ls = var_castlist(ctx, a);
-		return ls->size;
+		return ls.size;
 	}
 	else if (sink_isstr(a)){
 		sink_str str = var_caststr(ctx, a);
-		return str->size;
+		return str.size;
 	}
 	opi_abortcstr(ctx, "Expecting string or list for size");
 	return 0;
@@ -10562,71 +10544,71 @@ static inline sink_val opi_tonum(context ctx, sink_val a){
 }
 
 static inline void opi_say(context ctx, int size, sink_val *vals){
-	if (ctx->io.f_say){
-		ctx->io.f_say(
+	if (ctx.io.f_say){
+		ctx.io.f_say(
 			ctx,
 			var_caststr(ctx, sink_list_joinplain(ctx, size, vals, 1, (const uint8_t *)" ")),
-			ctx->io.user
+			ctx.io.user
 		);
 	}
 }
 
 static inline void opi_warn(context ctx, int size, sink_val *vals){
-	if (ctx->io.f_warn){
-		ctx->io.f_warn(
+	if (ctx.io.f_warn){
+		ctx.io.f_warn(
 			ctx,
 			var_caststr(ctx, sink_list_joinplain(ctx, size, vals, 1, (const uint8_t *)" ")),
-			ctx->io.user
+			ctx.io.user
 		);
 	}
 }
 
 static inline sink_val opi_ask(context ctx, int size, sink_val *vals){
-	if (ctx->io.f_ask){
-		return ctx->io.f_ask(
+	if (ctx.io.f_ask){
+		return ctx.io.f_ask(
 			ctx,
 			var_caststr(ctx, sink_list_joinplain(ctx, size, vals, 1, (const uint8_t *)" ")),
-			ctx->io.user
+			ctx.io.user
 		);
 	}
 	return SINK_NIL;
 }
 
 static inline sink_run opi_exit(context ctx){
-	ctx->passed = true;
+	ctx.passed = true;
 	return SINK_RUN_PASS;
 }
 
 static inline filepos_st callstack_flp(context ctx, int pc){
 	filepos_st flp = FILEPOS_NULL;
 	int i;
-	for (i = 0; i < ctx->prg->posTable->size; i++){
-		prgflp p = ctx->prg->posTable->ptrs[i];
-		if (p->pc > pc){
+	for (i = 0; i < ctx.prg.posTable.size; i++){
+		prgflp p = ctx.prg.posTable.ptrs[i];
+		if (p.pc > pc){
 			if (i > 0)
-				flp = ((prgflp)ctx->prg->posTable->ptrs[i - 1])->flp;
+				flp = ((prgflp)ctx.prg.posTable.ptrs[i - 1]).flp;
 			break;
 		}
 	}
-	if (i > 0 && i == ctx->prg->posTable->size)
-		flp = ((prgflp)ctx->prg->posTable->ptrs[i - 1])->flp;
+	if (i > 0 && i === ctx.prg.posTable.size)
+		flp = ((prgflp)ctx.prg.posTable.ptrs[i - 1]).flp;
 	return flp;
 }
 
 static inline int callstack_cmdhint(context ctx, int pc){
-	for (int i = 0; i < ctx->prg->cmdTable->size; i++){
-		prgch p = ctx->prg->cmdTable->ptrs[i];
-		if (p->pc > pc){
+	for (int i = 0; i < ctx.prg.cmdTable.size; i++){
+		prgch p = ctx.prg.cmdTable.ptrs[i];
+		if (p.pc > pc){
 			// start working backwards
 			int nest = 0;
 			for (int j = i - 1; j >= 0; j--){
-				p = ctx->prg->cmdTable->ptrs[j];
-				if (p->cmdhint < 0)
+				p = ctx.prg.cmdTable.ptrs[j];
+				if (p.cmdhint < 0)
 					nest++;
 				else{
 					nest--;
 					if (nest < 0)
-						return p->cmdhint;
+						return p.cmdhint;
 				}
 			}
 			break;
@@ -10640,9 +10622,9 @@ static char *callstack_append(context ctx, char *err, int pc){
 	int cmdhint = callstack_cmdhint(ctx, pc);
 	const char *chn = NULL;
 	if (cmdhint >= 0)
-		chn = program_getdebugstr(ctx->prg, cmdhint);
+		chn = program_getdebugstr(ctx.prg, cmdhint);
 	if (flp.line >= 0){
-		char *err2 = program_errormsg(ctx->prg, flp, NULL);
+		char *err2 = program_errormsg(ctx.prg, flp, NULL);
 		char *err3;
 		if (chn){
 			if (err)
@@ -10678,29 +10660,29 @@ static char *callstack_append(context ctx, char *err, int pc){
 }
 
 static inline sink_run opi_abort(context ctx, char *err){
-	ctx->failed = true;
-	if (err == NULL)
+	ctx.failed = true;
+	if (err === NULL)
 		return SINK_RUN_FAIL;
-	err = callstack_append(ctx, err, ctx->lastpc);
-	for (int i = ctx->call_stk->size - 1, j = 0; i >= 0 && j < 9; i--, j++){
-		ccs here = ctx->call_stk->ptrs[i];
-		err = callstack_append(ctx, err, here->pc - 1);
+	err = callstack_append(ctx, err, ctx.lastpc);
+	for (int i = ctx.call_stk.size - 1, j = 0; i >= 0 && j < 9; i--, j++){
+		ccs here = ctx.call_stk.ptrs[i];
+		err = callstack_append(ctx, err, here.pc - 1);
 	}
-	if (ctx->err)
-		mem_free(ctx->err);
-	ctx->err = format("Error: %s", err);
+	if (ctx.err)
+		mem_free(ctx.err);
+	ctx.err = format("Error: %s", err);
 	mem_free(err);
 	return SINK_RUN_FAIL;
 }
 
 static inline sink_val opi_stacktrace(context ctx){
 	sink_val ls = sink_list_newempty(ctx);
-	char *err = callstack_append(ctx, NULL, ctx->lastpc);
+	char *err = callstack_append(ctx, NULL, ctx.lastpc);
 	if (err)
 		sink_list_push(ctx, ls, sink_str_newcstrgive(ctx, err));
-	for (int i = ctx->call_stk->size - 1; i >= 0; i--){
-		ccs here = ctx->call_stk->ptrs[i];
-		err = callstack_append(ctx, NULL, here->pc - 1);
+	for (int i = ctx.call_stk.size - 1; i >= 0; i--){
+		ccs here = ctx.call_stk.ptrs[i];
+		err = callstack_append(ctx, NULL, here.pc - 1);
 		if (err)
 			sink_list_push(ctx, ls, sink_str_newcstrgive(ctx, err));
 	}
@@ -10758,10 +10740,10 @@ static inline sink_val opi_combop(context ctx, int size, sink_val *vals, binary_
 	for (int i = 0; i < size; i++){
 		if (sink_islist(vals[i])){
 			sink_list ls = var_castlist(ctx, vals[i]);
-			if (ls->size > listsize)
-				listsize = ls->size;
+			if (ls.size > listsize)
+				listsize = ls.size;
 			for (int j = 0; j < size; j++){
-				if (!sink_isnum(ls->vals[j]))
+				if (!sink_isnum(ls.vals[j]))
 					goto badtype;
 			}
 		}
@@ -10785,7 +10767,7 @@ static inline sink_val opi_combop(context ctx, int size, sink_val *vals, binary_
 		}
 		return sink_list_newblobgive(ctx, listsize, listsize, ret);
 	}
-	// otherwise, listsize == 0
+	// otherwise, listsize === 0
 	return sink_list_newempty(ctx);
 
 	badtype:
@@ -10796,10 +10778,10 @@ static inline sink_val opi_str_at(context ctx, sink_val a, sink_val b){
 	sink_str s = var_caststr(ctx, a);
 	int idx = b.f;
 	if (idx < 0)
-		idx += s->size;
-	if (idx < 0 || idx >= s->size)
+		idx += s.size;
+	if (idx < 0 || idx >= s.size)
 		return SINK_NIL;
-	return sink_str_newblob(ctx, 1, &s->bytes[idx]);
+	return sink_str_newblob(ctx, 1, &s.bytes[idx]);
 }
 
 static inline sink_val opi_str_cat(context ctx, int argcount, sink_val *args){
@@ -10854,12 +10836,12 @@ static inline sink_val opi_str_slice(context ctx, sink_val a, sink_val b, sink_v
 		return SINK_NIL;
 	}
 	sink_str s = var_caststr(ctx, a);
-	if (s->size <= 0)
+	if (s.size <= 0)
 		return a;
-	fix_slice_st sl = fix_slice(b, c, s->size);
+	fix_slice_st sl = fix_slice(b, c, s.size);
 	if (sl.len <= 0)
 		return sink_str_newblob(ctx, 0, NULL);
-	return sink_str_newblob(ctx, sl.len, &s->bytes[sl.start]);
+	return sink_str_newblob(ctx, sl.len, &s.bytes[sl.start]);
 }
 
 static inline sink_val opi_str_splice(context ctx, sink_val a, sink_val b, sink_val c, sink_val d){
@@ -10876,36 +10858,36 @@ static inline sink_val opi_str_splice(context ctx, sink_val a, sink_val b, sink_
 		return SINK_NIL;
 	}
 	sink_str s = var_caststr(ctx, a);
-	fix_slice_st sl = fix_slice(b, c, s->size);
+	fix_slice_st sl = fix_slice(b, c, s.size);
 	if (sink_isnil(d)){
 		if (sl.len <= 0)
 			return a;
-		int tot = s->size - sl.len;
+		int tot = s.size - sl.len;
 		if (tot <= 0)
 			return sink_str_newblob(ctx, 0, NULL);
 		uint8_t *bytes = mem_alloc(sizeof(uint8_t) * (tot + 1));
 		if (sl.start > 0)
-			memcpy(bytes, s->bytes, sizeof(uint8_t) * sl.start);
-		if (s->size > sl.start + sl.len){
-			memcpy(&bytes[sl.start], &s->bytes[sl.start + sl.len],
-				sizeof(uint8_t) * (s->size - sl.start - sl.len));
+			memcpy(bytes, s.bytes, sizeof(uint8_t) * sl.start);
+		if (s.size > sl.start + sl.len){
+			memcpy(&bytes[sl.start], &s.bytes[sl.start + sl.len],
+				sizeof(uint8_t) * (s.size - sl.start - sl.len));
 		}
 		bytes[tot] = 0;
 		return sink_str_newblobgive(ctx, tot, bytes);
 	}
 	else{
 		sink_str s2 = var_caststr(ctx, d);
-		int tot = s->size - sl.len + s2->size;
+		int tot = s.size - sl.len + s2.size;
 		if (tot <= 0)
 			return sink_str_newblob(ctx, 0, NULL);
 		uint8_t *bytes = mem_alloc(sizeof(uint8_t) * (tot + 1));
 		if (sl.start > 0)
-			memcpy(bytes, s->bytes, sizeof(uint8_t) * sl.start);
-		if (s2->size > 0)
-			memcpy(&bytes[sl.start], s2->bytes, sizeof(uint8_t) * s2->size);
-		if (s->size > sl.start + sl.len){
-			memcpy(&bytes[sl.start + s2->size], &s->bytes[sl.start + sl.len],
-				sizeof(uint8_t) * (s->size - sl.start - sl.len));
+			memcpy(bytes, s.bytes, sizeof(uint8_t) * sl.start);
+		if (s2.size > 0)
+			memcpy(&bytes[sl.start], s2.bytes, sizeof(uint8_t) * s2.size);
+		if (s.size > sl.start + sl.len){
+			memcpy(&bytes[sl.start + s2.size], &s.bytes[sl.start + sl.len],
+				sizeof(uint8_t) * (s.size - sl.start - sl.len));
 		}
 		bytes[tot] = 0;
 		return sink_str_newblobgive(ctx, tot, bytes);
@@ -10930,25 +10912,25 @@ static inline sink_val opi_list_at(context ctx, sink_val a, sink_val b){
 	sink_list ls = var_castlist(ctx, a);
 	int idx = b.f;
 	if (idx < 0)
-		idx += ls->size;
-	if (idx < 0 || idx >= ls->size)
+		idx += ls.size;
+	if (idx < 0 || idx >= ls.size)
 		return SINK_NIL;
-	return ls->vals[idx];
+	return ls.vals[idx];
 }
 
 static inline sink_val opi_list_cat(context ctx, int argcount, sink_val *args){
 	int ns = 0;
 	for (int i = 0; i < argcount; i++)
-		ns += var_castlist(ctx, args[i])->size;
+		ns += var_castlist(ctx, args[i]).size;
 	if (ns <= 0)
 		return sink_list_newempty(ctx);
 	sink_val *vals = mem_alloc(sizeof(sink_val) * ns);
 	ns = 0;
 	for (int i = 0; i < argcount; i++){
 		sink_list ls = var_castlist(ctx, args[i]);
-		if (ls->size > 0){
-			memcpy(&vals[ns], ls->vals, sizeof(sink_val) * ls->size);
-			ns += ls->size;
+		if (ls.size > 0){
+			memcpy(&vals[ns], ls.vals, sizeof(sink_val) * ls.size);
+			ns += ls.size;
 		}
 	}
 	return sink_list_newblobgive(ctx, ns, ns, vals);
@@ -10964,10 +10946,10 @@ static inline sink_val opi_list_slice(context ctx, sink_val a, sink_val b, sink_
 		return SINK_NIL;
 	}
 	sink_list ls = var_castlist(ctx, a);
-	fix_slice_st sl = fix_slice(b, c, ls->size);
-	if (ls->size <= 0 || sl.len <= 0)
+	fix_slice_st sl = fix_slice(b, c, ls.size);
+	if (ls.size <= 0 || sl.len <= 0)
 		return sink_list_newempty(ctx);
-	return sink_list_newblob(ctx, sl.len, &ls->vals[sl.start]);
+	return sink_list_newblob(ctx, sl.len, &ls.vals[sl.start]);
 }
 
 static inline void opi_list_splice(context ctx, sink_val a, sink_val b, sink_val c, sink_val d){
@@ -10984,32 +10966,32 @@ static inline void opi_list_splice(context ctx, sink_val a, sink_val b, sink_val
 		return;
 	}
 	sink_list ls = var_castlist(ctx, a);
-	fix_slice_st sl = fix_slice(b, c, ls->size);
+	fix_slice_st sl = fix_slice(b, c, ls.size);
 	if (sink_isnil(d)){
 		if (sl.len <= 0)
 			return;
-		if (ls->size > sl.start + sl.len){
-			memmove(&ls->vals[sl.start], &ls->vals[sl.start + sl.len],
-				sizeof(sink_val) * (ls->size - sl.start - sl.len));
+		if (ls.size > sl.start + sl.len){
+			memmove(&ls.vals[sl.start], &ls.vals[sl.start + sl.len],
+				sizeof(sink_val) * (ls.size - sl.start - sl.len));
 		}
-		ls->size -= sl.len;
+		ls.size -= sl.len;
 	}
 	else{
 		sink_list ls2 = var_castlist(ctx, d);
-		if (sl.len <= 0 && ls2->size <= 0)
+		if (sl.len <= 0 && ls2.size <= 0)
 			return;
-		int tot = ls->size - sl.len + ls2->size;
-		if (tot > ls->count){
-			ls->vals = mem_realloc(ls->vals, sizeof(sink_val) * tot);
-			ls->count = tot;
+		int tot = ls.size - sl.len + ls2.size;
+		if (tot > ls.count){
+			ls.vals = mem_realloc(ls.vals, sizeof(sink_val) * tot);
+			ls.count = tot;
 		}
-		if (ls->size > sl.start + sl.len){
-			memmove(&ls->vals[sl.start + ls2->size], &ls->vals[sl.start + sl.len],
-				sizeof(sink_val) * (ls->size - sl.start - sl.len));
+		if (ls.size > sl.start + sl.len){
+			memmove(&ls.vals[sl.start + ls2.size], &ls.vals[sl.start + sl.len],
+				sizeof(sink_val) * (ls.size - sl.start - sl.len));
 		}
-		if (ls2->size > 0)
-			memcpy(&ls->vals[sl.start], ls2->vals, sizeof(sink_val) * ls2->size);
-		ls->size = tot;
+		if (ls2.size > 0)
+			memcpy(&ls.vals[sl.start], ls2.vals, sizeof(sink_val) * ls2.size);
+		ls.size = tot;
 	}
 }
 
@@ -11019,14 +11001,14 @@ static inline sink_val opi_list_shift(context ctx, sink_val a){
 		return SINK_NIL;
 	}
 	sink_list ls = var_castlist(ctx, a);
-	if (ls->size <= 0)
+	if (ls.size <= 0)
 		return SINK_NIL;
-	sink_val ret = ls->vals[0];
-	if (ls->size <= 1)
-		ls->size = 0;
+	sink_val ret = ls.vals[0];
+	if (ls.size <= 1)
+		ls.size = 0;
 	else{
-		ls->size--;
-		memcpy(&ls->vals[0], &ls->vals[1], sizeof(sink_val) * ls->size);
+		ls.size--;
+		memcpy(&ls.vals[0], &ls.vals[1], sizeof(sink_val) * ls.size);
 	}
 	return ret;
 }
@@ -11037,10 +11019,10 @@ static inline sink_val opi_list_pop(context ctx, sink_val a){
 		return SINK_NIL;
 	}
 	sink_list ls = var_castlist(ctx, a);
-	if (ls->size <= 0)
+	if (ls.size <= 0)
 		return SINK_NIL;
-	ls->size--;
-	return ls->vals[ls->size];
+	ls.size--;
+	return ls.vals[ls.size];
 }
 
 static const int sink_list_grow = 200;
@@ -11050,23 +11032,23 @@ static inline sink_val opi_list_push(context ctx, sink_val a, sink_val b){
 		return SINK_NIL;
 	}
 	sink_list ls = var_castlist(ctx, a);
-	if (ls->size >= ls->count){
-		ls->count += sink_list_grow;
-		ls->vals = mem_realloc(ls->vals, sizeof(sink_val) * ls->count);
+	if (ls.size >= ls.count){
+		ls.count += sink_list_grow;
+		ls.vals = mem_realloc(ls.vals, sizeof(sink_val) * ls.count);
 	}
-	ls->vals[ls->size++] = b;
+	ls.vals[ls.size++] = b;
 	return a;
 }
 
 static inline void opi_list_pushnils(context ctx, sink_list ls, int totalsize){
-	if (ls->size >= totalsize)
+	if (ls.size >= totalsize)
 		return;
-	if (totalsize > ls->count){
-		ls->count = totalsize + sink_list_grow;
-		ls->vals = mem_realloc(ls->vals, sizeof(sink_val) * ls->count);
+	if (totalsize > ls.count){
+		ls.count = totalsize + sink_list_grow;
+		ls.vals = mem_realloc(ls.vals, sizeof(sink_val) * ls.count);
 	}
-	while (ls->size < totalsize)
-		ls->vals[ls->size++] = SINK_NIL;
+	while (ls.size < totalsize)
+		ls.vals[ls.size++] = SINK_NIL;
 }
 
 static inline sink_val opi_list_unshift(context ctx, sink_val a, sink_val b){
@@ -11075,14 +11057,14 @@ static inline sink_val opi_list_unshift(context ctx, sink_val a, sink_val b){
 		return SINK_NIL;
 	}
 	sink_list ls = var_castlist(ctx, a);
-	if (ls->size >= ls->count){
-		ls->count += sink_list_grow;
-		ls->vals = mem_realloc(ls->vals, sizeof(sink_val) * ls->count);
+	if (ls.size >= ls.count){
+		ls.count += sink_list_grow;
+		ls.vals = mem_realloc(ls.vals, sizeof(sink_val) * ls.count);
 	}
-	if (ls->size > 0)
-		memmove(&ls->vals[1], ls->vals, sizeof(sink_val) * ls->size);
-	ls->vals[0] = b;
-	ls->size++;
+	if (ls.size > 0)
+		memmove(&ls.vals[1], ls.vals, sizeof(sink_val) * ls.size);
+	ls.vals[0] = b;
+	ls.size++;
 	return a;
 }
 
@@ -11092,14 +11074,14 @@ static inline sink_val opi_list_append(context ctx, sink_val a, sink_val b){
 		return SINK_NIL;
 	}
 	sink_list ls2 = var_castlist(ctx, b);
-	if (ls2->size > 0){
+	if (ls2.size > 0){
 		sink_list ls = var_castlist(ctx, a);
-		if (ls->size + ls2->size >= ls->count){
-			ls->count = ls->size + ls2->size + sink_list_grow;
-			ls->vals = mem_realloc(ls->vals, sizeof(sink_val) * ls->count);
+		if (ls.size + ls2.size >= ls.count){
+			ls.count = ls.size + ls2.size + sink_list_grow;
+			ls.vals = mem_realloc(ls.vals, sizeof(sink_val) * ls.count);
 		}
-		memcpy(&ls->vals[ls->size], ls2->vals, sizeof(sink_val) * ls2->size);
-		ls->size += ls2->size;
+		memcpy(&ls.vals[ls.size], ls2.vals, sizeof(sink_val) * ls2.size);
+		ls.size += ls2.size;
 	}
 	return a;
 }
@@ -11110,16 +11092,16 @@ static inline sink_val opi_list_prepend(context ctx, sink_val a, sink_val b){
 		return SINK_NIL;
 	}
 	sink_list ls2 = var_castlist(ctx, b);
-	if (ls2->size > 0){
+	if (ls2.size > 0){
 		sink_list ls = var_castlist(ctx, a);
-		if (ls->size + ls2->size >= ls->count){
-			ls->count = ls->size + ls2->size + sink_list_grow;
-			ls->vals = mem_realloc(ls->vals, sizeof(sink_val) * ls->count);
+		if (ls.size + ls2.size >= ls.count){
+			ls.count = ls.size + ls2.size + sink_list_grow;
+			ls.vals = mem_realloc(ls.vals, sizeof(sink_val) * ls.count);
 		}
-		if (ls->size > 0)
-			memmove(&ls->vals[ls2->size], ls->vals, sizeof(sink_val) * ls->size);
-		memcpy(ls->vals, ls2->vals, sizeof(sink_val) * ls2->size);
-		ls->size += ls2->size;
+		if (ls.size > 0)
+			memmove(&ls.vals[ls2.size], ls.vals, sizeof(sink_val) * ls.size);
+		memcpy(ls.vals, ls2.vals, sizeof(sink_val) * ls2.size);
+		ls.size += ls2.size;
 	}
 	return a;
 }
@@ -11137,8 +11119,8 @@ static inline sink_val opi_list_find(context ctx, sink_val a, sink_val b, sink_v
 	int pos = (sink_isnil(c) || sink_num_isnan(c)) ? 0 : c.f;
 	if (pos < 0)
 		pos = 0;
-	for (; pos < ls->size; pos++){
-		if (opi_equ(ctx, ls->vals[pos], b))
+	for (; pos < ls.size; pos++){
+		if (opi_equ(ctx, ls.vals[pos], b))
 			return sink_num(pos);
 	}
 	return SINK_NIL;
@@ -11154,11 +11136,11 @@ static inline sink_val opi_list_rfind(context ctx, sink_val a, sink_val b, sink_
 		return SINK_NIL;
 	}
 	sink_list ls = var_castlist(ctx, a);
-	int pos = (sink_isnil(c) || sink_num_isnan(c)) ? ls->size - 1 : c.f;
-	if (pos < 0 || pos >= ls->size)
-		pos = ls->size - 1;
+	int pos = (sink_isnil(c) || sink_num_isnan(c)) ? ls.size - 1 : c.f;
+	if (pos < 0 || pos >= ls.size)
+		pos = ls.size - 1;
 	for (; pos >= 0; pos--){
-		if (opi_equ(ctx, ls->vals[pos], b))
+		if (opi_equ(ctx, ls.vals[pos], b))
 			return sink_num(pos);
 	}
 	return SINK_NIL;
@@ -11175,7 +11157,7 @@ static inline sink_val opi_list_join(context ctx, sink_val a, sink_val b){
 	else
 		b = sink_tostr(ctx, b);
 	sink_str str = var_caststr(ctx, b);
-	return sink_list_joinplain(ctx, ls->size, ls->vals, str->size, str->bytes);
+	return sink_list_joinplain(ctx, ls.size, ls.vals, str.size, str.bytes);
 }
 
 static inline sink_val opi_list_rev(context ctx, sink_val a){
@@ -11184,11 +11166,11 @@ static inline sink_val opi_list_rev(context ctx, sink_val a){
 		return SINK_NIL;
 	}
 	sink_list ls = var_castlist(ctx, a);
-	int max = ls->size / 2;
-	for (int i = 0, ri = ls->size - 1; i < max; i++, ri--){
-		sink_val temp = ls->vals[i];
-		ls->vals[i] = ls->vals[ri];
-		ls->vals[ri] = temp;
+	int max = ls.size / 2;
+	for (int i = 0, ri = ls.size - 1; i < max; i++, ri--){
+		sink_val temp = ls.vals[i];
+		ls.vals[i] = ls.vals[ri];
+		ls.vals[ri] = temp;
 	}
 	return a;
 }
@@ -11199,9 +11181,9 @@ static inline sink_val opi_list_str(context ctx, sink_val a){
 		return SINK_NIL;
 	}
 	sink_list ls = var_castlist(ctx, a);
-	uint8_t *bytes = mem_alloc(sizeof(uint8_t) * (ls->size + 1));
-	for (int i = 0; i < ls->size; i++){
-		sink_val b = ls->vals[i];
+	uint8_t *bytes = mem_alloc(sizeof(uint8_t) * (ls.size + 1));
+	for (int i = 0; i < ls.size; i++){
+		sink_val b = ls.vals[i];
 		if (!sink_isnum(b)){
 			mem_free(bytes);
 			opi_abortcstr(ctx, "Expecting list of integers for list.str");
@@ -11214,33 +11196,33 @@ static inline sink_val opi_list_str(context ctx, sink_val a){
 			c = 255;
 		bytes[i] = c;
 	}
-	bytes[ls->size] = 0;
-	return sink_str_newblobgive(ctx, ls->size, bytes);
+	bytes[ls.size] = 0;
+	return sink_str_newblobgive(ctx, ls.size, bytes);
 }
 
 static inline int sortboth(context ctx, list_int li, const sink_val *a, const sink_val *b, int mul){
 	sink_type atype = sink_typeof(*a);
 	sink_type btype = sink_typeof(*b);
 
-	if (atype == SINK_TYPE_ASYNC || btype == SINK_TYPE_ASYNC){
+	if (atype === SINK_TYPE_ASYNC || btype === SINK_TYPE_ASYNC){
 		opi_abortcstr(ctx, "Invalid value inside list during sort");
 		return -1;
 	}
 
-	if (a->u == b->u)
+	if (a.u === b.u)
 		return 0;
 
-	if (atype != btype){
-		if (atype == SINK_TYPE_NIL)
+	if (atype !== btype){
+		if (atype === SINK_TYPE_NIL)
 			return -mul;
-		else if (atype == SINK_TYPE_NUM)
-			return btype == SINK_TYPE_NIL ? mul : -mul;
-		else if (atype == SINK_TYPE_STR)
-			return btype == SINK_TYPE_LIST ? -mul : mul;
+		else if (atype === SINK_TYPE_NUM)
+			return btype === SINK_TYPE_NIL ? mul : -mul;
+		else if (atype === SINK_TYPE_STR)
+			return btype === SINK_TYPE_LIST ? -mul : mul;
 		return mul;
 	}
 
-	if (atype == SINK_TYPE_NUM){
+	if (atype === SINK_TYPE_NUM){
 		if (sink_num_isnan(*a)){
 			if (sink_num_isnan(*b))
 				return 0;
@@ -11248,22 +11230,22 @@ static inline int sortboth(context ctx, list_int li, const sink_val *a, const si
 		}
 		else if (sink_num_isnan(*b))
 			return mul;
-		return a->f < b->f ? -mul : mul;
+		return a.f < b.f ? -mul : mul;
 	}
-	else if (atype == SINK_TYPE_STR){
+	else if (atype === SINK_TYPE_STR){
 		sink_str s1 = var_caststr(ctx, *a);
 		sink_str s2 = var_caststr(ctx, *b);
-		if (s1->size == 0){
-			if (s2->size == 0)
+		if (s1.size === 0){
+			if (s2.size === 0)
 				return 0;
 			return -mul;
 		}
-		else if (s2->size == 0)
+		else if (s2.size === 0)
 			return mul;
-		int res = memcmp(s1->bytes, s2->bytes,
-			sizeof(uint8_t) * (s1->size < s2->size ? s1->size : s2->size));
-		if (res == 0)
-			return s1->size == s2->size ? 0 : (s1->size < s2->size ? -mul : mul);
+		int res = memcmp(s1.bytes, s2.bytes,
+			sizeof(uint8_t) * (s1.size < s2.size ? s1.size : s2.size));
+		if (res === 0)
+			return s1.size === s2.size ? 0 : (s1.size < s2.size ? -mul : mul);
 		return res < 0 ? -mul : mul;
 	}
 	// otherwise, comparing two lists
@@ -11275,18 +11257,18 @@ static inline int sortboth(context ctx, list_int li, const sink_val *a, const si
 	}
 	sink_list ls1 = var_castlist(ctx, *a);
 	sink_list ls2 = var_castlist(ctx, *b);
-	if (ls1->size == 0){
-		if (ls2->size == 0)
+	if (ls1.size === 0){
+		if (ls2.size === 0)
 			return 0;
 		return -mul;
 	}
-	else if (ls2->size == 0)
+	else if (ls2.size === 0)
 		return mul;
-	int minsize = ls1->size < ls2->size ? ls1->size : ls2->size;
+	int minsize = ls1.size < ls2.size ? ls1.size : ls2.size;
 	list_int_push(li, idx1);
 	list_int_push(li, idx2);
 	for (int i = 0; i < minsize; i++){
-		int res = sortboth(ctx, li, &ls1->vals[i], &ls2->vals[i], 1);
+		int res = sortboth(ctx, li, &ls1.vals[i], &ls2.vals[i], 1);
 		if (res < 0){
 			list_int_pop(li);
 			list_int_pop(li);
@@ -11300,9 +11282,9 @@ static inline int sortboth(context ctx, list_int li, const sink_val *a, const si
 	}
 	list_int_pop(li);
 	list_int_pop(li);
-	if (ls1->size < ls2->size)
+	if (ls1.size < ls2.size)
 		return -mul;
-	else if (ls1->size > ls2->size)
+	else if (ls1.size > ls2.size)
 		return mul;
 	return 0;
 }
@@ -11313,11 +11295,11 @@ typedef struct {
 } sortu_st, *sortu;
 
 static int sortfwd(sortu u, const sink_val *a, const sink_val *b){
-	return sortboth(u->ctx, u->li, a, b, 1);
+	return sortboth(u.ctx, u.li, a, b, 1);
 }
 
 static int sortrev(sortu u, const sink_val *a, const sink_val *b){
-	return sortboth(u->ctx, u->li, a, b, -1);
+	return sortboth(u.ctx, u.li, a, b, -1);
 }
 
 typedef int (*sink_qsort_compare)(void *, const void *, const void *);
@@ -11381,7 +11363,7 @@ static inline void opi_list_sort(context ctx, sink_val a){
 	}
 	sortu_st u = { .ctx = ctx, .li = list_int_new() };
 	sink_list ls = var_castlist(ctx, a);
-	sink_qsort_r(ls->vals, ls->size, sizeof(sink_val), &u,
+	sink_qsort_r(ls.vals, ls.size, sizeof(sink_val), &u,
 		(int (*)(void *, const void *, const void *))sortfwd);
 	list_int_free(u.li);
 }
@@ -11393,7 +11375,7 @@ static inline void opi_list_rsort(context ctx, sink_val a){
 	}
 	sortu_st u = { .ctx = ctx, .li = list_int_new() };
 	sink_list ls = var_castlist(ctx, a);
-	sink_qsort_r(ls->vals, ls->size, sizeof(sink_val), &u,
+	sink_qsort_r(ls.vals, ls.size, sizeof(sink_val), &u,
 		(int (*)(void *, const void *, const void *))sortrev);
 	list_int_free(u.li);
 }
@@ -11421,7 +11403,7 @@ static inline sink_val opi_range(context ctx, double start, double stop, double 
 
 static inline void numtostr(double num, char *buf, size_t bufsize, int *outsize){
 	*outsize = snprintf(buf, bufsize, "%.16g", num);
-	if (buf[0] == '-' && buf[1] == '0' && buf[2] == 0){ // fix negative zero silliness
+	if (buf[0] === '-' && buf[1] === '0' && buf[2] === 0){ // fix negative zero silliness
 		buf[0] = '0';
 		buf[1] = 0;
 		*outsize = 1;
@@ -11451,49 +11433,49 @@ static inline bool pk_isjson(sink_str s){
 		PKV_ENDVAL
 	} state = PKV_START;
 	int arrays = 0;
-	for (int i = 0; i < s->size; i++){
-		uint8_t b = s->bytes[i];
-		uint8_t nb = i < s->size - 1 ? s->bytes[i + 1] : 0;
+	for (int i = 0; i < s.size; i++){
+		uint8_t b = s.bytes[i];
+		uint8_t nb = i < s.size - 1 ? s.bytes[i + 1] : 0;
 		switch (state){
 			case PKV_START: // start state
-				if (b == 'n'){
-					if (nb != 'u')
+				if (b === 'n'){
+					if (nb !== 'u')
 						return 0;
 					state = PKV_NULL1;
 				}
-				else if (b == '0'){
-					if (nb == '.' || nb == 'e' || nb == 'E')
+				else if (b === '0'){
+					if (nb === '.' || nb === 'e' || nb === 'E')
 						state = PKV_NUM_0;
 					else
 						state = PKV_ENDVAL;
 				}
-				else if (b == '-')
+				else if (b === '-')
 					state = PKV_NUM_NEG;
 				else if (isNum((char)b)){
 					if (isNum((char)nb))
 						state = PKV_NUM_INT;
-					else if (nb == '.' || nb == 'e' || nb == 'E')
+					else if (nb === '.' || nb === 'e' || nb === 'E')
 						state = PKV_NUM_0;
 					else
 						state = PKV_ENDVAL;
 				}
-				else if (b == '"')
+				else if (b === '"')
 					state = PKV_STR;
-				else if (b == '['){
+				else if (b === '['){
 					arrays++;
-					if (isSpace((char)nb) || nb == ']')
+					if (isSpace((char)nb) || nb === ']')
 						state = PKV_ARRAY;
 				}
 				else if (!isSpace((char)b))
 					return 0;
 				break;
 			case PKV_NULL1:
-				if (nb != 'l')
+				if (nb !== 'l')
 					return 0;
 				state = PKV_NULL2;
 				break;
 			case PKV_NULL2:
-				if (nb != 'l')
+				if (nb !== 'l')
 					return 0;
 				state = PKV_NULL3;
 				break;
@@ -11501,10 +11483,10 @@ static inline bool pk_isjson(sink_str s){
 				state = PKV_ENDVAL;
 				break;
 			case PKV_NUM_0:
-				if (b == '.')
+				if (b === '.')
 					state = PKV_NUM_FRAC;
-				else if (b == 'e' || b == 'E'){
-					if (nb == '+' || nb == '-')
+				else if (b === 'e' || b === 'E'){
+					if (nb === '+' || nb === '-')
 						i++;
 					state = PKV_NUM_EXP;
 				}
@@ -11512,8 +11494,8 @@ static inline bool pk_isjson(sink_str s){
 					return 0;
 				break;
 			case PKV_NUM_NEG:
-				if (b == '0'){
-					if (nb == '.' || nb == 'e' || nb == 'E')
+				if (b === '0'){
+					if (nb === '.' || nb === 'e' || nb === 'E')
 						state = PKV_NUM_0;
 					else
 						state = PKV_ENDVAL;
@@ -11521,7 +11503,7 @@ static inline bool pk_isjson(sink_str s){
 				else if (isNum((char)b)){
 					if (isNum((char)nb))
 						state = PKV_NUM_INT;
-					else if (nb == '.' || nb == 'e' || nb == 'E')
+					else if (nb === '.' || nb === 'e' || nb === 'E')
 						state = PKV_NUM_0;
 					else
 						state = PKV_ENDVAL;
@@ -11532,7 +11514,7 @@ static inline bool pk_isjson(sink_str s){
 			case PKV_NUM_INT:
 				if (!isNum((char)b))
 					return 0;
-				if (nb == '.' || nb == 'e' || nb == 'E')
+				if (nb === '.' || nb === 'e' || nb === 'E')
 					state = PKV_NUM_0;
 				else if (!isNum((char)nb))
 					state = PKV_ENDVAL;
@@ -11540,7 +11522,7 @@ static inline bool pk_isjson(sink_str s){
 			case PKV_NUM_FRAC:
 				if (!isNum((char)b))
 					return 0;
-				if (nb == 'e' || nb == 'E')
+				if (nb === 'e' || nb === 'E')
 					state = PKV_NUM_FRACE;
 				else if (!isNum((char)nb))
 					state = PKV_ENDVAL;
@@ -11555,7 +11537,7 @@ static inline bool pk_isjson(sink_str s){
 					else
 						state = PKV_ENDVAL;
 				}
-				else if (b == '+' || b == '-')
+				else if (b === '+' || b === '-')
 					state = PKV_NUM_EXP;
 				else
 					return 0;
@@ -11567,19 +11549,19 @@ static inline bool pk_isjson(sink_str s){
 					state = PKV_ENDVAL;
 				break;
 			case PKV_STR:
-				if (b == '\\')
+				if (b === '\\')
 					state = PKV_STR_ESC;
-				else if (b == '"')
+				else if (b === '"')
 					state = PKV_ENDVAL;
 				else if (b < 0x20)
 					return 0;
 				break;
 			case PKV_STR_ESC:
-				if (b == '"' || b == '\\' || b == '/' || b == 'b' ||
-					b == 'f' || b == 'n' || b == 'r' || b == 't')
+				if (b === '"' || b === '\\' || b === '/' || b === 'b' ||
+					b === 'f' || b === 'n' || b === 'r' || b === 't')
 					state = PKV_STR;
-				else if (b == 'u'){
-					if (nb != '0')
+				else if (b === 'u'){
+					if (nb !== '0')
 						return 0;
 					state = PKV_STR_U1;
 				}
@@ -11587,7 +11569,7 @@ static inline bool pk_isjson(sink_str s){
 					return 0;
 				break;
 			case PKV_STR_U1:
-				if (nb != '0')
+				if (nb !== '0')
 					return 0;
 				state = PKV_STR_U2;
 				break;
@@ -11605,16 +11587,16 @@ static inline bool pk_isjson(sink_str s){
 				state = PKV_STR;
 				break;
 			case PKV_ARRAY:
-				if (b == ']')
+				if (b === ']')
 					state = PKV_ENDVAL;
-				else if (!isSpace((char)nb) && nb != ']')
+				else if (!isSpace((char)nb) && nb !== ']')
 					state = PKV_START;
 				break;
 			case PKV_ENDVAL:
 				if (arrays > 0){
-					if (b == ',')
+					if (b === ',')
 						state = PKV_START;
-					else if (b == ']')
+					else if (b === ']')
 						arrays--;
 					else if (!isSpace((char)b))
 						return 0;
@@ -11624,20 +11606,20 @@ static inline bool pk_isjson(sink_str s){
 				break;
 		}
 	}
-	return state == PKV_ENDVAL;
+	return state === PKV_ENDVAL;
 }
 
 static bool pk_tojson(context ctx, sink_val a, list_int li, sink_str s){
 	switch (sink_typeof(a)){
 		case SINK_TYPE_NIL:
 			set_null:
-			s->size = 4;
-			s->bytes = mem_alloc(sizeof(uint8_t) * 5);
-			s->bytes[0] = 'n';
-			s->bytes[1] = 'u';
-			s->bytes[2] = 'l';
-			s->bytes[3] = 'l';
-			s->bytes[4] = 0;
+			s.size = 4;
+			s.bytes = mem_alloc(sizeof(uint8_t) * 5);
+			s.bytes[0] = 'n';
+			s.bytes[1] = 'u';
+			s.bytes[2] = 'l';
+			s.bytes[3] = 'l';
+			s.bytes[4] = 0;
 			return true;
 		case SINK_TYPE_NUM: {
 			char buf[64];
@@ -11645,9 +11627,9 @@ static bool pk_tojson(context ctx, sink_val a, list_int li, sink_str s){
 			numtostr(a.f, buf, sizeof(buf), &sz);
 			sink_str_st s2 = { .size = sz, .bytes = (uint8_t *)buf };
 			if (pk_isjson(&s2)){
-				s->size = sz;
-				s->bytes = mem_alloc(sizeof(uint8_t) * (sz + 1));
-				memcpy(s->bytes, buf, sizeof(uint8_t) * (sz + 1));
+				s.size = sz;
+				s.bytes = mem_alloc(sizeof(uint8_t) * (sz + 1));
+				memcpy(s.bytes, buf, sizeof(uint8_t) * (sz + 1));
 				return true;
 			}
 			// if C's rendering of the number is not valid JSON, then we have a goofy number, so
@@ -11658,60 +11640,60 @@ static bool pk_tojson(context ctx, sink_val a, list_int li, sink_str s){
 			int tot = 2;
 			sink_str src = var_caststr(ctx, a);
 			// calculate total size first
-			for (int i = 0; i < src->size; i++){
-				uint8_t b = src->bytes[i];
-				if (b == '"' || b == '\\' || b == '\b' || b == '\f' || b == '\n' || b == '\r' ||
-					b == '\t')
+			for (int i = 0; i < src.size; i++){
+				uint8_t b = src.bytes[i];
+				if (b === '"' || b === '\\' || b === '\b' || b === '\f' || b === '\n' || b === '\r' ||
+					b === '\t')
 					tot += 2;
 				else if (b < 0x20 || b >= 0x80) // \u00XX
 					tot += 6;
 				else
 					tot++;
 			}
-			s->size = tot;
-			s->bytes = mem_alloc(sizeof(uint8_t) * (tot + 1));
+			s.size = tot;
+			s.bytes = mem_alloc(sizeof(uint8_t) * (tot + 1));
 			// render string
 			int pos = 0;
-			s->bytes[pos++] = '"';
-			for (int i = 0; i < src->size; i++){
-				uint8_t b = src->bytes[i];
-				if (b == '"' || b == '\\'){
-					s->bytes[pos++] = '\\';
-					s->bytes[pos++] = b;
+			s.bytes[pos++] = '"';
+			for (int i = 0; i < src.size; i++){
+				uint8_t b = src.bytes[i];
+				if (b === '"' || b === '\\'){
+					s.bytes[pos++] = '\\';
+					s.bytes[pos++] = b;
 				}
-				else if (b == '\b'){
-					s->bytes[pos++] = '\\';
-					s->bytes[pos++] = 'b';
+				else if (b === '\b'){
+					s.bytes[pos++] = '\\';
+					s.bytes[pos++] = 'b';
 				}
-				else if (b == '\f'){
-					s->bytes[pos++] = '\\';
-					s->bytes[pos++] = 'f';
+				else if (b === '\f'){
+					s.bytes[pos++] = '\\';
+					s.bytes[pos++] = 'f';
 				}
-				else if (b == '\n'){
-					s->bytes[pos++] = '\\';
-					s->bytes[pos++] = 'n';
+				else if (b === '\n'){
+					s.bytes[pos++] = '\\';
+					s.bytes[pos++] = 'n';
 				}
-				else if (b == '\r'){
-					s->bytes[pos++] = '\\';
-					s->bytes[pos++] = 'r';
+				else if (b === '\r'){
+					s.bytes[pos++] = '\\';
+					s.bytes[pos++] = 'r';
 				}
-				else if (b == '\t'){
-					s->bytes[pos++] = '\\';
-					s->bytes[pos++] = 't';
+				else if (b === '\t'){
+					s.bytes[pos++] = '\\';
+					s.bytes[pos++] = 't';
 				}
 				else if (b < 0x20 || b >= 0x80){ // \u00XX
-					s->bytes[pos++] = '\\';
-					s->bytes[pos++] = 'u';
-					s->bytes[pos++] = '0';
-					s->bytes[pos++] = '0';
-					s->bytes[pos++] = toNibble((b >> 4) & 0x0F);
-					s->bytes[pos++] = toNibble(b & 0x0F);
+					s.bytes[pos++] = '\\';
+					s.bytes[pos++] = 'u';
+					s.bytes[pos++] = '0';
+					s.bytes[pos++] = '0';
+					s.bytes[pos++] = toNibble((b >> 4) & 0x0F);
+					s.bytes[pos++] = toNibble(b & 0x0F);
 				}
 				else
-					s->bytes[pos++] = b;
+					s.bytes[pos++] = b;
 			}
-			s->bytes[pos++] = '"';
-			s->bytes[pos] = 0;
+			s.bytes[pos++] = '"';
+			s.bytes[pos] = 0;
 			return true;
 		} break;
 		case SINK_TYPE_LIST: {
@@ -11721,23 +11703,23 @@ static bool pk_tojson(context ctx, sink_val a, list_int li, sink_str s){
 			list_int_push(li, idx);
 			sink_list ls = var_castlist(ctx, a);
 			int tot = 2;
-			sink_str_st *strs = mem_alloc(sizeof(sink_str_st) * ls->size);
-			for (int i = 0; i < ls->size; i++){
+			sink_str_st *strs = mem_alloc(sizeof(sink_str_st) * ls.size);
+			for (int i = 0; i < ls.size; i++){
 				sink_str_st s2;
-				if (!pk_tojson(ctx, ls->vals[i], li, &s2)){
+				if (!pk_tojson(ctx, ls.vals[i], li, &s2)){
 					for (int j = 0; j < i; j++)
 						mem_free(strs[j].bytes);
 					mem_free(strs);
 					return false;
 				}
 				strs[i] = s2;
-				tot += (i == 0 ? 0 : 1) + s2.size;
+				tot += (i === 0 ? 0 : 1) + s2.size;
 			}
 			list_int_pop(li);
 			uint8_t *bytes = mem_alloc(sizeof(uint8_t) * (tot + 1));
 			bytes[0] = '[';
 			int p = 1;
-			for (int i = 0; i < ls->size; i++){
+			for (int i = 0; i < ls.size; i++){
 				if (i > 0)
 					bytes[p++] = ',';
 				memcpy(&bytes[p], strs[i].bytes, sizeof(uint8_t) * strs[i].size);
@@ -11747,8 +11729,8 @@ static bool pk_tojson(context ctx, sink_val a, list_int li, sink_str s){
 			mem_free(strs);
 			bytes[p] = ']';
 			bytes[tot] = 0;
-			s->size = tot;
-			s->bytes = bytes;
+			s.size = tot;
+			s.bytes = bytes;
 			return true;
 		} break;
 		case SINK_TYPE_ASYNC:
@@ -11768,7 +11750,7 @@ static inline sink_val opi_pickle_json(context ctx, sink_val a){
 	if (!suc){
 		if (s.bytes)
 			mem_free(s.bytes);
-		if (!ctx->failed)
+		if (!ctx.failed)
 			opi_abortcstr(ctx, "Cannot pickle circular structure to JSON format");
 		return SINK_NIL;
 	}
@@ -11794,7 +11776,7 @@ static void pk_tobin(context ctx, sink_val a, list_int li, uint32_t *str_table_s
 			list_byte_push(body, 0xF7);
 			break;
 		case SINK_TYPE_NUM: {
-			if (floor(a.f) == a.f && a.f >= -4294967296.0 && a.f < 4294967296.0){
+			if (floor(a.f) === a.f && a.f >= -4294967296.0 && a.f < 4294967296.0){
 				int64_t num = a.f;
 				if (num < 0){
 					if (num >= -256){
@@ -11835,17 +11817,17 @@ static void pk_tobin(context ctx, sink_val a, list_int li, uint32_t *str_table_s
 			uint32_t sidx = 0;
 			bool found = false;
 			while (!found && sidx < *str_table_size){
-				uint32_t vi = strs->bytes[spos++];
+				uint32_t vi = strs.bytes[spos++];
 				if (vi >= 128){
 					vi = ((vi ^ 0x80) << 24) |
-						((uint32_t)strs->bytes[spos    ] << 16) |
-						((uint32_t)strs->bytes[spos + 1] <<  8) |
-						((uint32_t)strs->bytes[spos + 2]      );
+						((uint32_t)strs.bytes[spos    ] << 16) |
+						((uint32_t)strs.bytes[spos + 1] <<  8) |
+						((uint32_t)strs.bytes[spos + 2]      );
 					spos += 3;
 				}
-				if (vi == s->size){
-					found = vi == 0 ||
-						memcmp(&strs->bytes[spos], s->bytes, sizeof(uint8_t) * vi) == 0;
+				if (vi === s.size){
+					found = vi === 0 ||
+						memcmp(&strs.bytes[spos], s.bytes, sizeof(uint8_t) * vi) === 0;
 				}
 				if (!found){
 					spos += vi;
@@ -11853,8 +11835,8 @@ static void pk_tobin(context ctx, sink_val a, list_int li, uint32_t *str_table_s
 				}
 			}
 			if (!found){
-				pk_tobin_vint(strs, s->size);
-				list_byte_append(strs, s->size, s->bytes);
+				pk_tobin_vint(strs, s.size);
+				list_byte_append(strs, s.size, s.bytes);
 				sidx = *str_table_size;
 				(*str_table_size)++;
 			}
@@ -11868,9 +11850,9 @@ static void pk_tobin(context ctx, sink_val a, list_int li, uint32_t *str_table_s
 				list_int_push(li, idx);
 				sink_list ls = var_castlist(ctx, a);
 				list_byte_push(body, 0xF9);
-				pk_tobin_vint(body, ls->size);
-				for (int i = 0; i < ls->size; i++)
-					pk_tobin(ctx, ls->vals[i], li, str_table_size, strs, body);
+				pk_tobin_vint(body, ls.size);
+				for (int i = 0; i < ls.size; i++)
+					pk_tobin(ctx, ls.vals[i], li, str_table_size, strs, body);
 			}
 			else{
 				list_byte_push(body, 0xFA);
@@ -11893,12 +11875,12 @@ static inline bool opi_pickle_binstr(context ctx, sink_val a, sink_str_st *out){
 	pk_tobin(ctx, a, li, &str_table_size, strs, body);
 	if (li)
 		list_int_free(li);
-	if (ctx->failed){
+	if (ctx.failed){
 		list_byte_free(strs);
 		list_byte_free(body);
 		return false;
 	}
-	int tot = 1 + (str_table_size < 128 ? 1 : 4) + strs->size + body->size;
+	int tot = 1 + (str_table_size < 128 ? 1 : 4) + strs.size + body.size;
 	uint8_t *bytes = mem_alloc(sizeof(uint8_t) * (tot + 1));
 	int pos = 0;
 	bytes[pos++] = 0x01;
@@ -11910,11 +11892,11 @@ static inline bool opi_pickle_binstr(context ctx, sink_val a, sink_str_st *out){
 		bytes[pos++] = (str_table_size >>  8) & 0xFF;
 		bytes[pos++] =  str_table_size        & 0xFF;
 	}
-	if (strs->size > 0){
-		memcpy(&bytes[pos], strs->bytes, sizeof(uint8_t) * strs->size);
-		pos += strs->size;
+	if (strs.size > 0){
+		memcpy(&bytes[pos], strs.bytes, sizeof(uint8_t) * strs.size);
+		pos += strs.size;
 	}
-	memcpy(&bytes[pos], body->bytes, sizeof(uint8_t) * body->size);
+	memcpy(&bytes[pos], body.bytes, sizeof(uint8_t) * body.size);
 	bytes[tot] = 0;
 	list_byte_free(strs);
 	list_byte_free(body);
@@ -11930,97 +11912,97 @@ static inline sink_val opi_pickle_bin(context ctx, sink_val a){
 }
 
 static inline bool pk_fmbin_vint(sink_str s, uint64_t *pos, uint32_t *res){
-	if (s->size <= *pos)
+	if (s.size <= *pos)
 		return false;
-	uint32_t v = s->bytes[*pos];
+	uint32_t v = s.bytes[*pos];
 	(*pos)++;
 	if (v < 128){
 		*res = v;
 		return true;
 	}
-	if (s->size <= *pos + 2)
+	if (s.size <= *pos + 2)
 		return false;
 	*res = ((v ^ 0x80) << 24) |
-		((uint32_t)s->bytes[*pos    ] << 16) |
-		((uint32_t)s->bytes[*pos + 1] <<  8) |
-		((uint32_t)s->bytes[*pos + 2]      );
+		((uint32_t)s.bytes[*pos    ] << 16) |
+		((uint32_t)s.bytes[*pos + 1] <<  8) |
+		((uint32_t)s.bytes[*pos + 2]      );
 	(*pos) += 3;
 	return true;
 }
 
 static bool pk_fmbin(context ctx, sink_str s, uint64_t *pos, uint32_t str_table_size,
 	sink_val *strs, list_int li, sink_val *res){
-	if (*pos >= s->size)
+	if (*pos >= s.size)
 		return false;
-	uint8_t cmd = s->bytes[*pos];
+	uint8_t cmd = s.bytes[*pos];
 	(*pos)++;
 	switch (cmd){
 		case 0xF0: {
-			if (*pos >= s->size)
+			if (*pos >= s.size)
 				return false;
-			*res = sink_num(s->bytes[*pos]);
+			*res = sink_num(s.bytes[*pos]);
 			(*pos)++;
 			return true;
 		} break;
 		case 0xF1: {
-			if (*pos >= s->size)
+			if (*pos >= s.size)
 				return false;
-			*res = sink_num((int)s->bytes[*pos] - 256);
+			*res = sink_num((int)s.bytes[*pos] - 256);
 			(*pos)++;
 			return true;
 		} break;
 		case 0xF2: {
-			if (*pos + 1 >= s->size)
+			if (*pos + 1 >= s.size)
 				return false;
 			*res = sink_num(
-				(int)s->bytes[*pos] |
-				((int)s->bytes[*pos + 1] << 8));
+				(int)s.bytes[*pos] |
+				((int)s.bytes[*pos + 1] << 8));
 			(*pos) += 2;
 			return true;
 		} break;
 		case 0xF3: {
-			if (*pos + 1 >= s->size)
+			if (*pos + 1 >= s.size)
 				return false;
 			*res = sink_num(
-				((int)s->bytes[*pos] |
-				((int)s->bytes[*pos + 1] << 8)) - 65536);
+				((int)s.bytes[*pos] |
+				((int)s.bytes[*pos + 1] << 8)) - 65536);
 			(*pos) += 2;
 			return true;
 		} break;
 		case 0xF4: {
-			if (*pos + 3 >= s->size)
+			if (*pos + 3 >= s.size)
 				return false;
 			*res = sink_num(
-				(int)s->bytes[*pos] |
-				((int)s->bytes[*pos + 1] <<  8) |
-				((int)s->bytes[*pos + 2] << 16) |
-				((int)s->bytes[*pos + 3] << 24));
+				(int)s.bytes[*pos] |
+				((int)s.bytes[*pos + 1] <<  8) |
+				((int)s.bytes[*pos + 2] << 16) |
+				((int)s.bytes[*pos + 3] << 24));
 			(*pos) += 4;
 			return true;
 		} break;
 		case 0xF5: {
-			if (*pos + 3 >= s->size)
+			if (*pos + 3 >= s.size)
 				return false;
 			*res = sink_num(
-				((double)((uint32_t)s->bytes[*pos] |
-				((uint32_t)s->bytes[*pos + 1] <<  8) |
-				((uint32_t)s->bytes[*pos + 2] << 16) |
-				((uint32_t)s->bytes[*pos + 3] << 24))) - 4294967296.0);
+				((double)((uint32_t)s.bytes[*pos] |
+				((uint32_t)s.bytes[*pos + 1] <<  8) |
+				((uint32_t)s.bytes[*pos + 2] << 16) |
+				((uint32_t)s.bytes[*pos + 3] << 24))) - 4294967296.0);
 			(*pos) += 4;
 			return true;
 		} break;
 		case 0xF6: {
-			if (*pos + 7 >= s->size)
+			if (*pos + 7 >= s.size)
 				return false;
-			res->u = ((uint64_t)s->bytes[*pos]) |
-				(((uint64_t)s->bytes[*pos + 1]) <<  8) |
-				(((uint64_t)s->bytes[*pos + 2]) << 16) |
-				(((uint64_t)s->bytes[*pos + 3]) << 24) |
-				(((uint64_t)s->bytes[*pos + 4]) << 32) |
-				(((uint64_t)s->bytes[*pos + 5]) << 40) |
-				(((uint64_t)s->bytes[*pos + 6]) << 48) |
-				(((uint64_t)s->bytes[*pos + 7]) << 56);
-			if (isnan(res->f)) // make sure no screwy NaN's come in
+			res.u = ((uint64_t)s.bytes[*pos]) |
+				(((uint64_t)s.bytes[*pos + 1]) <<  8) |
+				(((uint64_t)s.bytes[*pos + 2]) << 16) |
+				(((uint64_t)s.bytes[*pos + 3]) << 24) |
+				(((uint64_t)s.bytes[*pos + 4]) << 32) |
+				(((uint64_t)s.bytes[*pos + 5]) << 40) |
+				(((uint64_t)s.bytes[*pos + 6]) << 48) |
+				(((uint64_t)s.bytes[*pos + 7]) << 56);
+			if (isnan(res.f)) // make sure no screwy NaN's come in
 				*res = sink_num_nan();
 			(*pos) += 8;
 			return true;
@@ -12058,9 +12040,9 @@ static bool pk_fmbin(context ctx, sink_str s, uint64_t *pos, uint32_t str_table_
 		} break;
 		case 0xFA: {
 			uint32_t id;
-			if (!pk_fmbin_vint(s, pos, &id) || id >= li->size)
+			if (!pk_fmbin_vint(s, pos, &id) || id >= li.size)
 				return false;
-			*res = (sink_val){ .u = SINK_TAG_LIST | li->vals[id] };
+			*res = (sink_val){ .u = SINK_TAG_LIST | li.vals[id] };
 			return true;
 		} break;
 	}
@@ -12068,111 +12050,111 @@ static bool pk_fmbin(context ctx, sink_str s, uint64_t *pos, uint32_t str_table_
 }
 
 static bool pk_fmjson(context ctx, sink_str s, int *pos, sink_val *res){
-	while (*pos < s->size && isSpace((char)s->bytes[*pos]))
+	while (*pos < s.size && isSpace((char)s.bytes[*pos]))
 		(*pos)++;
-	if (*pos >= s->size)
+	if (*pos >= s.size)
 		return false;
-	uint8_t b = s->bytes[*pos];
+	uint8_t b = s.bytes[*pos];
 	(*pos)++;
-	if (b == 'n'){
-		if (*pos + 2 >= s->size)
+	if (b === 'n'){
+		if (*pos + 2 >= s.size)
 			return false;
-		if (s->bytes[*pos] != 'u' ||
-			s->bytes[*pos + 1] != 'l' ||
-			s->bytes[*pos + 2] != 'l')
+		if (s.bytes[*pos] !== 'u' ||
+			s.bytes[*pos + 1] !== 'l' ||
+			s.bytes[*pos + 2] !== 'l')
 			return false;
 		(*pos) += 3;
 		*res = SINK_NIL;
 		return true;
 	}
-	else if (isNum((char)b) || b == '-'){
+	else if (isNum((char)b) || b === '-'){
 		numpart_info npi;
 		numpart_new(&npi);
-		if (b == '-'){
-			if (*pos >= s->size)
+		if (b === '-'){
+			if (*pos >= s.size)
 				return false;
 			npi.sign = -1;
-			b = s->bytes[*pos];
+			b = s.bytes[*pos];
 			(*pos)++;
 			if (!isNum((char)b))
 				return false;
 		}
 		if (b >= '1' && b <= '9'){
 			npi.val = b - '0';
-			while (*pos < s->size && isNum((char)s->bytes[*pos])){
-				npi.val = 10 * npi.val + (s->bytes[*pos] - '0');
+			while (*pos < s.size && isNum((char)s.bytes[*pos])){
+				npi.val = 10 * npi.val + (s.bytes[*pos] - '0');
 				(*pos)++;
 			}
 		}
-		if (s->bytes[*pos] == '.'){
+		if (s.bytes[*pos] === '.'){
 			(*pos)++;
-			if (*pos >= s->size || !isNum((char)s->bytes[*pos]))
+			if (*pos >= s.size || !isNum((char)s.bytes[*pos]))
 				return false;
-			while (*pos < s->size && isNum((char)s->bytes[*pos])){
-				npi.frac = npi.frac * 10 + s->bytes[*pos] - '0';
+			while (*pos < s.size && isNum((char)s.bytes[*pos])){
+				npi.frac = npi.frac * 10 + s.bytes[*pos] - '0';
 				npi.flen++;
 				(*pos)++;
 			}
 		}
-		if (s->bytes[*pos] == 'e' || s->bytes[*pos] == 'E'){
+		if (s.bytes[*pos] === 'e' || s.bytes[*pos] === 'E'){
 			(*pos)++;
-			if (*pos >= s->size)
+			if (*pos >= s.size)
 				return false;
-			if (s->bytes[*pos] == '-' || s->bytes[*pos] == '+'){
-				npi.esign = s->bytes[*pos] == '-' ? -1 : 1;
+			if (s.bytes[*pos] === '-' || s.bytes[*pos] === '+'){
+				npi.esign = s.bytes[*pos] === '-' ? -1 : 1;
 				(*pos)++;
-				if (*pos >= s->size)
+				if (*pos >= s.size)
 					return false;
 			}
-			if (!isNum((char)s->bytes[*pos]))
+			if (!isNum((char)s.bytes[*pos]))
 				return false;
-			while (*pos < s->size && isNum((char)s->bytes[*pos])){
-				npi.eval = npi.eval * 10 + s->bytes[*pos] - '0';
+			while (*pos < s.size && isNum((char)s.bytes[*pos])){
+				npi.eval = npi.eval * 10 + s.bytes[*pos] - '0';
 				(*pos)++;
 			}
 		}
 		*res = sink_num(numpart_calc(npi));
 		return true;
 	}
-	else if (b == '"'){
+	else if (b === '"'){
 		list_byte str = list_byte_new();
-		while (*pos < s->size){
-			b = s->bytes[*pos];
-			if (b == '"'){
+		while (*pos < s.size){
+			b = s.bytes[*pos];
+			if (b === '"'){
 				(*pos)++;
 				list_byte_null(str);
 				sink_str_st bstr = list_byte_freetostr(str);
 				*res = sink_str_newblobgive(ctx, bstr.size, bstr.bytes);
 				return true;
 			}
-			else if (b == '\\'){
+			else if (b === '\\'){
 				(*pos)++;
-				if (*pos >= s->size){
+				if (*pos >= s.size){
 					list_byte_free(str);
 					return false;
 				}
-				b = s->bytes[*pos];
-				if (b == '"' || b == '\\')
+				b = s.bytes[*pos];
+				if (b === '"' || b === '\\')
 					list_byte_push(str, b);
-				else if (b == 'b')
+				else if (b === 'b')
 					list_byte_push(str, '\b');
-				else if (b == 'f')
+				else if (b === 'f')
 					list_byte_push(str, '\f');
-				else if (b == 'n')
+				else if (b === 'n')
 					list_byte_push(str, '\n');
-				else if (b == 'r')
+				else if (b === 'r')
 					list_byte_push(str, '\r');
-				else if (b == 't')
+				else if (b === 't')
 					list_byte_push(str, '\t');
-				else if (b == 'u'){
-					if (*pos + 4 >= s->size ||
-						s->bytes[*pos + 1] != '0' || s->bytes[*pos + 2] != '0' ||
-						!isHex(s->bytes[*pos + 3]) || !isHex(s->bytes[*pos + 4])){
+				else if (b === 'u'){
+					if (*pos + 4 >= s.size ||
+						s.bytes[*pos + 1] !== '0' || s.bytes[*pos + 2] !== '0' ||
+						!isHex(s.bytes[*pos + 3]) || !isHex(s.bytes[*pos + 4])){
 						list_byte_free(str);
 						return false;
 					}
 					list_byte_push(str,
-						(toHex(s->bytes[*pos + 3]) << 4) | toHex(s->bytes[*pos + 4]));
+						(toHex(s.bytes[*pos + 3]) << 4) | toHex(s.bytes[*pos + 4]));
 					(*pos) += 4;
 				}
 				else{
@@ -12191,12 +12173,12 @@ static bool pk_fmjson(context ctx, sink_str s, int *pos, sink_val *res){
 		list_byte_free(str);
 		return false;
 	}
-	else if (b == '['){
-		while (*pos < s->size && isSpace((char)s->bytes[*pos]))
+	else if (b === '['){
+		while (*pos < s.size && isSpace((char)s.bytes[*pos]))
 			(*pos)++;
-		if (*pos >= s->size)
+		if (*pos >= s.size)
 			return false;
-		if (s->bytes[*pos] == ']'){
+		if (s.bytes[*pos] === ']'){
 			(*pos)++;
 			*res = sink_list_newempty(ctx);
 			return true;
@@ -12207,15 +12189,15 @@ static bool pk_fmjson(context ctx, sink_str s, int *pos, sink_val *res){
 			if (!pk_fmjson(ctx, s, pos, &item))
 				return false;
 			sink_list_push(ctx, *res, item);
-			while (*pos < s->size && isSpace((char)s->bytes[*pos]))
+			while (*pos < s.size && isSpace((char)s.bytes[*pos]))
 				(*pos)++;
-			if (*pos >= s->size)
+			if (*pos >= s.size)
 				return false;
-			if (s->bytes[*pos] == ']'){
+			if (s.bytes[*pos] === ']'){
 				(*pos)++;
 				return true;
 			}
-			else if (s->bytes[*pos] == ',')
+			else if (s.bytes[*pos] === ',')
 				(*pos)++;
 			else
 				return false;
@@ -12225,7 +12207,7 @@ static bool pk_fmjson(context ctx, sink_str s, int *pos, sink_val *res){
 }
 
 static inline bool opi_pickle_valstr(context ctx, sink_str s, sink_val *res){
-	if (s->size < 1 || s->bytes[0] != 0x01)
+	if (s.size < 1 || s.bytes[0] !== 0x01)
 		return false;
 	uint64_t pos = 1;
 	uint32_t str_table_size;
@@ -12236,11 +12218,11 @@ static inline bool opi_pickle_valstr(context ctx, sink_str s, sink_val *res){
 		strs = mem_alloc(sizeof(sink_val) * str_table_size);
 	for (uint32_t i = 0; i < str_table_size; i++){
 		uint32_t str_size;
-		if (!pk_fmbin_vint(s, &pos, &str_size) || pos + str_size > s->size){
+		if (!pk_fmbin_vint(s, &pos, &str_size) || pos + str_size > s.size){
 			mem_free(strs);
 			return false;
 		}
-		strs[i] = sink_str_newblob(ctx, str_size, &s->bytes[pos]);
+		strs[i] = sink_str_newblob(ctx, str_size, &s.bytes[pos]);
 		pos += str_size;
 	}
 	list_int li = list_int_new();
@@ -12260,11 +12242,11 @@ static inline sink_val opi_pickle_val(context ctx, sink_val a){
 		return SINK_NIL;
 	}
 	sink_str s = var_caststr(ctx, a);
-	if (s->size < 1){
+	if (s.size < 1){
 		opi_abortcstr(ctx, "Invalid pickle data");
 		return SINK_NIL;
 	}
-	if (s->bytes[0] == 0x01){ // binary decode
+	if (s.bytes[0] === 0x01){ // binary decode
 		sink_val res;
 		if (!opi_pickle_valstr(ctx, s, &res)){
 			opi_abortcstr(ctx, "Invalid pickle data");
@@ -12279,8 +12261,8 @@ static inline sink_val opi_pickle_val(context ctx, sink_val a){
 		opi_abortcstr(ctx, "Invalid pickle data");
 		return SINK_NIL;
 	}
-	while (pos < s->size){
-		if (!isSpace(s->bytes[pos])){
+	while (pos < s.size){
+		if (!isSpace(s.bytes[pos])){
 			opi_abortcstr(ctx, "Invalid pickle data");
 			return SINK_NIL;
 		}
@@ -12291,13 +12273,13 @@ static inline sink_val opi_pickle_val(context ctx, sink_val a){
 
 static inline bool pk_isbin_adv(sink_str s, uint64_t *pos, uint32_t amt){
 	(*pos) += amt;
-	return *pos <= s->size;
+	return *pos <= s.size;
 }
 
 static bool pk_isbin(sink_str s, uint64_t *pos, uint32_t *index, uint32_t str_table_size){
-	if (s->size <= *pos)
+	if (s.size <= *pos)
 		return false;
-	uint8_t cmd = s->bytes[*pos];
+	uint8_t cmd = s.bytes[*pos];
 	(*pos)++;
 	switch (cmd){
 		case 0xF0: return pk_isbin_adv(s, pos, 1);
@@ -12343,9 +12325,9 @@ static inline int opi_pickle_valid(context ctx, sink_val a){
 	if (!sink_isstr(a))
 		return 0;
 	sink_str s = var_caststr(ctx, a);
-	if (s->bytes == NULL)
+	if (s.bytes === NULL)
 		return 0;
-	if (s->bytes[0] == 0x01){ // binary validation
+	if (s.bytes[0] === 0x01){ // binary validation
 		uint64_t pos = 1;
 		uint32_t str_table_size;
 		if (!pk_fmbin_vint(s, &pos, &str_table_size))
@@ -12359,7 +12341,7 @@ static inline int opi_pickle_valid(context ctx, sink_val a){
 		uint32_t index = 0;
 		if (!pk_isbin(s, &pos, &index, str_table_size))
 			return 0;
-		if (pos != s->size)
+		if (pos !== s.size)
 			return 0;
 		return 2;
 	}
@@ -12376,8 +12358,8 @@ static bool pk_sib(context ctx, sink_val a, list_int all, list_int parents){
 	list_int_push(all, idx);
 	list_int_push(parents, idx);
 	sink_list ls = var_castlist(ctx, a);
-	for (int i = 0; i < ls->size; i++){
-		sink_val b = ls->vals[i];
+	for (int i = 0; i < ls.size; i++){
+		sink_val b = ls.vals[i];
 		if (!sink_islist(b))
 			continue;
 		if (pk_sib(ctx, b, all, parents))
@@ -12404,8 +12386,8 @@ static bool pk_cir(context ctx, sink_val a, list_int li){
 		return true;
 	list_int_push(li, idx);
 	sink_list ls = var_castlist(ctx, a);
-	for (int i = 0; i < ls->size; i++){
-		sink_val b = ls->vals[i];
+	for (int i = 0; i < ls.size; i++){
+		sink_val b = ls.vals[i];
 		if (!sink_islist(b))
 			continue;
 		if (pk_cir(ctx, b, li))
@@ -12435,25 +12417,25 @@ static sink_val pk_copy(context ctx, sink_val a, list_int li_src, list_int li_tg
 			int idxat = list_int_at(li_src, idx);
 			if (idxat < 0){
 				sink_list ls = var_castlist(ctx, a);
-				if (ls->size <= 0){
+				if (ls.size <= 0){
 					sink_val b = sink_list_newempty(ctx);
 					list_int_push(li_src, idx);
 					list_int_push(li_tgt, var_index(b));
 					return b;
 				}
 				else{
-					sink_val *m = mem_alloc(sizeof(sink_val) * ls->size);
-					memset(m, 0, sizeof(sink_val) * ls->size);
-					sink_val b = sink_list_newblobgive(ctx, ls->size, ls->size, m);
+					sink_val *m = mem_alloc(sizeof(sink_val) * ls.size);
+					memset(m, 0, sizeof(sink_val) * ls.size);
+					sink_val b = sink_list_newblobgive(ctx, ls.size, ls.size, m);
 					list_int_push(li_src, idx);
 					list_int_push(li_tgt, var_index(b));
-					for (int i = 0; i < ls->size; i++)
-						m[i] = pk_copy(ctx, ls->vals[i], li_src, li_tgt);
+					for (int i = 0; i < ls.size; i++)
+						m[i] = pk_copy(ctx, ls.vals[i], li_src, li_tgt);
 					return b;
 				}
 			}
 			// otherwise, use the last generated list
-			return (sink_val){ .u = SINK_TAG_LIST | li_tgt->vals[idxat] };
+			return (sink_val){ .u = SINK_TAG_LIST | li_tgt.vals[idxat] };
 		} break;
 		case SINK_TYPE_ASYNC:
 			opi_abortcstr(ctx, "Cannot pickle invalid value (SINK_ASYNC)");
@@ -12518,12 +12500,12 @@ static const char *txt_int_pop      = "population count";
 static const char *txt_int_bswap    = "byte swaping";
 
 static sink_run context_run(context ctx){
-	if (ctx->passed) return SINK_RUN_PASS;
-	if (ctx->failed) return SINK_RUN_FAIL;
-	if (ctx->async ) return SINK_RUN_ASYNC;
+	if (ctx.passed) return SINK_RUN_PASS;
+	if (ctx.failed) return SINK_RUN_FAIL;
+	if (ctx.async ) return SINK_RUN_ASYNC;
 
-	if (ctx->timeout > 0 && ctx->timeout_left <= 0){
-		ctx->timeout_left = ctx->timeout;
+	if (ctx.timeout > 0 && ctx.timeout_left <= 0){
+		ctx.timeout_left = ctx.timeout;
 		return SINK_RUN_TIMEOUT;
 	}
 
@@ -12533,55 +12515,55 @@ static sink_run context_run(context ctx){
 	sink_str str;
 	sink_val p[256];
 
-	list_byte ops = ctx->prg->ops;
+	list_byte ops = ctx.prg.ops;
 
 	#define LOAD_ab()                                                                      \
-		ctx->pc++;                                                                         \
-		A = ops->bytes[ctx->pc++]; B = ops->bytes[ctx->pc++];
+		ctx.pc++;                                                                         \
+		A = ops.bytes[ctx.pc++]; B = ops.bytes[ctx.pc++];
 
 	#define LOAD_abc()                                                                     \
 		LOAD_ab();                                                                         \
-		C = ops->bytes[ctx->pc++];
+		C = ops.bytes[ctx.pc++];
 
 	#define LOAD_abcd()                                                                    \
 		LOAD_ab();                                                                         \
-		C = ops->bytes[ctx->pc++]; D = ops->bytes[ctx->pc++];
+		C = ops.bytes[ctx.pc++]; D = ops.bytes[ctx.pc++];
 
 	#define LOAD_abcde()                                                                   \
 		LOAD_abcd();                                                                       \
-		E = ops->bytes[ctx->pc++];                                                         \
+		E = ops.bytes[ctx.pc++];                                                         \
 
 	#define LOAD_abcdef()                                                                  \
 		LOAD_abcd();                                                                       \
-		E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
+		E = ops.bytes[ctx.pc++]; F = ops.bytes[ctx.pc++];
 
 	#define LOAD_abcdefg()                                                                 \
 		LOAD_abcdef();                                                                     \
-		G = ops->bytes[ctx->pc++];
+		G = ops.bytes[ctx.pc++];
 
 	#define LOAD_abcdefgh()                                                                \
 		LOAD_abcdef();                                                                     \
-		G = ops->bytes[ctx->pc++]; H = ops->bytes[ctx->pc++];
+		G = ops.bytes[ctx.pc++]; H = ops.bytes[ctx.pc++];
 
 	#define LOAD_abcdefghi()                                                               \
 		LOAD_abcdefgh();                                                                   \
-		I = ops->bytes[ctx->pc++];
+		I = ops.bytes[ctx.pc++];
 
 	#define LOAD_abcdefghij()                                                              \
 		LOAD_abcdefgh();                                                                   \
-		I = ops->bytes[ctx->pc++]; J = ops->bytes[ctx->pc++];
+		I = ops.bytes[ctx.pc++]; J = ops.bytes[ctx.pc++];
 
 	#define INLINE_UNOP(func, erop)                                                        \
 		LOAD_abcd();                                                                       \
 		var_set(ctx, A, B, opi_unop(ctx, var_get(ctx, C, D), func, erop));                 \
-		if (ctx->failed)                                                                   \
+		if (ctx.failed)                                                                   \
 			return SINK_RUN_FAIL;
 
 	#define INLINE_BINOP_T(func, erop, t1, t2)                                             \
 		LOAD_abcdef();                                                                     \
 		var_set(ctx, A, B,                                                                 \
 			opi_binop(ctx, var_get(ctx, C, D), var_get(ctx, E, F), func, erop, t1, t2));   \
-		if (ctx->failed)                                                                   \
+		if (ctx.failed)                                                                   \
 			return SINK_RUN_FAIL;
 
 	#define INLINE_BINOP(func, erop) INLINE_BINOP_T(func, erop, LT_ALLOWNUM, LT_ALLOWNUM)
@@ -12591,14 +12573,14 @@ static sink_run context_run(context ctx){
 		var_set(ctx, A, B,                                                                 \
 			opi_triop(ctx, var_get(ctx, C, D), var_get(ctx, E, F), var_get(ctx, G, H),     \
 				func, erop));                                                              \
-		if (ctx->failed)                                                                   \
+		if (ctx.failed)                                                                   \
 			return SINK_RUN_FAIL;
 
-	while (ctx->pc < ops->size){
-		ctx->lastpc = ctx->pc;
-		switch ((op_enum)ops->bytes[ctx->pc]){
+	while (ctx.pc < ops.size){
+		ctx.lastpc = ctx.pc;
+		switch ((op_enum)ops.bytes[ctx.pc]){
 			case OP_NOP            : { //
-				ctx->pc++;
+				ctx.pc++;
 			} break;
 
 			case OP_MOVE           : { // [TGT], [SRC]
@@ -12673,9 +12655,9 @@ static sink_run context_run(context ctx){
 			case OP_STR            : { // [TGT], [[INDEX]]
 				LOAD_abcdef();
 				C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
-				if (ctx->prg->repl){
-					list_byte s = ctx->prg->strTable->ptrs[C];
-					var_set(ctx, A, B, sink_str_newblob(ctx, s->size, s->bytes));
+				if (ctx.prg.repl){
+					list_byte s = ctx.prg.strTable.ptrs[C];
+					var_set(ctx, A, B, sink_str_newblob(ctx, s.size, s.bytes));
 				}
 				else
 					var_set(ctx, A, B, (sink_val){ .u = SINK_TAG_STR | C });
@@ -12718,14 +12700,14 @@ static sink_run context_run(context ctx){
 			case OP_SIZE           : { // [TGT], [SRC]
 				LOAD_abcd();
 				var_set(ctx, A, B, sink_num(opi_size(ctx, var_get(ctx, C, D))));
-				if (ctx->failed)
+				if (ctx.failed)
 					return SINK_RUN_FAIL;
 			} break;
 
 			case OP_TONUM          : { // [TGT], [SRC]
 				LOAD_abcd();
 				var_set(ctx, A, B, opi_tonum(ctx, var_get(ctx, C, D)));
-				if (ctx->failed)
+				if (ctx.failed)
 					return SINK_RUN_FAIL;
 			} break;
 
@@ -12733,7 +12715,7 @@ static sink_run context_run(context ctx){
 				LOAD_abc();
 				bool listcat = C > 0;
 				for (D = 0; D < C; D++){
-					E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
+					E = ops.bytes[ctx.pc++]; F = ops.bytes[ctx.pc++];
 					p[D] = var_get(ctx, E, F);
 					if (!sink_islist(p[D]))
 						listcat = false;
@@ -12742,7 +12724,7 @@ static sink_run context_run(context ctx){
 					var_set(ctx, A, B, opi_list_cat(ctx, C, p));
 				else{
 					var_set(ctx, A, B, opi_str_cat(ctx, C, p));
-					if (ctx->failed)
+					if (ctx.failed)
 						return SINK_RUN_FAIL;
 				}
 			} break;
@@ -12752,7 +12734,7 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				if (sink_isstr(X) && sink_isstr(Y)){
-					if (X.u == Y.u)
+					if (X.u === Y.u)
 						var_set(ctx, A, B, sink_bool(false));
 					else{
 						var_set(ctx, A, B,
@@ -12770,7 +12752,7 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				if (sink_isstr(X) && sink_isstr(Y)){
-					if (X.u == Y.u)
+					if (X.u === Y.u)
 						var_set(ctx, A, B, sink_bool(true));
 					else{
 						var_set(ctx, A, B,
@@ -12820,7 +12802,7 @@ static sink_run context_run(context ctx){
 					var_set(ctx, A, B, opi_list_slice(ctx, X, Y, Z));
 				else
 					var_set(ctx, A, B, opi_str_slice(ctx, X, Y, Z));
-				if (ctx->failed)
+				if (ctx.failed)
 					return SINK_RUN_FAIL;
 			} break;
 
@@ -12835,10 +12817,10 @@ static sink_run context_run(context ctx){
 				ls = var_castlist(ctx, X);
 				A = (int)Y.f;
 				if (A < 0)
-					A += ls->size;
+					A += ls.size;
 				opi_list_pushnils(ctx, ls, A + 1);
-				if (A >= 0 && A < ls->size)
-					ls->vals[A] = var_get(ctx, E, F);
+				if (A >= 0 && A < ls.size)
+					ls.vals[A] = var_get(ctx, E, F);
 			} break;
 
 			case OP_SPLICE         : { // [SRC1], [SRC2], [SRC3], [SRC4]
@@ -12858,22 +12840,22 @@ static sink_run context_run(context ctx){
 			case OP_JUMP           : { // [[LOCATION]]
 				LOAD_abcd();
 				A = A + (B << 8) + (C << 16) + ((D << 23) * 2);
-				if (ctx->prg->repl && A == -1){
-					ctx->pc -= 5;
+				if (ctx.prg.repl && A === -1){
+					ctx.pc -= 5;
 					return SINK_RUN_REPLMORE;
 				}
-				ctx->pc = A;
+				ctx.pc = A;
 			} break;
 
 			case OP_JUMPTRUE       : { // [SRC], [[LOCATION]]
 				LOAD_abcdef();
 				C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
 				if (!sink_isnil(var_get(ctx, A, B))){
-					if (ctx->prg->repl && C == -1){
-						ctx->pc -= 7;
+					if (ctx.prg.repl && C === -1){
+						ctx.pc -= 7;
 						return SINK_RUN_REPLMORE;
 					}
-					ctx->pc = C;
+					ctx.pc = C;
 				}
 			} break;
 
@@ -12881,41 +12863,41 @@ static sink_run context_run(context ctx){
 				LOAD_abcdef();
 				C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
 				if (sink_isnil(var_get(ctx, A, B))){
-					if (ctx->prg->repl && C == -1){
-						ctx->pc -= 7;
+					if (ctx.prg.repl && C === -1){
+						ctx.pc -= 7;
 						return SINK_RUN_REPLMORE;
 					}
-					ctx->pc = C;
+					ctx.pc = C;
 				}
 			} break;
 
 			case OP_CMDTAIL        : { //
-				ccs s = list_ptr_pop(ctx->call_stk);
-				lxs lx = ctx->lex_stk->ptrs[ctx->lex_index];
-				ctx->lex_stk->ptrs[ctx->lex_index] = lx->next;
+				ccs s = list_ptr_pop(ctx.call_stk);
+				lxs lx = ctx.lex_stk.ptrs[ctx.lex_index];
+				ctx.lex_stk.ptrs[ctx.lex_index] = lx.next;
 				lxs_release(ctx, lx);
-				ctx->lex_index = s->lex_index;
-				var_set(ctx, s->frame, s->index, SINK_NIL);
-				ctx->pc = s->pc;
+				ctx.lex_index = s.lex_index;
+				var_set(ctx, s.frame, s.index, SINK_NIL);
+				ctx.pc = s.pc;
 				ccs_release(ctx, s);
 			} break;
 
 			case OP_CALL           : { // [TGT], [[LOCATION]], ARGCOUNT, [ARGS]...
 				LOAD_abcdefg();
 				C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
-				if (C == -1){
-					ctx->pc -= 8;
+				if (C === -1){
+					ctx.pc -= 8;
 					return SINK_RUN_REPLMORE;
 				}
 				for (I = 0; I < G; I++){
-					E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
+					E = ops.bytes[ctx.pc++]; F = ops.bytes[ctx.pc++];
 					p[I] = var_get(ctx, E, F);
 				}
-				list_ptr_push(ctx->call_stk, ccs_get(ctx, ctx->pc, A, B, ctx->lex_index));
-				ctx->pc = C - 1;
+				list_ptr_push(ctx.call_stk, ccs_get(ctx, ctx.pc, A, B, ctx.lex_index));
+				ctx.pc = C - 1;
 				LOAD_abc();
 				// A is OP_CMDHEAD
-				if (C != 0xFF){
+				if (C !== 0xFF){
 					if (G <= C){
 						while (G < C)
 							p[G++] = SINK_NIL;
@@ -12925,78 +12907,78 @@ static sink_run context_run(context ctx){
 						p[C] = sink_list_newblob(ctx, G - C, &p[C]);
 					G = C + 1;
 				}
-				ctx->lex_index = B;
-				while (ctx->lex_index >= ctx->lex_stk->size)
-					list_ptr_push(ctx->lex_stk, NULL);
-				ctx->lex_stk->ptrs[ctx->lex_index] =
-					lxs_get(ctx, G, p, ctx->lex_stk->ptrs[ctx->lex_index]);
+				ctx.lex_index = B;
+				while (ctx.lex_index >= ctx.lex_stk.size)
+					list_ptr_push(ctx.lex_stk, NULL);
+				ctx.lex_stk.ptrs[ctx.lex_index] =
+					lxs_get(ctx, G, p, ctx.lex_stk.ptrs[ctx.lex_index]);
 			} break;
 
 			case OP_NATIVE         : { // [TGT], [[INDEX]], ARGCOUNT, [ARGS]...
 				LOAD_abcdefg();
 				for (I = 0; I < G; I++){
-					J = ops->bytes[ctx->pc++]; H = ops->bytes[ctx->pc++];
+					J = ops.bytes[ctx.pc++]; H = ops.bytes[ctx.pc++];
 					p[I] = var_get(ctx, J, H);
 				}
 				C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
 				native nat = NULL;
-				if (ctx->prg->repl){
+				if (ctx.prg.repl){
 					// if REPL, then we need to search for the hash
-					uint64_t hash = ctx->prg->keyTable->vals[C];
-					for (int i = 0; i < ctx->natives->size; i++){
-						native nat2 = ctx->natives->ptrs[i];
-						if (nat2->hash == hash){
+					uint64_t hash = ctx.prg.keyTable.vals[C];
+					for (int i = 0; i < ctx.natives.size; i++){
+						native nat2 = ctx.natives.ptrs[i];
+						if (nat2.hash === hash){
 							nat = nat2;
 							break;
 						}
 					}
 				}
 				else
-					nat = ctx->natives->ptrs[C];
-				if (nat == NULL || nat->f_native == NULL)
+					nat = ctx.natives.ptrs[C];
+				if (nat === NULL || nat.f_native === NULL)
 					return opi_abortcstr(ctx, "Native call not implemented");
-				X = nat->f_native(ctx, G, p, nat->natuser);
-				if (ctx->failed)
+				X = nat.f_native(ctx, G, p, nat.natuser);
+				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				if (sink_isasync(X)){
-					ctx->async_frame = A;
-					ctx->async_index = B;
-					ctx->timeout_left = ctx->timeout;
-					ctx->async = true;
+					ctx.async_frame = A;
+					ctx.async_index = B;
+					ctx.timeout_left = ctx.timeout;
+					ctx.async = true;
 					return SINK_RUN_ASYNC;
 				}
 				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_RETURN         : { // [SRC]
-				if (ctx->call_stk->size <= 0)
+				if (ctx.call_stk.size <= 0)
 					return opi_exit(ctx);
 				LOAD_ab();
 				X = var_get(ctx, A, B);
-				ccs s = list_ptr_pop(ctx->call_stk);
-				lxs lx = ctx->lex_stk->ptrs[ctx->lex_index];
-				ctx->lex_stk->ptrs[ctx->lex_index] = lx->next;
+				ccs s = list_ptr_pop(ctx.call_stk);
+				lxs lx = ctx.lex_stk.ptrs[ctx.lex_index];
+				ctx.lex_stk.ptrs[ctx.lex_index] = lx.next;
 				lxs_release(ctx, lx);
-				ctx->lex_index = s->lex_index;
-				var_set(ctx, s->frame, s->index, X);
-				ctx->pc = s->pc;
+				ctx.lex_index = s.lex_index;
+				var_set(ctx, s.frame, s.index, X);
+				ctx.pc = s.pc;
 				ccs_release(ctx, s);
 			} break;
 
 			case OP_RETURNTAIL     : { // [[LOCATION]], ARGCOUNT, [ARGS]...
 				LOAD_abcde();
 				A = A + (B << 8) + (C << 16) + ((D << 23) * 2);
-				if (A == -1){
-					ctx->pc -= 6;
+				if (A === -1){
+					ctx.pc -= 6;
 					return SINK_RUN_REPLMORE;
 				}
 				for (I = 0; I < E; I++){
-					G = ops->bytes[ctx->pc++]; H = ops->bytes[ctx->pc++];
+					G = ops.bytes[ctx.pc++]; H = ops.bytes[ctx.pc++];
 					p[I] = var_get(ctx, G, H);
 				}
-				ctx->pc = A - 1;
+				ctx.pc = A - 1;
 				LOAD_abc();
-				if (C != 0xFF){
+				if (C !== 0xFF){
 					if (E <= C){
 						while (E < C)
 							p[E++] = SINK_NIL;
@@ -13006,10 +12988,10 @@ static sink_run context_run(context ctx){
 						p[C] = sink_list_newblob(ctx, E - C, &p[C]);
 					E = C + 1;
 				}
-				lxs lx = ctx->lex_stk->ptrs[ctx->lex_index];
-				lxs lx2 = lx->next;
+				lxs lx = ctx.lex_stk.ptrs[ctx.lex_index];
+				lxs lx2 = lx.next;
 				lxs_release(ctx, lx);
-				ctx->lex_stk->ptrs[ctx->lex_index] = lxs_get(ctx, E, p, lx2);
+				ctx.lex_stk.ptrs[ctx.lex_index] = lxs_get(ctx, E, p, lx2);
 			} break;
 
 			case OP_RANGE          : { // [TGT], [SRC1], [SRC2], [SRC3]
@@ -13034,7 +13016,7 @@ static sink_run context_run(context ctx){
 				else
 					return opi_abortcstr(ctx, "Expecting number for range stop");
 				var_set(ctx, A, B, X);
-				if (ctx->failed)
+				if (ctx.failed)
 					return SINK_RUN_FAIL;
 			} break;
 
@@ -13048,47 +13030,47 @@ static sink_run context_run(context ctx){
 			case OP_SAY            : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
 				for (D = 0; D < C; D++){
-					E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
+					E = ops.bytes[ctx.pc++]; F = ops.bytes[ctx.pc++];
 					p[D] = var_get(ctx, E, F);
 				}
 				opi_say(ctx, C, p);
 				var_set(ctx, A, B, SINK_NIL);
-				if (ctx->failed)
+				if (ctx.failed)
 					return SINK_RUN_FAIL;
 			} break;
 
 			case OP_WARN           : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
 				for (D = 0; D < C; D++){
-					E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
+					E = ops.bytes[ctx.pc++]; F = ops.bytes[ctx.pc++];
 					p[D] = var_get(ctx, E, F);
 				}
 				opi_warn(ctx, C, p);
 				var_set(ctx, A, B, SINK_NIL);
-				if (ctx->failed)
+				if (ctx.failed)
 					return SINK_RUN_FAIL;
 			} break;
 
 			case OP_ASK            : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
 				for (D = 0; D < C; D++){
-					E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
+					E = ops.bytes[ctx.pc++]; F = ops.bytes[ctx.pc++];
 					p[D] = var_get(ctx, E, F);
 				}
 				var_set(ctx, A, B, opi_ask(ctx, C, p));
-				if (ctx->failed)
+				if (ctx.failed)
 					return SINK_RUN_FAIL;
 			} break;
 
 			case OP_EXIT           : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
 				for (D = 0; D < C; D++){
-					E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
+					E = ops.bytes[ctx.pc++]; F = ops.bytes[ctx.pc++];
 					p[D] = var_get(ctx, E, F);
 				}
 				if (C > 0){
 					opi_say(ctx, C, p);
-					if (ctx->failed)
+					if (ctx.failed)
 						return SINK_RUN_FAIL;
 				}
 				return opi_exit(ctx);
@@ -13097,7 +13079,7 @@ static sink_run context_run(context ctx){
 			case OP_ABORT          : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
 				for (D = 0; D < C; D++){
-					E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
+					E = ops.bytes[ctx.pc++]; F = ops.bytes[ctx.pc++];
 					p[D] = var_get(ctx, E, F);
 				}
 				char *err = NULL;
@@ -13150,7 +13132,7 @@ static sink_run context_run(context ctx){
 			case OP_NUM_MAX        : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
 				for (D = 0; D < C; D++){
-					E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
+					E = ops.bytes[ctx.pc++]; F = ops.bytes[ctx.pc++];
 					p[D] = var_get(ctx, E, F);
 				}
 				var_set(ctx, A, B, opi_num_max(ctx, C, p));
@@ -13159,7 +13141,7 @@ static sink_run context_run(context ctx){
 			case OP_NUM_MIN        : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
 				for (D = 0; D < C; D++){
-					E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
+					E = ops.bytes[ctx.pc++]; F = ops.bytes[ctx.pc++];
 					p[D] = var_get(ctx, E, F);
 				}
 				var_set(ctx, A, B, opi_num_min(ctx, C, p));
@@ -13277,11 +13259,11 @@ static sink_run context_run(context ctx){
 			case OP_INT_AND        : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
 				for (D = 0; D < C; D++){
-					E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
+					E = ops.bytes[ctx.pc++]; F = ops.bytes[ctx.pc++];
 					p[D] = var_get(ctx, E, F);
 				}
 				X = opi_combop(ctx, C, p, binop_int_and, txt_int_and);
-				if (ctx->failed)
+				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
 			} break;
@@ -13289,11 +13271,11 @@ static sink_run context_run(context ctx){
 			case OP_INT_OR         : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
 				for (D = 0; D < C; D++){
-					E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
+					E = ops.bytes[ctx.pc++]; F = ops.bytes[ctx.pc++];
 					p[D] = var_get(ctx, E, F);
 				}
 				X = opi_combop(ctx, C, p, binop_int_or, txt_int_or);
-				if (ctx->failed)
+				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
 			} break;
@@ -13301,11 +13283,11 @@ static sink_run context_run(context ctx){
 			case OP_INT_XOR        : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
 				for (D = 0; D < C; D++){
-					E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
+					E = ops.bytes[ctx.pc++]; F = ops.bytes[ctx.pc++];
 					p[D] = var_get(ctx, E, F);
 				}
 				X = opi_combop(ctx, C, p, binop_int_xor, txt_int_xor);
-				if (ctx->failed)
+				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
 			} break;
@@ -13389,7 +13371,7 @@ static sink_run context_run(context ctx){
 			case OP_RAND_SETSTATE  : { // [TGT], [SRC]
 				LOAD_abcd();
 				opi_rand_setstate(ctx, var_get(ctx, C, D));
-				if (ctx->failed)
+				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, SINK_NIL);
 			} break;
@@ -13397,7 +13379,7 @@ static sink_run context_run(context ctx){
 			case OP_RAND_PICK      : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = opi_rand_pick(ctx, var_get(ctx, C, D));
-				if (ctx->failed)
+				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
 			} break;
@@ -13406,7 +13388,7 @@ static sink_run context_run(context ctx){
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				opi_rand_shuffle(ctx, X);
-				if (ctx->failed)
+				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
 			} break;
@@ -13414,7 +13396,7 @@ static sink_run context_run(context ctx){
 			case OP_STR_NEW        : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
 				for (D = 0; D < C; D++){
-					E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
+					E = ops.bytes[ctx.pc++]; F = ops.bytes[ctx.pc++];
 					p[D] = var_get(ctx, E, F);
 				}
 				var_set(ctx, A, B, opi_str_new(ctx, C, p));
@@ -13425,7 +13407,7 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				X = opi_str_split(ctx, X, Y);
-				if (ctx->failed)
+				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
 			} break;
@@ -13436,7 +13418,7 @@ static sink_run context_run(context ctx){
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
 				X = opi_str_replace(ctx, X, Y, Z);
-				if (ctx->failed)
+				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
 			} break;
@@ -13446,7 +13428,7 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				X = sink_bool(opi_str_begins(ctx, X, Y));
-				if (ctx->failed)
+				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
 			} break;
@@ -13456,7 +13438,7 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				X = sink_bool(opi_str_ends(ctx, X, Y));
-				if (ctx->failed)
+				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
 			} break;
@@ -13470,7 +13452,7 @@ static sink_run context_run(context ctx){
 				else if (!sink_isnum(Y))
 					return opi_abortcstr(ctx, "Expecting number");
 				X = opi_str_pad(ctx, X, Y.f);
-				if (ctx->failed)
+				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
 			} break;
@@ -13481,7 +13463,7 @@ static sink_run context_run(context ctx){
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
 				X = opi_str_find(ctx, X, Y, Z);
-				if (ctx->failed)
+				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
 			} break;
@@ -13492,7 +13474,7 @@ static sink_run context_run(context ctx){
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
 				X = opi_str_rfind(ctx, X, Y, Z);
-				if (ctx->failed)
+				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
 			} break;
@@ -13501,7 +13483,7 @@ static sink_run context_run(context ctx){
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				X = opi_str_lower(ctx, X);
-				if (ctx->failed)
+				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
 			} break;
@@ -13510,7 +13492,7 @@ static sink_run context_run(context ctx){
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				X = opi_str_upper(ctx, X);
-				if (ctx->failed)
+				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
 			} break;
@@ -13519,7 +13501,7 @@ static sink_run context_run(context ctx){
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				X = opi_str_trim(ctx, X);
-				if (ctx->failed)
+				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
 			} break;
@@ -13528,7 +13510,7 @@ static sink_run context_run(context ctx){
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				X = opi_str_rev(ctx, X);
-				if (ctx->failed)
+				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
 			} break;
@@ -13542,7 +13524,7 @@ static sink_run context_run(context ctx){
 				else if (!sink_isnum(Y))
 					return opi_abortcstr(ctx, "Expecting number");
 				X = opi_str_rep(ctx, X, Y.f);
-				if (ctx->failed)
+				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
 			} break;
@@ -13551,7 +13533,7 @@ static sink_run context_run(context ctx){
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				X = opi_str_list(ctx, X);
-				if (ctx->failed)
+				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
 			} break;
@@ -13565,7 +13547,7 @@ static sink_run context_run(context ctx){
 				else if (!sink_isnum(Y))
 					return opi_abortcstr(ctx, "Expecting number");
 				X = opi_str_byte(ctx, X, Y.f);
-				if (ctx->failed)
+				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
 			} break;
@@ -13579,7 +13561,7 @@ static sink_run context_run(context ctx){
 				else if (!sink_isnum(Y))
 					return opi_abortcstr(ctx, "Expecting number");
 				X = opi_str_hash(ctx, X, Y.f);
-				if (ctx->failed)
+				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
 			} break;
@@ -13594,7 +13576,7 @@ static sink_run context_run(context ctx){
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				X = opi_utf8_list(ctx, X);
-				if (ctx->failed)
+				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
 			} break;
@@ -13603,7 +13585,7 @@ static sink_run context_run(context ctx){
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				X = opi_utf8_str(ctx, X);
-				if (ctx->failed)
+				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
 			} break;
@@ -13618,7 +13600,7 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				X = opi_struct_str(ctx, X, Y);
-				if (ctx->failed)
+				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
 			} break;
@@ -13628,7 +13610,7 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				X = opi_struct_list(ctx, X, Y);
-				if (ctx->failed)
+				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
 			} break;
@@ -13643,7 +13625,7 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				X = opi_list_new(ctx, X, Y);
-				if (ctx->failed)
+				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
 			} break;
@@ -13652,7 +13634,7 @@ static sink_run context_run(context ctx){
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				X = opi_list_shift(ctx, X);
-				if (ctx->failed)
+				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
 			} break;
@@ -13661,7 +13643,7 @@ static sink_run context_run(context ctx){
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				X = opi_list_pop(ctx, X);
-				if (ctx->failed)
+				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
 			} break;
@@ -13671,7 +13653,7 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				X = opi_list_push(ctx, X, Y);
-				if (ctx->failed)
+				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
 			} break;
@@ -13681,7 +13663,7 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				X = opi_list_unshift(ctx, X, Y);
-				if (ctx->failed)
+				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
 			} break;
@@ -13691,7 +13673,7 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				X = opi_list_append(ctx, X, Y);
-				if (ctx->failed)
+				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
 			} break;
@@ -13701,7 +13683,7 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				X = opi_list_prepend(ctx, X, Y);
-				if (ctx->failed)
+				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
 			} break;
@@ -13712,7 +13694,7 @@ static sink_run context_run(context ctx){
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
 				X = opi_list_find(ctx, X, Y, Z);
-				if (ctx->failed)
+				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
 			} break;
@@ -13723,7 +13705,7 @@ static sink_run context_run(context ctx){
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
 				X = opi_list_rfind(ctx, X, Y, Z);
-				if (ctx->failed)
+				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
 			} break;
@@ -13733,7 +13715,7 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				X = opi_list_join(ctx, X, Y);
-				if (ctx->failed)
+				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
 			} break;
@@ -13742,7 +13724,7 @@ static sink_run context_run(context ctx){
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				X = opi_list_rev(ctx, X);
-				if (ctx->failed)
+				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
 			} break;
@@ -13751,7 +13733,7 @@ static sink_run context_run(context ctx){
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				X = opi_list_str(ctx, X);
-				if (ctx->failed)
+				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
 			} break;
@@ -13760,7 +13742,7 @@ static sink_run context_run(context ctx){
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				opi_list_sort(ctx, X);
-				if (ctx->failed)
+				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
 			} break;
@@ -13769,7 +13751,7 @@ static sink_run context_run(context ctx){
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				opi_list_rsort(ctx, X);
-				if (ctx->failed)
+				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
 			} break;
@@ -13778,7 +13760,7 @@ static sink_run context_run(context ctx){
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				X = opi_pickle_json(ctx, X);
-				if (ctx->failed)
+				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
 			} break;
@@ -13787,7 +13769,7 @@ static sink_run context_run(context ctx){
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				X = opi_pickle_bin(ctx, X);
-				if (ctx->failed) // can fail in C impl because of SINK_TYPE_ASYNC
+				if (ctx.failed) // can fail in C impl because of SINK_TYPE_ASYNC
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
 			} break;
@@ -13796,7 +13778,7 @@ static sink_run context_run(context ctx){
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				X = opi_pickle_val(ctx, X);
-				if (ctx->failed)
+				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
 			} break;
@@ -13805,7 +13787,7 @@ static sink_run context_run(context ctx){
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				E = opi_pickle_valid(ctx, X);
-				var_set(ctx, A, B, E == 0 ? SINK_NIL : sink_num(E));
+				var_set(ctx, A, B, E === 0 ? SINK_NIL : sink_num(E));
 			} break;
 
 			case OP_PICKLE_SIBLING : { // [TGT], [SRC]
@@ -13824,14 +13806,14 @@ static sink_run context_run(context ctx){
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				X = opi_pickle_copy(ctx, X);
-				if (ctx->failed) // can fail in C impl because of SINK_TYPE_ASYNC
+				if (ctx.failed) // can fail in C impl because of SINK_TYPE_ASYNC
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_GC_GETLEVEL    : { // [TGT]
 				LOAD_ab();
-				switch (ctx->gc_level){
+				switch (ctx.gc_level){
 					case SINK_GC_NONE:
 						var_set(ctx, A, B, sink_str_newcstr(ctx, "none"));
 						break;
@@ -13850,14 +13832,14 @@ static sink_run context_run(context ctx){
 				if (!sink_isstr(X))
 					return opi_abortcstr(ctx, "Expecting one of 'none', 'default', or 'lowmem'");
 				str = var_caststr(ctx, X);
-				if (strcmp((const char *)str->bytes, "none") == 0)
-					ctx->gc_level = SINK_GC_NONE;
-				else if (strcmp((const char *)str->bytes, "default") == 0){
-					ctx->gc_level = SINK_GC_DEFAULT;
+				if (strcmp((const char *)str.bytes, "none") === 0)
+					ctx.gc_level = SINK_GC_NONE;
+				else if (strcmp((const char *)str.bytes, "default") === 0){
+					ctx.gc_level = SINK_GC_DEFAULT;
 					context_gcleft(ctx, false);
 				}
-				else if (strcmp((const char *)str->bytes, "lowmem") == 0){
-					ctx->gc_level = SINK_GC_LOWMEM;
+				else if (strcmp((const char *)str.bytes, "lowmem") === 0){
+					ctx.gc_level = SINK_GC_LOWMEM;
 					context_gcleft(ctx, false);
 				}
 				else
@@ -13873,15 +13855,15 @@ static sink_run context_run(context ctx){
 
 			default: break;
 		}
-		if (ctx->gc_level != SINK_GC_NONE){
-			ctx->gc_left--;
-			if (ctx->gc_left <= 0)
+		if (ctx.gc_level !== SINK_GC_NONE){
+			ctx.gc_left--;
+			if (ctx.gc_left <= 0)
 				context_gc(ctx);
 		}
-		if (ctx->timeout > 0){
-			ctx->timeout_left--;
-			if (ctx->timeout_left <= 0){
-				ctx->timeout_left = ctx->timeout;
+		if (ctx.timeout > 0){
+			ctx.timeout_left--;
+			if (ctx.timeout_left <= 0){
+				ctx.timeout_left = ctx.timeout;
 				return SINK_RUN_TIMEOUT;
 			}
 		}
@@ -13901,7 +13883,7 @@ static sink_run context_run(context ctx){
 	#undef INLINE_TRIOP
 	#undef RETURN_FAIL
 
-	if (ctx->prg->repl)
+	if (ctx.prg.repl)
 		return SINK_RUN_REPLMORE;
 	return opi_exit(ctx);
 }
@@ -13923,22 +13905,22 @@ struct filepos_node_struct {
 
 static filepos_node flpn_new(int fullfile, int basefile, filepos_node next){
 	filepos_node flpn = mem_alloc(sizeof(filepos_node_st));
-	flpn->lx = lex_new();
-	flpn->tks = list_ptr_new(tok_free);
-	flpn->pgstate = list_ptr_new(pgst_free);
-	flpn->flp.fullfile = fullfile;
-	flpn->flp.basefile = basefile;
-	flpn->flp.line = 1;
-	flpn->flp.chr = 1;
-	flpn->wascr = false;
-	flpn->next = next;
+	flpn.lx = lex_new();
+	flpn.tks = list_ptr_new(tok_free);
+	flpn.pgstate = list_ptr_new(pgst_free);
+	flpn.flp.fullfile = fullfile;
+	flpn.flp.basefile = basefile;
+	flpn.flp.line = 1;
+	flpn.flp.chr = 1;
+	flpn.wascr = false;
+	flpn.next = next;
 	return flpn;
 }
 
 static void flpn_free(filepos_node flpn){
-	lex_free(flpn->lx);
-	list_ptr_free(flpn->tks);
-	list_ptr_free(flpn->pgstate);
+	lex_free(flpn.lx);
+	list_ptr_free(flpn.tks);
+	list_ptr_free(flpn.pgstate);
 	mem_free(flpn);
 }
 
@@ -13950,28 +13932,28 @@ struct staticinc_struct {
 
 static inline staticinc staticinc_new(){
 	staticinc sinc = mem_alloc(sizeof(staticinc_st));
-	sinc->name = list_ptr_new(NULL);
-	sinc->type = list_byte_new();
-	sinc->content = list_ptr_new(NULL);
+	sinc.name = list_ptr_new(NULL);
+	sinc.type = list_byte_new();
+	sinc.content = list_ptr_new(NULL);
 	return sinc;
 }
 
 static inline void staticinc_addbody(staticinc sinc, const char *name, const char *body){
-	list_ptr_push(sinc->name, (void *)name);
-	list_byte_push(sinc->type, 0);
-	list_ptr_push(sinc->content, (void *)body);
+	list_ptr_push(sinc.name, (void *)name);
+	list_byte_push(sinc.type, 0);
+	list_ptr_push(sinc.content, (void *)body);
 }
 
 static inline void staticinc_addfile(staticinc sinc, const char *name, const char *file){
-	list_ptr_push(sinc->name, (void *)name);
-	list_byte_push(sinc->type, 1);
-	list_ptr_push(sinc->content, (void *)file);
+	list_ptr_push(sinc.name, (void *)name);
+	list_byte_push(sinc.type, 1);
+	list_ptr_push(sinc.content, (void *)file);
 }
 
 static inline void staticinc_free(staticinc sinc){
-	list_ptr_free(sinc->name);
-	list_byte_free(sinc->type);
-	list_ptr_free(sinc->content);
+	list_ptr_free(sinc.name);
+	list_byte_free(sinc.type);
+	list_ptr_free(sinc.content);
 	mem_free(sinc);
 }
 
@@ -13992,49 +13974,49 @@ static inline int script_addfile(script scr, const char *file);
 static compiler compiler_new(script scr, program prg, staticinc sinc, sink_inc_st inc,
 	const char *file, list_ptr paths){
 	compiler cmp = mem_alloc(sizeof(compiler_st));
-	cmp->sinc = sinc;
-	cmp->pr = parser_new();
-	cmp->scr = scr;
-	cmp->prg = prg;
-	cmp->paths = paths;
-	cmp->sym = symtbl_new(prg->repl);
-	symtbl_loadStdlib(cmp->sym);
-	cmp->flpn = flpn_new(script_addfile(scr, file), program_addfile(prg, file), NULL);
-	cmp->inc = inc;
-	cmp->msg = NULL;
+	cmp.sinc = sinc;
+	cmp.pr = parser_new();
+	cmp.scr = scr;
+	cmp.prg = prg;
+	cmp.paths = paths;
+	cmp.sym = symtbl_new(prg.repl);
+	symtbl_loadStdlib(cmp.sym);
+	cmp.flpn = flpn_new(script_addfile(scr, file), program_addfile(prg, file), NULL);
+	cmp.inc = inc;
+	cmp.msg = NULL;
 	return cmp;
 }
 
 static inline void compiler_setmsg(compiler cmp, char *msg){
-	if (cmp->msg)
-		mem_free(cmp->msg);
-	cmp->msg = msg;
+	if (cmp.msg)
+		mem_free(cmp.msg);
+	cmp.msg = msg;
 }
 
 static void compiler_reset(compiler cmp){
 	compiler_setmsg(cmp, NULL);
-	lex_reset(cmp->flpn->lx);
-	parser_free(cmp->pr);
-	cmp->pr = parser_new();
+	lex_reset(cmp.flpn.lx);
+	parser_free(cmp.pr);
+	cmp.pr = parser_new();
 
-	list_ptr_free(cmp->flpn->tks);
-	cmp->flpn->tks = list_ptr_new(tok_free);
+	list_ptr_free(cmp.flpn.tks);
+	cmp.flpn.tks = list_ptr_new(tok_free);
 
-	list_ptr_free(cmp->flpn->pgstate);
-	cmp->flpn->pgstate = list_ptr_new(pgst_free);
+	list_ptr_free(cmp.flpn.pgstate);
+	cmp.flpn.pgstate = list_ptr_new(pgst_free);
 }
 
 static char *compiler_write(compiler cmp, int size, const uint8_t *bytes);
 static char *compiler_closeLexer(compiler cmp);
 
 static bool compiler_begininc(compiler cmp, list_ptr names, const char *file){
-	cmp->flpn = flpn_new(
-		script_addfile(cmp->scr, file), program_addfile(cmp->prg, file), cmp->flpn);
+	cmp.flpn = flpn_new(
+		script_addfile(cmp.scr, file), program_addfile(cmp.prg, file), cmp.flpn);
 	if (names){
-		char *smsg = symtbl_pushNamespace(cmp->sym, names);
+		char *smsg = symtbl_pushNamespace(cmp.sym, names);
 		if (smsg){
-			filepos_node del = cmp->flpn;
-			cmp->flpn = cmp->flpn->next;
+			filepos_node del = cmp.flpn;
+			cmp.flpn = cmp.flpn.next;
 			flpn_free(del);
 			compiler_setmsg(cmp, smsg);
 			return false;
@@ -14049,23 +14031,23 @@ typedef struct {
 } compiler_fileres_user_st, *compiler_fileres_user;
 
 static bool compiler_begininc_cfu(const char *file, compiler_fileres_user cfu){
-	return compiler_begininc(cfu->cmp, cfu->names, file);
+	return compiler_begininc(cfu.cmp, cfu.names, file);
 }
 
 static void compiler_endinc(compiler cmp, bool ns){
 	if (ns)
-		symtbl_popNamespace(cmp->sym);
-	filepos_node del = cmp->flpn;
-	cmp->flpn = cmp->flpn->next;
+		symtbl_popNamespace(cmp.sym);
+	filepos_node del = cmp.flpn;
+	cmp.flpn = cmp.flpn.next;
 	flpn_free(del);
 }
 
 static void compiler_endinc_cfu(bool success, const char *file, compiler_fileres_user cfu){
 	if (success)
-		compiler_closeLexer(cfu->cmp);
-	compiler_endinc(cfu->cmp, cfu->names != NULL);
-	if (!success && cfu->cmp->msg == NULL)
-		compiler_setmsg(cfu->cmp, format("Failed to read file: %s", file));
+		compiler_closeLexer(cfu.cmp);
+	compiler_endinc(cfu.cmp, cfu.names !== NULL);
+	if (!success && cfu.cmp.msg === NULL)
+		compiler_setmsg(cfu.cmp, format("Failed to read file: %s", file));
 }
 
 static bool compiler_staticinc(compiler cmp, list_ptr names, const char *file, const char *body){
@@ -14073,11 +14055,11 @@ static bool compiler_staticinc(compiler cmp, list_ptr names, const char *file, c
 		return false;
 	char *err = compiler_write(cmp, (int)strlen(body), (const uint8_t *)body);
 	if (err){
-		compiler_endinc(cmp, names != NULL);
+		compiler_endinc(cmp, names !== NULL);
 		return false;
 	}
 	err = compiler_closeLexer(cmp);
-	compiler_endinc(cmp, names != NULL);
+	compiler_endinc(cmp, names !== NULL);
 	if (err)
 		return false;
 	return true;
@@ -14090,7 +14072,7 @@ static bool compiler_dynamicinc(compiler cmp, list_ptr names, const char *file, 
 	char *cwd = NULL;
 	if (from)
 		cwd = pathjoin(from, "..");
-	bool res = fileres_read(cmp->scr, true, file, cwd,
+	bool res = fileres_read(cmp.scr, true, file, cwd,
 		(f_fileres_begin_f)compiler_begininc_cfu, (f_fileres_end_f)compiler_endinc_cfu, &cfu);
 	if (cwd)
 		mem_free(cwd);
@@ -14100,51 +14082,51 @@ static bool compiler_dynamicinc(compiler cmp, list_ptr names, const char *file, 
 static char *compiler_process(compiler cmp){
 	// generate statements
 	list_ptr stmts = list_ptr_new(ast_free);
-	while (cmp->flpn->tks->size > 0){
-		while (cmp->flpn->tks->size > 0){
-			tok tk = list_ptr_shift(cmp->flpn->tks);
+	while (cmp.flpn.tks.size > 0){
+		while (cmp.flpn.tks.size > 0){
+			tok tk = list_ptr_shift(cmp.flpn.tks);
 			tok_print(tk);
-			if (tk->type == TOK_ERROR){
-				compiler_setmsg(cmp, program_errormsg(cmp->prg, tk->flp, tk->u.msg));
+			if (tk.type === TOK_ERROR){
+				compiler_setmsg(cmp, program_errormsg(cmp.prg, tk.flp, tk.u.msg));
 				tok_free(tk);
 				list_ptr_free(stmts);
-				return cmp->msg;
+				return cmp.msg;
 			}
-			const char *pmsg = parser_add(cmp->pr, tk, stmts);
+			const char *pmsg = parser_add(cmp.pr, tk, stmts);
 			if (pmsg){
-				compiler_setmsg(cmp, program_errormsg(cmp->prg, tk->flp, pmsg));
+				compiler_setmsg(cmp, program_errormsg(cmp.prg, tk.flp, pmsg));
 				list_ptr_free(stmts);
-				return cmp->msg;
+				return cmp.msg;
 			}
-			if (stmts->size > 0 && ((ast)stmts->ptrs[stmts->size - 1])->type == AST_INCLUDE)
+			if (stmts.size > 0 && ((ast)stmts.ptrs[stmts.size - 1]).type === AST_INCLUDE)
 				break;
 		}
 
 		// process statements
-		while (stmts->size > 0){
+		while (stmts.size > 0){
 			ast stmt = list_ptr_shift(stmts);
 			ast_print(stmt);
 
-			if (stmt->type == AST_INCLUDE){
+			if (stmt.type === AST_INCLUDE){
 				// intercept include statements to process by the compiler
-				for (int ii = 0; ii < stmt->u.incls->size; ii++){
-					incl inc = stmt->u.incls->ptrs[ii];
-					const char *file = (const char *)inc->file->bytes;
+				for (int ii = 0; ii < stmt.u.incls.size; ii++){
+					incl inc = stmt.u.incls.ptrs[ii];
+					const char *file = (const char *)inc.file.bytes;
 
 					// look if file matches a static include pseudo-file
 					bool internal = false;
-					for (int i = 0; i < cmp->sinc->name->size; i++){
-						const char *sinc_name = cmp->sinc->name->ptrs[i];
-						if (strcmp(file, sinc_name) == 0){
+					for (int i = 0; i < cmp.sinc.name.size; i++){
+						const char *sinc_name = cmp.sinc.name.ptrs[i];
+						if (strcmp(file, sinc_name) === 0){
 							internal = true;
-							const char *sinc_content = cmp->sinc->content->ptrs[i];
-							bool is_body = cmp->sinc->type->bytes[i] == 0;
+							const char *sinc_content = cmp.sinc.content.ptrs[i];
+							bool is_body = cmp.sinc.type.bytes[i] === 0;
 							bool success;
 							if (is_body)
-								success = compiler_staticinc(cmp, inc->names, file, sinc_content);
+								success = compiler_staticinc(cmp, inc.names, file, sinc_content);
 							else{
-								success = compiler_dynamicinc(cmp, inc->names, sinc_content,
-									script_getfile(cmp->scr, stmt->flp.fullfile));
+								success = compiler_dynamicinc(cmp, inc.names, sinc_content,
+									script_getfile(cmp.scr, stmt.flp.fullfile));
 								if (!success){
 									compiler_setmsg(cmp,
 										format("Failed to include: %s", file));
@@ -14153,36 +14135,36 @@ static char *compiler_process(compiler cmp){
 							if (!success){
 								ast_free(stmt);
 								list_ptr_free(stmts);
-								return cmp->msg;
+								return cmp.msg;
 							}
 							break;
 						}
 					}
 
 					if (!internal){
-						bool found = compiler_dynamicinc(cmp, inc->names, file,
-							script_getfile(cmp->scr, stmt->flp.fullfile));
-						if (!found && cmp->msg == NULL)
+						bool found = compiler_dynamicinc(cmp, inc.names, file,
+							script_getfile(cmp.scr, stmt.flp.fullfile));
+						if (!found && cmp.msg === NULL)
 							compiler_setmsg(cmp, format("Failed to include: %s", file));
-						if (cmp->msg){
+						if (cmp.msg){
 							ast_free(stmt);
 							list_ptr_free(stmts);
-							return cmp->msg;
+							return cmp.msg;
 						}
 					}
 				}
 			}
 			else{
-				list_ptr pgsl = cmp->flpn->pgstate;
+				list_ptr pgsl = cmp.flpn.pgstate;
 				pgr_st pg = program_gen((pgen_st){
-						.prg = cmp->prg,
-						.sym = cmp->sym,
-						.scr = cmp->scr,
-						.from = stmt->flp.fullfile
+						.prg = cmp.prg,
+						.sym = cmp.sym,
+						.scr = cmp.scr,
+						.from = stmt.flp.fullfile
 					}, stmt,
-					pgsl->size <= 0 ? NULL : ((pgst)pgsl->ptrs[pgsl->size - 1])->state,
-					cmp->prg->repl && cmp->flpn->next == NULL && pgsl->size <= 0);
-				symtbl_print(cmp->sym);
+					pgsl.size <= 0 ? NULL : ((pgst)pgsl.ptrs[pgsl.size - 1]).state,
+					cmp.prg.repl && cmp.flpn.next === NULL && pgsl.size <= 0);
+				symtbl_print(cmp.sym);
 				switch (pg.type){
 					case PGR_OK:
 						break;
@@ -14194,11 +14176,11 @@ static char *compiler_process(compiler cmp){
 						break;
 					case PGR_ERROR:
 						compiler_setmsg(cmp,
-							program_errormsg(cmp->prg, pg.u.error.flp, pg.u.error.msg));
+							program_errormsg(cmp.prg, pg.u.error.flp, pg.u.error.msg));
 						ast_free(stmt);
 						mem_free(pg.u.error.msg);
 						list_ptr_free(stmts);
-						return cmp->msg;
+						return cmp.msg;
 					case PGR_FORVARS:
 						// impossible
 						assert(false);
@@ -14213,31 +14195,31 @@ static char *compiler_process(compiler cmp){
 }
 
 static char *compiler_write(compiler cmp, int size, const uint8_t *bytes){
-	filepos_node flpn = cmp->flpn;
+	filepos_node flpn = cmp.flpn;
 	for (int i = 0; i < size; i++){
-		lex_add(flpn->lx, flpn->flp, bytes[i], flpn->tks);
-		if (bytes[i] == '\n'){
-			if (!flpn->wascr){
-				flpn->flp.line++;
-				flpn->flp.chr = 1;
+		lex_add(flpn.lx, flpn.flp, bytes[i], flpn.tks);
+		if (bytes[i] === '\n'){
+			if (!flpn.wascr){
+				flpn.flp.line++;
+				flpn.flp.chr = 1;
 			}
-			flpn->wascr = false;
+			flpn.wascr = false;
 		}
-		else if (bytes[i] == '\r'){
-			flpn->flp.line++;
-			flpn->flp.chr = 1;
-			flpn->wascr = true;
+		else if (bytes[i] === '\r'){
+			flpn.flp.line++;
+			flpn.flp.chr = 1;
+			flpn.wascr = true;
 		}
 		else{
-			flpn->flp.chr++;
-			flpn->wascr = false;
+			flpn.flp.chr++;
+			flpn.wascr = false;
 		}
 	}
 	return compiler_process(cmp);
 }
 
 static char *compiler_closeLexer(compiler cmp){
-	lex_close(cmp->flpn->lx, cmp->flpn->flp, cmp->flpn->tks);
+	lex_close(cmp.flpn.lx, cmp.flpn.flp, cmp.flpn.tks);
 	return compiler_process(cmp);
 }
 
@@ -14246,24 +14228,24 @@ static char *compiler_close(compiler cmp){
 	if (err)
 		return err;
 
-	const char *pmsg = parser_close(cmp->pr);
+	const char *pmsg = parser_close(cmp.pr);
 	if (pmsg){
-		compiler_setmsg(cmp, program_errormsg(cmp->prg, cmp->flpn->flp, pmsg));
-		return cmp->msg;
+		compiler_setmsg(cmp, program_errormsg(cmp.prg, cmp.flpn.flp, pmsg));
+		return cmp.msg;
 	}
 
 	return NULL;
 }
 
 static void compiler_free(compiler cmp){
-	if (cmp->msg)
-		mem_free(cmp->msg);
-	parser_free(cmp->pr);
-	symtbl_free(cmp->sym);
-	filepos_node flpn = cmp->flpn;
+	if (cmp.msg)
+		mem_free(cmp.msg);
+	parser_free(cmp.pr);
+	symtbl_free(cmp.sym);
+	filepos_node flpn = cmp.flpn;
 	while (flpn){
 		filepos_node del = flpn;
-		flpn = flpn->next;
+		flpn = flpn.next;
 		flpn_free(del);
 	}
 	mem_free(cmp);
@@ -14280,102 +14262,102 @@ static void compiler_free(compiler cmp){
 //
 
 sink_scr sink_scr_new(sink_inc_st inc, const char *curdir, bool repl){
-	if (curdir != NULL && curdir[0] != '/')
+	if (curdir !== NULL && curdir[0] !== '/')
 		fprintf(stderr, "Warning: sink current directory \"%s\" is not an absolute path\n", curdir);
 	script sc = mem_alloc(sizeof(script_st));
-	sc->prg = program_new(repl);
-	sc->cmp = NULL;
-	sc->sinc = staticinc_new();
-	sc->cup = cleanup_new();
-	sc->files = list_ptr_new(mem_free_func);
-	sc->paths = list_ptr_new(mem_free_func);
-	sc->inc = inc;
-	sc->capture_write = NULL;
-	sc->curdir = curdir ? format("%s", curdir) : NULL;
-	sc->file = NULL;
-	sc->err = NULL;
-	sc->mode = SCM_UNKNOWN;
-	sc->binstate.buf = NULL;
+	sc.prg = program_new(repl);
+	sc.cmp = NULL;
+	sc.sinc = staticinc_new();
+	sc.cup = cleanup_new();
+	sc.files = list_ptr_new(mem_free_func);
+	sc.paths = list_ptr_new(mem_free_func);
+	sc.inc = inc;
+	sc.capture_write = NULL;
+	sc.curdir = curdir ? format("%s", curdir) : NULL;
+	sc.file = NULL;
+	sc.err = NULL;
+	sc.mode = SCM_UNKNOWN;
+	sc.binstate.buf = NULL;
 	return sc;
 }
 
 static inline int script_addfile(script scr, const char *file){
-	if (file == NULL)
+	if (file === NULL)
 		return -1;
-	for (int i = 0; i < scr->files->size; i++){
-		if (strcmp(scr->files->ptrs[i], file) == 0)
+	for (int i = 0; i < scr.files.size; i++){
+		if (strcmp(scr.files.ptrs[i], file) === 0)
 			return i;
 	}
-	list_ptr_push(scr->files, format("%s", file));
-	return scr->files->size - 1;
+	list_ptr_push(scr.files, format("%s", file));
+	return scr.files.size - 1;
 }
 
 static inline const char *script_getfile(script scr, int file){
 	if (file < 0)
 		return NULL;
-	return scr->files->ptrs[file];
+	return scr.files.ptrs[file];
 }
 
 void sink_scr_addpath(sink_scr scr, const char *path){
-	list_ptr_push(((script)scr)->paths, format("%s", path));
+	list_ptr_push(((script)scr).paths, format("%s", path));
 }
 
 void sink_scr_incbody(sink_scr scr, const char *name, const char *body){
-	staticinc_addbody(((script)scr)->sinc, name, body);
+	staticinc_addbody(((script)scr).sinc, name, body);
 }
 
 void sink_scr_incfile(sink_scr scr, const char *name, const char *file){
-	staticinc_addfile(((script)scr)->sinc, name, file);
+	staticinc_addfile(((script)scr).sinc, name, file);
 }
 
 void sink_scr_cleanup(sink_scr scr, void *cuser, sink_free_f f_free){
-	cleanup_add(((script)scr)->cup, cuser, f_free);
+	cleanup_add(((script)scr).cup, cuser, f_free);
 }
 
 static bool sfr_begin(const char *file, script sc){
-	if (sc->file){
-		mem_free(sc->file);
-		sc->file = NULL;
+	if (sc.file){
+		mem_free(sc.file);
+		sc.file = NULL;
 	}
 	if (file)
-		sc->file = format("%s", file);
+		sc.file = format("%s", file);
 	return true;
 }
 
 static inline void binary_validate(script sc){
-	if (sc->err)
+	if (sc.err)
 		return;
-	if (sc->binstate.state == BIS_DONE){
-		if (!program_validate(sc->prg))
-			sc->err = format("Error: Invalid program code");
+	if (sc.binstate.state === BIS_DONE){
+		if (!program_validate(sc.prg))
+			sc.err = format("Error: Invalid program code");
 	}
 	else
-		sc->err = format("Error: Invalid end of file");
+		sc.err = format("Error: Invalid end of file");
 }
 
 static inline void text_validate(script sc, bool close, bool resetonclose){
-	if (sc->err && sc->prg->repl)
-		compiler_reset(sc->cmp);
+	if (sc.err && sc.prg.repl)
+		compiler_reset(sc.cmp);
 	if (close){
-		char *err2 = compiler_close(sc->cmp);
+		char *err2 = compiler_close(sc.cmp);
 		if (err2){
-			if (sc->err)
-				mem_free(sc->err);
-			sc->err = format("Error: %s", err2);
+			if (sc.err)
+				mem_free(sc.err);
+			sc.err = format("Error: %s", err2);
 		}
 		if (resetonclose)
-			compiler_reset(sc->cmp);
+			compiler_reset(sc.cmp);
 	}
 }
 
 static void sfr_end(bool success, const char *file, script sc){
 	if (!success){
-		if (sc->err)
-			mem_free(sc->err);
-		sc->err = format("Error: %s", sc->cmp->msg);
+		if (sc.err)
+			mem_free(sc.err);
+		sc.err = format("Error: %s", sc.cmp.msg);
 	}
 	else{
-		switch (sc->mode){
+		switch (sc.mode){
 			case SCM_UNKNOWN:
 				// empty file, do nothing
 				break;
@@ -14391,23 +14373,23 @@ static void sfr_end(bool success, const char *file, script sc){
 
 bool sink_scr_loadfile(sink_scr scr, const char *file){
 	script sc = scr;
-	if (sc->err){
-		mem_free(sc->err);
-		sc->err = NULL;
+	if (sc.err){
+		mem_free(sc.err);
+		sc.err = NULL;
 	}
 	bool read = fileres_read(sc, true, file, NULL,
 		(f_fileres_begin_f)sfr_begin, (f_fileres_end_f)sfr_end, sc);
-	if (!read && sc->err == NULL)
-		sc->err = format("Error: Failed to read file: %s", file);
-	return sc->err == NULL;
+	if (!read && sc.err === NULL)
+		sc.err = format("Error: Failed to read file: %s", file);
+	return sc.err === NULL;
 }
 
 const char *sink_scr_getfile(sink_scr scr){
-	return ((script)scr)->file;
+	return ((script)scr).file;
 }
 
 const char *sink_scr_getcwd(sink_scr scr){
-	return ((script)scr)->curdir;
+	return ((script)scr).curdir;
 }
 
 // byte size of each section of the binary file
@@ -14423,265 +14405,265 @@ bool sink_scr_write(sink_scr scr, int size, const uint8_t *bytes){
 		return true;
 	script sc = scr;
 
-	if (sc->capture_write){
+	if (sc.capture_write){
 		// the write operation is being captured by an embed, so append to the list_byte, and
 		// return immediately
-		list_byte_append(sc->capture_write, size, bytes);
+		list_byte_append(sc.capture_write, size, bytes);
 		return true;
 	}
 
 	// sink binary files start with 0xFC (invalid UTF8 start byte), so we can tell if we're binary
 	// just by looking at the first byte
-	if (sc->mode == SCM_UNKNOWN){
-		if (bytes[0] == 0xFC){
-			sc->mode = SCM_BINARY;
-			sc->binstate.state = BIS_HEADER;
-			sc->binstate.left = BSZ_HEADER;
-			sc->binstate.buf = list_byte_new();
+	if (sc.mode === SCM_UNKNOWN){
+		if (bytes[0] === 0xFC){
+			sc.mode = SCM_BINARY;
+			sc.binstate.state = BIS_HEADER;
+			sc.binstate.left = BSZ_HEADER;
+			sc.binstate.buf = list_byte_new();
 		}
 		else{
-			sc->mode = SCM_TEXT;
-			sc->cmp = compiler_new(sc, sc->prg, sc->sinc, sc->inc, sc->file, sc->paths);
+			sc.mode = SCM_TEXT;
+			sc.cmp = compiler_new(sc, sc.prg, sc.sinc, sc.inc, sc.file, sc.paths);
 		}
 	}
 
-	if (sc->mode == SCM_BINARY){
-		if (sc->err){
-			mem_free(sc->err);
-			sc->err = NULL;
+	if (sc.mode === SCM_BINARY){
+		if (sc.err){
+			mem_free(sc.err);
+			sc.err = NULL;
 		}
 
-		binstate_st *bs = &sc->binstate;
-		program prg = sc->prg;
+		binstate_st *bs = &sc.binstate;
+		program prg = sc.prg;
 
 		// read a 4 byte integer (LE)
 		#define GETINT(i)    (                               \
-			(((uint32_t)bs->buf->bytes[(i) + 0])      ) |    \
-			(((uint32_t)bs->buf->bytes[(i) + 1]) <<  8) |    \
-			(((uint32_t)bs->buf->bytes[(i) + 2]) << 16) |    \
-			(((uint32_t)bs->buf->bytes[(i) + 3]) << 24))
+			(((uint32_t)bs.buf.bytes[(i) + 0])      ) |    \
+			(((uint32_t)bs.buf.bytes[(i) + 1]) <<  8) |    \
+			(((uint32_t)bs.buf.bytes[(i) + 2]) << 16) |    \
+			(((uint32_t)bs.buf.bytes[(i) + 3]) << 24))
 
-		// write to the buffer up to a certain total bytes (bs->left)
+		// write to the buffer up to a certain total bytes (bs.left)
 		#define WRITE()                                      \
-			if (size > bs->left){                            \
+			if (size > bs.left){                            \
 				/* partial write to buf * /                   \
-				list_byte_append(bs->buf, bs->left, bytes);  \
-				bytes += bs->left;                           \
-				size -= bs->left;                            \
-				bs->left = 0;                                \
+				list_byte_append(bs.buf, bs.left, bytes);  \
+				bytes += bs.left;                           \
+				size -= bs.left;                            \
+				bs.left = 0;                                \
 			}                                                \
 			else{                                            \
 				/* full write to buf * /                      \
-				list_byte_append(bs->buf, size, bytes);      \
-				bs->left -= size;                            \
+				list_byte_append(bs.buf, size, bytes);      \
+				bs.left -= size;                            \
 				size = 0;                                    \
 			}
 
 		while (size > 0){
-			switch (bs->state){
+			switch (bs.state){
 				case BIS_HEADER:
 					WRITE()
-					if (bs->left == 0){
+					if (bs.left === 0){
 						// finished reading entire header
 						uint32_t magic = GETINT(0);
-						bs->str_size = GETINT(4);
-						bs->key_size = GETINT(8);
-						bs->dbg_size = GETINT(12);
-						bs->pos_size = GETINT(16);
-						bs->cmd_size = GETINT(20);
-						bs->ops_size = GETINT(24);
-						if (magic != 0x016B53FC){
-							sc->err = format("Error: Invalid binary header");
+						bs.str_size = GETINT(4);
+						bs.key_size = GETINT(8);
+						bs.dbg_size = GETINT(12);
+						bs.pos_size = GETINT(16);
+						bs.cmd_size = GETINT(20);
+						bs.ops_size = GETINT(24);
+						if (magic !== 0x016B53FC){
+							sc.err = format("Error: Invalid binary header");
 							return false;
 						}
 						debugf("binary header: strs %d, keys %d, dbgs %d, poss %d, cmds %d, ops %d",
-							bs->str_size, bs->key_size, bs->dbg_size, bs->pos_size,
-							bs->cmd_size, bs->ops_size);
-						bs->state = BIS_STR_HEAD;
-						bs->left = BSZ_STR_HEAD;
-						bs->item = 0;
-						bs->buf->size = 0;
+							bs.str_size, bs.key_size, bs.dbg_size, bs.pos_size,
+							bs.cmd_size, bs.ops_size);
+						bs.state = BIS_STR_HEAD;
+						bs.left = BSZ_STR_HEAD;
+						bs.item = 0;
+						bs.buf.size = 0;
 					}
 					break;
 				case BIS_STR_HEAD:
-					if (bs->item >= bs->str_size){
-						bs->state = BIS_KEY;
-						bs->left = BSZ_KEY;
-						bs->item = 0;
+					if (bs.item >= bs.str_size){
+						bs.state = BIS_KEY;
+						bs.left = BSZ_KEY;
+						bs.item = 0;
 						break;
 					}
 					WRITE()
-					if (bs->left == 0){
-						bs->state = BIS_STR_BODY;
-						bs->left = GETINT(0);
-						bs->buf->size = 0;
+					if (bs.left === 0){
+						bs.state = BIS_STR_BODY;
+						bs.left = GETINT(0);
+						bs.buf.size = 0;
 					}
 					break;
 				case BIS_STR_BODY: // variable
 					WRITE()
-					if (bs->left == 0){
-						list_byte_null(bs->buf);
-						debugf("str[%d] = \"%s\"", bs->item, (const char *)bs->buf->bytes);
-						list_ptr_push(prg->strTable, bs->buf);
-						bs->buf = list_byte_new();
-						bs->state = BIS_STR_HEAD;
-						bs->left = BSZ_STR_HEAD;
-						bs->item++;
+					if (bs.left === 0){
+						list_byte_null(bs.buf);
+						debugf("str[%d] = \"%s\"", bs.item, (const char *)bs.buf.bytes);
+						list_ptr_push(prg.strTable, bs.buf);
+						bs.buf = list_byte_new();
+						bs.state = BIS_STR_HEAD;
+						bs.left = BSZ_STR_HEAD;
+						bs.item++;
 					}
 					break;
 				case BIS_KEY:
-					if (bs->item >= bs->key_size){
-						bs->state = BIS_DEBUG_HEAD;
-						bs->left = BSZ_DEBUG_HEAD;
-						bs->item = 0;
+					if (bs.item >= bs.key_size){
+						bs.state = BIS_DEBUG_HEAD;
+						bs.left = BSZ_DEBUG_HEAD;
+						bs.item = 0;
 						break;
 					}
 					WRITE()
-					if (bs->left == 0){
+					if (bs.left === 0){
 						uint64_t key =
-							(((uint64_t)bs->buf->bytes[0])      ) |
-							(((uint64_t)bs->buf->bytes[1]) <<  8) |
-							(((uint64_t)bs->buf->bytes[2]) << 16) |
-							(((uint64_t)bs->buf->bytes[3]) << 24) |
-							(((uint64_t)bs->buf->bytes[4]) << 32) |
-							(((uint64_t)bs->buf->bytes[5]) << 40) |
-							(((uint64_t)bs->buf->bytes[6]) << 48) |
-							(((uint64_t)bs->buf->bytes[7]) << 56);
-						list_u64_push(prg->keyTable, key);
-						debugf("key[%d] = %016llX", bs->item, key);
-						bs->item++;
-						bs->left = BSZ_KEY;
-						bs->buf->size = 0;
+							(((uint64_t)bs.buf.bytes[0])      ) |
+							(((uint64_t)bs.buf.bytes[1]) <<  8) |
+							(((uint64_t)bs.buf.bytes[2]) << 16) |
+							(((uint64_t)bs.buf.bytes[3]) << 24) |
+							(((uint64_t)bs.buf.bytes[4]) << 32) |
+							(((uint64_t)bs.buf.bytes[5]) << 40) |
+							(((uint64_t)bs.buf.bytes[6]) << 48) |
+							(((uint64_t)bs.buf.bytes[7]) << 56);
+						list_u64_push(prg.keyTable, key);
+						debugf("key[%d] = %016llX", bs.item, key);
+						bs.item++;
+						bs.left = BSZ_KEY;
+						bs.buf.size = 0;
 					}
 					break;
 				case BIS_DEBUG_HEAD:
-					if (bs->item >= bs->dbg_size){
-						bs->state = BIS_POS;
-						bs->left = BSZ_POS;
-						bs->item = 0;
+					if (bs.item >= bs.dbg_size){
+						bs.state = BIS_POS;
+						bs.left = BSZ_POS;
+						bs.item = 0;
 						break;
 					}
 					WRITE()
-					if (bs->left == 0){
-						bs->state = BIS_DEBUG_BODY;
-						bs->left = GETINT(0);
-						bs->buf->size = 0;
+					if (bs.left === 0){
+						bs.state = BIS_DEBUG_BODY;
+						bs.left = GETINT(0);
+						bs.buf.size = 0;
 					}
 					break;
 				case BIS_DEBUG_BODY: // variable
 					WRITE()
-					if (bs->left == 0){
-						list_byte_null(bs->buf);
-						debugf("dbg[%d] = \"%s\"", bs->item, (const char *)bs->buf->bytes);
-						list_ptr_push(prg->debugTable, list_byte_freetochar(bs->buf));
-						bs->buf = list_byte_new();
-						bs->state = BIS_DEBUG_HEAD;
-						bs->left = BSZ_DEBUG_HEAD;
-						bs->item++;
+					if (bs.left === 0){
+						list_byte_null(bs.buf);
+						debugf("dbg[%d] = \"%s\"", bs.item, (const char *)bs.buf.bytes);
+						list_ptr_push(prg.debugTable, list_byte_freetochar(bs.buf));
+						bs.buf = list_byte_new();
+						bs.state = BIS_DEBUG_HEAD;
+						bs.left = BSZ_DEBUG_HEAD;
+						bs.item++;
 					}
 					break;
 				case BIS_POS:
-					if (bs->item >= bs->pos_size){
-						bs->state = BIS_CMD;
-						bs->left = BSZ_CMD;
-						bs->item = 0;
+					if (bs.item >= bs.pos_size){
+						bs.state = BIS_CMD;
+						bs.left = BSZ_CMD;
+						bs.item = 0;
 						break;
 					}
 					WRITE()
-					if (bs->left == 0){
+					if (bs.left === 0){
 						prgflp p = mem_alloc(sizeof(prgflp_st));
-						p->pc           = GETINT( 0);
-						p->flp.line     = GETINT( 4);
-						p->flp.chr      = GETINT( 8);
-						p->flp.basefile = GETINT(12);
-						p->flp.fullfile = -1;
-						debugf("pos[%d] = pc %d, line %d, chr %d, bsf %d", bs->item,
-							p->pc, p->flp.line, p->flp.chr, p->flp.basefile);
-						list_ptr_push(prg->posTable, p);
-						bs->buf->size = 0;
-						bs->left = BSZ_POS;
-						bs->item++;
+						p.pc           = GETINT( 0);
+						p.flp.line     = GETINT( 4);
+						p.flp.chr      = GETINT( 8);
+						p.flp.basefile = GETINT(12);
+						p.flp.fullfile = -1;
+						debugf("pos[%d] = pc %d, line %d, chr %d, bsf %d", bs.item,
+							p.pc, p.flp.line, p.flp.chr, p.flp.basefile);
+						list_ptr_push(prg.posTable, p);
+						bs.buf.size = 0;
+						bs.left = BSZ_POS;
+						bs.item++;
 						// silently validate basefile
-						if (p->flp.basefile >= bs->dbg_size)
-							p->flp.basefile = -1;
+						if (p.flp.basefile >= bs.dbg_size)
+							p.flp.basefile = -1;
 					}
 					break;
 				case BIS_CMD:
-					if (bs->item >= bs->cmd_size){
-						bs->state = BIS_OPS;
-						bs->left = bs->ops_size + 1; // add 1 to read the terminating byte
+					if (bs.item >= bs.cmd_size){
+						bs.state = BIS_OPS;
+						bs.left = bs.ops_size + 1; // add 1 to read the terminating byte
 						break;
 					}
 					WRITE()
-					if (bs->left == 0){
+					if (bs.left === 0){
 						prgch p = mem_alloc(sizeof(prgch_st));
-						p->pc      = GETINT(0);
-						p->cmdhint = GETINT(4);
-						debugf("cmd[%d] = pc %d, cmh %d", bs->item, p->pc, p->cmdhint);
-						list_ptr_push(prg->cmdTable, p);
-						bs->buf->size = 0;
-						bs->left = BSZ_CMD;
-						bs->item++;
+						p.pc      = GETINT(0);
+						p.cmdhint = GETINT(4);
+						debugf("cmd[%d] = pc %d, cmh %d", bs.item, p.pc, p.cmdhint);
+						list_ptr_push(prg.cmdTable, p);
+						bs.buf.size = 0;
+						bs.left = BSZ_CMD;
+						bs.item++;
 						// silently validate cmdhint
-						if (p->cmdhint >= bs->dbg_size)
-							p->cmdhint = -1;
+						if (p.cmdhint >= bs.dbg_size)
+							p.cmdhint = -1;
 					}
 					break;
 				case BIS_OPS: // variable
 					WRITE()
-					if (bs->left == 0){
+					if (bs.left === 0){
 						// validate terminating byte
-						if (bs->buf->bytes[bs->buf->size - 1] != 0xFD){
-							sc->err = format("Error: Invalid binary file");
+						if (bs.buf.bytes[bs.buf.size - 1] !== 0xFD){
+							sc.err = format("Error: Invalid binary file");
 							return false;
 						}
-						bs->buf->size--; // trim off terminating byte
-						list_byte_free(prg->ops);
-						prg->ops = bs->buf;
-						bs->buf = NULL;
-						bs->state = BIS_DONE;
+						bs.buf.size--; // trim off terminating byte
+						list_byte_free(prg.ops);
+						prg.ops = bs.buf;
+						bs.buf = NULL;
+						bs.state = BIS_DONE;
 					}
 					break;
 				case BIS_DONE:
-					sc->err = format("Error: Invalid data at end of file");
+					sc.err = format("Error: Invalid data at end of file");
 					return false;
 			}
 		}
 		#undef GETINT
 		#undef WRITE
-		bool is_eval = !sc->prg->repl && sc->file == NULL;
+		bool is_eval = !sc.prg.repl && sc.file === NULL;
 		if (is_eval) // if we're evaling, then we're at the end of file right now
 			binary_validate(sc);
-		return sc->err == NULL;
+		return sc.err === NULL;
 	}
 	else{
-		if (sc->err){
-			mem_free(sc->err);
-			sc->err = NULL;
+		if (sc.err){
+			mem_free(sc.err);
+			sc.err = NULL;
 		}
-		char *err = compiler_write(sc->cmp, size, bytes);
+		char *err = compiler_write(sc.cmp, size, bytes);
 		if (err)
-			sc->err = format("Error: %s", err);
-		bool is_eval = !sc->prg->repl && sc->file == NULL;
+			sc.err = format("Error: %s", err);
+		bool is_eval = !sc.prg.repl && sc.file === NULL;
 		text_validate(sc, is_eval, true);
-		return sc->err == NULL;
+		return sc.err === NULL;
 	}
 }
 
 const char *sink_scr_geterr(sink_scr scr){
-	return ((script)scr)->err;
+	return ((script)scr).err;
 }
 
 int sink_scr_level(sink_scr scr){
-	if (((script)scr)->mode != SCM_TEXT)
+	if (((script)scr).mode !== SCM_TEXT)
 		return 0;
-	return ((script)scr)->cmp->pr->level;
+	return ((script)scr).cmp.pr.level;
 }
 
 void sink_scr_dump(sink_scr scr, bool debug, void *user, sink_dump_f f_dump){
 	// all integer values are little endian
 
-	program prg = ((script)scr)->prg;
+	program prg = ((script)scr).prg;
 
 	// output header
 	// 4 bytes: header: 0xFC, 'S', 'k', file format version (always 0x01)
@@ -14696,54 +14678,54 @@ void sink_scr_dump(sink_scr scr, bool debug, void *user, sink_dump_f f_dump){
 	header[ 1] = 0x53;
 	header[ 2] = 0x6B;
 	header[ 3] = 0x01;
-	header[ 4] = (prg->strTable->size            ) & 0xFF;
-	header[ 5] = (prg->strTable->size       >>  8) & 0xFF;
-	header[ 6] = (prg->strTable->size       >> 16) & 0xFF;
-	header[ 7] = (prg->strTable->size       >> 24) & 0xFF;
-	header[ 8] = (prg->keyTable->size            ) & 0xFF;
-	header[ 9] = (prg->keyTable->size       >>  8) & 0xFF;
-	header[10] = (prg->keyTable->size       >> 16) & 0xFF;
-	header[11] = (prg->keyTable->size       >> 24) & 0xFF;
+	header[ 4] = (prg.strTable.size            ) & 0xFF;
+	header[ 5] = (prg.strTable.size       >>  8) & 0xFF;
+	header[ 6] = (prg.strTable.size       >> 16) & 0xFF;
+	header[ 7] = (prg.strTable.size       >> 24) & 0xFF;
+	header[ 8] = (prg.keyTable.size            ) & 0xFF;
+	header[ 9] = (prg.keyTable.size       >>  8) & 0xFF;
+	header[10] = (prg.keyTable.size       >> 16) & 0xFF;
+	header[11] = (prg.keyTable.size       >> 24) & 0xFF;
 	if (debug){
-		header[12] = (prg->debugTable->size      ) & 0xFF;
-		header[13] = (prg->debugTable->size >>  8) & 0xFF;
-		header[14] = (prg->debugTable->size >> 16) & 0xFF;
-		header[15] = (prg->debugTable->size >> 24) & 0xFF;
-		header[16] = (prg->posTable->size        ) & 0xFF;
-		header[17] = (prg->posTable->size   >>  8) & 0xFF;
-		header[18] = (prg->posTable->size   >> 16) & 0xFF;
-		header[19] = (prg->posTable->size   >> 24) & 0xFF;
-		header[20] = (prg->cmdTable->size        ) & 0xFF;
-		header[21] = (prg->cmdTable->size   >>  8) & 0xFF;
-		header[22] = (prg->cmdTable->size   >> 16) & 0xFF;
-		header[23] = (prg->cmdTable->size   >> 24) & 0xFF;
+		header[12] = (prg.debugTable.size      ) & 0xFF;
+		header[13] = (prg.debugTable.size >>  8) & 0xFF;
+		header[14] = (prg.debugTable.size >> 16) & 0xFF;
+		header[15] = (prg.debugTable.size >> 24) & 0xFF;
+		header[16] = (prg.posTable.size        ) & 0xFF;
+		header[17] = (prg.posTable.size   >>  8) & 0xFF;
+		header[18] = (prg.posTable.size   >> 16) & 0xFF;
+		header[19] = (prg.posTable.size   >> 24) & 0xFF;
+		header[20] = (prg.cmdTable.size        ) & 0xFF;
+		header[21] = (prg.cmdTable.size   >>  8) & 0xFF;
+		header[22] = (prg.cmdTable.size   >> 16) & 0xFF;
+		header[23] = (prg.cmdTable.size   >> 24) & 0xFF;
 	}
-	header[24] = (prg->ops->size                 ) & 0xFF;
-	header[25] = (prg->ops->size            >>  8) & 0xFF;
-	header[26] = (prg->ops->size            >> 16) & 0xFF;
-	header[27] = (prg->ops->size            >> 24) & 0xFF;
+	header[24] = (prg.ops.size                 ) & 0xFF;
+	header[25] = (prg.ops.size            >>  8) & 0xFF;
+	header[26] = (prg.ops.size            >> 16) & 0xFF;
+	header[27] = (prg.ops.size            >> 24) & 0xFF;
 	f_dump(header, 1, 28, user);
 
 	// output strTable
 	// 4 bytes: string size
 	// N bytes: raw string bytes
-	for (int i = 0; i < prg->strTable->size; i++){
-		list_byte str = prg->strTable->ptrs[i];
+	for (int i = 0; i < prg.strTable.size; i++){
+		list_byte str = prg.strTable.ptrs[i];
 		uint8_t sizeb[4] = {
-			(str->size      ) & 0xFF,
-			(str->size >>  8) & 0xFF,
-			(str->size >> 16) & 0xFF,
-			(str->size >> 24) & 0xFF
+			(str.size      ) & 0xFF,
+			(str.size >>  8) & 0xFF,
+			(str.size >> 16) & 0xFF,
+			(str.size >> 24) & 0xFF
 		};
 		f_dump(sizeb, 1, 4, user);
-		if (str->size > 0)
-			f_dump(str->bytes, 1, str->size, user);
+		if (str.size > 0)
+			f_dump(str.bytes, 1, str.size, user);
 	}
 
 	// output keyTable
 	// 8 bytes: hash identifier
-	for (int i = 0; i < prg->keyTable->size; i++){
-		uint64_t id = prg->keyTable->vals[i];
+	for (int i = 0; i < prg.keyTable.size; i++){
+		uint64_t id = prg.keyTable.vals[i];
 		uint8_t idb[8] = {
 			(id      ) & 0xFF,
 			(id >>  8) & 0xFF,
@@ -14761,9 +14743,9 @@ void sink_scr_dump(sink_scr scr, bool debug, void *user, sink_dump_f f_dump){
 		// output debug strings
 		// 4 bytes: string length
 		// N bytes: string raw bytes
-		for (int i = 0; i < prg->debugTable->size; i++){
-			char *str = prg->debugTable->ptrs[i];
-			size_t slen = str == NULL ? 4 : strlen(str);
+		for (int i = 0; i < prg.debugTable.size; i++){
+			char *str = prg.debugTable.ptrs[i];
+			size_t slen = str === NULL ? 4 : strlen(str);
 			uint8_t slenb[4] = {
 				(slen      ) & 0xFF,
 				(slen >>  8) & 0xFF,
@@ -14771,7 +14753,7 @@ void sink_scr_dump(sink_scr scr, bool debug, void *user, sink_dump_f f_dump){
 				(slen >> 24) & 0xFF
 			};
 			f_dump(slenb, 1, 4, user);
-			if (str == NULL)
+			if (str === NULL)
 				f_dump("eval", 1, 4, user);
 			else if (slen > 0)
 				f_dump(str, 1, slen, user);
@@ -14782,26 +14764,26 @@ void sink_scr_dump(sink_scr scr, bool debug, void *user, sink_dump_f f_dump){
 		// 4 bytes: line number
 		// 4 bytes: character number
 		// 4 bytes: filename debug string index
-		for (int i = 0; i < prg->posTable->size; i++){
-			prgflp p = prg->posTable->ptrs[i];
+		for (int i = 0; i < prg.posTable.size; i++){
+			prgflp p = prg.posTable.ptrs[i];
 			// find unique filename entry
 			uint8_t plcb[16] = {
-				(p->pc                ) & 0xFF,
-				(p->pc           >>  8) & 0xFF,
-				(p->pc           >> 16) & 0xFF,
-				(p->pc           >> 24) & 0xFF,
-				(p->flp.line          ) & 0xFF,
-				(p->flp.line     >>  8) & 0xFF,
-				(p->flp.line     >> 16) & 0xFF,
-				(p->flp.line     >> 24) & 0xFF,
-				(p->flp.chr           ) & 0xFF,
-				(p->flp.chr      >>  8) & 0xFF,
-				(p->flp.chr      >> 16) & 0xFF,
-				(p->flp.chr      >> 24) & 0xFF,
-				(p->flp.basefile      ) & 0xFF,
-				(p->flp.basefile >>  8) & 0xFF,
-				(p->flp.basefile >> 16) & 0xFF,
-				(p->flp.basefile >> 24) & 0xFF
+				(p.pc                ) & 0xFF,
+				(p.pc           >>  8) & 0xFF,
+				(p.pc           >> 16) & 0xFF,
+				(p.pc           >> 24) & 0xFF,
+				(p.flp.line          ) & 0xFF,
+				(p.flp.line     >>  8) & 0xFF,
+				(p.flp.line     >> 16) & 0xFF,
+				(p.flp.line     >> 24) & 0xFF,
+				(p.flp.chr           ) & 0xFF,
+				(p.flp.chr      >>  8) & 0xFF,
+				(p.flp.chr      >> 16) & 0xFF,
+				(p.flp.chr      >> 24) & 0xFF,
+				(p.flp.basefile      ) & 0xFF,
+				(p.flp.basefile >>  8) & 0xFF,
+				(p.flp.basefile >> 16) & 0xFF,
+				(p.flp.basefile >> 24) & 0xFF
 			};
 			f_dump(plcb, 1, 16, user);
 		}
@@ -14809,17 +14791,17 @@ void sink_scr_dump(sink_scr scr, bool debug, void *user, sink_dump_f f_dump){
 		// output cmd table
 		// 4 bytes: return PC
 		// 4 bytes: hint debug string index
-		for (int i = 0; i < prg->cmdTable->size; i++){
-			prgch p = prg->cmdTable->ptrs[i];
+		for (int i = 0; i < prg.cmdTable.size; i++){
+			prgch p = prg.cmdTable.ptrs[i];
 			uint8_t plcb[8] = {
-				(p->pc            ) & 0xFF,
-				(p->pc       >>  8) & 0xFF,
-				(p->pc       >> 16) & 0xFF,
-				(p->pc       >> 24) & 0xFF,
-				(p->cmdhint       ) & 0xFF,
-				(p->cmdhint  >>  8) & 0xFF,
-				(p->cmdhint  >> 16) & 0xFF,
-				(p->cmdhint  >> 24) & 0xFF
+				(p.pc            ) & 0xFF,
+				(p.pc       >>  8) & 0xFF,
+				(p.pc       >> 16) & 0xFF,
+				(p.pc       >> 24) & 0xFF,
+				(p.cmdhint       ) & 0xFF,
+				(p.cmdhint  >>  8) & 0xFF,
+				(p.cmdhint  >> 16) & 0xFF,
+				(p.cmdhint  >> 24) & 0xFF
 			};
 			f_dump(plcb, 1, 8, user);
 		}
@@ -14827,8 +14809,8 @@ void sink_scr_dump(sink_scr scr, bool debug, void *user, sink_dump_f f_dump){
 
 	// output ops
 	// just the raw bytecode
-	if (prg->ops->size > 0)
-		f_dump(prg->ops->bytes, 1, prg->ops->size, user);
+	if (prg.ops.size > 0)
+		f_dump(prg.ops.bytes, 1, prg.ops.size, user);
 
 	// output terminating byte
 	// single 0xFD byte which is an invalid op
@@ -14838,23 +14820,23 @@ void sink_scr_dump(sink_scr scr, bool debug, void *user, sink_dump_f f_dump){
 
 void sink_scr_free(sink_scr scr){
 	script sc = scr;
-	list_ptr_free(sc->files);
-	list_ptr_free(sc->paths);
-	program_free(sc->prg);
-	staticinc_free(sc->sinc);
-	cleanup_free(sc->cup);
-	if (sc->cmp)
-		compiler_free(sc->cmp);
-	if (sc->capture_write)
-		list_byte_free(sc->capture_write);
-	if (sc->curdir)
-		mem_free(sc->curdir);
-	if (sc->file)
-		mem_free(sc->file);
-	if (sc->err)
-		mem_free(sc->err);
-	if (sc->binstate.buf)
-		list_byte_free(sc->binstate.buf);
+	list_ptr_free(sc.files);
+	list_ptr_free(sc.paths);
+	program_free(sc.prg);
+	staticinc_free(sc.sinc);
+	cleanup_free(sc.cup);
+	if (sc.cmp)
+		compiler_free(sc.cmp);
+	if (sc.capture_write)
+		list_byte_free(sc.capture_write);
+	if (sc.curdir)
+		mem_free(sc.curdir);
+	if (sc.file)
+		mem_free(sc.file);
+	if (sc.err)
+		mem_free(sc.err);
+	if (sc.binstate.buf)
+		list_byte_free(sc.binstate.buf);
 	mem_free(sc);
 	mem_done();
 }
@@ -14864,16 +14846,16 @@ void sink_scr_free(sink_scr scr){
 //
 
 sink_ctx sink_ctx_new(sink_scr scr, sink_io_st io){
-	return context_new(((script)scr)->prg, io);
+	return context_new(((script)scr).prg, io);
 }
 
 sink_ctx_status sink_ctx_getstatus(sink_ctx ctx){
 	context ctx2 = ctx;
-	if (ctx2->passed)
+	if (ctx2.passed)
 		return SINK_CTX_PASSED;
-	else if (ctx2->failed)
+	else if (ctx2.failed)
 		return SINK_CTX_FAILED;
-	else if (ctx2->async)
+	else if (ctx2.async)
 		return SINK_CTX_WAITING;
 	return SINK_CTX_READY;
 }
@@ -14892,69 +14874,69 @@ void sink_ctx_cleanup(sink_ctx ctx, void *cuser, sink_free_f f_cleanup){
 
 void sink_ctx_setuser(sink_ctx ctx, void *user, sink_free_f f_freeuser){
 	context ctx2 = ctx;
-	if (ctx2->f_freeuser)
-		ctx2->f_freeuser(ctx2->user);
-	ctx2->user = user;
-	ctx2->f_freeuser = f_freeuser;
+	if (ctx2.f_freeuser)
+		ctx2.f_freeuser(ctx2.user);
+	ctx2.user = user;
+	ctx2.f_freeuser = f_freeuser;
 }
 
 void *sink_ctx_getuser(sink_ctx ctx){
-	return ((context)ctx)->user;
+	return ((context)ctx).user;
 }
 
 sink_user sink_ctx_addusertype(sink_ctx ctx, const char *hint, sink_free_f f_free){
 	context ctx2 = ctx;
-	list_ptr_push(ctx2->f_finalize, f_free);
-	list_ptr_push(ctx2->user_hint, (void *)hint);
-	return ctx2->f_finalize->size - 1;
+	list_ptr_push(ctx2.f_finalize, f_free);
+	list_ptr_push(ctx2.user_hint, (void *)hint);
+	return ctx2.f_finalize.size - 1;
 }
 
 sink_free_f sink_ctx_getuserfree(sink_ctx ctx, sink_user usertype){
-	return ((context)ctx)->f_finalize->ptrs[usertype];
+	return ((context)ctx).f_finalize.ptrs[usertype];
 }
 
 const char *sink_ctx_getuserhint(sink_ctx ctx, sink_user usertype){
-	return ((context)ctx)->user_hint->ptrs[usertype];
+	return ((context)ctx).user_hint.ptrs[usertype];
 }
 
 void sink_ctx_asyncresult(sink_ctx ctx, sink_val v){
 	context ctx2 = ctx;
-	if (!ctx2->async){
+	if (!ctx2.async){
 		assert(false);
 		return;
 	}
-	var_set(ctx2, ctx2->async_frame, ctx2->async_index, v);
-	ctx2->async = false;
+	var_set(ctx2, ctx2.async_frame, ctx2.async_index, v);
+	ctx2.async = false;
 }
 
 void sink_ctx_settimeout(sink_ctx ctx, int timeout){
 	context ctx2 = ctx;
-	ctx2->timeout = timeout;
-	ctx2->timeout_left = timeout;
+	ctx2.timeout = timeout;
+	ctx2.timeout_left = timeout;
 }
 
 int sink_ctx_gettimeout(sink_ctx ctx){
-	return ((context)ctx)->timeout;
+	return ((context)ctx).timeout;
 }
 
 void sink_ctx_forcetimeout(sink_ctx ctx){
-	((context)ctx)->timeout_left = 0;
+	((context)ctx).timeout_left = 0;
 }
 
 sink_run sink_ctx_run(sink_ctx ctx){
 	context ctx2 = ctx;
-	if (ctx2->prg->repl && ctx2->err){
-		mem_free(ctx2->err);
-		ctx2->err = NULL;
+	if (ctx2.prg.repl && ctx2.err){
+		mem_free(ctx2.err);
+		ctx2.err = NULL;
 	}
 	sink_run r = context_run(ctx2);
-	if (r == SINK_RUN_PASS || r == SINK_RUN_FAIL)
+	if (r === SINK_RUN_PASS || r === SINK_RUN_FAIL)
 		context_reset(ctx2);
 	return r;
 }
 
 const char *sink_ctx_geterr(sink_ctx ctx){
-	return ((context)ctx)->err;
+	return ((context)ctx).err;
 }
 
 void sink_ctx_free(sink_ctx ctx){
@@ -15010,18 +14992,18 @@ bool sink_arg_list(sink_ctx ctx, int size, sink_val *args, int index, sink_list 
 bool sink_arg_user(sink_ctx ctx, int size, sink_val *args, int index, sink_user usertype,
 	void **user){
 	context ctx2 = ctx;
-	const char *hint = ctx2->user_hint->ptrs[usertype];
+	const char *hint = ctx2.user_hint.ptrs[usertype];
 
 	#define ABORT() \
 		opi_abortformat(ctx, "Expecting user type%s%s for argument %d", \
-			hint == NULL ? "" : " ", hint == NULL ? "" : hint, index + 1)
+			hint === NULL ? "" : " ", hint === NULL ? "" : hint, index + 1)
 
 	if (index < 0 || index >= size || !sink_islist(args[index])){
 		ABORT();
 		return false;
 	}
 	*user = sink_list_getuser(ctx, args[index], usertype);
-	if (user == NULL){
+	if (user === NULL){
 		ABORT();
 		return false;
 	}
@@ -15065,18 +15047,18 @@ static sink_str_st sinkhelp_tostr(context ctx, list_int li, sink_val v){
 		case SINK_TYPE_STR: {
 			sink_str s = var_caststr(ctx, v);
 			int tot = 2;
-			for (int i = 0; i < s->size; i++){
-				if (s->bytes[i] == '\'' || s->bytes[i] == '\\')
+			for (int i = 0; i < s.size; i++){
+				if (s.bytes[i] === '\'' || s.bytes[i] === '\\')
 					tot++;
 				tot++;
 			}
 			uint8_t *bytes = mem_alloc(sizeof(uint8_t) * (tot + 1));
 			bytes[0] = '\'';
 			int p = 1;
-			for (int i = 0; i < s->size; i++){
-				if (s->bytes[i] == '\'' || s->bytes[i] == '\\')
+			for (int i = 0; i < s.size; i++){
+				if (s.bytes[i] === '\'' || s.bytes[i] === '\\')
 					bytes[p++] = '\\';
-				bytes[p++] = s->bytes[i];
+				bytes[p++] = s.bytes[i];
 			}
 			bytes[p++] = '\'';
 			bytes[tot] = 0;
@@ -15095,17 +15077,17 @@ static sink_str_st sinkhelp_tostr(context ctx, list_int li, sink_val v){
 			list_int_push(li, idx);
 			sink_list ls = var_castlist(ctx, v);
 			int tot = 2;
-			sink_str_st *strs = mem_alloc(sizeof(sink_str_st) * ls->size);
-			for (int i = 0; i < ls->size; i++){
-				sink_str_st s = sinkhelp_tostr(ctx, li, ls->vals[i]);
+			sink_str_st *strs = mem_alloc(sizeof(sink_str_st) * ls.size);
+			for (int i = 0; i < ls.size; i++){
+				sink_str_st s = sinkhelp_tostr(ctx, li, ls.vals[i]);
 				strs[i] = s;
-				tot += (i == 0 ? 0 : 2) + s.size;
+				tot += (i === 0 ? 0 : 2) + s.size;
 			}
 			list_int_pop(li);
 			uint8_t *bytes = mem_alloc(sizeof(uint8_t) * (tot + 1));
 			bytes[0] = '{';
 			int p = 1;
-			for (int i = 0; i < ls->size; i++){
+			for (int i = 0; i < ls.size; i++){
 				if (i > 0){
 					bytes[p++] = ',';
 					bytes[p++] = ' ';
@@ -15427,7 +15409,7 @@ sink_val sink_str_newblob(sink_ctx ctx, int size, const uint8_t *bytes){
 }
 
 sink_val sink_str_newblobgive(sink_ctx ctx, int size, uint8_t *bytes){
-	if (!((bytes == NULL && size == 0) || bytes[size] == 0)){
+	if (!((bytes === NULL && size === 0) || bytes[size] === 0)){
 		opi_abortcstr(ctx,
 			"Native run-time error: sink_str_newblobgive() must either be given a NULL buffer of "
 			"size 0, or the buffer must terminate with a 0");
@@ -15436,11 +15418,11 @@ sink_val sink_str_newblobgive(sink_ctx ctx, int size, uint8_t *bytes){
 		return SINK_NIL;
 	}
 	context ctx2 = ctx;
-	int index = bmp_reserve((void **)&ctx2->str_tbl, &ctx2->str_size, &ctx2->str_aloc,
-		&ctx2->str_ref, sizeof(sink_str_st));
-	sink_str s = &ctx2->str_tbl[index];
-	s->bytes = bytes;
-	s->size = size;
+	int index = bmp_reserve((void **)&ctx2.str_tbl, &ctx2.str_size, &ctx2.str_aloc,
+		&ctx2.str_ref, sizeof(sink_str_st));
+	sink_str s = &ctx2.str_tbl[index];
+	s.bytes = bytes;
+	s.size = size;
 	return (sink_val){ .u = SINK_TAG_STR | index };
 }
 
@@ -15776,20 +15758,20 @@ bool sink_struct_isLE(){
 // lists
 void sink_list_setuser(sink_ctx ctx, sink_val ls, sink_user usertype, void *user){
 	sink_list ls2 = var_castlist(ctx, ls);
-	if (ls2->usertype >= 0){
-		sink_free_f f_free = ((context)ctx)->f_finalize->ptrs[ls2->usertype];
+	if (ls2.usertype >= 0){
+		sink_free_f f_free = ((context)ctx).f_finalize.ptrs[ls2.usertype];
 		if (f_free)
-			f_free(ls2->user);
+			f_free(ls2.user);
 	}
-	ls2->usertype = usertype;
-	ls2->user = user;
+	ls2.usertype = usertype;
+	ls2.user = user;
 }
 
 void *sink_list_getuser(sink_ctx ctx, sink_val ls, sink_user usertype){
 	sink_list ls2 = var_castlist(ctx, ls);
-	if (ls2->usertype != usertype)
+	if (ls2.usertype !== usertype)
 		return NULL;
-	return ls2->user;
+	return ls2.user;
 }
 
 sink_val sink_list_newblob(sink_ctx ctx, int size, const sink_val *vals){
@@ -15801,7 +15783,7 @@ sink_val sink_list_newblob(sink_ctx ctx, int size, const sink_val *vals){
 }
 
 sink_val sink_list_newblobgive(sink_ctx ctx, int size, int count, sink_val *vals){
-	if (vals == NULL || count == 0){
+	if (vals === NULL || count === 0){
 		opi_abortcstr(ctx,
 			"Native run-time error: sink_list_newblobgive() must be given a buffer with some "
 			"positive count");
@@ -15810,14 +15792,14 @@ sink_val sink_list_newblobgive(sink_ctx ctx, int size, int count, sink_val *vals
 		return SINK_NIL;
 	}
 	context ctx2 = ctx;
-	int index = bmp_reserve((void **)&ctx2->list_tbl, &ctx2->list_size, &ctx2->list_aloc,
-		&ctx2->list_ref, sizeof(sink_list_st));
-	sink_list ls = &ctx2->list_tbl[index];
-	ls->vals = vals;
-	ls->size = size;
-	ls->count = count;
-	ls->user = NULL;
-	ls->usertype = -1;
+	int index = bmp_reserve((void **)&ctx2.list_tbl, &ctx2.list_size, &ctx2.list_aloc,
+		&ctx2.list_ref, sizeof(sink_list_st));
+	sink_list ls = &ctx2.list_tbl[index];
+	ls.vals = vals;
+	ls.size = size;
+	ls.count = count;
+	ls.user = NULL;
+	ls.usertype = -1;
 	return (sink_val){ .u = SINK_TAG_LIST | index };
 }
 
@@ -15891,7 +15873,7 @@ static inline uint8_t *opi_list_joinplain(sink_ctx ctx, int size, sink_val *vals
 			tot += sepz;
 		strs[i] = sink_tostr(ctx, vals[i]);
 		sink_str s = var_caststr(ctx, strs[i]);
-		tot += s->size;
+		tot += s.size;
 	}
 	uint8_t *bytes = mem_alloc(sizeof(uint8_t) * (tot + 1));
 	int nb = 0;
@@ -15901,9 +15883,9 @@ static inline uint8_t *opi_list_joinplain(sink_ctx ctx, int size, sink_val *vals
 			nb += sepz;
 		}
 		sink_str s = var_caststr(ctx, strs[i]);
-		if (s->size > 0){
-			memcpy(&bytes[nb], s->bytes, sizeof(uint8_t) * s->size);
-			nb += s->size;
+		if (s.size > 0){
+			memcpy(&bytes[nb], s.bytes, sizeof(uint8_t) * s.size);
+			nb += s.size;
 		}
 	}
 	mem_free(strs);
@@ -15987,11 +15969,11 @@ void sink_gc_unpin(sink_ctx ctx, sink_val v){
 }
 
 sink_gc_level sink_gc_getlevel(sink_ctx ctx){
-	return ((context)ctx)->gc_level;
+	return ((context)ctx).gc_level;
 }
 
 void sink_gc_setlevel(sink_ctx ctx, sink_gc_level level){
-	((context)ctx)->gc_level = level;
+	((context)ctx).gc_level = level;
 }
 
 void sink_gc_run(sink_ctx ctx){
