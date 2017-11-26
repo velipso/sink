@@ -9842,6 +9842,10 @@ static inline sink_val opi_str_new(context ctx, int size, sink_val *vals){
 
 static inline sink_val opi_list_push(context ctx, sink_val a, sink_val b);
 static inline sink_val opi_str_split(context ctx, sink_val a, sink_val b){
+	if ((!sink_isstr(a) && !sink_isnum(a)) || (!sink_isstr(b) && !sink_isnum(b))){
+		opi_abortcstr(ctx, "Expecting strings");
+		return SINK_NIL;
+	}
 	a = sink_tostr(ctx, a);
 	b = sink_tostr(ctx, b);
 	sink_str haystack = var_caststr(ctx, a);
@@ -9899,6 +9903,10 @@ static inline sink_val opi_str_find(context ctx, sink_val a, sink_val b, sink_va
 		opi_abortcstr(ctx, "Expecting number");
 		return SINK_NIL;
 	}
+	if ((!sink_isstr(a) && !sink_isnum(a)) || (!sink_isstr(b) && !sink_isnum(b))){
+		opi_abortcstr(ctx, "Expecting strings");
+		return SINK_NIL;
+	}
 	a = sink_tostr(ctx, a);
 	b = sink_tostr(ctx, b);
 	sink_str haystack = var_caststr(ctx, a);
@@ -9932,6 +9940,10 @@ static inline sink_val opi_str_rfind(context ctx, sink_val a, sink_val b, sink_v
 		hx = c.f;
 	else if (!sink_isnil(c)){
 		opi_abortcstr(ctx, "Expecting number");
+		return SINK_NIL;
+	}
+	if ((!sink_isstr(a) && !sink_isnum(a)) || (!sink_isstr(b) && !sink_isnum(b))){
+		opi_abortcstr(ctx, "Expecting strings");
 		return SINK_NIL;
 	}
 	a = sink_tostr(ctx, a);
@@ -9970,6 +9982,10 @@ static inline sink_val opi_str_rfind(context ctx, sink_val a, sink_val b, sink_v
 }
 
 static inline bool opi_str_begins(context ctx, sink_val a, sink_val b){
+	if ((!sink_isstr(a) && !sink_isnum(a)) || (!sink_isstr(b) && !sink_isnum(b))){
+		opi_abortcstr(ctx, "Expecting strings");
+		return false;
+	}
 	sink_str s1 = var_caststr(ctx, sink_tostr(ctx, a));
 	sink_str s2 = var_caststr(ctx, sink_tostr(ctx, b));
 	return s1->size >= s2->size &&
@@ -9977,6 +9993,10 @@ static inline bool opi_str_begins(context ctx, sink_val a, sink_val b){
 }
 
 static inline bool opi_str_ends(context ctx, sink_val a, sink_val b){
+	if ((!sink_isstr(a) && !sink_isnum(a)) || (!sink_isstr(b) && !sink_isnum(b))){
+		opi_abortcstr(ctx, "Expecting strings");
+		return false;
+	}
 	sink_str s1 = var_caststr(ctx, sink_tostr(ctx, a));
 	sink_str s2 = var_caststr(ctx, sink_tostr(ctx, b));
 	return s1->size >= s2->size &&
@@ -9984,6 +10004,10 @@ static inline bool opi_str_ends(context ctx, sink_val a, sink_val b){
 }
 
 static inline sink_val opi_str_pad(context ctx, sink_val a, int b){
+	if (!sink_isstr(a) && !sink_isnum(a)){
+		opi_abortcstr(ctx, "Expecting string");
+		return SINK_NIL;
+	}
 	a = sink_tostr(ctx, a);
 	sink_str s = var_caststr(ctx, a);
 	if (b < 0){ // left pad
@@ -10009,7 +10033,11 @@ static inline sink_val opi_str_pad(context ctx, sink_val a, int b){
 	}
 }
 
-static inline sink_val opi_str_lower(context ctx, sink_val a){
+static inline sink_val opihelp_str_lower(context ctx, sink_val a){
+	if (!sink_isstr(a) && !sink_isnum(a)){
+		opi_abortcstr(ctx, "Expecting string");
+		return SINK_NIL;
+	}
 	sink_str s = var_caststr(ctx, sink_tostr(ctx, a));
 	uint8_t *b = mem_alloc(sizeof(uint8_t) * (s->size + 1));
 	for (int i = 0; i <= s->size; i++){
@@ -10021,7 +10049,11 @@ static inline sink_val opi_str_lower(context ctx, sink_val a){
 	return sink_str_newblobgive(ctx, s->size, b);
 }
 
-static inline sink_val opi_str_upper(context ctx, sink_val a){
+static inline sink_val opihelp_str_upper(context ctx, sink_val a){
+	if (!sink_isstr(a) && !sink_isnum(a)){
+		opi_abortcstr(ctx, "Expecting string");
+		return SINK_NIL;
+	}
 	sink_str s = var_caststr(ctx, sink_tostr(ctx, a));
 	uint8_t *b = mem_alloc(sizeof(uint8_t) * (s->size + 1));
 	for (int i = 0; i <= s->size; i++){
@@ -10037,7 +10069,11 @@ static inline bool shouldtrim(uint8_t c){
 	return (c >= 9 && c <= 13) || c == 32;
 }
 
-static inline sink_val opi_str_trim(context ctx, sink_val a){
+static inline sink_val opihelp_str_trim(context ctx, sink_val a){
+	if (!sink_isstr(a) && !sink_isnum(a)){
+		opi_abortcstr(ctx, "Expecting string");
+		return SINK_NIL;
+	}
 	a = sink_tostr(ctx, a);
 	sink_str s = var_caststr(ctx, a);
 	int len1 = 0;
@@ -10058,7 +10094,11 @@ static inline sink_val opi_str_trim(context ctx, sink_val a){
 	return sink_str_newblobgive(ctx, size < 0 ? 0 : size, b);
 }
 
-static inline sink_val opi_str_rev(context ctx, sink_val a){
+static inline sink_val opihelp_str_rev(context ctx, sink_val a){
+	if (!sink_isstr(a) && !sink_isnum(a)){
+		opi_abortcstr(ctx, "Expecting string");
+		return SINK_NIL;
+	}
 	a = sink_tostr(ctx, a);
 	sink_str s = var_caststr(ctx, a);
 	if (s->size <= 0)
@@ -10070,7 +10110,31 @@ static inline sink_val opi_str_rev(context ctx, sink_val a){
 	return sink_str_newblobgive(ctx, s->size, b);
 }
 
+#define OPI_STR_UNOP(name, single)                                       \
+	static inline sink_val name(context ctx, sink_val a){                \
+		if (sink_islist(a)){                                             \
+			sink_list ls = var_castlist(ctx, a);                         \
+			if (ls->size <= 0)                                           \
+				return sink_list_newempty(ctx);                          \
+			sink_val *ret = mem_alloc(sizeof(sink_val) * ls->size);      \
+			for (int i = 0; i < ls->size; i++)                           \
+				ret[i] = single(ctx, ls->vals[i]);                       \
+			return sink_list_newblobgive(ctx, ls->size, ls->size, ret);  \
+		}                                                                \
+		return single(ctx, a);                                           \
+	}
+// allow unary string commands to work on lists too
+OPI_STR_UNOP(opi_str_lower, opihelp_str_lower)
+OPI_STR_UNOP(opi_str_upper, opihelp_str_upper)
+OPI_STR_UNOP(opi_str_trim , opihelp_str_trim )
+OPI_STR_UNOP(opi_str_rev  , opihelp_str_rev  )
+#undef OPI_STR_UNOP
+
 static inline sink_val opi_str_rep(context ctx, sink_val a, int rep){
+	if (!sink_isstr(a) && !sink_isnum(a)){
+		opi_abortcstr(ctx, "Expecting string");
+		return SINK_NIL;
+	}
 	if (rep <= 0)
 		return sink_str_newblobgive(ctx, 0, NULL);
 	a = sink_tostr(ctx, a);
@@ -10092,6 +10156,10 @@ static inline sink_val opi_str_rep(context ctx, sink_val a, int rep){
 }
 
 static inline sink_val opi_str_list(context ctx, sink_val a){
+	if (!sink_isstr(a) && !sink_isnum(a)){
+		opi_abortcstr(ctx, "Expecting string");
+		return SINK_NIL;
+	}
 	sink_str s = var_caststr(ctx, sink_tostr(ctx, a));
 	sink_val r = sink_list_newempty(ctx);
 	for (int i = 0; i < s->size; i++)
@@ -10100,6 +10168,10 @@ static inline sink_val opi_str_list(context ctx, sink_val a){
 }
 
 static inline sink_val opi_str_byte(context ctx, sink_val a, int b){
+	if (!sink_isstr(a)){
+		opi_abortcstr(ctx, "Expecting string");
+		return SINK_NIL;
+	}
 	sink_str s = var_caststr(ctx, sink_tostr(ctx, a));
 	if (b < 0)
 		b += s->size;
@@ -10109,6 +10181,10 @@ static inline sink_val opi_str_byte(context ctx, sink_val a, int b){
 }
 
 static inline sink_val opi_str_hash(context ctx, sink_val a, uint32_t seed){
+	if (!sink_isstr(a) && !sink_isnum(a)){
+		opi_abortcstr(ctx, "Expecting string");
+		return SINK_NIL;
+	}
 	sink_str s = var_caststr(ctx, sink_tostr(ctx, a));
 	uint32_t out[4];
 	sink_str_hashplain(s->size, s->bytes, seed, out);
@@ -13894,6 +13970,8 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				var_set(ctx, A, B, opi_str_split(ctx, X, Y));
+				if (ctx->failed)
+					return SINK_RUN_FAIL;
 			} break;
 
 			case OP_STR_REPLACE    : { // [TGT], [SRC1], [SRC2], [SRC3]
@@ -13902,6 +13980,8 @@ static sink_run context_run(context ctx){
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
 				var_set(ctx, A, B, opi_str_replace(ctx, X, Y, Z));
+				if (ctx->failed)
+					return SINK_RUN_FAIL;
 			} break;
 
 			case OP_STR_BEGINS     : { // [TGT], [SRC1], [SRC2]
@@ -13909,6 +13989,8 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				var_set(ctx, A, B, sink_bool(opi_str_begins(ctx, X, Y)));
+				if (ctx->failed)
+					return SINK_RUN_FAIL;
 			} break;
 
 			case OP_STR_ENDS       : { // [TGT], [SRC1], [SRC2]
@@ -13916,6 +13998,8 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				var_set(ctx, A, B, sink_bool(opi_str_ends(ctx, X, Y)));
+				if (ctx->failed)
+					return SINK_RUN_FAIL;
 			} break;
 
 			case OP_STR_PAD        : { // [TGT], [SRC1], [SRC2]
@@ -13927,6 +14011,8 @@ static sink_run context_run(context ctx){
 				else if (!sink_isnum(Y))
 					return opi_abortcstr(ctx, "Expecting number");
 				var_set(ctx, A, B, opi_str_pad(ctx, X, Y.f));
+				if (ctx->failed)
+					return SINK_RUN_FAIL;
 			} break;
 
 			case OP_STR_FIND       : { // [TGT], [SRC1], [SRC2], [SRC3]
@@ -13953,24 +14039,32 @@ static sink_run context_run(context ctx){
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				var_set(ctx, A, B, opi_str_lower(ctx, X));
+				if (ctx->failed)
+					return SINK_RUN_FAIL;
 			} break;
 
 			case OP_STR_UPPER      : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				var_set(ctx, A, B, opi_str_upper(ctx, X));
+				if (ctx->failed)
+					return SINK_RUN_FAIL;
 			} break;
 
 			case OP_STR_TRIM       : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				var_set(ctx, A, B, opi_str_trim(ctx, X));
+				if (ctx->failed)
+					return SINK_RUN_FAIL;
 			} break;
 
 			case OP_STR_REV        : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				var_set(ctx, A, B, opi_str_rev(ctx, X));
+				if (ctx->failed)
+					return SINK_RUN_FAIL;
 			} break;
 
 			case OP_STR_REP        : { // [TGT], [SRC1], [SRC2]
@@ -13990,6 +14084,8 @@ static sink_run context_run(context ctx){
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				var_set(ctx, A, B, opi_str_list(ctx, X));
+				if (ctx->failed)
+					return SINK_RUN_FAIL;
 			} break;
 
 			case OP_STR_BYTE       : { // [TGT], [SRC1], [SRC2]
@@ -14001,6 +14097,8 @@ static sink_run context_run(context ctx){
 				else if (!sink_isnum(Y))
 					return opi_abortcstr(ctx, "Expecting number");
 				var_set(ctx, A, B, opi_str_byte(ctx, X, Y.f));
+				if (ctx->failed)
+					return SINK_RUN_FAIL;
 			} break;
 
 			case OP_STR_HASH       : { // [TGT], [SRC1], [SRC2]
@@ -14012,6 +14110,8 @@ static sink_run context_run(context ctx){
 				else if (!sink_isnum(Y))
 					return opi_abortcstr(ctx, "Expecting number");
 				var_set(ctx, A, B, opi_str_hash(ctx, X, Y.f));
+				if (ctx->failed)
+					return SINK_RUN_FAIL;
 			} break;
 
 			case OP_UTF8_VALID     : { // [TGT], [SRC]
