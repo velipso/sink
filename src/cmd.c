@@ -137,13 +137,15 @@ static inline void printline(int line, int level){
 }
 
 static inline void printscrerr(sink_scr scr){
-	const char *err = sink_scr_geterr(scr);
-	fprintf(stderr, "%s\n", err ? err : "Error: Unknown");
+	// scripts always have an error message when they fail
+	fprintf(stderr, "%s\n", sink_scr_geterr(scr));
 }
 
 static inline void printctxerr(sink_ctx ctx){
 	const char *err = sink_ctx_geterr(ctx);
-	fprintf(stderr, "%s\n", err ? err : "Error: Unknown");
+	if (err == NULL) // context can error without an error message if script contains `abort`
+		return;      // without any parameters
+	fprintf(stderr, "%s\n", err);
 }
 
 static int main_repl(sink_scr scr, int argc, char **argv){

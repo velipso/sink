@@ -129,13 +129,13 @@ typedef enum {
 // STR  :  Q = 0, T = 3, F = table index (31 bits)
 // LIST :  Q = 0, T = 4, F = table index (31 bits)
 
-static const sink_val SINK_NAN        = { .u = UINT64_C(0x7FF8000000000000) };
-static const sink_val SINK_NIL        = { .u = UINT64_C(0x7FF0000100000000) };
-static const sink_val SINK_ASYNC      = { .u = UINT64_C(0x7FF0000200000000) };
-static const uint64_t SINK_TAG_STR    =        UINT64_C(0x7FF0000300000000);
-static const uint64_t SINK_TAG_LIST   =        UINT64_C(0x7FF0000400000000);
-static const uint64_t SINK_TAG_MASK   =        UINT64_C(0xFFFFFFFF80000000);
-static const uint64_t SINK_NAN_MASK   =        UINT64_C(0x7FF8000000000000);
+static const sink_val SINK_NAN      = { .u = UINT64_C(0x7FF8000000000000) };
+static const sink_val SINK_NIL      = { .u = UINT64_C(0x7FF0000100000000) };
+static const sink_val SINK_ASYNC    = { .u = UINT64_C(0x7FF0000200000000) };
+static const uint64_t SINK_TAG_STR  =        UINT64_C(0x7FF0000300000000);
+static const uint64_t SINK_TAG_LIST =        UINT64_C(0x7FF0000400000000);
+static const uint64_t SINK_TAG_MASK =        UINT64_C(0xFFFFFFFF80000000);
+static const uint64_t SINK_NAN_MASK =        UINT64_C(0x7FF8000000000000);
 
 sink_scr    sink_scr_new(sink_inc_st inc, const char *curdir, bool repl);
 void        sink_scr_addpath(sink_scr scr, const char *path);

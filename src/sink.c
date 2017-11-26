@@ -6030,7 +6030,6 @@ typedef struct {
 	char *curdir;
 	char *file;
 	char *err;
-	bool repl;
 	enum {
 		SCM_UNKNOWN,
 		SCM_BINARY,
@@ -14694,7 +14693,6 @@ sink_scr sink_scr_new(sink_inc_st inc, const char *curdir, bool repl){
 	sc->curdir = curdir ? format("%s", curdir) : NULL;
 	sc->file = NULL;
 	sc->err = NULL;
-	sc->repl = repl;
 	sc->mode = SCM_UNKNOWN;
 	sc->binstate.buf = NULL;
 	return sc;
@@ -15050,8 +15048,8 @@ bool sink_scr_write(sink_scr scr, int size, const uint8_t *bytes){
 		}
 		#undef GETINT
 		#undef WRITE
-		bool is_eval = !sc->repl && sc->file == NULL;
-		if (is_eval)
+		bool is_eval = !sc->prg->repl && sc->file == NULL;
+		if (is_eval) // if we're evaling, then we're at the end of file right now
 			binary_validate(sc);
 		return sc->err == NULL;
 	}
@@ -15063,7 +15061,7 @@ bool sink_scr_write(sink_scr scr, int size, const uint8_t *bytes){
 		char *err = compiler_write(sc->cmp, size, bytes);
 		if (err)
 			sc->err = format("Error: %s", err);
-		bool is_eval = !sc->repl && sc->file == NULL;
+		bool is_eval = !sc->prg->repl && sc->file == NULL;
 		text_validate(sc, is_eval, true);
 		return sc->err == NULL;
 	}
