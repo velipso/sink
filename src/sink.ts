@@ -65,12 +65,6 @@ export enum sink_run {
 	REPLMORE
 };
 
-export enum sink_scr_type {
-	FILE,
-	REPL,
-	EVAL
-};
-
 export enum sink_ctx_status {
 	READY,
 	WAITING,
@@ -81,7 +75,7 @@ export enum sink_ctx_status {
 export const SINK_NAN = Number.NaN;
 export const SINK_NIL = null;
 
-//export function sink_scr_new(inc: sink_inc, curdir: string, type: sink_scr_type): sink_scr;
+//export function sink_scr_new(inc: sink_inc, curdir: string, repl: boolean): sink_scr;
 //export function sink_scr_addpath(scr: sink_scr, path: string): void;
 //export function sink_scr_incbody(scr: sink_scr, name: string, body: string): void;
 //export function sink_scr_incfile(scr: sink_scr, name: string, file: string): void;
@@ -519,7 +513,7 @@ enum op_enum {
 	GC_GETLEVEL     = 0x94,
 	GC_SETLEVEL     = 0x95,
 	GC_RUN          = 0x96,
-	// RESERVED        = 0xFD,
+	// RESERVED     = 0xFD,
 	// fake ops
 	GT              = 0x1F0,
 	GTE             = 0x1F1,
@@ -1450,129 +1444,123 @@ function lex_rev(lx: lex_st): void {
 	lx.flp4 = FILEPOS_NULL;
 }
 
-/*
-static void lex_process(lex lx, list_ptr tks){
-	char ch1 = lx->ch1;
-	filepos_st flp = lx->flp1;
-	filepos_st flpS = lx->flpS;
+function lex_process(lx: lex_st, tks: tok_st[]): void {
+	let ch1 = lx.ch1;
+	let flp = lx.flp1;
+	let flpS = lx.flpS;
 
-	switch (lx->state){
-		case LEX_START:
-			lx->flpS = flp;
-			if (ch1 == '#'){
-				lx->state = LEX_COMMENT_LINE;
-				list_ptr_push(tks, tok_newline(flp, false));
+	switch (lx.state){
+		case lex_enum.START:
+			lx.flpS = flp;
+			if (ch1 === '#'){
+				lx.state = lex_enum.COMMENT_LINE;
+				tks.push(tok_newline(flp, false));
 			}
-			else if (ks_char(ch1) != KS_INVALID){
-				if (ch1 == '{')
-					lx->braces->vals[lx->braces->size - 1]++;
-				else if (ch1 == '}'){
-					if (lx->braces->vals[lx->braces->size - 1] > 0)
-						lx->braces->vals[lx->braces->size - 1]--;
-					else if (lx->braces->size > 1){
-						list_int_pop(lx->braces);
-						lx->str = list_byte_new();
-						lx->state = LEX_STR_INTERP;
-						list_ptr_push(tks, tok_ks(flp, KS_RPAREN));
-						list_ptr_push(tks, tok_ks(flp, KS_TILDE));
+			else if (ks_char(ch1) !== ks_enum.INVALID){
+				if (ch1 === '{')
+					lx.braces[lx.braces.length - 1]++;
+				else if (ch1 === '}'){
+					if (lx.braces[lx.braces.length - 1] > 0)
+						lx.braces[lx.braces.length - 1]--;
+					else if (lx.braces.length > 1){
+						lx.braces.pop();
+						lx.str = '';
+						lx.state = lex_enum.STR_INTERP;
+						tks.push(tok_ks(flp, ks_enum.RPAREN));
+						tks.push(tok_ks(flp, ks_enum.TILDE));
 						break;
 					}
 					else
-						list_ptr_push(tks, tok_error(flp, format("Mismatched brace")));
+						tks.push(tok_error(flp, 'Mismatched brace'));
 				}
-				lx->state = LEX_SPECIAL1;
+				lx.state = lex_enum.SPECIAL1;
 			}
 			else if (isIdentStart(ch1)){
-				lx->str = list_byte_new();
-				list_byte_push(lx->str, ch1);
-				lx->state = LEX_IDENT;
+				lx.str = ch1;
+				lx.state = lex_enum.IDENT;
 			}
 			else if (isNum(ch1)){
-				numpart_new(&lx->npi);
-				lx->npi.val = toHex(ch1);
-				if (lx->npi.val == 0)
-					lx->state = LEX_NUM_0;
+				numpart_new(lx.npi);
+				lx.npi.val = toHex(ch1);
+				if (lx.npi.val == 0)
+					lx.state = lex_enum.NUM_0;
 				else
-					lx->state = LEX_NUM_BODY;
+					lx.state = lex_enum.NUM_BODY;
 			}
-			else if (ch1 == '\''){
-				lx->str = list_byte_new();
-				lx->state = LEX_STR_BASIC;
+			else if (ch1 === '\''){
+				lx.str = '';
+				lx.state = lex_enum.STR_BASIC;
 			}
-			else if (ch1 == '"'){
-				lx->str = list_byte_new();
-				lx->state = LEX_STR_INTERP;
-				list_ptr_push(tks, tok_ks(flp, KS_LPAREN));
+			else if (ch1 === '"'){
+				lx.str = '';
+				lx.state = lex_enum.STR_INTERP;
+				tks.push(tok_ks(flp, ks_enum.LPAREN));
 			}
-			else if (ch1 == '\\')
-				lx->state = LEX_BACKSLASH;
-			else if (ch1 == '\r'){
-				lx->state = LEX_RETURN;
-				list_ptr_push(tks, tok_newline(flp, false));
+			else if (ch1 === '\\')
+				lx.state = lex_enum.BACKSLASH;
+			else if (ch1 === '\r'){
+				lx.state = lex_enum.RETURN;
+				tks.push(tok_newline(flp, false));
 			}
-			else if (ch1 == '\n' || ch1 == ';')
-				list_ptr_push(tks, tok_newline(flp, ch1 == ';'));
-			else if (isSpace(ch1))
-				/* do nothing * /;
-			else
-				list_ptr_push(tks, tok_error(flp, format("Unexpected character: %c", ch1)));
+			else if (ch1 === '\n' || ch1 === ';')
+				tks.push(tok_newline(flp, ch1 === ';'));
+			else if (!isSpace(ch1))
+				tks.push(tok_error(flp, 'Unexpected character: ' + ch1));
 			break;
 
-		case LEX_COMMENT_LINE:
-			if (ch1 == '\r')
-				lx->state = LEX_RETURN;
+		case lex_enum.COMMENT_LINE:
+			if (ch1 === '\r')
+				lx.state = lex_enum.RETURN;
 			else if (ch1 == '\n')
-				lx->state = LEX_START;
+				lx.state = lex_enum.START;
 			break;
 
-		case LEX_BACKSLASH:
-			if (ch1 == '#')
-				lx->state = LEX_COMMENT_LINE;
-			else if (ch1 == '\r')
-				lx->state = LEX_RETURN;
-			else if (ch1 == '\n')
-				lx->state = LEX_START;
-			else if (!isSpace(ch1)){
-				list_ptr_push(tks,
-					tok_error(flp, format("Invalid character after backslash")));
-			}
+		case lex_enum.BACKSLASH:
+			if (ch1 === '#')
+				lx.state = lex_enum.COMMENT_LINE;
+			else if (ch1 === '\r')
+				lx.state = lex_enum.RETURN;
+			else if (ch1 === '\n')
+				lx.state = lex_enum.START;
+			else if (!isSpace(ch1))
+				tks.push(tok_error(flp, 'Invalid character after backslash'));
 			break;
 
-		case LEX_RETURN:
-			lx->state = LEX_START;
-			if (ch1 != '\n')
+		case lex_enum.RETURN:
+			lx.state = lex_enum.START;
+			if (ch1 !== '\n')
 				lex_process(lx, tks);
 			break;
 
-		case LEX_COMMENT_BLOCK:
-			if (lx->ch2 == '*' && ch1 == '/')
-				lx->state = LEX_START;
+		case lex_enum.COMMENT_BLOCK:
+			if (lx.ch2 === '*' && ch1 === '/')
+				lx.state = lex_enum.START;
 			break;
 
-		case LEX_SPECIAL1:
-			if (ks_char(ch1) != KS_INVALID){
-				if (lx->ch2 == '/' && ch1 == '*')
-					lx->state = LEX_COMMENT_BLOCK;
+		case lex_enum.SPECIAL1:
+			if (ks_char(ch1) !== ks_enum.INVALID){
+				if (lx.ch2 === '/' && ch1 === '*')
+					lx.state = lex_enum.COMMENT_BLOCK;
 				else
-					lx->state = LEX_SPECIAL2;
+					lx.state = lex_enum.SPECIAL2;
 			}
 			else{
-				ks_enum ks1 = ks_char(lx->ch2);
+				let ks1 = ks_char(lx.ch2);
 				// hack to detect difference between binary and unary +/-
-				if (ks1 == KS_PLUS){
-					if (!isSpace(ch1) && isSpace(lx->ch3))
-						ks1 = KS_UNPLUS;
+				if (ks1 === ks_enum.PLUS){
+					if (!isSpace(ch1) && isSpace(lx.ch3))
+						ks1 = ks_enum.UNPLUS;
 				}
-				else if (ks1 == KS_MINUS){
-					if (!isSpace(ch1) && isSpace(lx->ch3))
-						ks1 = KS_UNMINUS;
+				else if (ks1 === ks_enum.MINUS){
+					if (!isSpace(ch1) && isSpace(lx.ch3))
+						ks1 = ks_enum.UNMINUS;
 				}
-				list_ptr_push(tks, tok_ks(lx->flp2, ks1));
-				lx->state = LEX_START;
+				tks.push(tok_ks(lx.flp2, ks1));
+				lx.state = lex_enum.START;
 				lex_process(lx, tks);
 			}
 			break;
-
+}}/*
 		case LEX_SPECIAL2: {
 			ks_enum ks3 = ks_char3(lx->ch3, lx->ch2, ch1);
 			if (ks3 != KS_INVALID){
@@ -4795,7 +4783,7 @@ static nl_st namespace_lookup(namespace ns, list_ptr names, int start, list_ptr 
 static nl_st namespace_lookupLevel(namespace ns, list_ptr names, int start, list_ptr tried){
 	for (int nsni = 0; nsni < ns->names->size; nsni++){
 		nsname nsn = ns->names->ptrs[nsni];
-		if (list_ƒ(nsn->name, names->ptrs[start])){
+		if (list_byte_equ(nsn->name, names->ptrs[start])){
 			if (start == names->size - 1) // if we're at the end of names, then report the find
 				return nl_found(nsn);
 			// otherwise, we need to traverse
@@ -5258,6 +5246,29 @@ static inline list_ptr NSS(const char *str){
 	return list_ptr_newsingle((sink_free_f)list_byte_free, list_byte_newstr(str));
 }
 
+typedef enum {
+	STRUCT_U8   =  1,
+	STRUCT_U16  =  2,
+	STRUCT_UL16 =  3,
+	STRUCT_UB16 =  4,
+	STRUCT_U32  =  5,
+	STRUCT_UL32 =  6,
+	STRUCT_UB32 =  7,
+	STRUCT_S8   =  8,
+	STRUCT_S16  =  9,
+	STRUCT_SL16 = 10,
+	STRUCT_SB16 = 11,
+	STRUCT_S32  = 12,
+	STRUCT_SL32 = 13,
+	STRUCT_SB32 = 14,
+	STRUCT_F32  = 15,
+	STRUCT_FL32 = 16,
+	STRUCT_FB32 = 17,
+	STRUCT_F64  = 18,
+	STRUCT_FL64 = 19,
+	STRUCT_FB64 = 20
+} struct_enum;
+
 static inline void symtbl_loadStdlib(symtbl sym){
 	list_ptr nss;
 	SAC(sym, "say"           , OP_SAY            , -1);
@@ -5362,6 +5373,26 @@ static inline void symtbl_loadStdlib(symtbl sym){
 		SAC(sym, "str"       , OP_STRUCT_STR     ,  2);
 		SAC(sym, "list"      , OP_STRUCT_LIST    ,  2);
 		SAC(sym, "isLE"      , OP_STRUCT_ISLE    ,  0);
+		SAE(sym, "U8"        , STRUCT_U8             );
+		SAE(sym, "U16"       , STRUCT_U16            );
+		SAE(sym, "UL16"      , STRUCT_UL16           );
+		SAE(sym, "UB16"      , STRUCT_UB16           );
+		SAE(sym, "U32"       , STRUCT_U32            );
+		SAE(sym, "UL32"      , STRUCT_UL32           );
+		SAE(sym, "UB32"      , STRUCT_UB32           );
+		SAE(sym, "S8"        , STRUCT_S8             );
+		SAE(sym, "S16"       , STRUCT_S16            );
+		SAE(sym, "SL16"      , STRUCT_SL16           );
+		SAE(sym, "SB16"      , STRUCT_SB16           );
+		SAE(sym, "S32"       , STRUCT_S32            );
+		SAE(sym, "SL32"      , STRUCT_SL32           );
+		SAE(sym, "SB32"      , STRUCT_SB32           );
+		SAE(sym, "F32"       , STRUCT_F32            );
+		SAE(sym, "FL32"      , STRUCT_FL32           );
+		SAE(sym, "FB32"      , STRUCT_FB32           );
+		SAE(sym, "F64"       , STRUCT_F64            );
+		SAE(sym, "FL64"      , STRUCT_FL64           );
+		SAE(sym, "FB64"      , STRUCT_FB64           );
 	symtbl_popNamespace(sym);
 	nss = NSS("list"); symtbl_pushNamespace(sym, nss); list_ptr_free(nss);
 		SAC(sym, "new"       , OP_LIST_NEW       ,  2);
@@ -5435,10 +5466,6 @@ typedef struct {
 
 typedef struct compiler_struct compiler_st, *compiler;
 typedef struct staticinc_struct staticinc_st, *staticinc;
-*/
-export interface sink_scr {
-};
-/*
 typedef struct {
 	program prg;
 	compiler cmp;
@@ -5451,7 +5478,6 @@ typedef struct {
 	char *curdir;
 	char *file;
 	char *err;
-	sink_scr_type type;
 	enum {
 		SCM_UNKNOWN,
 		SCM_BINARY,
@@ -5459,7 +5485,10 @@ typedef struct {
 	} mode;
 	binstate_st binstate;
 } script_st, *script;
-
+*/
+export interface sink_scr {
+}
+/*
 //
 // pathjoin
 //
@@ -8553,10 +8582,7 @@ static inline native native_new(uint64_t hash, void *natuser, sink_native_f f_na
 	nat->f_native = f_native;
 	return nat;
 }
-*/
-export interface sink_ctx {
-};
-/*
+
 typedef struct {
 	void *user;
 	sink_free_f f_freeuser;
@@ -8607,7 +8633,10 @@ typedef struct {
 	bool failed;
 	bool async;
 } context_st, *context;
-
+*/
+export interface sink_ctx {
+}
+/*
 static inline lxs lxs_get(context ctx, int argcount, sink_val *args, lxs next){
 	if (ctx->lxs_avail->size > 0){
 		lxs ls = ctx->lxs_avail->ptrs[--ctx->lxs_avail->size];
@@ -9267,6 +9296,10 @@ static inline sink_val opi_str_new(context ctx, int size, sink_val *vals){
 
 static inline sink_val opi_list_push(context ctx, sink_val a, sink_val b);
 static inline sink_val opi_str_split(context ctx, sink_val a, sink_val b){
+	if ((!sink_isstr(a) && !sink_isnum(a)) || (!sink_isstr(b) && !sink_isnum(b))){
+		opi_abortcstr(ctx, "Expecting strings");
+		return SINK_NIL;
+	}
 	a = sink_tostr(ctx, a);
 	b = sink_tostr(ctx, b);
 	sink_str haystack = var_caststr(ctx, a);
@@ -9324,6 +9357,10 @@ static inline sink_val opi_str_find(context ctx, sink_val a, sink_val b, sink_va
 		opi_abortcstr(ctx, "Expecting number");
 		return SINK_NIL;
 	}
+	if ((!sink_isstr(a) && !sink_isnum(a)) || (!sink_isstr(b) && !sink_isnum(b))){
+		opi_abortcstr(ctx, "Expecting strings");
+		return SINK_NIL;
+	}
 	a = sink_tostr(ctx, a);
 	b = sink_tostr(ctx, b);
 	sink_str haystack = var_caststr(ctx, a);
@@ -9357,6 +9394,10 @@ static inline sink_val opi_str_rfind(context ctx, sink_val a, sink_val b, sink_v
 		hx = c.f;
 	else if (!sink_isnil(c)){
 		opi_abortcstr(ctx, "Expecting number");
+		return SINK_NIL;
+	}
+	if ((!sink_isstr(a) && !sink_isnum(a)) || (!sink_isstr(b) && !sink_isnum(b))){
+		opi_abortcstr(ctx, "Expecting strings");
 		return SINK_NIL;
 	}
 	a = sink_tostr(ctx, a);
@@ -9395,6 +9436,10 @@ static inline sink_val opi_str_rfind(context ctx, sink_val a, sink_val b, sink_v
 }
 
 static inline bool opi_str_begins(context ctx, sink_val a, sink_val b){
+	if ((!sink_isstr(a) && !sink_isnum(a)) || (!sink_isstr(b) && !sink_isnum(b))){
+		opi_abortcstr(ctx, "Expecting strings");
+		return false;
+	}
 	sink_str s1 = var_caststr(ctx, sink_tostr(ctx, a));
 	sink_str s2 = var_caststr(ctx, sink_tostr(ctx, b));
 	return s1->size >= s2->size &&
@@ -9402,6 +9447,10 @@ static inline bool opi_str_begins(context ctx, sink_val a, sink_val b){
 }
 
 static inline bool opi_str_ends(context ctx, sink_val a, sink_val b){
+	if ((!sink_isstr(a) && !sink_isnum(a)) || (!sink_isstr(b) && !sink_isnum(b))){
+		opi_abortcstr(ctx, "Expecting strings");
+		return false;
+	}
 	sink_str s1 = var_caststr(ctx, sink_tostr(ctx, a));
 	sink_str s2 = var_caststr(ctx, sink_tostr(ctx, b));
 	return s1->size >= s2->size &&
@@ -9409,6 +9458,10 @@ static inline bool opi_str_ends(context ctx, sink_val a, sink_val b){
 }
 
 static inline sink_val opi_str_pad(context ctx, sink_val a, int b){
+	if (!sink_isstr(a) && !sink_isnum(a)){
+		opi_abortcstr(ctx, "Expecting string");
+		return SINK_NIL;
+	}
 	a = sink_tostr(ctx, a);
 	sink_str s = var_caststr(ctx, a);
 	if (b < 0){ // left pad
@@ -9434,7 +9487,11 @@ static inline sink_val opi_str_pad(context ctx, sink_val a, int b){
 	}
 }
 
-static inline sink_val opi_str_lower(context ctx, sink_val a){
+static inline sink_val opihelp_str_lower(context ctx, sink_val a){
+	if (!sink_isstr(a) && !sink_isnum(a)){
+		opi_abortcstr(ctx, "Expecting string");
+		return SINK_NIL;
+	}
 	sink_str s = var_caststr(ctx, sink_tostr(ctx, a));
 	uint8_t *b = mem_alloc(sizeof(uint8_t) * (s->size + 1));
 	for (int i = 0; i <= s->size; i++){
@@ -9446,7 +9503,11 @@ static inline sink_val opi_str_lower(context ctx, sink_val a){
 	return sink_str_newblobgive(ctx, s->size, b);
 }
 
-static inline sink_val opi_str_upper(context ctx, sink_val a){
+static inline sink_val opihelp_str_upper(context ctx, sink_val a){
+	if (!sink_isstr(a) && !sink_isnum(a)){
+		opi_abortcstr(ctx, "Expecting string");
+		return SINK_NIL;
+	}
 	sink_str s = var_caststr(ctx, sink_tostr(ctx, a));
 	uint8_t *b = mem_alloc(sizeof(uint8_t) * (s->size + 1));
 	for (int i = 0; i <= s->size; i++){
@@ -9462,7 +9523,11 @@ static inline bool shouldtrim(uint8_t c){
 	return (c >= 9 && c <= 13) || c == 32;
 }
 
-static inline sink_val opi_str_trim(context ctx, sink_val a){
+static inline sink_val opihelp_str_trim(context ctx, sink_val a){
+	if (!sink_isstr(a) && !sink_isnum(a)){
+		opi_abortcstr(ctx, "Expecting string");
+		return SINK_NIL;
+	}
 	a = sink_tostr(ctx, a);
 	sink_str s = var_caststr(ctx, a);
 	int len1 = 0;
@@ -9483,7 +9548,11 @@ static inline sink_val opi_str_trim(context ctx, sink_val a){
 	return sink_str_newblobgive(ctx, size < 0 ? 0 : size, b);
 }
 
-static inline sink_val opi_str_rev(context ctx, sink_val a){
+static inline sink_val opihelp_str_rev(context ctx, sink_val a){
+	if (!sink_isstr(a) && !sink_isnum(a)){
+		opi_abortcstr(ctx, "Expecting string");
+		return SINK_NIL;
+	}
 	a = sink_tostr(ctx, a);
 	sink_str s = var_caststr(ctx, a);
 	if (s->size <= 0)
@@ -9495,7 +9564,31 @@ static inline sink_val opi_str_rev(context ctx, sink_val a){
 	return sink_str_newblobgive(ctx, s->size, b);
 }
 
+#define OPI_STR_UNOP(name, single)                                       \
+	static inline sink_val name(context ctx, sink_val a){                \
+		if (sink_islist(a)){                                             \
+			sink_list ls = var_castlist(ctx, a);                         \
+			if (ls->size <= 0)                                           \
+				return sink_list_newempty(ctx);                          \
+			sink_val *ret = mem_alloc(sizeof(sink_val) * ls->size);      \
+			for (int i = 0; i < ls->size; i++)                           \
+				ret[i] = single(ctx, ls->vals[i]);                       \
+			return sink_list_newblobgive(ctx, ls->size, ls->size, ret);  \
+		}                                                                \
+		return single(ctx, a);                                           \
+	}
+// allow unary string commands to work on lists too
+OPI_STR_UNOP(opi_str_lower, opihelp_str_lower)
+OPI_STR_UNOP(opi_str_upper, opihelp_str_upper)
+OPI_STR_UNOP(opi_str_trim , opihelp_str_trim )
+OPI_STR_UNOP(opi_str_rev  , opihelp_str_rev  )
+#undef OPI_STR_UNOP
+
 static inline sink_val opi_str_rep(context ctx, sink_val a, int rep){
+	if (!sink_isstr(a) && !sink_isnum(a)){
+		opi_abortcstr(ctx, "Expecting string");
+		return SINK_NIL;
+	}
 	if (rep <= 0)
 		return sink_str_newblobgive(ctx, 0, NULL);
 	a = sink_tostr(ctx, a);
@@ -9517,6 +9610,10 @@ static inline sink_val opi_str_rep(context ctx, sink_val a, int rep){
 }
 
 static inline sink_val opi_str_list(context ctx, sink_val a){
+	if (!sink_isstr(a) && !sink_isnum(a)){
+		opi_abortcstr(ctx, "Expecting string");
+		return SINK_NIL;
+	}
 	sink_str s = var_caststr(ctx, sink_tostr(ctx, a));
 	sink_val r = sink_list_newempty(ctx);
 	for (int i = 0; i < s->size; i++)
@@ -9525,6 +9622,10 @@ static inline sink_val opi_str_list(context ctx, sink_val a){
 }
 
 static inline sink_val opi_str_byte(context ctx, sink_val a, int b){
+	if (!sink_isstr(a)){
+		opi_abortcstr(ctx, "Expecting string");
+		return SINK_NIL;
+	}
 	sink_str s = var_caststr(ctx, sink_tostr(ctx, a));
 	if (b < 0)
 		b += s->size;
@@ -9534,6 +9635,10 @@ static inline sink_val opi_str_byte(context ctx, sink_val a, int b){
 }
 
 static inline sink_val opi_str_hash(context ctx, sink_val a, uint32_t seed){
+	if (!sink_isstr(a) && !sink_isnum(a)){
+		opi_abortcstr(ctx, "Expecting string");
+		return SINK_NIL;
+	}
 	sink_str s = var_caststr(ctx, sink_tostr(ctx, a));
 	uint32_t out[4];
 	sink_str_hashplain(s->size, s->bytes, seed, out);
@@ -9724,43 +9829,33 @@ static inline sink_val opi_struct_size(context ctx, sink_val a){
 	int tot = 0;
 	for (int i = 0; i < ls->size; i++){
 		sink_val b = ls->vals[i];
-		if (!sink_isstr(b))
+		if (!sink_isnum(b))
 			return SINK_NIL;
-		sink_str t = var_caststr(ctx, b);
-		if (t->size == 2){
-			if      (strcmp((const char *)t->bytes, "U8"  ) == 0) tot += 1;
-			else if (strcmp((const char *)t->bytes, "S8"  ) == 0) tot += 1;
-			else
+		struct_enum bi = (struct_enum)b.f;
+		switch (bi){
+			case STRUCT_U8  : tot += 1; break;
+			case STRUCT_U16 : tot += 2; break;
+			case STRUCT_UL16: tot += 2; break;
+			case STRUCT_UB16: tot += 2; break;
+			case STRUCT_U32 : tot += 4; break;
+			case STRUCT_UL32: tot += 4; break;
+			case STRUCT_UB32: tot += 4; break;
+			case STRUCT_S8  : tot += 1; break;
+			case STRUCT_S16 : tot += 2; break;
+			case STRUCT_SL16: tot += 2; break;
+			case STRUCT_SB16: tot += 2; break;
+			case STRUCT_S32 : tot += 4; break;
+			case STRUCT_SL32: tot += 4; break;
+			case STRUCT_SB32: tot += 4; break;
+			case STRUCT_F32 : tot += 4; break;
+			case STRUCT_FL32: tot += 4; break;
+			case STRUCT_FB32: tot += 4; break;
+			case STRUCT_F64 : tot += 8; break;
+			case STRUCT_FL64: tot += 8; break;
+			case STRUCT_FB64: tot += 8; break;
+			default:
 				return SINK_NIL;
 		}
-		else if (t->size == 3){
-			if      (strcmp((const char *)t->bytes, "U16" ) == 0) tot += 2;
-			else if (strcmp((const char *)t->bytes, "U32" ) == 0) tot += 4;
-			else if (strcmp((const char *)t->bytes, "S16" ) == 0) tot += 2;
-			else if (strcmp((const char *)t->bytes, "S32" ) == 0) tot += 4;
-			else if (strcmp((const char *)t->bytes, "F32" ) == 0) tot += 4;
-			else if (strcmp((const char *)t->bytes, "F64" ) == 0) tot += 8;
-			else
-				return SINK_NIL;
-		}
-		else if (t->size == 4){
-			if      (strcmp((const char *)t->bytes, "UL16") == 0) tot += 2;
-			else if (strcmp((const char *)t->bytes, "UB16") == 0) tot += 2;
-			else if (strcmp((const char *)t->bytes, "UL32") == 0) tot += 4;
-			else if (strcmp((const char *)t->bytes, "UB32") == 0) tot += 4;
-			else if (strcmp((const char *)t->bytes, "SL16") == 0) tot += 2;
-			else if (strcmp((const char *)t->bytes, "SB16") == 0) tot += 2;
-			else if (strcmp((const char *)t->bytes, "SL32") == 0) tot += 4;
-			else if (strcmp((const char *)t->bytes, "SB32") == 0) tot += 4;
-			else if (strcmp((const char *)t->bytes, "FL32") == 0) tot += 4;
-			else if (strcmp((const char *)t->bytes, "FB32") == 0) tot += 4;
-			else if (strcmp((const char *)t->bytes, "FL64") == 0) tot += 8;
-			else if (strcmp((const char *)t->bytes, "FB64") == 0) tot += 8;
-			else
-				return SINK_NIL;
-		}
-		else
-			return SINK_NIL;
 	}
 	return tot <= 0 ? SINK_NIL : sink_num(tot);
 }
@@ -9790,88 +9885,86 @@ static inline sink_val opi_struct_str(context ctx, sink_val a, sink_val b){
 	for (int ar = 0; ar < arsize; ar++){
 		for (int i = 0; i < type->size; i++){
 			sink_val d = data->vals[i + ar * type->size];
-			sink_str t = var_caststr(ctx, type->vals[i]);
-			if (t->size == 2){
-				// U8 or S8
-				uint8_t v = d.f;
-				bytes[pos++] = v;
-			}
-			else if (t->size == 3){
-				if (strcmp((const char *)t->bytes, "U16") == 0 ||
-					strcmp((const char *)t->bytes, "S16") == 0){
+			struct_enum bi = type->vals[i].f;
+			switch (bi){
+				case STRUCT_U8:
+				case STRUCT_S8: {
+					uint8_t v = d.f;
+					bytes[pos++] = v;
+				} break;
+				case STRUCT_U16:
+				case STRUCT_S16: {
 					uint16_t v = d.f;
 					uint8_t *vp = (uint8_t *)&v;
 					bytes[pos++] = vp[0]; bytes[pos++] = vp[1];
-				}
-				else if (strcmp((const char *)t->bytes, "U32") == 0 ||
-					strcmp((const char *)t->bytes, "S32") == 0){
+				} break;
+				case STRUCT_U32:
+				case STRUCT_S32: {
 					uint32_t v = d.f;
 					uint8_t *vp = (uint8_t *)&v;
 					bytes[pos++] = vp[0]; bytes[pos++] = vp[1];
 					bytes[pos++] = vp[2]; bytes[pos++] = vp[3];
-				}
-				else if (strcmp((const char *)t->bytes, "F32") == 0){
+				} break;
+				case STRUCT_F32: {
 					float v = d.f;
 					uint8_t *vp = (uint8_t *)&v;
 					bytes[pos++] = vp[0]; bytes[pos++] = vp[1];
 					bytes[pos++] = vp[2]; bytes[pos++] = vp[3];
-				}
-				else{ // F64
+				} break;
+				case STRUCT_F64: {
 					double v = d.f;
 					uint8_t *vp = (uint8_t *)&v;
 					bytes[pos++] = vp[0]; bytes[pos++] = vp[1];
 					bytes[pos++] = vp[2]; bytes[pos++] = vp[3];
 					bytes[pos++] = vp[4]; bytes[pos++] = vp[5];
 					bytes[pos++] = vp[6]; bytes[pos++] = vp[7];
-				}
-			}
-			else{ // t->size == 4
-				if (strcmp((const char *)t->bytes, "UL16") == 0 ||
-					strcmp((const char *)t->bytes, "SL16") == 0){
+				} break;
+				case STRUCT_UL16:
+				case STRUCT_SL16: {
 					uint16_t v = d.f;
 					bytes[pos++] = (v      ) & 0xFF; bytes[pos++] = (v >>  8) & 0xFF;
-				}
-				else if (strcmp((const char *)t->bytes, "UB16") == 0 ||
-					strcmp((const char *)t->bytes, "SB16") == 0){
+				} break;
+				case STRUCT_UB16:
+				case STRUCT_SB16: {
 					uint16_t v = d.f;
 					bytes[pos++] = (v >>  8) & 0xFF; bytes[pos++] = (v      ) & 0xFF;
-				}
-				else if (strcmp((const char *)t->bytes, "UL32") == 0 ||
-					strcmp((const char *)t->bytes, "SL32") == 0){
+				} break;
+				case STRUCT_UL32:
+				case STRUCT_SL32: {
 					uint32_t v = d.f;
 					bytes[pos++] = (v      ) & 0xFF; bytes[pos++] = (v >>  8) & 0xFF;
 					bytes[pos++] = (v >> 16) & 0xFF; bytes[pos++] = (v >> 24) & 0xFF;
-				}
-				else if (strcmp((const char *)t->bytes, "UB32") == 0 ||
-					strcmp((const char *)t->bytes, "SB32") == 0){
+				} break;
+				case STRUCT_UB32:
+				case STRUCT_SB32: {
 					uint32_t v = d.f;
 					bytes[pos++] = (v >> 24) & 0xFF; bytes[pos++] = (v >> 16) & 0xFF;
 					bytes[pos++] = (v >>  8) & 0xFF; bytes[pos++] = (v      ) & 0xFF;
-				}
-				else if (strcmp((const char *)t->bytes, "FL32") == 0){
+				} break;
+				case STRUCT_FL32: {
 					union { float f; uint32_t u; } v = { .f = d.f };
 					bytes[pos++] = (v.u      ) & 0xFF; bytes[pos++] = (v.u >>  8) & 0xFF;
 					bytes[pos++] = (v.u >> 16) & 0xFF; bytes[pos++] = (v.u >> 24) & 0xFF;
-				}
-				else if (strcmp((const char *)t->bytes, "FB32") == 0){
+				} break;
+				case STRUCT_FB32: {
 					union { float f; uint32_t u; } v = { .f = d.f };
 					bytes[pos++] = (v.u >> 24) & 0xFF; bytes[pos++] = (v.u >> 16) & 0xFF;
 					bytes[pos++] = (v.u >>  8) & 0xFF; bytes[pos++] = (v.u      ) & 0xFF;
-				}
-				else if (strcmp((const char *)t->bytes, "FL64") == 0){
+				} break;
+				case STRUCT_FL64: {
 					union { double f; uint64_t u; } v = { .f = d.f };
 					bytes[pos++] = (v.u      ) & 0xFF; bytes[pos++] = (v.u >>  8) & 0xFF;
 					bytes[pos++] = (v.u >> 16) & 0xFF; bytes[pos++] = (v.u >> 24) & 0xFF;
 					bytes[pos++] = (v.u >> 32) & 0xFF; bytes[pos++] = (v.u >> 40) & 0xFF;
 					bytes[pos++] = (v.u >> 48) & 0xFF; bytes[pos++] = (v.u >> 56) & 0xFF;
-				}
-				else{ // FB64
+				} break;
+				case STRUCT_FB64: {
 					union { double f; uint64_t u; } v = { .f = d.f };
 					bytes[pos++] = (v.u >> 56) & 0xFF; bytes[pos++] = (v.u >> 48) & 0xFF;
 					bytes[pos++] = (v.u >> 40) & 0xFF; bytes[pos++] = (v.u >> 32) & 0xFF;
 					bytes[pos++] = (v.u >> 24) & 0xFF; bytes[pos++] = (v.u >> 16) & 0xFF;
 					bytes[pos++] = (v.u >>  8) & 0xFF; bytes[pos++] = (v.u      ) & 0xFF;
-				}
+				} break;
 			}
 		}
 	}
@@ -9903,103 +9996,101 @@ static inline sink_val opi_struct_list(context ctx, sink_val a, sink_val b){
 	int pos = 0;
 	while (pos < s->size){
 		for (int i = 0; i < type->size; i++){
-			sink_str t = var_caststr(ctx, type->vals[i]);
-			if (t->size == 2){
-				if (strcmp((const char *)t->bytes, "U8") == 0)
+			struct_enum bi = type->vals[i].f;
+			switch (bi){
+				case STRUCT_U8:
 					sink_list_push(ctx, res, sink_num(s->bytes[pos++]));
-				else // S8
+					break;
+				case STRUCT_S8:
 					sink_list_push(ctx, res, sink_num((int8_t)s->bytes[pos++]));
-			}
-			else if (t->size == 3){
-				if (strcmp((const char *)t->bytes, "U16") == 0){
+					break;
+				case STRUCT_U16: {
 					uint16_t *v = (uint16_t *)&s->bytes[pos];
 					sink_list_push(ctx, res, sink_num(*v));
 					pos += 2;
-				}
-				else if (strcmp((const char *)t->bytes, "U32") == 0){
+				} break;
+				case STRUCT_U32: {
 					uint32_t *v = (uint32_t *)&s->bytes[pos];
 					sink_list_push(ctx, res, sink_num(*v));
 					pos += 4;
-				}
-				else if (strcmp((const char *)t->bytes, "S16") == 0){
+				} break;
+				case STRUCT_S16: {
 					int16_t *v = (int16_t *)&s->bytes[pos];
 					sink_list_push(ctx, res, sink_num(*v));
 					pos += 2;
-				}
-				else if (strcmp((const char *)t->bytes, "S32") == 0){
+				} break;
+				case STRUCT_S32: {
 					int32_t *v = (int32_t *)&s->bytes[pos];
 					sink_list_push(ctx, res, sink_num(*v));
 					pos += 4;
-				}
-				else if (strcmp((const char *)t->bytes, "F32") == 0){
+				} break;
+				case STRUCT_F32: {
 					float *v = (float *)&s->bytes[pos];
 					sink_list_push(ctx, res, sink_num(*v));
 					pos += 4;
-				}
-				else{ // F64
+				} break;
+				case STRUCT_F64: {
 					double *v = (double *)&s->bytes[pos];
 					sink_list_push(ctx, res, sink_num(*v));
 					pos += 8;
-				}
-			}
-			else{ // t->size == 4
-				if (strcmp((const char *)t->bytes, "UL16") == 0){
+				} break;
+				case STRUCT_UL16: {
 					uint16_t v = 0;
 					v |= s->bytes[pos++];
 					v |= ((uint16_t)s->bytes[pos++]) << 8;
 					sink_list_push(ctx, res, sink_num(v));
-				}
-				else if (strcmp((const char *)t->bytes, "UB16") == 0){
+				} break;
+				case STRUCT_UB16: {
 					uint16_t v = 0;
 					v |= ((uint16_t)s->bytes[pos++]) << 8;
 					v |= s->bytes[pos++];
 					sink_list_push(ctx, res, sink_num(v));
-				}
-				else if (strcmp((const char *)t->bytes, "UL32") == 0){
+				} break;
+				case STRUCT_UL32: {
 					uint32_t v = 0;
 					v |= s->bytes[pos++];
 					v |= ((uint32_t)s->bytes[pos++]) <<  8;
 					v |= ((uint32_t)s->bytes[pos++]) << 16;
 					v |= ((uint32_t)s->bytes[pos++]) << 24;
 					sink_list_push(ctx, res, sink_num(v));
-				}
-				else if (strcmp((const char *)t->bytes, "UB32") == 0){
+				} break;
+				case STRUCT_UB32: {
 					uint32_t v = 0;
 					v |= ((uint32_t)s->bytes[pos++]) << 24;
 					v |= ((uint32_t)s->bytes[pos++]) << 16;
 					v |= ((uint32_t)s->bytes[pos++]) <<  8;
 					v |= s->bytes[pos++];
 					sink_list_push(ctx, res, sink_num(v));
-				}
-				else if (strcmp((const char *)t->bytes, "SL16") == 0){
+				} break;
+				case STRUCT_SL16: {
 					uint16_t v = 0;
 					v |= s->bytes[pos++];
 					v |= ((uint16_t)s->bytes[pos++]) << 8;
 					sink_list_push(ctx, res, sink_num((int16_t)v));
-				}
-				else if (strcmp((const char *)t->bytes, "SB16") == 0){
+				} break;
+				case STRUCT_SB16: {
 					uint16_t v = 0;
 					v |= ((uint16_t)s->bytes[pos++]) << 8;
 					v |= s->bytes[pos++];
 					sink_list_push(ctx, res, sink_num((int16_t)v));
-				}
-				else if (strcmp((const char *)t->bytes, "SL32") == 0){
+				} break;
+				case STRUCT_SL32: {
 					uint32_t v = 0;
 					v |= s->bytes[pos++];
 					v |= ((uint32_t)s->bytes[pos++]) <<  8;
 					v |= ((uint32_t)s->bytes[pos++]) << 16;
 					v |= ((uint32_t)s->bytes[pos++]) << 24;
 					sink_list_push(ctx, res, sink_num((int32_t)v));
-				}
-				else if (strcmp((const char *)t->bytes, "SB32") == 0){
+				} break;
+				case STRUCT_SB32: {
 					uint32_t v = 0;
 					v |= ((uint32_t)s->bytes[pos++]) << 24;
 					v |= ((uint32_t)s->bytes[pos++]) << 16;
 					v |= ((uint32_t)s->bytes[pos++]) <<  8;
 					v |= s->bytes[pos++];
 					sink_list_push(ctx, res, sink_num((int32_t)v));
-				}
-				else if (strcmp((const char *)t->bytes, "FL32") == 0){
+				} break;
+				case STRUCT_FL32: {
 					union { float f; uint32_t u; } v = { .u = 0 };
 					v.u |= s->bytes[pos++];
 					v.u |= ((uint32_t)s->bytes[pos++]) <<  8;
@@ -10009,8 +10100,8 @@ static inline sink_val opi_struct_list(context ctx, sink_val a, sink_val b){
 						sink_list_push(ctx, res, sink_num_nan());
 					else
 						sink_list_push(ctx, res, sink_num(v.f));
-				}
-				else if (strcmp((const char *)t->bytes, "FB32") == 0){
+				} break;
+				case STRUCT_FB32: {
 					union { float f; uint32_t u; } v = { .u = 0 };
 					v.u |= ((uint32_t)s->bytes[pos++]) << 24;
 					v.u |= ((uint32_t)s->bytes[pos++]) << 16;
@@ -10020,8 +10111,8 @@ static inline sink_val opi_struct_list(context ctx, sink_val a, sink_val b){
 						sink_list_push(ctx, res, sink_num_nan());
 					else
 						sink_list_push(ctx, res, sink_num(v.f));
-				}
-				else if (strcmp((const char *)t->bytes, "FL64") == 0){
+				} break;
+				case STRUCT_FL64: {
 					union { double f; uint64_t u; } v = { .u = 0 };
 					v.u |= s->bytes[pos++];
 					v.u |= ((uint64_t)s->bytes[pos++]) <<  8;
@@ -10035,8 +10126,8 @@ static inline sink_val opi_struct_list(context ctx, sink_val a, sink_val b){
 						sink_list_push(ctx, res, sink_num_nan());
 					else
 						sink_list_push(ctx, res, sink_num(v.f));
-				}
-				else{ // FB64
+				} break;
+				case STRUCT_FB64: {
 					union { double f; uint64_t u; } v = { .u = 0 };
 					v.u |= ((uint64_t)s->bytes[pos++]) << 56;
 					v.u |= ((uint64_t)s->bytes[pos++]) << 48;
@@ -10050,7 +10141,7 @@ static inline sink_val opi_struct_list(context ctx, sink_val a, sink_val b){
 						sink_list_push(ctx, res, sink_num_nan());
 					else
 						sink_list_push(ctx, res, sink_num(v.f));
-				}
+				} break;
 			}
 		}
 	}
@@ -13305,9 +13396,10 @@ static sink_run context_run(context ctx){
 
 			case OP_RAND_PICK      : { // [TGT], [SRC]
 				LOAD_abcd();
-				var_set(ctx, A, B, opi_rand_pick(ctx, var_get(ctx, C, D)));
+				X = opi_rand_pick(ctx, var_get(ctx, C, D));
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_RAND_SHUFFLE   : { // [TGT], [SRC]
@@ -13332,7 +13424,10 @@ static sink_run context_run(context ctx){
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				var_set(ctx, A, B, opi_str_split(ctx, X, Y));
+				X = opi_str_split(ctx, X, Y);
+				if (ctx->failed)
+					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_STR_REPLACE    : { // [TGT], [SRC1], [SRC2], [SRC3]
@@ -13340,21 +13435,30 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
-				var_set(ctx, A, B, opi_str_replace(ctx, X, Y, Z));
+				X = opi_str_replace(ctx, X, Y, Z);
+				if (ctx->failed)
+					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_STR_BEGINS     : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				var_set(ctx, A, B, sink_bool(opi_str_begins(ctx, X, Y)));
+				X = sink_bool(opi_str_begins(ctx, X, Y));
+				if (ctx->failed)
+					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_STR_ENDS       : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				var_set(ctx, A, B, sink_bool(opi_str_ends(ctx, X, Y)));
+				X = sink_bool(opi_str_ends(ctx, X, Y));
+				if (ctx->failed)
+					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_STR_PAD        : { // [TGT], [SRC1], [SRC2]
@@ -13365,7 +13469,10 @@ static sink_run context_run(context ctx){
 					Y.f = 0;
 				else if (!sink_isnum(Y))
 					return opi_abortcstr(ctx, "Expecting number");
-				var_set(ctx, A, B, opi_str_pad(ctx, X, Y.f));
+				X = opi_str_pad(ctx, X, Y.f);
+				if (ctx->failed)
+					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_STR_FIND       : { // [TGT], [SRC1], [SRC2], [SRC3]
@@ -13373,9 +13480,10 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
-				var_set(ctx, A, B, opi_str_find(ctx, X, Y, Z));
+				X = opi_str_find(ctx, X, Y, Z);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_STR_RFIND      : { // [TGT], [SRC1], [SRC2], [SRC3]
@@ -13383,33 +13491,46 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
-				var_set(ctx, A, B, opi_str_rfind(ctx, X, Y, Z));
+				X = opi_str_rfind(ctx, X, Y, Z);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_STR_LOWER      : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, opi_str_lower(ctx, X));
+				X = opi_str_lower(ctx, X);
+				if (ctx->failed)
+					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_STR_UPPER      : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, opi_str_upper(ctx, X));
+				X = opi_str_upper(ctx, X);
+				if (ctx->failed)
+					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_STR_TRIM       : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, opi_str_trim(ctx, X));
+				X = opi_str_trim(ctx, X);
+				if (ctx->failed)
+					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_STR_REV        : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, opi_str_rev(ctx, X));
+				X = opi_str_rev(ctx, X);
+				if (ctx->failed)
+					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_STR_REP        : { // [TGT], [SRC1], [SRC2]
@@ -13420,15 +13541,19 @@ static sink_run context_run(context ctx){
 					Y.f = 0;
 				else if (!sink_isnum(Y))
 					return opi_abortcstr(ctx, "Expecting number");
-				var_set(ctx, A, B, opi_str_rep(ctx, X, Y.f));
+				X = opi_str_rep(ctx, X, Y.f);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_STR_LIST       : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, opi_str_list(ctx, X));
+				X = opi_str_list(ctx, X);
+				if (ctx->failed)
+					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_STR_BYTE       : { // [TGT], [SRC1], [SRC2]
@@ -13439,7 +13564,10 @@ static sink_run context_run(context ctx){
 					Y.f = 0;
 				else if (!sink_isnum(Y))
 					return opi_abortcstr(ctx, "Expecting number");
-				var_set(ctx, A, B, opi_str_byte(ctx, X, Y.f));
+				X = opi_str_byte(ctx, X, Y.f);
+				if (ctx->failed)
+					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_STR_HASH       : { // [TGT], [SRC1], [SRC2]
@@ -13450,7 +13578,10 @@ static sink_run context_run(context ctx){
 					Y.f = 0;
 				else if (!sink_isnum(Y))
 					return opi_abortcstr(ctx, "Expecting number");
-				var_set(ctx, A, B, opi_str_hash(ctx, X, Y.f));
+				X = opi_str_hash(ctx, X, Y.f);
+				if (ctx->failed)
+					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_UTF8_VALID     : { // [TGT], [SRC]
@@ -13461,16 +13592,20 @@ static sink_run context_run(context ctx){
 
 			case OP_UTF8_LIST      : { // [TGT], [SRC]
 				LOAD_abcd();
-				var_set(ctx, A, B, opi_utf8_list(ctx, var_get(ctx, C, D)));
+				X = var_get(ctx, C, D);
+				X = opi_utf8_list(ctx, X);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_UTF8_STR       : { // [TGT], [SRC]
 				LOAD_abcd();
-				var_set(ctx, A, B, opi_utf8_str(ctx, var_get(ctx, C, D)));
+				X = var_get(ctx, C, D);
+				X = opi_utf8_str(ctx, X);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_STRUCT_SIZE    : { // [TGT], [SRC]
@@ -13480,16 +13615,22 @@ static sink_run context_run(context ctx){
 
 			case OP_STRUCT_STR     : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
-				var_set(ctx, A, B, opi_struct_str(ctx, var_get(ctx, C, D), var_get(ctx, E, F)));
+				X = var_get(ctx, C, D);
+				Y = var_get(ctx, E, F);
+				X = opi_struct_str(ctx, X, Y);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_STRUCT_LIST    : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
-				var_set(ctx, A, B, opi_struct_list(ctx, var_get(ctx, C, D), var_get(ctx, E, F)));
+				X = var_get(ctx, C, D);
+				Y = var_get(ctx, E, F);
+				X = opi_struct_list(ctx, X, Y);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_STRUCT_ISLE    : { // [TGT]
@@ -13501,59 +13642,68 @@ static sink_run context_run(context ctx){
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				var_set(ctx, A, B, opi_list_new(ctx, X, Y));
+				X = opi_list_new(ctx, X, Y);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_LIST_SHIFT     : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, opi_list_shift(ctx, X));
+				X = opi_list_shift(ctx, X);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_LIST_POP       : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, opi_list_pop(ctx, X));
+				X = opi_list_pop(ctx, X);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_LIST_PUSH      : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, opi_list_push(ctx, X, var_get(ctx, E, F)));
+				Y = var_get(ctx, E, F);
+				X = opi_list_push(ctx, X, Y);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_LIST_UNSHIFT   : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, opi_list_unshift(ctx, X, var_get(ctx, E, F)));
+				Y = var_get(ctx, E, F);
+				X = opi_list_unshift(ctx, X, Y);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_LIST_APPEND    : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				var_set(ctx, A, B, opi_list_append(ctx, X, Y));
+				X = opi_list_append(ctx, X, Y);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_LIST_PREPEND   : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				var_set(ctx, A, B, opi_list_prepend(ctx, X, Y));
+				X = opi_list_prepend(ctx, X, Y);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_LIST_FIND      : { // [TGT], [SRC1], [SRC2], [SRC3]
@@ -13561,9 +13711,10 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
-				var_set(ctx, A, B, opi_list_find(ctx, X, Y, Z));
+				X = opi_list_find(ctx, X, Y, Z);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_LIST_RFIND     : { // [TGT], [SRC1], [SRC2], [SRC3]
@@ -13571,34 +13722,38 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
-				var_set(ctx, A, B, opi_list_rfind(ctx, X, Y, Z));
+				X = opi_list_rfind(ctx, X, Y, Z);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_LIST_JOIN      : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				var_set(ctx, A, B, opi_list_join(ctx, X, Y));
+				X = opi_list_join(ctx, X, Y);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_LIST_REV       : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, opi_list_rev(ctx, X));
+				X = opi_list_rev(ctx, X);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_LIST_STR       : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, opi_list_str(ctx, X));
+				X = opi_list_str(ctx, X);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_LIST_SORT      : { // [TGT], [SRC]
@@ -13621,7 +13776,8 @@ static sink_run context_run(context ctx){
 
 			case OP_PICKLE_JSON    : { // [TGT], [SRC]
 				LOAD_abcd();
-				X = opi_pickle_json(ctx, var_get(ctx, C, D));
+				X = var_get(ctx, C, D);
+				X = opi_pickle_json(ctx, X);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
@@ -13629,7 +13785,8 @@ static sink_run context_run(context ctx){
 
 			case OP_PICKLE_BIN     : { // [TGT], [SRC]
 				LOAD_abcd();
-				X = opi_pickle_bin(ctx, var_get(ctx, C, D));
+				X = var_get(ctx, C, D);
+				X = opi_pickle_bin(ctx, X);
 				if (ctx->failed) // can fail in C impl because of SINK_TYPE_ASYNC
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
@@ -13637,7 +13794,8 @@ static sink_run context_run(context ctx){
 
 			case OP_PICKLE_VAL     : { // [TGT], [SRC]
 				LOAD_abcd();
-				X = opi_pickle_val(ctx, var_get(ctx, C, D));
+				X = var_get(ctx, C, D);
+				X = opi_pickle_val(ctx, X);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
@@ -13645,23 +13803,27 @@ static sink_run context_run(context ctx){
 
 			case OP_PICKLE_VALID   : { // [TGT], [SRC]
 				LOAD_abcd();
-				E = opi_pickle_valid(ctx, var_get(ctx, C, D));
+				X = var_get(ctx, C, D);
+				E = opi_pickle_valid(ctx, X);
 				var_set(ctx, A, B, E == 0 ? SINK_NIL : sink_num(E));
 			} break;
 
 			case OP_PICKLE_SIBLING : { // [TGT], [SRC]
 				LOAD_abcd();
-				var_set(ctx, A, B, sink_bool(opi_pickle_sibling(ctx, var_get(ctx, C, D))));
+				X = var_get(ctx, C, D);
+				var_set(ctx, A, B, sink_bool(opi_pickle_sibling(ctx, X)));
 			} break;
 
 			case OP_PICKLE_CIRCULAR: { // [TGT], [SRC]
 				LOAD_abcd();
-				var_set(ctx, A, B, sink_bool(opi_pickle_circular(ctx, var_get(ctx, C, D))));
+				X = var_get(ctx, C, D);
+				var_set(ctx, A, B, sink_bool(opi_pickle_circular(ctx, X)));
 			} break;
 
 			case OP_PICKLE_COPY    : { // [TGT], [SRC]
 				LOAD_abcd();
-				X = opi_pickle_copy(ctx, var_get(ctx, C, D));
+				X = var_get(ctx, C, D);
+				X = opi_pickle_copy(ctx, X);
 				if (ctx->failed) // can fail in C impl because of SINK_TYPE_ASYNC
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
@@ -14117,11 +14279,11 @@ static void compiler_free(compiler cmp){
 // script API
 //
 
-sink_scr sink_scr_new(sink_inc_st inc, const char *curdir, sink_scr_type type){
+sink_scr sink_scr_new(sink_inc_st inc, const char *curdir, bool repl){
 	if (curdir != NULL && curdir[0] != '/')
 		fprintf(stderr, "Warning: sink current directory \"%s\" is not an absolute path\n", curdir);
 	script sc = mem_alloc(sizeof(script_st));
-	sc->prg = program_new(type == SINK_SCR_REPL);
+	sc->prg = program_new(repl);
 	sc->cmp = NULL;
 	sc->sinc = staticinc_new();
 	sc->cup = cleanup_new();
@@ -14132,7 +14294,6 @@ sink_scr sink_scr_new(sink_inc_st inc, const char *curdir, sink_scr_type type){
 	sc->curdir = curdir ? format("%s", curdir) : NULL;
 	sc->file = NULL;
 	sc->err = NULL;
-	sc->type = type;
 	sc->mode = SCM_UNKNOWN;
 	sc->binstate.buf = NULL;
 	return sc;
@@ -14488,7 +14649,8 @@ bool sink_scr_write(sink_scr scr, int size, const uint8_t *bytes){
 		}
 		#undef GETINT
 		#undef WRITE
-		if (sc->type == SINK_SCR_EVAL)
+		bool is_eval = !sc->prg->repl && sc->file == NULL;
+		if (is_eval) // if we're evaling, then we're at the end of file right now
 			binary_validate(sc);
 		return sc->err == NULL;
 	}
@@ -14500,7 +14662,8 @@ bool sink_scr_write(sink_scr scr, int size, const uint8_t *bytes){
 		char *err = compiler_write(sc->cmp, size, bytes);
 		if (err)
 			sc->err = format("Error: %s", err);
-		text_validate(sc, sc->type == SINK_SCR_EVAL, true);
+		bool is_eval = !sc->prg->repl && sc->file == NULL;
+		text_validate(sc, is_eval, true);
 		return sc->err == NULL;
 	}
 }

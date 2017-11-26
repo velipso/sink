@@ -2052,9 +2052,7 @@ static void lex_process(lex lx, list_ptr tks){
 			}
 			else if (ch1 == '\n' || ch1 == ';')
 				list_ptr_push(tks, tok_newline(flp, ch1 == ';'));
-			else if (isSpace(ch1))
-				/* do nothing */;
-			else
+			else if (!isSpace(ch1))
 				list_ptr_push(tks, tok_error(flp, format("Unexpected character: %c", ch1)));
 			break;
 
