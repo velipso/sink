@@ -13942,9 +13942,10 @@ static sink_run context_run(context ctx){
 
 			case OP_RAND_PICK      : { // [TGT], [SRC]
 				LOAD_abcd();
-				var_set(ctx, A, B, opi_rand_pick(ctx, var_get(ctx, C, D)));
+				X = opi_rand_pick(ctx, var_get(ctx, C, D));
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_RAND_SHUFFLE   : { // [TGT], [SRC]
@@ -13969,9 +13970,10 @@ static sink_run context_run(context ctx){
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				var_set(ctx, A, B, opi_str_split(ctx, X, Y));
+				X = opi_str_split(ctx, X, Y);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_STR_REPLACE    : { // [TGT], [SRC1], [SRC2], [SRC3]
@@ -13979,27 +13981,30 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
-				var_set(ctx, A, B, opi_str_replace(ctx, X, Y, Z));
+				X = opi_str_replace(ctx, X, Y, Z);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_STR_BEGINS     : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				var_set(ctx, A, B, sink_bool(opi_str_begins(ctx, X, Y)));
+				X = sink_bool(opi_str_begins(ctx, X, Y));
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_STR_ENDS       : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				var_set(ctx, A, B, sink_bool(opi_str_ends(ctx, X, Y)));
+				X = sink_bool(opi_str_ends(ctx, X, Y));
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_STR_PAD        : { // [TGT], [SRC1], [SRC2]
@@ -14010,9 +14015,10 @@ static sink_run context_run(context ctx){
 					Y.f = 0;
 				else if (!sink_isnum(Y))
 					return opi_abortcstr(ctx, "Expecting number");
-				var_set(ctx, A, B, opi_str_pad(ctx, X, Y.f));
+				X = opi_str_pad(ctx, X, Y.f);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_STR_FIND       : { // [TGT], [SRC1], [SRC2], [SRC3]
@@ -14020,9 +14026,10 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
-				var_set(ctx, A, B, opi_str_find(ctx, X, Y, Z));
+				X = opi_str_find(ctx, X, Y, Z);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_STR_RFIND      : { // [TGT], [SRC1], [SRC2], [SRC3]
@@ -14030,41 +14037,46 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
-				var_set(ctx, A, B, opi_str_rfind(ctx, X, Y, Z));
+				X = opi_str_rfind(ctx, X, Y, Z);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_STR_LOWER      : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, opi_str_lower(ctx, X));
+				X = opi_str_lower(ctx, X);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_STR_UPPER      : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, opi_str_upper(ctx, X));
+				X = opi_str_upper(ctx, X);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_STR_TRIM       : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, opi_str_trim(ctx, X));
+				X = opi_str_trim(ctx, X);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_STR_REV        : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, opi_str_rev(ctx, X));
+				X = opi_str_rev(ctx, X);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_STR_REP        : { // [TGT], [SRC1], [SRC2]
@@ -14075,17 +14087,19 @@ static sink_run context_run(context ctx){
 					Y.f = 0;
 				else if (!sink_isnum(Y))
 					return opi_abortcstr(ctx, "Expecting number");
-				var_set(ctx, A, B, opi_str_rep(ctx, X, Y.f));
+				X = opi_str_rep(ctx, X, Y.f);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_STR_LIST       : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, opi_str_list(ctx, X));
+				X = opi_str_list(ctx, X);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_STR_BYTE       : { // [TGT], [SRC1], [SRC2]
@@ -14096,9 +14110,10 @@ static sink_run context_run(context ctx){
 					Y.f = 0;
 				else if (!sink_isnum(Y))
 					return opi_abortcstr(ctx, "Expecting number");
-				var_set(ctx, A, B, opi_str_byte(ctx, X, Y.f));
+				X = opi_str_byte(ctx, X, Y.f);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_STR_HASH       : { // [TGT], [SRC1], [SRC2]
@@ -14109,9 +14124,10 @@ static sink_run context_run(context ctx){
 					Y.f = 0;
 				else if (!sink_isnum(Y))
 					return opi_abortcstr(ctx, "Expecting number");
-				var_set(ctx, A, B, opi_str_hash(ctx, X, Y.f));
+				X = opi_str_hash(ctx, X, Y.f);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_UTF8_VALID     : { // [TGT], [SRC]
@@ -14122,16 +14138,20 @@ static sink_run context_run(context ctx){
 
 			case OP_UTF8_LIST      : { // [TGT], [SRC]
 				LOAD_abcd();
-				var_set(ctx, A, B, opi_utf8_list(ctx, var_get(ctx, C, D)));
+				X = var_get(ctx, C, D);
+				X = opi_utf8_list(ctx, X);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_UTF8_STR       : { // [TGT], [SRC]
 				LOAD_abcd();
-				var_set(ctx, A, B, opi_utf8_str(ctx, var_get(ctx, C, D)));
+				X = var_get(ctx, C, D);
+				X = opi_utf8_str(ctx, X);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_STRUCT_SIZE    : { // [TGT], [SRC]
@@ -14141,16 +14161,22 @@ static sink_run context_run(context ctx){
 
 			case OP_STRUCT_STR     : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
-				var_set(ctx, A, B, opi_struct_str(ctx, var_get(ctx, C, D), var_get(ctx, E, F)));
+				X = var_get(ctx, C, D);
+				Y = var_get(ctx, E, F);
+				X = opi_struct_str(ctx, X, Y);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_STRUCT_LIST    : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
-				var_set(ctx, A, B, opi_struct_list(ctx, var_get(ctx, C, D), var_get(ctx, E, F)));
+				X = var_get(ctx, C, D);
+				Y = var_get(ctx, E, F);
+				X = opi_struct_list(ctx, X, Y);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_STRUCT_ISLE    : { // [TGT]
@@ -14162,59 +14188,68 @@ static sink_run context_run(context ctx){
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				var_set(ctx, A, B, opi_list_new(ctx, X, Y));
+				X = opi_list_new(ctx, X, Y);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_LIST_SHIFT     : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, opi_list_shift(ctx, X));
+				X = opi_list_shift(ctx, X);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_LIST_POP       : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, opi_list_pop(ctx, X));
+				X = opi_list_pop(ctx, X);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_LIST_PUSH      : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, opi_list_push(ctx, X, var_get(ctx, E, F)));
+				Y = var_get(ctx, E, F);
+				X = opi_list_push(ctx, X, Y);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_LIST_UNSHIFT   : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, opi_list_unshift(ctx, X, var_get(ctx, E, F)));
+				Y = var_get(ctx, E, F);
+				X = opi_list_unshift(ctx, X, Y);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_LIST_APPEND    : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				var_set(ctx, A, B, opi_list_append(ctx, X, Y));
+				X = opi_list_append(ctx, X, Y);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_LIST_PREPEND   : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				var_set(ctx, A, B, opi_list_prepend(ctx, X, Y));
+				X = opi_list_prepend(ctx, X, Y);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_LIST_FIND      : { // [TGT], [SRC1], [SRC2], [SRC3]
@@ -14222,9 +14257,10 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
-				var_set(ctx, A, B, opi_list_find(ctx, X, Y, Z));
+				X = opi_list_find(ctx, X, Y, Z);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_LIST_RFIND     : { // [TGT], [SRC1], [SRC2], [SRC3]
@@ -14232,34 +14268,38 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
-				var_set(ctx, A, B, opi_list_rfind(ctx, X, Y, Z));
+				X = opi_list_rfind(ctx, X, Y, Z);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_LIST_JOIN      : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				var_set(ctx, A, B, opi_list_join(ctx, X, Y));
+				X = opi_list_join(ctx, X, Y);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_LIST_REV       : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, opi_list_rev(ctx, X));
+				X = opi_list_rev(ctx, X);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_LIST_STR       : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, opi_list_str(ctx, X));
+				X = opi_list_str(ctx, X);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_LIST_SORT      : { // [TGT], [SRC]
@@ -14282,7 +14322,8 @@ static sink_run context_run(context ctx){
 
 			case OP_PICKLE_JSON    : { // [TGT], [SRC]
 				LOAD_abcd();
-				X = opi_pickle_json(ctx, var_get(ctx, C, D));
+				X = var_get(ctx, C, D);
+				X = opi_pickle_json(ctx, X);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
@@ -14290,7 +14331,8 @@ static sink_run context_run(context ctx){
 
 			case OP_PICKLE_BIN     : { // [TGT], [SRC]
 				LOAD_abcd();
-				X = opi_pickle_bin(ctx, var_get(ctx, C, D));
+				X = var_get(ctx, C, D);
+				X = opi_pickle_bin(ctx, X);
 				if (ctx->failed) // can fail in C impl because of SINK_TYPE_ASYNC
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
@@ -14298,7 +14340,8 @@ static sink_run context_run(context ctx){
 
 			case OP_PICKLE_VAL     : { // [TGT], [SRC]
 				LOAD_abcd();
-				X = opi_pickle_val(ctx, var_get(ctx, C, D));
+				X = var_get(ctx, C, D);
+				X = opi_pickle_val(ctx, X);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
@@ -14306,23 +14349,27 @@ static sink_run context_run(context ctx){
 
 			case OP_PICKLE_VALID   : { // [TGT], [SRC]
 				LOAD_abcd();
-				E = opi_pickle_valid(ctx, var_get(ctx, C, D));
+				X = var_get(ctx, C, D);
+				E = opi_pickle_valid(ctx, X);
 				var_set(ctx, A, B, E == 0 ? SINK_NIL : sink_num(E));
 			} break;
 
 			case OP_PICKLE_SIBLING : { // [TGT], [SRC]
 				LOAD_abcd();
-				var_set(ctx, A, B, sink_bool(opi_pickle_sibling(ctx, var_get(ctx, C, D))));
+				X = var_get(ctx, C, D);
+				var_set(ctx, A, B, sink_bool(opi_pickle_sibling(ctx, X)));
 			} break;
 
 			case OP_PICKLE_CIRCULAR: { // [TGT], [SRC]
 				LOAD_abcd();
-				var_set(ctx, A, B, sink_bool(opi_pickle_circular(ctx, var_get(ctx, C, D))));
+				X = var_get(ctx, C, D);
+				var_set(ctx, A, B, sink_bool(opi_pickle_circular(ctx, X)));
 			} break;
 
 			case OP_PICKLE_COPY    : { // [TGT], [SRC]
 				LOAD_abcd();
-				X = opi_pickle_copy(ctx, var_get(ctx, C, D));
+				X = var_get(ctx, C, D);
+				X = opi_pickle_copy(ctx, X);
 				if (ctx->failed) // can fail in C impl because of SINK_TYPE_ASYNC
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
