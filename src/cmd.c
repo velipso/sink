@@ -306,7 +306,11 @@ void print_help(){
 int main(int argc, char **argv){
 	bool compile = false;
 	bool compile_debug = false;
-	sink_scr_type input_type = SINK_SCR_REPL;
+	enum {
+		INPUT_REPL,
+		INPUT_FILE,
+		INPUT_EVAL
+	} input_type = INPUT_REPL;
 	char *input_content = NULL;
 
 	// first pass, just figure out what we're doing and validate arguments
@@ -349,7 +353,7 @@ int main(int argc, char **argv){
 			}
 			input_content = argv[i + 1];
 			i += 2; // skip over script
-			input_type = SINK_SCR_EVAL;
+			input_type = INPUT_EVAL;
 			break;
 		}
 		else{
@@ -360,12 +364,12 @@ int main(int argc, char **argv){
 			}
 			input_content = argv[i];
 			i++; // skip over file
-			input_type = SINK_SCR_FILE;
+			input_type = INPUT_FILE;
 			break;
 		}
 	}
 
-	if (compile && input_type == SINK_SCR_REPL){
+	if (compile && input_type == INPUT_REPL){
 		print_help();
 		return 1;
 	}
@@ -376,7 +380,7 @@ int main(int argc, char **argv){
 
 	// create the script with the current working directory
 	char *cwd = getcwd(NULL, 0);
-	sink_scr scr = sink_scr_new(inc, cwd, input_type);
+	sink_scr scr = sink_scr_new(inc, cwd, input_type == INPUT_REPL);
 	free(cwd);
 
 	// add the appropriate paths
@@ -406,15 +410,15 @@ int main(int argc, char **argv){
 	}
 
 	switch (input_type){
-		case SINK_SCR_FILE:
+		case INPUT_FILE:
 			if (compile)
 				return main_compile_file(scr, input_content, compile_debug);
 			return main_run(scr, input_content, s_argc, s_argv);
 
-		case SINK_SCR_REPL:
+		case INPUT_REPL:
 			return main_repl(scr, s_argc, s_argv);
 
-		case SINK_SCR_EVAL:
+		case INPUT_EVAL:
 			if (compile)
 				return main_compile_eval(scr, input_content, compile_debug);
 			return main_eval(scr, input_content, s_argc, s_argv);

@@ -6030,7 +6030,7 @@ typedef struct {
 	char *curdir;
 	char *file;
 	char *err;
-	sink_scr_type type;
+	bool repl;
 	enum {
 		SCM_UNKNOWN,
 		SCM_BINARY,
@@ -14679,11 +14679,11 @@ static void compiler_free(compiler cmp){
 // script API
 //
 
-sink_scr sink_scr_new(sink_inc_st inc, const char *curdir, sink_scr_type type){
+sink_scr sink_scr_new(sink_inc_st inc, const char *curdir, bool repl){
 	if (curdir != NULL && curdir[0] != '/')
 		fprintf(stderr, "Warning: sink current directory \"%s\" is not an absolute path\n", curdir);
 	script sc = mem_alloc(sizeof(script_st));
-	sc->prg = program_new(type == SINK_SCR_REPL);
+	sc->prg = program_new(repl);
 	sc->cmp = NULL;
 	sc->sinc = staticinc_new();
 	sc->cup = cleanup_new();
@@ -14694,7 +14694,7 @@ sink_scr sink_scr_new(sink_inc_st inc, const char *curdir, sink_scr_type type){
 	sc->curdir = curdir ? format("%s", curdir) : NULL;
 	sc->file = NULL;
 	sc->err = NULL;
-	sc->type = type;
+	sc->repl = repl;
 	sc->mode = SCM_UNKNOWN;
 	sc->binstate.buf = NULL;
 	return sc;
@@ -15050,7 +15050,8 @@ bool sink_scr_write(sink_scr scr, int size, const uint8_t *bytes){
 		}
 		#undef GETINT
 		#undef WRITE
-		if (sc->type == SINK_SCR_EVAL)
+		bool is_eval = !sc->repl && sc->file == NULL;
+		if (is_eval)
 			binary_validate(sc);
 		return sc->err == NULL;
 	}
@@ -15062,7 +15063,8 @@ bool sink_scr_write(sink_scr scr, int size, const uint8_t *bytes){
 		char *err = compiler_write(sc->cmp, size, bytes);
 		if (err)
 			sc->err = format("Error: %s", err);
-		text_validate(sc, sc->type == SINK_SCR_EVAL, true);
+		bool is_eval = !sc->repl && sc->file == NULL;
+		text_validate(sc, is_eval, true);
 		return sc->err == NULL;
 	}
 }
