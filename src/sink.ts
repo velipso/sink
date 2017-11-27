@@ -2050,7 +2050,7 @@ interface expr_st_INFIX {
 	type: expr_enum.INFIX;
 	flp: filepos_st;
 	left: expr_st;
-	right: expr_st;
+	right: expr_st | null;
 	k: ks_enum;
 }
 interface expr_st_CALL {
@@ -2069,8 +2069,8 @@ interface expr_st_SLICE {
 	type: expr_enum.SLICE;
 	flp: filepos_st;
 	obj: expr_st;
-	start: expr_st;
-	len: expr_st;
+	start: expr_st | null;
+	len: expr_st | null;
 }
 type expr_st = expr_st_NIL | expr_st_NUM | expr_st_STR | expr_st_LIST | expr_st_NAMES |
 	expr_st_PAREN | expr_st_GROUP | expr_st_CAT | expr_st_PREFIX | expr_st_INFIX | expr_st_CALL |
@@ -2099,7 +2099,7 @@ function expr_str(flp: filepos_st, str: string): expr_st {
 	};
 }
 
-function expr_list(flp: filepos_st, ex: expr_st): expr_st {
+function expr_list(flp: filepos_st, ex: expr_st | null): expr_st {
 	return {
 		flp: flp,
 		type: expr_enum.LIST,
@@ -2195,8 +2195,8 @@ function expr_prefix(flp: filepos_st, k: ks_enum, ex: expr_st): expr_st {
 	};
 }
 
-function expr_infix(flp: filepos_st, k: ks_enum, left: expr_st, right: expr_st): expr_st {
-	if (left.type === expr_enum.NUM && right.type === expr_enum.NUM){
+function expr_infix(flp: filepos_st, k: ks_enum, left: expr_st, right: expr_st | null): expr_st {
+	if (left.type === expr_enum.NUM && right !== null && right.type === expr_enum.NUM){
 		// check for compile-time numeric optimizations
 		if (k === ks_enum.PLUS){
 			left.num += right.num;
@@ -2223,9 +2223,9 @@ function expr_infix(flp: filepos_st, k: ks_enum, left: expr_st, right: expr_st):
 			return left;
 		}
 	}
-	if (k === ks_enum.COMMA)
+	if (k === ks_enum.COMMA && right !== null)
 		return expr_group(flp, left, right);
-	else if (k === ks_enum.TILDE)
+	else if (k === ks_enum.TILDE && right !== null)
 		return expr_cat(flp, left, right);
 	return {
 		flp: flp,
@@ -2254,7 +2254,8 @@ function expr_index(flp: filepos_st, obj: expr_st, key: expr_st): expr_st {
 	};
 }
 
-function expr_slice(flp: filepos_st, obj: expr_st, start: expr_st, len: expr_st): expr_st {
+function expr_slice(flp: filepos_st, obj: expr_st, start: expr_st | null,
+	len: expr_st | null): expr_st {
 	return {
 		flp: flp,
 		type: expr_enum.SLICE,
@@ -2367,8 +2368,8 @@ interface ast_st_FOR1 {
 	type: ast_enumt.FOR1;
 	flp: filepos_st;
 	forVar: boolean;
-	names1: string[];
-	names2: string[];
+	names1: string[] | null;
+	names2: string[] | null;
 	ex: expr_st;
 }
 interface ast_st_FOR2 {
@@ -2519,8 +2520,8 @@ function ast_enum(flp: filepos_st, lvalues: expr_st[]): ast_st {
 	};
 }
 
-function ast_for1(flp: filepos_st, forVar: boolean, names1: string[], names2: string[],
-	ex: expr_st): ast_st {
+function ast_for1(flp: filepos_st, forVar: boolean, names1: string[] | null,
+	names2: string[] | null, ex: expr_st): ast_st {
 	return {
 		flp: flp,
 		type: ast_enumt.FOR1,
@@ -2977,923 +2978,992 @@ function parser_lookup(pr: parser_st, flpL: filepos_st, retstate: prs_enum): nul
 	return null;
 }
 
+// function to enforce a tok_st_KS, to fanagle TypeScript's type-checking
+function forceKS(tk: tok_st): tok_st_KS {
+	if (tk.type !== tok_enum.KS)
+		throw new Error('Parser mid must be keyword');
+	return tk;
+}
+
 // returns null for success, or an error message
 function parser_process(pr: parser_st, stmts: ast_st[]): string | null {
-	return null;
-}
-/*
-static const char *parser_process(parser pr, list_ptr stmts){
-	tok tk1 = pr.tk1;
-	prs st = pr.state;
-	filepos_st flpT = tk1.flp;
-	filepos_st flpS = st.flpS;
-	filepos_st flpL = st.flpL;
-	filepos_st flpE = st.flpE;
+	if (pr.tk1 === null)
+		throw new Error('Parser cannot process null token');
+	if (pr.state === null)
+		throw new Error('Parser cannot process null state');
+	let tk1 = pr.tk1;
+	let st = pr.state;
+	let flpT = tk1.flp;
+	let flpS = st.flpS;
+	let flpL = st.flpL;
+	let flpE = st.flpE;
 	switch (st.state){
-		case PRS_STATEMENT:
-			if      (tk1.type === TOK_NEWLINE   ) return NULL;
-			else if (tok_isKS(tk1, ks_enum.BREAK    )) return parser_start(pr, flpT, PRS_BREAK    );
-			else if (tok_isKS(tk1, ks_enum.CONTINUE )) return parser_start(pr, flpT, PRS_CONTINUE );
-			else if (tok_isKS(tk1, ks_enum.DECLARE  )) return parser_start(pr, flpT, PRS_DECLARE  );
-			else if (tok_isKS(tk1, ks_enum.DEF      )) return parser_start(pr, flpT, PRS_DEF      );
-			else if (tok_isKS(tk1, ks_enum.DO       )) return parser_start(pr, flpT, PRS_DO       );
-			else if (tok_isKS(tk1, ks_enum.ENUM     )) return parser_start(pr, flpT, PRS_ENUM     );
-			else if (tok_isKS(tk1, ks_enum.FOR      )) return parser_start(pr, flpT, PRS_FOR      );
-			else if (tok_isKS(tk1, ks_enum.GOTO     )) return parser_start(pr, flpT, PRS_GOTO     );
-			else if (tok_isKS(tk1, ks_enum.IF       )) return parser_start(pr, flpT, PRS_IF       );
-			else if (tok_isKS(tk1, ks_enum.INCLUDE  )) return parser_start(pr, flpT, PRS_INCLUDE  );
-			else if (tok_isKS(tk1, ks_enum.NAMESPACE)) return parser_start(pr, flpT, PRS_NAMESPACE);
-			else if (tok_isKS(tk1, ks_enum.RETURN   )) return parser_start(pr, flpT, PRS_RETURN   );
-			else if (tok_isKS(tk1, ks_enum.USING    )) return parser_start(pr, flpT, PRS_USING    );
-			else if (tok_isKS(tk1, ks_enum.VAR      )) return parser_start(pr, flpT, PRS_VAR      );
-			else if (tk1.type === TOK_IDENT){
+		case prs_enum.STATEMENT:
+			if      (tk1.type === tok_enum.NEWLINE   ) return null;
+			else if (tok_isKS(tk1, ks_enum.BREAK    )) return parser_start(pr, flpT, prs_enum.BREAK    );
+			else if (tok_isKS(tk1, ks_enum.CONTINUE )) return parser_start(pr, flpT, prs_enum.CONTINUE );
+			else if (tok_isKS(tk1, ks_enum.DECLARE  )) return parser_start(pr, flpT, prs_enum.DECLARE  );
+			else if (tok_isKS(tk1, ks_enum.DEF      )) return parser_start(pr, flpT, prs_enum.DEF      );
+			else if (tok_isKS(tk1, ks_enum.DO       )) return parser_start(pr, flpT, prs_enum.DO       );
+			else if (tok_isKS(tk1, ks_enum.ENUM     )) return parser_start(pr, flpT, prs_enum.ENUM     );
+			else if (tok_isKS(tk1, ks_enum.FOR      )) return parser_start(pr, flpT, prs_enum.FOR      );
+			else if (tok_isKS(tk1, ks_enum.GOTO     )) return parser_start(pr, flpT, prs_enum.GOTO     );
+			else if (tok_isKS(tk1, ks_enum.IF       )) return parser_start(pr, flpT, prs_enum.IF       );
+			else if (tok_isKS(tk1, ks_enum.INCLUDE  )) return parser_start(pr, flpT, prs_enum.INCLUDE  );
+			else if (tok_isKS(tk1, ks_enum.NAMESPACE)) return parser_start(pr, flpT, prs_enum.NAMESPACE);
+			else if (tok_isKS(tk1, ks_enum.RETURN   )) return parser_start(pr, flpT, prs_enum.RETURN   );
+			else if (tok_isKS(tk1, ks_enum.USING    )) return parser_start(pr, flpT, prs_enum.USING    );
+			else if (tok_isKS(tk1, ks_enum.VAR      )) return parser_start(pr, flpT, prs_enum.VAR      );
+			else if (tk1.type === tok_enum.IDENT){
 				st.flpS = flpT;
-				return parser_lookup(pr, flpT, PRS_IDENTS);
+				return parser_lookup(pr, flpT, prs_enum.IDENTS);
 			}
 			else if (tok_isPre(tk1) || tok_isTerm(tk1)){
 				pr.level++;
-				st.state = PRS_EVAL;
+				st.state = prs_enum.EVAL;
 				st.flpS = flpT;
 				return parser_process(pr, stmts);
 			}
 			else if (tok_isMidStmt(tk1)){
-				if (st.next === NULL)
-					return "Invalid statement";
+				if (st.next === null)
+					return 'Invalid statement';
 				parser_pop(pr);
 				return parser_process(pr, stmts);
 			}
-			return "Invalid statement";
+			return 'Invalid statement';
 
-		case PRS_STATEMENT_END:
-			if (tk1.type !== TOK_NEWLINE)
-				return "Missing newline or semicolon";
-			st.state = PRS_STATEMENT;
-			return NULL;
+		case prs_enum.STATEMENT_END:
+			if (tk1.type !== tok_enum.NEWLINE)
+				return 'Missing newline or semicolon';
+			st.state = prs_enum.STATEMENT;
+			return null;
 
-		case PRS_LOOKUP:
+		case prs_enum.LOOKUP:
 			if (!tok_isKS(tk1, ks_enum.PERIOD)){
+				if (st.next === null)
+					throw new Error('Parser expecting lookup to return state');
 				st.next.names = st.names;
-				st.names = NULL;
 				parser_pop(pr);
 				return parser_process(pr, stmts);
 			}
-			st.state = PRS_LOOKUP_IDENT;
-			return NULL;
+			st.state = prs_enum.LOOKUP_IDENT;
+			return null;
 
-		case PRS_LOOKUP_IDENT:
-			if (tk1.type !== TOK_IDENT)
-				return "Expecting identifier";
-			list_ptr_push(st.names, tk1.u.ident);
-			tk1.u.ident = NULL;
-			st.state = PRS_LOOKUP;
-			return NULL;
+		case prs_enum.LOOKUP_IDENT:
+			if (tk1.type !== tok_enum.IDENT)
+				return 'Expecting identifier';
+			if (st.names === null || st.names === true)
+				throw new Error('Parser expecting names to be list');
+			st.names.push(tk1.ident);
+			st.state = prs_enum.LOOKUP;
+			return null;
 
-		case PRS_BODY:
-			st.state = PRS_BODY_STATEMENT;
-			parser_push(pr, PRS_STATEMENT);
+		case prs_enum.BODY:
+			st.state = prs_enum.BODY_STATEMENT;
+			parser_push(pr, prs_enum.STATEMENT);
 			return parser_process(pr, stmts);
 
-		case PRS_BODY_STATEMENT:
+		case prs_enum.BODY_STATEMENT:
 			if (tok_isMidStmt(tk1)){
 				parser_pop(pr);
 				return parser_process(pr, stmts);
 			}
-			parser_push(pr, PRS_STATEMENT);
-			return NULL;
+			parser_push(pr, prs_enum.STATEMENT);
+			return null;
 
-		case PRS_LVALUES:
-			if (tk1.type === TOK_NEWLINE){
+		case prs_enum.LVALUES:
+			if (tk1.type === tok_enum.NEWLINE){
+				if (st.next === null)
+					throw new Error('Parser expecting lvalues to return state');
 				st.next.lvalues = st.lvalues;
-				st.lvalues = NULL;
 				parser_pop(pr);
 				return parser_process(pr, stmts);
 			}
-			st.state = PRS_LVALUES_TERM_DONE;
-			parser_push(pr, PRS_LVALUES_TERM);
+			st.state = prs_enum.LVALUES_TERM_DONE;
+			parser_push(pr, prs_enum.LVALUES_TERM);
 			pr.state.lvaluesMode = st.lvaluesMode;
 			return parser_process(pr, stmts);
 
-		case PRS_LVALUES_TERM:
-			if (tk1.type === TOK_IDENT)
-				return parser_lookup(pr, flpT, PRS_LVALUES_TERM_LOOKUP);
-			if (st.lvaluesMode === LVM_ENUM)
-				return "Expecting enumerator name";
+		case prs_enum.LVALUES_TERM:
+			if (tk1.type === tok_enum.IDENT)
+				return parser_lookup(pr, flpT, prs_enum.LVALUES_TERM_LOOKUP);
+			if (st.lvaluesMode === lvm_enum.ENUM)
+				return 'Expecting enumerator name';
 			if (tok_isKS(tk1, ks_enum.LBRACE)){
-				st.state = PRS_LVALUES_TERM_LIST_DONE;
+				st.state = prs_enum.LVALUES_TERM_LIST_DONE;
 				st.flpE = flpT;
-				parser_push(pr, PRS_LVALUES_TERM_LIST);
-				return NULL;
+				parser_push(pr, prs_enum.LVALUES_TERM_LIST);
+				return null;
 			}
 			else if (tok_isKS(tk1, ks_enum.PERIOD3)){
-				if (st.lvaluesMode === LVM_DEF){
-					st.state = PRS_LVALUES_DEF_TAIL;
-					return NULL;
+				if (st.lvaluesMode === lvm_enum.DEF){
+					st.state = prs_enum.LVALUES_DEF_TAIL;
+					return null;
 				}
-				else if (st.lvaluesMode === LVM_LIST){
-					st.state = PRS_LVALUES_TERM_LIST_TAIL;
-					return NULL;
+				else if (st.lvaluesMode === lvm_enum.LIST){
+					st.state = prs_enum.LVALUES_TERM_LIST_TAIL;
+					return null;
 				}
 			}
-			return "Expecting variable";
+			return 'Expecting variable';
 
-		case PRS_LVALUES_TERM_LOOKUP:
+		case prs_enum.LVALUES_TERM_LOOKUP:
+			if (st.next === null)
+				throw new Error('Parser expecting lvalues to return state');
+			if (st.names === null || st.names === true)
+				throw new Error('Parser expecting names to be list of strings');
 			st.next.exprTerm = expr_names(flpL, st.names);
-			st.names = NULL;
 			parser_pop(pr);
 			return parser_process(pr, stmts);
 
-		case PRS_LVALUES_TERM_LIST:
-			if (tk1.type === TOK_NEWLINE && !tk1.u.soft)
-				return NULL;
+		case prs_enum.LVALUES_TERM_LIST:
+			if (tk1.type === tok_enum.NEWLINE && !tk1.soft)
+				return null;
 			else if (tok_isKS(tk1, ks_enum.RBRACE)){
+				if (st.next === null)
+					throw new Error('Parser expecting lvalues to return state');
 				st.next.exprTerm = st.exprTerm;
-				st.exprTerm = NULL;
 				parser_pop(pr);
-				return NULL;
+				return null;
 			}
-			st.state = PRS_LVALUES_TERM_LIST_TERM_DONE;
-			parser_push(pr, PRS_LVALUES_TERM);
-			pr.state.lvaluesMode = LVM_LIST;
+			st.state = prs_enum.LVALUES_TERM_LIST_TERM_DONE;
+			parser_push(pr, prs_enum.LVALUES_TERM);
+			pr.state.lvaluesMode = lvm_enum.LIST;
 			return parser_process(pr, stmts);
 
-		case PRS_LVALUES_TERM_LIST_TERM_DONE:
-			if (tk1.type === TOK_NEWLINE && !tk1.u.soft)
-				return NULL;
-			if (st.exprTerm2 === NULL){
+		case prs_enum.LVALUES_TERM_LIST_TERM_DONE:
+			if (tk1.type === tok_enum.NEWLINE && !tk1.soft)
+				return null;
+			if (st.exprTerm2 === null){
 				st.exprTerm2 = st.exprTerm;
-				st.exprTerm = NULL;
+				st.exprTerm = null;
 			}
 			else{
+				if (st.exprTerm === null)
+					throw new Error('Parser expression cannot be null');
 				st.exprTerm2 =
 					expr_infix(st.exprTerm2.flp, ks_enum.COMMA, st.exprTerm2, st.exprTerm);
-				st.exprTerm = NULL;
+				st.exprTerm = null;
 			}
 			if (tok_isKS(tk1, ks_enum.RBRACE)){
+				if (st.next === null)
+					throw new Error('Parser expecting lvalues to return state');
 				st.next.exprTerm = st.exprTerm2;
-				st.exprTerm2 = NULL;
+				st.exprTerm2 = null;
 				parser_pop(pr);
-				return NULL;
+				return null;
 			}
 			else if (tok_isKS(tk1, ks_enum.COMMA)){
-				parser_push(pr, PRS_LVALUES_TERM);
-				pr.state.lvaluesMode = LVM_LIST;
-				return NULL;
+				parser_push(pr, prs_enum.LVALUES_TERM);
+				pr.state.lvaluesMode = lvm_enum.LIST;
+				return null;
 			}
-			return "Invalid list";
+			return 'Invalid list';
 
-		case PRS_LVALUES_TERM_LIST_TAIL:
-			if (tk1.type !== TOK_IDENT)
-				return "Expecting identifier";
-			return parser_lookup(pr, flpT, PRS_LVALUES_TERM_LIST_TAIL_LOOKUP);
+		case prs_enum.LVALUES_TERM_LIST_TAIL:
+			if (tk1.type !== tok_enum.IDENT)
+				return 'Expecting identifier';
+			return parser_lookup(pr, flpT, prs_enum.LVALUES_TERM_LIST_TAIL_LOOKUP);
 
-		case PRS_LVALUES_TERM_LIST_TAIL_LOOKUP:
-			if (tk1.type === TOK_NEWLINE && !tk1.u.soft)
-				return NULL;
-			st.state = PRS_LVALUES_TERM_LIST_TAIL_DONE;
+		case prs_enum.LVALUES_TERM_LIST_TAIL_LOOKUP:
+			if (tk1.type === tok_enum.NEWLINE && !tk1.soft)
+				return null;
+			st.state = prs_enum.LVALUES_TERM_LIST_TAIL_DONE;
 			if (tok_isKS(tk1, ks_enum.COMMA))
-				return NULL;
+				return null;
 			return parser_process(pr, stmts);
 
-		case PRS_LVALUES_TERM_LIST_TAIL_DONE:
+		case prs_enum.LVALUES_TERM_LIST_TAIL_DONE:
 			if (!tok_isKS(tk1, ks_enum.RBRACE))
-				return "Missing end of list";
+				return 'Missing end of list';
+			if (st.next === null)
+				throw new Error('Parser expecting lvalues to return state');
+			if (st.names === null || st.names === true)
+				throw new Error('Parser lvalues should be list of strings');
 			st.next.exprTerm = expr_prefix(flpL, ks_enum.PERIOD3, expr_names(flpL, st.names));
-			st.names = NULL;
 			parser_pop(pr);
 			return parser_process(pr, stmts);
 
-		case PRS_LVALUES_TERM_LIST_DONE:
+		case prs_enum.LVALUES_TERM_LIST_DONE:
+			if (st.next === null)
+				throw new Error('Parser expecting lvalues to return state');
+			if (st.exprTerm === null)
+				throw new Error('Parser expecting lvalues expression');
 			st.next.exprTerm = expr_list(flpE, st.exprTerm);
-			st.exprTerm = NULL;
 			parser_pop(pr);
 			return parser_process(pr, stmts);
 
-		case PRS_LVALUES_TERM_DONE:
-			if (tk1.type === TOK_NEWLINE){
-				list_ptr_push(st.lvalues, expr_infix(flpT, ks_enum.EQU, st.exprTerm, NULL));
-				st.exprTerm = NULL;
+		case prs_enum.LVALUES_TERM_DONE:
+			if (st.lvalues === null)
+				throw new Error('Parser expecting lvalues as list of expressions');
+			if (st.exprTerm === null)
+				throw new Error('Parser expecting expression to be non-null');
+			if (st.next === null)
+				throw new Error('Parser expecting lvalues to return state');
+			if (tk1.type === tok_enum.NEWLINE){
+				st.lvalues.push(expr_infix(flpT, ks_enum.EQU, st.exprTerm, null));
 				st.next.lvalues = st.lvalues;
-				st.lvalues = NULL;
 				parser_pop(pr);
 				return parser_process(pr, stmts);
 			}
 			else if (tok_isKS(tk1, ks_enum.EQU)){
 				st.exprTerm2 = st.exprTerm;
-				st.exprTerm = NULL;
-				parser_expr(pr, PRS_LVALUES_TERM_EXPR);
+				st.exprTerm = null;
+				parser_expr(pr, prs_enum.LVALUES_TERM_EXPR);
 				pr.state.exprAllowComma = false;
-				return NULL;
+				return null;
 			}
 			else if (tok_isKS(tk1, ks_enum.COMMA)){
-				list_ptr_push(st.lvalues,
-					expr_infix(st.exprTerm.flp, ks_enum.EQU, st.exprTerm, NULL));
-				st.exprTerm = NULL;
-				st.state = PRS_LVALUES_MORE;
-				return NULL;
+				st.lvalues.push(expr_infix(st.exprTerm.flp, ks_enum.EQU, st.exprTerm, null));
+				st.exprTerm = null;
+				st.state = prs_enum.LVALUES_MORE;
+				return null;
 			}
-			return "Invalid declaration";
+			return 'Invalid declaration';
 
-		case PRS_LVALUES_TERM_EXPR:
-			list_ptr_push(st.lvalues,
-				expr_infix(st.exprTerm2.flp, ks_enum.EQU, st.exprTerm2, st.exprTerm));
-			st.exprTerm2 = NULL;
-			st.exprTerm = NULL;
-			if (tk1.type === TOK_NEWLINE){
+		case prs_enum.LVALUES_TERM_EXPR:
+			if (st.lvalues === null)
+				throw new Error('Parser expecting lvalues as list of expressions');
+			if (st.exprTerm2 === null)
+				throw new Error('Parser expecting expression to be non-null');
+			if (st.next === null)
+				throw new Error('Parser expecting lvalues to return state');
+			st.lvalues.push(expr_infix(st.exprTerm2.flp, ks_enum.EQU, st.exprTerm2, st.exprTerm));
+			st.exprTerm2 = null;
+			st.exprTerm = null;
+			if (tk1.type === tok_enum.NEWLINE){
 				st.next.lvalues = st.lvalues;
-				st.lvalues = NULL;
 				parser_pop(pr);
 				return parser_process(pr, stmts);
 			}
 			else if (tok_isKS(tk1, ks_enum.COMMA)){
-				st.state = PRS_LVALUES_MORE;
-				return NULL;
+				st.state = prs_enum.LVALUES_MORE;
+				return null;
 			}
-			return "Invalid declaration";
+			return 'Invalid declaration';
 
-		case PRS_LVALUES_MORE:
-			if (tk1.type === TOK_NEWLINE && !tk1.u.soft)
-				return NULL;
-			st.state = PRS_LVALUES_TERM_DONE;
-			parser_push(pr, PRS_LVALUES_TERM);
+		case prs_enum.LVALUES_MORE:
+			if (tk1.type === tok_enum.NEWLINE && !tk1.soft)
+				return null;
+			st.state = prs_enum.LVALUES_TERM_DONE;
+			parser_push(pr, prs_enum.LVALUES_TERM);
 			pr.state.lvaluesMode = st.lvaluesMode;
 			return parser_process(pr, stmts);
 
-		case PRS_LVALUES_DEF_TAIL:
-			if (tk1.type !== TOK_IDENT)
-				return "Expecting identifier";
-			return parser_lookup(pr, flpT, PRS_LVALUES_DEF_TAIL_DONE);
+		case prs_enum.LVALUES_DEF_TAIL:
+			if (tk1.type !== tok_enum.IDENT)
+				return 'Expecting identifier';
+			return parser_lookup(pr, flpT, prs_enum.LVALUES_DEF_TAIL_DONE);
 
-		case PRS_LVALUES_DEF_TAIL_DONE:
-			if (tk1.type !== TOK_NEWLINE)
-				return "Missing newline or semicolon";
+		case prs_enum.LVALUES_DEF_TAIL_DONE:
+			if (tk1.type !== tok_enum.NEWLINE)
+				return 'Missing newline or semicolon';
+			if (st.next === null)
+				throw new Error('Parser expecting lvalues to return state');
 			st.next.names = st.names;
-			st.names = NULL;
 			parser_pop(pr);
 			st = pr.state;
-			list_ptr_push(st.lvalues, expr_prefix(flpL, ks_enum.PERIOD3, expr_names(flpL, st.names)));
-			st.names = NULL;
+			if (st.lvalues === null)
+				throw new Error('Parser expecting lvalues to be list of expressions');
+			if (st.names === null || st.names === true)
+				throw new Error('Parser expecting names to be list of strings');
+			if (st.next === null)
+				throw new Error('Parser expecting lvalues to return state');
+			st.lvalues.push(expr_prefix(flpL, ks_enum.PERIOD3, expr_names(flpL, st.names)));
 			st.next.lvalues = st.lvalues;
-			st.lvalues = NULL;
 			parser_pop(pr);
 			return parser_process(pr, stmts);
 
-		case PRS_BREAK:
-			list_ptr_push(stmts, ast_break(flpS));
+		case prs_enum.BREAK:
+			stmts.push(ast_break(flpS));
 			return parser_statement(pr, stmts, false);
 
-		case PRS_CONTINUE:
-			list_ptr_push(stmts, ast_continue(flpS));
+		case prs_enum.CONTINUE:
+			stmts.push(ast_continue(flpS));
 			return parser_statement(pr, stmts, false);
 
-		case PRS_DECLARE:
-			if (tk1.type === TOK_NEWLINE && !tk1.u.soft)
-				return NULL;
-			if (tk1.type !== TOK_IDENT)
-				return "Expecting identifier";
-			return parser_lookup(pr, flpT, PRS_DECLARE_LOOKUP);
+		case prs_enum.DECLARE:
+			if (tk1.type === tok_enum.NEWLINE && !tk1.soft)
+				return null;
+			if (tk1.type !== tok_enum.IDENT)
+				return 'Expecting identifier';
+			return parser_lookup(pr, flpT, prs_enum.DECLARE_LOOKUP);
 
-		case PRS_DECLARE_LOOKUP:
+		case prs_enum.DECLARE_LOOKUP:
 			if (tok_isKS(tk1, ks_enum.LPAREN)){
-				st.state = PRS_DECLARE_STR;
-				return NULL;
+				st.state = prs_enum.DECLARE_STR;
+				return null;
 			}
-			list_ptr_push(stmts, ast_declare(flpS, decl_local(flpL, st.names)));
-			st.names = NULL;
+			if (st.names === null || st.names === true)
+				throw new Error('Parser expecting declare lookup to return names');
+			stmts.push(ast_declare(flpS, decl_local(flpL, st.names)));
 			if (tok_isKS(tk1, ks_enum.COMMA)){
-				st.state = PRS_DECLARE;
-				return NULL;
+				st.state = prs_enum.DECLARE;
+				return null;
 			}
 			return parser_statement(pr, stmts, false);
 
-		case PRS_DECLARE_STR:
-			if (tk1.type !== TOK_STR)
-				return "Expecting string constant";
-			list_ptr_push(stmts, ast_declare(flpS, decl_native(flpL, st.names, tk1.u.str)));
-			st.names = NULL;
-			tk1.u.str = NULL;
-			st.state = PRS_DECLARE_STR2;
-			return NULL;
+		case prs_enum.DECLARE_STR:
+			if (tk1.type !== tok_enum.STR)
+				return 'Expecting string constant';
+			if (st.names === null || st.names === true)
+				throw new Error('Parser expecting declare lookup to return names');
+			stmts.push(ast_declare(flpS, decl_native(flpL, st.names, tk1.str)));
+			st.state = prs_enum.DECLARE_STR2;
+			return null;
 
-		case PRS_DECLARE_STR2:
+		case prs_enum.DECLARE_STR2:
 			if (!tok_isKS(tk1, ks_enum.RPAREN))
-				return "Expecting string constant";
-			st.state = PRS_DECLARE_STR3;
-			return NULL;
+				return 'Expecting string constant';
+			st.state = prs_enum.DECLARE_STR3;
+			return null;
 
-		case PRS_DECLARE_STR3:
+		case prs_enum.DECLARE_STR3:
 			if (tok_isKS(tk1, ks_enum.COMMA)){
-				st.state = PRS_DECLARE;
-				return NULL;
+				st.state = prs_enum.DECLARE;
+				return null;
 			}
 			return parser_statement(pr, stmts, false);
 
-		case PRS_DEF:
-			if (tk1.type !== TOK_IDENT)
-				return "Expecting identifier";
-			return parser_lookup(pr, flpT, PRS_DEF_LOOKUP);
+		case prs_enum.DEF:
+			if (tk1.type !== tok_enum.IDENT)
+				return 'Expecting identifier';
+			return parser_lookup(pr, flpT, prs_enum.DEF_LOOKUP);
 
-		case PRS_DEF_LOOKUP:
-			parser_lvalues(pr, PRS_DEF_LVALUES, LVM_DEF);
+		case prs_enum.DEF_LOOKUP:
+			parser_lvalues(pr, prs_enum.DEF_LVALUES, lvm_enum.DEF);
 			return parser_process(pr, stmts);
 
-		case PRS_DEF_LVALUES:
-			if (tk1.type !== TOK_NEWLINE)
-				return "Missing newline or semicolon";
-			list_ptr_push(stmts, ast_def1(flpS, flpL, st.names, st.lvalues));
-			st.names = NULL;
-			st.lvalues = NULL;
-			st.state = PRS_DEF_BODY;
-			parser_push(pr, PRS_BODY);
-			return NULL;
+		case prs_enum.DEF_LVALUES:
+			if (tk1.type !== tok_enum.NEWLINE)
+				return 'Missing newline or semicolon';
+			if (st.names === null || st.names === true)
+				throw new Error('Parser def expecting names');
+			if (st.lvalues === null)
+				throw new Error('Parser def expecting lvalues');
+			stmts.push(ast_def1(flpS, flpL, st.names, st.lvalues));
+			st.state = prs_enum.DEF_BODY;
+			parser_push(pr, prs_enum.BODY);
+			return null;
 
-		case PRS_DEF_BODY:
+		case prs_enum.DEF_BODY:
 			if (!tok_isKS(tk1, ks_enum.END))
-				return "Missing `end` of def block";
-			list_ptr_push(stmts, ast_def2(flpS));
+				return 'Missing `end` of def block';
+			stmts.push(ast_def2(flpS));
 			return parser_statement(pr, stmts, true);
 
-		case PRS_DO:
-			list_ptr_push(stmts, ast_dowhile1(flpS));
-			st.state = PRS_DO_BODY;
-			parser_push(pr, PRS_BODY);
+		case prs_enum.DO:
+			stmts.push(ast_dowhile1(flpS));
+			st.state = prs_enum.DO_BODY;
+			parser_push(pr, prs_enum.BODY);
 			return parser_process(pr, stmts);
 
-		case PRS_DO_BODY:
+		case prs_enum.DO_BODY:
 			if (tok_isKS(tk1, ks_enum.WHILE)){
-				parser_expr(pr, PRS_DO_WHILE_EXPR);
-				return NULL;
+				parser_expr(pr, prs_enum.DO_WHILE_EXPR);
+				return null;
 			}
 			else if (tok_isKS(tk1, ks_enum.END)){
-				list_ptr_push(stmts, ast_dowhile2(flpS, NULL));
-				list_ptr_push(stmts, ast_dowhile3(flpS));
+				stmts.push(ast_dowhile2(flpS, null));
+				stmts.push(ast_dowhile3(flpS));
 				return parser_statement(pr, stmts, true);
 			}
-			return "Missing `while` or `end` of do block";
+			return 'Missing `while` or `end` of do block';
 
-		case PRS_DO_WHILE_EXPR:
-			list_ptr_push(stmts, ast_dowhile2(flpS, st.exprTerm));
-			st.exprTerm = NULL;
-			if (tk1.type === TOK_NEWLINE){
-				st.state = PRS_DO_WHILE_BODY;
-				parser_push(pr, PRS_BODY);
-				return NULL;
+		case prs_enum.DO_WHILE_EXPR:
+			stmts.push(ast_dowhile2(flpS, st.exprTerm));
+			st.exprTerm = null;
+			if (tk1.type === tok_enum.NEWLINE){
+				st.state = prs_enum.DO_WHILE_BODY;
+				parser_push(pr, prs_enum.BODY);
+				return null;
 			}
 			else if (tok_isKS(tk1, ks_enum.END)){
-				list_ptr_push(stmts, ast_dowhile3(flpS));
+				stmts.push(ast_dowhile3(flpS));
 				return parser_statement(pr, stmts, true);
 			}
-			return "Missing newline or semicolon";
+			return 'Missing newline or semicolon';
 
-		case PRS_DO_WHILE_BODY:
+		case prs_enum.DO_WHILE_BODY:
 			if (!tok_isKS(tk1, ks_enum.END))
-				return "Missing `end` of do-while block";
-			list_ptr_push(stmts, ast_dowhile3(flpS));
+				return 'Missing `end` of do-while block';
+			stmts.push(ast_dowhile3(flpS));
 			return parser_statement(pr, stmts, true);
 
-		case PRS_FOR:
-			if (tk1.type === TOK_NEWLINE){
-				list_ptr_push(stmts, ast_loop1(flpS));
-				st.state = PRS_LOOP_BODY;
-				parser_push(pr, PRS_BODY);
-				return NULL;
+		case prs_enum.FOR:
+			if (tk1.type === tok_enum.NEWLINE){
+				stmts.push(ast_loop1(flpS));
+				st.state = prs_enum.LOOP_BODY;
+				parser_push(pr, prs_enum.BODY);
+				return null;
 			}
 			else if (tok_isKS(tk1, ks_enum.COLON)){
-				st.state = PRS_FOR_VARS_DONE;
-				return NULL;
+				st.state = prs_enum.FOR_VARS_DONE;
+				return null;
 			}
-			st.state = PRS_FOR_VARS;
+			st.state = prs_enum.FOR_VARS;
 			if (tok_isKS(tk1, ks_enum.VAR)){
 				st.forVar = true;
-				return NULL;
+				return null;
 			}
 			return parser_process(pr, stmts);
 
-		case PRS_LOOP_BODY:
+		case prs_enum.LOOP_BODY:
 			if (!tok_isKS(tk1, ks_enum.END))
-				return "Missing `end` of for block";
-			list_ptr_push(stmts, ast_loop2(flpS));
+				return 'Missing `end` of for block';
+			stmts.push(ast_loop2(flpS));
 			return parser_statement(pr, stmts, true);
 
-		case PRS_FOR_VARS:
-			if (tk1.type !== TOK_IDENT)
-				return "Expecting identifier";
-			return parser_lookup(pr, flpT, PRS_FOR_VARS_LOOKUP);
+		case prs_enum.FOR_VARS:
+			if (tk1.type !== tok_enum.IDENT)
+				return 'Expecting identifier';
+			return parser_lookup(pr, flpT, prs_enum.FOR_VARS_LOOKUP);
 
-		case PRS_FOR_VARS_LOOKUP:
+		case prs_enum.FOR_VARS_LOOKUP:
+			if (st.names === null || st.names === true)
+				throw new Error('Parser `for` lookup expecting names');
 			st.names2 = st.names;
-			st.names = NULL;
+			st.names = null;
 			if (tok_isKS(tk1, ks_enum.COMMA)){
-				st.state = PRS_FOR_VARS2;
-				return NULL;
+				st.state = prs_enum.FOR_VARS2;
+				return null;
 			}
 			else if (tok_isKS(tk1, ks_enum.COLON)){
-				st.state = PRS_FOR_VARS_DONE;
-				return NULL;
+				st.state = prs_enum.FOR_VARS_DONE;
+				return null;
 			}
-			return "Invalid for loop";
+			return 'Invalid for loop';
 
-		case PRS_FOR_VARS2:
-			if (tk1.type !== TOK_IDENT)
-				return "Expecting identifier";
-			return parser_lookup(pr, flpT, PRS_FOR_VARS2_LOOKUP);
+		case prs_enum.FOR_VARS2:
+			if (tk1.type !== tok_enum.IDENT)
+				return 'Expecting identifier';
+			return parser_lookup(pr, flpT, prs_enum.FOR_VARS2_LOOKUP);
 
-		case PRS_FOR_VARS2_LOOKUP:
+		case prs_enum.FOR_VARS2_LOOKUP:
 			if (!tok_isKS(tk1, ks_enum.COLON))
-				return "Expecting `:`";
-			st.state = PRS_FOR_VARS_DONE;
-			return NULL;
+				return 'Expecting `:`';
+			st.state = prs_enum.FOR_VARS_DONE;
+			return null;
 
-		case PRS_FOR_VARS_DONE:
-			if (tk1.type === TOK_NEWLINE)
-				return "Expecting expression in for statement";
-			parser_expr(pr, PRS_FOR_EXPR);
+		case prs_enum.FOR_VARS_DONE:
+			if (tk1.type === tok_enum.NEWLINE)
+				return 'Expecting expression in for statement';
+			parser_expr(pr, prs_enum.FOR_EXPR);
 			return parser_process(pr, stmts);
 
-		case PRS_FOR_EXPR:
-			list_ptr_push(stmts, ast_for1(flpS, st.forVar, st.names2, st.names, st.exprTerm));
-			st.names2 = NULL;
-			st.names = NULL;
-			st.exprTerm = NULL;
-			if (tk1.type === TOK_NEWLINE){
-				st.state = PRS_FOR_BODY;
-				parser_push(pr, PRS_BODY);
-				return NULL;
+		case prs_enum.FOR_EXPR:
+			if (st.names === true)
+				throw new Error('Parser execting `for` names to be list of strings');
+			if (st.exprTerm === null)
+				throw new Error('Parser expecting `for` expression');
+			stmts.push(ast_for1(flpS, st.forVar, st.names2, st.names, st.exprTerm));
+			st.names2 = null;
+			st.names = null;
+			st.exprTerm = null;
+			if (tk1.type === tok_enum.NEWLINE){
+				st.state = prs_enum.FOR_BODY;
+				parser_push(pr, prs_enum.BODY);
+				return null;
 			}
 			else if (tok_isKS(tk1, ks_enum.END)){
-				list_ptr_push(stmts, ast_for2(flpS));
+				stmts.push(ast_for2(flpS));
 				return parser_statement(pr, stmts, true);
 			}
-			return "Missing newline or semicolon";
+			return 'Missing newline or semicolon';
 
-		case PRS_FOR_BODY:
+		case prs_enum.FOR_BODY:
 			if (!tok_isKS(tk1, ks_enum.END))
-				return "Missing `end` of for block";
-			list_ptr_push(stmts, ast_for2(flpS));
+				return 'Missing `end` of for block';
+			stmts.push(ast_for2(flpS));
 			return parser_statement(pr, stmts, true);
 
-		case PRS_GOTO:
-			if (tk1.type !== TOK_IDENT)
-				return "Expecting identifier";
-			list_ptr_push(stmts, ast_goto(flpS, tk1.u.ident));
-			tk1.u.ident = NULL;
+		case prs_enum.GOTO:
+			if (tk1.type !== tok_enum.IDENT)
+				return 'Expecting identifier';
+			stmts.push(ast_goto(flpS, tk1.ident));
 			return parser_statement(pr, stmts, true);
 
-		case PRS_IF:
-			list_ptr_push(stmts, ast_if1(flpS));
-			st.state = PRS_IF2;
+		case prs_enum.IF:
+			stmts.push(ast_if1(flpS));
+			st.state = prs_enum.IF2;
 			return parser_process(pr, stmts);
 
-		case PRS_IF2:
-			if (tk1.type === TOK_NEWLINE)
-				return "Missing conditional expression";
-			parser_expr(pr, PRS_IF_EXPR);
+		case prs_enum.IF2:
+			if (tk1.type === tok_enum.NEWLINE)
+				return 'Missing conditional expression';
+			parser_expr(pr, prs_enum.IF_EXPR);
 			return parser_process(pr, stmts);
 
-		case PRS_IF_EXPR:
-			list_ptr_push(stmts, ast_if2(flpS, st.exprTerm));
-			st.exprTerm = NULL;
-			if (tk1.type === TOK_NEWLINE){
-				st.state = PRS_IF_BODY;
-				parser_push(pr, PRS_BODY);
-				return NULL;
+		case prs_enum.IF_EXPR:
+			if (st.exprTerm === null)
+				throw new Error('Parser expecting `if` expression');
+			stmts.push(ast_if2(flpS, st.exprTerm));
+			st.exprTerm = null;
+			if (tk1.type === tok_enum.NEWLINE){
+				st.state = prs_enum.IF_BODY;
+				parser_push(pr, prs_enum.BODY);
+				return null;
 			}
 			else if (tok_isKS(tk1, ks_enum.ELSEIF)){
-				st.state = PRS_IF2;
-				return NULL;
+				st.state = prs_enum.IF2;
+				return null;
 			}
-			list_ptr_push(stmts, ast_if3(flpS));
+			stmts.push(ast_if3(flpS));
 			if (tok_isKS(tk1, ks_enum.ELSE)){
-				st.state = PRS_ELSE_BODY;
-				parser_push(pr, PRS_BODY);
-				return NULL;
+				st.state = prs_enum.ELSE_BODY;
+				parser_push(pr, prs_enum.BODY);
+				return null;
 			}
 			else if (tok_isKS(tk1, ks_enum.END)){
-				list_ptr_push(stmts, ast_if4(flpS));
+				stmts.push(ast_if4(flpS));
 				return parser_statement(pr, stmts, true);
 			}
-			return "Missing newline or semicolon";
+			return 'Missing newline or semicolon';
 
-		case PRS_IF_BODY:
+		case prs_enum.IF_BODY:
 			if (tok_isKS(tk1, ks_enum.ELSEIF)){
-				st.state = PRS_IF2;
-				return NULL;
+				st.state = prs_enum.IF2;
+				return null;
 			}
-			list_ptr_push(stmts, ast_if3(flpS));
+			stmts.push(ast_if3(flpS));
 			if (tok_isKS(tk1, ks_enum.ELSE)){
-				st.state = PRS_ELSE_BODY;
-				parser_push(pr, PRS_BODY);
-				return NULL;
+				st.state = prs_enum.ELSE_BODY;
+				parser_push(pr, prs_enum.BODY);
+				return null;
 			}
 			else if (tok_isKS(tk1, ks_enum.END)){
-				list_ptr_push(stmts, ast_if4(flpS));
+				stmts.push(ast_if4(flpS));
 				return parser_statement(pr, stmts, true);
 			}
-			return "Missing `elseif`, `else`, or `end` of if block";
+			return 'Missing `elseif`, `else`, or `end` of if block';
 
-		case PRS_ELSE_BODY:
+		case prs_enum.ELSE_BODY:
 			if (!tok_isKS(tk1, ks_enum.END))
-				return "Missing `end` of if block";
-			list_ptr_push(stmts, ast_if4(flpS));
+				return 'Missing `end` of if block';
+			stmts.push(ast_if4(flpS));
 			return parser_statement(pr, stmts, true);
 
-		case PRS_ENUM:
-			if (tk1.type === TOK_NEWLINE && !tk1.u.soft)
-				return NULL;
-			parser_lvalues(pr, PRS_ENUM_LVALUES, LVM_ENUM);
+		case prs_enum.ENUM:
+			if (tk1.type === tok_enum.NEWLINE && !tk1.soft)
+				return null;
+			parser_lvalues(pr, prs_enum.ENUM_LVALUES, lvm_enum.ENUM);
 			return parser_process(pr, stmts);
 
-		case PRS_ENUM_LVALUES:
-			if (st.lvalues.size <= 0)
-				return "Invalid enumerator declaration";
-			list_ptr_push(stmts, ast_enum(flpS, st.lvalues));
-			st.lvalues = NULL;
+		case prs_enum.ENUM_LVALUES:
+			if (st.lvalues === null)
+				throw new Error('Parser expecting `enum` lvalues');
+			if (st.lvalues.length <= 0)
+				return 'Invalid enumerator declaration';
+			stmts.push(ast_enum(flpS, st.lvalues));
+			st.lvalues = null;
 			return parser_statement(pr, stmts, false);
 
-		case PRS_INCLUDE:
-			if (tk1.type === TOK_NEWLINE && !tk1.u.soft)
-				return NULL;
-			else if (tk1.type === TOK_IDENT)
-				return parser_lookup(pr, flpT, PRS_INCLUDE_LOOKUP);
+		case prs_enum.INCLUDE:
+			if (tk1.type === tok_enum.NEWLINE && !tk1.soft)
+				return null;
+			else if (tk1.type === tok_enum.IDENT)
+				return parser_lookup(pr, flpT, prs_enum.INCLUDE_LOOKUP);
 			else if (tok_isKS(tk1, ks_enum.LPAREN)){
-				st.state = PRS_INCLUDE_STR;
-				return NULL;
+				st.state = prs_enum.INCLUDE_STR;
+				return null;
 			}
 			else if (tok_isKS(tk1, ks_enum.PLUS)){
-				st.names = INCL_UNIQUE;
-				st.state = PRS_INCLUDE_LOOKUP;
-				return NULL;
+				st.names = true;
+				st.state = prs_enum.INCLUDE_LOOKUP;
+				return null;
 			}
-			return "Expecting file as constant string literal";
+			return 'Expecting file as constant string literal';
 
-		case PRS_INCLUDE_LOOKUP:
+		case prs_enum.INCLUDE_LOOKUP:
 			if (!tok_isKS(tk1, ks_enum.LPAREN))
-				return "Expecting file as constant string literal";
-			st.state = PRS_INCLUDE_STR;
-			return NULL;
+				return 'Expecting file as constant string literal';
+			st.state = prs_enum.INCLUDE_STR;
+			return null;
 
-		case PRS_INCLUDE_STR:
-			if (tk1.type !== TOK_STR)
-				return "Expecting file as constant string literal";
-			st.str = tk1.u.str;
-			tk1.u.str = NULL;
-			st.state = PRS_INCLUDE_STR2;
-			return NULL;
+		case prs_enum.INCLUDE_STR:
+			if (tk1.type !== tok_enum.STR)
+				return 'Expecting file as constant string literal';
+			st.str = tk1.str;
+			st.state = prs_enum.INCLUDE_STR2;
+			return null;
 
-		case PRS_INCLUDE_STR2:
+		case prs_enum.INCLUDE_STR2:
 			if (!tok_isKS(tk1, ks_enum.RPAREN))
-				return "Expecting file as constant string literal";
-			st.state = PRS_INCLUDE_STR3;
-			return NULL;
+				return 'Expecting file as constant string literal';
+			st.state = prs_enum.INCLUDE_STR3;
+			return null;
 
-		case PRS_INCLUDE_STR3:
-			if (st.incls === NULL)
-				st.incls = list_ptr_new(incl_free);
-			list_byte_null(st.str);
-			list_ptr_push(st.incls, incl_new(st.names, st.str));
-			st.names = NULL;
-			st.str = NULL;
+		case prs_enum.INCLUDE_STR3:
+			if (st.incls === null)
+				st.incls = [];
+			st.incls.push(incl_new(st.names, st.str));
+			st.names = null;
+			st.str = '';
 			if (tok_isKS(tk1, ks_enum.COMMA)){
-				st.state = PRS_INCLUDE;
-				return NULL;
+				st.state = prs_enum.INCLUDE;
+				return null;
 			}
-			list_ptr_push(stmts, ast_include(flpS, st.incls));
-			st.incls = NULL;
+			stmts.push(ast_include(flpS, st.incls));
+			st.incls = null;
 			return parser_statement(pr, stmts, false);
 
-		case PRS_NAMESPACE:
-			if (tk1.type !== TOK_IDENT)
-				return "Expecting identifier";
-			return parser_lookup(pr, flpT, PRS_NAMESPACE_LOOKUP);
+		case prs_enum.NAMESPACE:
+			if (tk1.type !== tok_enum.IDENT)
+				return 'Expecting identifier';
+			return parser_lookup(pr, flpT, prs_enum.NAMESPACE_LOOKUP);
 
-		case PRS_NAMESPACE_LOOKUP:
-			if (tk1.type !== TOK_NEWLINE)
-				return "Missing newline or semicolon";
-			list_ptr_push(stmts, ast_namespace1(flpS, st.names));
-			st.names = NULL;
-			st.state = PRS_NAMESPACE_BODY;
-			parser_push(pr, PRS_BODY);
-			return NULL;
+		case prs_enum.NAMESPACE_LOOKUP:
+			if (tk1.type !== tok_enum.NEWLINE)
+				return 'Missing newline or semicolon';
+			if (st.names === null || st.names === true)
+				throw new Error('Parser expecting `namespace` names');
+			stmts.push(ast_namespace1(flpS, st.names));
+			st.state = prs_enum.NAMESPACE_BODY;
+			parser_push(pr, prs_enum.BODY);
+			return null;
 
-		case PRS_NAMESPACE_BODY:
+		case prs_enum.NAMESPACE_BODY:
 			if (!tok_isKS(tk1, ks_enum.END))
-				return "Missing `end` of namespace block";
-			list_ptr_push(stmts, ast_namespace2(flpS));
+				return 'Missing `end` of namespace block';
+			stmts.push(ast_namespace2(flpS));
 			return parser_statement(pr, stmts, true);
 
-		case PRS_RETURN:
-			if (tk1.type === TOK_NEWLINE){
-				list_ptr_push(stmts, ast_return(flpS, expr_nil(flpS)));
+		case prs_enum.RETURN:
+			if (tk1.type === tok_enum.NEWLINE){
+				stmts.push(ast_return(flpS, expr_nil(flpS)));
 				return parser_statement(pr, stmts, false);
 			}
-			parser_expr(pr, PRS_RETURN_DONE);
+			parser_expr(pr, prs_enum.RETURN_DONE);
 			return parser_process(pr, stmts);
 
-		case PRS_RETURN_DONE:
-			list_ptr_push(stmts, ast_return(flpS, st.exprTerm));
-			st.exprTerm = NULL;
+		case prs_enum.RETURN_DONE:
+			if (st.exprTerm === null)
+				throw new Error('Parser expecting `return` expression');
+			stmts.push(ast_return(flpS, st.exprTerm));
+			st.exprTerm = null;
 			return parser_statement(pr, stmts, false);
 
-		case PRS_USING:
-			if (tk1.type === TOK_NEWLINE && !tk1.u.soft)
-				return NULL;
-			if (tk1.type !== TOK_IDENT)
-				return "Expecting identifier";
-			return parser_lookup(pr, flpT, PRS_USING_LOOKUP);
+		case prs_enum.USING:
+			if (tk1.type === tok_enum.NEWLINE && !tk1.soft)
+				return null;
+			if (tk1.type !== tok_enum.IDENT)
+				return 'Expecting identifier';
+			return parser_lookup(pr, flpT, prs_enum.USING_LOOKUP);
 
-		case PRS_USING_LOOKUP:
-			list_ptr_push(stmts, ast_using(flpS, st.names));
-			st.names = NULL;
+		case prs_enum.USING_LOOKUP:
+			if (st.names === null || st.names === true)
+				throw new Error('Parser expecting `using` names');
+			stmts.push(ast_using(flpS, st.names));
 			if (tok_isKS(tk1, ks_enum.COMMA)){
-				st.state = PRS_USING;
-				return NULL;
+				st.state = prs_enum.USING;
+				return null;
 			}
 			return parser_statement(pr, stmts, false);
 
-		case PRS_VAR:
-			if (tk1.type === TOK_NEWLINE && !tk1.u.soft)
-				return NULL;
-			parser_lvalues(pr, PRS_VAR_LVALUES, LVM_VAR);
+		case prs_enum.VAR:
+			if (tk1.type === tok_enum.NEWLINE && !tk1.soft)
+				return null;
+			parser_lvalues(pr, prs_enum.VAR_LVALUES, lvm_enum.VAR);
 			return parser_process(pr, stmts);
 
-		case PRS_VAR_LVALUES:
-			if (st.lvalues.size <= 0)
-				return "Invalid variable declaration";
-			list_ptr_push(stmts, ast_var(flpS, st.lvalues));
-			st.lvalues = NULL;
+		case prs_enum.VAR_LVALUES:
+			if (st.lvalues === null)
+				throw new Error('Parser expecting `var` lvalues');
+			if (st.lvalues.length <= 0)
+				return 'Invalid variable declaration';
+			stmts.push(ast_var(flpS, st.lvalues));
 			return parser_statement(pr, stmts, false);
 
-		case PRS_IDENTS:
-			if (st.names.size === 1 && tok_isKS(tk1, ks_enum.COLON)){
-				list_ptr_push(stmts, ast_label(st.flpS, list_ptr_pop(st.names)));
-				list_ptr_free(st.names);
-				st.names = NULL;
-				st.state = PRS_STATEMENT;
-				return NULL;
+		case prs_enum.IDENTS:
+			if (st.names === null || st.names === true)
+				throw new Error('Parser expecting list of strings for names');
+			if (st.names.length === 1 && tok_isKS(tk1, ks_enum.COLON)){
+				stmts.push(ast_label(st.flpS, st.names[0]));
+				st.state = prs_enum.STATEMENT;
+				return null;
 			}
 			pr.level++;
-			st.state = PRS_EVAL_EXPR;
-			parser_push(pr, PRS_EXPR_POST);
+			st.state = prs_enum.EVAL_EXPR;
+			parser_push(pr, prs_enum.EXPR_POST);
 			pr.state.exprTerm = expr_names(flpL, st.names);
-			st.names = NULL;
 			return parser_process(pr, stmts);
 
-		case PRS_EVAL:
-			parser_expr(pr, PRS_EVAL_EXPR);
+		case prs_enum.EVAL:
+			parser_expr(pr, prs_enum.EVAL_EXPR);
 			return parser_process(pr, stmts);
 
-		case PRS_EVAL_EXPR:
-			list_ptr_push(stmts, ast_eval(flpS, st.exprTerm));
-			st.exprTerm = NULL;
+		case prs_enum.EVAL_EXPR:
+			if (st.exprTerm === null)
+				throw new Error('Parser expecting expression');
+			stmts.push(ast_eval(flpS, st.exprTerm));
+			st.exprTerm = null;
 			return parser_statement(pr, stmts, false);
 
-		case PRS_EXPR:
+		case prs_enum.EXPR:
 			st.flpE = flpT;
-			st.state = PRS_EXPR_PRE;
+			st.state = prs_enum.EXPR_PRE;
 			// fall through
-		case PRS_EXPR_PRE:
+		case prs_enum.EXPR_PRE:
 			if (tok_isPre(tk1)){
 				st.exprPreStack = ets_new(tk1, st.exprPreStack);
-				pr.tk1 = NULL;
-				return NULL;
+				return null;
 			}
-			st.state = PRS_EXPR_TERM;
+			st.state = prs_enum.EXPR_TERM;
 			return parser_process(pr, stmts);
 
-		case PRS_EXPR_TERM:
-			if (tk1.type === TOK_NEWLINE && !tk1.u.soft)
-				return NULL;
+		case prs_enum.EXPR_TERM:
+			if (tk1.type === tok_enum.NEWLINE && !tk1.soft)
+				return null;
 			else if (tok_isKS(tk1, ks_enum.NIL)){
-				st.state = PRS_EXPR_POST;
+				st.state = prs_enum.EXPR_POST;
 				st.exprTerm = expr_nil(flpT);
-				return NULL;
+				return null;
 			}
-			else if (tk1.type === TOK_NUM){
-				st.state = PRS_EXPR_POST;
-				st.exprTerm = expr_num(flpT, tk1.u.num);
-				return NULL;
+			else if (tk1.type === tok_enum.NUM){
+				st.state = prs_enum.EXPR_POST;
+				st.exprTerm = expr_num(flpT, tk1.num);
+				return null;
 			}
-			else if (tk1.type === TOK_STR){
-				st.state = PRS_EXPR_POST;
-				st.exprTerm = expr_str(flpT, tk1.u.str);
-				tk1.u.str = NULL;
-				return NULL;
+			else if (tk1.type === tok_enum.STR){
+				st.state = prs_enum.EXPR_POST;
+				st.exprTerm = expr_str(flpT, tk1.str);
+				return null;
 			}
-			else if (tk1.type === TOK_IDENT)
-				return parser_lookup(pr, flpT, PRS_EXPR_TERM_LOOKUP);
+			else if (tk1.type === tok_enum.IDENT)
+				return parser_lookup(pr, flpT, prs_enum.EXPR_TERM_LOOKUP);
 			else if (tok_isKS(tk1, ks_enum.LBRACE)){
-				st.state = PRS_EXPR_TERM_ISEMPTYLIST;
-				return NULL;
+				st.state = prs_enum.EXPR_TERM_ISEMPTYLIST;
+				return null;
 			}
 			else if (tok_isKS(tk1, ks_enum.LPAREN)){
-				parser_expr(pr, PRS_EXPR_TERM_CLOSEPAREN);
+				parser_expr(pr, prs_enum.EXPR_TERM_CLOSEPAREN);
 				pr.state.exprAllowTrailComma = true;
-				return NULL;
+				return null;
 			}
-			return "Invalid expression";
+			return 'Invalid expression';
 
-		case PRS_EXPR_TERM_ISEMPTYLIST:
-			if (tk1.type === TOK_NEWLINE && !tk1.u.soft)
-				return NULL;
+		case prs_enum.EXPR_TERM_ISEMPTYLIST:
+			if (tk1.type === tok_enum.NEWLINE && !tk1.soft)
+				return null;
 			else if (tok_isKS(tk1, ks_enum.RBRACE)){
-				st.state = PRS_EXPR_POST;
-				st.exprTerm = expr_list(flpE, NULL);
-				return NULL;
+				st.state = prs_enum.EXPR_POST;
+				st.exprTerm = expr_list(flpE, null);
+				return null;
 			}
-			parser_expr(pr, PRS_EXPR_TERM_CLOSEBRACE);
+			parser_expr(pr, prs_enum.EXPR_TERM_CLOSEBRACE);
 			pr.state.exprAllowTrailComma = true;
 			return parser_process(pr, stmts);
 
-		case PRS_EXPR_TERM_CLOSEBRACE:
-			if (tk1.type === TOK_NEWLINE && !tk1.u.soft)
-				return NULL;
+		case prs_enum.EXPR_TERM_CLOSEBRACE:
+			if (tk1.type === tok_enum.NEWLINE && !tk1.soft)
+				return null;
 			if (!tok_isKS(tk1, ks_enum.RBRACE))
-				return "Expecting close brace";
+				return 'Expecting close brace';
 			st.exprTerm = expr_list(flpE, st.exprTerm);
-			st.state = PRS_EXPR_POST;
-			return NULL;
+			st.state = prs_enum.EXPR_POST;
+			return null;
 
-		case PRS_EXPR_TERM_CLOSEPAREN:
-			if (tk1.type === TOK_NEWLINE && !tk1.u.soft)
-				return NULL;
+		case prs_enum.EXPR_TERM_CLOSEPAREN:
+			if (tk1.type === tok_enum.NEWLINE && !tk1.soft)
+				return null;
 			if (!tok_isKS(tk1, ks_enum.RPAREN))
-				return "Expecting close parenthesis";
+				return 'Expecting close parenthesis';
+			if (st.exprTerm === null)
+				throw new Error('Parser expecting parenthesis to contain expression');
 			st.exprTerm = expr_paren(st.exprTerm.flp, st.exprTerm);
-			st.state = PRS_EXPR_POST;
-			return NULL;
+			st.state = prs_enum.EXPR_POST;
+			return null;
 
-		case PRS_EXPR_TERM_LOOKUP:
+		case prs_enum.EXPR_TERM_LOOKUP:
+			if (st.names === null || st.names === true)
+				throw new Error('Parser expression expecting names');
 			st.exprTerm = expr_names(flpL, st.names);
-			st.names = NULL;
-			st.state = PRS_EXPR_POST;
+			st.state = prs_enum.EXPR_POST;
 			return parser_process(pr, stmts);
 
-		case PRS_EXPR_POST:
-			if (tk1.type === TOK_NEWLINE ||
-				tok_isKS(tk1, ks_enum.END) || tok_isKS(tk1, ks_enum.ELSE) || tok_isKS(tk1, ks_enum.ELSEIF)){
-				st.state = PRS_EXPR_FINISH;
+		case prs_enum.EXPR_POST:
+			if (tk1.type === tok_enum.NEWLINE || tok_isKS(tk1, ks_enum.END) ||
+				tok_isKS(tk1, ks_enum.ELSE) || tok_isKS(tk1, ks_enum.ELSEIF)){
+				st.state = prs_enum.EXPR_FINISH;
 				return parser_process(pr, stmts);
 			}
 			else if (tok_isKS(tk1, ks_enum.LBRACKET)){
-				st.state = PRS_EXPR_INDEX_CHECK;
-				return NULL;
+				st.state = prs_enum.EXPR_INDEX_CHECK;
+				return null;
 			}
 			else if (tok_isMid(tk1, st.exprAllowComma, st.exprAllowPipe)){
 				if (st.exprAllowTrailComma && tok_isKS(tk1, ks_enum.COMMA)){
-					st.state = PRS_EXPR_COMMA;
-					return NULL;
+					st.state = prs_enum.EXPR_COMMA;
+					return null;
 				}
-				st.state = PRS_EXPR_MID;
+				st.state = prs_enum.EXPR_MID;
 				return parser_process(pr, stmts);
 			}
 			else if (tok_isKS(tk1, ks_enum.RBRACE) || tok_isKS(tk1, ks_enum.RBRACKET) ||
-				tok_isKS(tk1, ks_enum.RPAREN) || tok_isKS(tk1, ks_enum.COLON) || tok_isKS(tk1, ks_enum.COMMA) ||
-				tok_isKS(tk1, ks_enum.PIPE)){
-				st.state = PRS_EXPR_FINISH;
+				tok_isKS(tk1, ks_enum.RPAREN) || tok_isKS(tk1, ks_enum.COLON) ||
+				tok_isKS(tk1, ks_enum.COMMA) || tok_isKS(tk1, ks_enum.PIPE)){
+				st.state = prs_enum.EXPR_FINISH;
 				return parser_process(pr, stmts);
 			}
 			// otherwise, this should be a call
 			st.exprTerm2 = st.exprTerm;
-			st.exprTerm = NULL;
-			parser_expr(pr, PRS_EXPR_POST_CALL);
+			st.exprTerm = null;
+			parser_expr(pr, prs_enum.EXPR_POST_CALL);
 			pr.state.exprAllowPipe = false;
 			return parser_process(pr, stmts);
 
-		case PRS_EXPR_POST_CALL:
+		case prs_enum.EXPR_POST_CALL:
+			if (st.exprTerm2 === null || st.exprTerm === null)
+				throw new Error('Parser call expecting expressions');
 			st.exprTerm = expr_call(st.exprTerm2.flp, st.exprTerm2, st.exprTerm);
-			st.exprTerm2 = NULL;
-			st.state = PRS_EXPR_POST;
+			st.exprTerm2 = null;
+			st.state = prs_enum.EXPR_POST;
 			return parser_process(pr, stmts);
 
-		case PRS_EXPR_INDEX_CHECK:
-			if (tk1.type === TOK_NEWLINE && !tk1.u.soft)
-				return NULL;
+		case prs_enum.EXPR_INDEX_CHECK:
+			if (tk1.type === tok_enum.NEWLINE && !tk1.soft)
+				return null;
 			if (tok_isKS(tk1, ks_enum.COLON)){
-				st.state = PRS_EXPR_INDEX_COLON_CHECK;
-				return NULL;
+				st.state = prs_enum.EXPR_INDEX_COLON_CHECK;
+				return null;
 			}
 			st.exprTerm2 = st.exprTerm;
-			st.exprTerm = NULL;
-			parser_expr(pr, PRS_EXPR_INDEX_EXPR_CHECK);
+			st.exprTerm = null;
+			parser_expr(pr, prs_enum.EXPR_INDEX_EXPR_CHECK);
 			return parser_process(pr, stmts);
 
-		case PRS_EXPR_INDEX_COLON_CHECK:
-			if (tk1.type === TOK_NEWLINE && !tk1.u.soft)
-				return NULL;
+		case prs_enum.EXPR_INDEX_COLON_CHECK:
+			if (tk1.type === tok_enum.NEWLINE && !tk1.soft)
+				return null;
 			if (tok_isKS(tk1, ks_enum.RBRACKET)){
-				st.exprTerm = expr_slice(flpT, st.exprTerm, NULL, NULL);
-				st.state = PRS_EXPR_POST;
-				return NULL;
+				if (st.exprTerm === null)
+					throw new Error('Parser expression index expecting object for indexing');
+				st.exprTerm = expr_slice(flpT, st.exprTerm, null, null);
+				st.state = prs_enum.EXPR_POST;
+				return null;
 			}
 			st.exprTerm2 = st.exprTerm;
-			st.exprTerm = NULL;
-			parser_expr(pr, PRS_EXPR_INDEX_COLON_EXPR);
+			st.exprTerm = null;
+			parser_expr(pr, prs_enum.EXPR_INDEX_COLON_EXPR);
 			return parser_process(pr, stmts);
 
-		case PRS_EXPR_INDEX_COLON_EXPR:
-			if (tk1.type === TOK_NEWLINE && !tk1.u.soft)
-				return NULL;
+		case prs_enum.EXPR_INDEX_COLON_EXPR:
+			if (tk1.type === tok_enum.NEWLINE && !tk1.soft)
+				return null;
 			if (!tok_isKS(tk1, ks_enum.RBRACKET))
-				return "Missing close bracket";
-			st.exprTerm = expr_slice(st.exprTerm.flp, st.exprTerm2, NULL, st.exprTerm);
-			st.exprTerm2 = NULL;
-			st.state = PRS_EXPR_POST;
-			return NULL;
+				return 'Missing close bracket';
+			if (st.exprTerm2 === null || st.exprTerm === null)
+				throw new Error('Parser expression index expecting object for indexing');
+			st.exprTerm = expr_slice(st.exprTerm.flp, st.exprTerm2, null, st.exprTerm);
+			st.exprTerm2 = null;
+			st.state = prs_enum.EXPR_POST;
+			return null;
 
-		case PRS_EXPR_INDEX_EXPR_CHECK:
-			if (tk1.type === TOK_NEWLINE && !tk1.u.soft)
-				return NULL;
+		case prs_enum.EXPR_INDEX_EXPR_CHECK:
+			if (tk1.type === tok_enum.NEWLINE && !tk1.soft)
+				return null;
 			if (tok_isKS(tk1, ks_enum.COLON)){
-				st.state = PRS_EXPR_INDEX_EXPR_COLON_CHECK;
-				return NULL;
+				st.state = prs_enum.EXPR_INDEX_EXPR_COLON_CHECK;
+				return null;
 			}
 			if (!tok_isKS(tk1, ks_enum.RBRACKET))
-				return "Missing close bracket";
+				return 'Missing close bracket';
+			if (st.exprTerm2 === null || st.exprTerm === null)
+				throw new Error('Parser expression index expecting object for indexing');
 			st.exprTerm = expr_index(st.exprTerm.flp, st.exprTerm2, st.exprTerm);
-			st.exprTerm2 = NULL;
-			st.state = PRS_EXPR_POST;
-			return NULL;
+			st.exprTerm2 = null;
+			st.state = prs_enum.EXPR_POST;
+			return null;
 
-		case PRS_EXPR_INDEX_EXPR_COLON_CHECK:
-			if (tk1.type === TOK_NEWLINE && !tk1.u.soft)
-				return NULL;
+		case prs_enum.EXPR_INDEX_EXPR_COLON_CHECK:
+			if (tk1.type === tok_enum.NEWLINE && !tk1.soft)
+				return null;
 			if (tok_isKS(tk1, ks_enum.RBRACKET)){
-				st.exprTerm = expr_slice(st.exprTerm.flp, st.exprTerm2, st.exprTerm, NULL);
-				st.exprTerm2 = NULL;
-				st.state = PRS_EXPR_POST;
-				return NULL;
+				if (st.exprTerm === null || st.exprTerm2 === null)
+					throw new Error('Parser expression index expecting object for indexing');
+				st.exprTerm = expr_slice(st.exprTerm.flp, st.exprTerm2, st.exprTerm, null);
+				st.exprTerm2 = null;
+				st.state = prs_enum.EXPR_POST;
+				return null;
 			}
 			st.exprTerm3 = st.exprTerm;
-			st.exprTerm = NULL;
-			parser_expr(pr, PRS_EXPR_INDEX_EXPR_COLON_EXPR);
+			st.exprTerm = null;
+			parser_expr(pr, prs_enum.EXPR_INDEX_EXPR_COLON_EXPR);
 			return parser_process(pr, stmts);
 
-		case PRS_EXPR_INDEX_EXPR_COLON_EXPR:
-			if (tk1.type === TOK_NEWLINE && !tk1.u.soft)
-				return NULL;
+		case prs_enum.EXPR_INDEX_EXPR_COLON_EXPR:
+			if (tk1.type === tok_enum.NEWLINE && !tk1.soft)
+				return null;
 			if (!tok_isKS(tk1, ks_enum.RBRACKET))
-				return "Missing close bracket";
+				return 'Missing close bracket';
+			if (st.exprTerm3 === null || st.exprTerm2 === null || st.exprTerm === null)
+				throw new Error('Parser expression index expecting expressions');
 			st.exprTerm =
 				expr_slice(st.exprTerm3.flp, st.exprTerm2, st.exprTerm3, st.exprTerm);
-			st.exprTerm2 = NULL;
-			st.exprTerm3 = NULL;
-			st.state = PRS_EXPR_POST;
-			return NULL;
+			st.exprTerm2 = null;
+			st.exprTerm3 = null;
+			st.state = prs_enum.EXPR_POST;
+			return null;
 
-		case PRS_EXPR_COMMA:
-			if (tk1.type === TOK_NEWLINE && !tk1.u.soft){
+		case prs_enum.EXPR_COMMA:
+			if (tk1.type === tok_enum.NEWLINE && !tk1.soft){
 				parser_rev(pr); // keep the comma in tk1
-				tok_free(pr.tkR); // free the newline
-				pr.tkR = NULL;
-				return NULL;
+				pr.tkR = null;
+				return null;
 			}
 			if (!tok_isKS(tk1, ks_enum.RPAREN) && !tok_isKS(tk1, ks_enum.RBRACE)){
-				st.state = PRS_EXPR_MID;
+				st.state = prs_enum.EXPR_MID;
 				parser_rev(pr);
 				parser_process(pr, stmts);
+				if (pr.tkR === null)
+					throw new Error('Parser reverse should have set tkR');
 				parser_fwd(pr, pr.tkR);
 				return parser_process(pr, stmts);
 			}
 			// found a trailing comma
-			st.state = PRS_EXPR_FINISH;
+			st.state = prs_enum.EXPR_FINISH;
 			return parser_process(pr, stmts);
 
-		case PRS_EXPR_MID:
+		case prs_enum.EXPR_MID:
 			if (!tok_isMid(tk1, st.exprAllowComma, st.exprAllowPipe)){
-				st.state = PRS_EXPR_FINISH;
+				st.state = prs_enum.EXPR_FINISH;
 				return parser_process(pr, stmts);
 			}
 			while (true){
 				// fight between the Pre and the Mid
-				while (st.exprPreStack !== NULL && tok_isPreBeforeMid(st.exprPreStack.tk, tk1)){
+				while (true){
+					if (tk1.type !== tok_enum.KS || st.exprPreStack === null ||
+						st.exprPreStack.tk.type !== tok_enum.KS)
+						throw new Error('Parser expression mid expecting keyword');
+					if (st.exprPreStack === null || !tok_isPreBeforeMid(st.exprPreStack.tk, tk1))
+						break;
 					// apply the Pre
-					tok ptk = st.exprPreStack.tk;
-					st.exprTerm = expr_prefix(ptk.flp, ptk.u.k, st.exprTerm);
-					ets next = st.exprPreStack.next;
-					ets_free(st.exprPreStack);
-					st.exprPreStack = next;
+					let ptk = st.exprPreStack.tk;
+					if (st.exprTerm === null)
+						throw new Error('Parser expression mid expecting expression');
+					st.exprTerm = expr_prefix(ptk.flp, ptk.k, st.exprTerm);
+					st.exprPreStack = st.exprPreStack.next;
 				}
 
 				// if we've exhaused the exprPreStack, then check against the exprMidStack
-				if (st.exprPreStack === NULL && st.exprMidStack !== NULL &&
-					tok_isMidBeforeMid(st.exprMidStack.tk, tk1)){
+				if (st.exprPreStack === null && st.exprMidStack !== null &&
+					tok_isMidBeforeMid(forceKS(st.exprMidStack.tk), tk1)){
 					// apply the previous Mid
-					tok mtk = st.exprMidStack.tk;
-					pri_st pri = parser_infix(mtk.flp, mtk.u.k, st.exprStack.ex, st.exprTerm);
+					let mtk = forceKS(st.exprMidStack.tk);
+					if (st.exprStack === null)
+						throw new Error('Parser expression mid expecting expression stack');
+					if (st.exprTerm === null)
+						throw new Error('Parser expression mid expecting expression');
+					let pri = parser_infix(mtk.flp, mtk.k, st.exprStack.ex, st.exprTerm);
 					if (!pri.ok)
-						return pri.u.msg;
-					st.exprTerm = pri.u.ex;
-					st.exprStack.ex = NULL;
-					exs next = st.exprStack.next;
-					exs_free(st.exprStack);
-					st.exprStack = next;
+						return pri.msg;
+					st.exprTerm = pri.ex;
+					st.exprStack = st.exprStack.next;
+					if (st.exprPreStackStack === null)
+						throw new Error('Parser expression mid pre-stack-stack must be non-null');
 					st.exprPreStack = st.exprPreStackStack.e;
-					st.exprPreStackStack.e = NULL;
-					eps next2 = st.exprPreStackStack.next;
-					eps_free(st.exprPreStackStack);
-					st.exprPreStackStack = next2;
-					ets next3 = st.exprMidStack.next;
-					ets_free(st.exprMidStack);
-					st.exprMidStack = next3;
+					st.exprPreStackStack = st.exprPreStackStack.next;
+					st.exprMidStack = st.exprMidStack.next;
 				}
 				else // otherwise, the current Mid wins
 					break;
@@ -3902,83 +3972,83 @@ static const char *parser_process(parser pr, list_ptr stmts){
 			// except instead of applying it, we need to schedule to apply it, in case another
 			// operator takes precedence over this one
 			st.exprPreStackStack = eps_new(st.exprPreStack, st.exprPreStackStack);
-			st.exprPreStack = NULL;
+			st.exprPreStack = null;
+			if (st.exprTerm === null)
+				throw new Error('Parser expression mid expecting expression');
 			st.exprStack = exs_new(st.exprTerm, st.exprStack);
-			st.exprTerm = NULL;
+			st.exprTerm = null;
 			st.exprMidStack = ets_new(tk1, st.exprMidStack);
-			pr.tk1 = NULL;
-			st.state = PRS_EXPR_PRE;
-			return NULL;
+			pr.tk1 = null;
+			st.state = prs_enum.EXPR_PRE;
+			return null;
 
-		case PRS_EXPR_FINISH:
+		case prs_enum.EXPR_FINISH:
 			while (true){
 				// apply any outstanding Pre's
-				while (st.exprPreStack !== NULL){
-					tok ptk = st.exprPreStack.tk;
-					st.exprTerm = expr_prefix(ptk.flp, ptk.u.k, st.exprTerm);
-					ets next = st.exprPreStack.next;
-					ets_free(st.exprPreStack);
-					st.exprPreStack = next;
+				while (st.exprPreStack !== null){
+					let ptk = forceKS(st.exprPreStack.tk);
+					if (st.exprTerm === null)
+						throw new Error('Parser expression end expecting expression');
+					st.exprTerm = expr_prefix(ptk.flp, ptk.k, st.exprTerm);
+					st.exprPreStack = st.exprPreStack.next;
 				}
 
 				// grab left side's Pre's
-				if (st.exprPreStackStack !== NULL){
+				if (st.exprPreStackStack !== null){
 					st.exprPreStack = st.exprPreStackStack.e;
-					st.exprPreStackStack.e = NULL;
-					eps next2 = st.exprPreStackStack.next;
-					eps_free(st.exprPreStackStack);
-					st.exprPreStackStack = next2;
+					st.exprPreStackStack = st.exprPreStackStack.next;
 				}
 
 				// fight between the left Pre and the Mid
-				while (st.exprPreStack !== NULL &&
-					(st.exprMidStack === NULL ||
-						tok_isPreBeforeMid(st.exprPreStack.tk, st.exprMidStack.tk))){
+				while (st.exprPreStack !== null &&
+					(st.exprMidStack === null || tok_isPreBeforeMid(
+						forceKS(st.exprPreStack.tk), forceKS(st.exprMidStack.tk)))){
 					// apply the Pre to the left side
-					tok ptk = st.exprPreStack.tk;
-					st.exprStack.ex = expr_prefix(ptk.flp, ptk.u.k, st.exprStack.ex);
-					ets next = st.exprPreStack.next;
-					ets_free(st.exprPreStack);
-					st.exprPreStack = next;
+					let ptk = forceKS(st.exprPreStack.tk);
+					if (st.exprStack === null)
+						throw new Error('Parser expression end expecting expression stack');
+					st.exprStack.ex = expr_prefix(ptk.flp, ptk.k, st.exprStack.ex);
+					st.exprPreStack = st.exprPreStack.next;
 				}
 
-				if (st.exprMidStack === NULL)
+				if (st.exprMidStack === null)
 					break;
 
 				// apply the Mid
-				tok mtk = st.exprMidStack.tk;
-				pri_st pri = parser_infix(mtk.flp, mtk.u.k, st.exprStack.ex, st.exprTerm);
-
+				let mtk = forceKS(st.exprMidStack.tk);
+				if (st.exprStack === null || st.exprTerm === null)
+					throw new Error('Parser expression end expecting expression stack');
+				let pri = parser_infix(mtk.flp, mtk.k, st.exprStack.ex, st.exprTerm);
 				if (!pri.ok)
-					return pri.u.msg;
-				st.exprTerm = pri.u.ex;
-				st.exprStack.ex = NULL;
-				exs next = st.exprStack.next;
-				exs_free(st.exprStack);
-				st.exprStack = next;
-				ets next3 = st.exprMidStack.next;
-				ets_free(st.exprMidStack);
-				st.exprMidStack = next3;
+					return pri.msg;
+				st.exprTerm = pri.ex;
+				st.exprStack = st.exprStack.next;
+				st.exprMidStack = st.exprMidStack.next;
 			}
 			// everything has been applied, and exprTerm has been set!
+			if (st.next === null)
+				throw new Error('Parser expression expecting to return state');
 			st.next.exprTerm = st.exprTerm;
-			st.exprTerm = NULL;
+			st.exprTerm = null;
 			parser_pop(pr);
 			return parser_process(pr, stmts);
 	}
 }
 
-static inline const char *parser_add(parser pr, tok tk, list_ptr stmts){
+function parser_add(pr: parser_st, tk: tok_st, stmts: ast_st[]): string | null {
 	parser_fwd(pr, tk);
 	return parser_process(pr, stmts);
 }
 
-static inline const char *parser_close(parser pr){
-	if (pr.state.next !== NULL)
-		return "Invalid end of file";
-	return NULL;
+function parser_close(pr: parser_st): string | null{
+	if (pr.state === null)
+		throw new Error('Parser missing state');
+	if (pr.state.next !== null)
+		return 'Invalid end of file';
+	return null;
 }
 
+/*
 //
 // labels
 //
@@ -4503,7 +4573,7 @@ static inline char *symtbl_pushNamespace(symtbl sym, list_ptr names){
 	}
 	list_ptr_push(sym.sc.nsStack, ns);
 	sym.sc.ns = ns;
-	return NULL;
+	return null;
 }
 
 static inline void symtbl_popNamespace(symtbl sym){
@@ -4693,11 +4763,11 @@ static char *symtbl_addEnum(symtbl sym, list_ptr names, double val){
 				return format("Cannot redefine \"%.*s\"", nsn.name.size, nsn.name.bytes);
 			nsname_free(ns.names.ptrs[i]);
 			ns.names.ptrs[i] = nsname_enum(names.ptrs[names.size - 1], val, false);
-			return NULL;
+			return null;
 		}
 	}
 	list_ptr_push(ns.names, nsname_enum(names.ptrs[names.size - 1], val, false));
-	return NULL;
+	return null;
 }
 
 static void symtbl_reserveVars(symtbl sym, int count){
@@ -4718,11 +4788,11 @@ static char *symtbl_addCmdLocal(symtbl sym, list_ptr names, label lbl){
 				return format("Cannot redefine \"%.*s\"", nsn.name.size, nsn.name.bytes);
 			nsname_free(ns.names.ptrs[i]);
 			ns.names.ptrs[i] = nsname_cmdLocal(names.ptrs[names.size - 1], sym.fr, lbl);
-			return NULL;
+			return null;
 		}
 	}
 	list_ptr_push(ns.names, nsname_cmdLocal(names.ptrs[names.size - 1], sym.fr, lbl));
-	return NULL;
+	return null;
 }
 
 static char *symtbl_addCmdNative(symtbl sym, list_ptr names, uint64_t hash){
@@ -4737,11 +4807,11 @@ static char *symtbl_addCmdNative(symtbl sym, list_ptr names, uint64_t hash){
 				return format("Cannot redefine \"%.*s\"", nsn.name.size, nsn.name.bytes);
 			nsname_free(ns.names.ptrs[i]);
 			ns.names.ptrs[i] = nsname_cmdNative(names.ptrs[names.size - 1], hash);
-			return NULL;
+			return null;
 		}
 	}
 	list_ptr_push(ns.names, nsname_cmdNative(names.ptrs[names.size - 1], hash));
-	return NULL;
+	return null;
 }
 
 // symtbl_addCmdOpcode
@@ -13614,7 +13684,7 @@ static char *compiler_process(compiler cmp){
 		while (cmp.flpn.tks.size > 0){
 			tok tk = list_ptr_shift(cmp.flpn.tks);
 			tok_print(tk);
-			if (tk.type === TOK_ERROR){
+			if (tk.type === tok_enum.ERROR){
 				compiler_setmsg(cmp, program_errormsg(cmp.prg, tk.flp, tk.u.msg));
 				tok_free(tk);
 				list_ptr_free(stmts);
@@ -13719,7 +13789,7 @@ static char *compiler_process(compiler cmp){
 		}
 	}
 	list_ptr_free(stmts);
-	return NULL;
+	return null;
 }
 
 static char *compiler_write(compiler cmp, int size, const uint8_t *bytes){
@@ -13762,7 +13832,7 @@ static char *compiler_close(compiler cmp){
 		return cmp.msg;
 	}
 
-	return NULL;
+	return null;
 }
 
 static void compiler_free(compiler cmp){
@@ -13822,7 +13892,7 @@ static inline int script_addfile(script scr, const char *file){
 
 static inline const char *script_getfile(script scr, int file){
 	if (file < 0)
-		return NULL;
+		return null;
 	return scr.files.ptrs[file];
 }
 
@@ -15298,7 +15368,7 @@ void sink_list_setuser(sink_ctx ctx, sink_val ls, sink_user usertype, void *user
 void *sink_list_getuser(sink_ctx ctx, sink_val ls, sink_user usertype){
 	sink_list ls2 = var_castlist(ctx, ls);
 	if (ls2.usertype !== usertype)
-		return NULL;
+		return null;
 	return ls2.user;
 }
 

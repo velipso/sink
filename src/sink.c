@@ -4970,7 +4970,6 @@ static const char *parser_process(parser pr, list_ptr stmts){
 				// apply the Mid
 				tok mtk = st->exprMidStack->tk;
 				pri_st pri = parser_infix(mtk->flp, mtk->u.k, st->exprStack->ex, st->exprTerm);
-
 				if (!pri.ok)
 					return pri.u.msg;
 				st->exprTerm = pri.u.ex;
