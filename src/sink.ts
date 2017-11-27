@@ -2643,316 +2643,221 @@ function ast_label(flp: filepos_st, ident: string): ast_st {
 	};
 }
 
-/*
 //
 // parser state helpers
 //
 
-typedef struct ets_struct ets_st, *ets;
-struct ets_struct {
-	tok tk;
-	ets next;
-};
-
-static inline void ets_free(ets e){
-	if (e.tk)
-		tok_free(e.tk);
-	mem_free(e);
+interface ets_st {
+	tk: tok_st;
+	next: ets_st | null;
 }
 
-static inline ets ets_new(tok tk, ets next){ // exprPreStack, exprMidStack
-	ets e = mem_alloc(sizeof(ets_st));
-	e.tk = tk;
-	e.next = next;
-	return e;
+function ets_new(tk: tok_st, next: ets_st | null): ets_st { // exprPreStack, exprMidStack
+	return {
+		tk: tk,
+		next: next
+	};
 }
 
-typedef struct exs_struct exs_st, *exs;
-struct exs_struct {
-	expr ex;
-	exs next;
-};
-
-static inline void exs_free(exs e){
-	if (e.ex)
-		expr_free(e.ex);
-	mem_free(e);
+interface exs_st {
+	ex: expr_st;
+	next: exs_st | null;
 }
 
-static inline exs exs_new(expr ex, exs next){ // exprStack
-	exs e = mem_alloc(sizeof(exs_st));
-	e.ex = ex;
-	e.next = next;
-	return e;
+function exs_new(ex: expr_st, next: exs_st | null): exs_st { // exprStack
+	return {
+		ex: ex,
+		next: next
+	};
 }
 
-typedef struct eps_struct eps_st, *eps;
-struct eps_struct {
-	ets e;
-	eps next;
-};
-
-static inline void eps_free(eps e){
-	ets here = e.e;
-	while (here){
-		ets del = here;
-		here = here.next;
-		ets_free(del);
-	}
-	mem_free(e);
+interface eps_st {
+	e: ets_st;
+	next: eps_st | null;
 }
 
-static inline eps eps_new(ets e, eps next){ // exprPreStackStack
-	eps e2 = mem_alloc(sizeof(eps_st));
-	e2.e = e;
-	e2.next = next;
-	return e2;
+function eps_new(e: ets_st, next: eps_st | null){ // exprPreStackStack
+	return {
+		e: e,
+		next: next
+	};
 }
 
 //
 // parser state
 //
 
-typedef enum {
-	PRS_STATEMENT,
-	PRS_STATEMENT_END,
-	PRS_LOOKUP,
-	PRS_LOOKUP_IDENT,
-	PRS_BODY,
-	PRS_BODY_STATEMENT,
-	PRS_LVALUES,
-	PRS_LVALUES_TERM,
-	PRS_LVALUES_TERM_LOOKUP,
-	PRS_LVALUES_TERM_LIST,
-	PRS_LVALUES_TERM_LIST_TERM_DONE,
-	PRS_LVALUES_TERM_LIST_TAIL,
-	PRS_LVALUES_TERM_LIST_TAIL_LOOKUP,
-	PRS_LVALUES_TERM_LIST_TAIL_DONE,
-	PRS_LVALUES_TERM_LIST_DONE,
-	PRS_LVALUES_TERM_DONE,
-	PRS_LVALUES_TERM_EXPR,
-	PRS_LVALUES_MORE,
-	PRS_LVALUES_DEF_TAIL,
-	PRS_LVALUES_DEF_TAIL_DONE,
-	PRS_BREAK,
-	PRS_CONTINUE,
-	PRS_DECLARE,
-	PRS_DECLARE_LOOKUP,
-	PRS_DECLARE_STR,
-	PRS_DECLARE_STR2,
-	PRS_DECLARE_STR3,
-	PRS_DEF,
-	PRS_DEF_LOOKUP,
-	PRS_DEF_LVALUES,
-	PRS_DEF_BODY,
-	PRS_DO,
-	PRS_DO_BODY,
-	PRS_DO_WHILE_EXPR,
-	PRS_DO_WHILE_BODY,
-	PRS_FOR,
-	PRS_LOOP_BODY,
-	PRS_FOR_VARS,
-	PRS_FOR_VARS_LOOKUP,
-	PRS_FOR_VARS2,
-	PRS_FOR_VARS2_LOOKUP,
-	PRS_FOR_VARS_DONE,
-	PRS_FOR_EXPR,
-	PRS_FOR_BODY,
-	PRS_GOTO,
-	PRS_IF,
-	PRS_IF2,
-	PRS_IF_EXPR,
-	PRS_IF_BODY,
-	PRS_ELSE_BODY,
-	PRS_INCLUDE,
-	PRS_INCLUDE_LOOKUP,
-	PRS_INCLUDE_STR,
-	PRS_INCLUDE_STR2,
-	PRS_INCLUDE_STR3,
-	PRS_NAMESPACE,
-	PRS_NAMESPACE_LOOKUP,
-	PRS_NAMESPACE_BODY,
-	PRS_RETURN,
-	PRS_RETURN_DONE,
-	PRS_USING,
-	PRS_USING_LOOKUP,
-	PRS_VAR,
-	PRS_VAR_LVALUES,
-	PRS_IDENTS,
-	PRS_ENUM,
-	PRS_ENUM_LVALUES,
-	PRS_EVAL,
-	PRS_EVAL_EXPR,
-	PRS_EXPR,
-	PRS_EXPR_PRE,
-	PRS_EXPR_TERM,
-	PRS_EXPR_TERM_ISEMPTYLIST,
-	PRS_EXPR_TERM_CLOSEBRACE,
-	PRS_EXPR_TERM_CLOSEPAREN,
-	PRS_EXPR_TERM_LOOKUP,
-	PRS_EXPR_POST,
-	PRS_EXPR_POST_CALL,
-	PRS_EXPR_INDEX_CHECK,
-	PRS_EXPR_INDEX_COLON_CHECK,
-	PRS_EXPR_INDEX_COLON_EXPR,
-	PRS_EXPR_INDEX_EXPR_CHECK,
-	PRS_EXPR_INDEX_EXPR_COLON_CHECK,
-	PRS_EXPR_INDEX_EXPR_COLON_EXPR,
-	PRS_EXPR_COMMA,
-	PRS_EXPR_MID,
-	PRS_EXPR_FINISH
-} prs_enum;
-
-typedef enum {
-	LVM_VAR,
-	LVM_DEF,
-	LVM_ENUM,
-	LVM_LIST
-} lvm_enum;
-
-typedef struct prs_struct prs_st, *prs;
-struct prs_struct {
-	prs_enum state;
-	list_ptr lvalues;
-	lvm_enum lvaluesMode;
-	bool forVar;
-	list_byte str;
-	filepos_st flpS; // statment flp
-	filepos_st flpL; // lookup flp
-	filepos_st flpE; // expr flp
-	bool exprAllowComma;
-	bool exprAllowPipe;
-	bool exprAllowTrailComma;
-	eps exprPreStackStack;
-	ets exprPreStack;
-	ets exprMidStack;
-	exs exprStack;
-	expr exprTerm;
-	expr exprTerm2;
-	expr exprTerm3;
-	list_ptr names; // can be INCL_UNIQUE
-	list_ptr names2;
-	list_ptr incls;
-	prs next;
-};
-
-static void prs_free(prs pr){
-	if (pr.lvalues)
-		list_ptr_free(pr.lvalues);
-	if (pr.str)
-		list_byte_free(pr.str);
-	if (pr.exprPreStackStack){
-		eps here = pr.exprPreStackStack;
-		while (here){
-			eps del = here;
-			here = here.next;
-			eps_free(del);
-		}
-	}
-	if (pr.exprPreStack){
-		ets here = pr.exprPreStack;
-		while (here){
-			ets del = here;
-			here = here.next;
-			ets_free(del);
-		}
-	}
-	if (pr.exprMidStack){
-		ets here = pr.exprMidStack;
-		while (here){
-			ets del = here;
-			here = here.next;
-			ets_free(del);
-		}
-	}
-	if (pr.exprStack){
-		exs here = pr.exprStack;
-		while (here){
-			exs del = here;
-			here = here.next;
-			exs_free(del);
-		}
-	}
-	if (pr.exprTerm)
-		expr_free(pr.exprTerm);
-	if (pr.exprTerm2)
-		expr_free(pr.exprTerm2);
-	if (pr.exprTerm3)
-		expr_free(pr.exprTerm3);
-	if (pr.names && pr.names !== INCL_UNIQUE)
-		list_ptr_free(pr.names);
-	if (pr.names2)
-		list_ptr_free(pr.names2);
-	if (pr.incls)
-		list_ptr_free(pr.incls);
-	mem_free(pr);
+enum prs_enum {
+	STATEMENT,
+	STATEMENT_END,
+	LOOKUP,
+	LOOKUP_IDENT,
+	BODY,
+	BODY_STATEMENT,
+	LVALUES,
+	LVALUES_TERM,
+	LVALUES_TERM_LOOKUP,
+	LVALUES_TERM_LIST,
+	LVALUES_TERM_LIST_TERM_DONE,
+	LVALUES_TERM_LIST_TAIL,
+	LVALUES_TERM_LIST_TAIL_LOOKUP,
+	LVALUES_TERM_LIST_TAIL_DONE,
+	LVALUES_TERM_LIST_DONE,
+	LVALUES_TERM_DONE,
+	LVALUES_TERM_EXPR,
+	LVALUES_MORE,
+	LVALUES_DEF_TAIL,
+	LVALUES_DEF_TAIL_DONE,
+	BREAK,
+	CONTINUE,
+	DECLARE,
+	DECLARE_LOOKUP,
+	DECLARE_STR,
+	DECLARE_STR2,
+	DECLARE_STR3,
+	DEF,
+	DEF_LOOKUP,
+	DEF_LVALUES,
+	DEF_BODY,
+	DO,
+	DO_BODY,
+	DO_WHILE_EXPR,
+	DO_WHILE_BODY,
+	FOR,
+	LOOP_BODY,
+	FOR_VARS,
+	FOR_VARS_LOOKUP,
+	FOR_VARS2,
+	FOR_VARS2_LOOKUP,
+	FOR_VARS_DONE,
+	FOR_EXPR,
+	FOR_BODY,
+	GOTO,
+	IF,
+	IF2,
+	IF_EXPR,
+	IF_BODY,
+	ELSE_BODY,
+	INCLUDE,
+	INCLUDE_LOOKUP,
+	INCLUDE_STR,
+	INCLUDE_STR2,
+	INCLUDE_STR3,
+	NAMESPACE,
+	NAMESPACE_LOOKUP,
+	NAMESPACE_BODY,
+	RETURN,
+	RETURN_DONE,
+	USING,
+	USING_LOOKUP,
+	VAR,
+	VAR_LVALUES,
+	IDENTS,
+	ENUM,
+	ENUM_LVALUES,
+	EVAL,
+	EVAL_EXPR,
+	EXPR,
+	EXPR_PRE,
+	EXPR_TERM,
+	EXPR_TERM_ISEMPTYLIST,
+	EXPR_TERM_CLOSEBRACE,
+	EXPR_TERM_CLOSEPAREN,
+	EXPR_TERM_LOOKUP,
+	EXPR_POST,
+	EXPR_POST_CALL,
+	EXPR_INDEX_CHECK,
+	EXPR_INDEX_COLON_CHECK,
+	EXPR_INDEX_COLON_EXPR,
+	EXPR_INDEX_EXPR_CHECK,
+	EXPR_INDEX_EXPR_COLON_CHECK,
+	EXPR_INDEX_EXPR_COLON_EXPR,
+	EXPR_COMMA,
+	EXPR_MID,
+	EXPR_FINISH
 }
 
-static prs prs_new(prs_enum state, prs next){
-	prs pr = mem_alloc(sizeof(prs_st));
-	pr.state = state;
-	pr.lvalues = NULL;              // list of expr
-	pr.lvaluesMode = LVM_VAR;
-	pr.forVar = false;
-	pr.str = NULL;
-	pr.flpS = FILEPOS_NULL;
-	pr.flpL = FILEPOS_NULL;
-	pr.flpE = FILEPOS_NULL;
-	pr.exprAllowComma = true;
-	pr.exprAllowPipe = true;
-	pr.exprAllowTrailComma = false;
-	pr.exprPreStackStack = NULL;    // linked list of eps_new's
-	pr.exprPreStack = NULL;         // linked list of ets_new's
-	pr.exprMidStack = NULL;         // linked list of ets_new's
-	pr.exprStack = NULL;            // linked list of exs_new's
-	pr.exprTerm = NULL;             // expr
-	pr.exprTerm2 = NULL;            // expr
-	pr.exprTerm3 = NULL;            // expr
-	pr.names = NULL;                // list of strings
-	pr.names2 = NULL;               // list of strings
-	pr.incls = NULL;                // list of incl's
-	pr.next = next;
-	return pr;
+enum lvm_enum {
+	VAR,
+	DEF,
+	ENUM,
+	LIST
+}
+
+interface prs_st {
+	state: prs_enum;
+	lvalues: expr_st[] | null;
+	lvaluesMode: lvm_enum;
+	forVar: boolean;
+	str: string;
+	flpS: filepos_st; // statement flp
+	flpL: filepos_st; // lookup flp
+	flpE: filepos_st; // expr flp
+	exprAllowComma: boolean;
+	exprAllowPipe: boolean;
+	exprAllowTrailComma: boolean;
+	exprPreStackStack: eps_st | null;
+	exprPreStack: ets_st | null;
+	exprMidStack: ets_st | null;
+	exprStack: exs_st | null;
+	exprTerm: expr_st | null;
+	exprTerm2: expr_st | null;
+	exprTerm3: expr_st | null;
+	names: string[] | null | true;
+	names2: string[] | null;
+	incls: incl_st[] | null;
+	next: prs_st | null;
+}
+
+function prs_new(state: prs_enum, next: prs_st | null): prs_st {
+	return {
+		state: state,
+		lvalues: null,
+		lvaluesMode: lvm_enum.VAR,
+		forVar: false,
+		str: '',
+		flpS: FILEPOS_NULL,
+		flpL: FILEPOS_NULL,
+		flpE: FILEPOS_NULL,
+		exprAllowComma: true,
+		exprAllowPipe: true,
+		exprAllowTrailComma: false,
+		exprPreStackStack: null,
+		exprPreStack: null,
+		exprMidStack: null,
+		exprStack: null,
+		exprTerm: null,
+		exprTerm2: null,
+		exprTerm3: null,
+		names: null,
+		names2: null,
+		incls: null,
+		next: next
+	};
 }
 
 //
 // parser
 //
 
-typedef struct {
-	prs state;
-	tok tkR;
-	tok tk1;
-	tok tk2;
-	int level;
-} parser_st, *parser;
-
-static inline void parser_free(parser pr){
-	prs here = pr.state;
-	while (here){
-		prs del = here;
-		here = here.next;
-		prs_free(del);
-	}
-	if (pr.tk1)
-		tok_free(pr.tk1);
-	if (pr.tk2)
-		tok_free(pr.tk2);
-	if (pr.tkR)
-		tok_free(pr.tkR);
-	mem_free(pr);
+interface parser_st {
+	state: prs_st;
+	tkR: tok_st | null;
+	tk1: tok_st | null;
+	tk2: tok_st | null;
+	level: number
 }
 
-static inline parser parser_new(){
-	parser pr = mem_alloc(sizeof(parser_st));
-	pr.state = prs_new(PRS_STATEMENT, NULL);
-	pr.tkR = NULL;
-	pr.tk1 = NULL;
-	pr.tk2 = NULL;
-	pr.level = 0;
-	return pr;
+function parser_new(): parser_st {
+	return {
+		state: prs_new(prs_enum.STATEMENT, null),
+		tkR: null,
+		tk1: null,
+		tk2: null,
+		level: 0
+	};
 }
-
+/*
 static inline void parser_fwd(parser pr, tok tk){
 	if (pr.tk2)
 		tok_free(pr.tk2);
