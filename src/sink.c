@@ -3022,13 +3022,8 @@ static inline expr expr_slice(filepos_st flp, expr obj, expr start, expr len){
 // ast
 //
 
-typedef enum {
-	DECL_LOCAL,
-	DECL_NATIVE
-} decl_enum;
-
 typedef struct {
-	decl_enum type;
+	bool local;
 	filepos_st flp; // location of names
 	list_ptr names;
 	list_byte key;
@@ -3044,7 +3039,7 @@ static inline void decl_free(decl dc){
 
 static inline decl decl_local(filepos_st flp, list_ptr names){
 	decl dc = mem_alloc(sizeof(decl_st));
-	dc->type = DECL_LOCAL;
+	dc->local = true;
 	dc->flp = flp;
 	dc->names = names;
 	dc->key = NULL;
@@ -3053,7 +3048,7 @@ static inline decl decl_local(filepos_st flp, list_ptr names){
 
 static inline decl decl_native(filepos_st flp, list_ptr names, list_byte key){
 	decl dc = mem_alloc(sizeof(decl_st));
-	dc->type = DECL_NATIVE;
+	dc->local = false;
 	dc->flp = flp;
 	dc->names = names;
 	dc->key = key;
@@ -8484,20 +8479,18 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 
 		case AST_DECLARE: {
 			decl dc = stmt->u.declare;
-			switch (dc->type){
-				case DECL_LOCAL: {
-					label lbl = label_newstr("def");
-					list_ptr_push(sym->fr->lbls, lbl);
-					char *smsg = symtbl_addCmdLocal(sym, dc->names, lbl);
-					if (smsg)
-						return pgr_error(dc->flp, smsg);
-				} break;
-				case DECL_NATIVE: {
-					char *smsg = symtbl_addCmdNative(sym, dc->names,
-						native_hash(dc->key->size, dc->key->bytes));
-					if (smsg)
-						return pgr_error(dc->flp, smsg);
-				} break;
+			if (dc->local){
+				label lbl = label_newstr("def");
+				list_ptr_push(sym->fr->lbls, lbl);
+				char *smsg = symtbl_addCmdLocal(sym, dc->names, lbl);
+				if (smsg)
+					return pgr_error(dc->flp, smsg);
+			}
+			else{ // native
+				char *smsg = symtbl_addCmdNative(sym, dc->names,
+					native_hash(dc->key->size, dc->key->bytes));
+				if (smsg)
+					return pgr_error(dc->flp, smsg);
 			}
 			return pgr_ok();
 		} break;

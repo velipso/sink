@@ -7,7 +7,7 @@ export enum sink_type {
 	NUM,
 	STR,
 	LIST
-};
+}
 export type sink_str = string;
 export type sink_valtrue = number | sink_str | sink_list;
 export type sink_val = null | sink_valtrue;
@@ -23,7 +23,7 @@ export class sink_list extends Array<sink_val> {
 		this.usertype = -1;
 		this.user = null;
 	}
-};
+}
 
 export type sink_u64 = [number, number]; // uint64_t is stored as two 32-bit numbers
 
@@ -31,7 +31,7 @@ export enum sink_fstype {
 	NONE,
 	FILE,
 	DIR
-};
+}
 
 export type sink_output_f = (ctx: sink_ctx, str: sink_str, iouser: any) =>
 	undefined | Promise<undefined>;
@@ -50,27 +50,27 @@ export interface sink_io {
 	f_warn: sink_output_f;
 	f_ask: sink_input_f;
 	user: any;
-};
+}
 
 export interface sink_inc {
 	f_fstype: sink_fstype_f;
 	f_fsread: sink_fsread_f;
 	user: any;
-};
+}
 
 export enum sink_run {
 	PASS,
 	FAIL,
 	TIMEOUT,
 	REPLMORE
-};
+}
 
 export enum sink_ctx_status {
 	READY,
 	WAITING,
 	PASSED,
 	FAILED
-};
+}
 
 export const SINK_NAN = Number.NaN;
 export const SINK_NIL = null;
@@ -520,7 +520,7 @@ enum op_enum {
 	PICK            = 0x1F2,
 	EMBED           = 0x1F3,
 	INVALID         = 0x1F4
-};
+}
 
 enum op_pcat {
 	INVALID,
@@ -542,7 +542,7 @@ enum op_pcat {
 	VNN,
 	VNNNN,
 	VNNNNNNNN
-};
+}
 
 function op_paramcat(op: op_enum): op_pcat {
 	switch (op){
@@ -952,7 +952,7 @@ enum ks_enum {
 	USING,
 	VAR,
 	WHILE
-};
+}
 
 function ks_char(c: string): ks_enum{
 	if      (c === '+') return ks_enum.PLUS;
@@ -1070,7 +1070,7 @@ interface filepos_st {
 	basefile: number;
 	line: number;
 	chr: number;
-};
+}
 
 const FILEPOS_NULL: filepos_st = { basefile: -1, fullfile: -1, line: -1, chr: -1 };
 
@@ -1081,7 +1081,7 @@ enum tok_enum {
 	NUM,
 	STR,
 	ERROR
-};
+}
 
 interface tok_st {
 	type: tok_enum;
@@ -1092,7 +1092,7 @@ interface tok_st {
 	num?: number;
 	str?: string;
 	msg?: string;
-};
+}
 
 function tok_newline(flp: filepos_st, soft: boolean): tok_st {
 	return {
@@ -1316,7 +1316,7 @@ enum lex_enum {
 	STR_INTERP_DLR_ID,
 	STR_INTERP_ESC,
 	STR_INTERP_ESC_HEX
-};
+}
 
 interface numpart_info {
 	sign: number;
@@ -1326,7 +1326,7 @@ interface numpart_info {
 	flen: number;
 	esign: number;
 	eval: number;
-};
+}
 
 function numpart_new(info?: numpart_info): numpart_info {
 	if (info){
@@ -1385,7 +1385,7 @@ interface lex_st {
 	str_hexval: number;
 	str_hexleft: number;
 	numexp: boolean;
-};
+}
 
 function lex_reset(lx: lex_st): void {
 	lx.state = lex_enum.START;
@@ -1978,7 +1978,7 @@ enum expr_enum {
 	CALL,
 	INDEX,
 	SLICE
-};
+}
 
 interface expr_st_NIL {
 	type: expr_enum.NIL;
@@ -2242,595 +2242,408 @@ function expr_slice(flp: filepos_st, obj: expr_st, start: expr_st, len: expr_st)
 		len: len
 	};
 }
-/*
+
 //
 // ast
 //
 
-typedef enum {
-	DECL_LOCAL,
-	DECL_NATIVE
-} decl_enum;
-
-typedef struct {
-	decl_enum type;
-	filepos_st flp; // location of names
-	list_ptr names;
-	list_byte key;
-} decl_st, *decl;
-
-static inline void decl_free(decl dc){
-	if (dc.names)
-		list_ptr_free(dc.names);
-	if (dc.key)
-		list_byte_free(dc.key);
-	mem_free(dc);
+interface decl_st {
+	local: boolean;
+	flp: filepos_st; // location of names
+	names: string[];
+	key: string | null;
 }
 
-static inline decl decl_local(flp: filepos_st, list_ptr names){
-	decl dc = mem_alloc(sizeof(decl_st));
-	dc.type = DECL_LOCAL;
-	dc.flp = flp;
-	dc.names = names;
-	dc.key = NULL;
-	return dc;
+function decl_local(flp: filepos_st, names: string[]): decl_st {
+	return {
+		local: true,
+		flp: flp,
+		names: names,
+		key: null
+	};
 }
 
-static inline decl decl_native(flp: filepos_st, list_ptr names, list_byte key){
-	decl dc = mem_alloc(sizeof(decl_st));
-	dc.type = DECL_NATIVE;
-	dc.flp = flp;
-	dc.names = names;
-	dc.key = key;
-	return dc;
+function decl_native(flp: filepos_st, names: string[], key: string): decl_st {
+	return {
+		local: false,
+		flp: flp,
+		names: names,
+		key: key
+	};
 }
 
-typedef enum {
-	AST_BREAK,
-	AST_CONTINUE,
-	AST_DECLARE,
-	AST_DEF1,
-	AST_DEF2,
-	AST_DOWHILE1,
-	AST_DOWHILE2,
-	AST_DOWHILE3,
-	AST_ENUM,
-	AST_FOR1,
-	AST_FOR2,
-	AST_LOOP1,
-	AST_LOOP2,
-	AST_GOTO,
-	AST_IF1,
-	AST_IF2,
-	AST_IF3,
-	AST_IF4,
-	AST_INCLUDE,
-	AST_NAMESPACE1,
-	AST_NAMESPACE2,
-	AST_RETURN,
-	AST_USING,
-	AST_VAR,
-	AST_EVAL,
-	AST_LABEL
-} ast_enumt;
+enum ast_enumt {
+	BREAK,
+	CONTINUE,
+	DECLARE,
+	DEF1,
+	DEF2,
+	DOWHILE1,
+	DOWHILE2,
+	DOWHILE3,
+	ENUM,
+	FOR1,
+	FOR2,
+	LOOP1,
+	LOOP2,
+	GOTO,
+	IF1,
+	IF2,
+	IF3,
+	IF4,
+	INCLUDE,
+	NAMESPACE1,
+	NAMESPACE2,
+	RETURN,
+	USING,
+	VAR,
+	EVAL,
+	LABEL
+}
+interface ast_st_BREAK {
+	type: ast_enumt.BREAK;
+	flp: filepos_st;
+}
+interface ast_st_CONTINUE {
+	type: ast_enumt.CONTINUE;
+	flp: filepos_st;
+}
+interface ast_st_DECLARE {
+	type: ast_enumt.DECLARE;
+	flp: filepos_st;
+	declare: decl_st
+}
+interface ast_st_DEF1 {
+	type: ast_enumt.DEF1;
+	flp: filepos_st;
+	flpN: filepos_st;
+	names: string[];
+	lvalues: expr_st[];
+}
+interface ast_st_DEF2 {
+	type: ast_enumt.DEF2;
+	flp: filepos_st;
+}
+interface ast_st_DOWHILE1 {
+	type: ast_enumt.DOWHILE1;
+	flp: filepos_st;
+}
+interface ast_st_DOWHILE2 {
+	type: ast_enumt.DOWHILE2;
+	flp: filepos_st;
+	cond: expr_st | null;
+}
+interface ast_st_DOWHILE3 {
+	type: ast_enumt.DOWHILE3;
+	flp: filepos_st;
+}
+interface ast_st_ENUM {
+	type: ast_enumt.ENUM;
+	flp: filepos_st;
+	lvalues: expr_st[];
+}
+interface ast_st_FOR1 {
+	type: ast_enumt.FOR1;
+	flp: filepos_st;
+	forVar: boolean;
+	names1: string[];
+	names2: string[];
+	ex: expr_st;
+}
+interface ast_st_FOR2 {
+	type: ast_enumt.FOR2;
+	flp: filepos_st;
+}
+interface ast_st_LOOP1 {
+	type: ast_enumt.LOOP1;
+	flp: filepos_st;
+}
+interface ast_st_LOOP2 {
+	type: ast_enumt.LOOP2;
+	flp: filepos_st;
+}
+interface ast_st_GOTO {
+	type: ast_enumt.GOTO;
+	flp: filepos_st;
+	ident: string;
+}
+interface ast_st_IF1 {
+	type: ast_enumt.IF1;
+	flp: filepos_st;
+}
+interface ast_st_IF2 {
+	type: ast_enumt.IF2;
+	flp: filepos_st;
+	cond: expr_st;
+}
+interface ast_st_IF3 {
+	type: ast_enumt.IF3;
+	flp: filepos_st;
+}
+interface ast_st_IF4 {
+	type: ast_enumt.IF4;
+	flp: filepos_st;
+}
+interface ast_st_INCLUDE {
+	type: ast_enumt.INCLUDE;
+	flp: filepos_st;
+	incls: incl_st[];
+}
+interface ast_st_NAMESPACE1 {
+	type: ast_enumt.NAMESPACE1;
+	flp: filepos_st;
+	names: string[];
+}
+interface ast_st_NAMESPACE2 {
+	type: ast_enumt.NAMESPACE2;
+	flp: filepos_st;
+}
+interface ast_st_RETURN {
+	type: ast_enumt.RETURN;
+	flp: filepos_st;
+	ex: expr_st;
+}
+interface ast_st_USING {
+	type: ast_enumt.USING;
+	flp: filepos_st;
+	names: string[];
+}
+interface ast_st_VAR {
+	type: ast_enumt.VAR;
+	flp: filepos_st;
+	lvalues: expr_st[];
+}
+interface ast_st_EVAL {
+	type: ast_enumt.EVAL;
+	flp: filepos_st;
+	ex: expr_st;
+}
+interface ast_st_LABEL {
+	type: ast_enumt.LABEL;
+	flp: filepos_st;
+	ident: string;
+}
+type ast_st = ast_st_BREAK | ast_st_CONTINUE | ast_st_DECLARE | ast_st_DEF1 | ast_st_DEF2 |
+	ast_st_DOWHILE1 | ast_st_DOWHILE2 | ast_st_DOWHILE3 | ast_st_ENUM | ast_st_FOR1 | ast_st_FOR2 |
+	ast_st_LOOP1 | ast_st_LOOP2 | ast_st_GOTO | ast_st_IF1 | ast_st_IF2 | ast_st_IF3 | ast_st_IF4 |
+	ast_st_INCLUDE | ast_st_NAMESPACE1 | ast_st_NAMESPACE2 | ast_st_RETURN | ast_st_USING |
+	ast_st_VAR | ast_st_EVAL | ast_st_LABEL;
 
-typedef struct {
-	ast_enumt type;
-	filepos_st flp;
-	union {
-		decl declare;
-		expr cond;
-		list_ptr lvalues;
-		list_byte ident;
-		list_ptr incls;
-		list_ptr names;
-		expr ex;
-		struct {
-			filepos_st flpN;
-			list_ptr names;
-			list_ptr lvalues;
-		} def1;
-		struct {
-			list_ptr names1;
-			list_ptr names2;
-			expr ex;
-			bool forVar;
-		} for1;
-	} u;
-} ast_st, *ast;
-
-static void ast_free(ast stmt){
-	switch (stmt.type){
-		case AST_BREAK:
-		case AST_CONTINUE:
-			break;
-
-		case AST_DECLARE:
-			if (stmt.u.declare)
-				decl_free(stmt.u.declare);
-			break;
-
-		case AST_DEF1:
-			if (stmt.u.def1.names)
-				list_ptr_free(stmt.u.def1.names);
-			if (stmt.u.def1.lvalues)
-				list_ptr_free(stmt.u.def1.lvalues);
-			break;
-
-		case AST_DEF2:
-			break;
-
-		case AST_DOWHILE1:
-			break;
-
-		case AST_DOWHILE2:
-			if (stmt.u.cond)
-				expr_free(stmt.u.cond);
-			break;
-
-		case AST_DOWHILE3:
-			break;
-
-		case AST_ENUM:
-			if (stmt.u.lvalues)
-				list_ptr_free(stmt.u.lvalues);
-			break;
-
-		case AST_FOR1:
-			if (stmt.u.for1.names1)
-				list_ptr_free(stmt.u.for1.names1);
-			if (stmt.u.for1.names2)
-				list_ptr_free(stmt.u.for1.names2);
-			if (stmt.u.for1.ex)
-				expr_free(stmt.u.for1.ex);
-			break;
-
-		case AST_FOR2:
-		case AST_LOOP1:
-		case AST_LOOP2:
-			break;
-
-		case AST_GOTO:
-			if (stmt.u.ident)
-				list_byte_free(stmt.u.ident);
-			break;
-
-		case AST_IF1:
-			break;
-
-		case AST_IF2:
-			if (stmt.u.cond)
-				expr_free(stmt.u.cond);
-			break;
-
-		case AST_IF3:
-		case AST_IF4:
-			break;
-
-		case AST_INCLUDE:
-			if (stmt.u.incls)
-				list_ptr_free(stmt.u.incls);
-			break;
-
-		case AST_NAMESPACE1:
-			if (stmt.u.names)
-				list_ptr_free(stmt.u.names);
-			break;
-
-		case AST_NAMESPACE2:
-			break;
-
-		case AST_RETURN:
-			if (stmt.u.ex)
-				expr_free(stmt.u.ex);
-			break;
-
-		case AST_USING:
-			if (stmt.u.names)
-				list_ptr_free(stmt.u.names);
-			break;
-
-		case AST_VAR:
-			if (stmt.u.lvalues)
-				list_ptr_free(stmt.u.lvalues);
-			break;
-
-		case AST_EVAL:
-			if (stmt.u.ex)
-				expr_free(stmt.u.ex);
-			break;
-
-		case AST_LABEL:
-			if (stmt.u.ident)
-				list_byte_free(stmt.u.ident);
-			break;
-	}
-	mem_free(stmt);
+function ast_break(flp: filepos_st): ast_st {
+	return {
+		flp: flp,
+		type: ast_enumt.BREAK
+	};
 }
 
-static void ast_print(ast stmt){
-	#ifdef SINK_DEBUG
-	switch (stmt.type){
-		case AST_BREAK:
-			debug("AST_BREAK");
-			break;
-
-		case AST_CONTINUE:
-			debug("AST_CONTINUE");
-			break;
-
-		case AST_DECLARE:
-			//if (stmt.u.declare)
-			debug("AST_DECLARE");
-			break;
-
-		case AST_DEF1:
-			//if (stmt.u.def1.names)
-			//if (stmt.u.def1.lvalues)
-			debug("AST_DEF1");
-			break;
-
-		case AST_DEF2:
-			debug("AST_DEF2");
-			break;
-
-		case AST_DOWHILE1:
-			debug("AST_DOWHILE1");
-			break;
-
-		case AST_DOWHILE2:
-			debug("AST_DOWHILE2:");
-			if (stmt.u.cond)
-				expr_print(stmt.u.cond, 1);
-			else
-				debug("  NULL");
-			break;
-
-		case AST_DOWHILE3:
-			debug("AST_DOWHILE3");
-			break;
-
-		case AST_ENUM:
-			debug("AST_ENUM");
-			break;
-
-		case AST_FOR1:
-			//if (stmt.u.afor.names1)
-			//if (stmt.u.afor.names2)
-			debug("AST_FOR:");
-			if (stmt.u.for1.ex)
-				expr_print(stmt.u.for1.ex, 1);
-			else
-				debug("  NULL");
-			break;
-
-		case AST_FOR2:
-			debug("AST_FOR2");
-			break;
-
-		case AST_LOOP1:
-			debug("AST_LOOP1");
-			break;
-
-		case AST_LOOP2:
-			debug("AST_LOOP2");
-			break;
-
-		case AST_GOTO:
-			if (stmt.u.ident)
-				debugf("AST_GOTO \"%.*s\"", stmt.u.ident.size, stmt.u.ident.bytes);
-			else
-				debug("AST_GOTO NULL");
-			break;
-
-		case AST_IF1:
-			debug("AST_IF1");
-			break;
-
-		case AST_IF2:
-			//if (stmt.u.aif.conds)
-			debug("AST_IF2:");
-			if (stmt.u.cond)
-				expr_print(stmt.u.cond, 1);
-			else
-				debug("  NULL");
-			break;
-
-		case AST_IF3:
-			debug("AST_IF3");
-			break;
-
-		case AST_IF4:
-			debug("AST_IF4");
-			break;
-
-		case AST_INCLUDE:
-			//if (stmt.u.incls)
-			debug("AST_INCLUDE");
-			break;
-
-		case AST_NAMESPACE1:
-			//if (stmt.u.names)
-			debug("AST_NAMESPACE1");
-			break;
-
-		case AST_NAMESPACE2:
-			debug("AST_NAMESPACE2");
-			break;
-
-		case AST_RETURN:
-			debug("AST_RETURN:");
-			if (stmt.u.ex)
-				expr_print(stmt.u.ex, 1);
-			else
-				debug("  NULL");
-			break;
-
-		case AST_USING:
-			//if (stmt.u.names)
-			debug("AST_USING");
-			break;
-
-		case AST_VAR:
-			debug("AST_VAR:");
-			if (stmt.u.lvalues){
-				for (int i = 0 ;i < stmt.u.lvalues.size; i++)
-					expr_print(stmt.u.lvalues.ptrs[i], 1);
-			}
-			else
-				debug("  NULL");
-			break;
-
-		case AST_EVAL:
-			debugf("AST_EVAL: %d:%d", stmt.flp.line, stmt.flp.chr);
-			if (stmt.u.ex)
-				expr_print(stmt.u.ex, 1);
-			else
-				debug("  NULL");
-			break;
-
-		case AST_LABEL:
-			if (stmt.u.ident)
-				debugf("AST_LABEL \"%.*s\"", stmt.u.ident.size, stmt.u.ident.bytes);
-			else
-				debug("AST_LABEL NULL");
-			break;
-	}
-	#endif
+function ast_continue(flp: filepos_st): ast_st {
+	return {
+		flp: flp,
+		type: ast_enumt.CONTINUE
+	};
 }
 
-static inline ast ast_break(filepos_st flp){
-	ast stmt = mem_alloc(sizeof(ast_st));
-	stmt.flp = flp;
-	stmt.type = AST_BREAK;
-	return stmt;
+function ast_declare(flp: filepos_st, dc: decl_st): ast_st {
+	return {
+		flp: flp,
+		type: ast_enumt.DECLARE,
+		declare: dc
+	};
 }
 
-static inline ast ast_continue(filepos_st flp){
-	ast stmt = mem_alloc(sizeof(ast_st));
-	stmt.flp = flp;
-	stmt.type = AST_CONTINUE;
-	return stmt;
+function ast_def1(flp: filepos_st, flpN: filepos_st, names: string[], lvalues: expr_st[]): ast_st {
+	return {
+		flp: flp,
+		type: ast_enumt.DEF1,
+		flpN: flpN,
+		names: names,
+		lvalues: lvalues
+	};
 }
 
-static inline ast ast_declare(flp: filepos_st, decl dc){
-	ast stmt = mem_alloc(sizeof(ast_st));
-	stmt.flp = flp;
-	stmt.type = AST_DECLARE;
-	stmt.u.declare = dc;
-	return stmt;
+function ast_def2(flp: filepos_st): ast_st {
+	return {
+		flp: flp,
+		type: ast_enumt.DEF2
+	};
 }
 
-static inline ast ast_def1(flp: filepos_st, filepos_st flpN, list_ptr names, list_ptr lvalues){
-	ast stmt = mem_alloc(sizeof(ast_st));
-	stmt.flp = flp;
-	stmt.type = AST_DEF1;
-	stmt.u.def1.flpN = flpN;
-	stmt.u.def1.names = names;
-	stmt.u.def1.lvalues = lvalues;
-	return stmt;
+function ast_dowhile1(flp: filepos_st): ast_st {
+	return {
+		flp: flp,
+		type: ast_enumt.DOWHILE1
+	};
 }
 
-static inline ast ast_def2(filepos_st flp){
-	ast stmt = mem_alloc(sizeof(ast_st));
-	stmt.flp = flp;
-	stmt.type = AST_DEF2;
-	return stmt;
+function ast_dowhile2(flp: filepos_st, cond: expr_st | null): ast_st {
+	return {
+		flp: flp,
+		type: ast_enumt.DOWHILE2,
+		cond: cond
+	};
 }
 
-static inline ast ast_dowhile1(filepos_st flp){
-	ast stmt = mem_alloc(sizeof(ast_st));
-	stmt.flp = flp;
-	stmt.type = AST_DOWHILE1;
-	return stmt;
+function ast_dowhile3(flp: filepos_st): ast_st {
+	return {
+		flp: flp,
+		type: ast_enumt.DOWHILE3
+	};
 }
 
-static inline ast ast_dowhile2(flp: filepos_st, expr cond){
-	ast stmt = mem_alloc(sizeof(ast_st));
-	stmt.flp = flp;
-	stmt.type = AST_DOWHILE2;
-	stmt.u.cond = cond;
-	return stmt;
+function ast_enum(flp: filepos_st, lvalues: expr_st[]): ast_st {
+	return {
+		flp: flp,
+		type: ast_enumt.ENUM,
+		lvalues: lvalues
+	};
 }
 
-static inline ast ast_dowhile3(filepos_st flp){
-	ast stmt = mem_alloc(sizeof(ast_st));
-	stmt.flp = flp;
-	stmt.type = AST_DOWHILE3;
-	return stmt;
+function ast_for1(flp: filepos_st, forVar: boolean, names1: string[], names2: string[],
+	ex: expr_st): ast_st {
+	return {
+		flp: flp,
+		type: ast_enumt.FOR1,
+		forVar: forVar,
+		names1: names1,
+		names2: names2,
+		ex: ex
+	};
 }
 
-static inline ast ast_enum(flp: filepos_st, list_ptr lvalues){
-	ast stmt = mem_alloc(sizeof(ast_st));
-	stmt.flp = flp;
-	stmt.type = AST_ENUM;
-	stmt.u.lvalues = lvalues;
-	return stmt;
+function ast_for2(flp: filepos_st): ast_st {
+	return {
+		flp: flp,
+		type: ast_enumt.FOR2
+	};
 }
 
-static inline ast ast_for1(flp: filepos_st, bool forVar, list_ptr names1, list_ptr names2, expr ex){
-	ast stmt = mem_alloc(sizeof(ast_st));
-	stmt.flp = flp;
-	stmt.type = AST_FOR1;
-	stmt.u.for1.forVar = forVar;
-	stmt.u.for1.names1 = names1;
-	stmt.u.for1.names2 = names2;
-	stmt.u.for1.ex = ex;
-	return stmt;
+function ast_loop1(flp: filepos_st): ast_st {
+	return {
+		flp: flp,
+		type: ast_enumt.LOOP1
+	};
 }
 
-static inline ast ast_for2(filepos_st flp){
-	ast stmt = mem_alloc(sizeof(ast_st));
-	stmt.flp = flp;
-	stmt.type = AST_FOR2;
-	return stmt;
+function ast_loop2(flp: filepos_st): ast_st {
+	return {
+		flp: flp,
+		type: ast_enumt.LOOP2
+	};
 }
 
-static inline ast ast_loop1(filepos_st flp){
-	ast stmt = mem_alloc(sizeof(ast_st));
-	stmt.flp = flp;
-	stmt.type = AST_LOOP1;
-	return stmt;
+function ast_goto(flp: filepos_st, ident: string): ast_st {
+	return {
+		flp: flp,
+		type: ast_enumt.GOTO,
+		ident: ident
+	};
 }
 
-static inline ast ast_loop2(filepos_st flp){
-	ast stmt = mem_alloc(sizeof(ast_st));
-	stmt.flp = flp;
-	stmt.type = AST_LOOP2;
-	return stmt;
+function ast_if1(flp: filepos_st): ast_st {
+	return {
+		flp: flp,
+		type: ast_enumt.IF1
+	};
 }
 
-static inline ast ast_goto(flp: filepos_st, list_byte ident){
-	ast stmt = mem_alloc(sizeof(ast_st));
-	stmt.flp = flp;
-	stmt.type = AST_GOTO;
-	stmt.u.ident = ident;
-	return stmt;
+function ast_if2(flp: filepos_st, cond: expr_st): ast_st {
+	return {
+		flp: flp,
+		type: ast_enumt.IF2,
+		cond: cond
+	};
 }
 
-static inline ast ast_if1(filepos_st flp){
-	ast stmt = mem_alloc(sizeof(ast_st));
-	stmt.flp = flp;
-	stmt.type = AST_IF1;
-	return stmt;
+function ast_if3(flp: filepos_st): ast_st {
+	return {
+		flp: flp,
+		type: ast_enumt.IF3
+	};
 }
 
-static inline ast ast_if2(flp: filepos_st, expr cond){
-	ast stmt = mem_alloc(sizeof(ast_st));
-	stmt.flp = flp;
-	stmt.type = AST_IF2;
-	stmt.u.cond = cond;
-	return stmt;
+function ast_if4(flp: filepos_st): ast_st {
+	return {
+		flp: flp,
+		type: ast_enumt.IF4
+	};
 }
 
-static inline ast ast_if3(filepos_st flp){
-	ast stmt = mem_alloc(sizeof(ast_st));
-	stmt.flp = flp;
-	stmt.type = AST_IF3;
-	return stmt;
+interface incl_st {
+	names: string[] | null | true; // `true` indicates INCL_UNIQUE when using `include + 'foo'`
+	file: string
 }
 
-static inline ast ast_if4(filepos_st flp){
-	ast stmt = mem_alloc(sizeof(ast_st));
-	stmt.flp = flp;
-	stmt.type = AST_IF4;
-	return stmt;
+function incl_new(names: string[] | null | true, file: string): incl_st {
+	return {
+		names: names,
+		file: file
+	};
 }
 
-// the `names` field in `incl_st` can be INCL_UNIQUE to indicate:  include + 'foo'
-#define INCL_UNIQUE  ((void *)1)
-
-typedef struct {
-	list_ptr names;
-	list_byte file;
-} incl_st, *incl;
-
-static void incl_free(incl inc){
-	if (inc.names && inc.names !== INCL_UNIQUE)
-		list_ptr_free(inc.names);
-	if (inc.file)
-		list_byte_free(inc.file);
-	mem_free(inc);
+function ast_include(flp: filepos_st, incls: incl_st[]): ast_st {
+	return {
+		flp: flp,
+		type: ast_enumt.INCLUDE,
+		incls: incls
+	};
 }
 
-static inline incl incl_new(list_ptr names, list_byte file){
-	incl inc = mem_alloc(sizeof(incl_st));
-	inc.names = names;
-	inc.file = file;
-	return inc;
+function ast_namespace1(flp: filepos_st, names: string[]): ast_st {
+	return {
+		flp: flp,
+		type: ast_enumt.NAMESPACE1,
+		names: names
+	};
 }
 
-static inline ast ast_include(flp: filepos_st, list_ptr incls){
-	assertflp(flp);
-	ast stmt = mem_alloc(sizeof(ast_st));
-	stmt.flp = flp;
-	stmt.type = AST_INCLUDE;
-	stmt.u.incls = incls;
-	return stmt;
+function ast_namespace2(flp: filepos_st): ast_st {
+	return {
+		flp: flp,
+		type: ast_enumt.NAMESPACE2,
+	};
 }
 
-static inline ast ast_namespace1(flp: filepos_st, list_ptr names){
-	assertflp(flp);
-	ast stmt = mem_alloc(sizeof(ast_st));
-	stmt.flp = flp;
-	stmt.type = AST_NAMESPACE1;
-	stmt.u.names = names;
-	return stmt;
+function ast_return(flp: filepos_st, ex: expr_st): ast_st {
+	return {
+		flp: flp,
+		type: ast_enumt.RETURN,
+		ex: ex
+	};
 }
 
-static inline ast ast_namespace2(filepos_st flp){
-	assertflp(flp);
-	ast stmt = mem_alloc(sizeof(ast_st));
-	stmt.flp = flp;
-	stmt.type = AST_NAMESPACE2;
-	return stmt;
+function ast_using(flp: filepos_st, names: string[]): ast_st {
+	return {
+		flp: flp,
+		type: ast_enumt.USING,
+		names: names
+	};
 }
 
-static inline ast ast_return(flp: filepos_st, expr ex){
-	assertflp(flp);
-	ast stmt = mem_alloc(sizeof(ast_st));
-	stmt.flp = flp;
-	stmt.type = AST_RETURN;
-	stmt.u.ex = ex;
-	return stmt;
+function ast_var(flp: filepos_st, lvalues: expr_st[]): ast_st {
+	return {
+		flp: flp,
+		type: ast_enumt.VAR,
+		lvalues: lvalues
+	};
 }
 
-static inline ast ast_using(flp: filepos_st, list_ptr names){
-	assertflp(flp);
-	ast stmt = mem_alloc(sizeof(ast_st));
-	stmt.flp = flp;
-	stmt.type = AST_USING;
-	stmt.u.names = names;
-	return stmt;
+function ast_eval(flp: filepos_st, ex: expr_st): ast_st {
+	return {
+		flp: flp,
+		type: ast_enumt.EVAL,
+		ex: ex
+	};
 }
 
-static inline ast ast_var(flp: filepos_st, list_ptr lvalues){
-	assertflp(flp);
-	ast stmt = mem_alloc(sizeof(ast_st));
-	stmt.flp = flp;
-	stmt.type = AST_VAR;
-	stmt.u.lvalues = lvalues;
-	return stmt;
+function ast_label(flp: filepos_st, ident: string): ast_st {
+	return {
+		flp: flp,
+		type: ast_enumt.LABEL,
+		ident: ident
+	};
 }
 
-static inline ast ast_eval(flp: filepos_st, expr ex){
-	assertflp(flp);
-	ast stmt = mem_alloc(sizeof(ast_st));
-	stmt.flp = flp;
-	stmt.type = AST_EVAL;
-	stmt.u.ex = ex;
-	return stmt;
-}
-
-static inline ast ast_label(flp: filepos_st, list_byte ident){
-	assertflp(flp);
-	ast stmt = mem_alloc(sizeof(ast_st));
-	stmt.flp = flp;
-	stmt.type = AST_LABEL;
-	stmt.u.ident = ident;
-	return stmt;
-}
-
+/*
 //
 // parser state helpers
 //
@@ -7712,20 +7525,18 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 
 		case AST_DECLARE: {
 			decl dc = stmt.u.declare;
-			switch (dc.type){
-				case DECL_LOCAL: {
-					label lbl = label_newstr("def");
-					list_ptr_push(sym.fr.lbls, lbl);
-					char *smsg = symtbl_addCmdLocal(sym, dc.names, lbl);
-					if (smsg)
-						return pgr_error(dc.flp, smsg);
-				} break;
-				case DECL_NATIVE: {
-					char *smsg = symtbl_addCmdNative(sym, dc.names,
-						native_hash(dc.key.size, dc.key.bytes));
-					if (smsg)
-						return pgr_error(dc.flp, smsg);
-				} break;
+			if (dc.local){
+				label lbl = label_newstr("def");
+				list_ptr_push(sym.fr.lbls, lbl);
+				char *smsg = symtbl_addCmdLocal(sym, dc.names, lbl);
+				if (smsg)
+					return pgr_error(dc.flp, smsg);
+			}
+			else{ // native
+				char *smsg = symtbl_addCmdNative(sym, dc.names,
+					native_hash(dc.key.size, dc.key.bytes));
+				if (smsg)
+					return pgr_error(dc.flp, smsg);
 			}
 			return pgr_ok();
 		} break;
