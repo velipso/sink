@@ -5293,22 +5293,17 @@ static inline namespace namespace_new(frame fr){
 	return ns;
 }
 
-typedef enum {
-	NL_FOUND,
-	NL_NOTFOUND
-} nl_enum;
-
 typedef struct {
-	nl_enum type;
+	bool found;
 	nsname nsn;
 } nl_st;
 
 static inline nl_st nl_found(nsname nsn){
-	return (nl_st){ .type = NL_FOUND, .nsn = nsn };
+	return (nl_st){ .found = true, .nsn = nsn };
 }
 
 static inline nl_st nl_notfound(){
-	return (nl_st){ .type = NL_NOTFOUND };
+	return (nl_st){ .found = false };
 }
 
 static nl_st namespace_lookup(namespace ns, list_ptr names, int start, list_ptr tried);
@@ -5350,7 +5345,7 @@ static nl_st namespace_lookup(namespace ns, list_ptr names, int start, list_ptr 
 	for (int i = 0; i < allns->size; i++){
 		namespace hns = allns->ptrs[i];
 		nl_st n = namespace_lookupLevel(hns, names, start, tried);
-		if (n.type == NL_FOUND){
+		if (n.found){
 			list_ptr_free(allns);
 			return n;
 		}
@@ -5455,13 +5450,8 @@ static inline symtbl symtbl_new(bool repl){
 	return sym;
 }
 
-typedef enum {
-	SFN_OK,
-	SFN_ERROR
-} sfn_enum;
-
 typedef struct {
-	sfn_enum type;
+	bool ok;
 	union {
 		namespace ns;
 		char *msg;
@@ -5469,11 +5459,11 @@ typedef struct {
 } sfn_st;
 
 static inline sfn_st sfn_ok(namespace ns){
-	return (sfn_st){ .type = SFN_OK, .u.ns = ns };
+	return (sfn_st){ .ok = true, .u.ns = ns };
 }
 
 static inline sfn_st sfn_error(char *msg){
-	return (sfn_st){ .type = SFN_ERROR, .u.msg = msg };
+	return (sfn_st){ .ok = false, .u.msg = msg };
 }
 
 static sfn_st symtbl_findNamespace(symtbl sym, list_ptr names, int max){
@@ -5518,7 +5508,7 @@ static inline char *symtbl_pushNamespace(symtbl sym, list_ptr names){
 	else{
 		// find (and create if non-existant) namespace
 		sfn_st nsr = symtbl_findNamespace(sym, names, names->size);
-		if (nsr.type == SFN_ERROR)
+		if (!nsr.ok)
 			return nsr.u.msg;
 		ns = nsr.u.ns;
 	}
@@ -5556,13 +5546,8 @@ static inline void symtbl_popFrame(symtbl sym){
 	frame_free(del2);
 }
 
-typedef enum {
-	STL_OK,
-	STL_ERROR
-} stl_enum;
-
 typedef struct {
-	stl_enum type;
+	bool ok;
 	union {
 		nsname nsn;
 		char *msg;
@@ -5570,11 +5555,11 @@ typedef struct {
 } stl_st;
 
 static inline stl_st stl_ok(nsname nsn){
-	return (stl_st){ .type = STL_OK, .u.nsn = nsn };
+	return (stl_st){ .ok = true, .u.nsn = nsn };
 }
 
 static inline stl_st stl_error(char *msg){
-	return (stl_st){ .type = STL_ERROR, .u.msg = msg };
+	return (stl_st){ .ok = false, .u.msg = msg };
 }
 
 static stl_st symtbl_lookupfast(symtbl sym, list_ptr names){
@@ -5584,7 +5569,7 @@ static stl_st symtbl_lookupfast(symtbl sym, list_ptr names){
 		for (int trynsi = trysc->nsStack->size - 1; trynsi >= 0; trynsi--){
 			namespace tryns = trysc->nsStack->ptrs[trynsi];
 			nl_st n = namespace_lookup(tryns, names, 0, tried);
-			if (n.type == NL_FOUND){
+			if (n.found){
 				list_ptr_free(tried);
 				return stl_ok(n.nsn);
 			}
@@ -5597,7 +5582,7 @@ static stl_st symtbl_lookupfast(symtbl sym, list_ptr names){
 
 static stl_st symtbl_lookup(symtbl sym, list_ptr names){
 	stl_st res = symtbl_lookupfast(sym, names);
-	if (res.type == STL_ERROR){
+	if (!res.ok){
 		// create an error message
 		list_byte lb = names->ptrs[0];
 		char *join = format("Not found: %.*s", lb->size, lb->bytes);
@@ -5669,7 +5654,7 @@ static inline int symtbl_tempAvail(symtbl sym){
 static sta_st symtbl_addVar(symtbl sym, list_ptr names, int slot){
 	// set `slot` to negative to add variable at next available location
 	sfn_st nsr = symtbl_findNamespace(sym, names, names->size - 1);
-	if (nsr.type == SFN_ERROR)
+	if (!nsr.ok)
 		return sta_error(nsr.u.msg);
 	namespace ns = nsr.u.ns;
 	for (int i = 0; i < ns->names->size; i++){
@@ -5704,7 +5689,7 @@ static sta_st symtbl_addVar(symtbl sym, list_ptr names, int slot){
 
 static char *symtbl_addEnum(symtbl sym, list_ptr names, double val){
 	sfn_st nsr = symtbl_findNamespace(sym, names, names->size - 1);
-	if (nsr.type == SFN_ERROR)
+	if (!nsr.ok)
 		return nsr.u.msg;
 	namespace ns = nsr.u.ns;
 	for (int i = 0; i < ns->names->size; i++){
@@ -5729,7 +5714,7 @@ static void symtbl_reserveVars(symtbl sym, int count){
 
 static char *symtbl_addCmdLocal(symtbl sym, list_ptr names, label lbl){
 	sfn_st nsr = symtbl_findNamespace(sym, names, names->size - 1);
-	if (nsr.type == SFN_ERROR)
+	if (!nsr.ok)
 		return nsr.u.msg;
 	namespace ns = nsr.u.ns;
 	for (int i = 0; i < ns->names->size; i++){
@@ -5748,7 +5733,7 @@ static char *symtbl_addCmdLocal(symtbl sym, list_ptr names, label lbl){
 
 static char *symtbl_addCmdNative(symtbl sym, list_ptr names, uint64_t hash){
 	sfn_st nsr = symtbl_findNamespace(sym, names, names->size - 1);
-	if (nsr.type == SFN_ERROR)
+	if (!nsr.ok)
 		return nsr.u.msg;
 	namespace ns = nsr.u.ns;
 	for (int i = 0; i < ns->names->size; i++){
@@ -6726,7 +6711,7 @@ static lvp_st lval_addVars(symtbl sym, expr ex, int slot){
 static lvp_st lval_prepare(pgen_st pgen, expr ex){
 	if (ex->type == EXPR_NAMES){
 		stl_st sl = symtbl_lookup(pgen.sym, ex->u.names);
-		if (sl.type == STL_ERROR)
+		if (!sl.ok)
 			return lvp_error(ex->flp, sl.u.msg);
 		if (sl.u.nsn->type != NSN_VAR)
 			return lvp_error(ex->flp, format("Invalid assignment"));
@@ -7747,7 +7732,7 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 
 		case EXPR_NAMES: {
 			stl_st sl = symtbl_lookup(sym, ex->u.names);
-			if (sl.type == STL_ERROR)
+			if (!sl.ok)
 				return per_error(ex->flp, sl.u.msg);
 			switch (sl.u.nsn->type){
 				case NSN_VAR: {
@@ -8029,7 +8014,7 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 			if (ex->u.call.cmd->type != EXPR_NAMES)
 				return per_error(ex->flp, format("Invalid call"));
 			stl_st sl = symtbl_lookup(sym, ex->u.call.cmd->u.names);
-			if (sl.type == STL_ERROR)
+			if (!sl.ok)
 				return per_error(ex->flp, sl.u.msg);
 			return program_evalCall(pgen, mode, intoVlc, ex->flp, sl.u.nsn, ex->u.call.params);
 		} break;
@@ -8104,7 +8089,7 @@ static pen_st program_exprToNum(pgen_st pgen, expr ex){
 		return pen_ok(ex->u.num);
 	else if (ex->type == EXPR_NAMES){
 		stl_st sl = symtbl_lookup(pgen.sym, ex->u.names);
-		if (sl.type == STL_ERROR)
+		if (!sl.ok)
 			return pen_err(sl.u.msg);
 		if (sl.u.nsn->type == NSN_ENUM)
 			return pen_ok(sl.u.nsn->u.val);
@@ -8306,7 +8291,7 @@ static inline pfvs_res_st program_forVarsSingle(symtbl sym, bool forVar, list_pt
 	}
 	else{
 		stl_st sl = symtbl_lookup(sym, names);
-		if (sl.type == STL_ERROR)
+		if (!sl.ok)
 			return (pfvs_res_st){ .vlc = VARLOC_NULL, .err = sl.u.msg };
 		if (sl.u.nsn->type != NSN_VAR){
 			return (pfvs_res_st){
@@ -8492,7 +8477,7 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 		case AST_DEF1: {
 			nl_st n = namespace_lookupImmediate(sym->sc->ns, stmt->u.def1.names);
 			label lbl;
-			if (n.type == NL_FOUND && n.nsn->type == NSN_CMD_LOCAL){
+			if (n.found && n.nsn->type == NSN_CMD_LOCAL){
 				lbl = n.nsn->u.cmdLocal.lbl;
 				if (!sym->repl && lbl->pos >= 0){ // if already defined, error
 					list_byte b = stmt->u.def1.names->ptrs[0];
@@ -8679,7 +8664,7 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 				if (c->u.call.cmd->type == EXPR_NAMES){
 					expr n = c->u.call.cmd;
 					stl_st sl = symtbl_lookup(sym, n->u.names);
-					if (sl.type == STL_ERROR)
+					if (!sl.ok)
 						return pgr_error(stmt->flp, sl.u.msg);
 					nsname nsn = sl.u.nsn;
 					if (nsn->type == NSN_CMD_OPCODE && nsn->u.cmdOpcode.opcode == OP_RANGE){
@@ -8844,14 +8829,14 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 				if (ex->u.call.cmd->type != EXPR_NAMES)
 					return pgr_error(ex->flp, format("Invalid call"));
 				stl_st sl = symtbl_lookup(sym, ex->u.call.cmd->u.names);
-				if (sl.type == STL_ERROR)
+				if (!sl.ok)
 					return pgr_error(ex->flp, sl.u.msg);
 				nsn = sl.u.nsn;
 				params = ex->u.call.params;
 			}
 			else if (ex->type == EXPR_NAMES){
 				stl_st sl = symtbl_lookup(sym, ex->u.names);
-				if (sl.type == STL_ERROR)
+				if (!sl.ok)
 					return pgr_error(ex->flp, sl.u.msg);
 				nsn = sl.u.nsn;
 			}
@@ -8883,10 +8868,10 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 		case AST_USING: {
 			stl_st sl = symtbl_lookupfast(sym, stmt->u.names);
 			namespace ns;
-			if (sl.type == STL_ERROR){ // not found, so create it
+			if (!sl.ok){ // not found, so create it
 				// don't have to free the error message because lookupfast doesn't create one
 				sfn_st sf = symtbl_findNamespace(sym, stmt->u.names, stmt->u.names->size);
-				if (sf.type == SFN_ERROR)
+				if (!sf.ok)
 					return pgr_error(stmt->flp, sf.u.msg);
 				ns = sf.u.ns;
 			}

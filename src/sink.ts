@@ -4040,7 +4040,7 @@ function parser_add(pr: parser_st, tk: tok_st, stmts: ast_st[]): string | null {
 	return parser_process(pr, stmts);
 }
 
-function parser_close(pr: parser_st): string | null{
+function parser_close(pr: parser_st): string | null {
 	if (pr.state === null)
 		throw new Error('Parser missing state');
 	if (pr.state.next !== null)
@@ -4048,87 +4048,71 @@ function parser_close(pr: parser_st): string | null{
 	return null;
 }
 
-/*
 //
 // labels
 //
 
-typedef struct {
-	list_byte name;
-	int pos;
-	list_int rewrites;
-} label_st, *label;
-
-static inline void label_free(label lbl){
-	if (lbl.name)
-		list_byte_free(lbl.name);
-	list_int_free(lbl.rewrites);
-	mem_free(lbl);
+interface label_st {
+	name: string;
+	pos: number;
+	rewrites: number[];
 }
 
-static inline label label_new(list_byte name){
-	label lbl = mem_alloc(sizeof(label_st));
-	lbl.name = name;
-	lbl.pos = -1;
-	lbl.rewrites = list_int_new();
-	return lbl;
+function label_new(name: string): label_st {
+	return {
+		name: name,
+		pos: -1,
+		rewrites: []
+	};
 }
 
-#ifdef SINK_DEBUG
-// hard-coded labels are prefixed with a character that can't be in a script label
-#	define label_newstr(s) label_new(list_byte_newstr("^" s))
-#else
-#	define label_newstr(s) label_new(NULL)
-#endif
-
-static void label_refresh(label lbl, list_byte ops, int start){
-	for (int i = start; i < lbl.rewrites.size; i++){
-		int index = lbl.rewrites.vals[i];
-		ops.bytes[index + 0] = lbl.pos % 256;
-		ops.bytes[index + 1] = (lbl.pos >> 8) % 256;
-		ops.bytes[index + 2] = (lbl.pos >> 16) % 256;
-		ops.bytes[index + 3] = (lbl.pos >> 24) % 256;
+function label_refresh(lbl: label_st, ops: number[], start: number): void {
+	for (let i = start; i < lbl.rewrites.length; i++){
+		let index = lbl.rewrites[i];
+		ops[index + 0] = lbl.pos % 256;
+		ops[index + 1] = (lbl.pos >> 8) % 256;
+		ops[index + 2] = (lbl.pos >> 16) % 256;
+		ops[index + 3] = (lbl.pos >> 24) % 256;
 	}
 }
 
-static inline void label_jump(label lbl, list_byte ops){
+function label_jump(lbl: label_st, ops: number[]): void {
 	op_jump(ops, 0xFFFFFFFF, lbl.name);
-	list_int_push(lbl.rewrites, ops.size - 4);
+	lbl.rewrites.push(ops.length - 4);
 	if (lbl.pos >= 0)
-		label_refresh(lbl, ops, lbl.rewrites.size - 1);
+		label_refresh(lbl, ops, lbl.rewrites.length - 1);
 }
 
-static inline void label_jumptrue(label lbl, list_byte ops, varloc_st src){
+function label_jumptrue(lbl: label_st, ops: number[], src: varloc_st): void {
 	op_jumptrue(ops, src, 0xFFFFFFFF, lbl.name);
-	list_int_push(lbl.rewrites, ops.size - 4);
+	lbl.rewrites.push(ops.length - 4);
 	if (lbl.pos >= 0)
-		label_refresh(lbl, ops, lbl.rewrites.size - 1);
+		label_refresh(lbl, ops, lbl.rewrites.length - 1);
 }
 
-static inline void label_jumpfalse(label lbl, list_byte ops, varloc_st src){
+function label_jumpfalse(lbl: label_st, ops: number[], src: varloc_st): void {
 	op_jumpfalse(ops, src, 0xFFFFFFFF, lbl.name);
-	list_int_push(lbl.rewrites, ops.size - 4);
+	lbl.rewrites.push(ops.length - 4);
 	if (lbl.pos >= 0)
-		label_refresh(lbl, ops, lbl.rewrites.size - 1);
+		label_refresh(lbl, ops, lbl.rewrites.length - 1);
 }
 
-static inline void label_call(label lbl, list_byte ops, varloc_st ret, int argcount){
+function label_call(lbl: label_st, ops: number[], ret: varloc_st, argcount: number): void {
 	op_call(ops, ret, 0xFFFFFFFF, argcount, lbl.name);
-	list_int_push(lbl.rewrites, ops.size - 5);
+	lbl.rewrites.push(ops.length - 5);
 	if (lbl.pos >= 0)
-		label_refresh(lbl, ops, lbl.rewrites.size - 1);
+		label_refresh(lbl, ops, lbl.rewrites.length - 1);
 }
 
-static inline void label_returntail(label lbl, list_byte ops, int argcount){
+function label_returntail(lbl: label_st, ops: number[], argcount: number): void {
 	op_returntail(ops, 0xFFFFFFFF, argcount, lbl.name);
-	list_int_push(lbl.rewrites, ops.size - 5);
+	lbl.rewrites.push(ops.length - 5);
 	if (lbl.pos >= 0)
-		label_refresh(lbl, ops, lbl.rewrites.size - 1);
+		label_refresh(lbl, ops, lbl.rewrites.length - 1);
 }
 
-static inline void label_declare(label lbl, list_byte ops){
-	debugf("%.*s:", lbl.name.size, lbl.name.bytes);
-	lbl.pos = ops.size;
+function label_declare(lbl: label_st, ops: number[]): void {
+	lbl.pos = ops.length;
 	label_refresh(lbl, ops, 0);
 }
 
@@ -4136,291 +4120,213 @@ static inline void label_declare(label lbl, list_byte ops){
 // symbol table
 //
 
-typedef enum {
-	FVR_VAR,
-	FVR_TEMP_INUSE,
-	FVR_TEMP_AVAIL
-} frame_enum;
-
-typedef struct frame_struct frame_st, *frame;
-struct frame_struct {
-	list_int vars;
-	list_ptr lbls;
-	frame parent;
-	int level;
-};
-
-static inline void frame_free(frame fr){
-	list_int_free(fr.vars);
-	list_ptr_free(fr.lbls);
-	mem_free(fr);
+enum frame_enum {
+	VAR,
+	TEMP_INUSE,
+	TEMP_AVAIL
 }
 
-#ifdef SINK_DEBUG
-static void frame_print(frame fr){
-	debug("FRAME:");
-	for (int i = 0; i < fr.vars.size; i++){
-		debugf("  %d. %s", i, fr.vars.vals[i] === FVR_VAR ? "VAR" :
-			(fr.vars.vals[i] === FVR_TEMP_INUSE ? "TMP (Used)" : "TMP (Avlb)"));
-	}
-	if (fr.lbls.size > 0){
-		debug("  . LABELS:");
-		for (int i = 0; i < fr.lbls.size; i++){
-			list_byte b = ((label)fr.lbls.ptrs[i]).name;
-			debugf("  %.*s", b.size, b.bytes);
-		}
-	}
-}
-#endif
-
-static inline frame frame_new(frame parent){
-	frame fr = mem_alloc(sizeof(frame_st));
-	fr.vars = list_int_new();
-	fr.lbls = list_ptr_new(label_free);
-	fr.parent = parent;
-	fr.level = parent ? fr.parent.level + 1 : 0;
-	return fr;
+interface frame_st {
+	vars: frame_enum[];
+	lbls: label_st[];
+	parent: frame_st | null;
+	level: number;
 }
 
-typedef struct namespace_struct namespace_st, *namespace;
-static inline void namespace_free(namespace ns);
-
-typedef enum {
-	NSN_VAR,
-	NSN_ENUM,
-	NSN_CMD_LOCAL,
-	NSN_CMD_NATIVE,
-	NSN_CMD_OPCODE,
-	NSN_NAMESPACE
-} nsname_enumt;
-
-typedef struct {
-	list_byte name;
-	nsname_enumt type;
-	union {
-		struct {
-			frame fr; // not freed by nsname_free
-			int index;
-		} var;
-		double val;
-		struct {
-			frame fr; // not freed by nsname_free
-			label lbl; // not feed by nsname_free
-		} cmdLocal;
-		uint64_t hash;
-		struct {
-			op_enum opcode;
-			int params;
-		} cmdOpcode;
-		namespace ns;
-	} u;
-} nsname_st, *nsname;
-
-static void nsname_free(nsname nsn){
-	list_byte_free(nsn.name);
-	switch (nsn.type){
-		case NSN_VAR:
-		case NSN_ENUM:
-		case NSN_CMD_LOCAL:
-		case NSN_CMD_NATIVE:
-		case NSN_CMD_OPCODE:
-			break;
-		case NSN_NAMESPACE:
-			if (nsn.u.ns)
-				namespace_free(nsn.u.ns);
-			break;
-	}
-	mem_free(nsn);
+function frame_new(parent: frame_st | null): frame_st {
+	return {
+		vars: [],
+		lbls: [],
+		parent: parent,
+		level: parent !== null ? parent.level + 1 : 0
+	};
 }
 
-#ifdef SINK_DEBUG
-static void nsname_print(nsname nsn){
-	switch (nsn.type){
-		case NSN_VAR:
-			debugf("%.*s NSN_VAR %d", nsn.name.size, nsn.name.bytes, nsn.u.var.index);
-			break;
-		case NSN_ENUM:
-			debugf("%.*s NSN_ENUM %g", nsn.name.size, nsn.name.bytes, nsn.u.val);
-			break;
-		case NSN_CMD_LOCAL:
-			debugf("%.*s NSN_CMD_LOCAL", nsn.name.size, nsn.name.bytes);
-			break;
-		case NSN_CMD_NATIVE:
-			debugf("%.*s NSN_CMD_NATIVE", nsn.name.size, nsn.name.bytes);
-			break;
-		case NSN_CMD_OPCODE:
-			debugf("%.*s NSN_CMD_OPCODE 0x%02X", nsn.name.size, nsn.name.bytes,
-				nsn.u.cmdOpcode.opcode);
-			break;
-		case NSN_NAMESPACE:
-			debugf("%.*s NSN_NAMESPACE", nsn.name.size, nsn.name.bytes);
-			break;
-	}
-}
-#endif
-
-static inline nsname nsname_var(list_byte name, frame fr, int index){
-	nsname nsn = mem_alloc(sizeof(nsname_st));
-	nsn.name = list_byte_newcopy(name);
-	nsn.type = NSN_VAR;
-	nsn.u.var.fr = fr;
-	nsn.u.var.index = index;
-	return nsn;
+enum nsname_enumt {
+	VAR,
+	ENUM,
+	CMD_LOCAL,
+	CMD_NATIVE,
+	CMD_OPCODE,
+	NAMESPACE
 }
 
-static inline nsname nsname_enum(list_byte name, double val, bool own){
-	nsname nsn = mem_alloc(sizeof(nsname_st));
-	nsn.name = own ? name : list_byte_newcopy(name);
-	nsn.type = NSN_ENUM;
-	nsn.u.val = val;
-	return nsn;
+interface nsname_st_VAR {
+	name: string;
+	type: nsname_enumt.VAR;
+	fr: frame_st;
+	index: number;
+}
+interface nsname_st_ENUM {
+	name: string;
+	type: nsname_enumt.ENUM;
+	val: number;
+}
+interface nsname_st_CMD_LOCAL {
+	name: string;
+	type: nsname_enumt.CMD_LOCAL;
+	fr: frame_st;
+	lbl: label_st;
+}
+interface nsname_st_CMD_NATIVE {
+	name: string;
+	type: nsname_enumt.CMD_NATIVE;
+	hash: sink_u64;
+}
+interface nsname_st_CMD_OPCODE {
+	name: string;
+	type: nsname_enumt.CMD_OPCODE;
+	opcode: op_enum;
+	params: number;
+}
+interface nsname_st_NAMESPACE {
+	name: string;
+	type: nsname_enumt.NAMESPACE;
+	ns: namespace_st;
+}
+type nsname_st = nsname_st_VAR | nsname_st_ENUM | nsname_st_CMD_LOCAL | nsname_st_CMD_NATIVE |
+	nsname_st_CMD_OPCODE | nsname_st_NAMESPACE;
+
+function nsname_var(name: string, fr: frame_st, index: number): nsname_st {
+	return {
+		name: name,
+		type: nsname_enumt.VAR,
+		fr: fr,
+		index: index
+	};
 }
 
-static inline nsname nsname_cmdLocal(list_byte name, frame fr, label lbl){
-	nsname nsn = mem_alloc(sizeof(nsname_st));
-	nsn.name = list_byte_newcopy(name);
-	nsn.type = NSN_CMD_LOCAL;
-	nsn.u.cmdLocal.fr = fr;
-	nsn.u.cmdLocal.lbl = lbl;
-	return nsn;
+function nsname_enum(name: string, val: number): nsname_st {
+	return {
+		name: name,
+		type: nsname_enumt.ENUM,
+		val: val
+	};
 }
 
-static inline nsname nsname_cmdNative(list_byte name, uint64_t hash){
-	nsname nsn = mem_alloc(sizeof(nsname_st));
-	nsn.name = list_byte_newcopy(name);
-	nsn.type = NSN_CMD_NATIVE;
-	nsn.u.hash = hash;
-	return nsn;
+function nsname_cmdLocal(name: string, fr: frame_st, lbl: label_st): nsname_st {
+	return {
+		name: name,
+		type: nsname_enumt.CMD_LOCAL,
+		fr: fr,
+		lbl: lbl
+	};
 }
 
-static inline nsname nsname_cmdOpcode(list_byte name, op_enum opcode, int params){
-	nsname nsn = mem_alloc(sizeof(nsname_st));
-	nsn.name = name; // don't copy because the only caller gives `name` to nsn
-	nsn.type = NSN_CMD_OPCODE;
-	nsn.u.cmdOpcode.opcode = opcode;
-	nsn.u.cmdOpcode.params = params;
-	return nsn;
+function nsname_cmdNative(name: string, hash: sink_u64): nsname_st {
+	return {
+		name: name,
+		type: nsname_enumt.CMD_NATIVE,
+		hash: hash
+	};
 }
 
-static inline nsname nsname_namespacegive(list_byte name, namespace ns){
-	nsname nsn = mem_alloc(sizeof(nsname_st));
-	nsn.name = name;
-	nsn.type = NSN_NAMESPACE;
-	nsn.u.ns = ns;
-	return nsn;
+function nsname_cmdOpcode(name: string, opcode: op_enum, params: number): nsname_st {
+	return {
+		name: name,
+		type: nsname_enumt.CMD_OPCODE,
+		opcode: opcode,
+		params: params
+	};
 }
 
-static inline nsname nsname_namespace(list_byte name, namespace ns){
-	return nsname_namespacegive(list_byte_newcopy(name), ns);
+function nsname_namespace(name: string, ns: namespace_st): nsname_st {
+	return {
+		name: name,
+		type: nsname_enumt.NAMESPACE,
+		ns: ns
+	};
 }
 
-struct namespace_struct {
-	frame fr; // not freed by namespace_free
-	list_ptr usings; // namespace entries not feed by namespace_free
-	list_ptr names;
-};
-
-static inline void namespace_free(namespace ns){
-	list_ptr_free(ns.usings);
-	list_ptr_free(ns.names);
-	mem_free(ns);
+interface namespace_st {
+	fr: frame_st;
+	usings: namespace_st[];
+	names: nsname_st[];
 }
 
-#ifdef SINK_DEBUG
-static void namespace_print(namespace ns){
-	debug("NAMESPACE:");
-	for (int i = 0; i < ns.names.size; i++)
-		nsname_print(ns.names.ptrs[i]);
-}
-#endif
-
-static inline namespace namespace_new(frame fr){
-	namespace ns = mem_alloc(sizeof(namespace_st));
-	ns.fr = fr;
-	ns.usings = list_ptr_new(NULL);
-	ns.names = list_ptr_new(nsname_free);
-	return ns;
+function namespace_new(fr: frame_st): namespace_st {
+	return {
+		fr: fr,
+		usings: [],
+		names: []
+	};
 }
 
-typedef enum {
-	NL_FOUND,
-	NL_NOTFOUND
-} nl_enum;
+interface nl_st_FOUND {
+	found: true;
+	nsn: nsname_st;
+}
+interface nl_st_NOTFOUND {
+	found: false;
+}
+type nl_st = nl_st_FOUND | nl_st_NOTFOUND;
 
-typedef struct {
-	nl_enum type;
-	nsname nsn;
-} nl_st;
-
-static inline nl_st nl_found(nsname nsn){
-	return (nl_st){ .type = NL_FOUND, .nsn = nsn };
+function nl_found(nsn: nsname_st): nl_st {
+	return { found: true, nsn: nsn };
 }
 
-static inline nl_st nl_notfound(){
-	return (nl_st){ .type = NL_NOTFOUND };
+function nl_notfound(): nl_st {
+	return { found: false };
 }
 
-static nl_st namespace_lookup(namespace ns, list_ptr names, int start, list_ptr tried);
-
-static nl_st namespace_lookupLevel(namespace ns, list_ptr names, int start, list_ptr tried){
-	for (int nsni = 0; nsni < ns.names.size; nsni++){
-		nsname nsn = ns.names.ptrs[nsni];
-		if (list_byte_equ(nsn.name, names.ptrs[start])){
-			if (start === names.size - 1) // if we're at the end of names, then report the find
+function namespace_lookupLevel(ns: namespace_st, names: string[], start: number,
+	tried: namespace_st[]): nl_st {
+	for (let nsni = 0; nsni < ns.names.length; nsni++){
+		let nsn = ns.names[nsni];
+		if (nsn.name === names[start]){
+			if (start === names.length - 1) // if we're at the end of names, then report the find
 				return nl_found(nsn);
 			// otherwise, we need to traverse
-			if (nsn.type === NSN_NAMESPACE)
-				return namespace_lookup(nsn.u.ns, names, start + 1, tried);
+			if (nsn.type === nsname_enumt.NAMESPACE)
+				return namespace_lookup(nsn.ns, names, start + 1, tried);
 			return nl_notfound();
 		}
 	}
 	return nl_notfound();
 }
 
-static void namespace_getSiblings(namespace ns, list_ptr res, list_ptr tried){
-	if (list_ptr_has(res, ns))
+function namespace_getSiblings(ns: namespace_st, res: namespace_st[], tried: namespace_st[]): void {
+	if (res.indexOf(ns) >= 0)
 		return;
-	list_ptr_push(res, ns);
-	for (int i = 0; i < ns.usings.size; i++){
-		namespace uns = ns.usings.ptrs[i];
-		if (list_ptr_has(tried, uns))
+	res.push(ns);
+	for (let i = 0; i < ns.usings.length; i++){
+		let uns = ns.usings[i];
+		if (tried.indexOf(uns) >= 0)
 			continue;
 		namespace_getSiblings(uns, res, tried);
 	}
 }
 
-static nl_st namespace_lookup(namespace ns, list_ptr names, int start, list_ptr tried){
-	if (list_ptr_has(tried, ns))
+function namespace_lookup(ns: namespace_st, names: string[], start: number,
+	tried: namespace_st[]): nl_st {
+	if (tried.indexOf(ns) >= 0)
 		return nl_notfound();
-	list_ptr_push(tried, ns);
+	tried.push(ns);
 
-	list_ptr allns = list_ptr_new(NULL);
+	let allns: namespace_st[] = [];
 	namespace_getSiblings(ns, allns, tried);
-	for (int i = 0; i < allns.size; i++){
-		namespace hns = allns.ptrs[i];
-		nl_st n = namespace_lookupLevel(hns, names, start, tried);
-		if (n.type === NL_FOUND){
-			list_ptr_free(allns);
+	for (let i = 0; i < allns.length; i++){
+		let hns = allns[i];
+		let n = namespace_lookupLevel(hns, names, start, tried);
+		if (n.found)
 			return n;
-		}
 	}
-	list_ptr_free(allns);
 	return nl_notfound();
 }
 
-static inline nl_st namespace_lookupImmediate(namespace ns, list_ptr names){
+function namespace_lookupImmediate(ns: namespace_st, names: string[]): nl_st {
 	// should perform the most ideal lookup... if it fails, then there is room to add a symbol
-	for (int ni = 0; ni < names.size; ni++){
-		list_byte name = names.ptrs[ni];
-		bool found = false;
-		for (int nsni = 0; nsni < ns.names.size; nsni++){
-			nsname nsn = ns.names.ptrs[nsni];
-			if (list_byte_equ(nsn.name, name)){
-				if (ni === names.size - 1)
+	for (let ni = 0; ni < names.length; ni++){
+		let name = names[ni];
+		let found = false;
+		for (let nsni = 0; nsni < ns.names.length; nsni++){
+			let nsn = ns.names[nsni];
+			if (nsn.name === name){
+				if (ni === names.length - 1)
 					return nl_found(nsn);
-				if (nsn.type !== NSN_NAMESPACE)
+				if (nsn.type !== nsname_enumt.NAMESPACE)
 					return nl_notfound();
-				ns = nsn.u.ns;
+				ns = nsn.ns;
 				found = true;
 				break;
 			}
@@ -4431,583 +4337,518 @@ static inline nl_st namespace_lookupImmediate(namespace ns, list_ptr names){
 	return nl_notfound();
 }
 
-typedef struct scope_struct scope_st, *scope;
-struct scope_struct {
-	namespace ns;
-	list_ptr nsStack;
-	label lblBreak; // not freed by scope_free
-	label lblContinue; // not freed by scope_free
-	scope parent;
-};
-
-static inline void scope_free(scope sc){
-	// only free the first namespace...
-	// this is because the first namespace will have all the child namespaces under it inside
-	// the ns.names field, which will be freed via nsname_free
-	namespace_free(sc.nsStack.ptrs[0]);
-	list_ptr_free(sc.nsStack);
-	mem_free(sc);
+interface scope_st {
+	ns: namespace_st;
+	nsStack: namespace_st[];
+	lblBreak: label_st | null;
+	lblContinue: label_st | null;
+	parent: scope_st | null;
 }
 
-#ifdef SINK_DEBUG
-static void scope_print(scope sc){
-	for (int i = 0; i < sc.nsStack.size; i++)
-		namespace_print(sc.nsStack.ptrs[i]);
-}
-#endif
-
-static inline scope scope_new(frame fr, label lblBreak, label lblContinue, scope parent){
-	scope sc = mem_alloc(sizeof(scope_st));
-	sc.ns = namespace_new(fr);
-	sc.nsStack = list_ptr_new(NULL);
-	list_ptr_push(sc.nsStack, sc.ns);
-	sc.lblBreak = lblBreak;
-	sc.lblContinue = lblContinue;
-	sc.parent = parent;
-	return sc;
+function scope_new(fr: frame_st, lblBreak: label_st | null, lblContinue: label_st | null,
+	parent: scope_st | null): scope_st {
+	let ns = namespace_new(fr);
+	return {
+		ns: ns,
+		nsStack: [ns],
+		lblBreak: lblBreak,
+		lblContinue: lblContinue,
+		parent: parent
+	};
 }
 
-typedef struct {
-	frame fr;
-	scope sc;
-	bool repl;
-} symtbl_st, *symtbl;
-
-static inline void symtbl_free(symtbl sym){
-	frame here = sym.fr;
-	while (here){
-		frame del = here;
-		here = here.parent;
-		frame_free(del);
-	}
-	scope here2 = sym.sc;
-	while (here2){
-		scope del = here2;
-		here2 = here2.parent;
-		scope_free(del);
-	}
-	mem_free(sym);
+interface symtbl_st {
+	fr: frame_st;
+	sc: scope_st;
+	repl: boolean;
 }
 
-static void symtbl_print(symtbl sym){
-	#ifdef SINK_DEBUG
-	frame_print(sym.fr);
-	scope_print(sym.sc);
-	#endif
+function symtbl_new(repl: boolean): symtbl_st {
+	let fr = frame_new(null);
+	return {
+		fr: fr,
+		sc: scope_new(fr, null, null, null),
+		repl: repl
+	};
 }
 
-static inline symtbl symtbl_new(bool repl){
-	symtbl sym = mem_alloc(sizeof(symtbl_st));
-	sym.fr = frame_new(NULL);
-	sym.sc = scope_new(sym.fr, NULL, NULL, NULL);
-	sym.repl = repl;
-	return sym;
+interface sfn_st_OK {
+	ok: true;
+	ns: namespace_st;
+}
+interface sfn_st_ERROR {
+	ok: false;
+	msg: string;
+}
+type sfn_st = sfn_st_OK | sfn_st_ERROR;
+
+function sfn_ok(ns: namespace_st): sfn_st {
+	return { ok: true, ns: ns };
 }
 
-typedef enum {
-	SFN_OK,
-	SFN_ERROR
-} sfn_enum;
-
-typedef struct {
-	sfn_enum type;
-	union {
-		namespace ns;
-		char *msg;
-	} u;
-} sfn_st;
-
-static inline sfn_st sfn_ok(namespace ns){
-	return (sfn_st){ .type = SFN_OK, .u.ns = ns };
+function sfn_error(msg: string): sfn_st {
+	return { ok: false, msg: msg };
 }
 
-static inline sfn_st sfn_error(char *msg){
-	return (sfn_st){ .type = SFN_ERROR, .u.msg = msg };
-}
-
-static sfn_st symtbl_findNamespace(symtbl sym, list_ptr names, int max){
-	namespace ns = sym.sc.ns;
-	for (int ni = 0; ni < max; ni++){
-		list_byte name = names.ptrs[ni];
-		bool found = false;
-		for (int i = 0; i < ns.names.size; i++){
-			nsname nsn = ns.names.ptrs[i];
-			if (list_byte_equ(nsn.name, name)){
-				if (nsn.type !== NSN_NAMESPACE){
-					if (!sym.repl){
-						return sfn_error(format(
-							"Not a namespace: \"%.*s\"", nsn.name.size, nsn.name.bytes));
-					}
-					nsname_free(ns.names.ptrs[i]);
-					nsn = ns.names.ptrs[i] = nsname_namespace(nsn.name, namespace_new(ns.fr));
+function symtbl_findNamespace(sym: symtbl_st, names: string[], max: number): sfn_st {
+	let ns = sym.sc.ns;
+	for (let ni = 0; ni < max; ni++){
+		let name = names[ni];
+		let found = false;
+		for (let i = 0; i < ns.names.length; i++){
+			let nsn = ns.names[i];
+			if (nsn.name === name){
+				if (nsn.type !== nsname_enumt.NAMESPACE){
+					if (!sym.repl)
+						return sfn_error('Not a namespace: "' + nsn.name + '"');
+					nsn = ns.names[i] = nsname_namespace(nsn.name, namespace_new(ns.fr));
 				}
-				ns = nsn.u.ns;
+				if (nsn.type !== nsname_enumt.NAMESPACE)
+					throw new Error('Symtbl namespace required');
+				ns = nsn.ns;
 				found = true;
 				break;
 			}
 		}
 		if (!found){
-			namespace nns = namespace_new(ns.fr);
-			list_ptr_push(ns.names, nsname_namespace(name, nns));
+			let nns = namespace_new(ns.fr);
+			ns.names.push(nsname_namespace(name, nns));
 			ns = nns;
 		}
 	}
 	return sfn_ok(ns);
 }
 
-static inline char *symtbl_pushNamespace(symtbl sym, list_ptr names){
-	namespace ns;
-	if (names === INCL_UNIQUE){
+function symtbl_pushNamespace(sym: symtbl_st, names: string[] | true): string | null{
+	let ns: namespace_st;
+	if (names === true){
 		// create a unique namespace and use it (via `using`) immediately
-		namespace nsp = sym.sc.ns;
+		let nsp = sym.sc.ns;
 		ns = namespace_new(nsp.fr);
-		list_ptr_push(nsp.names, nsname_namespacegive(list_byte_newstr("."), ns));
-		list_ptr_push(nsp.usings, ns);
+		nsp.names.push(nsname_namespace('.', ns));
+		nsp.usings.push(ns);
 	}
 	else{
 		// find (and create if non-existant) namespace
-		sfn_st nsr = symtbl_findNamespace(sym, names, names.size);
-		if (nsr.type === SFN_ERROR)
-			return nsr.u.msg;
-		ns = nsr.u.ns;
+		let nsr = symtbl_findNamespace(sym, names, names.length);
+		if (!nsr.ok)
+			return nsr.msg;
+		ns = nsr.ns;
 	}
-	list_ptr_push(sym.sc.nsStack, ns);
+	sym.sc.nsStack.push(ns);
 	sym.sc.ns = ns;
 	return null;
 }
 
-static inline void symtbl_popNamespace(symtbl sym){
-	sym.sc.nsStack.size--;
-	sym.sc.ns = sym.sc.nsStack.ptrs[sym.sc.nsStack.size - 1];
+function symtbl_popNamespace(sym: symtbl_st): void {
+	sym.sc.nsStack.pop();
+	sym.sc.ns = sym.sc.nsStack[sym.sc.nsStack.length - 1];
 }
 
-static inline void symtbl_pushScope(symtbl sym){
+function symtbl_pushScope(sym: symtbl_st): void {
 	sym.sc = scope_new(sym.fr, sym.sc.lblBreak, sym.sc.lblContinue, sym.sc);
 }
 
-static inline void symtbl_popScope(symtbl sym){
-	scope del = sym.sc;
+function symtbl_popScope(sym: symtbl_st): void {
+	if (sym.sc.parent === null)
+		throw new Error('Cannot pop last scope');
 	sym.sc = sym.sc.parent;
-	scope_free(del);
 }
 
-static inline void symtbl_pushFrame(symtbl sym){
+function symtbl_pushFrame(sym: symtbl_st): void {
 	sym.fr = frame_new(sym.fr);
-	sym.sc = scope_new(sym.fr, NULL, NULL, sym.sc);
+	sym.sc = scope_new(sym.fr, null, null, sym.sc);
 }
 
-static inline void symtbl_popFrame(symtbl sym){
-	scope del = sym.sc;
-	frame del2 = sym.fr;
+function symtbl_popFrame(sym: symtbl_st): void {
+	if (sym.sc.parent === null || sym.fr.parent === null)
+		throw new Error('Cannot pop last frame');
 	sym.sc = sym.sc.parent;
 	sym.fr = sym.fr.parent;
-	scope_free(del);
-	frame_free(del2);
 }
 
-typedef enum {
-	STL_OK,
-	STL_ERROR
-} stl_enum;
+interface stl_st_OK {
+	ok: true;
+	nsn: nsname_st;
+}
+interface stl_st_ERROR {
+	ok: false;
+	msg: string;
+}
+type stl_st = stl_st_OK | stl_st_ERROR;
 
-typedef struct {
-	stl_enum type;
-	union {
-		nsname nsn;
-		char *msg;
-	} u;
-} stl_st;
-
-static inline stl_st stl_ok(nsname nsn){
-	return (stl_st){ .type = STL_OK, .u.nsn = nsn };
+function stl_ok(nsn: nsname_st): stl_st {
+	return { ok: true, nsn: nsn };
 }
 
-static inline stl_st stl_error(char *msg){
-	return (stl_st){ .type = STL_ERROR, .u.msg = msg };
+function stl_error(msg: string): stl_st {
+	return { ok: false, msg: msg };
 }
 
-static stl_st symtbl_lookupfast(symtbl sym, list_ptr names){
-	list_ptr tried = list_ptr_new(NULL);
-	scope trysc = sym.sc;
-	while (trysc !== NULL){
-		for (int trynsi = trysc.nsStack.size - 1; trynsi >= 0; trynsi--){
-			namespace tryns = trysc.nsStack.ptrs[trynsi];
-			nl_st n = namespace_lookup(tryns, names, 0, tried);
-			if (n.type === NL_FOUND){
-				list_ptr_free(tried);
+function symtbl_lookupfast(sym: symtbl_st, names: string[]): stl_st {
+	let tried: namespace_st[] = [];
+	let trysc: scope_st | null = sym.sc;
+	while (trysc !== null){
+		for (let trynsi = trysc.nsStack.length - 1; trynsi >= 0; trynsi--){
+			let tryns = trysc.nsStack[trynsi];
+			let n = namespace_lookup(tryns, names, 0, tried);
+			if (n.found)
 				return stl_ok(n.nsn);
-			}
 		}
 		trysc = trysc.parent;
 	}
-	list_ptr_free(tried);
-	return stl_error(NULL); // don't create an error message (unless we need it)
+	return stl_error('');
 }
 
-static stl_st symtbl_lookup(symtbl sym, list_ptr names){
-	stl_st res = symtbl_lookupfast(sym, names);
-	if (res.type === STL_ERROR){
-		// create an error message
-		list_byte lb = names.ptrs[0];
-		char *join = format("Not found: %.*s", lb.size, lb.bytes);
-		for (int i = 1; i < names.size; i++){
-			lb = names.ptrs[i];
-			char *join2 = format("%s.%.*s", join, lb.size, lb.bytes);
-			mem_free(join);
-			join = join2;
-		}
-		res.u.msg = join;
-	}
+function symtbl_lookup(sym: symtbl_st, names: string[]): stl_st {
+	let res = symtbl_lookupfast(sym, names);
+	if (!res.ok)
+		res.msg = 'Not found: ' + names.join('.');
 	return res;
 }
 
-typedef enum {
-	STA_OK,
-	STA_VAR,
-	STA_ERROR
-} sta_enum;
-
-typedef struct {
-	sta_enum type;
-	union {
-		varloc_st vlc;
-		char *msg;
-	} u;
-} sta_st;
-
-static inline sta_st sta_ok(){
-	return (sta_st){ .type = STA_OK };
+enum sta_enum {
+	OK,
+	VAR,
+	ERROR
 }
 
-static inline sta_st sta_var(varloc_st vlc){
-	return (sta_st){ .type = STA_VAR, .u.vlc = vlc };
+interface sta_st_OK {
+	type: sta_enum.OK;
+}
+interface sta_st_VAR {
+	type: sta_enum.VAR;
+	vlc: varloc_st;
+}
+interface sta_st_ERROR {
+	type: sta_enum.ERROR;
+	msg: string;
+}
+type sta_st = sta_st_OK | sta_st_VAR | sta_st_ERROR;
+
+function sta_ok(): sta_st {
+	return { type: sta_enum.OK };
 }
 
-static inline sta_st sta_error(char *msg){
-	return (sta_st){ .type = STA_ERROR, .u.msg = msg };
+function sta_var(vlc: varloc_st): sta_st {
+	return { type: sta_enum.VAR, vlc: vlc };
 }
 
-static sta_st symtbl_addTemp(symtbl sym){
-	for (int i = 0; i < sym.fr.vars.size; i++){
-		if (sym.fr.vars.vals[i] === FVR_TEMP_AVAIL){
-			sym.fr.vars.vals[i] = FVR_TEMP_INUSE;
+function sta_error(msg: string): sta_st {
+	return { type: sta_enum.ERROR, msg: msg };
+}
+
+function symtbl_addTemp(sym: symtbl_st): sta_st {
+	for (let i = 0; i < sym.fr.vars.length; i++){
+		if (sym.fr.vars[i] === frame_enum.TEMP_AVAIL){
+			sym.fr.vars[i] = frame_enum.TEMP_INUSE;
 			return sta_var(varloc_new(sym.fr.level, i));
 		}
 	}
-	if (sym.fr.vars.size >= 256)
-		return sta_error(format("Too many variables in frame"));
-	list_int_push(sym.fr.vars, FVR_TEMP_INUSE);
-	return sta_var(varloc_new(sym.fr.level, sym.fr.vars.size - 1));
+	if (sym.fr.vars.length >= 256)
+		return sta_error('Too many variables in frame');
+	sym.fr.vars.push(frame_enum.TEMP_INUSE);
+	return sta_var(varloc_new(sym.fr.level, sym.fr.vars.length - 1));
 }
 
-static inline void symtbl_clearTemp(symtbl sym, varloc_st vlc){
-	assert(!varloc_isnull(vlc));
-	if (vlc.frame === sym.fr.level && sym.fr.vars.vals[vlc.index] === FVR_TEMP_INUSE)
-		sym.fr.vars.vals[vlc.index] = FVR_TEMP_AVAIL;
+function symtbl_clearTemp(sym: symtbl_st, vlc: varloc_st): void {
+	if (varloc_isnull(vlc))
+		throw new Error('Cannot clear a null variable');
+	if (vlc.frame === sym.fr.level && sym.fr.vars[vlc.index] === frame_enum.TEMP_INUSE)
+		sym.fr.vars[vlc.index] = frame_enum.TEMP_AVAIL;
 }
 
-static inline int symtbl_tempAvail(symtbl sym){
-	int cnt = 256 - sym.fr.vars.size;
-	for (int i = 0; i < sym.fr.vars.size; i++){
-		if (sym.fr.vars.vals[i] === FVR_TEMP_AVAIL)
+function symtbl_tempAvail(sym: symtbl_st): number {
+	let cnt = 256 - sym.fr.vars.length;
+	for (let i = 0; i < sym.fr.vars.length; i++){
+		if (sym.fr.vars[i] === frame_enum.TEMP_AVAIL)
 			cnt++;
 	}
 	return cnt;
 }
 
-static sta_st symtbl_addVar(symtbl sym, list_ptr names, int slot){
+function symtbl_addVar(sym: symtbl_st, names: string[], slot: number): sta_st {
 	// set `slot` to negative to add variable at next available location
-	sfn_st nsr = symtbl_findNamespace(sym, names, names.size - 1);
-	if (nsr.type === SFN_ERROR)
-		return sta_error(nsr.u.msg);
-	namespace ns = nsr.u.ns;
-	for (int i = 0; i < ns.names.size; i++){
-		nsname nsn = ns.names.ptrs[i];
-		if (list_byte_equ(nsn.name, names.ptrs[names.size - 1])){
-			if (!sym.repl){
-				return sta_error(
-					format("Cannot redefine \"%.*s\"", nsn.name.size, nsn.name.bytes));
-			}
-			if (nsn.type === NSN_VAR)
-				return sta_var(varloc_new(nsn.u.var.fr.level, nsn.u.var.index));
+	let nsr = symtbl_findNamespace(sym, names, names.length - 1);
+	if (!nsr.ok)
+		return sta_error(nsr.msg);
+	let ns = nsr.ns;
+	for (let i = 0; i < ns.names.length; i++){
+		let nsn = ns.names[i];
+		if (nsn.name === names[names.length - 1]){
+			if (!sym.repl)
+				return sta_error('Cannot redefine "' + nsn.name + '"');
+			if (nsn.type === nsname_enumt.VAR)
+				return sta_var(varloc_new(nsn.fr.level, nsn.index));
 			if (slot < 0){
-				slot = sym.fr.vars.size;
-				list_int_push(sym.fr.vars, FVR_VAR);
+				slot = sym.fr.vars.length;
+				sym.fr.vars.push(frame_enum.VAR);
 			}
 			if (slot >= 256)
-				return sta_error(format("Too many variables in frame"));
-			nsname_free(ns.names.ptrs[i]);
-			ns.names.ptrs[i] = nsname_var(names.ptrs[names.size - 1], sym.fr, slot);
+				return sta_error('Too many variables in frame');
+			ns.names[i] = nsname_var(names[names.length - 1], sym.fr, slot);
 			return sta_var(varloc_new(sym.fr.level, slot));
 		}
 	}
 	if (slot < 0){
-		slot = sym.fr.vars.size;
-		list_int_push(sym.fr.vars, FVR_VAR);
+		slot = sym.fr.vars.length;
+		sym.fr.vars.push(frame_enum.VAR);
 	}
 	if (slot >= 256)
-		return sta_error(format("Too many variables in frame"));
-	list_ptr_push(ns.names, nsname_var(names.ptrs[names.size - 1], sym.fr, slot));
+		return sta_error('Too many variables in frame');
+	ns.names.push(nsname_var(names[names.length - 1], sym.fr, slot));
 	return sta_var(varloc_new(sym.fr.level, slot));
 }
 
-static char *symtbl_addEnum(symtbl sym, list_ptr names, double val){
-	sfn_st nsr = symtbl_findNamespace(sym, names, names.size - 1);
-	if (nsr.type === SFN_ERROR)
-		return nsr.u.msg;
-	namespace ns = nsr.u.ns;
-	for (int i = 0; i < ns.names.size; i++){
-		nsname nsn = ns.names.ptrs[i];
-		if (list_byte_equ(nsn.name, names.ptrs[names.size - 1])){
+function symtbl_addEnum(sym: symtbl_st, names: string[], val: number): string | null{
+	let nsr = symtbl_findNamespace(sym, names, names.length - 1);
+	if (!nsr.ok)
+		return nsr.msg;
+	let ns = nsr.ns;
+	for (let i = 0; i < ns.names.length; i++){
+		let nsn = ns.names[i];
+		if (nsn.name === names[names.length - 1]){
 			if (!sym.repl)
-				return format("Cannot redefine \"%.*s\"", nsn.name.size, nsn.name.bytes);
-			nsname_free(ns.names.ptrs[i]);
-			ns.names.ptrs[i] = nsname_enum(names.ptrs[names.size - 1], val, false);
+				return 'Cannot redefine "' + nsn.name + '"';
+			ns.names[i] = nsname_enum(names[names.length - 1], val);
 			return null;
 		}
 	}
-	list_ptr_push(ns.names, nsname_enum(names.ptrs[names.size - 1], val, false));
+	ns.names.push(nsname_enum(names[names.length - 1], val));
 	return null;
 }
 
-static void symtbl_reserveVars(symtbl sym, int count){
+function symtbl_reserveVars(sym: symtbl_st, count: number): void {
 	// reserves the slots 0 to count-1 for arguments to be passed in for commands
-	for (int i = 0; i < count; i++)
-		list_int_push(sym.fr.vars, FVR_VAR);
+	for (let i = 0; i < count; i++)
+		sym.fr.vars.push(frame_enum.VAR);
 }
 
-static char *symtbl_addCmdLocal(symtbl sym, list_ptr names, label lbl){
-	sfn_st nsr = symtbl_findNamespace(sym, names, names.size - 1);
-	if (nsr.type === SFN_ERROR)
-		return nsr.u.msg;
-	namespace ns = nsr.u.ns;
-	for (int i = 0; i < ns.names.size; i++){
-		nsname nsn = ns.names.ptrs[i];
-		if (list_byte_equ(nsn.name, names.ptrs[names.size - 1])){
+function symtbl_addCmdLocal(sym: symtbl_st, names: string[], lbl: label_st): string | null {
+	let nsr = symtbl_findNamespace(sym, names, names.length - 1);
+	if (!nsr.ok)
+		return nsr.msg;
+	let ns = nsr.ns;
+	for (let i = 0; i < ns.names.length; i++){
+		let nsn = ns.names[i];
+		if (nsn.name === names[names.length - 1]){
 			if (!sym.repl)
-				return format("Cannot redefine \"%.*s\"", nsn.name.size, nsn.name.bytes);
-			nsname_free(ns.names.ptrs[i]);
-			ns.names.ptrs[i] = nsname_cmdLocal(names.ptrs[names.size - 1], sym.fr, lbl);
+				return 'Cannot redefine "' + nsn.name + '"';
+			ns.names[i] = nsname_cmdLocal(names[names.length - 1], sym.fr, lbl);
 			return null;
 		}
 	}
-	list_ptr_push(ns.names, nsname_cmdLocal(names.ptrs[names.size - 1], sym.fr, lbl));
+	ns.names.push(nsname_cmdLocal(names[names.length - 1], sym.fr, lbl));
 	return null;
 }
 
-static char *symtbl_addCmdNative(symtbl sym, list_ptr names, uint64_t hash){
-	sfn_st nsr = symtbl_findNamespace(sym, names, names.size - 1);
-	if (nsr.type === SFN_ERROR)
-		return nsr.u.msg;
-	namespace ns = nsr.u.ns;
-	for (int i = 0; i < ns.names.size; i++){
-		nsname nsn = ns.names.ptrs[i];
-		if (list_byte_equ(nsn.name, names.ptrs[names.size - 1])){
+function symtbl_addCmdNative(sym: symtbl_st, names: string[], hash: sink_u64): string | null {
+	let nsr = symtbl_findNamespace(sym, names, names.length - 1);
+	if (!nsr.ok)
+		return nsr.msg;
+	let ns = nsr.ns;
+	for (let i = 0; i < ns.names.length; i++){
+		let nsn = ns.names[i];
+		if (nsn.name === names[names.length - 1]){
 			if (!sym.repl)
-				return format("Cannot redefine \"%.*s\"", nsn.name.size, nsn.name.bytes);
-			nsname_free(ns.names.ptrs[i]);
-			ns.names.ptrs[i] = nsname_cmdNative(names.ptrs[names.size - 1], hash);
+				return 'Cannot redefine "' + nsn.name + '"';
+			ns.names[i] = nsname_cmdNative(names[names.length - 1], hash);
 			return null;
 		}
 	}
-	list_ptr_push(ns.names, nsname_cmdNative(names.ptrs[names.size - 1], hash));
+	ns.names.push(nsname_cmdNative(names[names.length - 1], hash));
 	return null;
 }
 
 // symtbl_addCmdOpcode
 // can simplify this function because it is only called internally
-static inline void SAC(symtbl sym, const char *name, op_enum opcode, int params){
-	list_ptr_push(sym.sc.ns.names, nsname_cmdOpcode(list_byte_newstr(name), opcode, params));
+function SAC(sym: symtbl_st, name: string, opcode: op_enum, params: number): void {
+	sym.sc.ns.names.push(nsname_cmdOpcode(name, opcode, params));
 }
 
-static inline void SAE(symtbl sym, const char *name, double val){
-	list_ptr_push(sym.sc.ns.names, nsname_enum(list_byte_newstr(name), val, true));
+function SAE(sym: symtbl_st, name: string, val: number): void {
+	sym.sc.ns.names.push(nsname_enum(name, val));
 }
 
-static inline list_ptr NSS(const char *str){
-	return list_ptr_newsingle((sink_free_f)list_byte_free, list_byte_newstr(str));
+enum struct_enum {
+	U8   =  1,
+	U16  =  2,
+	UL16 =  3,
+	UB16 =  4,
+	U32  =  5,
+	UL32 =  6,
+	UB32 =  7,
+	S8   =  8,
+	S16  =  9,
+	SL16 = 10,
+	SB16 = 11,
+	S32  = 12,
+	SL32 = 13,
+	SB32 = 14,
+	F32  = 15,
+	FL32 = 16,
+	FB32 = 17,
+	F64  = 18,
+	FL64 = 19,
+	FB64 = 20
 }
 
-typedef enum {
-	STRUCT_U8   =  1,
-	STRUCT_U16  =  2,
-	STRUCT_UL16 =  3,
-	STRUCT_UB16 =  4,
-	STRUCT_U32  =  5,
-	STRUCT_UL32 =  6,
-	STRUCT_UB32 =  7,
-	STRUCT_S8   =  8,
-	STRUCT_S16  =  9,
-	STRUCT_SL16 = 10,
-	STRUCT_SB16 = 11,
-	STRUCT_S32  = 12,
-	STRUCT_SL32 = 13,
-	STRUCT_SB32 = 14,
-	STRUCT_F32  = 15,
-	STRUCT_FL32 = 16,
-	STRUCT_FB32 = 17,
-	STRUCT_F64  = 18,
-	STRUCT_FL64 = 19,
-	STRUCT_FB64 = 20
-} struct_enum;
-
-static inline void symtbl_loadStdlib(symtbl sym){
-	list_ptr nss;
-	SAC(sym, "say"           , OP_SAY            , -1);
-	SAC(sym, "warn"          , OP_WARN           , -1);
-	SAC(sym, "ask"           , OP_ASK            , -1);
-	SAC(sym, "exit"          , OP_EXIT           , -1);
-	SAC(sym, "abort"         , OP_ABORT          , -1);
-	SAC(sym, "isnum"         , OP_ISNUM          ,  1);
-	SAC(sym, "isstr"         , OP_ISSTR          ,  1);
-	SAC(sym, "islist"        , OP_ISLIST         ,  1);
-	SAC(sym, "range"         , OP_RANGE          ,  3);
-	SAC(sym, "order"         , OP_ORDER          ,  2);
-	SAC(sym, "pick"          , OP_PICK           ,  3);
-	SAC(sym, "embed"         , OP_EMBED          ,  1);
-	SAC(sym, "stacktrace"    , OP_STACKTRACE     ,  0);
-	nss = NSS("num"); symtbl_pushNamespace(sym, nss); list_ptr_free(nss);
-		SAC(sym, "abs"       , OP_NUM_ABS        ,  1);
-		SAC(sym, "sign"      , OP_NUM_SIGN       ,  1);
-		SAC(sym, "max"       , OP_NUM_MAX        , -1);
-		SAC(sym, "min"       , OP_NUM_MIN        , -1);
-		SAC(sym, "clamp"     , OP_NUM_CLAMP      ,  3);
-		SAC(sym, "floor"     , OP_NUM_FLOOR      ,  1);
-		SAC(sym, "ceil"      , OP_NUM_CEIL       ,  1);
-		SAC(sym, "round"     , OP_NUM_ROUND      ,  1);
-		SAC(sym, "trunc"     , OP_NUM_TRUNC      ,  1);
-		SAC(sym, "nan"       , OP_NUM_NAN        ,  0);
-		SAC(sym, "inf"       , OP_NUM_INF        ,  0);
-		SAC(sym, "isnan"     , OP_NUM_ISNAN      ,  1);
-		SAC(sym, "isfinite"  , OP_NUM_ISFINITE   ,  1);
-		SAE(sym, "e"         , sink_num_e().f        );
-		SAE(sym, "pi"        , sink_num_pi().f       );
-		SAE(sym, "tau"       , sink_num_tau().f      );
-		SAC(sym, "sin"       , OP_NUM_SIN        ,  1);
-		SAC(sym, "cos"       , OP_NUM_COS        ,  1);
-		SAC(sym, "tan"       , OP_NUM_TAN        ,  1);
-		SAC(sym, "asin"      , OP_NUM_ASIN       ,  1);
-		SAC(sym, "acos"      , OP_NUM_ACOS       ,  1);
-		SAC(sym, "atan"      , OP_NUM_ATAN       ,  1);
-		SAC(sym, "atan2"     , OP_NUM_ATAN2      ,  2);
-		SAC(sym, "log"       , OP_NUM_LOG        ,  1);
-		SAC(sym, "log2"      , OP_NUM_LOG2       ,  1);
-		SAC(sym, "log10"     , OP_NUM_LOG10      ,  1);
-		SAC(sym, "exp"       , OP_NUM_EXP        ,  1);
-		SAC(sym, "lerp"      , OP_NUM_LERP       ,  3);
-		SAC(sym, "hex"       , OP_NUM_HEX        ,  2);
-		SAC(sym, "oct"       , OP_NUM_OCT        ,  2);
-		SAC(sym, "bin"       , OP_NUM_BIN        ,  2);
+function symtbl_loadStdlib(sym: symtbl_st): void {
+	SAC(sym, 'say'           , op_enum.SAY            , -1);
+	SAC(sym, 'warn'          , op_enum.WARN           , -1);
+	SAC(sym, 'ask'           , op_enum.ASK            , -1);
+	SAC(sym, 'exit'          , op_enum.EXIT           , -1);
+	SAC(sym, 'abort'         , op_enum.ABORT          , -1);
+	SAC(sym, 'isnum'         , op_enum.ISNUM          ,  1);
+	SAC(sym, 'isstr'         , op_enum.ISSTR          ,  1);
+	SAC(sym, 'islist'        , op_enum.ISLIST         ,  1);
+	SAC(sym, 'range'         , op_enum.RANGE          ,  3);
+	SAC(sym, 'order'         , op_enum.ORDER          ,  2);
+	SAC(sym, 'pick'          , op_enum.PICK           ,  3);
+	SAC(sym, 'embed'         , op_enum.EMBED          ,  1);
+	SAC(sym, 'stacktrace'    , op_enum.STACKTRACE     ,  0);
+	symtbl_pushNamespace(sym, ['num']);
+		SAC(sym, 'abs'       , op_enum.NUM_ABS        ,  1);
+		SAC(sym, 'sign'      , op_enum.NUM_SIGN       ,  1);
+		SAC(sym, 'max'       , op_enum.NUM_MAX        , -1);
+		SAC(sym, 'min'       , op_enum.NUM_MIN        , -1);
+		SAC(sym, 'clamp'     , op_enum.NUM_CLAMP      ,  3);
+		SAC(sym, 'floor'     , op_enum.NUM_FLOOR      ,  1);
+		SAC(sym, 'ceil'      , op_enum.NUM_CEIL       ,  1);
+		SAC(sym, 'round'     , op_enum.NUM_ROUND      ,  1);
+		SAC(sym, 'trunc'     , op_enum.NUM_TRUNC      ,  1);
+		SAC(sym, 'nan'       , op_enum.NUM_NAN        ,  0);
+		SAC(sym, 'inf'       , op_enum.NUM_INF        ,  0);
+		SAC(sym, 'isnan'     , op_enum.NUM_ISNAN      ,  1);
+		SAC(sym, 'isfinite'  , op_enum.NUM_ISFINITE   ,  1);
+		SAE(sym, 'e'         , sink_num_e()               );
+		SAE(sym, 'pi'        , sink_num_pi()              );
+		SAE(sym, 'tau'       , sink_num_tau()             );
+		SAC(sym, 'sin'       , op_enum.NUM_SIN        ,  1);
+		SAC(sym, 'cos'       , op_enum.NUM_COS        ,  1);
+		SAC(sym, 'tan'       , op_enum.NUM_TAN        ,  1);
+		SAC(sym, 'asin'      , op_enum.NUM_ASIN       ,  1);
+		SAC(sym, 'acos'      , op_enum.NUM_ACOS       ,  1);
+		SAC(sym, 'atan'      , op_enum.NUM_ATAN       ,  1);
+		SAC(sym, 'atan2'     , op_enum.NUM_ATAN2      ,  2);
+		SAC(sym, 'log'       , op_enum.NUM_LOG        ,  1);
+		SAC(sym, 'log2'      , op_enum.NUM_LOG2       ,  1);
+		SAC(sym, 'log10'     , op_enum.NUM_LOG10      ,  1);
+		SAC(sym, 'exp'       , op_enum.NUM_EXP        ,  1);
+		SAC(sym, 'lerp'      , op_enum.NUM_LERP       ,  3);
+		SAC(sym, 'hex'       , op_enum.NUM_HEX        ,  2);
+		SAC(sym, 'oct'       , op_enum.NUM_OCT        ,  2);
+		SAC(sym, 'bin'       , op_enum.NUM_BIN        ,  2);
 	symtbl_popNamespace(sym);
-	nss = NSS("int"); symtbl_pushNamespace(sym, nss); list_ptr_free(nss);
-		SAC(sym, "new"       , OP_INT_NEW        ,  1);
-		SAC(sym, "not"       , OP_INT_NOT        ,  1);
-		SAC(sym, "and"       , OP_INT_AND        , -1);
-		SAC(sym, "or"        , OP_INT_OR         , -1);
-		SAC(sym, "xor"       , OP_INT_XOR        , -1);
-		SAC(sym, "shl"       , OP_INT_SHL        ,  2);
-		SAC(sym, "shr"       , OP_INT_SHR        ,  2);
-		SAC(sym, "sar"       , OP_INT_SAR        ,  2);
-		SAC(sym, "add"       , OP_INT_ADD        ,  2);
-		SAC(sym, "sub"       , OP_INT_SUB        ,  2);
-		SAC(sym, "mul"       , OP_INT_MUL        ,  2);
-		SAC(sym, "div"       , OP_INT_DIV        ,  2);
-		SAC(sym, "mod"       , OP_INT_MOD        ,  2);
-		SAC(sym, "clz"       , OP_INT_CLZ        ,  1);
-		SAC(sym, "pop"       , OP_INT_POP        ,  1);
-		SAC(sym, "bswap"     , OP_INT_BSWAP      ,  1);
+	symtbl_pushNamespace(sym, ['int']);
+		SAC(sym, 'new'       , op_enum.INT_NEW        ,  1);
+		SAC(sym, 'not'       , op_enum.INT_NOT        ,  1);
+		SAC(sym, 'and'       , op_enum.INT_AND        , -1);
+		SAC(sym, 'or'        , op_enum.INT_OR         , -1);
+		SAC(sym, 'xor'       , op_enum.INT_XOR        , -1);
+		SAC(sym, 'shl'       , op_enum.INT_SHL        ,  2);
+		SAC(sym, 'shr'       , op_enum.INT_SHR        ,  2);
+		SAC(sym, 'sar'       , op_enum.INT_SAR        ,  2);
+		SAC(sym, 'add'       , op_enum.INT_ADD        ,  2);
+		SAC(sym, 'sub'       , op_enum.INT_SUB        ,  2);
+		SAC(sym, 'mul'       , op_enum.INT_MUL        ,  2);
+		SAC(sym, 'div'       , op_enum.INT_DIV        ,  2);
+		SAC(sym, 'mod'       , op_enum.INT_MOD        ,  2);
+		SAC(sym, 'clz'       , op_enum.INT_CLZ        ,  1);
+		SAC(sym, 'pop'       , op_enum.INT_POP        ,  1);
+		SAC(sym, 'bswap'     , op_enum.INT_BSWAP      ,  1);
 	symtbl_popNamespace(sym);
-	nss = NSS("rand"); symtbl_pushNamespace(sym, nss); list_ptr_free(nss);
-		SAC(sym, "seed"      , OP_RAND_SEED      ,  1);
-		SAC(sym, "seedauto"  , OP_RAND_SEEDAUTO  ,  0);
-		SAC(sym, "int"       , OP_RAND_INT       ,  0);
-		SAC(sym, "num"       , OP_RAND_NUM       ,  0);
-		SAC(sym, "getstate"  , OP_RAND_GETSTATE  ,  0);
-		SAC(sym, "setstate"  , OP_RAND_SETSTATE  ,  1);
-		SAC(sym, "pick"      , OP_RAND_PICK      ,  1);
-		SAC(sym, "shuffle"   , OP_RAND_SHUFFLE   ,  1);
+	symtbl_pushNamespace(sym, ['rand']);
+		SAC(sym, 'seed'      , op_enum.RAND_SEED      ,  1);
+		SAC(sym, 'seedauto'  , op_enum.RAND_SEEDAUTO  ,  0);
+		SAC(sym, 'int'       , op_enum.RAND_INT       ,  0);
+		SAC(sym, 'num'       , op_enum.RAND_NUM       ,  0);
+		SAC(sym, 'getstate'  , op_enum.RAND_GETSTATE  ,  0);
+		SAC(sym, 'setstate'  , op_enum.RAND_SETSTATE  ,  1);
+		SAC(sym, 'pick'      , op_enum.RAND_PICK      ,  1);
+		SAC(sym, 'shuffle'   , op_enum.RAND_SHUFFLE   ,  1);
 	symtbl_popNamespace(sym);
-	nss = NSS("str"); symtbl_pushNamespace(sym, nss); list_ptr_free(nss);
-		SAC(sym, "new"       , OP_STR_NEW        , -1);
-		SAC(sym, "split"     , OP_STR_SPLIT      ,  2);
-		SAC(sym, "replace"   , OP_STR_REPLACE    ,  3);
-		SAC(sym, "begins"    , OP_STR_BEGINS     ,  2);
-		SAC(sym, "ends"      , OP_STR_ENDS       ,  2);
-		SAC(sym, "pad"       , OP_STR_PAD        ,  2);
-		SAC(sym, "find"      , OP_STR_FIND       ,  3);
-		SAC(sym, "rfind"     , OP_STR_RFIND      ,  3);
-		SAC(sym, "lower"     , OP_STR_LOWER      ,  1);
-		SAC(sym, "upper"     , OP_STR_UPPER      ,  1);
-		SAC(sym, "trim"      , OP_STR_TRIM       ,  1);
-		SAC(sym, "rev"       , OP_STR_REV        ,  1);
-		SAC(sym, "rep"       , OP_STR_REP        ,  2);
-		SAC(sym, "list"      , OP_STR_LIST       ,  1);
-		SAC(sym, "byte"      , OP_STR_BYTE       ,  2);
-		SAC(sym, "hash"      , OP_STR_HASH       ,  2);
+	symtbl_pushNamespace(sym, ['str']);
+		SAC(sym, 'new'       , op_enum.STR_NEW        , -1);
+		SAC(sym, 'split'     , op_enum.STR_SPLIT      ,  2);
+		SAC(sym, 'replace'   , op_enum.STR_REPLACE    ,  3);
+		SAC(sym, 'begins'    , op_enum.STR_BEGINS     ,  2);
+		SAC(sym, 'ends'      , op_enum.STR_ENDS       ,  2);
+		SAC(sym, 'pad'       , op_enum.STR_PAD        ,  2);
+		SAC(sym, 'find'      , op_enum.STR_FIND       ,  3);
+		SAC(sym, 'rfind'     , op_enum.STR_RFIND      ,  3);
+		SAC(sym, 'lower'     , op_enum.STR_LOWER      ,  1);
+		SAC(sym, 'upper'     , op_enum.STR_UPPER      ,  1);
+		SAC(sym, 'trim'      , op_enum.STR_TRIM       ,  1);
+		SAC(sym, 'rev'       , op_enum.STR_REV        ,  1);
+		SAC(sym, 'rep'       , op_enum.STR_REP        ,  2);
+		SAC(sym, 'list'      , op_enum.STR_LIST       ,  1);
+		SAC(sym, 'byte'      , op_enum.STR_BYTE       ,  2);
+		SAC(sym, 'hash'      , op_enum.STR_HASH       ,  2);
 	symtbl_popNamespace(sym);
-	nss = NSS("utf8"); symtbl_pushNamespace(sym, nss); list_ptr_free(nss);
-		SAC(sym, "valid"     , OP_UTF8_VALID     ,  1);
-		SAC(sym, "list"      , OP_UTF8_LIST      ,  1);
-		SAC(sym, "str"       , OP_UTF8_STR       ,  1);
+	symtbl_pushNamespace(sym, ['utf8']);
+		SAC(sym, 'valid'     , op_enum.UTF8_VALID     ,  1);
+		SAC(sym, 'list'      , op_enum.UTF8_LIST      ,  1);
+		SAC(sym, 'str'       , op_enum.UTF8_STR       ,  1);
 	symtbl_popNamespace(sym);
-	nss = NSS("struct"); symtbl_pushNamespace(sym, nss); list_ptr_free(nss);
-		SAC(sym, "size"      , OP_STRUCT_SIZE    ,  1);
-		SAC(sym, "str"       , OP_STRUCT_STR     ,  2);
-		SAC(sym, "list"      , OP_STRUCT_LIST    ,  2);
-		SAC(sym, "isLE"      , OP_STRUCT_ISLE    ,  0);
-		SAE(sym, "U8"        , STRUCT_U8             );
-		SAE(sym, "U16"       , STRUCT_U16            );
-		SAE(sym, "UL16"      , STRUCT_UL16           );
-		SAE(sym, "UB16"      , STRUCT_UB16           );
-		SAE(sym, "U32"       , STRUCT_U32            );
-		SAE(sym, "UL32"      , STRUCT_UL32           );
-		SAE(sym, "UB32"      , STRUCT_UB32           );
-		SAE(sym, "S8"        , STRUCT_S8             );
-		SAE(sym, "S16"       , STRUCT_S16            );
-		SAE(sym, "SL16"      , STRUCT_SL16           );
-		SAE(sym, "SB16"      , STRUCT_SB16           );
-		SAE(sym, "S32"       , STRUCT_S32            );
-		SAE(sym, "SL32"      , STRUCT_SL32           );
-		SAE(sym, "SB32"      , STRUCT_SB32           );
-		SAE(sym, "F32"       , STRUCT_F32            );
-		SAE(sym, "FL32"      , STRUCT_FL32           );
-		SAE(sym, "FB32"      , STRUCT_FB32           );
-		SAE(sym, "F64"       , STRUCT_F64            );
-		SAE(sym, "FL64"      , STRUCT_FL64           );
-		SAE(sym, "FB64"      , STRUCT_FB64           );
+	symtbl_pushNamespace(sym, ['struct']);
+		SAC(sym, 'size'      , op_enum.STRUCT_SIZE    ,  1);
+		SAC(sym, 'str'       , op_enum.STRUCT_STR     ,  2);
+		SAC(sym, 'list'      , op_enum.STRUCT_LIST    ,  2);
+		SAC(sym, 'isLE'      , op_enum.STRUCT_ISLE    ,  0);
+		SAE(sym, 'U8'        , struct_enum.U8             );
+		SAE(sym, 'U16'       , struct_enum.U16            );
+		SAE(sym, 'UL16'      , struct_enum.UL16           );
+		SAE(sym, 'UB16'      , struct_enum.UB16           );
+		SAE(sym, 'U32'       , struct_enum.U32            );
+		SAE(sym, 'UL32'      , struct_enum.UL32           );
+		SAE(sym, 'UB32'      , struct_enum.UB32           );
+		SAE(sym, 'S8'        , struct_enum.S8             );
+		SAE(sym, 'S16'       , struct_enum.S16            );
+		SAE(sym, 'SL16'      , struct_enum.SL16           );
+		SAE(sym, 'SB16'      , struct_enum.SB16           );
+		SAE(sym, 'S32'       , struct_enum.S32            );
+		SAE(sym, 'SL32'      , struct_enum.SL32           );
+		SAE(sym, 'SB32'      , struct_enum.SB32           );
+		SAE(sym, 'F32'       , struct_enum.F32            );
+		SAE(sym, 'FL32'      , struct_enum.FL32           );
+		SAE(sym, 'FB32'      , struct_enum.FB32           );
+		SAE(sym, 'F64'       , struct_enum.F64            );
+		SAE(sym, 'FL64'      , struct_enum.FL64           );
+		SAE(sym, 'FB64'      , struct_enum.FB64           );
 	symtbl_popNamespace(sym);
-	nss = NSS("list"); symtbl_pushNamespace(sym, nss); list_ptr_free(nss);
-		SAC(sym, "new"       , OP_LIST_NEW       ,  2);
-		SAC(sym, "shift"     , OP_LIST_SHIFT     ,  1);
-		SAC(sym, "pop"       , OP_LIST_POP       ,  1);
-		SAC(sym, "push"      , OP_LIST_PUSH      ,  2);
-		SAC(sym, "unshift"   , OP_LIST_UNSHIFT   ,  2);
-		SAC(sym, "append"    , OP_LIST_APPEND    ,  2);
-		SAC(sym, "prepend"   , OP_LIST_PREPEND   ,  2);
-		SAC(sym, "find"      , OP_LIST_FIND      ,  3);
-		SAC(sym, "rfind"     , OP_LIST_RFIND     ,  3);
-		SAC(sym, "join"      , OP_LIST_JOIN      ,  2);
-		SAC(sym, "rev"       , OP_LIST_REV       ,  1);
-		SAC(sym, "str"       , OP_LIST_STR       ,  1);
-		SAC(sym, "sort"      , OP_LIST_SORT      ,  1);
-		SAC(sym, "rsort"     , OP_LIST_RSORT     ,  1);
+	symtbl_pushNamespace(sym, ['list']);
+		SAC(sym, 'new'       , op_enum.LIST_NEW       ,  2);
+		SAC(sym, 'shift'     , op_enum.LIST_SHIFT     ,  1);
+		SAC(sym, 'pop'       , op_enum.LIST_POP       ,  1);
+		SAC(sym, 'push'      , op_enum.LIST_PUSH      ,  2);
+		SAC(sym, 'unshift'   , op_enum.LIST_UNSHIFT   ,  2);
+		SAC(sym, 'append'    , op_enum.LIST_APPEND    ,  2);
+		SAC(sym, 'prepend'   , op_enum.LIST_PREPEND   ,  2);
+		SAC(sym, 'find'      , op_enum.LIST_FIND      ,  3);
+		SAC(sym, 'rfind'     , op_enum.LIST_RFIND     ,  3);
+		SAC(sym, 'join'      , op_enum.LIST_JOIN      ,  2);
+		SAC(sym, 'rev'       , op_enum.LIST_REV       ,  1);
+		SAC(sym, 'str'       , op_enum.LIST_STR       ,  1);
+		SAC(sym, 'sort'      , op_enum.LIST_SORT      ,  1);
+		SAC(sym, 'rsort'     , op_enum.LIST_RSORT     ,  1);
 	symtbl_popNamespace(sym);
-	nss = NSS("pickle"); symtbl_pushNamespace(sym, nss); list_ptr_free(nss);
-		SAC(sym, "json"      , OP_PICKLE_JSON    ,  1);
-		SAC(sym, "bin"       , OP_PICKLE_BIN     ,  1);
-		SAC(sym, "val"       , OP_PICKLE_VAL     ,  1);
-		SAC(sym, "valid"     , OP_PICKLE_VALID   ,  1);
-		SAC(sym, "sibling"   , OP_PICKLE_SIBLING ,  1);
-		SAC(sym, "circular"  , OP_PICKLE_CIRCULAR,  1);
-		SAC(sym, "copy"      , OP_PICKLE_COPY    ,  1);
+	symtbl_pushNamespace(sym, ['pickle']);
+		SAC(sym, 'json'      , op_enum.PICKLE_JSON    ,  1);
+		SAC(sym, 'bin'       , op_enum.PICKLE_BIN     ,  1);
+		SAC(sym, 'val'       , op_enum.PICKLE_VAL     ,  1);
+		SAC(sym, 'valid'     , op_enum.PICKLE_VALID   ,  1);
+		SAC(sym, 'sibling'   , op_enum.PICKLE_SIBLING ,  1);
+		SAC(sym, 'circular'  , op_enum.PICKLE_CIRCULAR,  1);
+		SAC(sym, 'copy'      , op_enum.PICKLE_COPY    ,  1);
 	symtbl_popNamespace(sym);
-	nss = NSS("gc"); symtbl_pushNamespace(sym, nss); list_ptr_free(nss);
-		SAC(sym, "getlevel"  , OP_GC_GETLEVEL    ,  0);
-		SAC(sym, "setlevel"  , OP_GC_SETLEVEL    ,  1);
-		SAC(sym, "run"       , OP_GC_RUN         ,  0);
+	symtbl_pushNamespace(sym, ['gc']);
+		SAC(sym, 'getlevel'  , op_enum.GC_GETLEVEL    ,  0);
+		SAC(sym, 'setlevel'  , op_enum.GC_SETLEVEL    ,  1);
+		SAC(sym, 'run'       , op_enum.GC_RUN         ,  0);
 	symtbl_popNamespace(sym);
 }
-
+/*
 //
 // structures
 //
@@ -5390,7 +5231,7 @@ static bool program_validate(program prg){
 				READCNT();
 				if (jumploc < ops.size - 1){
 					// check that the call target's level matches this level
-					if (ops.bytes[jumploc] !== OP_CMDHEAD || ops.bytes[jumploc + 1] !== level)
+					if (ops.bytes[jumploc] !== op_enum.CMDHEAD || ops.bytes[jumploc + 1] !== level)
 						goto fail;
 				}
 			} break;
@@ -5778,9 +5619,9 @@ static lvp_st lval_addVars(symtbl sym, expr ex, int slot){
 static lvp_st lval_prepare(pgen_st pgen, expr ex){
 	if (ex.type === expr_enum.NAMES){
 		stl_st sl = symtbl_lookup(pgen.sym, ex.u.names);
-		if (sl.type === STL_ERROR)
+		if (!sl.ok)
 			return lvp_error(ex.flp, sl.u.msg);
-		if (sl.u.nsn.type !== NSN_VAR)
+		if (sl.u.nsn.type !== nsname_enumt.VAR)
 			return lvp_error(ex.flp, format("Invalid assignment"));
 		return lvp_ok(lvr_var(ex.flp,
 			varloc_new(sl.u.nsn.u.var.fr.level, sl.u.nsn.u.var.index)));
@@ -5918,14 +5759,14 @@ static per_st program_evalLval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, l
 	// first, perform the assignment of valueVlc into lv
 	switch (lv.type){
 		case LVR_VAR:
-			if (mutop === OP_INVALID)
+			if (mutop === op_enum.INVALID)
 				op_move(prg.ops, lv.vlc, valueVlc);
 			else
 				op_binop(prg.ops, mutop, lv.vlc, lv.vlc, valueVlc);
 			break;
 
 		case LVR_INDEX: {
-			if (mutop === OP_INVALID)
+			if (mutop === op_enum.INVALID)
 				op_setat(prg.ops, lv.u.index.obj, lv.u.index.key, valueVlc);
 			else{
 				per_st pe = program_lvalGet(pgen, PLM_CREATE, VARLOC_NULL, lv);
@@ -5937,7 +5778,7 @@ static per_st program_evalLval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, l
 		} break;
 
 		case LVR_SLICE: {
-			if (mutop === OP_INVALID)
+			if (mutop === op_enum.INVALID)
 				op_splice(prg.ops, lv.u.slice.obj, lv.u.slice.start, lv.u.slice.len, valueVlc);
 			else{
 				per_st pe = program_lvalGet(pgen, PLM_CREATE, VARLOC_NULL, lv);
@@ -5962,7 +5803,7 @@ static per_st program_evalLval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, l
 		} break;
 
 		case LVR_SLICEINDEX: {
-			if (mutop === OP_INVALID){
+			if (mutop === op_enum.INVALID){
 				per_st pe = program_lvalGetIndex(pgen, lv);
 				if (pe.type === PER_ERROR)
 					return pe;
@@ -6142,14 +5983,14 @@ static per_st program_lvalGet(pgen_st pgen, plm_enum mode, varloc_st intoVlc, lv
 					lv.u.list.body.ptrs[i]);
 				if (pe.type === PER_ERROR)
 					return pe;
-				op_param2(prg.ops, OP_LIST_PUSH, intoVlc, intoVlc, pe.u.vlc);
+				op_param2(prg.ops, op_enum.LIST_PUSH, intoVlc, intoVlc, pe.u.vlc);
 			}
 
 			if (lv.u.list.rest !== NULL){
 				per_st pe = program_lvalGet(pgen, PLM_CREATE, VARLOC_NULL, lv.u.list.rest);
 				if (pe.type === PER_ERROR)
 					return pe;
-				op_param2(prg.ops, OP_LIST_APPEND, intoVlc, intoVlc, pe.u.vlc);
+				op_param2(prg.ops, op_enum.LIST_APPEND, intoVlc, intoVlc, pe.u.vlc);
 			}
 		} break;
 	}
@@ -6239,11 +6080,11 @@ static per_st program_evalCall(pgen_st pgen, pem_enum mode, varloc_st intoVlc,
 	program prg = pgen.prg;
 	symtbl sym = pgen.sym;
 
-	if (nsn.type !== NSN_CMD_LOCAL && nsn.type !== NSN_CMD_NATIVE && nsn.type !== NSN_CMD_OPCODE)
+	if (nsn.type !== nsname_enumt.CMD_LOCAL && nsn.type !== nsname_enumt.CMD_NATIVE && nsn.type !== nsname_enumt.CMD_OPCODE)
 		return per_error(flp, format("Invalid call - not a command"));
 
 	// params can be NULL to indicate emptiness
-	if (nsn.type === NSN_CMD_OPCODE && nsn.u.cmdOpcode.opcode === OP_PICK){
+	if (nsn.type === nsname_enumt.CMD_OPCODE && nsn.u.cmdOpcode.opcode === op_enum.PICK){
 		if (params === NULL || params.type !== expr_enum.GROUP ||
 			params.u.group.size !== 3)
 			return per_error(flp, format("Using `pick` requires exactly three arguments"));
@@ -6291,7 +6132,7 @@ static per_st program_evalCall(pgen_st pgen, pem_enum mode, varloc_st intoVlc,
 		label_free(finish);
 		return per_ok(intoVlc);
 	}
-	else if (nsn.type === NSN_CMD_OPCODE && nsn.u.cmdOpcode.opcode === OP_EMBED){
+	else if (nsn.type === nsname_enumt.CMD_OPCODE && nsn.u.cmdOpcode.opcode === op_enum.EMBED){
 		expr file = params;
 		while (file && file.type === expr_enum.PAREN)
 			file = file.u.ex;
@@ -6316,7 +6157,7 @@ static per_st program_evalCall(pgen_st pgen, pem_enum mode, varloc_st intoVlc,
 			return per_error(flp, format("Failed to embed: %s", (const char *)fstr.bytes));
 		return efu.pe;
 	}
-	else if (nsn.type === NSN_CMD_OPCODE && nsn.u.cmdOpcode.opcode === OP_STR_HASH && params){
+	else if (nsn.type === nsname_enumt.CMD_OPCODE && nsn.u.cmdOpcode.opcode === op_enum.STR_HASH && params){
 		// attempt to str.hash at compile-time if possible
 		list_byte str = NULL;
 		double seed = 0;
@@ -6372,9 +6213,9 @@ static per_st program_evalCall(pgen_st pgen, pem_enum mode, varloc_st intoVlc,
 
 	program_flp(prg, flp);
 	bool oarg = true;
-	if (nsn.type === NSN_CMD_LOCAL)
+	if (nsn.type === nsname_enumt.CMD_LOCAL)
 		label_call(nsn.u.cmdLocal.lbl, prg.ops, intoVlc, argcount);
-	else if (nsn.type === NSN_CMD_NATIVE){
+	else if (nsn.type === nsname_enumt.CMD_NATIVE){
 		// search for the hash
 		int index;
 		bool found = false;
@@ -6392,7 +6233,7 @@ static per_st program_evalCall(pgen_st pgen, pem_enum mode, varloc_st intoVlc,
 		}
 		op_native(prg.ops, intoVlc, index, argcount);
 	}
-	else{ // NSN_CMD_OPCODE
+	else{ // nsname_enumt.CMD_OPCODE
 		if (nsn.u.cmdOpcode.params < 0)
 			op_parama(prg.ops, nsn.u.cmdOpcode.opcode, intoVlc, argcount);
 		else{
@@ -6479,19 +6320,19 @@ static per_st program_lvalCheckNil(pgen_st pgen, lvr lv, bool jumpFalse, bool in
 			label next = label_newstr("condslicenext");
 
 			op_nil(prg.ops, t);
-			op_binop(prg.ops, OP_EQU, t, t, len);
+			op_binop(prg.ops, op_enum.EQU, t, t, len);
 			label_jumpfalse(next, prg.ops, t);
-			op_unop(prg.ops, OP_SIZE, t, obj);
-			op_binop(prg.ops, OP_NUM_SUB, len, t, start);
+			op_unop(prg.ops, op_enum.SIZE, t, obj);
+			op_binop(prg.ops, op_enum.NUM_SUB, len, t, start);
 
 			label_declare(next, prg.ops);
 
-			op_binop(prg.ops, OP_LT, t, idx, len);
+			op_binop(prg.ops, op_enum.LT, t, idx, len);
 
 			label keep = label_newstr("condslicekeep");
 			label_jumpfalse(inverted ? keep : skip, prg.ops, t);
 
-			op_binop(prg.ops, OP_NUM_ADD, t, idx, start);
+			op_binop(prg.ops, op_enum.NUM_ADD, t, idx, start);
 			op_getat(prg.ops, t, obj, t);
 			if (jumpFalse)
 				label_jumptrue(inverted ? skip : keep, prg.ops, t);
@@ -6542,7 +6383,7 @@ static per_st program_lvalCondAssignPart(pgen_st pgen, lvr lv, bool jumpFalse, v
 			else
 				label_jumptrue(skip, prg.ops, pe.u.vlc);
 			symtbl_clearTemp(sym, pe.u.vlc);
-			pe = program_evalLval(pgen, PEM_EMPTY, VARLOC_NULL, lv, OP_INVALID, valueVlc, true);
+			pe = program_evalLval(pgen, PEM_EMPTY, VARLOC_NULL, lv, op_enum.INVALID, valueVlc, true);
 			if (pe.type === PER_ERROR){
 				label_free(skip);
 				return pe;
@@ -6590,20 +6431,20 @@ static per_st program_lvalCondAssignPart(pgen_st pgen, lvr lv, bool jumpFalse, v
 			label next = label_newstr("condpartslicenext");
 
 			op_nil(prg.ops, t);
-			op_binop(prg.ops, OP_EQU, t, t, len);
+			op_binop(prg.ops, op_enum.EQU, t, t, len);
 			label_jumpfalse(next, prg.ops, t);
-			op_unop(prg.ops, OP_SIZE, t, obj);
-			op_binop(prg.ops, OP_NUM_SUB, len, t, start);
+			op_unop(prg.ops, op_enum.SIZE, t, obj);
+			op_binop(prg.ops, op_enum.NUM_SUB, len, t, start);
 
 			label_declare(next, prg.ops);
 
-			op_binop(prg.ops, OP_LT, t, idx, len);
+			op_binop(prg.ops, op_enum.LT, t, idx, len);
 
 			label done = label_newstr("condpartslicedone");
 			label_jumpfalse(done, prg.ops, t);
 
 			label inc = label_newstr("condpartsliceinc");
-			op_binop(prg.ops, OP_NUM_ADD, t, idx, start);
+			op_binop(prg.ops, op_enum.NUM_ADD, t, idx, start);
 			op_getat(prg.ops, t2, obj, t);
 			if (jumpFalse)
 				label_jumpfalse(inc, prg.ops, t2);
@@ -6662,7 +6503,7 @@ static per_st program_lvalCondAssign(pgen_st pgen, lvr lv, bool jumpFalse, varlo
 	switch (lv.type){
 		case LVR_VAR:
 		case LVR_INDEX: {
-			per_st pe = program_evalLval(pgen, PEM_EMPTY, VARLOC_NULL, lv, OP_INVALID,
+			per_st pe = program_evalLval(pgen, PEM_EMPTY, VARLOC_NULL, lv, op_enum.INVALID,
 				valueVlc, true);
 			if (pe.type === PER_ERROR)
 				return pe;
@@ -6763,7 +6604,7 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 						if (pe.type === PER_ERROR)
 							return pe;
 						symtbl_clearTemp(sym, pe.u.vlc);
-						op_param2(prg.ops, OP_LIST_PUSH, ls, ls, pe.u.vlc);
+						op_param2(prg.ops, op_enum.LIST_PUSH, ls, ls, pe.u.vlc);
 					}
 					if (mode === PEM_INTO){
 						symtbl_clearTemp(sym, ls);
@@ -6782,13 +6623,13 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 						symtbl_clearTemp(sym, ts.u.vlc);
 						symtbl_clearTemp(sym, pe.u.vlc);
 						op_list(prg.ops, ts.u.vlc, 1);
-						op_param2(prg.ops, OP_LIST_PUSH, ts.u.vlc, ts.u.vlc, pe.u.vlc);
+						op_param2(prg.ops, op_enum.LIST_PUSH, ts.u.vlc, ts.u.vlc, pe.u.vlc);
 						op_move(prg.ops, intoVlc, ts.u.vlc);
 					}
 					else{
 						symtbl_clearTemp(sym, pe.u.vlc);
 						op_list(prg.ops, intoVlc, 1);
-						op_param2(prg.ops, OP_LIST_PUSH, intoVlc, intoVlc, pe.u.vlc);
+						op_param2(prg.ops, op_enum.LIST_PUSH, intoVlc, intoVlc, pe.u.vlc);
 					}
 				}
 			}
@@ -6799,10 +6640,10 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 
 		case expr_enum.NAMES: {
 			stl_st sl = symtbl_lookup(sym, ex.u.names);
-			if (sl.type === STL_ERROR)
+			if (!sl.ok)
 				return per_error(ex.flp, sl.u.msg);
 			switch (sl.u.nsn.type){
-				case NSN_VAR: {
+				case nsname_enumt.VAR: {
 					if (mode === PEM_EMPTY)
 						return per_ok(VARLOC_NULL);
 					varloc_st varVlc = varloc_new(sl.u.nsn.u.var.fr.level, sl.u.nsn.u.var.index);
@@ -6812,7 +6653,7 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 					return per_ok(intoVlc);
 				} break;
 
-				case NSN_ENUM: {
+				case nsname_enumt.ENUM: {
 					if (mode === PEM_EMPTY)
 						return per_ok(VARLOC_NULL);
 					if (mode === PEM_CREATE){
@@ -6825,12 +6666,12 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 					return per_ok(intoVlc);
 				} break;
 
-				case NSN_CMD_LOCAL:
-				case NSN_CMD_NATIVE:
-				case NSN_CMD_OPCODE:
+				case nsname_enumt.CMD_LOCAL:
+				case nsname_enumt.CMD_NATIVE:
+				case nsname_enumt.CMD_OPCODE:
 					return program_evalCall(pgen, mode, intoVlc, ex.flp, sl.u.nsn, NULL);
 
-				case NSN_NAMESPACE:
+				case nsname_enumt.NAMESPACE:
 					return per_error(ex.flp, format("Invalid expression"));
 			}
 			assert(false);
@@ -6901,7 +6742,7 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 
 		case expr_enum.PREFIX: {
 			op_enum unop = ks_toUnaryOp(ex.u.prefix.k);
-			if (unop === OP_INVALID)
+			if (unop === op_enum.INVALID)
 				return per_error(ex.flp, format("Invalid unary operator"));
 			per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex.u.prefix.ex);
 			if (pe.type === PER_ERROR)
@@ -6924,7 +6765,7 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 		case expr_enum.INFIX: {
 			op_enum mutop = ks_toMutateOp(ex.u.infix.k);
 			if (ex.u.infix.k === ks_enum.EQU || ex.u.infix.k === ks_enum.AMP2EQU ||
-				ex.u.infix.k === ks_enum.PIPE2EQU || mutop !== OP_INVALID){
+				ex.u.infix.k === ks_enum.PIPE2EQU || mutop !== op_enum.INVALID){
 				lvp_st lp = lval_prepare(pgen, ex.u.infix.left);
 				if (lp.type === LVP_ERROR)
 					return per_error(lp.u.error.flp, lp.u.error.msg);
@@ -7030,7 +6871,7 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 			}
 
 			op_enum binop = ks_toBinaryOp(ex.u.infix.k);
-			if (binop !== OP_INVALID){
+			if (binop !== op_enum.INVALID){
 				per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex.u.infix.left);
 				if (pe.type === PER_ERROR)
 					return pe;
@@ -7081,7 +6922,7 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 			if (ex.u.call.cmd.type !== expr_enum.NAMES)
 				return per_error(ex.flp, format("Invalid call"));
 			stl_st sl = symtbl_lookup(sym, ex.u.call.cmd.u.names);
-			if (sl.type === STL_ERROR)
+			if (!sl.ok)
 				return per_error(ex.flp, sl.u.msg);
 			return program_evalCall(pgen, mode, intoVlc, ex.flp, sl.u.nsn, ex.u.call.params);
 		} break;
@@ -7156,16 +6997,16 @@ static pen_st program_exprToNum(pgen_st pgen, expr ex){
 		return pen_ok(ex.u.num);
 	else if (ex.type === expr_enum.NAMES){
 		stl_st sl = symtbl_lookup(pgen.sym, ex.u.names);
-		if (sl.type === STL_ERROR)
+		if (!sl.ok)
 			return pen_err(sl.u.msg);
-		if (sl.u.nsn.type === NSN_ENUM)
+		if (sl.u.nsn.type === nsname_enumt.ENUM)
 			return pen_ok(sl.u.nsn.u.val);
 	}
 	else if (ex.type === expr_enum.PAREN)
 		return program_exprToNum(pgen, ex.u.ex);
 	else if (ex.type === expr_enum.PREFIX){
 		pen_st n = program_exprToNum(pgen, ex.u.prefix.ex);
-		if (n.success && ks_toUnaryOp(ex.u.prefix.k) === OP_NUM_NEG)
+		if (n.success && ks_toUnaryOp(ex.u.prefix.k) === op_enum.NUM_NEG)
 			return pen_ok(-n.u.value);
 		return n;
 	}
@@ -7177,12 +7018,12 @@ static pen_st program_exprToNum(pgen_st pgen, expr ex){
 		if (!n2.success)
 			return n2;
 		op_enum binop = ks_toBinaryOp(ex.u.infix.k);
-		if      (binop === OP_NUM_ADD) return pen_ok(n1.u.value + n2.u.value);
-		else if (binop === OP_NUM_SUB) return pen_ok(n1.u.value - n2.u.value);
-		else if (binop === OP_NUM_MOD) return pen_ok(fmod(n1.u.value, n2.u.value));
-		else if (binop === OP_NUM_MUL) return pen_ok(n1.u.value * n2.u.value);
-		else if (binop === OP_NUM_DIV) return pen_ok(n1.u.value / n2.u.value);
-		else if (binop === OP_NUM_POW) return pen_ok(pow(n1.u.value, n2.u.value));
+		if      (binop === op_enum.NUM_ADD) return pen_ok(n1.u.value + n2.u.value);
+		else if (binop === op_enum.NUM_SUB) return pen_ok(n1.u.value - n2.u.value);
+		else if (binop === op_enum.NUM_MOD) return pen_ok(fmod(n1.u.value, n2.u.value));
+		else if (binop === op_enum.NUM_MUL) return pen_ok(n1.u.value * n2.u.value);
+		else if (binop === op_enum.NUM_DIV) return pen_ok(n1.u.value / n2.u.value);
+		else if (binop === op_enum.NUM_POW) return pen_ok(pow(n1.u.value, n2.u.value));
 	}
 	return pen_err(format("Enums must be a constant number"));
 }
@@ -7358,9 +7199,9 @@ static inline pfvs_res_st program_forVarsSingle(symtbl sym, bool forVar, list_pt
 	}
 	else{
 		stl_st sl = symtbl_lookup(sym, names);
-		if (sl.type === STL_ERROR)
+		if (!sl.ok)
 			return (pfvs_res_st){ .vlc = VARLOC_NULL, .err = sl.u.msg };
-		if (sl.u.nsn.type !== NSN_VAR){
+		if (sl.u.nsn.type !== nsname_enumt.VAR){
 			return (pfvs_res_st){
 				.vlc = VARLOC_NULL,
 				.err = format("Cannot use non-variable in for loop")
@@ -7412,9 +7253,9 @@ static pgr_st program_genForRange(pgen_st pgen, ast stmt, varloc_st p1, varloc_s
 
 	// calculate count
 	if (!zerostart)
-		op_binop(prg.ops, OP_NUM_SUB, p2, p2, p1);
+		op_binop(prg.ops, op_enum.NUM_SUB, p2, p2, p1);
 	if (!varloc_isnull(p3))
-		op_binop(prg.ops, OP_NUM_DIV, p2, p2, p3);
+		op_binop(prg.ops, op_enum.NUM_DIV, p2, p2, p3);
 
 	label top    = label_newstr("forR_top");
 	label inc    = label_newstr("forR_inc");
@@ -7431,20 +7272,20 @@ static pgr_st program_genForRange(pgen_st pgen, ast stmt, varloc_st p1, varloc_s
 
 	label_declare(top, prg.ops);
 
-	op_binop(prg.ops, OP_LT, t, idx_vlc, p2);
+	op_binop(prg.ops, op_enum.LT, t, idx_vlc, p2);
 	label_jumpfalse(finish, prg.ops, t);
 
 	if (!varloc_isnull(val_vlc)){
 		if (varloc_isnull(p3)){
 			if (!zerostart)
-				op_binop(prg.ops, OP_NUM_ADD, val_vlc, p1, idx_vlc);
+				op_binop(prg.ops, op_enum.NUM_ADD, val_vlc, p1, idx_vlc);
 			else
 				op_move(prg.ops, val_vlc, idx_vlc);
 		}
 		else{
-			op_binop(prg.ops, OP_NUM_MUL, val_vlc, idx_vlc, p3);
+			op_binop(prg.ops, op_enum.NUM_MUL, val_vlc, idx_vlc, p3);
 			if (!zerostart)
-				op_binop(prg.ops, OP_NUM_ADD, val_vlc, p1, val_vlc);
+				op_binop(prg.ops, op_enum.NUM_ADD, val_vlc, p1, val_vlc);
 		}
 	}
 
@@ -7490,8 +7331,8 @@ static pgr_st program_genForGeneric(pgen_st pgen, ast stmt){
 
 	label_declare(top, prg.ops);
 
-	op_unop(prg.ops, OP_SIZE, t, exp_vlc);
-	op_binop(prg.ops, OP_LT, t, idx_vlc, t);
+	op_unop(prg.ops, op_enum.SIZE, t, exp_vlc);
+	op_binop(prg.ops, op_enum.LT, t, idx_vlc, t);
 	label_jumpfalse(finish, prg.ops, t);
 
 	if (!varloc_isnull(val_vlc))
@@ -7544,7 +7385,7 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 		case AST_DEF1: {
 			nl_st n = namespace_lookupImmediate(sym.sc.ns, stmt.u.def1.names);
 			label lbl;
-			if (n.type === NL_FOUND && n.nsn.type === NSN_CMD_LOCAL){
+			if (n.found && n.nsn.type === nsname_enumt.CMD_LOCAL){
 				lbl = n.nsn.u.cmdLocal.lbl;
 				if (!sym.repl && lbl.pos >= 0){ // if already defined, error
 					list_byte b = stmt.u.def1.names.ptrs[0];
@@ -7625,7 +7466,7 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 
 					// move argument into lval(s)
 					per_st pe = program_evalLval(pgen, PEM_EMPTY, VARLOC_NULL, lr.u.lv,
-						OP_INVALID, arg, true);
+						op_enum.INVALID, arg, true);
 					lvr_free(lr.u.lv);
 					if (pe.type === PER_ERROR){
 						label_free(skip);
@@ -7731,10 +7572,10 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 				if (c.u.call.cmd.type === expr_enum.NAMES){
 					expr n = c.u.call.cmd;
 					stl_st sl = symtbl_lookup(sym, n.u.names);
-					if (sl.type === STL_ERROR)
+					if (!sl.ok)
 						return pgr_error(stmt.flp, sl.u.msg);
 					nsname nsn = sl.u.nsn;
-					if (nsn.type === NSN_CMD_OPCODE && nsn.u.cmdOpcode.opcode === OP_RANGE){
+					if (nsn.type === nsname_enumt.CMD_OPCODE && nsn.u.cmdOpcode.opcode === op_enum.RANGE){
 						expr p = c.u.call.params;
 						varloc_st rp[3] = { VARLOC_NULL, VARLOC_NULL, VARLOC_NULL };
 						if (p.type !== expr_enum.GROUP){
@@ -7896,20 +7737,20 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 				if (ex.u.call.cmd.type !== expr_enum.NAMES)
 					return pgr_error(ex.flp, format("Invalid call"));
 				stl_st sl = symtbl_lookup(sym, ex.u.call.cmd.u.names);
-				if (sl.type === STL_ERROR)
+				if (!sl.ok)
 					return pgr_error(ex.flp, sl.u.msg);
 				nsn = sl.u.nsn;
 				params = ex.u.call.params;
 			}
 			else if (ex.type === expr_enum.NAMES){
 				stl_st sl = symtbl_lookup(sym, ex.u.names);
-				if (sl.type === STL_ERROR)
+				if (!sl.ok)
 					return pgr_error(ex.flp, sl.u.msg);
 				nsn = sl.u.nsn;
 			}
 
 			// can only tail call local commands at the same lexical level
-			if (nsn && nsn.type === NSN_CMD_LOCAL &&
+			if (nsn && nsn.type === nsname_enumt.CMD_LOCAL &&
 				nsn.u.cmdLocal.fr.level + 1 === sym.fr.level){
 				int argcount;
 				per_st pe;
@@ -7935,15 +7776,15 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 		case AST_USING: {
 			stl_st sl = symtbl_lookupfast(sym, stmt.u.names);
 			namespace ns;
-			if (sl.type === STL_ERROR){ // not found, so create it
+			if (!sl.ok){ // not found, so create it
 				// don't have to free the error message because lookupfast doesn't create one
 				sfn_st sf = symtbl_findNamespace(sym, stmt.u.names, stmt.u.names.size);
-				if (sf.type === SFN_ERROR)
+				if (!sf.ok)
 					return pgr_error(stmt.flp, sf.u.msg);
 				ns = sf.u.ns;
 			}
 			else{
-				if (sl.u.nsn.type !== NSN_NAMESPACE)
+				if (sl.u.nsn.type !== nsname_enumt.NAMESPACE)
 					return pgr_error(stmt.flp, format("Expecting namespace"));
 				ns = sl.u.nsn.u.ns;
 			}
@@ -7967,7 +7808,7 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 					return pgr_error(lr.u.error.flp, lr.u.error.msg);
 				if (ex.u.infix.right !== NULL){
 					per_st pe = program_evalLval(pgen, PEM_EMPTY, VARLOC_NULL, lr.u.lv,
-						OP_INVALID, pr.u.vlc, true);
+						op_enum.INVALID, pr.u.vlc, true);
 					lvr_free(lr.u.lv);
 					if (pe.type === PER_ERROR)
 						return pgr_error(pe.u.error.flp, pe.u.error.msg);
@@ -7987,7 +7828,7 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 				sta_st ts = symtbl_addTemp(sym);
 				if (ts.type === STA_ERROR)
 					return pgr_error(stmt.flp, ts.u.msg);
-				op_parama(prg.ops, OP_SAY, ts.u.vlc, 1);
+				op_parama(prg.ops, op_enum.SAY, ts.u.vlc, 1);
 				op_arg(prg.ops, pr.u.vlc);
 				symtbl_clearTemp(sym, pr.u.vlc);
 				symtbl_clearTemp(sym, ts.u.vlc);
@@ -9413,26 +9254,26 @@ static inline sink_val opi_struct_size(context ctx, sink_val a){
 			return SINK_NIL;
 		struct_enum bi = (struct_enum)b.f;
 		switch (bi){
-			case STRUCT_U8  : tot += 1; break;
-			case STRUCT_U16 : tot += 2; break;
-			case STRUCT_UL16: tot += 2; break;
-			case STRUCT_UB16: tot += 2; break;
-			case STRUCT_U32 : tot += 4; break;
-			case STRUCT_UL32: tot += 4; break;
-			case STRUCT_UB32: tot += 4; break;
-			case STRUCT_S8  : tot += 1; break;
-			case STRUCT_S16 : tot += 2; break;
-			case STRUCT_SL16: tot += 2; break;
-			case STRUCT_SB16: tot += 2; break;
-			case STRUCT_S32 : tot += 4; break;
-			case STRUCT_SL32: tot += 4; break;
-			case STRUCT_SB32: tot += 4; break;
-			case STRUCT_F32 : tot += 4; break;
-			case STRUCT_FL32: tot += 4; break;
-			case STRUCT_FB32: tot += 4; break;
-			case STRUCT_F64 : tot += 8; break;
-			case STRUCT_FL64: tot += 8; break;
-			case STRUCT_FB64: tot += 8; break;
+			case struct_enum.U8  : tot += 1; break;
+			case struct_enum.U16 : tot += 2; break;
+			case struct_enum.UL16: tot += 2; break;
+			case struct_enum.UB16: tot += 2; break;
+			case struct_enum.U32 : tot += 4; break;
+			case struct_enum.UL32: tot += 4; break;
+			case struct_enum.UB32: tot += 4; break;
+			case struct_enum.S8  : tot += 1; break;
+			case struct_enum.S16 : tot += 2; break;
+			case struct_enum.SL16: tot += 2; break;
+			case struct_enum.SB16: tot += 2; break;
+			case struct_enum.S32 : tot += 4; break;
+			case struct_enum.SL32: tot += 4; break;
+			case struct_enum.SB32: tot += 4; break;
+			case struct_enum.F32 : tot += 4; break;
+			case struct_enum.FL32: tot += 4; break;
+			case struct_enum.FB32: tot += 4; break;
+			case struct_enum.F64 : tot += 8; break;
+			case struct_enum.FL64: tot += 8; break;
+			case struct_enum.FB64: tot += 8; break;
 			default:
 				return SINK_NIL;
 		}
@@ -9467,31 +9308,31 @@ static inline sink_val opi_struct_str(context ctx, sink_val a, sink_val b){
 			sink_val d = data.vals[i + ar * type.size];
 			struct_enum bi = type.vals[i].f;
 			switch (bi){
-				case STRUCT_U8:
-				case STRUCT_S8: {
+				case struct_enum.U8:
+				case struct_enum.S8: {
 					uint8_t v = d.f;
 					bytes[pos++] = v;
 				} break;
-				case STRUCT_U16:
-				case STRUCT_S16: {
+				case struct_enum.U16:
+				case struct_enum.S16: {
 					uint16_t v = d.f;
 					uint8_t *vp = (uint8_t *)&v;
 					bytes[pos++] = vp[0]; bytes[pos++] = vp[1];
 				} break;
-				case STRUCT_U32:
-				case STRUCT_S32: {
+				case struct_enum.U32:
+				case struct_enum.S32: {
 					uint32_t v = d.f;
 					uint8_t *vp = (uint8_t *)&v;
 					bytes[pos++] = vp[0]; bytes[pos++] = vp[1];
 					bytes[pos++] = vp[2]; bytes[pos++] = vp[3];
 				} break;
-				case STRUCT_F32: {
+				case struct_enum.F32: {
 					float v = d.f;
 					uint8_t *vp = (uint8_t *)&v;
 					bytes[pos++] = vp[0]; bytes[pos++] = vp[1];
 					bytes[pos++] = vp[2]; bytes[pos++] = vp[3];
 				} break;
-				case STRUCT_F64: {
+				case struct_enum.F64: {
 					double v = d.f;
 					uint8_t *vp = (uint8_t *)&v;
 					bytes[pos++] = vp[0]; bytes[pos++] = vp[1];
@@ -9499,46 +9340,46 @@ static inline sink_val opi_struct_str(context ctx, sink_val a, sink_val b){
 					bytes[pos++] = vp[4]; bytes[pos++] = vp[5];
 					bytes[pos++] = vp[6]; bytes[pos++] = vp[7];
 				} break;
-				case STRUCT_UL16:
-				case STRUCT_SL16: {
+				case struct_enum.UL16:
+				case struct_enum.SL16: {
 					uint16_t v = d.f;
 					bytes[pos++] = (v      ) & 0xFF; bytes[pos++] = (v >>  8) & 0xFF;
 				} break;
-				case STRUCT_UB16:
-				case STRUCT_SB16: {
+				case struct_enum.UB16:
+				case struct_enum.SB16: {
 					uint16_t v = d.f;
 					bytes[pos++] = (v >>  8) & 0xFF; bytes[pos++] = (v      ) & 0xFF;
 				} break;
-				case STRUCT_UL32:
-				case STRUCT_SL32: {
+				case struct_enum.UL32:
+				case struct_enum.SL32: {
 					uint32_t v = d.f;
 					bytes[pos++] = (v      ) & 0xFF; bytes[pos++] = (v >>  8) & 0xFF;
 					bytes[pos++] = (v >> 16) & 0xFF; bytes[pos++] = (v >> 24) & 0xFF;
 				} break;
-				case STRUCT_UB32:
-				case STRUCT_SB32: {
+				case struct_enum.UB32:
+				case struct_enum.SB32: {
 					uint32_t v = d.f;
 					bytes[pos++] = (v >> 24) & 0xFF; bytes[pos++] = (v >> 16) & 0xFF;
 					bytes[pos++] = (v >>  8) & 0xFF; bytes[pos++] = (v      ) & 0xFF;
 				} break;
-				case STRUCT_FL32: {
+				case struct_enum.FL32: {
 					union { float f; uint32_t u; } v = { .f = d.f };
 					bytes[pos++] = (v.u      ) & 0xFF; bytes[pos++] = (v.u >>  8) & 0xFF;
 					bytes[pos++] = (v.u >> 16) & 0xFF; bytes[pos++] = (v.u >> 24) & 0xFF;
 				} break;
-				case STRUCT_FB32: {
+				case struct_enum.FB32: {
 					union { float f; uint32_t u; } v = { .f = d.f };
 					bytes[pos++] = (v.u >> 24) & 0xFF; bytes[pos++] = (v.u >> 16) & 0xFF;
 					bytes[pos++] = (v.u >>  8) & 0xFF; bytes[pos++] = (v.u      ) & 0xFF;
 				} break;
-				case STRUCT_FL64: {
+				case struct_enum.FL64: {
 					union { double f; uint64_t u; } v = { .f = d.f };
 					bytes[pos++] = (v.u      ) & 0xFF; bytes[pos++] = (v.u >>  8) & 0xFF;
 					bytes[pos++] = (v.u >> 16) & 0xFF; bytes[pos++] = (v.u >> 24) & 0xFF;
 					bytes[pos++] = (v.u >> 32) & 0xFF; bytes[pos++] = (v.u >> 40) & 0xFF;
 					bytes[pos++] = (v.u >> 48) & 0xFF; bytes[pos++] = (v.u >> 56) & 0xFF;
 				} break;
-				case STRUCT_FB64: {
+				case struct_enum.FB64: {
 					union { double f; uint64_t u; } v = { .f = d.f };
 					bytes[pos++] = (v.u >> 56) & 0xFF; bytes[pos++] = (v.u >> 48) & 0xFF;
 					bytes[pos++] = (v.u >> 40) & 0xFF; bytes[pos++] = (v.u >> 32) & 0xFF;
@@ -9578,55 +9419,55 @@ static inline sink_val opi_struct_list(context ctx, sink_val a, sink_val b){
 		for (int i = 0; i < type.size; i++){
 			struct_enum bi = type.vals[i].f;
 			switch (bi){
-				case STRUCT_U8:
+				case struct_enum.U8:
 					sink_list_push(ctx, res, sink_num(s.bytes[pos++]));
 					break;
-				case STRUCT_S8:
+				case struct_enum.S8:
 					sink_list_push(ctx, res, sink_num((int8_t)s.bytes[pos++]));
 					break;
-				case STRUCT_U16: {
+				case struct_enum.U16: {
 					uint16_t *v = (uint16_t *)&s.bytes[pos];
 					sink_list_push(ctx, res, sink_num(*v));
 					pos += 2;
 				} break;
-				case STRUCT_U32: {
+				case struct_enum.U32: {
 					uint32_t *v = (uint32_t *)&s.bytes[pos];
 					sink_list_push(ctx, res, sink_num(*v));
 					pos += 4;
 				} break;
-				case STRUCT_S16: {
+				case struct_enum.S16: {
 					int16_t *v = (int16_t *)&s.bytes[pos];
 					sink_list_push(ctx, res, sink_num(*v));
 					pos += 2;
 				} break;
-				case STRUCT_S32: {
+				case struct_enum.S32: {
 					int32_t *v = (int32_t *)&s.bytes[pos];
 					sink_list_push(ctx, res, sink_num(*v));
 					pos += 4;
 				} break;
-				case STRUCT_F32: {
+				case struct_enum.F32: {
 					float *v = (float *)&s.bytes[pos];
 					sink_list_push(ctx, res, sink_num(*v));
 					pos += 4;
 				} break;
-				case STRUCT_F64: {
+				case struct_enum.F64: {
 					double *v = (double *)&s.bytes[pos];
 					sink_list_push(ctx, res, sink_num(*v));
 					pos += 8;
 				} break;
-				case STRUCT_UL16: {
+				case struct_enum.UL16: {
 					uint16_t v = 0;
 					v |= s.bytes[pos++];
 					v |= ((uint16_t)s.bytes[pos++]) << 8;
 					sink_list_push(ctx, res, sink_num(v));
 				} break;
-				case STRUCT_UB16: {
+				case struct_enum.UB16: {
 					uint16_t v = 0;
 					v |= ((uint16_t)s.bytes[pos++]) << 8;
 					v |= s.bytes[pos++];
 					sink_list_push(ctx, res, sink_num(v));
 				} break;
-				case STRUCT_UL32: {
+				case struct_enum.UL32: {
 					uint32_t v = 0;
 					v |= s.bytes[pos++];
 					v |= ((uint32_t)s.bytes[pos++]) <<  8;
@@ -9634,7 +9475,7 @@ static inline sink_val opi_struct_list(context ctx, sink_val a, sink_val b){
 					v |= ((uint32_t)s.bytes[pos++]) << 24;
 					sink_list_push(ctx, res, sink_num(v));
 				} break;
-				case STRUCT_UB32: {
+				case struct_enum.UB32: {
 					uint32_t v = 0;
 					v |= ((uint32_t)s.bytes[pos++]) << 24;
 					v |= ((uint32_t)s.bytes[pos++]) << 16;
@@ -9642,19 +9483,19 @@ static inline sink_val opi_struct_list(context ctx, sink_val a, sink_val b){
 					v |= s.bytes[pos++];
 					sink_list_push(ctx, res, sink_num(v));
 				} break;
-				case STRUCT_SL16: {
+				case struct_enum.SL16: {
 					uint16_t v = 0;
 					v |= s.bytes[pos++];
 					v |= ((uint16_t)s.bytes[pos++]) << 8;
 					sink_list_push(ctx, res, sink_num((int16_t)v));
 				} break;
-				case STRUCT_SB16: {
+				case struct_enum.SB16: {
 					uint16_t v = 0;
 					v |= ((uint16_t)s.bytes[pos++]) << 8;
 					v |= s.bytes[pos++];
 					sink_list_push(ctx, res, sink_num((int16_t)v));
 				} break;
-				case STRUCT_SL32: {
+				case struct_enum.SL32: {
 					uint32_t v = 0;
 					v |= s.bytes[pos++];
 					v |= ((uint32_t)s.bytes[pos++]) <<  8;
@@ -9662,7 +9503,7 @@ static inline sink_val opi_struct_list(context ctx, sink_val a, sink_val b){
 					v |= ((uint32_t)s.bytes[pos++]) << 24;
 					sink_list_push(ctx, res, sink_num((int32_t)v));
 				} break;
-				case STRUCT_SB32: {
+				case struct_enum.SB32: {
 					uint32_t v = 0;
 					v |= ((uint32_t)s.bytes[pos++]) << 24;
 					v |= ((uint32_t)s.bytes[pos++]) << 16;
@@ -9670,7 +9511,7 @@ static inline sink_val opi_struct_list(context ctx, sink_val a, sink_val b){
 					v |= s.bytes[pos++];
 					sink_list_push(ctx, res, sink_num((int32_t)v));
 				} break;
-				case STRUCT_FL32: {
+				case struct_enum.FL32: {
 					union { float f; uint32_t u; } v = { .u = 0 };
 					v.u |= s.bytes[pos++];
 					v.u |= ((uint32_t)s.bytes[pos++]) <<  8;
@@ -9681,7 +9522,7 @@ static inline sink_val opi_struct_list(context ctx, sink_val a, sink_val b){
 					else
 						sink_list_push(ctx, res, sink_num(v.f));
 				} break;
-				case STRUCT_FB32: {
+				case struct_enum.FB32: {
 					union { float f; uint32_t u; } v = { .u = 0 };
 					v.u |= ((uint32_t)s.bytes[pos++]) << 24;
 					v.u |= ((uint32_t)s.bytes[pos++]) << 16;
@@ -9692,7 +9533,7 @@ static inline sink_val opi_struct_list(context ctx, sink_val a, sink_val b){
 					else
 						sink_list_push(ctx, res, sink_num(v.f));
 				} break;
-				case STRUCT_FL64: {
+				case struct_enum.FL64: {
 					union { double f; uint64_t u; } v = { .u = 0 };
 					v.u |= s.bytes[pos++];
 					v.u |= ((uint64_t)s.bytes[pos++]) <<  8;
@@ -9707,7 +9548,7 @@ static inline sink_val opi_struct_list(context ctx, sink_val a, sink_val b){
 					else
 						sink_list_push(ctx, res, sink_num(v.f));
 				} break;
-				case STRUCT_FB64: {
+				case struct_enum.FB64: {
 					union { double f; uint64_t u; } v = { .u = 0 };
 					v.u |= ((uint64_t)s.bytes[pos++]) << 56;
 					v.u |= ((uint64_t)s.bytes[pos++]) << 48;
@@ -12177,16 +12018,16 @@ static sink_run context_run(context ctx){
 	while (ctx.pc < ops.size){
 		ctx.lastpc = ctx.pc;
 		switch ((op_enum)ops.bytes[ctx.pc]){
-			case OP_NOP            : { //
+			case op_enum.NOP            : { //
 				ctx.pc++;
 			} break;
 
-			case OP_MOVE           : { // [TGT], [SRC]
+			case op_enum.MOVE           : { // [TGT], [SRC]
 				LOAD_abcd();
 				var_set(ctx, A, B, var_get(ctx, C, D));
 			} break;
 
-			case OP_INC            : { // [TGT/SRC]
+			case op_enum.INC            : { // [TGT/SRC]
 				LOAD_ab();
 				X = var_get(ctx, A, B);
 				if (!sink_isnum(X))
@@ -12194,32 +12035,32 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, sink_num(X.f + 1));
 			} break;
 
-			case OP_NIL            : { // [TGT]
+			case op_enum.NIL            : { // [TGT]
 				LOAD_ab();
 				var_set(ctx, A, B, SINK_NIL);
 			} break;
 
-			case OP_NUMP8          : { // [TGT], VALUE
+			case op_enum.NUMP8          : { // [TGT], VALUE
 				LOAD_abc();
 				var_set(ctx, A, B, sink_num(C));
 			} break;
 
-			case OP_NUMN8          : { // [TGT], VALUE
+			case op_enum.NUMN8          : { // [TGT], VALUE
 				LOAD_abc();
 				var_set(ctx, A, B, sink_num(C - 256));
 			} break;
 
-			case OP_NUMP16         : { // [TGT], [VALUE]
+			case op_enum.NUMP16         : { // [TGT], [VALUE]
 				LOAD_abcd();
 				var_set(ctx, A, B, sink_num(C | (D << 8)));
 			} break;
 
-			case OP_NUMN16         : { // [TGT], [VALUE]
+			case op_enum.NUMN16         : { // [TGT], [VALUE]
 				LOAD_abcd();
 				var_set(ctx, A, B, sink_num((C | (D << 8)) - 65536));
 			} break;
 
-			case OP_NUMP32         : { // [TGT], [[VALUE]]
+			case op_enum.NUMP32         : { // [TGT], [[VALUE]]
 				LOAD_abcdef();
 				var_set(ctx, A, B, sink_num(
 					((uint32_t)C) | (((uint32_t)D) << 8) |
@@ -12227,7 +12068,7 @@ static sink_run context_run(context ctx){
 				));
 			} break;
 
-			case OP_NUMN32         : { // [TGT], [[VALUE]]
+			case op_enum.NUMN32         : { // [TGT], [[VALUE]]
 				LOAD_abcdef();
 				var_set(ctx, A, B, sink_num(
 					(double)(((uint32_t)C) | (((uint32_t)D) << 8) |
@@ -12235,7 +12076,7 @@ static sink_run context_run(context ctx){
 				));
 			} break;
 
-			case OP_NUMDBL         : { // [TGT], [[[VALUE]]]
+			case op_enum.NUMDBL         : { // [TGT], [[[VALUE]]]
 				LOAD_abcdefghij();
 				X.u = ((uint64_t)C) |
 					(((uint64_t)D) << 8) |
@@ -12250,7 +12091,7 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, X);
 			} break;
 
-			case OP_STR            : { // [TGT], [[INDEX]]
+			case op_enum.STR            : { // [TGT], [[INDEX]]
 				LOAD_abcdef();
 				C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
 				if (ctx.prg.repl){
@@ -12261,7 +12102,7 @@ static sink_run context_run(context ctx){
 					var_set(ctx, A, B, (sink_val){ .u = SINK_TAG_STR | C });
 			} break;
 
-			case OP_LIST           : { // [TGT], HINT
+			case op_enum.LIST           : { // [TGT], HINT
 				LOAD_abc();
 				if (C <= 0)
 					var_set(ctx, A, B, sink_list_newempty(ctx));
@@ -12271,45 +12112,45 @@ static sink_run context_run(context ctx){
 				}
 			} break;
 
-			case OP_ISNUM          : { // [TGT], [SRC]
+			case op_enum.ISNUM          : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				var_set(ctx, A, B, sink_bool(sink_isnum(X)));
 			} break;
 
-			case OP_ISSTR          : { // [TGT], [SRC]
+			case op_enum.ISSTR          : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				var_set(ctx, A, B, sink_bool(sink_isstr(X)));
 			} break;
 
-			case OP_ISLIST         : { // [TGT], [SRC]
+			case op_enum.ISLIST         : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				var_set(ctx, A, B, sink_bool(sink_islist(X)));
 			} break;
 
-			case OP_NOT            : { // [TGT], [SRC]
+			case op_enum.NOT            : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				var_set(ctx, A, B, sink_bool(sink_isfalse(X)));
 			} break;
 
-			case OP_SIZE           : { // [TGT], [SRC]
+			case op_enum.SIZE           : { // [TGT], [SRC]
 				LOAD_abcd();
 				var_set(ctx, A, B, sink_num(opi_size(ctx, var_get(ctx, C, D))));
 				if (ctx.failed)
 					return SINK_RUN_FAIL;
 			} break;
 
-			case OP_TONUM          : { // [TGT], [SRC]
+			case op_enum.TONUM          : { // [TGT], [SRC]
 				LOAD_abcd();
 				var_set(ctx, A, B, opi_tonum(ctx, var_get(ctx, C, D)));
 				if (ctx.failed)
 					return SINK_RUN_FAIL;
 			} break;
 
-			case OP_CAT            : { // [TGT], ARGCOUNT, [ARGS]...
+			case op_enum.CAT            : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
 				bool listcat = C > 0;
 				for (D = 0; D < C; D++){
@@ -12327,7 +12168,7 @@ static sink_run context_run(context ctx){
 				}
 			} break;
 
-			case OP_LT             : { // [TGT], [SRC1], [SRC2]
+			case op_enum.LT             : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
@@ -12345,7 +12186,7 @@ static sink_run context_run(context ctx){
 					return opi_abortcstr(ctx, "Expecting numbers or strings");
 			} break;
 
-			case OP_LTE            : { // [TGT], [SRC1], [SRC2]
+			case op_enum.LTE            : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
@@ -12363,21 +12204,21 @@ static sink_run context_run(context ctx){
 					return opi_abortcstr(ctx, "Expecting numbers or strings");
 			} break;
 
-			case OP_NEQ            : { // [TGT], [SRC1], [SRC2]
+			case op_enum.NEQ            : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				var_set(ctx, A, B, sink_bool(!opi_equ(ctx, X, Y)));
 			} break;
 
-			case OP_EQU            : { // [TGT], [SRC1], [SRC2]
+			case op_enum.EQU            : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				var_set(ctx, A, B, sink_bool(opi_equ(ctx, X, Y)));
 			} break;
 
-			case OP_GETAT          : { // [TGT], [SRC1], [SRC2]
+			case op_enum.GETAT          : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X) && !sink_isstr(X))
@@ -12391,7 +12232,7 @@ static sink_run context_run(context ctx){
 					var_set(ctx, A, B, opi_str_at(ctx, X, Y));
 			} break;
 
-			case OP_SLICE          : { // [TGT], [SRC1], [SRC2], [SRC3]
+			case op_enum.SLICE          : { // [TGT], [SRC1], [SRC2], [SRC3]
 				LOAD_abcdefgh();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
@@ -12404,7 +12245,7 @@ static sink_run context_run(context ctx){
 					return SINK_RUN_FAIL;
 			} break;
 
-			case OP_SETAT          : { // [SRC1], [SRC2], [SRC3]
+			case op_enum.SETAT          : { // [SRC1], [SRC2], [SRC3]
 				LOAD_abcdef();
 				X = var_get(ctx, A, B);
 				if (!sink_islist(X))
@@ -12421,7 +12262,7 @@ static sink_run context_run(context ctx){
 					ls.vals[A] = var_get(ctx, E, F);
 			} break;
 
-			case OP_SPLICE         : { // [SRC1], [SRC2], [SRC3], [SRC4]
+			case op_enum.SPLICE         : { // [SRC1], [SRC2], [SRC3], [SRC4]
 				LOAD_abcdefgh();
 				X = var_get(ctx, A, B);
 				Y = var_get(ctx, C, D);
@@ -12435,7 +12276,7 @@ static sink_run context_run(context ctx){
 					return opi_abortcstr(ctx, "Expecting list or string when splicing");
 			} break;
 
-			case OP_JUMP           : { // [[LOCATION]]
+			case op_enum.JUMP           : { // [[LOCATION]]
 				LOAD_abcd();
 				A = A + (B << 8) + (C << 16) + ((D << 23) * 2);
 				if (ctx.prg.repl && A === -1){
@@ -12445,7 +12286,7 @@ static sink_run context_run(context ctx){
 				ctx.pc = A;
 			} break;
 
-			case OP_JUMPTRUE       : { // [SRC], [[LOCATION]]
+			case op_enum.JUMPTRUE       : { // [SRC], [[LOCATION]]
 				LOAD_abcdef();
 				C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
 				if (!sink_isnil(var_get(ctx, A, B))){
@@ -12457,7 +12298,7 @@ static sink_run context_run(context ctx){
 				}
 			} break;
 
-			case OP_JUMPFALSE      : { // [SRC], [[LOCATION]]
+			case op_enum.JUMPFALSE      : { // [SRC], [[LOCATION]]
 				LOAD_abcdef();
 				C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
 				if (sink_isnil(var_get(ctx, A, B))){
@@ -12469,7 +12310,7 @@ static sink_run context_run(context ctx){
 				}
 			} break;
 
-			case OP_CMDTAIL        : { //
+			case op_enum.CMDTAIL        : { //
 				ccs s = list_ptr_pop(ctx.call_stk);
 				lxs lx = ctx.lex_stk.ptrs[ctx.lex_index];
 				ctx.lex_stk.ptrs[ctx.lex_index] = lx.next;
@@ -12480,7 +12321,7 @@ static sink_run context_run(context ctx){
 				ccs_release(ctx, s);
 			} break;
 
-			case OP_CALL           : { // [TGT], [[LOCATION]], ARGCOUNT, [ARGS]...
+			case op_enum.CALL           : { // [TGT], [[LOCATION]], ARGCOUNT, [ARGS]...
 				LOAD_abcdefg();
 				C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
 				if (C === -1){
@@ -12494,7 +12335,7 @@ static sink_run context_run(context ctx){
 				list_ptr_push(ctx.call_stk, ccs_get(ctx, ctx.pc, A, B, ctx.lex_index));
 				ctx.pc = C - 1;
 				LOAD_abc();
-				// A is OP_CMDHEAD
+				// A is op_enum.CMDHEAD
 				if (C !== 0xFF){
 					if (G <= C){
 						while (G < C)
@@ -12512,7 +12353,7 @@ static sink_run context_run(context ctx){
 					lxs_get(ctx, G, p, ctx.lex_stk.ptrs[ctx.lex_index]);
 			} break;
 
-			case OP_NATIVE         : { // [TGT], [[INDEX]], ARGCOUNT, [ARGS]...
+			case op_enum.NATIVE         : { // [TGT], [[INDEX]], ARGCOUNT, [ARGS]...
 				LOAD_abcdefg();
 				for (I = 0; I < G; I++){
 					J = ops.bytes[ctx.pc++]; H = ops.bytes[ctx.pc++];
@@ -12548,7 +12389,7 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, X);
 			} break;
 
-			case OP_RETURN         : { // [SRC]
+			case op_enum.RETURN         : { // [SRC]
 				if (ctx.call_stk.size <= 0)
 					return opi_exit(ctx);
 				LOAD_ab();
@@ -12563,7 +12404,7 @@ static sink_run context_run(context ctx){
 				ccs_release(ctx, s);
 			} break;
 
-			case OP_RETURNTAIL     : { // [[LOCATION]], ARGCOUNT, [ARGS]...
+			case op_enum.RETURNTAIL     : { // [[LOCATION]], ARGCOUNT, [ARGS]...
 				LOAD_abcde();
 				A = A + (B << 8) + (C << 16) + ((D << 23) * 2);
 				if (A === -1){
@@ -12592,7 +12433,7 @@ static sink_run context_run(context ctx){
 				ctx.lex_stk.ptrs[ctx.lex_index] = lxs_get(ctx, E, p, lx2);
 			} break;
 
-			case OP_RANGE          : { // [TGT], [SRC1], [SRC2], [SRC3]
+			case op_enum.RANGE          : { // [TGT], [SRC1], [SRC2], [SRC3]
 				LOAD_abcdefgh();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
@@ -12618,14 +12459,14 @@ static sink_run context_run(context ctx){
 					return SINK_RUN_FAIL;
 			} break;
 
-			case OP_ORDER          : { // [TGT], [SRC1], [SRC2]
+			case op_enum.ORDER          : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				var_set(ctx, A, B, sink_num(opi_order(ctx, X, Y)));
 			} break;
 
-			case OP_SAY            : { // [TGT], ARGCOUNT, [ARGS]...
+			case op_enum.SAY            : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
 				for (D = 0; D < C; D++){
 					E = ops.bytes[ctx.pc++]; F = ops.bytes[ctx.pc++];
@@ -12637,7 +12478,7 @@ static sink_run context_run(context ctx){
 					return SINK_RUN_FAIL;
 			} break;
 
-			case OP_WARN           : { // [TGT], ARGCOUNT, [ARGS]...
+			case op_enum.WARN           : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
 				for (D = 0; D < C; D++){
 					E = ops.bytes[ctx.pc++]; F = ops.bytes[ctx.pc++];
@@ -12649,7 +12490,7 @@ static sink_run context_run(context ctx){
 					return SINK_RUN_FAIL;
 			} break;
 
-			case OP_ASK            : { // [TGT], ARGCOUNT, [ARGS]...
+			case op_enum.ASK            : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
 				for (D = 0; D < C; D++){
 					E = ops.bytes[ctx.pc++]; F = ops.bytes[ctx.pc++];
@@ -12660,7 +12501,7 @@ static sink_run context_run(context ctx){
 					return SINK_RUN_FAIL;
 			} break;
 
-			case OP_EXIT           : { // [TGT], ARGCOUNT, [ARGS]...
+			case op_enum.EXIT           : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
 				for (D = 0; D < C; D++){
 					E = ops.bytes[ctx.pc++]; F = ops.bytes[ctx.pc++];
@@ -12674,7 +12515,7 @@ static sink_run context_run(context ctx){
 				return opi_exit(ctx);
 			} break;
 
-			case OP_ABORT          : { // [TGT], ARGCOUNT, [ARGS]...
+			case op_enum.ABORT          : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
 				for (D = 0; D < C; D++){
 					E = ops.bytes[ctx.pc++]; F = ops.bytes[ctx.pc++];
@@ -12686,48 +12527,48 @@ static sink_run context_run(context ctx){
 				return opi_abort(ctx, err);
 			} break;
 
-			case OP_STACKTRACE     : { // [TGT]
+			case op_enum.STACKTRACE     : { // [TGT]
 				LOAD_ab();
 				var_set(ctx, A, B, opi_stacktrace(ctx));
 			} break;
 
-			case OP_NUM_NEG        : { // [TGT], [SRC]
+			case op_enum.NUM_NEG        : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_neg, txt_num_neg)
 			} break;
 
-			case OP_NUM_ADD        : { // [TGT], [SRC1], [SRC2]
+			case op_enum.NUM_ADD        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_num_add, txt_num_add)
 			} break;
 
-			case OP_NUM_SUB        : { // [TGT], [SRC1], [SRC2]
+			case op_enum.NUM_SUB        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_num_sub, txt_num_sub)
 			} break;
 
-			case OP_NUM_MUL        : { // [TGT], [SRC1], [SRC2]
+			case op_enum.NUM_MUL        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_num_mul, txt_num_mul)
 			} break;
 
-			case OP_NUM_DIV        : { // [TGT], [SRC1], [SRC2]
+			case op_enum.NUM_DIV        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_num_div, txt_num_div)
 			} break;
 
-			case OP_NUM_MOD        : { // [TGT], [SRC1], [SRC2]
+			case op_enum.NUM_MOD        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_num_mod, txt_num_mod)
 			} break;
 
-			case OP_NUM_POW        : { // [TGT], [SRC1], [SRC2]
+			case op_enum.NUM_POW        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_num_pow, txt_num_pow)
 			} break;
 
-			case OP_NUM_ABS        : { // [TGT], [SRC]
+			case op_enum.NUM_ABS        : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_abs, txt_num_abs)
 			} break;
 
-			case OP_NUM_SIGN       : { // [TGT], [SRC]
+			case op_enum.NUM_SIGN       : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_sign, txt_num_sign)
 			} break;
 
-			case OP_NUM_MAX        : { // [TGT], ARGCOUNT, [ARGS]...
+			case op_enum.NUM_MAX        : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
 				for (D = 0; D < C; D++){
 					E = ops.bytes[ctx.pc++]; F = ops.bytes[ctx.pc++];
@@ -12736,7 +12577,7 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, opi_num_max(ctx, C, p));
 			} break;
 
-			case OP_NUM_MIN        : { // [TGT], ARGCOUNT, [ARGS]...
+			case op_enum.NUM_MIN        : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
 				for (D = 0; D < C; D++){
 					E = ops.bytes[ctx.pc++]; F = ops.bytes[ctx.pc++];
@@ -12745,116 +12586,116 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, opi_num_min(ctx, C, p));
 			} break;
 
-			case OP_NUM_CLAMP      : { // [TGT], [SRC1], [SRC2], [SRC3]
+			case op_enum.NUM_CLAMP      : { // [TGT], [SRC1], [SRC2], [SRC3]
 				INLINE_TRIOP(triop_num_clamp, txt_num_clamp)
 			} break;
 
-			case OP_NUM_FLOOR      : { // [TGT], [SRC]
+			case op_enum.NUM_FLOOR      : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_floor, txt_num_floor)
 			} break;
 
-			case OP_NUM_CEIL       : { // [TGT], [SRC]
+			case op_enum.NUM_CEIL       : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_ceil, txt_num_ceil)
 			} break;
 
-			case OP_NUM_ROUND      : { // [TGT], [SRC]
+			case op_enum.NUM_ROUND      : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_round, txt_num_round)
 			} break;
 
-			case OP_NUM_TRUNC      : { // [TGT], [SRC]
+			case op_enum.NUM_TRUNC      : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_trunc, txt_num_trunc)
 			} break;
 
-			case OP_NUM_NAN        : { // [TGT]
+			case op_enum.NUM_NAN        : { // [TGT]
 				LOAD_ab();
 				var_set(ctx, A, B, sink_num_nan());
 			} break;
 
-			case OP_NUM_INF        : { // [TGT]
+			case op_enum.NUM_INF        : { // [TGT]
 				LOAD_ab();
 				var_set(ctx, A, B, sink_num_inf());
 			} break;
 
-			case OP_NUM_ISNAN      : { // [TGT], [SRC]
+			case op_enum.NUM_ISNAN      : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_isnan, txt_num_isnan)
 			} break;
 
-			case OP_NUM_ISFINITE   : { // [TGT], [SRC]
+			case op_enum.NUM_ISFINITE   : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_isfinite, txt_num_isfinite)
 			} break;
 
-			case OP_NUM_SIN        : { // [TGT], [SRC]
+			case op_enum.NUM_SIN        : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_sin, txt_num_sin)
 			} break;
 
-			case OP_NUM_COS        : { // [TGT], [SRC]
+			case op_enum.NUM_COS        : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_cos, txt_num_cos)
 			} break;
 
-			case OP_NUM_TAN        : { // [TGT], [SRC]
+			case op_enum.NUM_TAN        : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_tan, txt_num_tan)
 			} break;
 
-			case OP_NUM_ASIN       : { // [TGT], [SRC]
+			case op_enum.NUM_ASIN       : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_asin, txt_num_asin)
 			} break;
 
-			case OP_NUM_ACOS       : { // [TGT], [SRC]
+			case op_enum.NUM_ACOS       : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_acos, txt_num_acos)
 			} break;
 
-			case OP_NUM_ATAN       : { // [TGT], [SRC]
+			case op_enum.NUM_ATAN       : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_atan, txt_num_atan)
 			} break;
 
-			case OP_NUM_ATAN2      : { // [TGT], [SRC1], [SRC2]
+			case op_enum.NUM_ATAN2      : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_num_atan2, txt_num_atan)
 			} break;
 
-			case OP_NUM_LOG        : { // [TGT], [SRC]
+			case op_enum.NUM_LOG        : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_log, txt_num_log)
 			} break;
 
-			case OP_NUM_LOG2       : { // [TGT], [SRC]
+			case op_enum.NUM_LOG2       : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_log2, txt_num_log)
 			} break;
 
-			case OP_NUM_LOG10      : { // [TGT], [SRC]
+			case op_enum.NUM_LOG10      : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_log10, txt_num_log)
 			} break;
 
-			case OP_NUM_EXP        : { // [TGT], [SRC]
+			case op_enum.NUM_EXP        : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_exp, txt_num_pow)
 			} break;
 
-			case OP_NUM_LERP       : { // [TGT], [SRC1], [SRC2], [SRC3]
+			case op_enum.NUM_LERP       : { // [TGT], [SRC1], [SRC2], [SRC3]
 				INLINE_TRIOP(triop_num_lerp, txt_num_lerp)
 			} break;
 
-			case OP_NUM_HEX        : { // [TGT], [SRC1], [SRC2]
+			case op_enum.NUM_HEX        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP_T(binop_num_hex, txt_num_hex, LT_ALLOWNUM,
 					LT_ALLOWNUM | LT_ALLOWNIL)
 			} break;
 
-			case OP_NUM_OCT        : { // [TGT], [SRC1], [SRC2]
+			case op_enum.NUM_OCT        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP_T(binop_num_oct, txt_num_oct, LT_ALLOWNUM,
 					LT_ALLOWNUM | LT_ALLOWNIL)
 			} break;
 
-			case OP_NUM_BIN        : { // [TGT], [SRC1], [SRC2]
+			case op_enum.NUM_BIN        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP_T(binop_num_bin, txt_num_bin, LT_ALLOWNUM,
 					LT_ALLOWNUM | LT_ALLOWNIL)
 			} break;
 
-			case OP_INT_NEW        : { // [TGT], [SRC]
+			case op_enum.INT_NEW        : { // [TGT], [SRC]
 				INLINE_UNOP(unop_int_new, txt_int_new)
 			} break;
 
-			case OP_INT_NOT        : { // [TGT], [SRC]
+			case op_enum.INT_NOT        : { // [TGT], [SRC]
 				INLINE_UNOP(unop_int_not, txt_int_not)
 			} break;
 
-			case OP_INT_AND        : { // [TGT], ARGCOUNT, [ARGS]...
+			case op_enum.INT_AND        : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
 				for (D = 0; D < C; D++){
 					E = ops.bytes[ctx.pc++]; F = ops.bytes[ctx.pc++];
@@ -12866,7 +12707,7 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, X);
 			} break;
 
-			case OP_INT_OR         : { // [TGT], ARGCOUNT, [ARGS]...
+			case op_enum.INT_OR         : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
 				for (D = 0; D < C; D++){
 					E = ops.bytes[ctx.pc++]; F = ops.bytes[ctx.pc++];
@@ -12878,7 +12719,7 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, X);
 			} break;
 
-			case OP_INT_XOR        : { // [TGT], ARGCOUNT, [ARGS]...
+			case op_enum.INT_XOR        : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
 				for (D = 0; D < C; D++){
 					E = ops.bytes[ctx.pc++]; F = ops.bytes[ctx.pc++];
@@ -12890,51 +12731,51 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, X);
 			} break;
 
-			case OP_INT_SHL        : { // [TGT], [SRC1], [SRC2]
+			case op_enum.INT_SHL        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_int_shl, txt_int_shl)
 			} break;
 
-			case OP_INT_SHR        : { // [TGT], [SRC1], [SRC2]
+			case op_enum.INT_SHR        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_int_shr, txt_int_shr)
 			} break;
 
-			case OP_INT_SAR        : { // [TGT], [SRC1], [SRC2]
+			case op_enum.INT_SAR        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_int_sar, txt_int_shr)
 			} break;
 
-			case OP_INT_ADD        : { // [TGT], [SRC1], [SRC2]
+			case op_enum.INT_ADD        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_int_add, txt_num_add)
 			} break;
 
-			case OP_INT_SUB        : { // [TGT], [SRC1], [SRC2]
+			case op_enum.INT_SUB        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_int_sub, txt_num_sub)
 			} break;
 
-			case OP_INT_MUL        : { // [TGT], [SRC1], [SRC2]
+			case op_enum.INT_MUL        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_int_mul, txt_num_mul)
 			} break;
 
-			case OP_INT_DIV        : { // [TGT], [SRC1], [SRC2]
+			case op_enum.INT_DIV        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_int_div, txt_num_div)
 			} break;
 
-			case OP_INT_MOD        : { // [TGT], [SRC1], [SRC2]
+			case op_enum.INT_MOD        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_int_mod, txt_num_mod)
 			} break;
 
-			case OP_INT_CLZ        : { // [TGT], [SRC]
+			case op_enum.INT_CLZ        : { // [TGT], [SRC]
 				INLINE_UNOP(unop_int_clz, txt_int_clz)
 			} break;
 
-			case OP_INT_POP        : { // [TGT], [SRC]
+			case op_enum.INT_POP        : { // [TGT], [SRC]
 				INLINE_UNOP(unop_int_pop, txt_int_pop)
 			} break;
 
-			case OP_INT_BSWAP      : { // [TGT], [SRC]
+			case op_enum.INT_BSWAP      : { // [TGT], [SRC]
 				INLINE_UNOP(unop_int_bswap, txt_int_bswap)
 			} break;
 
-			case OP_RAND_SEED      : { // [TGT], [SRC]
+			case op_enum.RAND_SEED      : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				if (sink_isnil(X))
@@ -12945,28 +12786,28 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, SINK_NIL);
 			} break;
 
-			case OP_RAND_SEEDAUTO  : { // [TGT]
+			case op_enum.RAND_SEEDAUTO  : { // [TGT]
 				LOAD_ab();
 				opi_rand_seedauto(ctx);
 				var_set(ctx, A, B, SINK_NIL);
 			} break;
 
-			case OP_RAND_INT       : { // [TGT]
+			case op_enum.RAND_INT       : { // [TGT]
 				LOAD_ab();
 				var_set(ctx, A, B, sink_num(opi_rand_int(ctx)));
 			} break;
 
-			case OP_RAND_NUM       : { // [TGT]
+			case op_enum.RAND_NUM       : { // [TGT]
 				LOAD_ab();
 				var_set(ctx, A, B, sink_num(opi_rand_num(ctx)));
 			} break;
 
-			case OP_RAND_GETSTATE  : { // [TGT]
+			case op_enum.RAND_GETSTATE  : { // [TGT]
 				LOAD_ab();
 				var_set(ctx, A, B, opi_rand_getstate(ctx));
 			} break;
 
-			case OP_RAND_SETSTATE  : { // [TGT], [SRC]
+			case op_enum.RAND_SETSTATE  : { // [TGT], [SRC]
 				LOAD_abcd();
 				opi_rand_setstate(ctx, var_get(ctx, C, D));
 				if (ctx.failed)
@@ -12974,7 +12815,7 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, SINK_NIL);
 			} break;
 
-			case OP_RAND_PICK      : { // [TGT], [SRC]
+			case op_enum.RAND_PICK      : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = opi_rand_pick(ctx, var_get(ctx, C, D));
 				if (ctx.failed)
@@ -12982,7 +12823,7 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, X);
 			} break;
 
-			case OP_RAND_SHUFFLE   : { // [TGT], [SRC]
+			case op_enum.RAND_SHUFFLE   : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				opi_rand_shuffle(ctx, X);
@@ -12991,7 +12832,7 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, X);
 			} break;
 
-			case OP_STR_NEW        : { // [TGT], ARGCOUNT, [ARGS]...
+			case op_enum.STR_NEW        : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
 				for (D = 0; D < C; D++){
 					E = ops.bytes[ctx.pc++]; F = ops.bytes[ctx.pc++];
@@ -13000,7 +12841,7 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, opi_str_new(ctx, C, p));
 			} break;
 
-			case OP_STR_SPLIT      : { // [TGT], [SRC1], [SRC2]
+			case op_enum.STR_SPLIT      : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
@@ -13010,7 +12851,7 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, X);
 			} break;
 
-			case OP_STR_REPLACE    : { // [TGT], [SRC1], [SRC2], [SRC3]
+			case op_enum.STR_REPLACE    : { // [TGT], [SRC1], [SRC2], [SRC3]
 				LOAD_abcdefgh();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
@@ -13021,7 +12862,7 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, X);
 			} break;
 
-			case OP_STR_BEGINS     : { // [TGT], [SRC1], [SRC2]
+			case op_enum.STR_BEGINS     : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
@@ -13031,7 +12872,7 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, X);
 			} break;
 
-			case OP_STR_ENDS       : { // [TGT], [SRC1], [SRC2]
+			case op_enum.STR_ENDS       : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
@@ -13041,7 +12882,7 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, X);
 			} break;
 
-			case OP_STR_PAD        : { // [TGT], [SRC1], [SRC2]
+			case op_enum.STR_PAD        : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
@@ -13055,7 +12896,7 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, X);
 			} break;
 
-			case OP_STR_FIND       : { // [TGT], [SRC1], [SRC2], [SRC3]
+			case op_enum.STR_FIND       : { // [TGT], [SRC1], [SRC2], [SRC3]
 				LOAD_abcdefgh();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
@@ -13066,7 +12907,7 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, X);
 			} break;
 
-			case OP_STR_RFIND      : { // [TGT], [SRC1], [SRC2], [SRC3]
+			case op_enum.STR_RFIND      : { // [TGT], [SRC1], [SRC2], [SRC3]
 				LOAD_abcdefgh();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
@@ -13077,7 +12918,7 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, X);
 			} break;
 
-			case OP_STR_LOWER      : { // [TGT], [SRC]
+			case op_enum.STR_LOWER      : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				X = opi_str_lower(ctx, X);
@@ -13086,7 +12927,7 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, X);
 			} break;
 
-			case OP_STR_UPPER      : { // [TGT], [SRC]
+			case op_enum.STR_UPPER      : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				X = opi_str_upper(ctx, X);
@@ -13095,7 +12936,7 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, X);
 			} break;
 
-			case OP_STR_TRIM       : { // [TGT], [SRC]
+			case op_enum.STR_TRIM       : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				X = opi_str_trim(ctx, X);
@@ -13104,7 +12945,7 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, X);
 			} break;
 
-			case OP_STR_REV        : { // [TGT], [SRC]
+			case op_enum.STR_REV        : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				X = opi_str_rev(ctx, X);
@@ -13113,7 +12954,7 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, X);
 			} break;
 
-			case OP_STR_REP        : { // [TGT], [SRC1], [SRC2]
+			case op_enum.STR_REP        : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
@@ -13127,7 +12968,7 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, X);
 			} break;
 
-			case OP_STR_LIST       : { // [TGT], [SRC]
+			case op_enum.STR_LIST       : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				X = opi_str_list(ctx, X);
@@ -13136,7 +12977,7 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, X);
 			} break;
 
-			case OP_STR_BYTE       : { // [TGT], [SRC1], [SRC2]
+			case op_enum.STR_BYTE       : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
@@ -13150,7 +12991,7 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, X);
 			} break;
 
-			case OP_STR_HASH       : { // [TGT], [SRC1], [SRC2]
+			case op_enum.STR_HASH       : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
@@ -13164,13 +13005,13 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, X);
 			} break;
 
-			case OP_UTF8_VALID     : { // [TGT], [SRC]
+			case op_enum.UTF8_VALID     : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				var_set(ctx, A, B, sink_bool(opi_utf8_valid(ctx, X)));
 			} break;
 
-			case OP_UTF8_LIST      : { // [TGT], [SRC]
+			case op_enum.UTF8_LIST      : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				X = opi_utf8_list(ctx, X);
@@ -13179,7 +13020,7 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, X);
 			} break;
 
-			case OP_UTF8_STR       : { // [TGT], [SRC]
+			case op_enum.UTF8_STR       : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				X = opi_utf8_str(ctx, X);
@@ -13188,12 +13029,12 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, X);
 			} break;
 
-			case OP_STRUCT_SIZE    : { // [TGT], [SRC]
+			case op_enum.struct_enum.SIZE    : { // [TGT], [SRC]
 				LOAD_abcd();
 				var_set(ctx, A, B, opi_struct_size(ctx, var_get(ctx, C, D)));
 			} break;
 
-			case OP_STRUCT_STR     : { // [TGT], [SRC1], [SRC2]
+			case op_enum.struct_enum.STR     : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
@@ -13203,7 +13044,7 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, X);
 			} break;
 
-			case OP_STRUCT_LIST    : { // [TGT], [SRC1], [SRC2]
+			case op_enum.struct_enum.LIST    : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
@@ -13213,12 +13054,12 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, X);
 			} break;
 
-			case OP_STRUCT_ISLE    : { // [TGT]
+			case op_enum.struct_enum.ISLE    : { // [TGT]
 				LOAD_ab();
 				var_set(ctx, A, B, sink_bool(opi_struct_isLE()));
 			} break;
 
-			case OP_LIST_NEW       : { // [TGT], [SRC1], [SRC2]
+			case op_enum.LIST_NEW       : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
@@ -13228,7 +13069,7 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, X);
 			} break;
 
-			case OP_LIST_SHIFT     : { // [TGT], [SRC]
+			case op_enum.LIST_SHIFT     : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				X = opi_list_shift(ctx, X);
@@ -13237,7 +13078,7 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, X);
 			} break;
 
-			case OP_LIST_POP       : { // [TGT], [SRC]
+			case op_enum.LIST_POP       : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				X = opi_list_pop(ctx, X);
@@ -13246,7 +13087,7 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, X);
 			} break;
 
-			case OP_LIST_PUSH      : { // [TGT], [SRC1], [SRC2]
+			case op_enum.LIST_PUSH      : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
@@ -13256,7 +13097,7 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, X);
 			} break;
 
-			case OP_LIST_UNSHIFT   : { // [TGT], [SRC1], [SRC2]
+			case op_enum.LIST_UNSHIFT   : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
@@ -13266,7 +13107,7 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, X);
 			} break;
 
-			case OP_LIST_APPEND    : { // [TGT], [SRC1], [SRC2]
+			case op_enum.LIST_APPEND    : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
@@ -13276,7 +13117,7 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, X);
 			} break;
 
-			case OP_LIST_PREPEND   : { // [TGT], [SRC1], [SRC2]
+			case op_enum.LIST_PREPEND   : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
@@ -13286,7 +13127,7 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, X);
 			} break;
 
-			case OP_LIST_FIND      : { // [TGT], [SRC1], [SRC2], [SRC3]
+			case op_enum.LIST_FIND      : { // [TGT], [SRC1], [SRC2], [SRC3]
 				LOAD_abcdefgh();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
@@ -13297,7 +13138,7 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, X);
 			} break;
 
-			case OP_LIST_RFIND     : { // [TGT], [SRC1], [SRC2], [SRC3]
+			case op_enum.LIST_RFIND     : { // [TGT], [SRC1], [SRC2], [SRC3]
 				LOAD_abcdefgh();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
@@ -13308,7 +13149,7 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, X);
 			} break;
 
-			case OP_LIST_JOIN      : { // [TGT], [SRC1], [SRC2]
+			case op_enum.LIST_JOIN      : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
@@ -13318,7 +13159,7 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, X);
 			} break;
 
-			case OP_LIST_REV       : { // [TGT], [SRC]
+			case op_enum.LIST_REV       : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				X = opi_list_rev(ctx, X);
@@ -13327,7 +13168,7 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, X);
 			} break;
 
-			case OP_LIST_STR       : { // [TGT], [SRC]
+			case op_enum.LIST_STR       : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				X = opi_list_str(ctx, X);
@@ -13336,7 +13177,7 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, X);
 			} break;
 
-			case OP_LIST_SORT      : { // [TGT], [SRC]
+			case op_enum.LIST_SORT      : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				opi_list_sort(ctx, X);
@@ -13345,7 +13186,7 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, X);
 			} break;
 
-			case OP_LIST_RSORT     : { // [TGT], [SRC]
+			case op_enum.LIST_RSORT     : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				opi_list_rsort(ctx, X);
@@ -13354,7 +13195,7 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, X);
 			} break;
 
-			case OP_PICKLE_JSON    : { // [TGT], [SRC]
+			case op_enum.PICKLE_JSON    : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				X = opi_pickle_json(ctx, X);
@@ -13363,7 +13204,7 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, X);
 			} break;
 
-			case OP_PICKLE_BIN     : { // [TGT], [SRC]
+			case op_enum.PICKLE_BIN     : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				X = opi_pickle_bin(ctx, X);
@@ -13372,7 +13213,7 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, X);
 			} break;
 
-			case OP_PICKLE_VAL     : { // [TGT], [SRC]
+			case op_enum.PICKLE_VAL     : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				X = opi_pickle_val(ctx, X);
@@ -13381,26 +13222,26 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, X);
 			} break;
 
-			case OP_PICKLE_VALID   : { // [TGT], [SRC]
+			case op_enum.PICKLE_VALID   : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				E = opi_pickle_valid(ctx, X);
 				var_set(ctx, A, B, E === 0 ? SINK_NIL : sink_num(E));
 			} break;
 
-			case OP_PICKLE_SIBLING : { // [TGT], [SRC]
+			case op_enum.PICKLE_SIBLING : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				var_set(ctx, A, B, sink_bool(opi_pickle_sibling(ctx, X)));
 			} break;
 
-			case OP_PICKLE_CIRCULAR: { // [TGT], [SRC]
+			case op_enum.PICKLE_CIRCULAR: { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				var_set(ctx, A, B, sink_bool(opi_pickle_circular(ctx, X)));
 			} break;
 
-			case OP_PICKLE_COPY    : { // [TGT], [SRC]
+			case op_enum.PICKLE_COPY    : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				X = opi_pickle_copy(ctx, X);
@@ -13409,7 +13250,7 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, X);
 			} break;
 
-			case OP_GC_GETLEVEL    : { // [TGT]
+			case op_enum.GC_GETLEVEL    : { // [TGT]
 				LOAD_ab();
 				switch (ctx.gc_level){
 					case SINK_GC_NONE:
@@ -13424,7 +13265,7 @@ static sink_run context_run(context ctx){
 				}
 			} break;
 
-			case OP_GC_SETLEVEL    : { // [TGT], [SRC]
+			case op_enum.GC_SETLEVEL    : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				if (!sink_isstr(X))
@@ -13445,7 +13286,7 @@ static sink_run context_run(context ctx){
 				var_set(ctx, A, B, SINK_NIL);
 			} break;
 
-			case OP_GC_RUN         : { // [TGT]
+			case op_enum.GC_RUN         : { // [TGT]
 				LOAD_ab();
 				context_gc(ctx);
 				var_set(ctx, A, B, SINK_NIL);
