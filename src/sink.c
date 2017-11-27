@@ -3936,13 +3936,8 @@ static inline void parser_pop(parser pr){
 	prs_free(p);
 }
 
-typedef enum {
-	PRI_OK,
-	PRI_ERROR
-} pri_enum;
-
 typedef struct {
-	pri_enum type;
+	bool ok;
 	union {
 		expr ex;
 		const char *msg;
@@ -3950,11 +3945,11 @@ typedef struct {
 } pri_st;
 
 static inline pri_st pri_ok(expr ex){
-	return (pri_st){ .type = PRI_OK, .u.ex = ex };
+	return (pri_st){ .ok = true, .u.ex = ex };
 }
 
 static inline pri_st pri_error(char *msg){
-	return (pri_st){ .type = PRI_ERROR, .u.msg = msg };
+	return (pri_st){ .ok = false, .u.msg = msg };
 }
 
 static inline pri_st parser_infix(filepos_st flp, ks_enum k, expr left, expr right){
@@ -4906,7 +4901,7 @@ static const char *parser_process(parser pr, list_ptr stmts){
 					// apply the previous Mid
 					tok mtk = st->exprMidStack->tk;
 					pri_st pri = parser_infix(mtk->flp, mtk->u.k, st->exprStack->ex, st->exprTerm);
-					if (pri.type == PRI_ERROR)
+					if (!pri.ok)
 						return pri.u.msg;
 					st->exprTerm = pri.u.ex;
 					st->exprStack->ex = NULL;
@@ -4976,7 +4971,7 @@ static const char *parser_process(parser pr, list_ptr stmts){
 				tok mtk = st->exprMidStack->tk;
 				pri_st pri = parser_infix(mtk->flp, mtk->u.k, st->exprStack->ex, st->exprTerm);
 
-				if (pri.type == PRI_ERROR)
+				if (!pri.ok)
 					return pri.u.msg;
 				st->exprTerm = pri.u.ex;
 				st->exprStack->ex = NULL;

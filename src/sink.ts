@@ -1083,16 +1083,37 @@ enum tok_enum {
 	ERROR
 }
 
-interface tok_st {
-	type: tok_enum;
+interface tok_st_NEWLINE {
+	type: tok_enum.NEWLINE;
 	flp: filepos_st;
-	soft?: boolean;
-	k?: ks_enum;
-	ident?: string;
-	num?: number;
-	str?: string;
-	msg?: string;
+	soft: boolean;
 }
+interface tok_st_KS {
+	type: tok_enum.KS;
+	flp: filepos_st;
+	k: ks_enum;
+}
+interface tok_st_IDENT {
+	type: tok_enum.IDENT;
+	flp: filepos_st;
+	ident: string;
+}
+interface tok_st_NUM {
+	type: tok_enum.NUM;
+	flp: filepos_st;
+	num: number;
+}
+interface tok_st_STR {
+	type: tok_enum.STR;
+	flp: filepos_st;
+	str: string;
+}
+interface tok_st_ERROR {
+	type: tok_enum.ERROR;
+	flp: filepos_st;
+	msg: string;
+}
+type tok_st = tok_st_NEWLINE | tok_st_KS | tok_st_IDENT | tok_st_NUM | tok_st_STR | tok_st_ERROR;
 
 function tok_newline(flp: filepos_st, soft: boolean): tok_st {
 	return {
@@ -1208,13 +1229,13 @@ function tok_isTerm(tk: tok_st): boolean {
 		tk.type === tok_enum.STR;
 }
 
-function tok_isPreBeforeMid(pre: tok_st, mid: tok_st): boolean {
+function tok_isPreBeforeMid(pre: tok_st_KS, mid: tok_st_KS): boolean {
 	if ((pre.k === ks_enum.MINUS || pre.k === ks_enum.UNMINUS) && mid.k === ks_enum.CARET)
 		return false;
 	return true;
 }
 
-function tok_midPrecedence(tk: tok_st): number {
+function tok_midPrecedence(tk: tok_st_KS): number {
 	let k = tk.k;
 	if      (k === ks_enum.CARET     ) return  1;
 	else if (k === ks_enum.STAR      ) return  2;
@@ -1246,7 +1267,7 @@ function tok_midPrecedence(tk: tok_st): number {
 	throw new Error('Assertion failed');
 }
 
-function tok_isMidBeforeMid(lmid: tok_st, rmid: tok_st): boolean {
+function tok_isMidBeforeMid(lmid: tok_st_KS, rmid: tok_st_KS): boolean {
 	let lp = tok_midPrecedence(lmid);
 	let rp = tok_midPrecedence(rmid);
 	if (lp < rp)
@@ -2841,7 +2862,7 @@ function prs_new(state: prs_enum, next: prs_st | null): prs_st {
 //
 
 interface parser_st {
-	state: prs_st;
+	state: prs_st | null;
 	tkR: tok_st | null;
 	tk1: tok_st | null;
 	tk2: tok_st | null;
@@ -2857,106 +2878,110 @@ function parser_new(): parser_st {
 		level: 0
 	};
 }
-/*
-static inline void parser_fwd(parser pr, tok tk){
-	if (pr.tk2)
-		tok_free(pr.tk2);
+
+function parser_fwd(pr: parser_st, tk: tok_st): void {
 	pr.tk2 = pr.tk1;
 	pr.tk1 = tk;
-	pr.tkR = NULL;
+	pr.tkR = null;
 }
 
-static inline void parser_rev(parser pr){
-	if (pr.tkR)
-		tok_free(pr.tkR);
+function parser_rev(pr: parser_st): void {
 	pr.tkR = pr.tk1;
 	pr.tk1 = pr.tk2;
-	pr.tk2 = NULL;
+	pr.tk2 = null;
 }
 
-static inline void parser_push(parser pr, prs_enum state){
+function parser_push(pr: parser_st, state: prs_enum): void {
 	pr.state = prs_new(state, pr.state);
 }
 
-static inline void parser_pop(parser pr){
-	prs p = pr.state;
-	pr.state = p.next;
-	prs_free(p);
+function parser_pop(pr: parser_st): void {
+	if (pr.state === null)
+		throw new Error('Parser state is null');
+	pr.state = pr.state.next;
 }
 
-typedef enum {
-	PRI_OK,
-	PRI_ERROR
-} pri_enum;
+interface pri_st_OK {
+	ok: true;
+	ex: expr_st;
+}
+interface pri_st_ERROR {
+	ok: false;
+	msg: string;
+}
+type pri_st = pri_st_OK | pri_st_ERROR;
 
-typedef struct {
-	pri_enum type;
-	union {
-		expr ex;
-		const char *msg;
-	} u;
-} pri_st;
-
-static inline pri_st pri_ok(expr ex){
-	return (pri_st){ .type = PRI_OK, .u.ex = ex };
+function pri_ok(ex: expr_st): pri_st {
+	return { ok: true, ex: ex };
 }
 
-static inline pri_st pri_error(char *msg){
-	return (pri_st){ .type = PRI_ERROR, .u.msg = msg };
+function pri_error(msg: string): pri_st {
+	return { ok: false, msg: msg };
 }
 
-static inline pri_st parser_infix(flp: filepos_st, ks_enum k, expr left, expr right){
+function parser_infix(flp: filepos_st, k: ks_enum, left: expr_st, right: expr_st): pri_st {
 	if (k === ks_enum.PIPE){
 		if (right.type === expr_enum.CALL){
-			right.u.call.params = expr_infix(flp, ks_enum.COMMA, expr_paren(left.flp, left),
-				right.u.call.params);
+			right.params = expr_infix(flp, ks_enum.COMMA, expr_paren(left.flp, left), right.params);
 			return pri_ok(right);
 		}
 		else if (right.type === expr_enum.NAMES)
 			return pri_ok(expr_call(right.flp, right, expr_paren(left.flp, left)));
-		return pri_error("Invalid pipe");
+		return pri_error('Invalid pipe');
 	}
 	return pri_ok(expr_infix(flp, k, left, right));
 }
 
-static inline void parser_lvalues(parser pr, prs_enum retstate, lvm_enum lvm){
+function parser_lvalues(pr: parser_st, retstate: prs_enum, lvm: lvm_enum): void {
+	if (pr.state === null)
+		throw new Error('Parser state is null');
 	pr.state.state = retstate;
-	parser_push(pr, PRS_LVALUES);
-	pr.state.lvalues = list_ptr_new(expr_free);
+	parser_push(pr, prs_enum.LVALUES);
+	pr.state.lvalues = [];
 	pr.state.lvaluesMode = lvm;
 }
 
-static inline void parser_expr(parser pr, prs_enum retstate){
+function parser_expr(pr: parser_st, retstate: prs_enum): void {
+	if (pr.state === null)
+		throw new Error('Parser state is null');
 	pr.state.state = retstate;
-	parser_push(pr, PRS_EXPR);
+	parser_push(pr, prs_enum.EXPR);
 }
 
-static inline const char *parser_start(parser pr, filepos_st flpS, prs_enum state){
+function parser_start(pr: parser_st, flpS: filepos_st, state: prs_enum): null {
+	if (pr.state === null)
+		throw new Error('Parser state is null');
 	pr.level++;
 	pr.state.state = state;
 	pr.state.flpS = flpS;
-	return NULL;
+	return null;
 }
 
-// returns NULL for success, or an error message
-static const char *parser_process(parser pr, list_ptr stmts);
-
-static inline const char *parser_statement(parser pr, list_ptr stmts, bool more){
+function parser_statement(pr: parser_st, stmts: ast_st[], more: boolean): string | null {
+	if (pr.state === null)
+		throw new Error('Parser state is null');
 	pr.level--;
-	pr.state.state = PRS_STATEMENT_END;
-	return more ? NULL : parser_process(pr, stmts);
+	pr.state.state = prs_enum.STATEMENT_END;
+	return more ? null : parser_process(pr, stmts);
 }
 
-static inline const char *parser_lookup(parser pr, filepos_st flpL, prs_enum retstate){
+function parser_lookup(pr: parser_st, flpL: filepos_st, retstate: prs_enum): null {
+	if (pr.state === null)
+		throw new Error('Parser state is null');
+	if (pr.tk1 === null || pr.tk1.type !== tok_enum.IDENT)
+		throw new Error('Token must be an identifier');
 	pr.state.state = retstate;
 	pr.state.flpL = flpL;
-	parser_push(pr, PRS_LOOKUP);
-	pr.state.names = list_ptr_new(list_byte_free);
-	list_ptr_push(pr.state.names, pr.tk1.u.ident);
-	pr.tk1.u.ident = NULL;
-	return NULL;
+	parser_push(pr, prs_enum.LOOKUP);
+	pr.state.names = [pr.tk1.ident];
+	return null;
 }
 
+// returns null for success, or an error message
+function parser_process(pr: parser_st, stmts: ast_st[]): string | null {
+	return null;
+}
+/*
 static const char *parser_process(parser pr, list_ptr stmts){
 	tok tk1 = pr.tk1;
 	prs st = pr.state;
@@ -3854,7 +3879,7 @@ static const char *parser_process(parser pr, list_ptr stmts){
 					// apply the previous Mid
 					tok mtk = st.exprMidStack.tk;
 					pri_st pri = parser_infix(mtk.flp, mtk.u.k, st.exprStack.ex, st.exprTerm);
-					if (pri.type === PRI_ERROR)
+					if (!pri.ok)
 						return pri.u.msg;
 					st.exprTerm = pri.u.ex;
 					st.exprStack.ex = NULL;
@@ -3924,7 +3949,7 @@ static const char *parser_process(parser pr, list_ptr stmts){
 				tok mtk = st.exprMidStack.tk;
 				pri_st pri = parser_infix(mtk.flp, mtk.u.k, st.exprStack.ex, st.exprTerm);
 
-				if (pri.type === PRI_ERROR)
+				if (!pri.ok)
 					return pri.u.msg;
 				st.exprTerm = pri.u.ex;
 				st.exprStack.ex = NULL;
