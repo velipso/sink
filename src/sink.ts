@@ -75,6 +75,10 @@ export enum sink_ctx_status {
 export const SINK_NAN = Number.NaN;
 export const SINK_NIL = null;
 
+function isPromise<T>(p: any): p is Promise<T> {
+	return typeof p === 'object' && p !== null && typeof (<Promise<T>>p).then === 'function';
+}
+
 //export function sink_scr_new(inc: sink_inc, curdir: string, repl: boolean): sink_scr;
 //export function sink_scr_addpath(scr: sink_scr, path: string): void;
 //export function sink_scr_incbody(scr: sink_scr, name: string, body: string): void;
@@ -109,7 +113,7 @@ export function sink_istrue(v: sink_val): v is sink_valtrue { return v !== SINK_
 export function sink_isfalse(v: sink_val): v is null { return v === SINK_NIL; }
 export function sink_isnil(v: sink_val): v is null { return v === SINK_NIL; }
 export function sink_isasync(v: sink_val | Promise<sink_val>): v is Promise<sink_val> {
-	return typeof v === 'object' && v !== null && typeof (<Promise<sink_val>>v).then === 'function';
+	return isPromise<sink_val>(v);
 }
 export function sink_isstr(v: sink_val): v is sink_str { return typeof v === 'string'; }
 export function sink_islist(v: sink_val): v is sink_list {
@@ -4507,48 +4511,35 @@ function symtbl_lookup(sym: symtbl_st, names: string[]): stl_st {
 	return res;
 }
 
-enum sta_enum {
-	OK,
-	VAR,
-	ERROR
-}
-
 interface sta_st_OK {
-	type: sta_enum.OK;
-}
-interface sta_st_VAR {
-	type: sta_enum.VAR;
+	ok: true;
 	vlc: varloc_st;
 }
 interface sta_st_ERROR {
-	type: sta_enum.ERROR;
+	ok: false;
 	msg: string;
 }
-type sta_st = sta_st_OK | sta_st_VAR | sta_st_ERROR;
+type sta_st = sta_st_OK | sta_st_ERROR;
 
-function sta_ok(): sta_st {
-	return { type: sta_enum.OK };
-}
-
-function sta_var(vlc: varloc_st): sta_st {
-	return { type: sta_enum.VAR, vlc: vlc };
+function sta_ok(vlc: varloc_st): sta_st {
+	return { ok: true, vlc: vlc };
 }
 
 function sta_error(msg: string): sta_st {
-	return { type: sta_enum.ERROR, msg: msg };
+	return { ok: false, msg: msg };
 }
 
 function symtbl_addTemp(sym: symtbl_st): sta_st {
 	for (let i = 0; i < sym.fr.vars.length; i++){
 		if (sym.fr.vars[i] === frame_enum.TEMP_AVAIL){
 			sym.fr.vars[i] = frame_enum.TEMP_INUSE;
-			return sta_var(varloc_new(sym.fr.level, i));
+			return sta_ok(varloc_new(sym.fr.level, i));
 		}
 	}
 	if (sym.fr.vars.length >= 256)
 		return sta_error('Too many variables in frame');
 	sym.fr.vars.push(frame_enum.TEMP_INUSE);
-	return sta_var(varloc_new(sym.fr.level, sym.fr.vars.length - 1));
+	return sta_ok(varloc_new(sym.fr.level, sym.fr.vars.length - 1));
 }
 
 function symtbl_clearTemp(sym: symtbl_st, vlc: varloc_st): void {
@@ -4579,7 +4570,7 @@ function symtbl_addVar(sym: symtbl_st, names: string[], slot: number): sta_st {
 			if (!sym.repl)
 				return sta_error('Cannot redefine "' + nsn.name + '"');
 			if (nsn.type === nsname_enumt.VAR)
-				return sta_var(varloc_new(nsn.fr.level, nsn.index));
+				return sta_ok(varloc_new(nsn.fr.level, nsn.index));
 			if (slot < 0){
 				slot = sym.fr.vars.length;
 				sym.fr.vars.push(frame_enum.VAR);
@@ -4587,7 +4578,7 @@ function symtbl_addVar(sym: symtbl_st, names: string[], slot: number): sta_st {
 			if (slot >= 256)
 				return sta_error('Too many variables in frame');
 			ns.names[i] = nsname_var(names[names.length - 1], sym.fr, slot);
-			return sta_var(varloc_new(sym.fr.level, slot));
+			return sta_ok(varloc_new(sym.fr.level, slot));
 		}
 	}
 	if (slot < 0){
@@ -4597,7 +4588,7 @@ function symtbl_addVar(sym: symtbl_st, names: string[], slot: number): sta_st {
 	if (slot >= 256)
 		return sta_error('Too many variables in frame');
 	ns.names.push(nsname_var(names[names.length - 1], sym.fr, slot));
-	return sta_var(varloc_new(sym.fr.level, slot));
+	return sta_ok(varloc_new(sym.fr.level, slot));
 }
 
 function symtbl_addEnum(sym: symtbl_st, names: string[], val: number): string | null{
@@ -4903,7 +4894,7 @@ interface script_st {
 	paths: string[];
 	inc: sink_inc_st;
 	capture_write: string;
-	curdir: string;
+	curdir: string | null;
 	file: string;
 	err: string;
 	mode: scriptmode_enum;
@@ -4912,959 +4903,823 @@ interface script_st {
 
 export interface sink_scr { // TODO: how to do this in ts?
 }
-/*
+
 //
 // pathjoin
 //
 
-static void pathjoin_apply(char *res, int *r, int len, const char *buf){
-	if (len <= 0 || (len === 1 && buf[0] === '.'))
-		return;
-	if (len === 2 && buf[0] === '.' && buf[1] === '.'){
-		for (int i = *r - 1; i >= 0; i--){
-			if (res[i] === '/'){
-				*r = i;
-				return;
-			}
-		}
-		return;
-	}
-	res[(*r)++] = '/';
-	for (int i = 0; i < len; i++)
-		res[(*r)++] = buf[i];
-}
-
-static void pathjoin_helper(char *res, int *r, int len, const char *buf){
-	for (int i = 0; i < len; i++){
-		if (buf[i] === '/')
+function pathjoin(prev: string, next: string): string {
+	let p = (prev + '/' + next).split('/');
+	let ret = [];
+	for (let i = 0; i < p.length; i++){
+		if ((i !== 0 && p[i] === '') || p[i] === '.')
 			continue;
-		int start = i;
-		while (i < len && buf[i] !== '/')
-			i++;
-		pathjoin_apply(res, r, i - start, &buf[start]);
+		if (p[i] === '..')
+			ret.pop();
+		else
+			ret.push(p[i]);
 	}
-}
-
-static char *pathjoin(const char *prev, const char *next){
-	int prev_len = (int)strlen(prev);
-	int next_len = (int)strlen(next);
-	int len = prev_len + next_len + 2;
-	char *res = mem_alloc(sizeof(char) * len);
-	int r = 0;
-	pathjoin_helper(res, &r, prev_len, prev);
-	pathjoin_helper(res, &r, next_len, next);
-	res[r++] = 0;
-	return res;
+	return ret.join('/');
 }
 
 //
 // file resolver
 //
 
-typedef bool (*f_fileres_begin_f)(const char *file, void *fuser);
-typedef void (*f_fileres_end_f)(bool success, const char *file, void *fuser);
+type f_fileres_begin_f = (file: string, fuser: any) => boolean;
+type f_fileres_end_f = (success: boolean, file: string, fuser: any) => void;
 
-static bool fileres_try(script scr, bool postfix, const char *file,
-	f_fileres_begin_f f_begin, f_fileres_end_f f_end, void *fuser){
-	sink_inc_st inc = scr.inc;
-	if (file === NULL)
-		return false;
-	sink_fstype fst = inc.f_fstype(file, inc.user);
-	bool result = false;
-	switch (fst){
-		case SINK_FSTYPE_FILE: {
-			result = true;
-			if (f_begin(file, fuser))
-				f_end(inc.f_fsread(scr, file, inc.user), file, fuser);
-		} break;
-		case SINK_FSTYPE_NONE: {
-			if (!postfix)
-				break;
-			// try adding a .sink extension
-			int len = (int)strlen(file);
-			if (len < 5 || strcmp(&file[len - 5], ".sink") !== 0){
-				char *cat = mem_alloc(sizeof(char) * (len + 6));
-				memcpy(cat, file, sizeof(char) * len);
-				cat[len + 0] = '.';
-				cat[len + 1] = 's';
-				cat[len + 2] = 'i';
-				cat[len + 3] = 'n';
-				cat[len + 4] = 'k';
-				cat[len + 5] = 0;
-				result = fileres_try(scr, false, cat, f_begin, f_end, fuser);
-				mem_free(cat);
-			}
-		} break;
-		case SINK_FSTYPE_DIR: {
-			if (!postfix)
-				break;
-			// try looking for index.sink inside the directory
-			char *join = pathjoin(file, "index.sink");
-			result = fileres_try(scr, false, join, f_begin, f_end, fuser);
-			mem_free(join);
-		} break;
+function fileres_try(scr: script_st, postfix: boolean, file: string,
+	f_begin: f_fileres_begin_f, f_end: f_fileres_end_f, fuser: any): boolean | Promise<boolean> {
+	let inc = scr.inc;
+	let fst = inc.f_fstype(file, inc.user);
+	if (isPromise<sink_fstype>(fst))
+		return fst.then(gotType);
+	else
+		return gotType(fst);
+	function gotType(fst: sink_fstype): boolean | Promise<boolean> {
+		switch (fst){
+			case sink_fstype.FILE:
+				if (f_begin(file, fuser)){
+					let readRes = inc.f_fsread(scr, file, inc.user);
+					if (isPromise<boolean>(readRes))
+						return readRes.then(gotReadRes);
+					else
+						return gotReadRes(readRes);
+				}
+				return true;
+			case sink_fstype.NONE:
+				if (!postfix)
+					return false;
+				// try adding a .sink extension
+				if (file.substr(-5) === '.sink')
+					return false;
+				return fileres_try(scr, false, file + '.sink', f_begin, f_end, fuser);
+			case sink_fstype.DIR:
+				if (!postfix)
+					return false;
+				// try looking for index.sink inside the directory
+				return fileres_try(scr, false, pathjoin(file, 'index.sink'), f_begin, f_end, fuser);
+		}
+		throw new Error('Bad file type');
 	}
-	return result;
+	function gotReadRes(readRes: boolean): boolean {
+		f_end(readRes, file, fuser);
+		return true;
+	}
 }
 
-static bool fileres_read(script scr, bool postfix, const char *file, const char *cwd,
-	f_fileres_begin_f f_begin, f_fileres_end_f f_end, void *fuser){
+function fileres_read(scr: script_st, postfix: boolean, file: string, cwd: string | null,
+	f_begin: f_fileres_begin_f, f_end: f_fileres_end_f, fuser: any): boolean | Promise<boolean> {
 	// if an absolute path, there is no searching, so just try to read it directly
-	if (file[0] === '/')
+	if (file.charAt(0) === '/')
 		return fileres_try(scr, postfix, file, f_begin, f_end, fuser);
 	// otherwise, we have a relative path, so we need to go through our search list
-	if (cwd === NULL)
+	if (cwd === null)
 		cwd = scr.curdir;
-	list_ptr paths = scr.paths;
-	for (int i = 0; i < paths.size; i++){
-		char *path = paths.ptrs[i];
-		char *join;
-		if (path[0] === '/') // search path is absolute
+	let paths = scr.paths;
+	let i = 0;
+	return nextPath();
+	function nextPath(): boolean | Promise<boolean> {
+		if (i >= paths.length)
+			return false;
+		let path = paths[i++];
+		let join: string;
+		if (path.charAt(0) === '/') // search path is absolute
 			join = pathjoin(path, file);
 		else{ // search path is relative
-			if (cwd === NULL)
-				continue;
-			char *tmp = pathjoin(cwd, path);
-			join = pathjoin(tmp, file);
-			mem_free(tmp);
+			if (cwd === null)
+				return nextPath();
+			join = pathjoin(pathjoin(cwd, path), file);
 		}
-		bool found = fileres_try(scr, postfix, join, f_begin, f_end, fuser);
-		mem_free(join);
+		let found = fileres_try(scr, postfix, join, f_begin, f_end, fuser);
+		if (isPromise<boolean>(found))
+			return found.then(gotFound);
+		else
+			return gotFound(found);
+	}
+	function gotFound(found: boolean): boolean | Promise<boolean> {
 		if (found)
 			return true;
+		return nextPath();
 	}
-	return false;
 }
 
 //
 // program
 //
 
-static inline void program_free(program prg){
-	list_ptr_free(prg.strTable);
-	list_u64_free(prg.keyTable);
-	list_ptr_free(prg.debugTable);
-	list_ptr_free(prg.posTable);
-	list_ptr_free(prg.cmdTable);
-	list_byte_free(prg.ops);
-	mem_free(prg);
+function program_new(repl: boolean): program_st {
+	return {
+		strTable: [],
+		keyTable: [],
+		debugTable: [],
+		posTable: [],
+		cmdTable: [],
+		ops: [],
+		repl: repl
+	};
 }
 
-static inline program program_new(bool repl){
-	program prg = mem_alloc(sizeof(program_st));
-	prg.strTable = list_ptr_new(list_byte_free);
-	prg.keyTable = list_u64_new();
-	prg.debugTable = list_ptr_new(mem_free_func);
-	prg.posTable = list_ptr_new(mem_free_func);
-	prg.cmdTable = list_ptr_new(mem_free_func);
-	prg.ops = list_byte_new();
-	prg.repl = repl;
-	return prg;
-}
-
-static int program_adddebugstr(program prg, const char *str){
-	for (int i = 0; i < prg.debugTable.size; i++){
-		if (strcmp(prg.debugTable.ptrs[i], str) === 0)
+function program_adddebugstr(prg: program_st, str: string): number {
+	for (let i = 0; i < prg.debugTable.length; i++){
+		if (prg.debugTable[i] === str)
 			return i;
 	}
-	list_ptr_push(prg.debugTable, format("%s", str));
-	return prg.debugTable.size - 1;
+	prg.debugTable.push(str);
+	return prg.debugTable.length - 1;
 }
 
-static int program_addfile(program prg, const char *str){
-	if (str === NULL)
+function program_addfile(prg: program_st, str: string | null): number {
+	if (str === null)
 		return -1;
 	// get the basename
-	int len = strlen(str);
-	int i = 0;
-	for (i = len - 2; i > 0; i--){
-		if (str[i] === '/'){
-			i++;
-			break;
-		}
-	}
-	return program_adddebugstr(prg, &str[i]);
+	let i = str.lastIndexOf('/');
+	if (i >= 0)
+		str = str.substr(0, i);
+	return program_adddebugstr(prg, str);
 }
 
-static inline const char *program_getdebugstr(program prg, int str){
-	return str < 0 ? NULL : prg.debugTable.ptrs[str];
+function program_getdebugstr(prg: program_st, str: number): string {
+	return str < 0 || str >= prg.debugTable.length ? '' : prg.debugTable[str];
 }
 
-static char *program_errormsg(program prg, filepos_st flp, const char *msg){
-	if (msg === NULL){
+function program_errormsg(prg: program_st, flp: filepos_st, msg: string | null): string {
+	if (msg === null){
 		if (flp.basefile < 0)
-			return format("%d:%d", flp.line, flp.chr);
-		return format("%s:%d:%d", program_getdebugstr(prg, flp.basefile), flp.line, flp.chr);
+			return flp.line + ':' + flp.chr;
+		return program_getdebugstr(prg, flp.basefile) + ':' + flp.line + ':' + flp.chr;
 	}
 	if (flp.basefile < 0)
-		return format("%d:%d: %s", flp.line, flp.chr, msg);
-	return format("%s:%d:%d: %s",
-		program_getdebugstr(prg, flp.basefile), flp.line, flp.chr, msg);
+		return flp.line + ':' + flp.chr + ': ' + msg;
+	return program_getdebugstr(prg, flp.basefile) + ':' + flp.line + ':' + flp.chr + ': ' + msg;
 }
 
-static bool program_validate(program prg){
-	int pc = 0;
-	int level = 0;
-	bool wasjump = false;
-	uint32_t jumploc;
-	uint32_t jumplocs[256];
-	list_byte ops = prg.ops;
-	int A, B, C, D;
+function program_validate(prg: program_st): boolean {
+	let pc = 0;
+	let level = 0;
+	let wasjump = false;
+	let jumploc = 0;
+	let jumplocs: number[] = [];
+	for (let i = 0; i < 256; i++)
+		jumplocs.push(0);
+	let ops = prg.ops;
+	let A = 0, B = 0, C = 0, D = 0;
 
 	// holds alignment information
 	// op_actual: the actual alignment of each byte
 	//   0 = invalid target, 1 = valid jump target, 2 = valid call target
-	uint8_t *op_actual = mem_alloc(sizeof(uint8_t) * ops.size);
-	memset(op_actual, 0, sizeof(uint8_t) * ops.size);
+	let op_actual: number[] = [];
+	for (let i = 0; i < ops.length; i++)
+		op_actual.push(0);
 	// op_need: the required alignment of each byte
 	//   0 = don't care, 1 = valid jump target, 2 = valid call target
-	uint8_t *op_need = mem_alloc(sizeof(uint8_t) * ops.size);
-	memset(op_need, 0, sizeof(uint8_t) * ops.size);
+	let op_need: number[] = [];
+	for (let i = 0; i < ops.length; i++)
+		op_need.push(0);
 
-	#define READVAR() do{                                              \
-			if (pc + 2 > ops.size)                                    \
-				goto fail;                                             \
-			A = ops.bytes[pc++];                                      \
-			B = ops.bytes[pc++];                                      \
-			if (A > level)                                             \
-				goto fail;                                             \
-		} while (false)
+	let goto_fail = false;
+	function READVAR(): void {
+		if (pc + 2 > ops.length){
+			goto_fail = true;
+			return;
+		}
+		A = ops[pc++];
+		B = ops[pc++];
+		if (A > level){
+			goto_fail = true;
+			return;
+		}
+	}
 
-	#define READLOC(L) do{                                             \
-			if (pc + 4 > ops.size)                                    \
-				goto fail;                                             \
-			A = ops.bytes[pc++];                                      \
-			B = ops.bytes[pc++];                                      \
-			C = ops.bytes[pc++];                                      \
-			D = ops.bytes[pc++];                                      \
-			jumploc = A + (B << 8) + (C << 16) + ((D << 23) * 2);      \
-			if (jumploc < 0)                                           \
-				goto fail;                                             \
-			if (jumploc < ops.size)                                   \
-				op_need[jumploc] = L;                                  \
-		} while (false)
+	function READLOC(L: number): void {
+		if (pc + 4 > ops.length){
+			goto_fail = true;
+			return;
+		}
+		A = ops[pc++];
+		B = ops[pc++];
+		C = ops[pc++];
+		D = ops[pc++];
+		jumploc = A + (B << 8) + (C << 16) + ((D << 23) * 2);
+		if (jumploc < 0){
+			goto_fail = true;
+			return;
+		}
+		if (jumploc < ops.length)
+			op_need[jumploc] = L;
+	}
 
-	#define READDATA(S) do{                                            \
-			if (pc + S > ops.size)                                    \
-				goto fail;                                             \
-			pc += S;                                                   \
-		} while (false)
+	function READDATA(S: number): void {
+		if (pc + S > ops.length){
+			goto_fail = true;
+			return;
+		}
+		pc += S;
+	}
 
-	#define READCNT() do{                                              \
-			if (pc + 1 > ops.size)                                    \
-				goto fail;                                             \
-			C = ops.bytes[pc++];                                      \
-			for (D = 0; D < C; D++)                                    \
-				READVAR();                                             \
-		} while (false)
+	function READCNT(): void {
+		if (pc + 1 > ops.length){
+			goto_fail = true;
+			return;
+		}
+		C = ops[pc++];
+		for (D = 0; D < C && !goto_fail; D++)
+			READVAR();
+	}
 
-	#define READINDEX() do{                                            \
-			if (pc + 4 > ops.size)                                    \
-				goto fail;                                             \
-			A = ops.bytes[pc++];                                      \
-			B = ops.bytes[pc++];                                      \
-			C = ops.bytes[pc++];                                      \
-			D = ops.bytes[pc++];                                      \
-			A = A + (B << 8) + (C << 16) + ((D << 23) * 2);            \
-		} while (false)
+	function READINDEX(){
+		if (pc + 4 > ops.length){
+			goto_fail = true;
+			return;
+		}
+		A = ops[pc++];
+		B = ops[pc++];
+		C = ops[pc++];
+		D = ops[pc++];
+		A = A + (B << 8) + (C << 16) + ((D << 23) * 2);
+	}
 
-	while (pc < ops.size){
+	while (pc < ops.length){
 		op_actual[pc] = 1;
-		op_pcat opc = op_paramcat((op_enum)ops.bytes[pc++]);
-		debug(op_pcat_name(opc));
+		let opc = op_paramcat(ops[pc++]);
 		switch (opc){
-			case OPPC_INVALID    : goto fail;
+			case op_pcat.INVALID   : return false;
 
-			case OPPC_STR        : { // [VAR], [INDEX]
+			case op_pcat.STR       : { // [VAR], [INDEX]
 				READVAR();
 				READINDEX();
-				if (A < 0 || A >= prg.strTable.size)
-					goto fail;
+				if (A < 0 || A >= prg.strTable.length)
+					return false;
 			} break;
 
-			case OPPC_CMDHEAD    : { // LEVEL, RESTPOS
+			case op_pcat.CMDHEAD   : { // LEVEL, RESTPOS
 				if (!wasjump)
-					goto fail;
-				if (pc + 2 > ops.size)
-					goto fail;
+					return false;
+				if (pc + 2 > ops.length)
+					return false;
 				op_actual[pc - 1] = 2; // valid call target
 				if (level > 255)
-					goto fail;
+					return false;
 				jumplocs[level++] = jumploc; // save previous jump target
-				A = ops.bytes[pc++];
-				B = ops.bytes[pc++];
+				A = ops[pc++];
+				B = ops[pc++];
 				if (A !== level)
-					goto fail;
+					return false;
 			} break;
 
-			case OPPC_CMDTAIL    : { //
+			case op_pcat.CMDTAIL   : { //
 				if (level <= 0)
-					goto fail;
+					return false;
 				if (jumplocs[--level] !== pc) // force jump target to jump over command body
-					goto fail;
+					return false;
 			} break;
 
-			case OPPC_JUMP       : { // [[LOCATION]]
+			case op_pcat.JUMP      : { // [[LOCATION]]
 				READLOC(1); // need valid jump target
 			} break;
 
-			case OPPC_VJUMP      : { // [VAR], [[LOCATION]]
+			case op_pcat.VJUMP     : { // [VAR], [[LOCATION]]
 				READVAR();
 				READLOC(1); // need valid jump target
 			} break;
 
-			case OPPC_CALL       : { // [VAR], [[LOCATION]], ARGCOUNT, [VARS]...
+			case op_pcat.CALL      : { // [VAR], [[LOCATION]], ARGCOUNT, [VARS]...
 				READVAR();
 				READLOC(2); // need valid call target
 				READCNT();
 			} break;
 
-			case OPPC_NATIVE     : { // [VAR], [INDEX], ARGCOUNT, [VARS]...
+			case op_pcat.NATIVE    : { // [VAR], [INDEX], ARGCOUNT, [VARS]...
 				READVAR();
 				READINDEX();
-				if (A < 0 || A >= prg.keyTable.size)
-					goto fail;
+				if (A < 0 || A >= prg.keyTable.length)
+					return false;
 				READCNT();
 			} break;
 
-			case OPPC_RETURNTAIL : { // [[LOCATION]], ARGCOUNT, [VARS]...
+			case op_pcat.RETURNTAIL: { // [[LOCATION]], ARGCOUNT, [VARS]...
 				READLOC(2); // need valid call target
 				READCNT();
-				if (jumploc < ops.size - 1){
+				if (jumploc < ops.length - 1){
 					// check that the call target's level matches this level
-					if (ops.bytes[jumploc] !== op_enum.CMDHEAD || ops.bytes[jumploc + 1] !== level)
-						goto fail;
+					if (ops[jumploc] !== op_enum.CMDHEAD || ops[jumploc + 1] !== level)
+						return false;
 				}
 			} break;
 
-			case OPPC_VVVV       :   // [VAR], [VAR], [VAR], [VAR]
+			case op_pcat.VVVV      :   // [VAR], [VAR], [VAR], [VAR]
 				READVAR();
-			case OPPC_VVV        :   // [VAR], [VAR], [VAR]
+			case op_pcat.VVV       :   // [VAR], [VAR], [VAR]
 				READVAR();
-			case OPPC_VV         :   // [VAR], [VAR]
+			case op_pcat.VV        :   // [VAR], [VAR]
 				READVAR();
-			case OPPC_V          :   // [VAR]
+			case op_pcat.V         :   // [VAR]
 				READVAR();
-			case OPPC_EMPTY      :   // nothing
+			case op_pcat.EMPTY     :   // nothing
 				break;
 
-			case OPPC_VA         : { // [VAR], ARGCOUNT, [VARS]...
+			case op_pcat.VA        : { // [VAR], ARGCOUNT, [VARS]...
 				READVAR();
 				READCNT();
 			} break;
 
-			case OPPC_VN         : { // [VAR], DATA
+			case op_pcat.VN        : { // [VAR], DATA
 				READVAR();
 				READDATA(1);
 			} break;
 
-			case OPPC_VNN        : { // [VAR], [DATA]
+			case op_pcat.VNN       : { // [VAR], [DATA]
 				READVAR();
 				READDATA(2);
 			} break;
 
-			case OPPC_VNNNN      : { // [VAR], [[DATA]]
+			case op_pcat.VNNNN     : { // [VAR], [[DATA]]
 				READVAR();
 				READDATA(4);
 			} break;
 
-			case OPPC_VNNNNNNNN  : { // [VAR], [[[DATA]]]
+			case op_pcat.VNNNNNNNN : { // [VAR], [[[DATA]]]
 				READVAR();
 				READDATA(8);
 			} break;
 		}
-		wasjump = opc === OPPC_JUMP;
+		if (goto_fail)
+			return false;
+		wasjump = opc === op_pcat.JUMP;
 	}
-
-	#undef READVAR
-	#undef READLOC
-	#undef READDATA
-	#undef READCNT
-	#undef READINDEX
-
 	// validate op_need alignments matches op_actual alignments
-	for (int i = 0; i < ops.size; i++){
+	for (let i = 0; i < ops.length; i++){
 		if (op_need[i] !== 0 && op_need[i] !== op_actual[i])
-			goto fail;
+			return false;
 	}
-
-	mem_free(op_actual);
-	mem_free(op_need);
 	return true;
-
-	fail:
-	mem_free(op_actual);
-	mem_free(op_need);
-	return false;
 }
-*/
+
 interface prgflp_st {
 	pc: number;
 	flp: filepos_st;
 }
-/*
-static inline void program_flp(program prg, filepos_st flp){
-	int i = prg.posTable.size - 1;
+
+function program_flp(prg: program_st, flp: filepos_st): void {
+	let i = prg.posTable.length - 1;
 	if (i >= 0){
-		prgflp p = prg.posTable.ptrs[i];
-		if (p.pc === prg.ops.size){
+		let p = prg.posTable[i];
+		if (p.pc === prg.ops.length){
 			p.flp = flp;
-			#ifdef SINK_DEBUG
-			char *str = program_errormsg(prg, flp, NULL);
-			oplogf("#file %s", str);
-			mem_free(str);
-			#endif
 			return;
 		}
 	}
-	prgflp p = mem_alloc(sizeof(prgflp_st));
-	p.pc = prg.ops.size;
-	p.flp = flp;
-	#ifdef SINK_DEBUG
-	char *str = program_errormsg(prg, flp, NULL);
-	oplogf("#file %s", str);
-	mem_free(str);
-	#endif
-	list_ptr_push(prg.posTable, p);
+	let p: prgflp_st = { pc: prg.ops.length, flp: flp };
+	prg.posTable.push(p);
 }
-*/
+
 interface prgch_st {
 	pc: number;
 	cmdhint: number;
 }
-/*
-static inline void program_cmdhint(program prg, list_ptr names){
-	char *hint = NULL;
-	if (names){
-		int hint_tot = 1;
-		for (int i = 0; i < names.size; i++){
-			list_byte n = names.ptrs[i];
-			hint_tot += (i === 0 ? 0 : 1) + n.size;
-		}
-		hint = mem_alloc(sizeof(char) * hint_tot);
-		hint_tot = 0;
-		for (int i = 0; i < names.size; i++){
-			if (i > 0)
-				hint[hint_tot++] = '.';
-			list_byte n = names.ptrs[i];
-			memcpy(&hint[hint_tot], n.bytes, sizeof(char) * n.size);
-			hint_tot += n.size;
-		}
-		hint[hint_tot] = 0;
-		oplogf("#cmd %s", hint);
-	}
-	else{
-		oplog("#cmd <tail>");
-	}
-	prgch p = mem_alloc(sizeof(prgch_st));
-	p.pc = prg.ops.size;
-	p.cmdhint = hint ? program_adddebugstr(prg, hint) : -1;
-	if (hint)
-		mem_free(hint);
-	list_ptr_push(prg.cmdTable, p);
+
+function program_cmdhint(prg: program_st, names: string[] | null): void {
+	let p: prgch_st = { pc: prg.ops.length, cmdhint: -1 };
+	if (names !== null)
+		p.cmdhint = program_adddebugstr(prg, names.join('.'))
+	prg.cmdTable.push(p);
 }
 
-typedef struct {
-	program prg;
-	symtbl sym;
-	script scr;
-	int from;
-} pgen_st;
-
-typedef enum {
-	PER_OK,
-	PER_ERROR
-} per_enum;
-
-typedef struct {
-	per_enum type;
-	union {
-		varloc_st vlc;
-		struct {
-			filepos_st flp;
-			char *msg;
-		} error;
-	} u;
-} per_st;
-
-static inline per_st per_ok(varloc_st vlc){
-	return (per_st){ .type = PER_OK, .u.vlc = vlc };
+interface pgen_st {
+	prg: program_st;
+	sym: symtbl_st;
+	scr: script_st;
+	from: number;
 }
 
-static inline per_st per_error(flp: filepos_st, char *msg){
-	return (per_st){ .type = PER_ERROR, .u.error.flp = flp, .u.error.msg = msg };
+interface per_st_OK {
+	ok: true;
+	vlc: varloc_st;
+}
+interface per_st_ERROR {
+	ok: false;
+	flp: filepos_st;
+	msg: string;
+}
+type per_st = per_st_OK | per_st_ERROR;
+
+function per_ok(vlc: varloc_st): per_st {
+	return { ok: true, vlc: vlc };
 }
 
-typedef enum {
-	PEM_EMPTY,  // I don't need the value
-	PEM_CREATE, // I need to read the value
-	PEM_INTO    // I need to own the register
-} pem_enum;
-
-static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr ex);
-
-typedef enum {
-	PSR_OK,
-	PSR_ERROR
-} psr_enum;
-
-typedef struct {
-	psr_enum type;
-	union {
-		struct {
-			varloc_st start;
-			varloc_st len;
-		} ok;
-		struct {
-			filepos_st flp;
-			char *msg;
-		} error;
-	} u;
-} psr_st;
-
-static inline psr_st psr_ok(varloc_st start, varloc_st len){
-	return (psr_st){ .type = PSR_OK, .u.ok.start = start, .u.ok.len = len };
+function per_error(flp: filepos_st, msg: string): per_st {
+	return { ok: false, flp: flp, msg: msg };
 }
 
-static inline psr_st psr_error(flp: filepos_st, char *msg){
-	return (psr_st){ .type = PSR_ERROR, .u.error.flp = flp, .u.error.msg = msg };
+enum pem_enum {
+	EMPTY,  // I don't need the value
+	CREATE, // I need to read the value
+	INTO    // I need to own the register
 }
 
-static psr_st program_slice(pgen_st pgen, expr ex);
+interface psr_st_OK {
+	ok: true;
+	start: varloc_st;
+	len: varloc_st;
+}
+interface psr_st_ERROR {
+	ok: false;
+	flp: filepos_st;
+	msg: string;
+}
+type psr_st = psr_st_OK | psr_st_ERROR;
 
-typedef enum {
-	LVR_VAR,
-	LVR_INDEX,
-	LVR_SLICE,
-	LVR_SLICEINDEX,
-	LVR_LIST
-} lvr_enum;
-
-typedef struct lvr_struct lvr_st, *lvr;
-struct lvr_struct {
-	filepos_st flp;
-	varloc_st vlc;
-	lvr_enum type;
-	union {
-		struct {
-			varloc_st obj;
-			varloc_st key;
-		} index;
-		struct {
-			varloc_st obj;
-			varloc_st start;
-			varloc_st len;
-		} slice;
-		struct {
-			varloc_st indexvlc;
-			varloc_st obj;
-			varloc_st key;
-			varloc_st start;
-			varloc_st len;
-		} sliceindex;
-		struct {
-			list_ptr body;
-			lvr rest;
-		} list;
-	} u;
-};
-
-static inline void lvr_free(lvr lv){
-	switch (lv.type){
-		case LVR_VAR:
-		case LVR_INDEX:
-		case LVR_SLICE:
-		case LVR_SLICEINDEX:
-			break;
-		case LVR_LIST:
-			list_ptr_free(lv.u.list.body);
-			if (lv.u.list.rest)
-				lvr_free(lv.u.list.rest);
-			break;
-	}
-	mem_free(lv);
+function psr_ok(start: varloc_st, len: varloc_st): psr_st {
+	return { ok: true, start: start, len: len };
 }
 
-static inline lvr lvr_var(flp: filepos_st, varloc_st vlc){
-	lvr lv = mem_alloc(sizeof(lvr_st));
-	lv.flp = flp;
-	lv.vlc = vlc;
-	lv.type = LVR_VAR;
-	return lv;
+function psr_error(flp: filepos_st, msg: string): psr_st {
+	return { ok: false, flp: flp, msg: msg };
 }
 
-static inline lvr lvr_index(flp: filepos_st, varloc_st obj, varloc_st key){
-	lvr lv = mem_alloc(sizeof(lvr_st));
-	lv.flp = flp;
-	lv.vlc = VARLOC_NULL;
-	lv.type = LVR_INDEX;
-	lv.u.index.obj = obj;
-	lv.u.index.key = key;
-	return lv;
+enum lvr_enum {
+	VAR,
+	INDEX,
+	SLICE,
+	SLICEINDEX,
+	LIST
 }
 
-static inline lvr lvr_slice(flp: filepos_st, varloc_st obj, varloc_st start, varloc_st len){
-	lvr lv = mem_alloc(sizeof(lvr_st));
-	lv.flp = flp;
-	lv.vlc = VARLOC_NULL;
-	lv.type = LVR_SLICE;
-	lv.u.slice.obj = obj;
-	lv.u.slice.start = start;
-	lv.u.slice.len = len;
-	return lv;
+interface lvr_st_VAR {
+	flp: filepos_st;
+	vlc: varloc_st;
+	type: lvr_enum.VAR;
+}
+interface lvr_st_INDEX {
+	flp: filepos_st;
+	vlc: varloc_st;
+	type: lvr_enum.INDEX;
+	obj: varloc_st;
+	key: varloc_st;
+}
+interface lvr_st_SLICE {
+	flp: filepos_st;
+	vlc: varloc_st;
+	type: lvr_enum.SLICE;
+	obj: varloc_st;
+	start: varloc_st;
+	len: varloc_st;
+}
+interface lvr_st_SLICEINDEX {
+	flp: filepos_st;
+	vlc: varloc_st;
+	type: lvr_enum.SLICEINDEX;
+	indexvlc: varloc_st;
+	obj: varloc_st;
+	key: varloc_st;
+	start: varloc_st;
+	len: varloc_st;
+}
+interface lvr_st_LIST {
+	flp: filepos_st;
+	vlc: varloc_st;
+	type: lvr_enum.LIST;
+	body: lvr_st[];
+	rest: lvr_st | null;
+}
+type lvr_st = lvr_st_VAR | lvr_st_INDEX | lvr_st_SLICE | lvr_st_SLICEINDEX | lvr_st_LIST;
+
+function lvr_var(flp: filepos_st, vlc: varloc_st): lvr_st {
+	return { flp: flp, vlc: vlc, type: lvr_enum.VAR };
 }
 
-static inline lvr lvr_sliceindex(flp: filepos_st, varloc_st obj, varloc_st key, varloc_st start,
-	varloc_st len){
-	lvr lv = mem_alloc(sizeof(lvr_st));
-	lv.flp = flp;
-	lv.vlc = VARLOC_NULL;
-	lv.type = LVR_SLICEINDEX;
-	lv.u.sliceindex.indexvlc = VARLOC_NULL;
-	lv.u.sliceindex.obj = obj;
-	lv.u.sliceindex.key = key;
-	lv.u.sliceindex.start = start;
-	lv.u.sliceindex.len = len;
-	return lv;
+function lvr_index(flp: filepos_st, obj: varloc_st, key: varloc_st): lvr_st {
+	return { flp: flp, vlc: VARLOC_NULL, type: lvr_enum.INDEX, obj: obj, key: key };
 }
 
-static inline lvr lvr_list(flp: filepos_st, list_ptr body, lvr rest){
-	lvr lv = mem_alloc(sizeof(lvr_st));
-	lv.flp = flp;
-	lv.vlc = VARLOC_NULL;
-	lv.type = LVR_LIST;
-	lv.u.list.body = body;
-	lv.u.list.rest = rest;
-	return lv;
+function lvr_slice(flp: filepos_st, obj: varloc_st, start: varloc_st, len: varloc_st): lvr_st {
+	return { flp: flp, vlc: VARLOC_NULL, type: lvr_enum.SLICE, obj: obj, start: start, len: len };
 }
 
-typedef enum {
-	PLM_CREATE,
-	PLM_INTO
-} plm_enum;
-
-static per_st program_lvalGet(pgen_st pgen, plm_enum mode, varloc_st intoVlc, lvr lv);
-static per_st program_lvalGetIndex(pgen_st pgen, lvr lv);
-
-typedef enum {
-	LVP_OK,
-	LVP_ERROR
-} lvp_enum;
-
-typedef struct {
-	lvp_enum type;
-	union {
-		lvr lv;
-		struct {
-			filepos_st flp;
-			char *msg;
-		} error;
-	} u;
-} lvp_st;
-
-static inline lvp_st lvp_ok(lvr lv){
-	return (lvp_st){ .type = LVP_OK, .u.lv = lv };
+function lvr_sliceindex(flp: filepos_st, obj: varloc_st, key: varloc_st, start: varloc_st,
+	len: varloc_st): lvr_st {
+	return {
+		flp: flp,
+		vlc: VARLOC_NULL,
+		type: lvr_enum.SLICEINDEX,
+		indexvlc: VARLOC_NULL,
+		obj: obj,
+		key: key,
+		start: start,
+		len: len
+	};
 }
 
-static inline lvp_st lvp_error(flp: filepos_st, char *msg){
-	return (lvp_st){ .type = LVP_ERROR, .u.error.flp = flp, .u.error.msg = msg };
+function lvr_list(flp: filepos_st, body: lvr_st[], rest: lvr_st | null): lvr_st {
+	return { flp: flp, vlc: VARLOC_NULL, type: lvr_enum.LIST, body: body, rest: rest };
 }
 
-static lvp_st lval_addVars(symtbl sym, expr ex, int slot){
+enum plm_enum {
+	CREATE,
+	INTO
+}
+
+interface lvp_st_OK {
+	ok: true;
+	lv: lvr_st;
+}
+interface lvp_st_ERROR {
+	ok: false;
+	flp: filepos_st;
+	msg: string;
+}
+type lvp_st = lvp_st_OK | lvp_st_ERROR;
+
+function lvp_ok(lv: lvr_st): lvp_st {
+	return { ok: true, lv: lv };
+}
+
+function lvp_error(flp: filepos_st, msg: string): lvp_st {
+	return { ok: false, flp: flp, msg: msg };
+}
+
+function lval_addVars(sym: symtbl_st, ex: expr_st, slot: number): lvp_st {
 	if (ex.type === expr_enum.NAMES){
-		sta_st sr = symtbl_addVar(sym, ex.u.names, slot);
-		if (sr.type === STA_ERROR)
-			return lvp_error(ex.flp, sr.u.msg);
-		return lvp_ok(lvr_var(ex.flp, sr.u.vlc));
+		let sr = symtbl_addVar(sym, ex.names, slot);
+		if (!sr.ok)
+			return lvp_error(ex.flp, sr.msg);
+		return lvp_ok(lvr_var(ex.flp, sr.vlc));
 	}
 	else if (ex.type === expr_enum.LIST){
-		if (ex.u.ex === NULL)
-			return lvp_error(ex.flp, format("Invalid assignment"));
-		list_ptr body = list_ptr_new(lvr_free);
-		lvr rest = NULL;
-		if (ex.u.ex.type === expr_enum.GROUP){
-			for (int i = 0; i < ex.u.ex.u.group.size; i++){
-				expr gex = ex.u.ex.u.group.ptrs[i];
-				if (i === ex.u.ex.u.group.size - 1 && gex.type === expr_enum.PREFIX &&
-					gex.u.prefix.k === ks_enum.PERIOD3){
-					lvp_st lp = lval_addVars(sym, gex.u.prefix.ex, -1);
-					if (lp.type === LVP_ERROR)
+		if (ex.ex === null)
+			return lvp_error(ex.flp, 'Invalid assignment');
+		let body: lvr_st[] = [];
+		let rest: lvr_st | null = null;
+		if (ex.ex.type === expr_enum.GROUP){
+			for (let i = 0; i < ex.ex.group.length; i++){
+				let gex = ex.ex.group[i];
+				if (i === ex.ex.group.length - 1 && gex.type === expr_enum.PREFIX &&
+					gex.k === ks_enum.PERIOD3){
+					let lp = lval_addVars(sym, gex.ex, -1);
+					if (!lp.ok)
 						return lp;
-					rest = lp.u.lv;
+					rest = lp.lv;
 				}
 				else{
-					lvp_st lp = lval_addVars(sym, gex, -1);
-					if (lp.type === LVP_ERROR)
+					let lp = lval_addVars(sym, gex, -1);
+					if (!lp.ok)
 						return lp;
-					list_ptr_push(body, lp.u.lv);
+					body.push(lp.lv);
 				}
 			}
 		}
-		else if (ex.u.ex.type === expr_enum.PREFIX && ex.u.ex.u.prefix.k === ks_enum.PERIOD3){
-			lvp_st lp = lval_addVars(sym, ex.u.ex.u.ex, -1);
-			if (lp.type === LVP_ERROR)
+		else if (ex.ex.type === expr_enum.PREFIX && ex.ex.k === ks_enum.PERIOD3){
+			let lp = lval_addVars(sym, ex.ex.ex, -1);
+			if (!lp.ok)
 				return lp;
-			rest = lp.u.lv;
+			rest = lp.lv;
 		}
 		else{
-			lvp_st lp = lval_addVars(sym, ex.u.ex, -1);
-			if (lp.type === LVP_ERROR)
+			let lp = lval_addVars(sym, ex.ex, -1);
+			if (!lp.ok)
 				return lp;
-			list_ptr_push(body, lp.u.lv);
+			body.push(lp.lv);
 		}
 		return lvp_ok(lvr_list(ex.flp, body, rest));
 	}
-	return lvp_error(ex.flp, format("Invalid assignment"));
+	return lvp_error(ex.flp, 'Invalid assignment');
 }
 
-static lvp_st lval_prepare(pgen_st pgen, expr ex){
+function lval_prepare(pgen: pgen_st, ex: expr_st): lvp_st {
 	if (ex.type === expr_enum.NAMES){
-		stl_st sl = symtbl_lookup(pgen.sym, ex.u.names);
+		let sl = symtbl_lookup(pgen.sym, ex.names);
 		if (!sl.ok)
-			return lvp_error(ex.flp, sl.u.msg);
-		if (sl.u.nsn.type !== nsname_enumt.VAR)
-			return lvp_error(ex.flp, format("Invalid assignment"));
-		return lvp_ok(lvr_var(ex.flp,
-			varloc_new(sl.u.nsn.u.var.fr.level, sl.u.nsn.u.var.index)));
+			return lvp_error(ex.flp, sl.msg);
+		if (sl.nsn.type !== nsname_enumt.VAR)
+			return lvp_error(ex.flp, 'Invalid assignment');
+		return lvp_ok(lvr_var(ex.flp, varloc_new(sl.nsn.fr.level, sl.nsn.index)));
 	}
 	else if (ex.type === expr_enum.INDEX){
-		per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex.u.index.obj);
-		if (pe.type === PER_ERROR)
+		let pe = program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.obj);
+		if (!pe.ok)
 			return lvp_error(pe.u.error.flp, pe.u.error.msg);
-		varloc_st obj = pe.u.vlc;
-		pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex.u.index.key);
-		if (pe.type === PER_ERROR)
-			return lvp_error(pe.u.error.flp, pe.u.error.msg);
-		return lvp_ok(lvr_index(ex.flp, obj, pe.u.vlc));
+		let obj = pe.vlc;
+		pe = program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.key);
+		if (!pe.ok)
+			return lvp_error(pe.flp, pe.msg);
+		return lvp_ok(lvr_index(ex.flp, obj, pe.vlc));
 	}
 	else if (ex.type === expr_enum.SLICE){
-		if (ex.u.slice.obj.type === expr_enum.INDEX){
+		if (ex.obj.type === expr_enum.INDEX){
 			// we have a slice of an index `foo[1][2:3]`
-			per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL,
-				ex.u.slice.obj.u.index.obj);
-			if (pe.type === PER_ERROR)
-				return lvp_error(pe.u.error.flp, pe.u.error.msg);
-			varloc_st obj = pe.u.vlc;
-			pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex.u.slice.obj.u.index.key);
-			if (pe.type === PER_ERROR)
-				return lvp_error(pe.u.error.flp, pe.u.error.msg);
-			varloc_st key = pe.u.vlc;
-			psr_st sr = program_slice(pgen, ex);
-			if (sr.type === PSR_ERROR)
-				return lvp_error(sr.u.error.flp, sr.u.error.msg);
-			return lvp_ok(lvr_sliceindex(ex.flp, obj, key, sr.u.ok.start, sr.u.ok.len));
+			let pe = program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.obj.obj);
+			if (!pe.ok)
+				return lvp_error(pe.flp, pe.msg);
+			let obj = pe.vlc;
+			pe = program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.obj.key);
+			if (!pe.ok)
+				return lvp_error(pe.flp, pe.msg);
+			let key = pe.vlc;
+			let sr = program_slice(pgen, ex);
+			if (!sr.ok)
+				return lvp_error(sr.flp, sr.msg);
+			return lvp_ok(lvr_sliceindex(ex.flp, obj, key, sr.start, sr.len));
 		}
 		else{
-			per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex.u.slice.obj);
-			if (pe.type === PER_ERROR)
-				return lvp_error(pe.u.error.flp, pe.u.error.msg);
-			varloc_st obj = pe.u.vlc;
-			psr_st sr = program_slice(pgen, ex);
-			if (sr.type === PSR_ERROR)
-				return lvp_error(sr.u.error.flp, sr.u.error.msg);
-			return lvp_ok(lvr_slice(ex.flp, obj, sr.u.ok.start, sr.u.ok.len));
+			let pe = program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.obj);
+			if (!pe.ok)
+				return lvp_error(pe.flp, pe.msg);
+			let obj = pe.vlc;
+			let sr = program_slice(pgen, ex);
+			if (!sr.ok)
+				return lvp_error(sr.flp, sr.msg);
+			return lvp_ok(lvr_slice(ex.flp, obj, sr.start, sr.len));
 		}
 	}
 	else if (ex.type === expr_enum.LIST){
-		list_ptr body = list_ptr_new(lvr_free);
-		lvr rest = NULL;
-		if (ex.u.ex === NULL){
-			list_ptr_free(body);
-			return lvp_error(ex.flp, format("Invalid assignment"));
-		}
-		else if (ex.u.ex.type === expr_enum.GROUP){
-			for (int i = 0; i < ex.u.ex.u.group.size; i++){
-				expr gex = ex.u.ex.u.group.ptrs[i];
-				if (i === ex.u.ex.u.group.size - 1 && gex.type === expr_enum.PREFIX &&
-					gex.u.prefix.k === ks_enum.PERIOD3){
-					lvp_st lp = lval_prepare(pgen, gex.u.ex);
-					if (lp.type === LVP_ERROR){
-						list_ptr_free(body);
+		let body: lvr_st[] = [];
+		let rest: lvr_st | null = null;
+		if (ex.ex === null)
+			return lvp_error(ex.flp, 'Invalid assignment');
+		else if (ex.ex.type === expr_enum.GROUP){
+			for (let i = 0; i < ex.ex.group.length; i++){
+				let gex = ex.ex.group[i];
+				if (i === ex.ex.group.length - 1 && gex.type === expr_enum.PREFIX &&
+					gex.k === ks_enum.PERIOD3){
+					let lp = lval_prepare(pgen, gex.ex);
+					if (!lp.ok)
 						return lp;
-					}
-					rest = lp.u.lv;
+					rest = lp.lv;
 				}
 				else{
-					lvp_st lp = lval_prepare(pgen, gex);
-					if (lp.type === LVP_ERROR){
-						list_ptr_free(body);
+					let lp = lval_prepare(pgen, gex);
+					if (!lp.ok)
 						return lp;
-					}
-					list_ptr_push(body, lp.u.lv);
+					body.push(lp.lv);
 				}
 			}
 		}
 		else{
-			if (ex.u.ex.type === expr_enum.PREFIX && ex.u.ex.u.prefix.k === ks_enum.PERIOD3){
-				lvp_st lp = lval_prepare(pgen, ex.u.ex.u.ex);
-				if (lp.type === LVP_ERROR){
-					list_ptr_free(body);
+			if (ex.ex.type === expr_enum.PREFIX && ex.ex.k === ks_enum.PERIOD3){
+				let lp = lval_prepare(pgen, ex.ex.ex);
+				if (!lp.ok)
 					return lp;
-				}
-				rest = lp.u.lv;
+				rest = lp.lv;
 			}
 			else{
-				lvp_st lp = lval_prepare(pgen, ex.u.ex);
-				if (lp.type === LVP_ERROR){
-					list_ptr_free(body);
+				let lp = lval_prepare(pgen, ex.ex);
+				if (!lp.ok)
 					return lp;
-				}
-				list_ptr_push(body, lp.u.lv);
+				body.push(lp.lv);
 			}
 		}
 		return lvp_ok(lvr_list(ex.flp, body, rest));
 	}
-	return lvp_error(ex.flp, format("Invalid assignment"));
+	return lvp_error(ex.flp, 'Invalid assignment');
 }
 
-static void lval_clearTemps(lvr lv, symtbl sym){
-	if (lv.type !== LVR_VAR && !varloc_isnull(lv.vlc)){
+function lval_clearTemps(lv: lvr_st, sym: symtbl_st): void {
+	if (lv.type !== lvr_enum.VAR && !varloc_isnull(lv.vlc)){
 		symtbl_clearTemp(sym, lv.vlc);
 		lv.vlc = VARLOC_NULL;
 	}
 	switch (lv.type){
-		case LVR_VAR:
+		case lvr_enum.VAR:
 			return;
-		case LVR_INDEX:
-			symtbl_clearTemp(sym, lv.u.index.obj);
-			symtbl_clearTemp(sym, lv.u.index.key);
+		case lvr_enum.INDEX:
+			symtbl_clearTemp(sym, lv.obj);
+			symtbl_clearTemp(sym, lv.key);
 			return;
-		case LVR_SLICE:
-			symtbl_clearTemp(sym, lv.u.slice.obj);
-			symtbl_clearTemp(sym, lv.u.slice.start);
-			symtbl_clearTemp(sym, lv.u.slice.len);
+		case lvr_enum.SLICE:
+			symtbl_clearTemp(sym, lv.obj);
+			symtbl_clearTemp(sym, lv.start);
+			symtbl_clearTemp(sym, lv.len);
 			return;
-		case LVR_SLICEINDEX:
-			if (!varloc_isnull(lv.u.sliceindex.indexvlc)){
-				symtbl_clearTemp(sym, lv.u.sliceindex.indexvlc);
-				lv.u.sliceindex.indexvlc = VARLOC_NULL;
+		case lvr_enum.SLICEINDEX:
+			if (!varloc_isnull(lv.indexvlc)){
+				symtbl_clearTemp(sym, lv.indexvlc);
+				lv.indexvlc = VARLOC_NULL;
 			}
-			symtbl_clearTemp(sym, lv.u.sliceindex.obj);
-			symtbl_clearTemp(sym, lv.u.sliceindex.key);
-			symtbl_clearTemp(sym, lv.u.sliceindex.start);
-			symtbl_clearTemp(sym, lv.u.sliceindex.len);
+			symtbl_clearTemp(sym, lv.obj);
+			symtbl_clearTemp(sym, lv.key);
+			symtbl_clearTemp(sym, lv.start);
+			symtbl_clearTemp(sym, lv.len);
 			return;
-		case LVR_LIST:
-			for (int i = 0; i < lv.u.list.body.size; i++)
-				lval_clearTemps(lv.u.list.body.ptrs[i], sym);
-			if (lv.u.list.rest !== NULL)
-				lval_clearTemps(lv.u.list.rest, sym);
+		case lvr_enum.LIST:
+			for (let i = 0; i < lv.body.length; i++)
+				lval_clearTemps(lv.body[i], sym);
+			if (lv.rest !== null)
+				lval_clearTemps(lv.rest, sym);
 			return;
 	}
 }
 
-static per_st program_evalLval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, lvr lv,
-	op_enum mutop, varloc_st valueVlc, bool clearTemps){
-	program prg = pgen.prg;
-	symtbl sym = pgen.sym;
+function program_evalLval(pgen: pgen_st, mode: pem_enum, intoVlc: varloc_st, lv: lvr_st,
+	mutop: op_enum, valueVlc: varloc_st, clearTemps: boolean): per_st {
+	let prg = pgen.prg;
+	let sym = pgen.sym;
 	// first, perform the assignment of valueVlc into lv
 	switch (lv.type){
-		case LVR_VAR:
+		case lvr_enum.VAR:
 			if (mutop === op_enum.INVALID)
 				op_move(prg.ops, lv.vlc, valueVlc);
 			else
 				op_binop(prg.ops, mutop, lv.vlc, lv.vlc, valueVlc);
 			break;
 
-		case LVR_INDEX: {
+		case lvr_enum.INDEX: {
 			if (mutop === op_enum.INVALID)
-				op_setat(prg.ops, lv.u.index.obj, lv.u.index.key, valueVlc);
+				op_setat(prg.ops, lv.obj, lv.key, valueVlc);
 			else{
-				per_st pe = program_lvalGet(pgen, PLM_CREATE, VARLOC_NULL, lv);
-				if (pe.type === PER_ERROR)
+				let pe = program_lvalGet(pgen, plm_enum.CREATE, VARLOC_NULL, lv);
+				if (!pe.ok)
 					return pe;
-				op_binop(prg.ops, mutop, pe.u.vlc, pe.u.vlc, valueVlc);
-				op_setat(prg.ops, lv.u.index.obj, lv.u.index.key, pe.u.vlc);
+				op_binop(prg.ops, mutop, pe.vlc, pe.vlc, valueVlc);
+				op_setat(prg.ops, lv.obj, lv.key, pe.vlc);
 			}
 		} break;
 
-		case LVR_SLICE: {
+		case lvr_enum.SLICE: {
 			if (mutop === op_enum.INVALID)
-				op_splice(prg.ops, lv.u.slice.obj, lv.u.slice.start, lv.u.slice.len, valueVlc);
+				op_splice(prg.ops, lv.obj, lv.start, lv.len, valueVlc);
 			else{
-				per_st pe = program_lvalGet(pgen, PLM_CREATE, VARLOC_NULL, lv);
-				if (pe.type === PER_ERROR)
+				let pe = program_lvalGet(pgen, plm_enum.CREATE, VARLOC_NULL, lv);
+				if (!pe.ok)
 					return pe;
-				lvr lv2 = lvr_var(lv.flp, lv.vlc);
-				pe = program_evalLval(pgen, PEM_EMPTY, VARLOC_NULL, lv2, mutop, valueVlc, true);
-				lvr_free(lv2);
-				if (pe.type === PER_ERROR)
+				let lv2 = lvr_var(lv.flp, lv.vlc);
+				pe = program_evalLval(pgen, pem_enum.EMPTY, VARLOC_NULL, lv2, mutop, valueVlc,
+					true);
+				if (!pe.ok)
 					return pe;
-				sta_st ts = symtbl_addTemp(sym);
-				if (ts.type === STA_ERROR)
-					return per_error(lv.flp, ts.u.msg);
-				varloc_st t = ts.u.vlc;
+				let ts = symtbl_addTemp(sym);
+				if (!ts.ok)
+					return per_error(lv.flp, ts.msg);
+				let t = ts.vlc;
 				op_numint(prg.ops, t, 0);
-				op_slice(prg.ops, t, lv.vlc, t, lv.u.slice.len);
-				op_splice(prg.ops, lv.u.slice.obj, lv.u.slice.start, lv.u.slice.len, t);
+				op_slice(prg.ops, t, lv.vlc, t, lv.len);
+				op_splice(prg.ops, lv.obj, lv.start, lv.len, t);
 				symtbl_clearTemp(sym, t);
 				symtbl_clearTemp(sym, lv.vlc);
 				lv.vlc = VARLOC_NULL;
 			}
 		} break;
 
-		case LVR_SLICEINDEX: {
+		case lvr_enum.SLICEINDEX: {
 			if (mutop === op_enum.INVALID){
-				per_st pe = program_lvalGetIndex(pgen, lv);
-				if (pe.type === PER_ERROR)
+				let pe = program_lvalGetIndex(pgen, lv);
+				if (!pe.ok)
 					return pe;
-				op_splice(prg.ops, pe.u.vlc, lv.u.sliceindex.start, lv.u.sliceindex.len,
-					valueVlc);
-				op_setat(prg.ops, lv.u.sliceindex.obj, lv.u.sliceindex.key, pe.u.vlc);
+				op_splice(prg.ops, pe.vlc, lv.start, lv.len, valueVlc);
+				op_setat(prg.ops, lv.obj, lv.key, pe.vlc);
 			}
 			else{
-				per_st pe = program_lvalGet(pgen, PLM_CREATE, VARLOC_NULL, lv);
-				if (pe.type === PER_ERROR)
+				let pe = program_lvalGet(pgen, plm_enum.CREATE, VARLOC_NULL, lv);
+				if (!pe.ok)
 					return pe;
-				lvr lv2 = lvr_var(lv.flp, lv.vlc);
-				pe = program_evalLval(pgen, PEM_EMPTY, VARLOC_NULL, lv2, mutop, valueVlc, true);
-				lvr_free(lv2);
-				if (pe.type === PER_ERROR)
+				let lv2 = lvr_var(lv.flp, lv.vlc);
+				pe = program_evalLval(pgen, pem_enum.EMPTY, VARLOC_NULL, lv2, mutop, valueVlc,
+					true);
+				if (!pe.ok)
 					return pe;
-				sta_st ts = symtbl_addTemp(sym);
-				if (ts.type === STA_ERROR)
-					return per_error(lv.flp, ts.u.msg);
-				varloc_st t = ts.u.vlc;
+				let ts = symtbl_addTemp(sym);
+				if (!ts.ok)
+					return per_error(lv.flp, ts.msg);
+				let t = ts.vlc;
 				op_numint(prg.ops, t, 0);
-				op_slice(prg.ops, t, lv.vlc, t, lv.u.sliceindex.len);
-				op_splice(prg.ops, lv.u.sliceindex.indexvlc, lv.u.sliceindex.start,
-					lv.u.sliceindex.len, t);
+				op_slice(prg.ops, t, lv.vlc, t, lv.len);
+				op_splice(prg.ops, lv.indexvlc, lv.start, lv.len, t);
 				symtbl_clearTemp(sym, t);
-				symtbl_clearTemp(sym, lv.u.sliceindex.indexvlc);
+				symtbl_clearTemp(sym, lv.indexvlc);
 				symtbl_clearTemp(sym, lv.vlc);
-				lv.u.sliceindex.indexvlc = VARLOC_NULL;
+				lv.indexvlc = VARLOC_NULL;
 				lv.vlc = VARLOC_NULL;
 			}
 		} break;
 
-		case LVR_LIST: {
-			sta_st ts = symtbl_addTemp(sym);
-			if (ts.type === STA_ERROR)
-				return per_error(lv.flp, ts.u.msg);
-			varloc_st t = ts.u.vlc;
+		case lvr_enum.LIST: {
+			let ts = symtbl_addTemp(sym);
+			if (!ts.ok)
+				return per_error(lv.flp, ts.msg);
+			let t = ts.vlc;
 
-			for (int i = 0; i < lv.u.list.body.size; i++){
+			for (let i = 0; i < lv.body.length; i++){
 				op_numint(prg.ops, t, i);
 				op_getat(prg.ops, t, valueVlc, t);
-				per_st pe = program_evalLval(pgen, PEM_EMPTY, VARLOC_NULL,
-					lv.u.list.body.ptrs[i], mutop, t, false);
-				if (pe.type === PER_ERROR)
+				let pe = program_evalLval(pgen, pem_enum.EMPTY, VARLOC_NULL, lv.body[i], mutop, t,
+					false);
+				if (!pe.ok)
 					return pe;
 			}
 
-			if (lv.u.list.rest !== NULL){
+			if (lv.rest !== null){
 				ts = symtbl_addTemp(sym);
-				if (ts.type === STA_ERROR)
-					return per_error(lv.flp, ts.u.msg);
-				varloc_st t2 = ts.u.vlc;
+				if (!ts.ok)
+					return per_error(lv.flp, ts.msg);
+				let t2 = ts.vlc;
 
-				op_numint(prg.ops, t, lv.u.list.body.size);
+				op_numint(prg.ops, t, lv.body.length);
 				op_nil(prg.ops, t2);
 				op_slice(prg.ops, t, valueVlc, t, t2);
 				symtbl_clearTemp(sym, t2);
-				per_st pe = program_evalLval(pgen, PEM_EMPTY, VARLOC_NULL, lv.u.list.rest,
-					mutop, t, false);
-				if (pe.type === PER_ERROR)
+				let pe = program_evalLval(pgen, pem_enum.EMPTY, VARLOC_NULL, lv.rest, mutop, t,
+					false);
+				if (!pe.ok)
 					return pe;
 			}
 			symtbl_clearTemp(sym, t);
@@ -5872,126 +5727,124 @@ static per_st program_evalLval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, l
 	}
 
 	// now, see if we need to put the result into anything
-	if (mode === PEM_EMPTY){
+	if (mode === pem_enum.EMPTY){
 		if (clearTemps)
 			lval_clearTemps(lv, sym);
 		return per_ok(VARLOC_NULL);
 	}
-	else if (mode === PEM_CREATE){
-		sta_st ts = symtbl_addTemp(sym);
-		if (ts.type === STA_ERROR)
-			return per_error(lv.flp, ts.u.msg);
-		intoVlc = ts.u.vlc;
+	else if (mode === pem_enum.CREATE){
+		let ts = symtbl_addTemp(sym);
+		if (!ts.ok)
+			return per_error(lv.flp, ts.msg);
+		intoVlc = ts.vlc;
 	}
 
-	per_st pe = program_lvalGet(pgen, PLM_INTO, intoVlc, lv);
-	if (pe.type === PER_ERROR)
+	let pe = program_lvalGet(pgen, plm_enum.INTO, intoVlc, lv);
+	if (!pe.ok)
 		return pe;
 	if (clearTemps)
 		lval_clearTemps(lv, sym);
 	return per_ok(intoVlc);
 }
 
-static psr_st program_slice(pgen_st pgen, expr ex){
-	varloc_st start;
-	if (ex.u.slice.start === NULL){
-		sta_st ts = symtbl_addTemp(pgen.sym);
-		if (ts.type === STA_ERROR)
-			return psr_error(ex.flp, ts.u.msg);
-		start = ts.u.vlc;
+function program_slice(pgen: pgen_st, ex: expr_st_SLICE): psr_st {
+	let start = VARLOC_NULL;
+	if (ex.start === null){
+		let ts = symtbl_addTemp(pgen.sym);
+		if (!ts.ok)
+			return psr_error(ex.flp, ts.msg);
+		start = ts.vlc;
 		op_numint(pgen.prg.ops, start, 0);
 	}
 	else{
-		per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex.u.slice.start);
-		if (pe.type === PER_ERROR)
-			return psr_error(pe.u.error.flp, pe.u.error.msg);
-		start = pe.u.vlc;
+		let pe = program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.start);
+		if (!pe.ok)
+			return psr_error(pe.flp, pe.msg);
+		start = pe.vlc;
 	}
 
-	varloc_st len;
-	if (ex.u.slice.len === NULL){
-		sta_st ts = symtbl_addTemp(pgen.sym);
-		if (ts.type === STA_ERROR)
-			return psr_error(ex.flp, ts.u.msg);
-		len = ts.u.vlc;
+	let len = VARLOC_NULL;
+	if (ex.len === null){
+		let ts = symtbl_addTemp(pgen.sym);
+		if (!ts.ok)
+			return psr_error(ex.flp, ts.msg);
+		len = ts.vlc;
 		op_nil(pgen.prg.ops, len);
 	}
 	else{
-		per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex.u.slice.len);
-		if (pe.type === PER_ERROR)
-			return psr_error(pe.u.error.flp, pe.u.error.msg);
-		len = pe.u.vlc;
+		let pe = program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.len);
+		if (!pe.ok)
+			return psr_error(pe.flp, pe.msg);
+		len = pe.vlc;
 	}
 
 	return psr_ok(start, len);
 }
 
-static per_st program_lvalGetIndex(pgen_st pgen, lvr lv){
-	// specifically for LVR_SLICEINDEX in order to fill lv.indexvlc
-	if (!varloc_isnull(lv.u.sliceindex.indexvlc))
-		return per_ok(lv.u.sliceindex.indexvlc);
+function program_lvalGetIndex(pgen: pgen_st, lv: lvr_st_SLICEINDEX): per_st {
+	// specifically for lvr_enum.SLICEINDEX in order to fill lv.indexvlc
+	if (!varloc_isnull(lv.indexvlc))
+		return per_ok(lv.indexvlc);
 
-	sta_st ts = symtbl_addTemp(pgen.sym);
-	if (ts.type === STA_ERROR)
-		return per_error(lv.flp, ts.u.msg);
-	lv.u.sliceindex.indexvlc = ts.u.vlc;
+	let ts = symtbl_addTemp(pgen.sym);
+	if (!ts.ok)
+		return per_error(lv.flp, ts.msg);
+	lv.indexvlc = ts.vlc;
 
-	op_getat(pgen.prg.ops, lv.u.sliceindex.indexvlc, lv.u.sliceindex.obj, lv.u.sliceindex.key);
-	return per_ok(lv.u.sliceindex.indexvlc);
+	op_getat(pgen.prg.ops, lv.indexvlc, lv.obj, lv.key);
+	return per_ok(lv.indexvlc);
 }
 
-static per_st program_lvalGet(pgen_st pgen, plm_enum mode, varloc_st intoVlc, lvr lv){
-	program prg = pgen.prg;
+function program_lvalGet(pgen: pgen_st, mode: plm_enum, intoVlc: varloc_st, lv: lvr_st): per_st {
+	let prg = pgen.prg;
 	if (!varloc_isnull(lv.vlc)){
-		if (mode === PLM_CREATE)
+		if (mode === plm_enum.CREATE)
 			return per_ok(lv.vlc);
 		op_move(prg.ops, intoVlc, lv.vlc);
 		return per_ok(intoVlc);
 	}
 
-	if (mode === PLM_CREATE){
-		sta_st ts = symtbl_addTemp(pgen.sym);
-		if (ts.type === STA_ERROR)
-			return per_error(lv.flp, ts.u.msg);
-		intoVlc = lv.vlc = ts.u.vlc;
+	if (mode === plm_enum.CREATE){
+		let ts = symtbl_addTemp(pgen.sym);
+		if (!ts.ok)
+			return per_error(lv.flp, ts.msg);
+		intoVlc = lv.vlc = ts.vlc;
 	}
 
 	switch (lv.type){
-		case LVR_VAR:
-			assert(false);
+		case lvr_enum.VAR:
+			throw new Error('Lvalue expected to be in variable already');
+
+		case lvr_enum.INDEX:
+			op_getat(prg.ops, intoVlc, lv.obj, lv.key);
 			break;
 
-		case LVR_INDEX:
-			op_getat(prg.ops, intoVlc, lv.u.index.obj, lv.u.index.key);
+		case lvr_enum.SLICE:
+			op_slice(prg.ops, intoVlc, lv.obj, lv.start, lv.len);
 			break;
 
-		case LVR_SLICE:
-			op_slice(prg.ops, intoVlc, lv.u.slice.obj, lv.u.slice.start, lv.u.slice.len);
-			break;
-
-		case LVR_SLICEINDEX: {
-			per_st pe = program_lvalGetIndex(pgen, lv);
-			if (pe.type === PER_ERROR)
+		case lvr_enum.SLICEINDEX: {
+			let pe = program_lvalGetIndex(pgen, lv);
+			if (!pe.ok)
 				return pe;
-			op_slice(prg.ops, intoVlc, pe.u.vlc, lv.u.sliceindex.start, lv.u.sliceindex.len);
+			op_slice(prg.ops, intoVlc, pe.vlc, lv.start, lv.len);
 		} break;
 
-		case LVR_LIST: {
-			op_list(prg.ops, intoVlc, lv.u.list.body.size);
+		case lvr_enum.LIST: {
+			op_list(prg.ops, intoVlc, lv.body.length);
 
-			for (int i = 0; i < lv.u.list.body.size; i++){
-				per_st pe = program_lvalGet(pgen, PLM_CREATE, VARLOC_NULL,
-					lv.u.list.body.ptrs[i]);
-				if (pe.type === PER_ERROR)
+			for (let i = 0; i < lv.body.length; i++){
+				let pe = program_lvalGet(pgen, plm_enum.CREATE, VARLOC_NULL, lv.body[i]);
+				if (!pe.ok)
 					return pe;
-				op_param2(prg.ops, op_enum.LIST_PUSH, intoVlc, intoVlc, pe.u.vlc);
+				op_param2(prg.ops, op_enum.LIST_PUSH, intoVlc, intoVlc, pe.vlc);
 			}
 
-			if (lv.u.list.rest !== NULL){
-				per_st pe = program_lvalGet(pgen, PLM_CREATE, VARLOC_NULL, lv.u.list.rest);
-				if (pe.type === PER_ERROR)
+			if (lv.rest !== null){
+				let pe = program_lvalGet(pgen, plm_enum.CREATE, VARLOC_NULL, lv.rest);
+				if (!pe.ok)
 					return pe;
-				op_param2(prg.ops, op_enum.LIST_APPEND, intoVlc, intoVlc, pe.u.vlc);
+				op_param2(prg.ops, op_enum.LIST_APPEND, intoVlc, intoVlc, pe.vlc);
 			}
 		} break;
 	}
@@ -5999,36 +5852,40 @@ static per_st program_lvalGet(pgen_st pgen, plm_enum mode, varloc_st intoVlc, lv
 	return per_ok(intoVlc);
 }
 
-static inline bool program_evalCallArgcount(pgen_st pgen, expr params, int *argcount,
-	per_st *pe, varloc_st *p){
+function program_evalCallArgcount(pgen: pgen_st, params: expr_st | null, argcount: number[],
+	pe: per_st[], p: varloc_st[]): boolean {
 	// `p` is an array of 255 varloc_st's, which get filled with `argcount` arguments
 	// returns false on error, with error inside of `pe`
-	*argcount = 0;
-	if (params){
+	// `argcount` is a single-element array, so values can be written out to caller
+	// `pe` is a single-element array, so values can be written out to caller
+	argcount[0] = 0;
+	if (params !== null){
 		if (params.type === expr_enum.GROUP){
-			*argcount = params.u.group.size;
-			if (*argcount > 254)
-				*argcount = 254;
-			for (int i = 0; i < params.u.group.size; i++){
-				*pe = program_eval(pgen, i < *argcount ? PEM_CREATE : PEM_EMPTY, VARLOC_NULL,
-					params.u.group.ptrs[i]);
-				if (pe.type === PER_ERROR)
+			argcount[0] = params.group.length;
+			if (argcount[0] > 254)
+				argcount[0] = 254;
+			for (let i = 0; i < params.group.length; i++){
+				let pe0 = program_eval(pgen, i < argcount[0] ? pem_enum.CREATE : pem_enum.EMPTY,
+					VARLOC_NULL, params.group[i]);
+				pe[0] = pe0;
+				if (!pe0.ok)
 					return false;
-				if (i < *argcount)
-					p[i] = pe.u.vlc;
+				if (i < argcount[0])
+					p[i] = pe0.vlc;
 			}
 		}
 		else{
-			*argcount = 1;
-			*pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, params);
-			if (pe.type === PER_ERROR)
+			argcount[0] = 1;
+			let pe0 = program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, params);
+			pe[0] = pe0;
+			if (!pe0.ok)
 				return false;
-			p[0] = pe.u.vlc;
+			p[0] = pe0.vlc;
 		}
 	}
 	return true;
 }
-
+/*
 typedef struct {
 	pgen_st pgen;
 	pem_enum mode;
@@ -6090,12 +5947,12 @@ static per_st program_evalCall(pgen_st pgen, pem_enum mode, varloc_st intoVlc,
 			params.u.group.size !== 3)
 			return per_error(flp, format("Using `pick` requires exactly three arguments"));
 
-		per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, params.u.group.ptrs[0]);
-		if (pe.type === PER_ERROR)
+		per_st pe = program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, params.u.group.ptrs[0]);
+		if (!pe.ok)
 			return pe;
-		if (mode === PEM_CREATE){
+		if (mode === pem_enum.CREATE){
 			sta_st ts = symtbl_addTemp(sym);
-			if (ts.type === STA_ERROR)
+			if (!ts.ok)
 				return per_error(flp, ts.u.msg);
 			intoVlc = ts.u.vlc;
 		}
@@ -6106,11 +5963,11 @@ static per_st program_evalCall(pgen_st pgen, pem_enum mode, varloc_st intoVlc,
 		label_jumpfalse(pickfalse, prg.ops, pe.u.vlc);
 		symtbl_clearTemp(sym, pe.u.vlc);
 
-		if (mode === PEM_EMPTY)
-			pe = program_eval(pgen, PEM_EMPTY, intoVlc, params.u.group.ptrs[1]);
+		if (mode === pem_enum.EMPTY)
+			pe = program_eval(pgen, pem_enum.EMPTY, intoVlc, params.u.group.ptrs[1]);
 		else
-			pe = program_eval(pgen, PEM_INTO, intoVlc, params.u.group.ptrs[1]);
-		if (pe.type === PER_ERROR){
+			pe = program_eval(pgen, pem_enum.INTO, intoVlc, params.u.group.ptrs[1]);
+		if (!pe.ok){
 			label_free(pickfalse);
 			label_free(finish);
 			return pe;
@@ -6118,11 +5975,11 @@ static per_st program_evalCall(pgen_st pgen, pem_enum mode, varloc_st intoVlc,
 		label_jump(finish, prg.ops);
 
 		label_declare(pickfalse, prg.ops);
-		if (mode === PEM_EMPTY)
-			pe = program_eval(pgen, PEM_EMPTY, intoVlc, params.u.group.ptrs[2]);
+		if (mode === pem_enum.EMPTY)
+			pe = program_eval(pgen, pem_enum.EMPTY, intoVlc, params.u.group.ptrs[2]);
 		else
-			pe = program_eval(pgen, PEM_INTO, intoVlc, params.u.group.ptrs[2]);
-		if (pe.type === PER_ERROR){
+			pe = program_eval(pgen, pem_enum.INTO, intoVlc, params.u.group.ptrs[2]);
+		if (!pe.ok){
 			label_free(pickfalse);
 			label_free(finish);
 			return pe;
@@ -6199,9 +6056,9 @@ static per_st program_evalCall(pgen_st pgen, pem_enum mode, varloc_st intoVlc,
 		}
 	}
 
-	if (mode === PEM_EMPTY || mode === PEM_CREATE){
+	if (mode === pem_enum.EMPTY || mode === pem_enum.CREATE){
 		sta_st ts = symtbl_addTemp(sym);
-		if (ts.type === STA_ERROR)
+		if (!ts.ok)
 			return per_error(flp, ts.u.msg);
 		intoVlc = ts.u.vlc;
 	}
@@ -6241,7 +6098,7 @@ static per_st program_evalCall(pgen_st pgen, pem_enum mode, varloc_st intoVlc,
 			oarg = false;
 			if (nsn.u.cmdOpcode.params > argcount){
 				sta_st ts = symtbl_addTemp(sym);
-				if (ts.type === STA_ERROR)
+				if (!ts.ok)
 					return per_error(flp, ts.u.msg);
 				p[argcount + 0] = p[argcount + 1] = p[argcount + 2] = ts.u.vlc;
 				op_nil(prg.ops, p[argcount]);
@@ -6264,7 +6121,7 @@ static per_st program_evalCall(pgen_st pgen, pem_enum mode, varloc_st intoVlc,
 		symtbl_clearTemp(sym, p[i]);
 	}
 
-	if (mode === PEM_EMPTY){
+	if (mode === pem_enum.EMPTY){
 		symtbl_clearTemp(sym, intoVlc);
 		return per_ok(VARLOC_NULL);
 	}
@@ -6275,10 +6132,10 @@ static per_st program_lvalCheckNil(pgen_st pgen, lvr lv, bool jumpFalse, bool in
 	program prg = pgen.prg;
 	symtbl sym = pgen.sym;
 	switch (lv.type){
-		case LVR_VAR:
-		case LVR_INDEX: {
-			per_st pe = program_lvalGet(pgen, PLM_CREATE, VARLOC_NULL, lv);
-			if (pe.type === PER_ERROR)
+		case lvr_enum.VAR:
+		case lvr_enum.INDEX: {
+			per_st pe = program_lvalGet(pgen, plm_enum.CREATE, VARLOC_NULL, lv);
+			if (!pe.ok)
 				return pe;
 			if (jumpFalse === !inverted)
 				label_jumpfalse(skip, prg.ops, pe.u.vlc);
@@ -6287,19 +6144,19 @@ static per_st program_lvalCheckNil(pgen_st pgen, lvr lv, bool jumpFalse, bool in
 			symtbl_clearTemp(sym, pe.u.vlc);
 		} break;
 
-		case LVR_SLICE:
-		case LVR_SLICEINDEX: {
+		case lvr_enum.SLICE:
+		case lvr_enum.SLICEINDEX: {
 			varloc_st obj;
 			varloc_st start;
 			varloc_st len;
-			if (lv.type === LVR_SLICE){
+			if (lv.type === lvr_enum.SLICE){
 				obj = lv.u.slice.obj;
 				start = lv.u.slice.start;
 				len = lv.u.slice.len;
 			}
 			else{
 				per_st pe = program_lvalGetIndex(pgen, lv);
-				if (pe.type === PER_ERROR)
+				if (!pe.ok)
 					return pe;
 				obj = pe.u.vlc;
 				start = lv.u.sliceindex.start;
@@ -6307,12 +6164,12 @@ static per_st program_lvalCheckNil(pgen_st pgen, lvr lv, bool jumpFalse, bool in
 			}
 
 			sta_st ts = symtbl_addTemp(sym);
-			if (ts.type === STA_ERROR)
+			if (!ts.ok)
 				return per_error(lv.flp, ts.u.msg);
 			varloc_st idx = ts.u.vlc;
 
 			ts = symtbl_addTemp(sym);
-			if (ts.type === STA_ERROR)
+			if (!ts.ok)
 				return per_error(lv.flp, ts.u.msg);
 			varloc_st t = ts.u.vlc;
 
@@ -6350,7 +6207,7 @@ static per_st program_lvalCheckNil(pgen_st pgen, lvr lv, bool jumpFalse, bool in
 			label_free(keep);
 		} break;
 
-		case LVR_LIST: {
+		case lvr_enum.LIST: {
 			label keep = label_newstr("condkeep");
 			for (int i = 0; i < lv.u.list.body.size; i++){
 				program_lvalCheckNil(pgen, lv.u.list.body.ptrs[i], jumpFalse, true,
@@ -6373,10 +6230,10 @@ static per_st program_lvalCondAssignPart(pgen_st pgen, lvr lv, bool jumpFalse, v
 	program prg = pgen.prg;
 	symtbl sym = pgen.sym;
 	switch (lv.type){
-		case LVR_VAR:
-		case LVR_INDEX: {
-			per_st pe = program_lvalGet(pgen, PLM_CREATE, VARLOC_NULL, lv);
-			if (pe.type === PER_ERROR)
+		case lvr_enum.VAR:
+		case lvr_enum.INDEX: {
+			per_st pe = program_lvalGet(pgen, plm_enum.CREATE, VARLOC_NULL, lv);
+			if (!pe.ok)
 				return pe;
 			label skip = label_newstr("condskippart");
 			if (jumpFalse)
@@ -6384,8 +6241,8 @@ static per_st program_lvalCondAssignPart(pgen_st pgen, lvr lv, bool jumpFalse, v
 			else
 				label_jumptrue(skip, prg.ops, pe.u.vlc);
 			symtbl_clearTemp(sym, pe.u.vlc);
-			pe = program_evalLval(pgen, PEM_EMPTY, VARLOC_NULL, lv, op_enum.INVALID, valueVlc, true);
-			if (pe.type === PER_ERROR){
+			pe = program_evalLval(pgen, pem_enum.EMPTY, VARLOC_NULL, lv, op_enum.INVALID, valueVlc, true);
+			if (!pe.ok){
 				label_free(skip);
 				return pe;
 			}
@@ -6393,19 +6250,19 @@ static per_st program_lvalCondAssignPart(pgen_st pgen, lvr lv, bool jumpFalse, v
 			label_free(skip);
 		} break;
 
-		case LVR_SLICE:
-		case LVR_SLICEINDEX: {
+		case lvr_enum.SLICE:
+		case lvr_enum.SLICEINDEX: {
 			varloc_st obj;
 			varloc_st start;
 			varloc_st len;
-			if (lv.type === LVR_SLICE){
+			if (lv.type === lvr_enum.SLICE){
 				obj = lv.u.slice.obj;
 				start = lv.u.slice.start;
 				len = lv.u.slice.len;
 			}
 			else{
 				per_st pe = program_lvalGetIndex(pgen, lv);
-				if (pe.type === PER_ERROR)
+				if (!pe.ok)
 					return pe;
 				obj = pe.u.vlc;
 				start = lv.u.sliceindex.start;
@@ -6413,17 +6270,17 @@ static per_st program_lvalCondAssignPart(pgen_st pgen, lvr lv, bool jumpFalse, v
 			}
 
 			sta_st ts = symtbl_addTemp(sym);
-			if (ts.type === STA_ERROR)
+			if (!ts.ok)
 				return per_error(lv.flp, ts.u.msg);
 			varloc_st idx = ts.u.vlc;
 
 			ts = symtbl_addTemp(sym);
-			if (ts.type === STA_ERROR)
+			if (!ts.ok)
 				return per_error(lv.flp, ts.u.msg);
 			varloc_st t = ts.u.vlc;
 
 			ts = symtbl_addTemp(sym);
-			if (ts.type === STA_ERROR)
+			if (!ts.ok)
 				return per_error(lv.flp, ts.u.msg);
 			varloc_st t2 = ts.u.vlc;
 
@@ -6468,9 +6325,9 @@ static per_st program_lvalCondAssignPart(pgen_st pgen, lvr lv, bool jumpFalse, v
 			label_free(inc);
 		} break;
 
-		case LVR_LIST: {
+		case lvr_enum.LIST: {
 			sta_st ts = symtbl_addTemp(sym);
-			if (ts.type === STA_ERROR)
+			if (!ts.ok)
 				return per_error(lv.flp, ts.u.msg);
 			varloc_st t = ts.u.vlc;
 			for (int i = 0; i < lv.u.list.body.size; i++){
@@ -6478,12 +6335,12 @@ static per_st program_lvalCondAssignPart(pgen_st pgen, lvr lv, bool jumpFalse, v
 				op_getat(prg.ops, t, valueVlc, t);
 				per_st pe = program_lvalCondAssignPart(pgen, lv.u.list.body.ptrs[i],
 					jumpFalse, t);
-				if (pe.type === PER_ERROR)
+				if (!pe.ok)
 					return pe;
 			}
 			if (lv.u.list.rest !== NULL){
 				sta_st ts = symtbl_addTemp(sym);
-				if (ts.type === STA_ERROR)
+				if (!ts.ok)
 					return per_error(lv.flp, ts.u.msg);
 				varloc_st t2 = ts.u.vlc;
 				op_numint(prg.ops, t, lv.u.list.body.size);
@@ -6491,7 +6348,7 @@ static per_st program_lvalCondAssignPart(pgen_st pgen, lvr lv, bool jumpFalse, v
 				op_slice(prg.ops, t, valueVlc, t, t2);
 				symtbl_clearTemp(sym, t2);
 				per_st pe = program_lvalCondAssignPart(pgen, lv.u.list.rest, jumpFalse, t);
-				if (pe.type === PER_ERROR)
+				if (!pe.ok)
 					return pe;
 			}
 			symtbl_clearTemp(sym, t);
@@ -6502,17 +6359,17 @@ static per_st program_lvalCondAssignPart(pgen_st pgen, lvr lv, bool jumpFalse, v
 
 static per_st program_lvalCondAssign(pgen_st pgen, lvr lv, bool jumpFalse, varloc_st valueVlc){
 	switch (lv.type){
-		case LVR_VAR:
-		case LVR_INDEX: {
-			per_st pe = program_evalLval(pgen, PEM_EMPTY, VARLOC_NULL, lv, op_enum.INVALID,
+		case lvr_enum.VAR:
+		case lvr_enum.INDEX: {
+			per_st pe = program_evalLval(pgen, pem_enum.EMPTY, VARLOC_NULL, lv, op_enum.INVALID,
 				valueVlc, true);
-			if (pe.type === PER_ERROR)
+			if (!pe.ok)
 				return pe;
 		} break;
 
-		case LVR_SLICE:
-		case LVR_SLICEINDEX:
-		case LVR_LIST:
+		case lvr_enum.SLICE:
+		case lvr_enum.SLICEINDEX:
+		case lvr_enum.LIST:
 			return program_lvalCondAssignPart(pgen, lv, jumpFalse, valueVlc);
 	}
 	symtbl_clearTemp(pgen.sym, valueVlc);
@@ -6525,11 +6382,11 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 	program_flp(prg, ex.flp);
 	switch (ex.type){
 		case expr_enum.NIL: {
-			if (mode === PEM_EMPTY)
+			if (mode === pem_enum.EMPTY)
 				return per_ok(VARLOC_NULL);
-			else if (mode === PEM_CREATE){
+			else if (mode === pem_enum.CREATE){
 				sta_st ts = symtbl_addTemp(sym);
-				if (ts.type === STA_ERROR)
+				if (!ts.ok)
 					return per_error(ex.flp, ts.u.msg);
 				intoVlc = ts.u.vlc;
 			}
@@ -6538,11 +6395,11 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 		} break;
 
 		case expr_enum.NUM: {
-			if (mode === PEM_EMPTY)
+			if (mode === pem_enum.EMPTY)
 				return per_ok(VARLOC_NULL);
-			else if (mode === PEM_CREATE){
+			else if (mode === pem_enum.CREATE){
 				sta_st ts = symtbl_addTemp(sym);
-				if (ts.type === STA_ERROR)
+				if (!ts.ok)
 					return per_error(ex.flp, ts.u.msg);
 				intoVlc = ts.u.vlc;
 			}
@@ -6551,11 +6408,11 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 		} break;
 
 		case expr_enum.STR: {
-			if (mode === PEM_EMPTY)
+			if (mode === pem_enum.EMPTY)
 				return per_ok(VARLOC_NULL);
-			else if (mode === PEM_CREATE){
+			else if (mode === pem_enum.CREATE){
 				sta_st ts = symtbl_addTemp(sym);
-				if (ts.type === STA_ERROR)
+				if (!ts.ok)
 					return per_error(ex.flp, ts.u.msg);
 				intoVlc = ts.u.vlc;
 			}
@@ -6578,48 +6435,48 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 		} break;
 
 		case expr_enum.LIST: {
-			if (mode === PEM_EMPTY){
+			if (mode === pem_enum.EMPTY){
 				if (ex.u.ex !== NULL)
-					return program_eval(pgen, PEM_EMPTY, VARLOC_NULL, ex.u.ex);
+					return program_eval(pgen, pem_enum.EMPTY, VARLOC_NULL, ex.u.ex);
 				return per_ok(VARLOC_NULL);
 			}
-			else if (mode === PEM_CREATE){
+			else if (mode === pem_enum.CREATE){
 				sta_st ts = symtbl_addTemp(sym);
-				if (ts.type === STA_ERROR)
+				if (!ts.ok)
 					return per_error(ex.flp, ts.u.msg);
 				intoVlc = ts.u.vlc;
 			}
 			if (ex.u.ex !== NULL){
 				if (ex.u.ex.type === expr_enum.GROUP){
 					varloc_st ls = intoVlc;
-					if (mode === PEM_INTO){
+					if (mode === pem_enum.INTO){
 						sta_st ts = symtbl_addTemp(sym);
-						if (ts.type === STA_ERROR)
+						if (!ts.ok)
 							return per_error(ex.flp, ts.u.msg);
 						ls = ts.u.vlc;
 					}
 					op_list(prg.ops, ls, ex.u.ex.u.group.size);
 					for (int i = 0; i < ex.u.ex.u.group.size; i++){
-						per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL,
+						per_st pe = program_eval(pgen, pem_enum.CREATE, VARLOC_NULL,
 							ex.u.ex.u.group.ptrs[i]);
-						if (pe.type === PER_ERROR)
+						if (!pe.ok)
 							return pe;
 						symtbl_clearTemp(sym, pe.u.vlc);
 						op_param2(prg.ops, op_enum.LIST_PUSH, ls, ls, pe.u.vlc);
 					}
-					if (mode === PEM_INTO){
+					if (mode === pem_enum.INTO){
 						symtbl_clearTemp(sym, ls);
 						op_move(prg.ops, intoVlc, ls);
 					}
 				}
 				else{
-					per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex.u.ex);
-					if (pe.type === PER_ERROR)
+					per_st pe = program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.u.ex);
+					if (!pe.ok)
 						return pe;
 					// check for `a = {a}`
 					if (intoVlc.frame === pe.u.vlc.frame && intoVlc.index === pe.u.vlc.index){
 						sta_st ts = symtbl_addTemp(sym);
-						if (ts.type === STA_ERROR)
+						if (!ts.ok)
 							return per_error(ex.flp, ts.u.msg);
 						symtbl_clearTemp(sym, ts.u.vlc);
 						symtbl_clearTemp(sym, pe.u.vlc);
@@ -6645,21 +6502,21 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 				return per_error(ex.flp, sl.u.msg);
 			switch (sl.u.nsn.type){
 				case nsname_enumt.VAR: {
-					if (mode === PEM_EMPTY)
+					if (mode === pem_enum.EMPTY)
 						return per_ok(VARLOC_NULL);
 					varloc_st varVlc = varloc_new(sl.u.nsn.u.var.fr.level, sl.u.nsn.u.var.index);
-					if (mode === PEM_CREATE)
+					if (mode === pem_enum.CREATE)
 						return per_ok(varVlc);
 					op_move(prg.ops, intoVlc, varVlc);
 					return per_ok(intoVlc);
 				} break;
 
 				case nsname_enumt.ENUM: {
-					if (mode === PEM_EMPTY)
+					if (mode === pem_enum.EMPTY)
 						return per_ok(VARLOC_NULL);
-					if (mode === PEM_CREATE){
+					if (mode === pem_enum.CREATE){
 						sta_st ts = symtbl_addTemp(sym);
-						if (ts.type === STA_ERROR)
+						if (!ts.ok)
 							return per_error(ex.flp, ts.u.msg);
 						intoVlc = ts.u.vlc;
 					}
@@ -6685,16 +6542,16 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 			for (int i = 0; i < ex.u.group.size; i++){
 				if (i === ex.u.group.size - 1)
 					return program_eval(pgen, mode, intoVlc, ex.u.group.ptrs[i]);
-				per_st pe = program_eval(pgen, PEM_EMPTY, VARLOC_NULL, ex.u.group.ptrs[i]);
-				if (pe.type === PER_ERROR)
+				per_st pe = program_eval(pgen, pem_enum.EMPTY, VARLOC_NULL, ex.u.group.ptrs[i]);
+				if (!pe.ok)
 					return pe;
 			}
 			break;
 
 		case expr_enum.CAT: {
-			if (mode === PEM_EMPTY || mode === PEM_CREATE){
+			if (mode === pem_enum.EMPTY || mode === pem_enum.CREATE){
 				sta_st ts = symtbl_addTemp(sym);
-				if (ts.type === STA_ERROR)
+				if (!ts.ok)
 					return per_error(ex.flp, ts.u.msg);
 				intoVlc = ts.u.vlc;
 			}
@@ -6705,7 +6562,7 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 			if (ex.u.cat.size > tmax){
 				tmax--;
 				sta_st ts = symtbl_addTemp(sym);
-				if (ts.type === STA_ERROR)
+				if (!ts.ok)
 					return per_error(ex.flp, ts.u.msg);
 				t = ts.u.vlc;
 			}
@@ -6715,9 +6572,9 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 				if (len > tmax)
 					len = tmax;
 				for (int i = 0; i < len; i++){
-					per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL,
+					per_st pe = program_eval(pgen, pem_enum.CREATE, VARLOC_NULL,
 						ex.u.cat.ptrs[ci + i]);
-					if (pe.type === PER_ERROR)
+					if (!pe.ok)
 						return pe;
 					p[i] = pe.u.vlc;
 				}
@@ -6734,7 +6591,7 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 			}
 			if (!varloc_isnull(t))
 				symtbl_clearTemp(sym, t);
-			if (mode === PEM_EMPTY){
+			if (mode === pem_enum.EMPTY){
 				symtbl_clearTemp(sym, intoVlc);
 				return per_ok(VARLOC_NULL);
 			}
@@ -6745,18 +6602,18 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 			op_enum unop = ks_toUnaryOp(ex.u.prefix.k);
 			if (unop === op_enum.INVALID)
 				return per_error(ex.flp, format("Invalid unary operator"));
-			per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex.u.prefix.ex);
-			if (pe.type === PER_ERROR)
+			per_st pe = program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.u.prefix.ex);
+			if (!pe.ok)
 				return pe;
-			if (mode === PEM_EMPTY || mode === PEM_CREATE){
+			if (mode === pem_enum.EMPTY || mode === pem_enum.CREATE){
 				sta_st ts = symtbl_addTemp(sym);
-				if (ts.type === STA_ERROR)
+				if (!ts.ok)
 					return per_error(ex.flp, ts.u.msg);
 				intoVlc = ts.u.vlc;
 			}
 			op_unop(prg.ops, unop, intoVlc, pe.u.vlc);
 			symtbl_clearTemp(sym, pe.u.vlc);
-			if (mode === PEM_EMPTY){
+			if (mode === pem_enum.EMPTY){
 				symtbl_clearTemp(sym, intoVlc);
 				return per_ok(VARLOC_NULL);
 			}
@@ -6768,7 +6625,7 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 			if (ex.u.infix.k === ks_enum.EQU || ex.u.infix.k === ks_enum.AMP2EQU ||
 				ex.u.infix.k === ks_enum.PIPE2EQU || mutop !== op_enum.INVALID){
 				lvp_st lp = lval_prepare(pgen, ex.u.infix.left);
-				if (lp.type === LVP_ERROR)
+				if (!lp.ok)
 					return per_error(lp.u.error.flp, lp.u.error.msg);
 
 				if (ex.u.infix.k === ks_enum.AMP2EQU || ex.u.infix.k === ks_enum.PIPE2EQU){
@@ -6776,14 +6633,14 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 
 					per_st pe = program_lvalCheckNil(pgen, lp.u.lv, ex.u.infix.k === ks_enum.AMP2EQU,
 						false, skip);
-					if (pe.type === PER_ERROR){
+					if (!pe.ok){
 						lvr_free(lp.u.lv);
 						label_free(skip);
 						return pe;
 					}
 
-					pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex.u.infix.right);
-					if (pe.type === PER_ERROR){
+					pe = program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.u.infix.right);
+					if (!pe.ok){
 						lvr_free(lp.u.lv);
 						label_free(skip);
 						return pe;
@@ -6791,13 +6648,13 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 
 					pe = program_lvalCondAssign(pgen, lp.u.lv, ex.u.infix.k === ks_enum.AMP2EQU,
 						pe.u.vlc);
-					if (pe.type === PER_ERROR){
+					if (!pe.ok){
 						lvr_free(lp.u.lv);
 						label_free(skip);
 						return pe;
 					}
 
-					if (mode === PEM_EMPTY){
+					if (mode === pem_enum.EMPTY){
 						label_declare(skip, prg.ops);
 						lval_clearTemps(lp.u.lv, sym);
 						lvr_free(lp.u.lv);
@@ -6807,9 +6664,9 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 
 					label_declare(skip, prg.ops);
 
-					if (mode === PEM_CREATE){
+					if (mode === pem_enum.CREATE){
 						sta_st ts = symtbl_addTemp(sym);
-						if (ts.type === STA_ERROR){
+						if (!ts.ok){
 							lvr_free(lp.u.lv);
 							label_free(skip);
 							return per_error(ex.flp, ts.u.msg);
@@ -6817,8 +6674,8 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 						intoVlc = ts.u.vlc;
 					}
 
-					per_st ple = program_lvalGet(pgen, PLM_INTO, intoVlc, lp.u.lv);
-					if (ple.type === PER_ERROR){
+					per_st ple = program_lvalGet(pgen, plm_enum.INTO, intoVlc, lp.u.lv);
+					if (!ple.ok){
 						lvr_free(lp.u.lv);
 						label_free(skip);
 						return ple;
@@ -6831,19 +6688,19 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 				}
 
 				// special handling for basic variable assignment to avoid a temporary
-				if (ex.u.infix.k === ks_enum.EQU && lp.u.lv.type === LVR_VAR){
-					per_st pe = program_eval(pgen, PEM_INTO, lp.u.lv.vlc, ex.u.infix.right);
-					if (pe.type === PER_ERROR){
+				if (ex.u.infix.k === ks_enum.EQU && lp.u.lv.type === lvr_enum.VAR){
+					per_st pe = program_eval(pgen, pem_enum.INTO, lp.u.lv.vlc, ex.u.infix.right);
+					if (!pe.ok){
 						lvr_free(lp.u.lv);
 						return pe;
 					}
-					if (mode === PEM_EMPTY){
+					if (mode === pem_enum.EMPTY){
 						lvr_free(lp.u.lv);
 						return per_ok(VARLOC_NULL);
 					}
-					else if (mode === PEM_CREATE){
+					else if (mode === pem_enum.CREATE){
 						sta_st ts = symtbl_addTemp(sym);
-						if (ts.type === STA_ERROR){
+						if (!ts.ok){
 							lvr_free(lp.u.lv);
 							return per_error(ex.flp, ts.u.msg);
 						}
@@ -6854,8 +6711,8 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 					return per_ok(intoVlc);
 				}
 
-				per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex.u.infix.right);
-				if (pe.type === PER_ERROR){
+				per_st pe = program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.u.infix.right);
+				if (!pe.ok){
 					lvr_free(lp.u.lv);
 					return pe;
 				}
@@ -6864,21 +6721,21 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 				return pe;
 			}
 
-			if (mode === PEM_EMPTY || mode === PEM_CREATE){
+			if (mode === pem_enum.EMPTY || mode === pem_enum.CREATE){
 				sta_st ts = symtbl_addTemp(sym);
-				if (ts.type === STA_ERROR)
+				if (!ts.ok)
 					return per_error(ex.flp, ts.u.msg);
 				intoVlc = ts.u.vlc;
 			}
 
 			op_enum binop = ks_toBinaryOp(ex.u.infix.k);
 			if (binop !== op_enum.INVALID){
-				per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex.u.infix.left);
-				if (pe.type === PER_ERROR)
+				per_st pe = program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.u.infix.left);
+				if (!pe.ok)
 					return pe;
 				varloc_st left = pe.u.vlc;
-				pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex.u.infix.right);
-				if (pe.type === PER_ERROR)
+				pe = program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.u.infix.right);
+				if (!pe.ok)
 					return pe;
 				program_flp(prg, ex.flp);
 				op_binop(prg.ops, binop, intoVlc, left, pe.u.vlc);
@@ -6886,8 +6743,8 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 				symtbl_clearTemp(sym, pe.u.vlc);
 			}
 			else if (ex.u.infix.k === ks_enum.AMP2 || ex.u.infix.k === ks_enum.PIPE2){
-				per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex.u.infix.left);
-				if (pe.type === PER_ERROR)
+				per_st pe = program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.u.infix.left);
+				if (!pe.ok)
 					return pe;
 				varloc_st left = pe.u.vlc;
 				label useleft = label_newstr("useleft");
@@ -6895,8 +6752,8 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 					label_jumpfalse(useleft, prg.ops, left);
 				else
 					label_jumptrue(useleft, prg.ops, left);
-				pe = program_eval(pgen, PEM_INTO, intoVlc, ex.u.infix.right);
-				if (pe.type === PER_ERROR){
+				pe = program_eval(pgen, pem_enum.INTO, intoVlc, ex.u.infix.right);
+				if (!pe.ok){
 					label_free(useleft);
 					return pe;
 				}
@@ -6912,7 +6769,7 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 			else
 				return per_error(ex.flp, format("Invalid operation"));
 
-			if (mode === PEM_EMPTY){
+			if (mode === pem_enum.EMPTY){
 				symtbl_clearTemp(sym, intoVlc);
 				return per_ok(VARLOC_NULL);
 			}
@@ -6929,29 +6786,29 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 		} break;
 
 		case expr_enum.INDEX: {
-			if (mode === PEM_EMPTY){
-				per_st pe = program_eval(pgen, PEM_EMPTY, VARLOC_NULL, ex.u.index.obj);
-				if (pe.type === PER_ERROR)
+			if (mode === pem_enum.EMPTY){
+				per_st pe = program_eval(pgen, pem_enum.EMPTY, VARLOC_NULL, ex.u.index.obj);
+				if (!pe.ok)
 					return pe;
-				pe = program_eval(pgen, PEM_EMPTY, VARLOC_NULL, ex.u.index.key);
-				if (pe.type === PER_ERROR)
+				pe = program_eval(pgen, pem_enum.EMPTY, VARLOC_NULL, ex.u.index.key);
+				if (!pe.ok)
 					return pe;
 				return per_ok(VARLOC_NULL);
 			}
-			else if (mode === PEM_CREATE){
+			else if (mode === pem_enum.CREATE){
 				sta_st ts = symtbl_addTemp(sym);
-				if (ts.type === STA_ERROR)
+				if (!ts.ok)
 					return per_error(ex.flp, ts.u.msg);
 				intoVlc = ts.u.vlc;
 			}
 
-			per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex.u.index.obj);
-			if (pe.type === PER_ERROR)
+			per_st pe = program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.u.index.obj);
+			if (!pe.ok)
 				return pe;
 			varloc_st obj = pe.u.vlc;
 
-			pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex.u.index.key);
-			if (pe.type === PER_ERROR)
+			pe = program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.u.index.key);
+			if (!pe.ok)
 				return pe;
 			varloc_st key = pe.u.vlc;
 
@@ -6962,27 +6819,27 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 		} break;
 
 		case expr_enum.SLICE: {
-			if (mode === PEM_EMPTY || mode === PEM_CREATE){
+			if (mode === pem_enum.EMPTY || mode === pem_enum.CREATE){
 				sta_st ts = symtbl_addTemp(sym);
-				if (ts.type === STA_ERROR)
+				if (!ts.ok)
 					return per_error(ex.flp, ts.u.msg);
 				intoVlc = ts.u.vlc;
 			}
 
-			per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex.u.slice.obj);
-			if (pe.type === PER_ERROR)
+			per_st pe = program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.u.slice.obj);
+			if (!pe.ok)
 				return pe;
 			varloc_st obj = pe.u.vlc;
 
 			psr_st sr = program_slice(pgen, ex);
-			if (sr.type === PSR_ERROR)
+			if (!sr.ok)
 				return per_error(sr.u.error.flp, sr.u.error.msg);
 
 			op_slice(prg.ops, intoVlc, obj, sr.u.ok.start, sr.u.ok.len);
 			symtbl_clearTemp(sym, obj);
 			symtbl_clearTemp(sym, sr.u.ok.start);
 			symtbl_clearTemp(sym, sr.u.ok.len);
-			if (mode === PEM_EMPTY){
+			if (mode === pem_enum.EMPTY){
 				symtbl_clearTemp(sym, intoVlc);
 				return per_ok(VARLOC_NULL);
 			}
@@ -7191,7 +7048,7 @@ typedef struct {
 static inline pfvs_res_st program_forVarsSingle(symtbl sym, bool forVar, list_ptr names){
 	if (names === NULL || forVar){
 		sta_st ts = names === NULL ? symtbl_addTemp(sym) : symtbl_addVar(sym, names, -1);
-		if (ts.type === STA_ERROR)
+		if (!ts.ok)
 			return (pfvs_res_st){ .vlc = VARLOC_NULL, .err = ts.u.msg };
 		return (pfvs_res_st){ .vlc = ts.u.vlc, .err = NULL };
 	}
@@ -7233,7 +7090,7 @@ static pgr_st program_genForRange(pgen_st pgen, ast stmt, varloc_st p1, varloc_s
 		zerostart = true;
 		p2 = p1;
 		sta_st ts = symtbl_addTemp(sym);
-		if (ts.type === STA_ERROR)
+		if (!ts.ok)
 			return pgr_error(stmt.flp, ts.u.msg);
 		p1 = ts.u.vlc;
 		op_numint(prg.ops, p1, 0);
@@ -7260,7 +7117,7 @@ static pgr_st program_genForRange(pgen_st pgen, ast stmt, varloc_st p1, varloc_s
 	label finish = label_newstr("forR_finish");
 
 	sta_st ts = symtbl_addTemp(sym);
-	if (ts.type === STA_ERROR){
+	if (!ts.ok){
 		label_free(top);
 		label_free(inc);
 		label_free(finish);
@@ -7297,8 +7154,8 @@ static pgr_st program_genForRange(pgen_st pgen, ast stmt, varloc_st p1, varloc_s
 static pgr_st program_genForGeneric(pgen_st pgen, ast stmt){
 	program prg = pgen.prg;
 	symtbl sym = pgen.sym;
-	per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, stmt.u.for1.ex);
-	if (pe.type === PER_ERROR)
+	per_st pe = program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, stmt.u.for1.ex);
+	if (!pe.ok)
 		return pgr_error(pe.u.error.flp, pe.u.error.msg);
 
 	symtbl_pushScope(sym);
@@ -7319,7 +7176,7 @@ static pgr_st program_genForGeneric(pgen_st pgen, ast stmt){
 	label finish = label_newstr("forG_finish");
 
 	sta_st ts = symtbl_addTemp(sym);
-	if (ts.type === STA_ERROR){
+	if (!ts.ok){
 		label_free(top);
 		label_free(inc);
 		label_free(finish);
@@ -7445,8 +7302,8 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 					if (ex.u.infix.right !== NULL){
 						label argset = label_newstr("argset");
 						label_jumptrue(argset, prg.ops, arg);
-						per_st pr = program_eval(pgen, PEM_INTO, arg, ex.u.infix.right);
-						if (pr.type === PER_ERROR){
+						per_st pr = program_eval(pgen, pem_enum.INTO, arg, ex.u.infix.right);
+						if (!pr.ok){
 							label_free(skip);
 							label_free(argset);
 							return pgr_error(pr.u.error.flp, pr.u.error.msg);
@@ -7457,27 +7314,27 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 
 					// now we can add the param symbols
 					lvp_st lr = lval_addVars(sym, ex.u.infix.left, i);
-					if (lr.type === LVP_ERROR){
+					if (!lr.ok){
 						label_free(skip);
 						return pgr_error(lr.u.error.flp, lr.u.error.msg);
 					}
 
 					// move argument into lval(s)
-					per_st pe = program_evalLval(pgen, PEM_EMPTY, VARLOC_NULL, lr.u.lv,
+					per_st pe = program_evalLval(pgen, pem_enum.EMPTY, VARLOC_NULL, lr.u.lv,
 						op_enum.INVALID, arg, true);
 					lvr_free(lr.u.lv);
-					if (pe.type === PER_ERROR){
+					if (!pe.ok){
 						label_free(skip);
 						return pgr_error(pe.u.error.flp, pe.u.error.msg);
 					}
 				}
 				else if (i === lvs - 1 && ex.type === expr_enum.PREFIX && ex.u.prefix.k === ks_enum.PERIOD3){
 					lvp_st lr = lval_addVars(sym, ex.u.prefix.ex, i);
-					if (lr.type === LVP_ERROR){
+					if (!lr.ok){
 						label_free(skip);
 						return pgr_error(lr.u.error.flp, lr.u.error.msg);
 					}
-					assert(lr.u.lv.type === LVR_VAR);
+					assert(lr.u.lv.type === lvr_enum.VAR);
 					lvr_free(lr.u.lv);
 				}
 				else
@@ -7514,8 +7371,8 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 			label_declare(pst.cond, prg.ops);
 			if (stmt.u.cond){
 				// do while end
-				per_st pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, stmt.u.cond);
-				if (pe.type === PER_ERROR)
+				per_st pe = program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, stmt.u.cond);
+				if (!pe.ok)
 					return pgr_error(pe.u.error.flp, pe.u.error.msg);
 				label_jumpfalse(pst.finish, prg.ops, pe.u.vlc);
 				symtbl_clearTemp(sym, pe.u.vlc);
@@ -7578,26 +7435,26 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 						varloc_st rp[3] = { VARLOC_NULL, VARLOC_NULL, VARLOC_NULL };
 						if (p.type !== expr_enum.GROUP){
 							sta_st ts = symtbl_addTemp(sym);
-							if (ts.type === STA_ERROR)
+							if (!ts.ok)
 								return pgr_error(stmt.flp, ts.u.msg);
 							rp[0] = ts.u.vlc;
-							per_st pe = program_eval(pgen, PEM_INTO, rp[0], p);
-							if (pe.type === PER_ERROR)
+							per_st pe = program_eval(pgen, pem_enum.INTO, rp[0], p);
+							if (!pe.ok)
 								return pgr_error(pe.u.error.flp, pe.u.error.msg);
 						}
 						else{
 							for (int i = 0; i < p.u.group.size; i++){
 								if (i < 3){
 									sta_st ts = symtbl_addTemp(sym);
-									if (ts.type === STA_ERROR)
+									if (!ts.ok)
 										return pgr_error(stmt.flp, ts.u.msg);
 									rp[i] = ts.u.vlc;
 								}
 								per_st pe = program_eval(pgen,
-									i < 3 ? PEM_INTO : PEM_EMPTY,
+									i < 3 ? pem_enum.INTO : pem_enum.EMPTY,
 									i < 3 ? rp[i] : VARLOC_NULL,
 									p.u.group.ptrs[i]);
-								if (pe.type === PER_ERROR)
+								if (!pe.ok)
 									return pgr_error(pe.u.error.flp, pe.u.error.msg);
 							}
 						}
@@ -7679,8 +7536,8 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 				label_free(pst.nextcond);
 			}
 			pst.nextcond = label_newstr("nextcond");
-			per_st pr = program_eval(pgen, PEM_CREATE, VARLOC_NULL, stmt.u.cond);
-			if (pr.type === PER_ERROR)
+			per_st pr = program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, stmt.u.cond);
+			if (!pr.ok)
 				return pgr_error(pr.u.error.flp, pr.u.error.msg);
 
 			label_jumpfalse(pst.nextcond, prg.ops, pr.u.vlc);
@@ -7763,8 +7620,8 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 				return pgr_ok();
 			}
 
-			per_st pr = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex);
-			if (pr.type === PER_ERROR)
+			per_st pr = program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex);
+			if (!pr.ok)
 				return pgr_error(pr.u.error.flp, pr.u.error.msg);
 			symtbl_clearTemp(sym, pr.u.vlc);
 			op_return(prg.ops, pr.u.vlc);
@@ -7797,18 +7654,18 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 				assert(ex.type === expr_enum.INFIX);
 				per_st pr;
 				if (ex.u.infix.right !== NULL){
-					pr = program_eval(pgen, PEM_CREATE, VARLOC_NULL, ex.u.infix.right);
-					if (pr.type === PER_ERROR)
+					pr = program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.u.infix.right);
+					if (!pr.ok)
 						return pgr_error(pr.u.error.flp, pr.u.error.msg);
 				}
 				lvp_st lr = lval_addVars(sym, ex.u.infix.left, -1);
-				if (lr.type === LVP_ERROR)
+				if (!lr.ok)
 					return pgr_error(lr.u.error.flp, lr.u.error.msg);
 				if (ex.u.infix.right !== NULL){
-					per_st pe = program_evalLval(pgen, PEM_EMPTY, VARLOC_NULL, lr.u.lv,
+					per_st pe = program_evalLval(pgen, pem_enum.EMPTY, VARLOC_NULL, lr.u.lv,
 						op_enum.INVALID, pr.u.vlc, true);
 					lvr_free(lr.u.lv);
-					if (pe.type === PER_ERROR)
+					if (!pe.ok)
 						return pgr_error(pe.u.error.flp, pe.u.error.msg);
 					symtbl_clearTemp(sym, pr.u.vlc);
 				}
@@ -7820,11 +7677,11 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 
 		case AST_EVAL: {
 			if (sayexpr){
-				per_st pr = program_eval(pgen, PEM_CREATE, VARLOC_NULL, stmt.u.ex);
-				if (pr.type === PER_ERROR)
+				per_st pr = program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, stmt.u.ex);
+				if (!pr.ok)
 					return pgr_error(pr.u.error.flp, pr.u.error.msg);
 				sta_st ts = symtbl_addTemp(sym);
-				if (ts.type === STA_ERROR)
+				if (!ts.ok)
 					return pgr_error(stmt.flp, ts.u.msg);
 				op_parama(prg.ops, op_enum.SAY, ts.u.vlc, 1);
 				op_arg(prg.ops, pr.u.vlc);
@@ -7832,8 +7689,8 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 				symtbl_clearTemp(sym, ts.u.vlc);
 			}
 			else{
-				per_st pr = program_eval(pgen, PEM_EMPTY, VARLOC_NULL, stmt.u.ex);
-				if (pr.type === PER_ERROR)
+				per_st pr = program_eval(pgen, pem_enum.EMPTY, VARLOC_NULL, stmt.u.ex);
+				if (!pr.ok)
 					return pgr_error(pr.u.error.flp, pr.u.error.msg);
 			}
 			return pgr_ok();
