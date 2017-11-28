@@ -45,14 +45,14 @@ export type sink_fsread_f = (scr: sink_scr, file: string, incuser: any) =>
 	boolean | Promise<boolean>;
 export type sink_dump_f = (data: string, dumpuser: any) => boolean | Promise<boolean>;
 
-export interface sink_io {
+export interface sink_io_st {
 	f_say: sink_output_f;
 	f_warn: sink_output_f;
 	f_ask: sink_input_f;
 	user: any;
 }
 
-export interface sink_inc {
+export interface sink_inc_st {
 	f_fstype: sink_fstype_f;
 	f_fsread: sink_fsread_f;
 	user: any;
@@ -4848,68 +4848,69 @@ function symtbl_loadStdlib(sym: symtbl_st): void {
 		SAC(sym, 'run'       , op_enum.GC_RUN         ,  0);
 	symtbl_popNamespace(sym);
 }
-/*
+
 //
 // structures
 //
 
-typedef struct {
-	list_ptr strTable;
-	list_u64 keyTable;
-	list_ptr debugTable;
-	list_ptr posTable;
-	list_ptr cmdTable;
-	list_byte ops;
-	bool repl;
-} program_st, *program;
+interface program_st {
+	strTable: string[];
+	keyTable: sink_u64[];
+	debugTable: string[];
+	posTable: prgflp_st[];
+	cmdTable: prgch_st[];
+	ops: number[];
+	repl: boolean;
+}
 
-typedef struct {
-	enum {
-		BIS_HEADER,
-		BIS_STR_HEAD,
-		BIS_STR_BODY,
-		BIS_KEY,
-		BIS_DEBUG_HEAD,
-		BIS_DEBUG_BODY,
-		BIS_POS,
-		BIS_CMD,
-		BIS_OPS,
-		BIS_DONE
-	} state;
-	int str_size; // strTable
-	int key_size; // keyTable
-	int dbg_size; // debugTable
-	int pos_size; // posTable
-	int cmd_size; // cmdTable
-	int ops_size; // ops
-	int left; // size left to read
-	int item; // item count for the various tables
-	list_byte buf;
-} binstate_st;
+enum bis_enum {
+	HEADER,
+	STR_HEAD,
+	STR_BODY,
+	KEY,
+	DEBUG_HEAD,
+	DEBUG_BODY,
+	POS,
+	CMD,
+	OPS,
+	DONE
+}
 
-typedef struct compiler_struct compiler_st, *compiler;
-typedef struct staticinc_struct staticinc_st, *staticinc;
-typedef struct {
-	program prg;
-	compiler cmp;
-	staticinc sinc;
-	cleanup cup;
-	list_ptr files;
-	list_ptr paths;
-	sink_inc_st inc;
-	list_byte capture_write;
-	char *curdir;
-	char *file;
-	char *err;
-	enum {
-		SCM_UNKNOWN,
-		SCM_BINARY,
-		SCM_TEXT
-	} mode;
-	binstate_st binstate;
-} script_st, *script;
-*/
-export interface sink_scr {
+interface binstate_st {
+	state: bis_enum;
+	str_size: number; // strTable
+	key_size: number; // keyTable
+	dbg_size: number; // debugTable
+	pos_size: number; // posTable
+	cmd_size: number; // cmdTable
+	ops_size: number; // ops
+	left: number; // size left to read
+	item: number; // item count for the various tables
+	buf: string;
+}
+
+enum scriptmode_enum {
+	UNKNOWN,
+	BINARY,
+	TEXT
+}
+
+interface script_st {
+	prg: program_st;
+	cmp: compiler_st;
+	sinc: staticinc_st;
+	files: string[];
+	paths: string[];
+	inc: sink_inc_st;
+	capture_write: string;
+	curdir: string;
+	file: string;
+	err: string;
+	mode: scriptmode_enum;
+	binstate: binstate_st;
+}
+
+export interface sink_scr { // TODO: how to do this in ts?
 }
 /*
 //
@@ -5296,12 +5297,12 @@ static bool program_validate(program prg){
 	mem_free(op_need);
 	return false;
 }
-
-typedef struct {
-	int32_t pc;
-	filepos_st flp;
-} prgflp_st, *prgflp;
-
+*/
+interface prgflp_st {
+	pc: number;
+	flp: filepos_st;
+}
+/*
 static inline void program_flp(program prg, filepos_st flp){
 	int i = prg.posTable.size - 1;
 	if (i >= 0){
@@ -5326,12 +5327,12 @@ static inline void program_flp(program prg, filepos_st flp){
 	#endif
 	list_ptr_push(prg.posTable, p);
 }
-
-typedef struct {
-	int32_t pc;
-	int32_t cmdhint;
-} prgch_st, *prgch;
-
+*/
+interface prgch_st {
+	pc: number;
+	cmdhint: number;
+}
+/*
 static inline void program_cmdhint(program prg, list_ptr names){
 	char *hint = NULL;
 	if (names){
@@ -7027,12 +7028,9 @@ static pen_st program_exprToNum(pgen_st pgen, expr ex){
 	}
 	return pen_err(format("Enums must be a constant number"));
 }
-
-typedef struct {
-	void *state;
-	sink_free_f f_free;
-} pgst_st, *pgst;
-
+*/
+type pgst_st = any;
+/*
 static inline void pgst_free(pgst pgs){
 	if (pgs.f_free)
 		pgs.f_free(pgs.state);
@@ -13330,18 +13328,17 @@ static sink_run context_run(context ctx){
 //
 // compiler
 //
-
-typedef struct filepos_node_struct filepos_node_st, *filepos_node;
-struct filepos_node_struct {
-	lex lx;
-	list_ptr tks;
-	list_ptr stmts;
-	list_ptr pgstate;
-	filepos_node next;
-	filepos_st flp;
-	bool wascr;
-};
-
+*/
+interface filepos_node_st {
+	lx: lex_st;
+	tks: tok_st[];
+	stmts: ast_st[];
+	pgstate: pgst_st[];
+	next: filepos_node_st | null;
+	flp: filepos_st;
+	wascr: boolean;
+}
+/*
 static filepos_node flpn_new(int fullfile, int basefile, filepos_node next){
 	filepos_node flpn = mem_alloc(sizeof(filepos_node_st));
 	flpn.lx = lex_new();
@@ -13362,13 +13359,13 @@ static void flpn_free(filepos_node flpn){
 	list_ptr_free(flpn.pgstate);
 	mem_free(flpn);
 }
-
-struct staticinc_struct {
-	list_ptr name;
-	list_byte type; // 0 = body, 1 = file
-	list_ptr content;
-};
-
+*/
+interface staticinc_st {
+	name: string[];
+	type: number[]; // 0 = body, 1 = file
+	content: string[];
+}
+/*
 static inline staticinc staticinc_new(){
 	staticinc sinc = mem_alloc(sizeof(staticinc_st));
 	sinc.name = list_ptr_new(NULL);
@@ -13395,19 +13392,19 @@ static inline void staticinc_free(staticinc sinc){
 	list_ptr_free(sinc.content);
 	mem_free(sinc);
 }
-
-struct compiler_struct {
-	staticinc sinc;
-	parser pr;
-	script scr; // not freed by compiler_free
-	program prg; // not freed by compiler_free
-	list_ptr paths; // not freed by compiler_free
-	symtbl sym;
-	filepos_node flpn;
-	sink_inc_st inc;
-	char *msg;
-};
-
+*/
+interface compiler_st {
+	sinc: staticinc_st;
+	pr: parser_st;
+	scr: script_st;
+	prg: program_st;
+	paths: string[];
+	sym: symtbl_st;
+	flpn: filepos_node_st;
+	inc: sink_inc_st;
+	msg: string;
+}
+/*
 static inline int script_addfile(script scr, const char *file);
 
 static compiler compiler_new(script scr, program prg, staticinc sinc, sink_inc_st inc,
