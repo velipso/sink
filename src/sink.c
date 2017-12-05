@@ -7124,7 +7124,7 @@ static void embed_end(bool success, const char *file, efu_st *efu){
 }
 
 typedef struct {
-	bool success;
+	bool ok;
 	union {
 		double value;
 		char *msg;
@@ -7132,11 +7132,11 @@ typedef struct {
 } pen_st;
 
 static inline pen_st pen_ok(double value){
-	return (pen_st){ .success = true, .u.value = value };
+	return (pen_st){ .ok = true, .u.value = value };
 }
 
-static inline pen_st pen_err(char *msg){
-	return (pen_st){ .success = false, .u.msg = msg };
+static inline pen_st pen_error(char *msg){
+	return (pen_st){ .ok = false, .u.msg = msg };
 }
 
 static pen_st program_exprToNum(pgen_st pgen, expr ex);
@@ -7236,7 +7236,7 @@ static per_st program_evalCall(pgen_st pgen, pem_enum mode, varloc_st intoVlc,
 				ex = ex->u.ex;
 			if (ex->type == EXPR_STR){
 				pen_st p = program_exprToNum(pgen, ex2);
-				if (p.success){
+				if (p.ok){
 					str = ex->u.str;
 					seed = p.u.value;
 				}
@@ -8004,7 +8004,8 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 					return pe;
 				return per_ok(VARLOC_NULL);
 			}
-			else if (mode == PEM_CREATE){
+
+			if (mode == PEM_CREATE){
 				sta_st ts = symtbl_addTemp(sym);
 				if (!ts.ok)
 					return per_error(ex->flp, ts.u.msg);
@@ -8065,7 +8066,7 @@ static pen_st program_exprToNum(pgen_st pgen, expr ex){
 	else if (ex->type == EXPR_NAMES){
 		stl_st sl = symtbl_lookup(pgen.sym, ex->u.names);
 		if (!sl.ok)
-			return pen_err(sl.u.msg);
+			return pen_error(sl.u.msg);
 		if (sl.u.nsn->type == NSN_ENUM)
 			return pen_ok(sl.u.nsn->u.val);
 	}
@@ -8073,16 +8074,16 @@ static pen_st program_exprToNum(pgen_st pgen, expr ex){
 		return program_exprToNum(pgen, ex->u.ex);
 	else if (ex->type == EXPR_PREFIX){
 		pen_st n = program_exprToNum(pgen, ex->u.prefix.ex);
-		if (n.success && ks_toUnaryOp(ex->u.prefix.k) == OP_NUM_NEG)
+		if (n.ok && ks_toUnaryOp(ex->u.prefix.k) == OP_NUM_NEG)
 			return pen_ok(-n.u.value);
 		return n;
 	}
 	else if (ex->type == EXPR_INFIX){
 		pen_st n1 = program_exprToNum(pgen, ex->u.infix.left);
-		if (!n1.success)
+		if (!n1.ok)
 			return n1;
 		pen_st n2 = program_exprToNum(pgen, ex->u.infix.right);
-		if (!n2.success)
+		if (!n2.ok)
 			return n2;
 		op_enum binop = ks_toBinaryOp(ex->u.infix.k);
 		if      (binop == OP_NUM_ADD) return pen_ok(n1.u.value + n2.u.value);
@@ -8092,7 +8093,7 @@ static pen_st program_exprToNum(pgen_st pgen, expr ex){
 		else if (binop == OP_NUM_DIV) return pen_ok(n1.u.value / n2.u.value);
 		else if (binop == OP_NUM_POW) return pen_ok(pow(n1.u.value, n2.u.value));
 	}
-	return pen_err(format("Enums must be a constant number"));
+	return pen_error(format("Enums must be a constant number"));
 }
 
 typedef struct {
@@ -8617,7 +8618,7 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 				double v = last_val + 1;
 				if (ex->u.infix.right != NULL){
 					pen_st n = program_exprToNum(pgen, ex->u.infix.right);
-					if (!n.success)
+					if (!n.ok)
 						return pgr_error(stmt->flp, n.u.msg);
 					v = n.u.value;
 				}
