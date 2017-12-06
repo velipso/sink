@@ -27,6 +27,9 @@ export class sink_list extends Array<sink_val> {
 
 export type sink_u64 = [number, number]; // uint64_t is stored as two 32-bit numbers
 
+export type sink_ctx = any;
+export type sink_scr = any;
+
 export enum sink_fstype {
 	NONE,
 	FILE,
@@ -4910,9 +4913,6 @@ interface script_st {
 	binstate: binstate_st;
 }
 
-export interface sink_scr { // TODO: how to do this in ts?
-}
-
 //
 // pathjoin
 //
@@ -7953,7 +7953,7 @@ function program_gen(pgen: pgen_st, stmt: ast_st, state: pgst_st,
 	}
 	throw new Error('Invalid AST type');
 }
-/*
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 //
 // runtime
@@ -7961,209 +7961,94 @@ function program_gen(pgen: pgen_st, stmt: ast_st, state: pgst_st,
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 //
-// values
-//
-
-static inline void bmp_setbit(uint64_t *bmp, int index){
-	bmp[index / 64] |= UINT64_C(1) << (index % 64);
-}
-
-static inline bool bmp_hassetbit(uint64_t *bmp, int index){
-	int k = index / 64;
-	uint64_t mask = UINT64_C(1) << (index % 64);
-	if (bmp[k] & mask)
-		return true;
-	bmp[k] |= mask;
-	return false;
-}
-
-static inline int bmp_alloc(uint64_t *bmp, int count){
-	// search for the first 0 bit, flip it to 1, then return the position
-	// return -1 if nothing found
-	int loop = 0;
-	while (count > 0){
-		if (*bmp === UINT64_C(0xFFFFFFFFFFFFFFFF)){
-			loop++;
-			count -= 64;
-			bmp++;
-			continue;
-		}
-
-	#ifdef BITSCAN_FFSLL
-		int pos = ffsll(~*bmp) - 1;
-		*bmp |= UINT64_C(1) << pos;
-		return loop * 64 + pos;
-	#else
-	#	error Don't know how to implement bmp_alloc
-	#endif
-
-	}
-	return -1;
-}
-
-static int bmp_reserve(void **tbl, int *size, uint64_t **aloc, uint64_t **ref, size_t st_size){
-	int index = bmp_alloc(*aloc, *size);
-	if (index >= 0)
-		return index;
-	if (*size >= 0x3FFFFFFF){
-		fprintf(stderr, "Out of memory!\n");
-		exit(1);
-		return -1;
-	}
-	int new_count = *size * 2;
-	*tbl = mem_realloc(*tbl, st_size * new_count);
-	*aloc = mem_realloc(*aloc, sizeof(uint64_t) * (new_count / 64));
-	memset(&(*aloc)[*size / 64], 0, sizeof(uint64_t) * (*size / 64));
-	*ref = mem_realloc(*ref, sizeof(uint64_t) * (new_count / 64));
-	memset(&(*ref)[*size / 64], 0, sizeof(uint64_t) * *size / 64);
-	*size = new_count;
-	(*aloc)[new_count / 128] |= 1;
-	return new_count / 2;
-}
-
-//
 // context
 //
 
-typedef struct {
-	int pc;
-	int frame;
-	int index;
-	int lex_index;
-} ccs_st, *ccs;
-
-static inline void ccs_free(ccs c){
-	mem_free(c);
+interface ccs_st {
+	pc: number;
+	frame: number;
+	index: number;
+	lex_index: number;
 }
 
-static inline ccs ccs_new(int pc, int frame, int index, int lex_index){
-	ccs c = mem_alloc(sizeof(ccs_st));
-	c.pc = pc;
-	c.frame = frame;
-	c.index = index;
-	c.lex_index = lex_index;
-	return c;
+function ccs_new(pc: number, frame: number, index: number, lex_index: number): ccs_st {
+	return { pc: pc, frame: frame, index: index, lex_index: lex_index };
 }
 
-typedef struct lxs_struct lxs_st, *lxs;
-struct lxs_struct {
-	sink_val vals[256];
-	lxs next;
-};
-
-static inline void lxs_free(lxs ls){
-	mem_free(ls);
+interface lxs_st {
+	vals: sink_val[];
+	next: lxs_st | null;
 }
 
-static void lxs_freeAll(lxs ls){
-	lxs here = ls;
-	while (here){
-		lxs del = here;
-		here = here.next;
-		lxs_free(del);
-	}
-}
-
-static inline lxs lxs_new(int argcount, sink_val *args, lxs next){
-	if (argcount > 256)
-		argcount = 256;
-	lxs ls = mem_alloc(sizeof(lxs_st));
-	if (argcount > 0)
-		memcpy(ls.vals, args, sizeof(sink_val) * argcount);
-	for (int i = argcount; i < 256; i++)
-		ls.vals[i] = SINK_NIL;
-	ls.next = next;
+function lxs_new(args: sink_val[], next: lxs_st | null){
+	let ls: lxs_st = { vals: args.concat(), next: next };
+	for (let i = args.length; i < 256; i++)
+		ls.vals.push(SINK_NIL);
 	return ls;
 }
 
-typedef struct {
-	void *natuser;
-	sink_native_f f_native;
-	uint64_t hash;
-} native_st, *native;
-
-static inline native native_new(uint64_t hash, void *natuser, sink_native_f f_native){
-	native nat = mem_alloc(sizeof(native_st));
-	nat.hash = hash;
-	nat.natuser = natuser;
-	nat.f_native = f_native;
-	return nat;
+interface native_st {
+	f_native: sink_native_f;
+	hash: sink_u64;
 }
 
-typedef struct {
-	void *user;
-	sink_free_f f_freeuser;
-	cleanup cup;
-	list_ptr natives;
-
-	program prg; // not freed by context_free
-	list_ptr call_stk;
-	list_ptr lex_stk;
-	list_ptr f_finalize;
-	list_ptr user_hint;
-	list_ptr ccs_avail;
-	list_ptr lxs_avail;
-
-	sink_io_st io;
-
-	sink_str_st *str_tbl;
-	sink_list_st *list_tbl;
-
-	uint64_t *str_aloc;
-	uint64_t *list_aloc;
-
-	uint64_t *str_ref;
-	uint64_t *list_ref;
-
-	sink_list_st pinned;
-
-	int lex_index;
-	int pc;
-	int lastpc;
-	int str_size;
-	int list_size;
-	int str_prealloc_size;
-	int str_prealloc_memset;
-	uint64_t str_prealloc_lastmask;
-	int timeout;
-	int timeout_left;
-	int async_frame;
-	int async_index;
-	int gc_left;
-	sink_gc_level gc_level;
-
-	uint32_t rand_seed;
-	uint32_t rand_i;
-
-	char *err;
-	bool passed;
-	bool failed;
-	bool async;
-} context_st, *context;
-*/
-export interface sink_ctx {
+function native_new(hash: sink_u64, f_native: sink_native_f): native_st {
+	return { hash: hash, f_native: f_native };
 }
-/*
-static inline lxs lxs_get(context ctx, int argcount, sink_val *args, lxs next){
-	if (ctx.lxs_avail.size > 0){
-		lxs ls = ctx.lxs_avail.ptrs[--ctx.lxs_avail.size];
-		if (argcount > 0)
-			memcpy(ls.vals, args, sizeof(sink_val) * argcount);
-		for (int i = argcount; i < 256; i++)
-			ls.vals[i] = SINK_NIL;
+
+interface context_st {
+	user: any;
+	natives: native_st[];
+
+	prg: program_st;
+	call_stk: ccs_st[];
+	lex_stk: lxs_st[];
+	user_hint: string[];
+	ccs_avail: ccs_st[];
+	lxs_avail: lxs_st[];
+
+	io: sink_io_st;
+
+	lex_index: number;
+	pc: number;
+	lastpc: number;
+	timeout: number;
+	timeout_left: number;
+
+	rand_seed: number;
+	rand_i: number;
+
+	err: string | null;
+	passed: boolean;
+	failed: boolean;
+	async: boolean;
+}
+
+function lxs_get(ctx: context_st, args: sink_val[], next: lxs_st | null): lxs_st {
+	// TODO: speed test to see if lxs_avail is a speed boost
+	if (ctx.lxs_avail.length > 0){
+		let ls = ctx.lxs_avail.pop();
+		if (typeof ls === 'undefined')
+			throw new Error('No lxs structures available');
+		ls.vals = args.concat();
+		for (let i = args.length; i < 256; i++)
+			ls.vals.push(SINK_NIL);
 		ls.next = next;
 		return ls;
 	}
-	return lxs_new(argcount, args, next);
+	return lxs_new(args, next);
 }
 
-static inline void lxs_release(context ctx, lxs ls){
-	list_ptr_push(ctx.lxs_avail, ls);
+function lxs_release(ctx: context_st, ls: lxs_st): void {
+	ctx.lxs_avail.push(ls);
 }
 
-static inline ccs ccs_get(context ctx, int pc, int frame, int index, int lex_index){
-	if (ctx.ccs_avail.size > 0){
-		ccs c = ctx.ccs_avail.ptrs[--ctx.ccs_avail.size];
+function ccs_get(ctx: context_st, pc: number, frame: number, index: number,
+	lex_index: number): ccs_st {
+	if (ctx.ccs_avail.length > 0){
+		let c = ctx.ccs_avail.pop();
+		if (typeof c === 'undefined')
+			throw new Error('No ccs structures available');
 		c.pc = pc;
 		c.frame = frame;
 		c.index = index;
@@ -8173,293 +8058,65 @@ static inline ccs ccs_get(context ctx, int pc, int frame, int index, int lex_ind
 	return ccs_new(pc, frame, index, lex_index);
 }
 
-static inline void ccs_release(context ctx, ccs c){
-	list_ptr_push(ctx.ccs_avail, c);
+function ccs_release(ctx: context_st, c: ccs_st): void {
+	ctx.ccs_avail.push(c);
 }
 
-static inline void context_cleanup(context ctx, void *cuser, sink_free_f f_free){
-	cleanup_add(ctx.cup, cuser, f_free);
-}
-
-static inline sink_run opi_abortcstr(context ctx, const char *msg);
-
-static inline void context_native(context ctx, uint64_t hash, void *natuser,
-	sink_native_f f_native){
+function context_native(ctx: context_st, hash: sink_u64, f_native: sink_native_f): void {
 	if (ctx.prg.repl)
-		list_ptr_push(ctx.natives, native_new(hash, natuser, f_native));
+		ctx.natives.push(native_new(hash, f_native));
 	else{
-		for (int i = 0; i < ctx.natives.size; i++){
-			native nat = ctx.natives.ptrs[i];
+		for (let i = 0; i < ctx.natives.length; i++){
+			let nat = ctx.natives[i];
 			if (nat.hash === hash){
-				if (nat.f_native){
-					// already defined, hash collision
-					opi_abortcstr(ctx,
-						"Hash collision; cannot redefine native command "
-						"(did you call sink_ctx_native twice for the same command?)");
-					return;
-				}
-				nat.natuser = natuser;
-				nat.f_native = f_native;
+				// already defined, hash collision
+				// TODO: rewrite error message for JS
+				opi_abortcstr(ctx,
+					'Hash collision; cannot redefine native command ' +
+					'(did you call sink_ctx_native twice for the same command?)');
 				return;
 			}
 		}
 	}
 }
 
-typedef void (*sweepfree_f)(context ctx, int index);
-
-static void context_sweepfree_str(context ctx, int index){
-	if (ctx.str_tbl[index].bytes)
-		mem_free(ctx.str_tbl[index].bytes);
-}
-
-static void context_sweepfree_list(context ctx, int index){
-	sink_list ls = &ctx.list_tbl[index];
-	if (ls.usertype >= 0){
-		sink_free_f f_free = ctx.f_finalize.ptrs[ls.usertype];
-		if (f_free)
-			f_free(ls.user);
-	}
-	if (ls.vals)
-		mem_free(ls.vals);
-}
-
-static inline void context_sweephelp(context ctx, int size, uint64_t *aloc, uint64_t *ref,
-	sweepfree_f f_free){
-	int ms = size / 64;
-	for (int i = 0; i < ms; i++){
-		if (aloc[i] === ref[i])
-			continue;
-		int bi = 0;
-		for (uint64_t bit = 1; bit !== 0; bit <<= 1, bi++){
-			// if we're not allocated, or we are referenced, then skip
-			if ((aloc[i] & bit) === 0 || (ref[i] & bit) !== 0)
-				continue;
-			// otherwise, free
-			aloc[i] ^= bit;
-			f_free(ctx, i * 64 + bi);
-		}
-	}
-}
-
-static inline void context_sweep(context ctx){
-	context_sweephelp(ctx, ctx.str_size, ctx.str_aloc, ctx.str_ref, context_sweepfree_str);
-	context_sweephelp(ctx, ctx.list_size, ctx.list_aloc, ctx.list_ref, context_sweepfree_list);
-}
-
-static inline int var_index(sink_val v){
-	return (int)(v.u & UINT64_C(0x000000007FFFFFFF));
-}
-
-static void context_markvals(context ctx, int size, sink_val *vals){
-	for (int i = 0; i < size; i++){
-		if (sink_isstr(vals[i])){
-			int idx = var_index(vals[i]);
-			bmp_setbit(ctx.str_ref, idx);
-		}
-		else if (sink_islist(vals[i])){
-			int idx = var_index(vals[i]);
-			if (!bmp_hassetbit(ctx.list_ref, idx)){
-				sink_list ls = &ctx.list_tbl[idx];
-				context_markvals(ctx, ls.size, ls.vals);
-			}
-		}
-	}
-}
-
-static inline void context_clearref(context ctx){
-	memset(ctx.str_ref, 0, sizeof(uint64_t) * (ctx.str_size / 64));
-	memset(ctx.list_ref, 0, sizeof(uint64_t) * (ctx.list_size / 64));
-	// mark the string table since it isn't owned by the context
-	if (ctx.str_prealloc_memset > 0)
-		memset(ctx.str_ref, 0xFF, sizeof(uint64_t) * ctx.str_prealloc_memset);
-	ctx.str_ref[ctx.str_prealloc_memset] = ctx.str_prealloc_lastmask;
-}
-
-static inline void context_mark(context ctx){
-	context_markvals(ctx, ctx.pinned.size, ctx.pinned.vals);
-	for (int i = 0; i < ctx.lex_stk.size; i++){
-		lxs here = ctx.lex_stk.ptrs[i];
-		while (here){
-			context_markvals(ctx, 256, here.vals);
-			here = here.next;
-		}
-	}
-}
-
-static inline void context_gcleft(context ctx, bool set){
-	if (set){
-		if (ctx.gc_level === SINK_GC_DEFAULT)
-			ctx.gc_left = 10000;
-		else if (ctx.gc_level === SINK_GC_LOWMEM)
-			ctx.gc_left = 1000;
-	}
-	else{
-		if (ctx.gc_level === SINK_GC_DEFAULT){
-			if (ctx.gc_left > 10000)
-				ctx.gc_left = 10000;
-		}
-		else if (ctx.gc_level === SINK_GC_LOWMEM){
-			if (ctx.gc_left > 1000)
-				ctx.gc_left = 1000;
-		}
-	}
-}
-
-static inline void context_gc(context ctx){
-	context_clearref(ctx);
-	context_mark(ctx);
-	context_sweep(ctx);
-	context_gcleft(ctx, true);
-	ctx.timeout_left -= 100; // GC counts as 100 "ticks" I suppose
-}
-
-static const int sink_pin_grow = 50;
-static inline void context_gcpin(context ctx, sink_val v){
-	if (!sink_isstr(v) && !sink_islist(v))
-		return;
-	if (ctx.pinned.size >= ctx.pinned.count){
-		ctx.pinned.count += sink_pin_grow;
-		ctx.pinned.vals = mem_realloc(ctx.pinned.vals, sizeof(sink_val) * ctx.pinned.count);
-	}
-	ctx.pinned.vals[ctx.pinned.size++] = v;
-}
-
-static inline void context_gcunpin(context ctx, sink_val v){
-	if (!sink_isstr(v) && !sink_islist(v))
-		return;
-	// only remove the value once, even if it appears multiple times, so that the user can use
-	// pin/unpin as a stack-like operation
-	for (int i = 0; i < ctx.pinned.size; i++){
-		if (ctx.pinned.vals[i].u === v.u){
-			if (i < ctx.pinned.size - 1){
-				memmove(&ctx.pinned.vals[i], &ctx.pinned.vals[i + 1],
-					sizeof(sink_val) * (ctx.pinned.size - 1 - i));
-			}
-			ctx.pinned.size--;
-			return;
-		}
-	}
-}
-
-static inline void context_free(context ctx){
-	cleanup_free(ctx.cup);
-	if (ctx.user && ctx.f_freeuser)
-		ctx.f_freeuser(ctx.user);
-	list_ptr_free(ctx.natives);
-	context_clearref(ctx);
-	context_sweep(ctx);
-	list_ptr_free(ctx.ccs_avail);
-	list_ptr_free(ctx.lxs_avail);
-	list_ptr_free(ctx.call_stk);
-	list_ptr_free(ctx.lex_stk);
-	list_ptr_free(ctx.f_finalize);
-	list_ptr_free(ctx.user_hint);
-	if (ctx.err)
-		mem_free(ctx.err);
-	mem_free(ctx.list_tbl);
-	mem_free(ctx.str_tbl);
-	mem_free(ctx.list_aloc);
-	mem_free(ctx.str_aloc);
-	mem_free(ctx.list_ref);
-	mem_free(ctx.str_ref);
-	mem_free(ctx.pinned.vals);
-	mem_free(ctx);
-}
-
-static void opi_rand_seedauto(context ctx);
-
-static inline context context_new(program prg, sink_io_st io){
-	context ctx = mem_alloc(sizeof(context_st));
-	ctx.user = NULL;
-	ctx.f_freeuser = NULL;
-	ctx.cup = cleanup_new();
-	ctx.natives = list_ptr_new(mem_free_func);
-	ctx.call_stk = list_ptr_new(ccs_free);
-	ctx.lex_stk = list_ptr_new(lxs_freeAll);
-	list_ptr_push(ctx.lex_stk, lxs_new(0, NULL, NULL));
-	ctx.ccs_avail = list_ptr_new(ccs_free);
-	ctx.lxs_avail = list_ptr_new(lxs_free);
-	ctx.prg = prg;
-	ctx.f_finalize = list_ptr_new(NULL);
-	ctx.user_hint = list_ptr_new(NULL);
-
-	ctx.io = io;
-
-	if (prg.repl){
-		ctx.str_prealloc_size = 0;
-		ctx.str_size = 64;
-	}
-	else{
-		ctx.str_prealloc_size = ctx.prg.strTable.size;
-		ctx.str_size = ctx.str_prealloc_size + 64;
-		ctx.str_size += 64 - (ctx.str_size % 64); // round up to number divisible by 64
-		// if not a REPL, then natives can be built now
-		for (int i = 0; i < prg.keyTable.size; i++)
-			list_ptr_push(ctx.natives, native_new(prg.keyTable.vals[i], NULL, NULL));
-	}
-	ctx.list_size = 64;
-
-	ctx.str_tbl = mem_alloc(sizeof(sink_str_st) * ctx.str_size);
-	ctx.list_tbl = mem_alloc(sizeof(sink_list_st) * ctx.list_size);
-
-	ctx.str_aloc = mem_alloc(sizeof(uint64_t) * (ctx.str_size / 64));
-	memset(ctx.str_aloc, 0, sizeof(uint64_t) * (ctx.str_size / 64));
-	ctx.list_aloc = mem_alloc(sizeof(uint64_t) * (ctx.list_size / 64));
-	memset(ctx.list_aloc, 0, sizeof(uint64_t) * (ctx.list_size / 64));
-
-	ctx.str_ref = mem_alloc(sizeof(uint64_t) * (ctx.str_size / 64));
-	ctx.list_ref = mem_alloc(sizeof(uint64_t) * (ctx.list_size / 64));
-
-	ctx.pinned.size = 0;
-	ctx.pinned.count = 50;
-	ctx.pinned.vals = mem_alloc(sizeof(sink_val) * ctx.pinned.count);
-
-	ctx.lex_index = 0;
-	ctx.pc = 0;
-	ctx.timeout = 0;
-	ctx.timeout_left = 0;
-	ctx.gc_level = SINK_GC_DEFAULT;
-	ctx.rand_seed = 0;
-	ctx.rand_i = 0;
-
-	ctx.err = NULL;
-	ctx.passed = false;
-	ctx.failed = false;
-	ctx.async = false;
-
-	if (prg.repl){
-		ctx.str_prealloc_memset = 0;
-		ctx.str_prealloc_lastmask = 0;
-	}
-	else{
-		// reserve locations for the string table, such that string table index === var_index
-		for (int i = 0; i < ctx.prg.strTable.size; i++){
-			list_byte s = ctx.prg.strTable.ptrs[i];
-			sink_str_newblobgive(ctx, s.size, s.bytes);
-		}
-
-		// precalculate the values needed to mark the prealloc'ed string table quickly
-		ctx.str_prealloc_memset = ctx.str_prealloc_size / 64;
-		int str_left = ctx.str_prealloc_size % 64;
-		ctx.str_prealloc_lastmask = 0;
-		while (str_left > 0){
-			ctx.str_prealloc_lastmask = (ctx.str_prealloc_lastmask << 1) | 1;
-			str_left--;
-		}
-	}
-
-	context_gcleft(ctx, true);
+function context_new(prg: program_st, io: sink_io_st): context_st {
+	let ctx: context_st = {
+		user: null,
+		natives: [],
+		call_stk: [],
+		lex_stk: [lxs_new([], null)],
+		ccs_avail: [],
+		lxs_avail: [],
+		prg: prg,
+		user_hint: [],
+		io: io,
+		lex_index: 0,
+		pc: 0,
+		lastpc: 0,
+		timeout: 0,
+		timeout_left: 0,
+		rand_seed: 0,
+		rand_i: 0,
+		err: null,
+		passed: false,
+		failed: false,
+		async: false
+	};
 	opi_rand_seedauto(ctx);
 	return ctx;
 }
 
-static inline void context_reset(context ctx){
+function context_reset(ctx: context_st): void {
 	// return to the top level
-	while (ctx.call_stk.size > 0){
-		ccs s = list_ptr_pop(ctx.call_stk);
-		lxs lx = ctx.lex_stk.ptrs[ctx.lex_index];
-		ctx.lex_stk.ptrs[ctx.lex_index] = lx.next;
+	while (ctx.call_stk.length > 0){
+		let s = ctx.call_stk.pop();
+		if (typeof s === 'undefined')
+			throw new Error('Cannot unwind call stack');
+		let lx = ctx.lex_stk[ctx.lex_index];
+		if (lx.next === null)
+			throw new Error('Bad lexical stack');
+		ctx.lex_stk[ctx.lex_index] = lx.next;
 		lxs_release(ctx, lx);
 		ctx.lex_index = s.lex_index;
 		ctx.pc = s.pc;
@@ -8468,10 +8125,10 @@ static inline void context_reset(context ctx){
 	// reset variables and fast-forward to the end of the current program
 	ctx.passed = false;
 	ctx.failed = false;
-	ctx.pc = ctx.prg.ops.size;
+	ctx.pc = ctx.prg.ops.length;
 	ctx.timeout_left = ctx.timeout;
 }
-
+/*
 static inline sink_val var_get(context ctx, int frame, int index){
 	return ((lxs)ctx.lex_stk.ptrs[frame]).vals[index];
 }
