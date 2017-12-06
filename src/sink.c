@@ -8074,9 +8074,13 @@ static pen_st program_exprToNum(pgen_st pgen, expr ex){
 		return program_exprToNum(pgen, ex->u.ex);
 	else if (ex->type == EXPR_PREFIX){
 		pen_st n = program_exprToNum(pgen, ex->u.prefix.ex);
-		if (n.ok && ks_toUnaryOp(ex->u.prefix.k) == OP_NUM_NEG)
-			return pen_ok(-n.u.value);
-		return n;
+		if (n.ok){
+			op_enum k = ks_toUnaryOp(ex->u.prefix.k);
+			if (k == OP_TONUM)
+				return pen_ok(n.u.value);
+			else if (k == OP_NUM_NEG)
+				return pen_ok(-n.u.value);
+		}
 	}
 	else if (ex->type == EXPR_INFIX){
 		pen_st n1 = program_exprToNum(pgen, ex->u.infix.left);

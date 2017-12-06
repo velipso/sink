@@ -7137,259 +7137,207 @@ function program_eval(pgen: pgen_st, mode: pem_enum, intoVlc: varloc_st,
 	}
 	throw new Error('Invalid expression type');
 }
-/*
-static pen_st program_exprToNum(pgen_st pgen, expr ex){
+
+function program_exprToNum(pgen: pgen_st, ex: expr_st): pen_st {
 	if (ex.type === expr_enum.NUM)
-		return pen_ok(ex.u.num);
+		return pen_ok(ex.num);
 	else if (ex.type === expr_enum.NAMES){
-		stl_st sl = symtbl_lookup(pgen.sym, ex.u.names);
+		var sl = symtbl_lookup(pgen.sym, ex.names);
 		if (!sl.ok)
-			return pen_err(sl.u.msg);
-		if (sl.u.nsn.type === nsname_enumt.ENUM)
-			return pen_ok(sl.u.nsn.u.val);
+			return pen_error(sl.msg);
+		if (sl.nsn.type === nsname_enumt.ENUM)
+			return pen_ok(sl.nsn.val);
 	}
 	else if (ex.type === expr_enum.PAREN)
-		return program_exprToNum(pgen, ex.u.ex);
+		return program_exprToNum(pgen, ex.ex);
 	else if (ex.type === expr_enum.PREFIX){
-		pen_st n = program_exprToNum(pgen, ex.u.prefix.ex);
-		if (n.ok && ks_toUnaryOp(ex.u.prefix.k) === op_enum.NUM_NEG)
-			return pen_ok(-n.u.value);
-		return n;
+		let n = program_exprToNum(pgen, ex.ex);
+		if (n.ok){
+			let k = ks_toUnaryOp(ex.k);
+			if (k === op_enum.TONUM)
+				return pen_ok(n.value);
+			else if (k == op_enum.NUM_NEG)
+				return pen_ok(-n.value);
+		}
 	}
 	else if (ex.type === expr_enum.INFIX){
-		pen_st n1 = program_exprToNum(pgen, ex.u.infix.left);
+		let n1 = program_exprToNum(pgen, ex.left);
 		if (!n1.ok)
 			return n1;
-		pen_st n2 = program_exprToNum(pgen, ex.u.infix.right);
+		if (ex.right === null)
+			throw new Error('Expression cannot have null right side');
+		let n2 = program_exprToNum(pgen, ex.right);
 		if (!n2.ok)
 			return n2;
-		op_enum binop = ks_toBinaryOp(ex.u.infix.k);
-		if      (binop === op_enum.NUM_ADD) return pen_ok(n1.u.value + n2.u.value);
-		else if (binop === op_enum.NUM_SUB) return pen_ok(n1.u.value - n2.u.value);
-		else if (binop === op_enum.NUM_MOD) return pen_ok(fmod(n1.u.value, n2.u.value));
-		else if (binop === op_enum.NUM_MUL) return pen_ok(n1.u.value * n2.u.value);
-		else if (binop === op_enum.NUM_DIV) return pen_ok(n1.u.value / n2.u.value);
-		else if (binop === op_enum.NUM_POW) return pen_ok(pow(n1.u.value, n2.u.value));
+		let binop = ks_toBinaryOp(ex.k);
+		if      (binop === op_enum.NUM_ADD) return pen_ok(n1.value + n2.value);
+		else if (binop === op_enum.NUM_SUB) return pen_ok(n1.value - n2.value);
+		else if (binop === op_enum.NUM_MOD) return pen_ok(n1.value % n2.value);
+		else if (binop === op_enum.NUM_MUL) return pen_ok(n1.value * n2.value);
+		else if (binop === op_enum.NUM_DIV) return pen_ok(n1.value / n2.value);
+		else if (binop === op_enum.NUM_POW) return pen_ok(Math.pow(n1.value, n2.value));
 	}
-	return pen_err(format("Enums must be a constant number"));
-}
-*/
-type pgst_st = any;
-/*
-static inline void pgst_free(pgst pgs){
-	if (pgs.f_free)
-		pgs.f_free(pgs.state);
-	mem_free(pgs);
+	return pen_error('Enums must be a constant number');
 }
 
-static inline pgst pgst_new(void *state, sink_free_f f_free){
-	pgst pgs = mem_alloc(sizeof(pgst_st));
-	pgs.state = state;
-	pgs.f_free = f_free;
-	return pgs;
+type pgst_st = pgs_dowhile_st | pgs_for_st | pgs_loop_st | pgs_if_st;
+
+enum pgr_enum {
+	OK,
+	PUSH,
+	POP,
+	ERROR,
+	FORVARS
 }
 
-typedef enum {
-	PGR_OK,
-	PGR_PUSH,
-	PGR_POP,
-	PGR_ERROR,
-	PGR_FORVARS
-} pgr_enum;
+interface pgr_st_OK {
+	type: pgr_enum.OK;
+}
+interface pgr_st_PUSH {
+	type: pgr_enum.PUSH;
+	pgs: pgst_st;
+}
+interface pgr_st_POP {
+	type: pgr_enum.POP;
+}
+interface pgr_st_ERROR {
+	type: pgr_enum.ERROR,
+	flp: filepos_st;
+	msg: string;
+}
+interface pgr_st_FORVARS {
+	type: pgr_enum.FORVARS;
+	val_vlc: varloc_st;
+	idx_vlc: varloc_st;
+}
+type pgr_st = pgr_st_OK | pgr_st_PUSH | pgr_st_POP | pgr_st_ERROR | pgr_st_FORVARS;
 
-typedef struct {
-	pgr_enum type;
-	union {
-		struct {
-			pgst pgs;
-		} push;
-		struct {
-			filepos_st flp;
-			char *msg;
-		} error;
-		struct {
-			varloc_st val_vlc;
-			varloc_st idx_vlc;
-		} forvars;
-	} u;
-} pgr_st;
-
-static inline pgr_st pgr_ok(){
-	return (pgr_st){ .type = PGR_OK };
+function pgr_ok(): pgr_st {
+	return { type: pgr_enum.OK };
 }
 
-static inline pgr_st pgr_push(void *state, sink_free_f f_free){
-	return (pgr_st){ .type = PGR_PUSH, .u.push.pgs = pgst_new(state, f_free) };
+function pgr_push(pgs: pgst_st): pgr_st {
+	return { type: pgr_enum.PUSH, pgs: pgs };
 }
 
-static inline pgr_st pgr_pop(){
-	return (pgr_st){ .type = PGR_POP };
+function pgr_pop(): pgr_st {
+	return { type: pgr_enum.POP };
 }
 
-static inline pgr_st pgr_error(flp: filepos_st, char *msg){
-	return (pgr_st){ .type = PGR_ERROR, .u.error.flp = flp, .u.error.msg = msg };
+function pgr_error(flp: filepos_st, msg: string): pgr_st {
+	return { type: pgr_enum.ERROR, flp: flp, msg: msg };
 }
 
-static inline pgr_st pgr_forvars(varloc_st val_vlc, varloc_st idx_vlc){
-	return (pgr_st){ .type = PGR_FORVARS, .u.forvars.val_vlc = val_vlc,
-		.u.forvars.idx_vlc = idx_vlc };
+function pgr_forvars(val_vlc: varloc_st, idx_vlc: varloc_st): pgr_st {
+	return { type: pgr_enum.FORVARS, val_vlc: val_vlc, idx_vlc: idx_vlc };
 }
 
-typedef struct {
-	label top;
-	label cond;
-	label finish;
-} pgs_dowhile_st, *pgs_dowhile;
-
-static inline void pgs_dowhile_free(pgs_dowhile pst){
-	if (pst.top)
-		label_free(pst.top);
-	label_free(pst.cond);
-	label_free(pst.finish);
-	mem_free(pst);
+interface pgs_dowhile_st {
+	top: label_st;
+	cond: label_st;
+	finish: label_st;
 }
 
-static inline pgs_dowhile pgs_dowhile_new(label top, label cond, label finish){
-	pgs_dowhile pst = mem_alloc(sizeof(pgs_dowhile_st));
-	pst.top = top;
-	pst.cond = cond;
-	pst.finish = finish;
-	return pst;
+function pgs_dowhile_new(top: label_st, cond: label_st, finish: label_st): pgs_dowhile_st {
+	return { top: top, cond: cond, finish: finish };
 }
 
-typedef struct {
-	label top;
-	label inc;
-	label finish;
-	varloc_st t1;
-	varloc_st t2;
-	varloc_st t3;
-	varloc_st t4;
-	varloc_st val_vlc;
-	varloc_st idx_vlc;
-} pgs_for_st, *pgs_for;
-
-static inline void pgs_for_free(pgs_for pst){
-	label_free(pst.top);
-	label_free(pst.inc);
-	label_free(pst.finish);
-	mem_free(pst);
+interface pgs_for_st {
+	top: label_st;
+	inc: label_st;
+	finish: label_st;
+	t1: varloc_st;
+	t2: varloc_st;
+	t3: varloc_st;
+	t4: varloc_st;
+	val_vlc: varloc_st;
+	idx_vlc: varloc_st;
 }
 
-static inline pgs_for pgs_for_new(varloc_st t1, varloc_st t2, varloc_st t3, varloc_st t4,
-	varloc_st val_vlc, varloc_st idx_vlc, label top, label inc, label finish){
-	pgs_for pst = mem_alloc(sizeof(pgs_for_st));
-	pst.t1 = t1;
-	pst.t2 = t2;
-	pst.t3 = t3;
-	pst.t4 = t4;
-	pst.val_vlc = val_vlc;
-	pst.idx_vlc = idx_vlc;
-	pst.top = top;
-	pst.inc = inc;
-	pst.finish = finish;
-	return pst;
+function pgs_for_new(t1: varloc_st, t2: varloc_st, t3: varloc_st, t4: varloc_st, val_vlc: varloc_st,
+	idx_vlc: varloc_st, top: label_st, inc: label_st, finish: label_st): pgs_for_st {
+	return {
+		t1: t1, t2: t2, t3: t3, t4: t4,
+		val_vlc: val_vlc, idx_vlc: idx_vlc,
+		top: top, inc: inc, finish: finish
+	};
 }
 
-typedef struct {
-	label lcont;
-	label lbrk;
-} pgs_loop_st, *pgs_loop;
-
-static inline void pgs_loop_free(pgs_loop pst){
-	label_free(pst.lcont);
-	label_free(pst.lbrk);
-	mem_free(pst);
+interface pgs_loop_st {
+	lcont: label_st;
+	lbrk: label_st;
 }
 
-static inline pgs_loop pgs_loop_new(label lcont, label lbrk){
-	pgs_loop pst = mem_alloc(sizeof(pgs_loop_st));
-	pst.lcont = lcont;
-	pst.lbrk = lbrk;
-	return pst;
+function pgs_loop_new(lcont: label_st, lbrk: label_st): pgs_loop_st {
+	return { lcont: lcont, lbrk: lbrk };
 }
 
-typedef struct {
-	label nextcond;
-	label ifdone;
-} pgs_if_st, *pgs_if;
-
-static inline void pgs_if_free(pgs_if pst){
-	if (pst.nextcond)
-		label_free(pst.nextcond);
-	label_free(pst.ifdone);
-	mem_free(pst);
+interface pgs_if_st {
+	nextcond: label_st | null;
+	ifdone: label_st;
 }
 
-static inline pgs_if pgs_if_new(label nextcond, label ifdone){
-	pgs_if pst = mem_alloc(sizeof(pgs_if_st));
-	pst.nextcond = nextcond;
-	pst.ifdone = ifdone;
-	return pst;
+function pgs_if_new(nextcond: label_st | null, ifdone: label_st): pgs_if_st {
+	return { nextcond: nextcond, ifdone: ifdone };
 }
 
-typedef struct {
-	varloc_st vlc;
-	char *err;
-} pfvs_res_st;
+interface pfvs_res_st {
+	vlc: varloc_st;
+	err: string | null;
+}
 
-static inline pfvs_res_st program_forVarsSingle(symtbl sym, bool forVar, list_ptr names){
-	if (names === NULL || forVar){
-		sta_st ts = names === NULL ? symtbl_addTemp(sym) : symtbl_addVar(sym, names, -1);
+function program_forVarsSingle(sym: symtbl_st, forVar: boolean,
+	names: string[] | null): pfvs_res_st {
+	if (names === null || forVar){
+		let ts = names === null ? symtbl_addTemp(sym) : symtbl_addVar(sym, names, -1);
 		if (!ts.ok)
-			return (pfvs_res_st){ .vlc = VARLOC_NULL, .err = ts.u.msg };
-		return (pfvs_res_st){ .vlc = ts.u.vlc, .err = NULL };
+			return { vlc: VARLOC_NULL, err: ts.msg };
+		return { vlc: ts.vlc, err: null };
 	}
 	else{
-		stl_st sl = symtbl_lookup(sym, names);
+		let sl = symtbl_lookup(sym, names);
 		if (!sl.ok)
-			return (pfvs_res_st){ .vlc = VARLOC_NULL, .err = sl.u.msg };
-		if (sl.u.nsn.type !== nsname_enumt.VAR){
-			return (pfvs_res_st){
-				.vlc = VARLOC_NULL,
-				.err = format("Cannot use non-variable in for loop")
-			};
-		}
-		return (pfvs_res_st){
-			.vlc = varloc_new(sl.u.nsn.u.var.fr.level, sl.u.nsn.u.var.index),
-			.err = NULL
-		};
+			return { vlc: VARLOC_NULL, err: sl.msg };
+		if (sl.nsn.type !== nsname_enumt.VAR)
+			return { vlc: VARLOC_NULL, err: 'Cannot use non-variable in for loop' };
+		return { vlc: varloc_new(sl.nsn.fr.level, sl.nsn.index), err: null };
 	}
 }
 
-static pgr_st program_forVars(symtbl sym, ast stmt){
-	pfvs_res_st pf1 = { .vlc = VARLOC_NULL };
-	if (stmt.u.for1.names1 !== NULL){
-		pf1 = program_forVarsSingle(sym, stmt.u.for1.forVar, stmt.u.for1.names1);
-		if (pf1.err)
+function program_forVars(sym: symtbl_st, stmt: ast_st_FOR1): pgr_st {
+	let pf1: pfvs_res_st = { vlc: VARLOC_NULL, err: null };
+	if (stmt.names1 !== null){
+		pf1 = program_forVarsSingle(sym, stmt.forVar, stmt.names1);
+		if (pf1.err !== null)
 			return pgr_error(stmt.flp, pf1.err);
 	}
-	pfvs_res_st pf2 = program_forVarsSingle(sym, stmt.u.for1.forVar, stmt.u.for1.names2);
-	if (pf2.err)
+	let pf2 = program_forVarsSingle(sym, stmt.forVar, stmt.names2);
+	if (pf2.err !== null)
 		return pgr_error(stmt.flp, pf2.err);
 	return pgr_forvars(pf1.vlc, pf2.vlc);
 }
 
-static pgr_st program_genForRange(pgen_st pgen, ast stmt, varloc_st p1, varloc_st p2, varloc_st p3){
-	program prg = pgen.prg;
-	symtbl sym = pgen.sym;
-	bool zerostart = false;
+function program_genForRange(pgen: pgen_st, stmt: ast_st_FOR1, p1: varloc_st, p2: varloc_st,
+	p3: varloc_st): pgr_st {
+	let prg = pgen.prg;
+	let sym = pgen.sym;
+	let zerostart = false;
 	if (varloc_isnull(p2)){
 		zerostart = true;
 		p2 = p1;
-		sta_st ts = symtbl_addTemp(sym);
+		let ts = symtbl_addTemp(sym);
 		if (!ts.ok)
-			return pgr_error(stmt.flp, ts.u.msg);
-		p1 = ts.u.vlc;
+			return pgr_error(stmt.flp, ts.msg);
+		p1 = ts.vlc;
 		op_numint(prg.ops, p1, 0);
 	}
 
 	symtbl_pushScope(sym);
-	pgr_st pgi = program_forVars(sym, stmt);
-	if (pgi.type !== PGR_FORVARS)
+	let pgi = program_forVars(sym, stmt);
+	if (pgi.type !== pgr_enum.FORVARS)
 		return pgi;
-	varloc_st val_vlc = pgi.u.forvars.val_vlc;
-	varloc_st idx_vlc = pgi.u.forvars.idx_vlc;
+	let val_vlc = pgi.val_vlc;
+	let idx_vlc = pgi.idx_vlc;
 
 	// clear the index
 	op_numint(prg.ops, idx_vlc, 0);
@@ -7400,18 +7348,14 @@ static pgr_st program_genForRange(pgen_st pgen, ast stmt, varloc_st p1, varloc_s
 	if (!varloc_isnull(p3))
 		op_binop(prg.ops, op_enum.NUM_DIV, p2, p2, p3);
 
-	label top    = label_new("^forR_top");
-	label inc    = label_new("^forR_inc");
-	label finish = label_new("^forR_finish");
+	let top    = label_new('^forR_top');
+	let inc    = label_new('^forR_inc');
+	let finish = label_new('^forR_finish');
 
-	sta_st ts = symtbl_addTemp(sym);
-	if (!ts.ok){
-		label_free(top);
-		label_free(inc);
-		label_free(finish);
-		return pgr_error(stmt.flp, ts.u.msg);
-	}
-	varloc_st t = ts.u.vlc;
+	let ts = symtbl_addTemp(sym);
+	if (!ts.ok)
+		return pgr_error(stmt.flp, ts.msg);
+	let t = ts.vlc;
 
 	label_declare(top, prg.ops);
 
@@ -7435,59 +7379,58 @@ static pgr_st program_genForRange(pgen_st pgen, ast stmt, varloc_st p1, varloc_s
 	sym.sc.lblBreak = finish;
 	sym.sc.lblContinue = inc;
 
-	return pgr_push(pgs_for_new(p1, p2, p3, t, val_vlc, idx_vlc, top, inc, finish),
-		(sink_free_f)pgs_for_free);
+	return pgr_push(pgs_for_new(p1, p2, p3, t, val_vlc, idx_vlc, top, inc, finish));
 }
 
-static pgr_st program_genForGeneric(pgen_st pgen, ast stmt){
-	program prg = pgen.prg;
-	symtbl sym = pgen.sym;
-	per_st pe = program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, stmt.u.for1.ex);
-	if (!pe.ok)
-		return pgr_error(pe.u.error.flp, pe.u.error.msg);
+function program_genForGeneric(pgen: pgen_st, stmt: ast_st_FOR1): pgr_st | Promise<pgr_st> {
+	let prg = pgen.prg;
+	let sym = pgen.sym;
+	let pe = program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, stmt.ex);
+	if (isPromise<per_st>(pe))
+		return pe.then(handleEx);
+	return handleEx(pe);
+	function handleEx(pe: per_st): pgr_st {
+		if (!pe.ok)
+			return pgr_error(pe.flp, pe.msg);
 
-	symtbl_pushScope(sym);
+		symtbl_pushScope(sym);
 
-	varloc_st exp_vlc = pe.u.vlc;
+		let exp_vlc = pe.vlc;
 
-	pgr_st pgi = program_forVars(sym, stmt);
-	if (pgi.type !== PGR_FORVARS)
-		return pgi;
-	varloc_st val_vlc = pgi.u.forvars.val_vlc;
-	varloc_st idx_vlc = pgi.u.forvars.idx_vlc;
+		let pgi = program_forVars(sym, stmt);
+		if (pgi.type !== pgr_enum.FORVARS)
+			return pgi;
+		let val_vlc = pgi.val_vlc;
+		let idx_vlc = pgi.idx_vlc;
 
-	// clear the index
-	op_numint(prg.ops, idx_vlc, 0);
+		// clear the index
+		op_numint(prg.ops, idx_vlc, 0);
 
-	label top    = label_new("^forG_top");
-	label inc    = label_new("^forG_inc");
-	label finish = label_new("^forG_finish");
+		let top    = label_new('^forG_top');
+		let inc    = label_new('^forG_inc');
+		let finish = label_new('^forG_finish');
 
-	sta_st ts = symtbl_addTemp(sym);
-	if (!ts.ok){
-		label_free(top);
-		label_free(inc);
-		label_free(finish);
-		return pgr_error(stmt.flp, ts.u.msg);
+		let ts = symtbl_addTemp(sym);
+		if (!ts.ok)
+			return pgr_error(stmt.flp, ts.msg);
+		let t = ts.vlc;
+
+		label_declare(top, prg.ops);
+
+		op_unop(prg.ops, op_enum.SIZE, t, exp_vlc);
+		op_binop(prg.ops, op_enum.LT, t, idx_vlc, t);
+		label_jumpfalse(finish, prg.ops, t);
+
+		if (!varloc_isnull(val_vlc))
+			op_getat(prg.ops, val_vlc, exp_vlc, idx_vlc);
+		sym.sc.lblBreak = finish;
+		sym.sc.lblContinue = inc;
+
+		return pgr_push(
+			pgs_for_new(t, exp_vlc, VARLOC_NULL, VARLOC_NULL, val_vlc, idx_vlc, top, inc, finish));
 	}
-	varloc_st t = ts.u.vlc;
-
-	label_declare(top, prg.ops);
-
-	op_unop(prg.ops, op_enum.SIZE, t, exp_vlc);
-	op_binop(prg.ops, op_enum.LT, t, idx_vlc, t);
-	label_jumpfalse(finish, prg.ops, t);
-
-	if (!varloc_isnull(val_vlc))
-		op_getat(prg.ops, val_vlc, exp_vlc, idx_vlc);
-	sym.sc.lblBreak = finish;
-	sym.sc.lblContinue = inc;
-
-	return pgr_push(
-		pgs_for_new(t, exp_vlc, VARLOC_NULL, VARLOC_NULL, val_vlc, idx_vlc, top, inc, finish),
-		(sink_free_f)pgs_for_free);
 }
-
+/*
 static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayexpr){
 	program prg = pgen.prg;
 	symtbl sym = pgen.sym;
