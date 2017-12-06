@@ -357,13 +357,12 @@ function varloc_isnull(vlc: varloc_st): boolean {
 	return vlc.frame < 0;
 }
 
-/*
-TODO
 function native_hash(bytes: string): sink_u64 {
-	let hash = sink_str_hashplain(bytes, 0);
-	return [hash[0], hash[1]];
+	//let hash = sink_str_hashplain(bytes, 0);
+	//return [hash[0], hash[1]];
+	// TODO: this
+	return [0, 0];
 }
-*/
 
 enum op_enum {
 	NOP             = 0x00,
@@ -4070,6 +4069,10 @@ function label_new(name: string): label_st {
 	};
 }
 
+function label_check(v: any): v is label_st {
+	return typeof v === 'object' && v !== null && typeof v.pos === 'number';
+}
+
 function label_refresh(lbl: label_st, ops: number[], start: number): void {
 	for (let i = start; i < lbl.rewrites.length; i++){
 		let index = lbl.rewrites[i];
@@ -7180,7 +7183,7 @@ function program_exprToNum(pgen: pgen_st, ex: expr_st): pen_st {
 	return pen_error('Enums must be a constant number');
 }
 
-type pgst_st = pgs_dowhile_st | pgs_for_st | pgs_loop_st | pgs_if_st;
+type pgst_st = pgs_dowhile_st | pgs_for_st | pgs_loop_st | pgs_if_st | label_st | null;
 
 enum pgr_enum {
 	OK,
@@ -7233,13 +7236,17 @@ function pgr_forvars(val_vlc: varloc_st, idx_vlc: varloc_st): pgr_st {
 }
 
 interface pgs_dowhile_st {
-	top: label_st;
+	top: label_st | null;
 	cond: label_st;
 	finish: label_st;
 }
 
 function pgs_dowhile_new(top: label_st, cond: label_st, finish: label_st): pgs_dowhile_st {
 	return { top: top, cond: cond, finish: finish };
+}
+
+function pgs_dowhile_check(v: any): v is pgs_dowhile_st {
+	return typeof v === 'object' && v !== null && label_check(v.cond);
 }
 
 interface pgs_for_st {
@@ -7263,6 +7270,10 @@ function pgs_for_new(t1: varloc_st, t2: varloc_st, t3: varloc_st, t4: varloc_st,
 	};
 }
 
+function pgs_for_check(v: any): v is pgs_for_st {
+	return typeof v === 'object' && v !== null && label_check(v.inc);
+}
+
 interface pgs_loop_st {
 	lcont: label_st;
 	lbrk: label_st;
@@ -7272,6 +7283,10 @@ function pgs_loop_new(lcont: label_st, lbrk: label_st): pgs_loop_st {
 	return { lcont: lcont, lbrk: lbrk };
 }
 
+function pgs_loop_check(v: any): v is pgs_loop_st {
+	return typeof v === 'object' && v !== null && label_check(v.lcont);
+}
+
 interface pgs_if_st {
 	nextcond: label_st | null;
 	ifdone: label_st;
@@ -7279,6 +7294,10 @@ interface pgs_if_st {
 
 function pgs_if_new(nextcond: label_st | null, ifdone: label_st): pgs_if_st {
 	return { nextcond: nextcond, ifdone: ifdone };
+}
+
+function pgs_if_check(v: any): v is pgs_if_st {
+	return typeof v === 'object' && v !== null && label_check(v.ifdone);
 }
 
 interface pfvs_res_st {
@@ -7430,274 +7449,265 @@ function program_genForGeneric(pgen: pgen_st, stmt: ast_st_FOR1): pgr_st | Promi
 			pgs_for_new(t, exp_vlc, VARLOC_NULL, VARLOC_NULL, val_vlc, idx_vlc, top, inc, finish));
 	}
 }
-/*
-static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayexpr){
-	program prg = pgen.prg;
-	symtbl sym = pgen.sym;
+
+function program_gen(pgen: pgen_st, stmt: ast_st, state: pgst_st,
+	sayexpr: boolean): pgr_st | Promise<pgr_st> {
+	let prg = pgen.prg;
+	let sym = pgen.sym;
 	program_flp(prg, stmt.flp);
 	switch (stmt.type){
-		case AST_BREAK: {
-			if (sym.sc.lblBreak === NULL)
-				return pgr_error(stmt.flp, format("Invalid `break`"));
+		case ast_enumt.BREAK: {
+			if (sym.sc.lblBreak === null)
+				return pgr_error(stmt.flp, 'Invalid `break`');
 			label_jump(sym.sc.lblBreak, prg.ops);
 			return pgr_ok();
-		} break;
+		}
 
-		case AST_CONTINUE: {
-			if (sym.sc.lblContinue === NULL)
-				return pgr_error(stmt.flp, format("Invalid `continue`"));
+		case ast_enumt.CONTINUE: {
+			if (sym.sc.lblContinue === null)
+				return pgr_error(stmt.flp, 'Invalid `continue`');
 			label_jump(sym.sc.lblContinue, prg.ops);
 			return pgr_ok();
-		} break;
+		}
 
-		case AST_DECLARE: {
-			decl dc = stmt.u.declare;
+		case ast_enumt.DECLARE: {
+			let dc = stmt.declare;
 			if (dc.local){
-				label lbl = label_new("^def");
-				list_ptr_push(sym.fr.lbls, lbl);
-				char *smsg = symtbl_addCmdLocal(sym, dc.names, lbl);
-				if (smsg)
+				let lbl = label_new('^def');
+				sym.fr.lbls.push(lbl);
+				let smsg = symtbl_addCmdLocal(sym, dc.names, lbl);
+				if (smsg !== null)
 					return pgr_error(dc.flp, smsg);
 			}
 			else{ // native
-				char *smsg = symtbl_addCmdNative(sym, dc.names,
-					native_hash(dc.key.size, dc.key.bytes));
-				if (smsg)
+				if (dc.key === null)
+					throw new Error('Expecting native declaration to have key');
+				let smsg = symtbl_addCmdNative(sym, dc.names, native_hash(dc.key));
+				if (smsg !== null)
 					return pgr_error(dc.flp, smsg);
 			}
 			return pgr_ok();
-		} break;
+		}
 
-		case AST_DEF1: {
-			nl_st n = namespace_lookupImmediate(sym.sc.ns, stmt.u.def1.names);
-			label lbl;
+		case ast_enumt.DEF1: {
+			let n = namespace_lookupImmediate(sym.sc.ns, stmt.names);
+			let lbl: label_st;
 			if (n.found && n.nsn.type === nsname_enumt.CMD_LOCAL){
-				lbl = n.nsn.u.cmdLocal.lbl;
-				if (!sym.repl && lbl.pos >= 0){ // if already defined, error
-					list_byte b = stmt.u.def1.names.ptrs[0];
-					char *join = format("Cannot redefine \"%.*s", b.size, b.bytes);
-					for (int i = 1; i < stmt.u.def1.names.size; i++){
-						b = stmt.u.def1.names.ptrs[i];
-						char *join2 = format("%s.%.*s", join, b.size, b.bytes);
-						mem_free(join);
-						join = join2;
-					}
-					char *join2 = format("%s\"", join);
-					mem_free(join);
-					return pgr_error(stmt.u.def1.flpN, join2);
-				}
+				lbl = n.nsn.lbl;
+				if (!sym.repl && lbl.pos >= 0) // if already defined, error
+					return pgr_error(stmt.flpN, 'Cannot redefine: ' + stmt.names.join('.'));
 			}
 			else{
-				lbl = label_new("^def");
-				list_ptr_push(sym.fr.lbls, lbl);
-				char *smsg = symtbl_addCmdLocal(sym, stmt.u.def1.names, lbl);
-				if (smsg)
-					return pgr_error(stmt.u.def1.flpN, smsg);
+				lbl = label_new('^def');
+				sym.fr.lbls.push(lbl);
+				let smsg = symtbl_addCmdLocal(sym, stmt.names, lbl);
+				if (smsg !== null)
+					return pgr_error(stmt.flpN, smsg);
 			}
 
-			int level = sym.fr.level + 1;
+			let level = sym.fr.level + 1;
 			if (level > 255)
-				return pgr_error(stmt.flp, format("Too many nested commands"));
-			int rest = 0xFF;
-			int lvs = stmt.u.def1.lvalues.size;
+				return pgr_error(stmt.flp, 'Too many nested commands');
+			let rest = 0xFF;
+			let lvs = stmt.lvalues.length;
 			if (lvs > 255)
-				return pgr_error(stmt.flp, format("Too many parameters"));
+				return pgr_error(stmt.flp, 'Too many parameters');
 			if (lvs > 0){
-				expr last_ex = stmt.u.def1.lvalues.ptrs[lvs - 1];
+				let last_ex = stmt.lvalues[lvs - 1];
 				// is the last expression a `...rest`?
-				if (last_ex.type === expr_enum.PREFIX && last_ex.u.prefix.k === ks_enum.PERIOD3)
+				if (last_ex.type === expr_enum.PREFIX && last_ex.k === ks_enum.PERIOD3)
 					rest = lvs - 1;
 			}
 
-			label skip = label_new("^after_def");
+			let skip = label_new('^after_def');
 			label_jump(skip, prg.ops);
 
 			label_declare(lbl, prg.ops);
 			symtbl_pushFrame(sym);
 
-			program_cmdhint(prg, stmt.u.def1.names);
+			program_cmdhint(prg, stmt.names);
 			op_cmdhead(prg.ops, level, rest);
 
 			// reserve our argument registers as explicit registers 0 to lvs-1
 			symtbl_reserveVars(sym, lvs);
 
 			// initialize our arguments as needed
-			for (int i = 0; i < lvs; i++){
-				expr ex = stmt.u.def1.lvalues.ptrs[i];
+			for (let i = 0; i < lvs; i++){
+				let ex = stmt.lvalues[i];
 				if (ex.type === expr_enum.INFIX){
 					// the argument is the i-th register
-					varloc_st arg = varloc_new(level, i);
+					let arg = varloc_new(level, i);
 
 					// check for initialization -- must happen before the symbols are added so that
 					// `def a x = x` binds the seconds `x` to the outer scope
-					if (ex.u.infix.right !== NULL){
-						label argset = label_new("^argset");
+					if (ex.right !== null){
+						let argset = label_new('^argset');
 						label_jumptrue(argset, prg.ops, arg);
-						per_st pr = program_eval(pgen, pem_enum.INTO, arg, ex.u.infix.right);
-						if (!pr.ok){
-							label_free(skip);
-							label_free(argset);
-							return pgr_error(pr.u.error.flp, pr.u.error.msg);
-						}
+						let pr = program_eval(pgen, pem_enum.INTO, arg, ex.right);
+if (isPromise<per_st>(pr)) throw new Error('TODO: Promisify');
+						if (!pr.ok)
+							return pgr_error(pr.flp, pr.msg);
 						label_declare(argset, prg.ops);
-						label_free(argset);
 					}
 
 					// now we can add the param symbols
-					lvp_st lr = lval_addVars(sym, ex.u.infix.left, i);
-					if (!lr.ok){
-						label_free(skip);
-						return pgr_error(lr.u.error.flp, lr.u.error.msg);
-					}
+					let lr = lval_addVars(sym, ex.left, i);
+					if (!lr.ok)
+						return pgr_error(lr.flp, lr.msg);
 
 					// move argument into lval(s)
-					per_st pe = program_evalLval(pgen, pem_enum.EMPTY, VARLOC_NULL, lr.u.lv,
+					let pe = program_evalLval(pgen, pem_enum.EMPTY, VARLOC_NULL, lr.lv,
 						op_enum.INVALID, arg, true);
-					lvr_free(lr.u.lv);
-					if (!pe.ok){
-						label_free(skip);
-						return pgr_error(pe.u.error.flp, pe.u.error.msg);
-					}
+					if (!pe.ok)
+						return pgr_error(pe.flp, pe.msg);
 				}
-				else if (i === lvs - 1 && ex.type === expr_enum.PREFIX && ex.u.prefix.k === ks_enum.PERIOD3){
-					lvp_st lr = lval_addVars(sym, ex.u.prefix.ex, i);
-					if (!lr.ok){
-						label_free(skip);
-						return pgr_error(lr.u.error.flp, lr.u.error.msg);
-					}
-					assert(lr.u.lv.type === lvr_enum.VAR);
-					lvr_free(lr.u.lv);
+				else if (i === lvs - 1 && ex.type === expr_enum.PREFIX && ex.k === ks_enum.PERIOD3){
+					let lr = lval_addVars(sym, ex.ex, i);
+					if (!lr.ok)
+						return pgr_error(lr.flp, lr.msg);
+					if (lr.lv.type !== lvr_enum.VAR)
+						throw new Error('Assertion failed: `...rest` parameter must be identifier');
 				}
 				else
-					assert(false);
+					throw new Error('Assertion failed: parameter must be infix expression');
 			}
-			return pgr_push(skip, (sink_free_f)label_free);
-		} break;
+			return pgr_push(skip);
+		}
 
-		case AST_DEF2: {
-			program_cmdhint(prg, NULL);
+		case ast_enumt.DEF2: {
+			program_cmdhint(prg, null);
 			op_cmdtail(prg.ops);
 			symtbl_popFrame(sym);
-			label skip = state;
+			if (!label_check(state))
+				throw new Error('Expecting state to be a label');
+			let skip: label_st = state;
 			label_declare(skip, prg.ops);
 			return pgr_pop();
-		} break;
+		}
 
-		case AST_DOWHILE1: {
-			label top    = label_new("^dowhile_top");
-			label cond   = label_new("^dowhile_cond");
-			label finish = label_new("^dowhile_finish");
+		case ast_enumt.DOWHILE1: {
+			let top    = label_new('^dowhile_top');
+			let cond   = label_new('^dowhile_cond');
+			let finish = label_new('^dowhile_finish');
 
 			symtbl_pushScope(sym);
 			sym.sc.lblBreak = finish;
 			sym.sc.lblContinue = cond;
 
 			label_declare(top, prg.ops);
-			return pgr_push(pgs_dowhile_new(top, cond, finish), (sink_free_f)pgs_dowhile_free);
-		} break;
+			return pgr_push(pgs_dowhile_new(top, cond, finish));
+		}
 
-		case AST_DOWHILE2: {
-			pgs_dowhile pst = state;
+		case ast_enumt.DOWHILE2: {
+			if (!pgs_dowhile_check(state))
+				throw new Error('Expecting state to be do-while structure');
+			let pst: pgs_dowhile_st = state;
 
 			label_declare(pst.cond, prg.ops);
-			if (stmt.u.cond){
-				// do while end
-				per_st pe = program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, stmt.u.cond);
-				if (!pe.ok)
-					return pgr_error(pe.u.error.flp, pe.u.error.msg);
-				label_jumpfalse(pst.finish, prg.ops, pe.u.vlc);
-				symtbl_clearTemp(sym, pe.u.vlc);
-				sym.sc.lblContinue = pst.top;
+			if (stmt.cond === null){
+				// do end
+				pst.top = null;
 				return pgr_ok();
 			}
 			else{
-				// do end
-				label_free(pst.top);
-				pst.top = NULL;
+				// do while end
+				let pe = program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, stmt.cond);
+if (isPromise<per_st>(pe)) throw new Error('TODO: Promisify');
+				if (!pe.ok)
+					return pgr_error(pe.flp, pe.msg);
+				label_jumpfalse(pst.finish, prg.ops, pe.vlc);
+				symtbl_clearTemp(sym, pe.vlc);
+				sym.sc.lblContinue = pst.top;
 				return pgr_ok();
 			}
-		} break;
+		}
 
-		case AST_DOWHILE3: {
-			pgs_dowhile pst = state;
+		case ast_enumt.DOWHILE3: {
+			if (!pgs_dowhile_check(state))
+				throw new Error('Expecting state to be do-while structure');
+			let pst: pgs_dowhile_st = state;
 
-			if (pst.top)
+			if (pst.top !== null)
 				label_jump(pst.top, prg.ops);
 			label_declare(pst.finish, prg.ops);
 			symtbl_popScope(sym);
 			return pgr_pop();
-		} break;
+		}
 
-		case AST_ENUM: {
-			double last_val = -1;
-			for (int i = 0; i < stmt.u.lvalues.size; i++){
-				expr ex = stmt.u.lvalues.ptrs[i];
-				assert(ex.type === expr_enum.INFIX);
-				double v = last_val + 1;
-				if (ex.u.infix.right !== NULL){
-					pen_st n = program_exprToNum(pgen, ex.u.infix.right);
+		case ast_enumt.ENUM: {
+			let last_val = -1;
+			for (let i = 0; i < stmt.lvalues.length; i++){
+				let ex = stmt.lvalues[i];
+				if (ex.type !== expr_enum.INFIX)
+					throw new Error('Enum expression must be infix');
+				let v = last_val + 1;
+				if (ex.right !== null){
+					let n = program_exprToNum(pgen, ex.right);
 					if (!n.ok)
-						return pgr_error(stmt.flp, n.u.msg);
-					v = n.u.value;
+						return pgr_error(stmt.flp, n.msg);
+					v = n.value;
 				}
-				if (ex.u.infix.left.type !== expr_enum.NAMES){
-					return pgr_error(stmt.flp,
-						format("Enum name must only consist of identifiers"));
-				}
+				if (ex.left.type !== expr_enum.NAMES)
+					return pgr_error(stmt.flp, 'Enum name must only consist of identifiers');
 				last_val = v;
-				char *smsg = symtbl_addEnum(sym, ex.u.infix.left.u.names, v);
-				if (smsg)
+				let smsg = symtbl_addEnum(sym, ex.left.names, v);
+				if (smsg !== null)
 					return pgr_error(stmt.flp, smsg);
 			}
 			return pgr_ok();
-		} break;
+		}
 
-		case AST_FOR1: {
-			if (stmt.u.for1.ex.type === expr_enum.CALL){
-				expr c = stmt.u.for1.ex;
-				if (c.u.call.cmd.type === expr_enum.NAMES){
-					expr n = c.u.call.cmd;
-					stl_st sl = symtbl_lookup(sym, n.u.names);
+		case ast_enumt.FOR1: {
+			if (stmt.ex.type === expr_enum.CALL){
+				let c: expr_st_CALL = stmt.ex;
+				if (c.cmd.type === expr_enum.NAMES){
+					let n: expr_st_NAMES = c.cmd;
+					let sl = symtbl_lookup(sym, n.names);
 					if (!sl.ok)
-						return pgr_error(stmt.flp, sl.u.msg);
-					nsname nsn = sl.u.nsn;
-					if (nsn.type === nsname_enumt.CMD_OPCODE && nsn.u.cmdOpcode.opcode === op_enum.RANGE){
-						expr p = c.u.call.params;
-						varloc_st rp[3] = { VARLOC_NULL, VARLOC_NULL, VARLOC_NULL };
+						return pgr_error(stmt.flp, sl.msg);
+					let nsn = sl.nsn;
+					if (nsn.type === nsname_enumt.CMD_OPCODE && nsn.opcode === op_enum.RANGE){
+						let p = c.params;
+						let rp: varloc_st[] = [VARLOC_NULL, VARLOC_NULL, VARLOC_NULL];
 						if (p.type !== expr_enum.GROUP){
-							sta_st ts = symtbl_addTemp(sym);
+							let ts = symtbl_addTemp(sym);
 							if (!ts.ok)
-								return pgr_error(stmt.flp, ts.u.msg);
-							rp[0] = ts.u.vlc;
-							per_st pe = program_eval(pgen, pem_enum.INTO, rp[0], p);
+								return pgr_error(stmt.flp, ts.msg);
+							rp[0] = ts.vlc;
+							let pe = program_eval(pgen, pem_enum.INTO, rp[0], p);
+if (isPromise<per_st>(pe)) throw new Error('TODO: Promisify');
 							if (!pe.ok)
-								return pgr_error(pe.u.error.flp, pe.u.error.msg);
+								return pgr_error(pe.flp, pe.msg);
+							return program_genForRange(pgen, stmt, rp[0], rp[1], rp[2]);
 						}
 						else{
-							for (int i = 0; i < p.u.group.size; i++){
+							for (let i = 0; i < p.group.length; i++){
 								if (i < 3){
-									sta_st ts = symtbl_addTemp(sym);
+									let ts = symtbl_addTemp(sym);
 									if (!ts.ok)
-										return pgr_error(stmt.flp, ts.u.msg);
-									rp[i] = ts.u.vlc;
+										return pgr_error(stmt.flp, ts.msg);
+									rp[i] = ts.vlc;
 								}
-								per_st pe = program_eval(pgen,
+								let pe = program_eval(pgen,
 									i < 3 ? pem_enum.INTO : pem_enum.EMPTY,
 									i < 3 ? rp[i] : VARLOC_NULL,
-									p.u.group.ptrs[i]);
+									p.group[i]);
+if (isPromise<per_st>(pe)) throw new Error('TODO: Promisify');
 								if (!pe.ok)
-									return pgr_error(pe.u.error.flp, pe.u.error.msg);
+									return pgr_error(pe.flp, pe.msg);
 							}
+							return program_genForRange(pgen, stmt, rp[0], rp[1], rp[2]);
 						}
-						return program_genForRange(pgen, stmt, rp[0], rp[1], rp[2]);
 					}
 				}
 			}
 			return program_genForGeneric(pgen, stmt);
-		} break;
+		}
 
-		case AST_FOR2: {
-			pgs_for pst = state;
+		case ast_enumt.FOR2: {
+			if (!pgs_for_check(state))
+				throw new Error('Expecting state to be for structure');
+			let pst: pgs_for_st = state;
 
 			label_declare(pst.inc, prg.ops);
 			op_inc(prg.ops, pst.idx_vlc);
@@ -7715,245 +7725,260 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 			symtbl_clearTemp(sym, pst.idx_vlc);
 			symtbl_popScope(sym);
 			return pgr_pop();
-		} break;
+		}
 
-		case AST_LOOP1: {
+		case ast_enumt.LOOP1: {
 			symtbl_pushScope(sym);
-			label lcont = label_new("^loop_continue");
-			label lbrk = label_new("^loop_break");
+			let lcont = label_new('^loop_continue');
+			let lbrk = label_new('^loop_break');
 			sym.sc.lblContinue = lcont;
 			sym.sc.lblBreak = lbrk;
 			label_declare(lcont, prg.ops);
-			return pgr_push(pgs_loop_new(lcont, lbrk), (sink_free_f)pgs_loop_free);
-		} break;
+			return pgr_push(pgs_loop_new(lcont, lbrk));
+		}
 
-		case AST_LOOP2: {
-			pgs_loop pst = state;
+		case ast_enumt.LOOP2: {
+			if (!pgs_loop_check(state))
+				throw new Error('Expecting state to be loop structure');
+			let pst: pgs_loop_st = state;
 
 			label_jump(pst.lcont, prg.ops);
 			label_declare(pst.lbrk, prg.ops);
 			symtbl_popScope(sym);
 			return pgr_pop();
-		} break;
+		}
 
-		case AST_GOTO: {
-			for (int i = 0; i < sym.fr.lbls.size; i++){
-				label lbl = sym.fr.lbls.ptrs[i];
-				if (lbl.name && list_byte_equ(lbl.name, stmt.u.ident)){
+		case ast_enumt.GOTO: {
+			for (let i = 0; i < sym.fr.lbls.length; i++){
+				let lbl = sym.fr.lbls[i];
+				if (lbl.name !== null && lbl.name === stmt.ident){
 					label_jump(lbl, prg.ops);
 					return pgr_ok();
 				}
 			}
 			// label doesn't exist yet, so we'll need to create it
-			label lbl = label_new(stmt.u.ident);
-			stmt.u.ident = NULL;
+			let lbl = label_new(stmt.ident);
 			label_jump(lbl, prg.ops);
-			list_ptr_push(sym.fr.lbls, lbl);
+			sym.fr.lbls.push(lbl);
 			return pgr_ok();
-		} break;
+		}
 
-		case AST_IF1: {
-			return pgr_push(pgs_if_new(NULL, label_new("^ifdone")), (sink_free_f)pgs_if_free);
-		} break;
+		case ast_enumt.IF1: {
+			return pgr_push(pgs_if_new(null, label_new('^ifdone')));
+		}
 
-		case AST_IF2: {
-			pgs_if pst = state;
+		case ast_enumt.IF2: {
+			if (!pgs_if_check(state))
+				throw new Error('Expecting state to be if struture');
+			let pst: pgs_if_st = state;
 
-			if (pst.nextcond){
+			if (pst.nextcond !== null){
 				symtbl_popScope(sym);
 				label_jump(pst.ifdone, prg.ops);
 
 				label_declare(pst.nextcond, prg.ops);
-				label_free(pst.nextcond);
 			}
-			pst.nextcond = label_new("^nextcond");
-			per_st pr = program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, stmt.u.cond);
+			pst.nextcond = label_new('^nextcond');
+			let pr = program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, stmt.cond);
+if (isPromise<per_st>(pr)) throw new Error('TODO: Promisify');
 			if (!pr.ok)
-				return pgr_error(pr.u.error.flp, pr.u.error.msg);
+				return pgr_error(pr.flp, pr.msg);
 
-			label_jumpfalse(pst.nextcond, prg.ops, pr.u.vlc);
-			symtbl_clearTemp(sym, pr.u.vlc);
+			label_jumpfalse(pst.nextcond, prg.ops, pr.vlc);
+			symtbl_clearTemp(sym, pr.vlc);
 
 			symtbl_pushScope(sym);
 			return pgr_ok();
-		} break;
+		}
 
-		case AST_IF3: {
-			pgs_if pst = state;
+		case ast_enumt.IF3: {
+			if (!pgs_if_check(state))
+				throw new Error('Expecting state to be if structure');
+			let pst: pgs_if_st = state;
 
 			symtbl_popScope(sym);
 			label_jump(pst.ifdone, prg.ops);
 
+			if (pst.nextcond === null)
+				throw new Error('Next condition label must exist');
 			label_declare(pst.nextcond, prg.ops);
 			symtbl_pushScope(sym);
 			return pgr_ok();
-		} break;
+		}
 
-		case AST_IF4: {
-			pgs_if pst = state;
+		case ast_enumt.IF4: {
+			if (!pgs_if_check(state))
+				throw new Error('Expecting state to be if structure');
+			let pst: pgs_if_st = state;
 
 			symtbl_popScope(sym);
 			label_declare(pst.ifdone, prg.ops);
 			return pgr_pop();
-		} break;
+		}
 
-		case AST_INCLUDE: {
-			assert(false);
-		} break;
+		case ast_enumt.INCLUDE: {
+			throw new Error('Cannot generate code for include statement');
+		}
 
-		case AST_NAMESPACE1: {
-			char *smsg = symtbl_pushNamespace(sym, stmt.u.names);
-			if (smsg)
+		case ast_enumt.NAMESPACE1: {
+			let smsg = symtbl_pushNamespace(sym, stmt.names);
+			if (smsg !== null)
 				return pgr_error(stmt.flp, smsg);
-			return pgr_push(NULL, NULL);
-		} break;
+			return pgr_push(null);
+		}
 
-		case AST_NAMESPACE2: {
+		case ast_enumt.NAMESPACE2: {
 			symtbl_popNamespace(sym);
 			return pgr_pop();
-		} break;
+		}
 
-		case AST_RETURN: {
-			nsname nsn = NULL;
-			expr params = NULL;
-			expr ex = stmt.u.ex;
+		case ast_enumt.RETURN: {
+			let nsn: nsname_st | null = null;
+			let params: expr_st | null = null;
+			let ex = stmt.ex;
 
 			// check for tail call
 			if (ex.type === expr_enum.CALL){
-				if (ex.u.call.cmd.type !== expr_enum.NAMES)
-					return pgr_error(ex.flp, format("Invalid call"));
-				stl_st sl = symtbl_lookup(sym, ex.u.call.cmd.u.names);
+				if (ex.cmd.type !== expr_enum.NAMES)
+					return pgr_error(ex.flp, 'Invalid call');
+				let sl = symtbl_lookup(sym, ex.cmd.names);
 				if (!sl.ok)
-					return pgr_error(ex.flp, sl.u.msg);
-				nsn = sl.u.nsn;
-				params = ex.u.call.params;
+					return pgr_error(ex.flp, sl.msg);
+				nsn = sl.nsn;
+				params = ex.params;
 			}
 			else if (ex.type === expr_enum.NAMES){
-				stl_st sl = symtbl_lookup(sym, ex.u.names);
+				let sl = symtbl_lookup(sym, ex.names);
 				if (!sl.ok)
-					return pgr_error(ex.flp, sl.u.msg);
-				nsn = sl.u.nsn;
+					return pgr_error(ex.flp, sl.msg);
+				nsn = sl.nsn;
 			}
 
 			// can only tail call local commands at the same lexical level
-			if (nsn && nsn.type === nsname_enumt.CMD_LOCAL &&
-				nsn.u.cmdLocal.fr.level + 1 === sym.fr.level){
-				int argcount;
-				per_st pe;
-				varloc_st p[256];
-				if (!program_evalCallArgcount(pgen, params, &argcount, &pe, p))
-					return pgr_error(pe.u.error.flp, pe.u.error.msg);
-				label_returntail(nsn.u.cmdLocal.lbl, prg.ops, argcount);
-				for (int i = 0; i < argcount; i++){
+			if (nsn && nsn.type === nsname_enumt.CMD_LOCAL && nsn.fr.level + 1 === sym.fr.level){
+				let argcount: number[] = [];
+				let pe: per_st[] = [];
+				let p: varloc_st[] = [];
+				let eb = program_evalCallArgcount(pgen, params, argcount, pe, p);
+if (isPromise<boolean>(eb)) throw new Error('TODO: Promisify');
+				if (!eb){
+					let pe0 = pe[0];
+					if (pe0.ok)
+						throw new Error('Expecting error message from evalCallArgcount');
+					return pgr_error(pe0.flp, pe0.msg);
+				}
+				label_returntail(nsn.lbl, prg.ops, argcount[0]);
+				for (let i = 0; i < argcount[0]; i++){
 					op_arg(prg.ops, p[i]);
 					symtbl_clearTemp(sym, p[i]);
 				}
 				return pgr_ok();
 			}
 
-			per_st pr = program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex);
+			let pr = program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex);
+if (isPromise<per_st>(pr)) throw new Error('TODO: Promisify');
 			if (!pr.ok)
-				return pgr_error(pr.u.error.flp, pr.u.error.msg);
-			symtbl_clearTemp(sym, pr.u.vlc);
-			op_return(prg.ops, pr.u.vlc);
+				return pgr_error(pr.flp, pr.msg);
+			symtbl_clearTemp(sym, pr.vlc);
+			op_return(prg.ops, pr.vlc);
 			return pgr_ok();
-		} break;
+		}
 
-		case AST_USING: {
-			stl_st sl = symtbl_lookupfast(sym, stmt.u.names);
-			namespace ns;
+		case ast_enumt.USING: {
+			let sl = symtbl_lookupfast(sym, stmt.names);
+			let ns: namespace_st;
 			if (!sl.ok){ // not found, so create it
 				// don't have to free the error message because lookupfast doesn't create one
-				sfn_st sf = symtbl_findNamespace(sym, stmt.u.names, stmt.u.names.size);
+				let sf = symtbl_findNamespace(sym, stmt.names, stmt.names.length);
 				if (!sf.ok)
-					return pgr_error(stmt.flp, sf.u.msg);
-				ns = sf.u.ns;
+					return pgr_error(stmt.flp, sf.msg);
+				ns = sf.ns;
 			}
 			else{
-				if (sl.u.nsn.type !== nsname_enumt.NAMESPACE)
-					return pgr_error(stmt.flp, format("Expecting namespace"));
-				ns = sl.u.nsn.u.ns;
+				if (sl.nsn.type !== nsname_enumt.NAMESPACE)
+					return pgr_error(stmt.flp, 'Expecting namespace');
+				ns = sl.nsn.ns;
 			}
-			if (!list_ptr_has(sym.sc.ns.usings, ns))
-				list_ptr_push(sym.sc.ns.usings, ns);
+			if (sym.sc.ns.usings.indexOf(ns) < 0)
+				sym.sc.ns.usings.push(ns);
 			return pgr_ok();
-		} break;
+		}
 
-		case AST_VAR: {
-			for (int i = 0; i < stmt.u.lvalues.size; i++){
-				expr ex = stmt.u.lvalues.ptrs[i];
-				assert(ex.type === expr_enum.INFIX);
-				per_st pr;
-				if (ex.u.infix.right !== NULL){
-					pr = program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.u.infix.right);
+		case ast_enumt.VAR: {
+			for (let i = 0; i < stmt.lvalues.length; i++){
+				let ex = stmt.lvalues[i];
+				if (ex.type !== expr_enum.INFIX)
+					throw new Error('Var expressions must be infix');
+				let pr_vlc: varloc_st = VARLOC_NULL;
+				if (ex.right !== null){
+					let pr = program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.right);
+if (isPromise<per_st>(pr)) throw new Error('TODO: Promisify');
 					if (!pr.ok)
-						return pgr_error(pr.u.error.flp, pr.u.error.msg);
+						return pgr_error(pr.flp, pr.msg);
+					pr_vlc = pr.vlc;
 				}
-				lvp_st lr = lval_addVars(sym, ex.u.infix.left, -1);
+				let lr = lval_addVars(sym, ex.left, -1);
 				if (!lr.ok)
-					return pgr_error(lr.u.error.flp, lr.u.error.msg);
-				if (ex.u.infix.right !== NULL){
-					per_st pe = program_evalLval(pgen, pem_enum.EMPTY, VARLOC_NULL, lr.u.lv,
-						op_enum.INVALID, pr.u.vlc, true);
-					lvr_free(lr.u.lv);
+					return pgr_error(lr.flp, lr.msg);
+				if (ex.right !== null){
+					let pe = program_evalLval(pgen, pem_enum.EMPTY, VARLOC_NULL, lr.lv,
+						op_enum.INVALID, pr_vlc, true);
 					if (!pe.ok)
-						return pgr_error(pe.u.error.flp, pe.u.error.msg);
-					symtbl_clearTemp(sym, pr.u.vlc);
+						return pgr_error(pe.flp, pe.msg);
+					symtbl_clearTemp(sym, pr_vlc);
 				}
-				else
-					lvr_free(lr.u.lv);
 			}
 			return pgr_ok();
-		} break;
+		}
 
-		case AST_EVAL: {
+		case ast_enumt.EVAL: {
 			if (sayexpr){
-				per_st pr = program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, stmt.u.ex);
+				let pr = program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, stmt.ex);
+if (isPromise<per_st>(pr)) throw new Error('TODO: Promisify');
 				if (!pr.ok)
-					return pgr_error(pr.u.error.flp, pr.u.error.msg);
-				sta_st ts = symtbl_addTemp(sym);
+					return pgr_error(pr.flp, pr.msg);
+				let ts = symtbl_addTemp(sym);
 				if (!ts.ok)
-					return pgr_error(stmt.flp, ts.u.msg);
-				op_parama(prg.ops, op_enum.SAY, ts.u.vlc, 1);
-				op_arg(prg.ops, pr.u.vlc);
-				symtbl_clearTemp(sym, pr.u.vlc);
-				symtbl_clearTemp(sym, ts.u.vlc);
+					return pgr_error(stmt.flp, ts.msg);
+				op_parama(prg.ops, op_enum.SAY, ts.vlc, 1);
+				op_arg(prg.ops, pr.vlc);
+				symtbl_clearTemp(sym, pr.vlc);
+				symtbl_clearTemp(sym, ts.vlc);
 			}
 			else{
-				per_st pr = program_eval(pgen, pem_enum.EMPTY, VARLOC_NULL, stmt.u.ex);
+				let pr = program_eval(pgen, pem_enum.EMPTY, VARLOC_NULL, stmt.ex);
+if (isPromise<per_st>(pr)) throw new Error('TODO: Promisify');
 				if (!pr.ok)
-					return pgr_error(pr.u.error.flp, pr.u.error.msg);
+					return pgr_error(pr.flp, pr.msg);
 			}
 			return pgr_ok();
-		} break;
+		}
 
-		case AST_LABEL: {
-			label lbl = NULL;
-			bool found = false;
-			for (int i = 0; i < sym.fr.lbls.size; i++){
-				lbl = sym.fr.lbls.ptrs[i];
-				if (lbl.name && list_byte_equ(lbl.name, stmt.u.ident)){
-					if (lbl.pos >= 0){
-						return pgr_error(stmt.flp, format("Cannot redeclare label \"%.*s\"",
-							stmt.u.ident.size, stmt.u.ident.bytes));
-					}
+		case ast_enumt.LABEL: {
+			let lbl: label_st | null = null;
+			let found = false;
+			for (let i = 0; i < sym.fr.lbls.length; i++){
+				lbl = sym.fr.lbls[i];
+				if (lbl.name !== null && lbl.name === stmt.ident){
+					if (lbl.pos >= 0)
+						return pgr_error(stmt.flp, 'Cannot redeclare label "' + stmt.ident + '"');
 					found = true;
 					break;
 				}
 			}
 			if (!found){
-				lbl = label_new(stmt.u.ident);
-				stmt.u.ident = NULL;
-				list_ptr_push(sym.fr.lbls, lbl);
+				lbl = label_new(stmt.ident);
+				sym.fr.lbls.push(lbl);
 			}
+			if (lbl === null)
+				throw new Error('Label cannot be null');
 			label_declare(lbl, prg.ops);
 			return pgr_ok();
-		} break;
+		}
 	}
-	assert(false);
-	return pgr_ok();
+	throw new Error('Invalid AST type');
 }
-
+/*
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 //
 // runtime
@@ -13622,7 +13647,7 @@ static char *compiler_process(compiler cmp){
 				list_ptr_free(stmts);
 				return cmp.msg;
 			}
-			if (stmts.size > 0 && ((ast)stmts.ptrs[stmts.size - 1]).type === AST_INCLUDE)
+			if (stmts.size > 0 && ((ast)stmts.ptrs[stmts.size - 1]).type === ast_enum.INCLUDE)
 				break;
 		}
 
@@ -13631,7 +13656,7 @@ static char *compiler_process(compiler cmp){
 			ast stmt = list_ptr_shift(stmts);
 			ast_print(stmt);
 
-			if (stmt.type === AST_INCLUDE){
+			if (stmt.type === ast_enum.INCLUDE){
 				// intercept include statements to process by the compiler
 				for (int ii = 0; ii < stmt.u.incls.size; ii++){
 					incl inc = stmt.u.incls.ptrs[ii];
