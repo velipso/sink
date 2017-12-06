@@ -8128,58 +8128,46 @@ function context_reset(ctx: context_st): void {
 	ctx.pc = ctx.prg.ops.length;
 	ctx.timeout_left = ctx.timeout;
 }
-/*
-static inline sink_val var_get(context ctx, int frame, int index){
-	return ((lxs)ctx.lex_stk.ptrs[frame]).vals[index];
+
+function var_get(ctx: context_st, frame: number, index: number): sink_val {
+	// TODO: look at inlining this manually
+	return ctx.lex_stk[frame].vals[index];
 }
 
-static inline void var_set(context ctx, int frame, int index, sink_val val){
-	((lxs)ctx.lex_stk.ptrs[frame]).vals[index] = val;
+function var_set(ctx: context_st, frame: number, index: number, val: sink_val): void {
+	// TODO: look at inlining this manually
+	ctx.lex_stk[frame].vals[index] = val;
 }
 
-static inline sink_str var_caststr(context ctx, sink_val a){
-	return &ctx.str_tbl[var_index(a)];
-}
-
-static inline sink_list var_castlist(context ctx, sink_val a){
-	return &ctx.list_tbl[var_index(a)];
-}
-
-static inline sink_val arget(context ctx, sink_val ar, int index){
-	if (sink_islist(ar)){
-		sink_list ls = var_castlist(ctx, ar);
-		return index >= ls.size ? (sink_val){ .f = 0 } : ls.vals[index];
-	}
+function arget(ar: sink_val, index: number): sink_val {
+	if (sink_islist(ar))
+		return index >= ar.length ? 0 : ar[index];
 	return ar;
 }
 
-static inline int arsize(context ctx, sink_val ar){
-	if (sink_islist(ar)){
-		sink_list ls = var_castlist(ctx, ar);
-		return ls.size;
-	}
+function arsize(ar: sink_val): number {
+	if (sink_islist(ar))
+		return ar.length;
 	return 1;
 }
 
-static const int LT_ALLOWNIL = 1;
-static const int LT_ALLOWNUM = 2;
-static const int LT_ALLOWSTR = 4;
+const LT_ALLOWNIL = 1;
+const LT_ALLOWNUM = 2;
+const LT_ALLOWSTR = 4;
 
-static inline bool oper_typemask(sink_val a, int mask){
+function oper_typemask(a: sink_val, mask: number): boolean {
 	switch (sink_typeof(a)){
-		case SINK_TYPE_NIL   : return (mask & LT_ALLOWNIL ) !== 0;
-		case SINK_TYPE_NUM   : return (mask & LT_ALLOWNUM ) !== 0;
-		case SINK_TYPE_STR   : return (mask & LT_ALLOWSTR ) !== 0;
-		case SINK_TYPE_LIST  : return false;
-		case SINK_TYPE_ASYNC : return false;
+		case sink_type.NIL : return (mask & LT_ALLOWNIL) !== 0;
+		case sink_type.NUM : return (mask & LT_ALLOWNUM) !== 0;
+		case sink_type.STR : return (mask & LT_ALLOWSTR) !== 0;
+		case sink_type.LIST: return false;
 	}
 }
 
-static inline bool oper_typelist(context ctx, sink_val a, int mask){
+function oper_typelist(a: sink_val, mask: number): boolean {
 	if (sink_islist(a)){
-		sink_list ls = var_castlist(ctx, a);
-		for (int i = 0; i < ls.size; i++){
-			if (!oper_typemask(ls.vals[i], mask))
+		for (let i = 0; i < a.length; i++){
+			if (!oper_typemask(a[i], mask))
 				return false;
 		}
 		return true;
@@ -8187,208 +8175,169 @@ static inline bool oper_typelist(context ctx, sink_val a, int mask){
 	return oper_typemask(a, mask);
 }
 
-typedef sink_val (*unary_f)(context ctx, sink_val v);
+type unary_f = (v: sink_val) => sink_val;
 
-static sink_val oper_un(context ctx, sink_val a, unary_f f_unary){
+function oper_un(a: sink_val, f_unary: unary_f): sink_val {
 	if (sink_islist(a)){
-		sink_list ls = var_castlist(ctx, a);
-		if (ls.size <= 0)
-			return sink_list_newempty(ctx);
-		sink_val *ret = mem_alloc(sizeof(sink_val) * ls.size);
-		for (int i = 0; i < ls.size; i++)
-			ret[i] = f_unary(ctx, ls.vals[i]);
-		return sink_list_newblobgive(ctx, ls.size, ls.size, ret);
+		let ret = new sink_list();
+		for (let i = 0; i < a.length; i++)
+			ret.push(f_unary(a[i]));
+		return ret;
 	}
-	return f_unary(ctx, a);
+	return f_unary(a);
 }
 
-typedef sink_val (*binary_f)(context ctx, sink_val a, sink_val b);
+type binary_f = (a: sink_val, b: sink_val) => sink_val;
 
-static sink_val oper_bin(context ctx, sink_val a, sink_val b, binary_f f_binary){
+function oper_bin(a: sink_val, b: sink_val, f_binary: binary_f): sink_val {
 	if (sink_islist(a) || sink_islist(b)){
-		int ma = arsize(ctx, a);
-		int mb = arsize(ctx, b);
-		int m = ma > mb ? ma : mb;
-		if (m <= 0)
-			return sink_list_newempty(ctx);
-		sink_val *ret = mem_alloc(sizeof(sink_val) * m);
-		for (int i = 0; i < m; i++)
-			ret[i] = f_binary(ctx, arget(ctx, a, i), arget(ctx, b, i));
-		return sink_list_newblobgive(ctx, m, m, ret);
+		let m = Math.max(arsize(a), arsize(b));
+		let ret = new sink_list();
+		for (let i = 0; i < m; i++)
+			ret.push(f_binary(arget(a, i), arget(b, i)));
+		return ret;
 	}
-	return f_binary(ctx, a, b);
+	return f_binary(a, b);
 }
 
-typedef sink_val (*trinary_f)(context ctx, sink_val a, sink_val b, sink_val c);
+type trinary_f = (a: sink_val, b: sink_val, c: sink_val) => sink_val;
 
-static sink_val oper_tri(context ctx, sink_val a, sink_val b, sink_val c, trinary_f f_trinary){
+function oper_tri(a: sink_val, b: sink_val, c: sink_val, f_trinary: trinary_f): sink_val {
 	if (sink_islist(a) || sink_islist(b) || sink_islist(c)){
-		int ma = arsize(ctx, a);
-		int mb = arsize(ctx, b);
-		int mc = arsize(ctx, c);
-		int m = ma > mb ? (ma > mc ? ma : mc) : (mb > mc ? mb : mc);
-		if (m <= 0)
-			return sink_list_newempty(ctx);
-		sink_val *ret = mem_alloc(sizeof(sink_val) * m);
-		for (int i = 0; i < m; i++)
-			ret[i] = f_trinary(ctx, arget(ctx, a, i), arget(ctx, b, i), arget(ctx, c, i));
-		return sink_list_newblobgive(ctx, m, m, ret);
+		let m = Math.max(arsize(a), arsize(b), arsize(c));
+		let ret = new sink_list();
+		for (let i = 0; i < m; i++)
+			ret.push(f_trinary(arget(a, i), arget(b, i), arget(c, i)));
+		return ret;
 	}
-	return f_trinary(ctx, a, b, c);
+	return f_trinary(a, b, c);
 }
 
-static int str_cmp(sink_str a, sink_str b){
-	int m = a.size > b.size ? b.size : a.size;
-	for (int i = 0; i < m; i++){
-		uint8_t c1 = a.bytes[i];
-		uint8_t c2 = b.bytes[i];
-		if (c1 < c2)
-			return -1;
-		else if (c2 < c1)
-			return 1;
-	}
-	if (a.size < b.size)
-		return -1;
-	else if (b.size < a.size)
-		return 1;
-	return 0;
+function str_cmp(a: sink_str, b: sink_str): number {
+	return a === b ? 0 : (a < b ? -1 : 1);
 }
 
-static sink_val opihelp_num_max(context ctx, int size, sink_val *vals, list_int li){
-	sink_val max = SINK_NIL;
-	for (int i = 0; i < size; i++){
-		if (sink_isnum(vals[i])){
-			if (sink_isnil(max) || vals[i].f > max.f)
-				max = vals[i];
+function opihelp_num_max(vals: sink_list, li: sink_list[]): sink_val {
+	let max: sink_val = SINK_NIL;
+	for (let i = 0; i < vals.length; i++){
+		let v = vals[i];
+		if (sink_isnum(v)){
+			if (sink_isnil(max) || v > max)
+				max = v;
 		}
-		else if (sink_islist(vals[i])){
-			int idx = var_index(vals[i]);
-			if (list_int_has(li, idx))
+		else if (sink_islist(v)){
+			if (li.indexOf(v) >= 0)
 				return SINK_NIL;
-			list_int_push(li, idx);
+			li.push(v);
 
-			sink_list ls = var_castlist(ctx, vals[i]);
-			sink_val lm = opihelp_num_max(ctx, ls.size, ls.vals, li);
-			if (!sink_isnil(lm) && (sink_isnil(max) || lm.f > max.f))
+			let lm = opihelp_num_max(v, li);
+			if (!sink_isnil(lm) && (sink_isnil(max) || lm > max))
 				max = lm;
 
-			list_int_pop(li);
+			li.pop();
 		}
 	}
 	return max;
 }
 
-static inline sink_val opi_num_max(context ctx, int size, sink_val *vals){
-	list_int li = list_int_new();
-	sink_val res = opihelp_num_max(ctx, size, vals, li);
-	list_int_free(li);
-	return res;
+function opi_num_max(vals: sink_list): sink_val {
+	return opihelp_num_max(vals, []);
 }
 
-static sink_val opihelp_num_min(context ctx, int size, sink_val *vals, list_int li){
-	sink_val min = SINK_NIL;
-	for (int i = 0; i < size; i++){
-		if (sink_isnum(vals[i])){
-			if (sink_isnil(min) || vals[i].f < min.f)
-				min = vals[i];
+function opihelp_num_min(vals: sink_list, li: sink_list[]): sink_val {
+	let min: sink_val = SINK_NIL;
+	for (let i = 0; i < vals.length; i++){
+		let v = vals[i];
+		if (sink_isnum(v)){
+			if (sink_isnil(min) || v < min)
+				min = v;
 		}
-		else if (sink_islist(vals[i])){
-			int idx = var_index(vals[i]);
-			if (list_int_has(li, idx))
+		else if (sink_islist(v)){
+			if (li.indexOf(v) >= 0)
 				return SINK_NIL;
-			list_int_push(li, idx);
+			li.push(v);
 
-			sink_list ls = var_castlist(ctx, vals[i]);
-			sink_val lm = opihelp_num_min(ctx, ls.size, ls.vals, li);
-			if (!sink_isnil(lm) && (sink_isnil(min) || lm.f < min.f))
+			let lm = opihelp_num_min(v, li);
+			if (!sink_isnil(lm) && (sink_isnil(min) || lm < min))
 				min = lm;
 
-			list_int_pop(li);
+			li.pop();
 		}
 	}
 	return min;
 }
 
-static inline sink_val opi_num_min(context ctx, int size, sink_val *vals){
-	list_int li = list_int_new();
-	sink_val res = opihelp_num_min(ctx, size, vals, li);
-	list_int_free(li);
-	return res;
+function opi_num_min(vals: sink_list){
+	return opihelp_num_min(vals, []);
 }
 
-static sink_val opi_num_base(context ctx, double num, int len, int base){
+function opi_num_base(num: number, len: number, base: number): sink_val {
 	if (len > 256)
 		len = 256;
-	const char *digits = "0123456789ABCDEF";
-	char buf[100];
-	int p = 0;
+	const digits = '0123456789ABCDEF';
+	let buf = '';
 
 	if (num < 0){
-		buf[p++] = '-';
+		buf = '-';
 		num = -num;
 	}
 
-	buf[p++] = '0';
 	if (base === 16)
-		buf[p++] = 'x';
+		buf += '0x';
 	else if (base === 8)
-		buf[p++] = 'c';
+		buf += '0c';
 	else if (base === 2)
-		buf[p++] = 'b';
+		buf += '0b';
 	else
-		assert(false);
+		throw new Error('Bad base for number conversion');
 
-	char buf2[100];
-	int bodysize = 0;
-	double nint = floor(num);
-	double nfra = num - nint;
+	let buf2 = '';
+	let bodysize = 0;
+	let nint = Math.floor(num);
+	let nfra = num - nint;
 	while (nint > 0 && bodysize < 50){
-		buf2[bodysize++] = digits[(int)fmod(nint, base)];
-		nint = floor(nint / base);
+		buf2 += digits.charAt(nint % base);
+		bodysize++;
+		nint = Math.floor(nint / base);
 	}
-	int bi = 0;
-	while (bodysize + bi < len && bodysize + bi < 32 && p < 50){
-		buf[p++] = '0';
+	let bi = 0;
+	while (bodysize + bi < len && bodysize + bi < 32 && buf.length < 50){
+		buf += '0';
 		bi++;
 	}
-	if (bodysize > 0){
-		for (int i = 0; i < bodysize; i++)
-			buf[p++] = buf2[bodysize - 1 - i];
-	}
+	if (bodysize > 0)
+		buf += buf2;
 	else if (len <= 0)
-		buf[p++] = '0';
+		buf += '0';
 
 	if (nfra > 0.00001){
-		buf[p++] = '.';
-		int i = 0;
+		buf += '.';
+		let i = 0;
 		while (nfra > 0.00001 && i < 16){
 			nfra *= base;
-			nint = floor(nfra);
-			buf[p++] = digits[(int)nint];
+			nint = Math.floor(nfra);
+			buf += digits.charAt(nint);
 			nfra -= nint;
 			i++;
 		}
 	}
 
-	buf[p++] = 0;
-	return sink_str_newcstr(ctx, buf);
+	return buf;
 }
 
-static inline uint32_t opi_rand_int(context ctx);
-
-static inline void opi_rand_seedauto(context ctx){
-	ctx.rand_seed = sink_seedauto_src();
-	ctx.rand_i = sink_seedauto_src();
-	for (int i = 0; i < 1000; i++)
+function opi_rand_seedauto(ctx: context_st): void {
+	ctx.rand_seed = (Math.random() * 0x10000000) | 0;
+	ctx.rand_i = (Math.random() * 0x10000000) | 0;
+	for (let i = 0; i < 1000; i++)
 		opi_rand_int(ctx);
 	ctx.rand_i = 0;
 }
 
-static inline void opi_rand_seed(context ctx, uint32_t n){
+function opi_rand_seed(ctx: context_st, n: number): void {
 	ctx.rand_seed = n;
 	ctx.rand_i = 0;
 }
-
+/*
 static inline uint32_t opi_rand_int(context ctx){
 	uint32_t m = 0x5bd1e995;
 	uint32_t k = ctx.rand_i++ * m;

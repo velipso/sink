@@ -9489,11 +9489,11 @@ static const int LT_ALLOWSTR = 4;
 
 static inline bool oper_typemask(sink_val a, int mask){
 	switch (sink_typeof(a)){
-		case SINK_TYPE_NIL   : return (mask & LT_ALLOWNIL ) != 0;
-		case SINK_TYPE_NUM   : return (mask & LT_ALLOWNUM ) != 0;
-		case SINK_TYPE_STR   : return (mask & LT_ALLOWSTR ) != 0;
-		case SINK_TYPE_LIST  : return false;
-		case SINK_TYPE_ASYNC : return false;
+		case SINK_TYPE_NIL  : return (mask & LT_ALLOWNIL) != 0;
+		case SINK_TYPE_NUM  : return (mask & LT_ALLOWNUM) != 0;
+		case SINK_TYPE_STR  : return (mask & LT_ALLOWSTR) != 0;
+		case SINK_TYPE_LIST : return false;
+		case SINK_TYPE_ASYNC: return false;
 	}
 }
 
