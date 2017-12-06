@@ -8893,10 +8893,11 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 		} break;
 
 		case AST_EVAL: {
+			per_st pr = program_eval(pgen, sayexpr ? PEM_CREATE : PEM_EMPTY, VARLOC_NULL,
+				stmt->u.ex);
+			if (!pr.ok)
+				return pgr_error(pr.u.error.flp, pr.u.error.msg);
 			if (sayexpr){
-				per_st pr = program_eval(pgen, PEM_CREATE, VARLOC_NULL, stmt->u.ex);
-				if (!pr.ok)
-					return pgr_error(pr.u.error.flp, pr.u.error.msg);
 				sta_st ts = symtbl_addTemp(sym);
 				if (!ts.ok)
 					return pgr_error(stmt->flp, ts.u.msg);
@@ -8904,11 +8905,6 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 				op_arg(prg->ops, pr.u.vlc);
 				symtbl_clearTemp(sym, pr.u.vlc);
 				symtbl_clearTemp(sym, ts.u.vlc);
-			}
-			else{
-				per_st pr = program_eval(pgen, PEM_EMPTY, VARLOC_NULL, stmt->u.ex);
-				if (!pr.ok)
-					return pgr_error(pr.u.error.flp, pr.u.error.msg);
 			}
 			return pgr_ok();
 		} break;

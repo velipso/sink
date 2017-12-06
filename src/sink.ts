@@ -7455,6 +7455,228 @@ function program_gen(pgen: pgen_st, stmt: ast_st, state: pgst_st,
 	let prg = pgen.prg;
 	let sym = pgen.sym;
 	program_flp(prg, stmt.flp);
+
+	function handleDefArgs(stmt: ast_st_DEF1, skip: label_st,
+		lvs: number, level: number): pgr_st | Promise<pgr_st> {
+		// initialize our arguments as needed
+		let i = 0;
+		function handleNext(): pgr_st | Promise<pgr_st> {
+			if (i >= lvs)
+				return pgr_push(skip);
+
+			let ex = stmt.lvalues[i];
+
+			let argset = label_new('^argset');
+			let arg = VARLOC_NULL;
+			function handleInfixPr(pr: per_st): pgr_st | Promise<pgr_st> {
+				if (!pr.ok)
+					return pgr_error(pr.flp, pr.msg);
+				label_declare(argset, prg.ops);
+				return handleInfixRest(arg);
+			}
+
+			function handleInfixRest(arg: varloc_st): pgr_st | Promise<pgr_st> {
+				// now we can add the param symbols
+				if (ex.type !== expr_enum.INFIX)
+					throw new Error('Expecting parameter expression to be infix');
+				let lr = lval_addVars(sym, ex.left, i);
+				if (!lr.ok)
+					return pgr_error(lr.flp, lr.msg);
+
+				// move argument into lval(s)
+				let pe = program_evalLval(pgen, pem_enum.EMPTY, VARLOC_NULL, lr.lv,
+					op_enum.INVALID, arg, true);
+				if (!pe.ok)
+					return pgr_error(pe.flp, pe.msg);
+				i++;
+				return handleNext();
+			}
+
+			if (ex.type === expr_enum.INFIX){
+				// the argument is the i-th register
+				arg = varloc_new(level, i);
+
+				// check for initialization -- must happen before the symbols are added so that
+				// `def a x = x` binds the seconds `x` to the outer scope
+				if (ex.right !== null){
+					label_jumptrue(argset, prg.ops, arg);
+					let pr = program_eval(pgen, pem_enum.INTO, arg, ex.right);
+					if (isPromise<per_st>(pr))
+						return pr.then(handleInfixPr);
+					return handleInfixPr(pr);
+				}
+				return handleInfixRest(arg);
+			}
+			else if (i === lvs - 1 && ex.type === expr_enum.PREFIX && ex.k === ks_enum.PERIOD3){
+				let lr = lval_addVars(sym, ex.ex, i);
+				if (!lr.ok)
+					return pgr_error(lr.flp, lr.msg);
+				if (lr.lv.type !== lvr_enum.VAR)
+					throw new Error('Assertion failed: `...rest` parameter must be identifier');
+			}
+			else
+				throw new Error('Assertion failed: parameter must be infix expression');
+			i++;
+			return handleNext();
+		}
+		return handleNext();
+	}
+
+	function handleDoWhileEnd(pe: per_st): pgr_st {
+		if (!pgs_dowhile_check(state))
+			throw new Error('Expecting state to be do-while structure');
+		let pst: pgs_dowhile_st = state;
+		if (!pe.ok)
+			return pgr_error(pe.flp, pe.msg);
+		label_jumpfalse(pst.finish, prg.ops, pe.vlc);
+		symtbl_clearTemp(sym, pe.vlc);
+		sym.sc.lblContinue = pst.top;
+		return pgr_ok();
+	}
+
+	function makeHandleGenRange(stmt: ast_st_FOR1, rp: varloc_st[]): (pe: per_st) => pgr_st {
+		return function(pe: per_st): pgr_st {
+			if (!pe.ok)
+				return pgr_error(pe.flp, pe.msg);
+			return program_genForRange(pgen, stmt, rp[0], rp[1], rp[2]);
+		};
+	}
+
+	function handleGenRangeGroup(stmt: ast_st_FOR1, p: expr_st_GROUP): pgr_st | Promise<pgr_st> {
+		let rp: varloc_st[] = [VARLOC_NULL, VARLOC_NULL, VARLOC_NULL];
+		let i = 0;
+		function handleNext(): pgr_st | Promise<pgr_st> {
+			if (i >= p.group.length)
+				return program_genForRange(pgen, stmt, rp[0], rp[1], rp[2]);
+
+			if (i < 3){
+				let ts = symtbl_addTemp(sym);
+				if (!ts.ok)
+					return pgr_error(stmt.flp, ts.msg);
+				rp[i] = ts.vlc;
+			}
+			let pe = program_eval(pgen,
+				i < 3 ? pem_enum.INTO : pem_enum.EMPTY,
+				i < 3 ? rp[i] : VARLOC_NULL,
+				p.group[i]);
+			if (isPromise<per_st>(pe))
+				return pe.then(handlePe);
+			return handlePe(pe);
+
+			function handlePe(pe: per_st): pgr_st | Promise<pgr_st> {
+				if (!pe.ok)
+					return pgr_error(pe.flp, pe.msg);
+				i++;
+				return handleNext();
+			}
+		}
+		return handleNext();
+	}
+
+	function handleIf2(pr: per_st): pgr_st {
+		if (!pgs_if_check(state))
+			throw new Error('Expecting state to be if struture');
+		let pst: pgs_if_st = state;
+
+		if (!pr.ok)
+			return pgr_error(pr.flp, pr.msg);
+
+		if (pst.nextcond === null)
+			throw new Error('If2 nextcond must not be null');
+		label_jumpfalse(pst.nextcond, prg.ops, pr.vlc);
+		symtbl_clearTemp(sym, pr.vlc);
+
+		symtbl_pushScope(sym);
+		return pgr_ok();
+	}
+
+	function makeHandleTailCall(nsn: nsname_st_CMD_LOCAL, argcount: number[], pe: per_st[],
+		p: varloc_st[]): (eb: boolean) => pgr_st {
+		return function(eb: boolean): pgr_st {
+			if (!eb){
+				let pe0 = pe[0];
+				if (pe0.ok)
+					throw new Error('Expecting error message from evalCallArgcount');
+				return pgr_error(pe0.flp, pe0.msg);
+			}
+			label_returntail(nsn.lbl, prg.ops, argcount[0]);
+			for (let i = 0; i < argcount[0]; i++){
+				op_arg(prg.ops, p[i]);
+				symtbl_clearTemp(sym, p[i]);
+			}
+			return pgr_ok();
+		};
+	}
+
+	function handleReturn(pr: per_st): pgr_st {
+		if (!pr.ok)
+			return pgr_error(pr.flp, pr.msg);
+		symtbl_clearTemp(sym, pr.vlc);
+		op_return(prg.ops, pr.vlc);
+		return pgr_ok();
+	}
+
+	function handleVar(stmt: ast_st_VAR): pgr_st | Promise<pgr_st> {
+		let i = 0;
+		function handleNext(): pgr_st | Promise<pgr_st> {
+			if (i >= stmt.lvalues.length)
+				return pgr_ok();
+
+			let ex1 = stmt.lvalues[i];
+			if (ex1.type !== expr_enum.INFIX)
+				throw new Error('Var expressions must be infix');
+			let ex: expr_st_INFIX = ex1;
+			let pr_vlc: varloc_st = VARLOC_NULL;
+
+			function handlePr(pr: per_st): pgr_st | Promise<pgr_st> {
+				if (!pr.ok)
+					return pgr_error(pr.flp, pr.msg);
+				pr_vlc = pr.vlc;
+				return handleAddVars();
+			}
+
+			function handleAddVars(): pgr_st | Promise<pgr_st> {
+				let lr = lval_addVars(sym, ex.left, -1);
+				if (!lr.ok)
+					return pgr_error(lr.flp, lr.msg);
+				if (ex.right !== null){
+					let pe = program_evalLval(pgen, pem_enum.EMPTY, VARLOC_NULL, lr.lv,
+						op_enum.INVALID, pr_vlc, true);
+					if (!pe.ok)
+						return pgr_error(pe.flp, pe.msg);
+					symtbl_clearTemp(sym, pr_vlc);
+				}
+
+				i++;
+				return handleNext();
+			}
+
+			if (ex.right !== null){
+				let pr = program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.right);
+				if (isPromise<per_st>(pr))
+					return pr.then(handlePr);
+				return handlePr(pr);
+			}
+			return handleAddVars();
+		}
+		return handleNext();
+	}
+
+	function handleEval(pr: per_st): pgr_st {
+		if (!pr.ok)
+			return pgr_error(pr.flp, pr.msg);
+		if (sayexpr){
+			let ts = symtbl_addTemp(sym);
+			if (!ts.ok)
+				return pgr_error(stmt.flp, ts.msg);
+			op_parama(prg.ops, op_enum.SAY, ts.vlc, 1);
+			op_arg(prg.ops, pr.vlc);
+			symtbl_clearTemp(sym, pr.vlc);
+			symtbl_clearTemp(sym, ts.vlc);
+		}
+		return pgr_ok();
+	}
+
 	switch (stmt.type){
 		case ast_enumt.BREAK: {
 			if (sym.sc.lblBreak === null)
@@ -7531,47 +7753,7 @@ function program_gen(pgen: pgen_st, stmt: ast_st, state: pgst_st,
 			// reserve our argument registers as explicit registers 0 to lvs-1
 			symtbl_reserveVars(sym, lvs);
 
-			// initialize our arguments as needed
-			for (let i = 0; i < lvs; i++){
-				let ex = stmt.lvalues[i];
-				if (ex.type === expr_enum.INFIX){
-					// the argument is the i-th register
-					let arg = varloc_new(level, i);
-
-					// check for initialization -- must happen before the symbols are added so that
-					// `def a x = x` binds the seconds `x` to the outer scope
-					if (ex.right !== null){
-						let argset = label_new('^argset');
-						label_jumptrue(argset, prg.ops, arg);
-						let pr = program_eval(pgen, pem_enum.INTO, arg, ex.right);
-if (isPromise<per_st>(pr)) throw new Error('TODO: Promisify');
-						if (!pr.ok)
-							return pgr_error(pr.flp, pr.msg);
-						label_declare(argset, prg.ops);
-					}
-
-					// now we can add the param symbols
-					let lr = lval_addVars(sym, ex.left, i);
-					if (!lr.ok)
-						return pgr_error(lr.flp, lr.msg);
-
-					// move argument into lval(s)
-					let pe = program_evalLval(pgen, pem_enum.EMPTY, VARLOC_NULL, lr.lv,
-						op_enum.INVALID, arg, true);
-					if (!pe.ok)
-						return pgr_error(pe.flp, pe.msg);
-				}
-				else if (i === lvs - 1 && ex.type === expr_enum.PREFIX && ex.k === ks_enum.PERIOD3){
-					let lr = lval_addVars(sym, ex.ex, i);
-					if (!lr.ok)
-						return pgr_error(lr.flp, lr.msg);
-					if (lr.lv.type !== lvr_enum.VAR)
-						throw new Error('Assertion failed: `...rest` parameter must be identifier');
-				}
-				else
-					throw new Error('Assertion failed: parameter must be infix expression');
-			}
-			return pgr_push(skip);
+			return handleDefArgs(stmt, skip, lvs, level);
 		}
 
 		case ast_enumt.DEF2: {
@@ -7612,13 +7794,9 @@ if (isPromise<per_st>(pr)) throw new Error('TODO: Promisify');
 			else{
 				// do while end
 				let pe = program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, stmt.cond);
-if (isPromise<per_st>(pe)) throw new Error('TODO: Promisify');
-				if (!pe.ok)
-					return pgr_error(pe.flp, pe.msg);
-				label_jumpfalse(pst.finish, prg.ops, pe.vlc);
-				symtbl_clearTemp(sym, pe.vlc);
-				sym.sc.lblContinue = pst.top;
-				return pgr_ok();
+				if (isPromise<per_st>(pe))
+					return pe.then(handleDoWhileEnd);
+				return handleDoWhileEnd(pe);
 			}
 		}
 
@@ -7668,35 +7846,18 @@ if (isPromise<per_st>(pe)) throw new Error('TODO: Promisify');
 					let nsn = sl.nsn;
 					if (nsn.type === nsname_enumt.CMD_OPCODE && nsn.opcode === op_enum.RANGE){
 						let p = c.params;
-						let rp: varloc_st[] = [VARLOC_NULL, VARLOC_NULL, VARLOC_NULL];
-						if (p.type !== expr_enum.GROUP){
+						if (p.type === expr_enum.GROUP)
+							return handleGenRangeGroup(stmt, p);
+						else{
+							let rp: varloc_st[] = [VARLOC_NULL, VARLOC_NULL, VARLOC_NULL];
 							let ts = symtbl_addTemp(sym);
 							if (!ts.ok)
 								return pgr_error(stmt.flp, ts.msg);
 							rp[0] = ts.vlc;
 							let pe = program_eval(pgen, pem_enum.INTO, rp[0], p);
-if (isPromise<per_st>(pe)) throw new Error('TODO: Promisify');
-							if (!pe.ok)
-								return pgr_error(pe.flp, pe.msg);
-							return program_genForRange(pgen, stmt, rp[0], rp[1], rp[2]);
-						}
-						else{
-							for (let i = 0; i < p.group.length; i++){
-								if (i < 3){
-									let ts = symtbl_addTemp(sym);
-									if (!ts.ok)
-										return pgr_error(stmt.flp, ts.msg);
-									rp[i] = ts.vlc;
-								}
-								let pe = program_eval(pgen,
-									i < 3 ? pem_enum.INTO : pem_enum.EMPTY,
-									i < 3 ? rp[i] : VARLOC_NULL,
-									p.group[i]);
-if (isPromise<per_st>(pe)) throw new Error('TODO: Promisify');
-								if (!pe.ok)
-									return pgr_error(pe.flp, pe.msg);
-							}
-							return program_genForRange(pgen, stmt, rp[0], rp[1], rp[2]);
+							if (isPromise<per_st>(pe))
+								return pe.then(makeHandleGenRange(stmt, rp));
+							return makeHandleGenRange(stmt, rp)(pe);
 						}
 					}
 				}
@@ -7780,15 +7941,9 @@ if (isPromise<per_st>(pe)) throw new Error('TODO: Promisify');
 			}
 			pst.nextcond = label_new('^nextcond');
 			let pr = program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, stmt.cond);
-if (isPromise<per_st>(pr)) throw new Error('TODO: Promisify');
-			if (!pr.ok)
-				return pgr_error(pr.flp, pr.msg);
-
-			label_jumpfalse(pst.nextcond, prg.ops, pr.vlc);
-			symtbl_clearTemp(sym, pr.vlc);
-
-			symtbl_pushScope(sym);
-			return pgr_ok();
+			if (isPromise<per_st>(pr))
+				return pr.then(handleIf2);
+			return handleIf2(pr);
 		}
 
 		case ast_enumt.IF3: {
@@ -7860,28 +8015,15 @@ if (isPromise<per_st>(pr)) throw new Error('TODO: Promisify');
 				let pe: per_st[] = [];
 				let p: varloc_st[] = [];
 				let eb = program_evalCallArgcount(pgen, params, argcount, pe, p);
-if (isPromise<boolean>(eb)) throw new Error('TODO: Promisify');
-				if (!eb){
-					let pe0 = pe[0];
-					if (pe0.ok)
-						throw new Error('Expecting error message from evalCallArgcount');
-					return pgr_error(pe0.flp, pe0.msg);
-				}
-				label_returntail(nsn.lbl, prg.ops, argcount[0]);
-				for (let i = 0; i < argcount[0]; i++){
-					op_arg(prg.ops, p[i]);
-					symtbl_clearTemp(sym, p[i]);
-				}
-				return pgr_ok();
+				if (isPromise<boolean>(eb))
+					return eb.then(makeHandleTailCall(nsn, argcount, pe, p));
+				return makeHandleTailCall(nsn, argcount, pe, p)(eb);
 			}
 
 			let pr = program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex);
-if (isPromise<per_st>(pr)) throw new Error('TODO: Promisify');
-			if (!pr.ok)
-				return pgr_error(pr.flp, pr.msg);
-			symtbl_clearTemp(sym, pr.vlc);
-			op_return(prg.ops, pr.vlc);
-			return pgr_ok();
+			if (isPromise<per_st>(pr))
+				return pr.then(handleReturn);
+			return handleReturn(pr);
 		}
 
 		case ast_enumt.USING: {
@@ -7904,54 +8046,15 @@ if (isPromise<per_st>(pr)) throw new Error('TODO: Promisify');
 			return pgr_ok();
 		}
 
-		case ast_enumt.VAR: {
-			for (let i = 0; i < stmt.lvalues.length; i++){
-				let ex = stmt.lvalues[i];
-				if (ex.type !== expr_enum.INFIX)
-					throw new Error('Var expressions must be infix');
-				let pr_vlc: varloc_st = VARLOC_NULL;
-				if (ex.right !== null){
-					let pr = program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.right);
-if (isPromise<per_st>(pr)) throw new Error('TODO: Promisify');
-					if (!pr.ok)
-						return pgr_error(pr.flp, pr.msg);
-					pr_vlc = pr.vlc;
-				}
-				let lr = lval_addVars(sym, ex.left, -1);
-				if (!lr.ok)
-					return pgr_error(lr.flp, lr.msg);
-				if (ex.right !== null){
-					let pe = program_evalLval(pgen, pem_enum.EMPTY, VARLOC_NULL, lr.lv,
-						op_enum.INVALID, pr_vlc, true);
-					if (!pe.ok)
-						return pgr_error(pe.flp, pe.msg);
-					symtbl_clearTemp(sym, pr_vlc);
-				}
-			}
-			return pgr_ok();
-		}
+		case ast_enumt.VAR:
+			return handleVar(stmt);
 
 		case ast_enumt.EVAL: {
-			if (sayexpr){
-				let pr = program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, stmt.ex);
-if (isPromise<per_st>(pr)) throw new Error('TODO: Promisify');
-				if (!pr.ok)
-					return pgr_error(pr.flp, pr.msg);
-				let ts = symtbl_addTemp(sym);
-				if (!ts.ok)
-					return pgr_error(stmt.flp, ts.msg);
-				op_parama(prg.ops, op_enum.SAY, ts.vlc, 1);
-				op_arg(prg.ops, pr.vlc);
-				symtbl_clearTemp(sym, pr.vlc);
-				symtbl_clearTemp(sym, ts.vlc);
-			}
-			else{
-				let pr = program_eval(pgen, pem_enum.EMPTY, VARLOC_NULL, stmt.ex);
-if (isPromise<per_st>(pr)) throw new Error('TODO: Promisify');
-				if (!pr.ok)
-					return pgr_error(pr.flp, pr.msg);
-			}
-			return pgr_ok();
+			let pr = program_eval(pgen, sayexpr ? pem_enum.CREATE : pem_enum.EMPTY, VARLOC_NULL,
+				stmt.ex);
+			if (isPromise<per_st>(pr))
+				return pr.then(handleEval);
+			return handleEval(pr);
 		}
 
 		case ast_enumt.LABEL: {
