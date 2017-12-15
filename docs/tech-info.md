@@ -24,7 +24,7 @@ Both implementations:
 
 C99 implementation:
 
-* Values are stored via [NaN-boxing](http://syntheti.cc/article/nan-boxing/)
+* Values are stored via [NaN-boxing](http://sean.cm/article/nan-boxing/)
 * Simple stop-the-world mark sweep garbage collector
 * Easy to build, just two files: `sink.h` and `sink.c`
 * Asynchronous commands via special value `SINK_ASYNC`
