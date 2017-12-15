@@ -11756,15 +11756,10 @@ static inline int sortboth(context ctx, list_int li, const sink_val *a, const si
 	list_int_push(li, idx2);
 	for (int i = 0; i < minsize; i++){
 		int res = sortboth(ctx, li, &ls1->vals[i], &ls2->vals[i]);
-		if (res < 0){
+		if (res != 0){
 			list_int_pop(li);
 			list_int_pop(li);
-			return -1;
-		}
-		else if (res > 0){
-			list_int_pop(li);
-			list_int_pop(li);
-			return 1;
+			return res;
 		}
 	}
 	list_int_pop(li);
