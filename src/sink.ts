@@ -8464,28 +8464,27 @@ export function sink_str_hash(ctx: sink_ctx, a: sink_val, seed: number): sink_va
 	let out = sink_str_hashplain(s, seed);
 	return new sink_list(out[0], out[1], out[2], out[3]);
 }
-/*
+
 // 1   7  U+00000  U+00007F  0xxxxxxx
 // 2  11  U+00080  U+0007FF  110xxxxx  10xxxxxx
 // 3  16  U+00800  U+00FFFF  1110xxxx  10xxxxxx  10xxxxxx
 // 4  21  U+10000  U+10FFFF  11110xxx  10xxxxxx  10xxxxxx  10xxxxxx
 
-static inline bool opihelp_codepoint(sink_val b){
+function opihelp_codepoint(b: sink_val): boolean {
 	return sink_isnum(b) && // must be a number
-		floorf(b.f) === b.f && // must be an integer
-		b.f >= 0 && b.f < 0x110000 && // must be within total range
-		(b.f < 0xD800 || b.f >= 0xE000); // must not be a surrogate
+		Math.floor(b) == b && // must be an integer
+		b >= 0 && b < 0x110000 && // must be within total range
+		(b < 0xD800 || b >= 0xE000); // must not be a surrogate
 }
 
-static inline bool sink_utf8_valid(context ctx, sink_val a){
+export function sink_utf8_valid(ctx: sink_ctx, a: sink_val): boolean {
 	if (sink_isstr(a)){
-		sink_str s = var_caststr(ctx, a);
-		int state = 0;
-		int codepoint = 0;
-		int min = 0;
-		for (int i = 0; i < s.size; i++){
-			uint8_t b = s.bytes[i];
-			if (state === 0){
+		let state = 0;
+		let codepoint = 0;
+		let min = 0;
+		for (let i = 0; i < a.length; i++){
+			let b = a.charCodeAt(i);
+			if (state == 0){
 				if (b < 0x80) // 0x00 to 0x7F
 					continue;
 				else if (b < 0xC0) // 0x80 to 0xBF
@@ -8513,7 +8512,7 @@ static inline bool sink_utf8_valid(context ctx, sink_val a){
 					return false;
 				codepoint = (codepoint << 6) | (b & 0x3F);
 				state--;
-				if (state === 0){ // codepoint finished, check if invalid
+				if (state == 0){ // codepoint finished, check if invalid
 					if (codepoint < min || // no overlong
 						codepoint >= 0x110000 || // no huge
 						(codepoint >= 0xD800 && codepoint < 0xE000)) // no surrogates
@@ -8521,12 +8520,11 @@ static inline bool sink_utf8_valid(context ctx, sink_val a){
 				}
 			}
 		}
-		return state === 0;
+		return state == 0;
 	}
 	else if (sink_islist(a)){
-		sink_list ls = var_castlist(ctx, a);
-		for (int i = 0; i < ls.size; i++){
-			if (!opihelp_codepoint(ls.vals[i]))
+		for (let i = 0; i < a.length; i++){
+			if (!opihelp_codepoint(a[i]))
 				return false;
 		}
 		return true;
@@ -8534,23 +8532,24 @@ static inline bool sink_utf8_valid(context ctx, sink_val a){
 	return false;
 }
 
-static inline sink_val sink_utf8_list(context ctx, sink_val a){
+export function sink_utf8_list(ctx: sink_ctx, a: sink_val): sink_val {
 	if (!sink_isstr(a)){
-		opi_abort(ctx, "Expecting string");
+		opi_abort(ctx, 'Expecting string');
 		return SINK_NIL;
 	}
-	sink_str s = var_caststr(ctx, a);
-	sink_val res = sink_list_newempty(ctx);
-	int state = 0;
-	int codepoint = 0;
-	int min = 0;
-	for (int i = 0; i < s.size; i++){
-		uint8_t b = s.bytes[i];
-		if (state === 0){
+	let res = new sink_list();
+	let state = 0;
+	let codepoint = 0;
+	let min = 0;
+	for (let i = 0; i < a.length; i++){
+		let b = a.charCodeAt(i);
+		if (state == 0){
 			if (b < 0x80) // 0x00 to 0x7F
-				sink_list_push(ctx, res, sink_num(b));
-			else if (b < 0xC0) // 0x80 to 0xBF
-				goto fail;
+				res.push(b);
+			else if (b < 0xC0){ // 0x80 to 0xBF
+				opi_abort(ctx, 'Invalid UTF-8 string');
+				return SINK_NIL;
+			}
 			else if (b < 0xE0){ // 0xC0 to 0xDF
 				codepoint = b & 0x1F;
 				min = 0x80;
@@ -8566,77 +8565,67 @@ static inline sink_val sink_utf8_list(context ctx, sink_val a){
 				min = 0x10000;
 				state = 3;
 			}
-			else
-				goto fail;
+			else{
+				opi_abort(ctx, 'Invalid UTF-8 string');
+				return SINK_NIL;
+			}
 		}
 		else{
-			if (b < 0x80 || b >= 0xC0)
-				goto fail;
+			if (b < 0x80 || b >= 0xC0){
+				opi_abort(ctx, 'Invalid UTF-8 string');
+				return SINK_NIL;
+			}
 			codepoint = (codepoint << 6) | (b & 0x3F);
 			state--;
-			if (state === 0){ // codepoint finished, check if invalid
+			if (state == 0){ // codepoint finished, check if invalid
 				if (codepoint < min || // no overlong
 					codepoint >= 0x110000 || // no huge
-					(codepoint >= 0xD800 && codepoint < 0xE000)) // no surrogates
-					goto fail;
-				sink_list_push(ctx, res, sink_num(codepoint));
+					(codepoint >= 0xD800 && codepoint < 0xE000)){ // no surrogates
+					opi_abort(ctx, 'Invalid UTF-8 string');
+					return SINK_NIL;
+				}
+				res.push(codepoint);
 			}
 		}
 	}
 	return res;
-	fail:
-	opi_abort(ctx, "Invalid UTF-8 string");
-	return SINK_NIL;
 }
 
-static inline sink_val sink_utf8_str(context ctx, sink_val a){
+export function sink_utf8_str(ctx: sink_ctx, a: sink_val): sink_val {
 	if (!sink_islist(a)){
 		opi_abort(ctx, "Expecting list");
 		return SINK_NIL;
 	}
-	sink_list ls = var_castlist(ctx, a);
-	int tot = 0;
-	for (int i = 0; i < ls.size; i++){
-		sink_val b = ls.vals[i];
+	let bytes = '';
+	for (let i = 0; i < a.length; i++){
+		let b = a[i];
 		if (!opihelp_codepoint(b)){
-			opi_abort(ctx, "Invalid list of codepoints");
+			opi_abort(ctx, 'Invalid list of codepoints');
 			return SINK_NIL;
 		}
-		if (b.f < 0x80)
-			tot++;
-		else if (b.f < 0x800)
-			tot += 2;
-		else if (b.f < 0x10000)
-			tot += 3;
-		else
-			tot += 4;
-	}
-	uint8_t *bytes = mem_alloc(sizeof(uint8_t) * (tot + 1));
-	int pos = 0;
-	for (int i = 0; i < ls.size; i++){
-		int b = ls.vals[i].f;
+		if (typeof b !== 'number')
+			throw new Error('Expecting list of numbers for utf8.str');
 		if (b < 0x80)
-			bytes[pos++] = b;
+			bytes += String.fromCharCode(b);
 		else if (b < 0x800){
-			bytes[pos++] = 0xC0 | (b >> 6);
-			bytes[pos++] = 0x80 | (b & 0x3F);
+			bytes += String.fromCharCode(0xC0 | (b >> 6));
+			bytes += String.fromCharCode(0x80 | (b & 0x3F));
 		}
 		else if (b < 0x10000){
-			bytes[pos++] = 0xE0 | (b >> 12);
-			bytes[pos++] = 0x80 | ((b >> 6) & 0x3F);
-			bytes[pos++] = 0x80 | (b & 0x3F);
+			bytes += String.fromCharCode(0xE0 | (b >> 12));
+			bytes += String.fromCharCode(0x80 | ((b >> 6) & 0x3F));
+			bytes += String.fromCharCode(0x80 | (b & 0x3F));
 		}
 		else{
-			bytes[pos++] = 0xF0 | (b >> 18);
-			bytes[pos++] = 0x80 | ((b >> 12) & 0x3F);
-			bytes[pos++] = 0x80 | ((b >> 6) & 0x3F);
-			bytes[pos++] = 0x80 | (b & 0x3F);
+			bytes += String.fromCharCode(0xF0 | (b >> 18));
+			bytes += String.fromCharCode(0x80 | ((b >> 12) & 0x3F));
+			bytes += String.fromCharCode(0x80 | ((b >> 6) & 0x3F));
+			bytes += String.fromCharCode(0x80 | (b & 0x3F));
 		}
 	}
-	bytes[tot] = 0;
-	return sink_str_newblobgive(ctx, tot, bytes);
+	return bytes;
 }
-
+/*
 static inline sink_val sink_struct_size(context ctx, sink_val a){
 	if (!sink_islist(a))
 		return SINK_NIL;
