@@ -109,6 +109,11 @@ built-in unary and binary operators.
 Random
 ------
 
+The random number generator is the same on all host environments, [defined here](./rand.md).
+It is fast, simple, and
+[passes many statistical tests](https://gist.github.com/voidqk/d112165a26b45244a65298933c0349a4).
+On startup, it is automatically seeded via `rand.seedauto`.
+
 | Function          | Description                                                                 |
 |-------------------|-----------------------------------------------------------------------------|
 | `rand.seed a`     | Set the seed of the RNG to `a` (interpreted as a 32-bit unsigned integer)   |
@@ -119,11 +124,6 @@ Random
 | `rand.setstate a` | Restores a previous state (`a` should be a two item list of integers)       |
 | `rand.pick ls`    | Pick a random item out of the list `ls`                                     |
 | `rand.shuffle ls` | Shuffle the contents of list `ls` in place                                  |
-
-The random number generator is the same on all host environments, [defined here](./rand.md).
-It is fast, simple, and
-[passes many statistical tests](https://gist.github.com/voidqk/d112165a26b45244a65298933c0349a4).
-On startup, it is automatically seeded via `rand.seedauto`.
 
 String
 ------
@@ -165,16 +165,16 @@ UTF-8
 The `utf8` namespace operates on strings (bytes), and only provides some basic commands for
 encoding and decoding.
 
+Codepoints U+0000 to U+10FFFF are considered valid, with the sole exception of the surrogate
+characters (U+D800 to U+DFFF).
+[Overlong encodings](https://en.wikipedia.org/wiki/UTF-8#Overlong_encodings) are rejected as
+invalid.
+
 | Function       | Description                                                                    |
 |----------------|--------------------------------------------------------------------------------|
 | `utf8.valid a` | Checks whether `a` is valid UTF-8 (`a` is string or list of codepoints)        |
 | `utf8.list a`  | Converts string `a` (UTF-8 bytes) to a list of codepoints (integers)           |
 | `utf8.str a`   | Converts a list of codepoints (integers) `a` to a string (UTF-8 bytes)         |
-
-Codepoints U+0000 to U+10FFFF are considered valid, with the sole exception of the surrogate
-characters (U+D800 to U+DFFF).
-[Overlong encodings](https://en.wikipedia.org/wiki/UTF-8#Overlong_encodings) are rejected as
-invalid.
 
 Structured Data
 ---------------
