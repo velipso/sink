@@ -8103,7 +8103,7 @@ function context_new(prg: program_st, io: sink_io_st): context_st {
 		failed: false,
 		async: false
 	};
-	opi_rand_seedauto(ctx);
+	sink_rand_seedauto(ctx);
 	return ctx;
 }
 
@@ -8325,90 +8325,102 @@ function opi_num_base(num: number, len: number, base: number): sink_val {
 	return buf;
 }
 
-function opi_rand_seedauto(ctx: context_st): void {
+function sink_rand_seedauto(ctx: context_st): void {
 	ctx.rand_seed = (Math.random() * 0x10000000) | 0;
 	ctx.rand_i = (Math.random() * 0x10000000) | 0;
 	for (let i = 0; i < 1000; i++)
-		opi_rand_int(ctx);
+		sink_rand_int(ctx);
 	ctx.rand_i = 0;
 }
 
-function opi_rand_seed(ctx: context_st, n: number): void {
-	ctx.rand_seed = n;
+function sink_rand_seed(ctx: context_st, n: number): void {
+	ctx.rand_seed = n | 0;
 	ctx.rand_i = 0;
 }
-/*
-static inline uint32_t opi_rand_int(context ctx){
-	uint32_t m = 0x5bd1e995;
-	uint32_t k = ctx.rand_i++ * m;
-	ctx.rand_seed = (k ^ (k >> 24) ^ (ctx.rand_seed * m)) * m;
-	return ctx.rand_seed ^ (ctx.rand_seed >> 13);
+
+function sink_rand_int(ctx: context_st): number {
+	const m = 0x5bd1e995;
+	let k = (Math as any).imul(ctx.rand_i, m);
+	ctx.rand_i = (ctx.rand_i + 1) | 0;
+	ctx.rand_seed = (Math as any).imul(k ^ (k >>> 24) ^ (Math as any).imul(ctx.rand_seed, m), m);
+	let res = (ctx.rand_seed ^ (ctx.rand_seed >>> 13)) | 0;
+	if (res < 0)
+		return res + 0x100000000;
+	return res;
 }
 
-static inline double opi_rand_num(context ctx){
-	uint64_t M1 = opi_rand_int(ctx);
-	uint64_t M2 = opi_rand_int(ctx);
-	uint64_t M = (M1 << 20) | (M2 >> 12); // 52 bit random number
-	union { uint64_t i; double d; } u = {
-		.i = UINT64_C(0x3FF) << 52 | M
-	};
-	return u.d - 1.0;
+function sink_rand_num(ctx: context_st): number {
+	var M1 = sink_rand_int(ctx);
+	var M2 = sink_rand_int(ctx);
+	var view = new DataView(new ArrayBuffer(8));
+	view.setInt32(0, (M1 << 20) | (M2 >>> 12), true);
+	view.setInt32(4, 0x3FF00000 | (M1 >>> 12), true);
+	return view.getFloat64(0, true) - 1;
 }
 
-static inline sink_val opi_rand_getstate(context ctx){
-	double vals[2] = { ctx.rand_seed, ctx.rand_i };
-	return sink_list_newblob(ctx, 2, (sink_val *)vals);
+function sink_rand_getstate(ctx: context_st): sink_list {
+	// slight goofy logic to convert int32 to uint32
+	if (ctx.rand_i < 0){
+		if (ctx.rand_seed < 0)
+			return new sink_list(ctx.rand_seed + 0x100000000, ctx.rand_i + 0x100000000);
+		return new sink_list(ctx.rand_seed, ctx.rand_i + 0x100000000);
+	}
+	else if (ctx.rand_seed < 0)
+		return new sink_list(ctx.rand_seed + 0x100000000, ctx.rand_i);
+	return new sink_list(ctx.rand_seed, ctx.rand_i);
 }
 
-static inline void opi_rand_setstate(context ctx, sink_val a){
-	if (!sink_islist(a)){
-		opi_abortcstr(ctx, "Expecting list of two integers");
+function sink_rand_setstate(ctx: context_st, a: sink_val): void {
+	if (!sink_islist(a) || a.length < 2){
+		opi_abortcstr(ctx, 'Expecting list of two integers');
 		return;
 	}
-	sink_list ls = var_castlist(ctx, a);
-	if (ls.size < 2 || !sink_isnum(ls.vals[0]) || !sink_isnum(ls.vals[1])){
-		opi_abortcstr(ctx, "Expecting list of two integers");
+	let A = a[0];
+	let B = a[1];
+	if (!sink_isnum(A) || !sink_isnum(B)){
+		opi_abortcstr(ctx, 'Expecting list of two integers');
 		return;
 	}
-	ctx.rand_seed = (uint32_t)ls.vals[0].f;
-	ctx.rand_i = (uint32_t)ls.vals[1].f;
+	ctx.rand_seed = A | 0;
+	ctx.rand_i = B | 0;
 }
 
-static inline sink_val opi_rand_pick(context ctx, sink_val a){
+function sink_rand_pick(ctx: context_st, a: sink_val): sink_val {
 	if (!sink_islist(a)){
-		opi_abortcstr(ctx, "Expecting list");
+		opi_abortcstr(ctx, 'Expecting list');
 		return SINK_NIL;
 	}
-	sink_list ls = var_castlist(ctx, a);
-	if (ls.size <= 0)
+	let ls: sink_list = a;
+	if (ls.length <= 0)
 		return SINK_NIL;
-	return ls.vals[(int)(opi_rand_num(ctx) * ls.size)];
+	return ls[Math.floor(sink_rand_num(ctx) * ls.length)];
 }
 
-static inline void opi_rand_shuffle(context ctx, sink_val a){
+function sink_rand_shuffle(ctx: context_st, a: sink_val): void {
 	if (!sink_islist(a)){
-		opi_abortcstr(ctx, "Expecting list");
+		opi_abortcstr(ctx, 'Expecting list');
 		return;
 	}
-	sink_list ls = var_castlist(ctx, a);
-	int m = ls.size;
+	let ls: sink_list = a;
+	let m = ls.length;
 	while (m > 1){
-		int i = (int)(opi_rand_num(ctx) * m);
+		let i = Math.floor(sink_rand_num(ctx) * m);
 		m--;
-		if (m !== i){
-			sink_val t = ls.vals[m];
-			ls.vals[m] = ls.vals[i];
-			ls.vals[i] = t;
+		if (m != i){
+			let t = ls[m];
+			ls[m] = ls[i];
+			ls[i] = t;
 		}
 	}
 }
 
-static inline sink_val opi_str_new(context ctx, int size, sink_val *vals){
+/*
+static inline sink_val sink_str_new(context ctx, int size, sink_val *vals){
 	return sink_list_joinplain(ctx, size, vals, 1, (const uint8_t *)" ");
 }
 
 static inline sink_val opi_list_push(context ctx, sink_val a, sink_val b);
-static inline sink_val opi_str_split(context ctx, sink_val a, sink_val b){
+static inline sink_val sink_str_split(context ctx, sink_val a, sink_val b){
 	if ((!sink_isstr(a) && !sink_isnum(a)) || (!sink_isstr(b) && !sink_isnum(b))){
 		opi_abortcstr(ctx, "Expecting strings");
 		return SINK_NIL;
@@ -8455,12 +8467,12 @@ static inline sink_val opi_str_split(context ctx, sink_val a, sink_val b){
 }
 
 static inline sink_val opi_list_join(context ctx, sink_val a, sink_val b);
-static inline sink_val opi_str_replace(context ctx, sink_val a, sink_val b, sink_val c){
-	sink_val ls = opi_str_split(ctx, a, b);
+static inline sink_val sink_str_replace(context ctx, sink_val a, sink_val b, sink_val c){
+	sink_val ls = sink_str_split(ctx, a, b);
 	return opi_list_join(ctx, ls, c);
 }
 
-static inline sink_val opi_str_find(context ctx, sink_val a, sink_val b, sink_val c){
+static inline sink_val sink_str_find(context ctx, sink_val a, sink_val b, sink_val c){
 	int hx;
 	if (sink_isnil(c))
 		hx = 0;
@@ -8501,7 +8513,7 @@ static inline sink_val opi_str_find(context ctx, sink_val a, sink_val b, sink_va
 	return SINK_NIL;
 }
 
-static inline sink_val opi_str_rfind(context ctx, sink_val a, sink_val b, sink_val c){
+static inline sink_val sink_str_rfind(context ctx, sink_val a, sink_val b, sink_val c){
 	int hx;
 	if (sink_isnum(c))
 		hx = c.f;
@@ -8548,7 +8560,7 @@ static inline sink_val opi_str_rfind(context ctx, sink_val a, sink_val b, sink_v
 	return SINK_NIL;
 }
 
-static inline bool opi_str_begins(context ctx, sink_val a, sink_val b){
+static inline bool sink_str_begins(context ctx, sink_val a, sink_val b){
 	if ((!sink_isstr(a) && !sink_isnum(a)) || (!sink_isstr(b) && !sink_isnum(b))){
 		opi_abortcstr(ctx, "Expecting strings");
 		return false;
@@ -8559,7 +8571,7 @@ static inline bool opi_str_begins(context ctx, sink_val a, sink_val b){
 		memcmp(s1.bytes, s2.bytes, sizeof(uint8_t) * s2.size) === 0;
 }
 
-static inline bool opi_str_ends(context ctx, sink_val a, sink_val b){
+static inline bool sink_str_ends(context ctx, sink_val a, sink_val b){
 	if ((!sink_isstr(a) && !sink_isnum(a)) || (!sink_isstr(b) && !sink_isnum(b))){
 		opi_abortcstr(ctx, "Expecting strings");
 		return false;
@@ -8570,7 +8582,7 @@ static inline bool opi_str_ends(context ctx, sink_val a, sink_val b){
 		memcmp(&s1.bytes[s1.size - s2.size], s2.bytes, sizeof(uint8_t) * s2.size) === 0;
 }
 
-static inline sink_val opi_str_pad(context ctx, sink_val a, int b){
+static inline sink_val sink_str_pad(context ctx, sink_val a, int b){
 	if (!sink_isstr(a) && !sink_isnum(a)){
 		opi_abortcstr(ctx, "Expecting string");
 		return SINK_NIL;
@@ -8697,7 +8709,7 @@ OPI_STR_UNOP(opi_str_trim , opihelp_str_trim )
 OPI_STR_UNOP(opi_str_rev  , opihelp_str_rev  )
 #undef OPI_STR_UNOP
 
-static inline sink_val opi_str_rep(context ctx, sink_val a, int rep){
+static inline sink_val sink_str_rep(context ctx, sink_val a, int rep){
 	if (!sink_isstr(a) && !sink_isnum(a)){
 		opi_abortcstr(ctx, "Expecting string");
 		return SINK_NIL;
@@ -8722,7 +8734,7 @@ static inline sink_val opi_str_rep(context ctx, sink_val a, int rep){
 	return sink_str_newblobgive(ctx, size, b);
 }
 
-static inline sink_val opi_str_list(context ctx, sink_val a){
+static inline sink_val sink_str_list(context ctx, sink_val a){
 	if (!sink_isstr(a) && !sink_isnum(a)){
 		opi_abortcstr(ctx, "Expecting string");
 		return SINK_NIL;
@@ -8734,7 +8746,7 @@ static inline sink_val opi_str_list(context ctx, sink_val a){
 	return r;
 }
 
-static inline sink_val opi_str_byte(context ctx, sink_val a, int b){
+static inline sink_val sink_str_byte(context ctx, sink_val a, int b){
 	if (!sink_isstr(a)){
 		opi_abortcstr(ctx, "Expecting string");
 		return SINK_NIL;
@@ -8747,7 +8759,7 @@ static inline sink_val opi_str_byte(context ctx, sink_val a, int b){
 	return sink_num(s.bytes[b]);
 }
 
-static inline sink_val opi_str_hash(context ctx, sink_val a, uint32_t seed){
+static inline sink_val sink_str_hash(context ctx, sink_val a, uint32_t seed){
 	if (!sink_isstr(a) && !sink_isnum(a)){
 		opi_abortcstr(ctx, "Expecting string");
 		return SINK_NIL;
@@ -9915,7 +9927,7 @@ static inline sink_val opi_str_at(context ctx, sink_val a, sink_val b){
 	return sink_str_newblob(ctx, 1, &s.bytes[idx]);
 }
 
-static inline sink_val opi_str_cat(context ctx, int argcount, sink_val *args){
+static inline sink_val sink_str_cat(context ctx, int argcount, sink_val *args){
 	return sink_list_joinplain(ctx, argcount, args, 0, NULL);
 }
 
@@ -9957,7 +9969,7 @@ static inline fix_slice_st fix_slice(sink_val startv, sink_val lenv, int objsize
 	}
 }
 
-static inline sink_val opi_str_slice(context ctx, sink_val a, sink_val b, sink_val c){
+static inline sink_val sink_str_slice(context ctx, sink_val a, sink_val b, sink_val c){
 	if (!sink_isstr(a)){
 		opi_abortcstr(ctx, "Expecting list or string when slicing");
 		return SINK_NIL;
@@ -9975,7 +9987,7 @@ static inline sink_val opi_str_slice(context ctx, sink_val a, sink_val b, sink_v
 	return sink_str_newblob(ctx, sl.len, &s.bytes[sl.start]);
 }
 
-static inline sink_val opi_str_splice(context ctx, sink_val a, sink_val b, sink_val c, sink_val d){
+static inline sink_val sink_str_splice(context ctx, sink_val a, sink_val b, sink_val c, sink_val d){
 	if (!sink_isstr(a)){
 		opi_abortcstr(ctx, "Expecting list or string when splicing");
 		return SINK_NIL;
@@ -11854,7 +11866,7 @@ static sink_run context_run(context ctx){
 				if (listcat)
 					var_set(ctx, A, B, opi_list_cat(ctx, C, p));
 				else{
-					var_set(ctx, A, B, opi_str_cat(ctx, C, p));
+					var_set(ctx, A, B, sink_str_cat(ctx, C, p));
 					if (ctx.failed)
 						return SINK_RUN_FAIL;
 				}
@@ -11932,7 +11944,7 @@ static sink_run context_run(context ctx){
 				if (sink_islist(X))
 					var_set(ctx, A, B, opi_list_slice(ctx, X, Y, Z));
 				else
-					var_set(ctx, A, B, opi_str_slice(ctx, X, Y, Z));
+					var_set(ctx, A, B, sink_str_slice(ctx, X, Y, Z));
 				if (ctx.failed)
 					return SINK_RUN_FAIL;
 			} break;
@@ -11963,7 +11975,7 @@ static sink_run context_run(context ctx){
 				if (sink_islist(X))
 					opi_list_splice(ctx, X, Y, Z, W);
 				else if (sink_isstr(X))
-					var_set(ctx, A, B, opi_str_splice(ctx, X, Y, Z, W));
+					var_set(ctx, A, B, sink_str_splice(ctx, X, Y, Z, W));
 				else
 					return opi_abortcstr(ctx, "Expecting list or string when splicing");
 			} break;
@@ -12474,34 +12486,34 @@ static sink_run context_run(context ctx){
 					X.f = 0;
 				else if (!sink_isnum(X))
 					return opi_abortcstr(ctx, "Expecting number");
-				opi_rand_seed(ctx, X.f);
+				sink_rand_seed(ctx, X.f);
 				var_set(ctx, A, B, SINK_NIL);
 			} break;
 
 			case op_enum.RAND_SEEDAUTO  : { // [TGT]
 				LOAD_ab();
-				opi_rand_seedauto(ctx);
+				sink_rand_seedauto(ctx);
 				var_set(ctx, A, B, SINK_NIL);
 			} break;
 
 			case op_enum.RAND_INT       : { // [TGT]
 				LOAD_ab();
-				var_set(ctx, A, B, sink_num(opi_rand_int(ctx)));
+				var_set(ctx, A, B, sink_num(sink_rand_int(ctx)));
 			} break;
 
 			case op_enum.RAND_NUM       : { // [TGT]
 				LOAD_ab();
-				var_set(ctx, A, B, sink_num(opi_rand_num(ctx)));
+				var_set(ctx, A, B, sink_num(sink_rand_num(ctx)));
 			} break;
 
 			case op_enum.RAND_GETSTATE  : { // [TGT]
 				LOAD_ab();
-				var_set(ctx, A, B, opi_rand_getstate(ctx));
+				var_set(ctx, A, B, sink_rand_getstate(ctx));
 			} break;
 
 			case op_enum.RAND_SETSTATE  : { // [TGT], [SRC]
 				LOAD_abcd();
-				opi_rand_setstate(ctx, var_get(ctx, C, D));
+				sink_rand_setstate(ctx, var_get(ctx, C, D));
 				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, SINK_NIL);
@@ -12509,7 +12521,7 @@ static sink_run context_run(context ctx){
 
 			case op_enum.RAND_PICK      : { // [TGT], [SRC]
 				LOAD_abcd();
-				X = opi_rand_pick(ctx, var_get(ctx, C, D));
+				X = sink_rand_pick(ctx, var_get(ctx, C, D));
 				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
@@ -12518,7 +12530,7 @@ static sink_run context_run(context ctx){
 			case op_enum.RAND_SHUFFLE   : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				opi_rand_shuffle(ctx, X);
+				sink_rand_shuffle(ctx, X);
 				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
@@ -12530,14 +12542,14 @@ static sink_run context_run(context ctx){
 					E = ops.bytes[ctx.pc++]; F = ops.bytes[ctx.pc++];
 					p[D] = var_get(ctx, E, F);
 				}
-				var_set(ctx, A, B, opi_str_new(ctx, C, p));
+				var_set(ctx, A, B, sink_str_new(ctx, C, p));
 			} break;
 
 			case op_enum.STR_SPLIT      : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				X = opi_str_split(ctx, X, Y);
+				X = sink_str_split(ctx, X, Y);
 				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
@@ -12548,7 +12560,7 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
-				X = opi_str_replace(ctx, X, Y, Z);
+				X = sink_str_replace(ctx, X, Y, Z);
 				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
@@ -12558,7 +12570,7 @@ static sink_run context_run(context ctx){
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				X = sink_bool(opi_str_begins(ctx, X, Y));
+				X = sink_bool(sink_str_begins(ctx, X, Y));
 				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
@@ -12568,7 +12580,7 @@ static sink_run context_run(context ctx){
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				X = sink_bool(opi_str_ends(ctx, X, Y));
+				X = sink_bool(sink_str_ends(ctx, X, Y));
 				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
@@ -12582,7 +12594,7 @@ static sink_run context_run(context ctx){
 					Y.f = 0;
 				else if (!sink_isnum(Y))
 					return opi_abortcstr(ctx, "Expecting number");
-				X = opi_str_pad(ctx, X, Y.f);
+				X = sink_str_pad(ctx, X, Y.f);
 				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
@@ -12593,7 +12605,7 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
-				X = opi_str_find(ctx, X, Y, Z);
+				X = sink_str_find(ctx, X, Y, Z);
 				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
@@ -12604,7 +12616,7 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
-				X = opi_str_rfind(ctx, X, Y, Z);
+				X = sink_str_rfind(ctx, X, Y, Z);
 				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
@@ -12613,7 +12625,7 @@ static sink_run context_run(context ctx){
 			case op_enum.STR_LOWER      : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				X = opi_str_lower(ctx, X);
+				X = sink_str_lower(ctx, X);
 				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
@@ -12622,7 +12634,7 @@ static sink_run context_run(context ctx){
 			case op_enum.STR_UPPER      : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				X = opi_str_upper(ctx, X);
+				X = sink_str_upper(ctx, X);
 				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
@@ -12631,7 +12643,7 @@ static sink_run context_run(context ctx){
 			case op_enum.STR_TRIM       : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				X = opi_str_trim(ctx, X);
+				X = sink_str_trim(ctx, X);
 				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
@@ -12640,7 +12652,7 @@ static sink_run context_run(context ctx){
 			case op_enum.STR_REV        : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				X = opi_str_rev(ctx, X);
+				X = sink_str_rev(ctx, X);
 				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
@@ -12654,7 +12666,7 @@ static sink_run context_run(context ctx){
 					Y.f = 0;
 				else if (!sink_isnum(Y))
 					return opi_abortcstr(ctx, "Expecting number");
-				X = opi_str_rep(ctx, X, Y.f);
+				X = sink_str_rep(ctx, X, Y.f);
 				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
@@ -12663,7 +12675,7 @@ static sink_run context_run(context ctx){
 			case op_enum.STR_LIST       : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				X = opi_str_list(ctx, X);
+				X = sink_str_list(ctx, X);
 				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
@@ -12677,7 +12689,7 @@ static sink_run context_run(context ctx){
 					Y.f = 0;
 				else if (!sink_isnum(Y))
 					return opi_abortcstr(ctx, "Expecting number");
-				X = opi_str_byte(ctx, X, Y.f);
+				X = sink_str_byte(ctx, X, Y.f);
 				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
@@ -12691,7 +12703,7 @@ static sink_run context_run(context ctx){
 					Y.f = 0;
 				else if (!sink_isnum(Y))
 					return opi_abortcstr(ctx, "Expecting number");
-				X = opi_str_hash(ctx, X, Y.f);
+				X = sink_str_hash(ctx, X, Y.f);
 				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
@@ -14486,39 +14498,6 @@ sink_val sink_int_bswap(sink_ctx ctx, sink_val a){
 	return opi_unop(ctx, a, unop_int_bswap, txt_int_bswap);
 }
 
-// random
-void sink_rand_seed(sink_ctx ctx, uint32_t a){
-	opi_rand_seed(ctx, a);
-}
-
-void sink_rand_seedauto(sink_ctx ctx){
-	opi_rand_seedauto(ctx);
-}
-
-uint32_t sink_rand_int(sink_ctx ctx){
-	return opi_rand_int(ctx);
-}
-
-double sink_rand_num(sink_ctx ctx){
-	return opi_rand_num(ctx);
-}
-
-sink_val sink_rand_getstate(sink_ctx ctx){
-	return opi_rand_getstate(ctx);
-}
-
-void sink_rand_setstate(sink_ctx ctx, sink_val a){
-	opi_rand_setstate(ctx, a);
-}
-
-sink_val sink_rand_pick(sink_ctx ctx, sink_val ls){
-	return opi_rand_pick(ctx, ls);
-}
-
-void sink_rand_shuffle(sink_ctx ctx, sink_val ls){
-	opi_rand_shuffle(ctx, ls);
-}
-
 // strings
 sink_val sink_str_newcstr(sink_ctx ctx, const char *str){
 	return sink_str_newblob(ctx, (int)strlen(str), (const uint8_t *)str);
@@ -14566,82 +14545,6 @@ sink_val sink_str_newformat(sink_ctx ctx, const char *fmt, ...){
 	va_end(args);
 	va_end(args2);
 	return sink_str_newblobgive(ctx, (int)s, (uint8_t *)buf);
-}
-
-sink_val sink_str_new(sink_ctx ctx, int size, sink_val *vals){
-	return opi_str_new(ctx, size, vals);
-}
-
-sink_val sink_str_cat(sink_ctx ctx, int size, sink_val *vals){
-	return opi_str_cat(ctx, size, vals);
-}
-
-sink_val sink_str_slice(sink_ctx ctx, sink_val a, sink_val start, sink_val len){
-	return opi_str_slice(ctx, a, start, len);
-}
-
-sink_val sink_str_splice(sink_ctx ctx, sink_val a, sink_val start, sink_val len, sink_val b){
-	return opi_str_splice(ctx, a, start, len, b);
-}
-
-sink_val sink_str_split(sink_ctx ctx, sink_val a, sink_val b){
-	return opi_str_split(ctx, a, b);
-}
-
-sink_val sink_str_replace(sink_ctx ctx, sink_val a, sink_val b, sink_val c){
-	return opi_str_replace(ctx, a, b, c);
-}
-
-bool sink_str_begins(sink_ctx ctx, sink_val a, sink_val b){
-	return opi_str_begins(ctx, a, b);
-}
-
-bool sink_str_ends(sink_ctx ctx, sink_val a, sink_val b){
-	return opi_str_ends(ctx, a, b);
-}
-
-sink_val sink_str_pad(sink_ctx ctx, sink_val a, int b){
-	return opi_str_pad(ctx, a, b);
-}
-
-sink_val sink_str_find(sink_ctx ctx, sink_val a, sink_val b, sink_val c){
-	return opi_str_find(ctx, a, b, c);
-}
-
-sink_val sink_str_rfind(sink_ctx ctx, sink_val a, sink_val b, sink_val c){
-	return opi_str_rfind(ctx, a, b, c);
-}
-
-sink_val sink_str_lower(sink_ctx ctx, sink_val a){
-	return opi_str_lower(ctx, a);
-}
-
-sink_val sink_str_upper(sink_ctx ctx, sink_val a){
-	return opi_str_upper(ctx, a);
-}
-
-sink_val sink_str_trim(sink_ctx ctx, sink_val a){
-	return opi_str_trim(ctx, a);
-}
-
-sink_val sink_str_rev(sink_ctx ctx, sink_val a){
-	return opi_str_rev(ctx, a);
-}
-
-sink_val sink_str_rep(sink_ctx ctx, sink_val a, int rep){
-	return opi_str_rep(ctx, a, rep);
-}
-
-sink_val sink_str_list(sink_ctx ctx, sink_val a){
-	return opi_str_list(ctx, a);
-}
-
-sink_val sink_str_byte(sink_ctx ctx, sink_val a, int b){
-	return sink_str_byte(ctx, a, b);
-}
-
-sink_val sink_str_hash(sink_ctx ctx, sink_val a, uint32_t seed){
-	return opi_str_hash(ctx, a, seed);
 }
 
 static inline uint64_t rotl64(uint64_t x, int8_t r){
