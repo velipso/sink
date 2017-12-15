@@ -88,35 +88,6 @@ function checkPromise<T, U>(v: T | Promise<T>, func: (v2: T) => U | Promise<U>):
 	return func(v);
 }
 
-//export function sink_scr_new(inc: sink_inc, curdir: string, repl: boolean): sink_scr;
-//export function sink_scr_addpath(scr: sink_scr, path: string): void;
-//export function sink_scr_incbody(scr: sink_scr, name: string, body: string): void;
-//export function sink_scr_incfile(scr: sink_scr, name: string, file: string): void;
-//export function sink_scr_getfile(scr: sink_scr): string;
-//export function sink_scr_getcwd(scr: sink_scr): string;
-//export function sink_scr_geterr(scr: sink_scr): string;
-//export function sink_scr_loadfile(scr: sink_scr, file: string): boolean | Promise<boolean>;
-//export function sink_scr_write(scr: sink_scr, bytes: string): boolean;
-//export function sink_scr_level(scr: sink_scr): number;
-//export function sink_scr_dump(scr: sink_scr, debug: boolean, user: any, f_dump: sink_dump_f):
-//	void;
-
-//export function sink_ctx_new(scr: sink_scr, io: sink_io): sink_ctx;
-//export function sink_ctx_getstatus(ctx: sink_ctx): sink_ctx_status;
-//export function sink_ctx_geterr(ctx: sink_ctx): string;
-//export function sink_ctx_native(ctx: sink_ctx, name: string, natuser: any,
-//	f_native: sink_native_f): void;
-//export function sink_ctx_nativehash(ctx: sink_ctx, hash: sink_u64, natuser: any,
-//	f_native: sink_native_f): void;
-//export function sink_ctx_setuser(ctx: sink_ctx, user: any): void;
-//export function sink_ctx_getuser(ctx: sink_ctx): any;
-//export function sink_ctx_addusertype(ctx: sink_ctx, hint: string): sink_user;
-//export function sink_ctx_getuserhint(ctx: sink_ctx, usertype: sink_user): string;
-//export function sink_ctx_settimeout(ctx: sink_ctx, timeout: number): void;
-//export function sink_ctx_gettimeout(ctx: sink_ctx): number;
-//export function sink_ctx_forcetimeout(ctx: sink_ctx): void;
-//export function sink_ctx_run(ctx: sink_ctx): sink_run | Promise<sink_run>;
-
 export function sink_bool(f: boolean): sink_val { return f ? 1 : SINK_NIL; }
 export function sink_istrue(v: sink_val): v is sink_valtrue { return v !== SINK_NIL; }
 export function sink_isfalse(v: sink_val): v is null { return v === SINK_NIL; }
@@ -151,45 +122,9 @@ export function sink_castlist(ls: sink_val): sink_list {
 	return ls;
 }
 
-//export function sink_arg_bool(args: sink_val[], index: number): boolean;
-//export function sink_arg_num(ctx: sink_ctx, args: sink_val[], index: number): null | number;
-//export function sink_arg_str(ctx: sink_ctx, args: sink_val[], index: number): null | sink_str;
-//export function sink_arg_list(ctx: sink_ctx, args: sink_val[], index: number): null | sink_list;
-//export function sink_arg_user(ctx: sink_ctx, args: sink_val[], index: number,
-//	usertype: sink_user): [boolean, any];
-
-//export function sink_tonum(ctx: sink_ctx, v: sink_val): sink_val;
-//export function sink_tostr(ctx: sink_ctx, v: sink_val): sink_val;
-//export function sink_size(ctx: sink_ctx, v: sink_val): number;
-//export function sink_say(ctx: sink_ctx, vals: sink_val[]): undefined | Promise<undefined>;
-//export function sink_warn(ctx: sink_ctx, vals: sink_val[]): undefined | Promise<undefined>;
-//export function sink_ask(ctx: sink_ctx, vals: sink_val[]): sink_val | Promise<sink_val>;
-//export function sink_exit(ctx: sink_ctx, vals: sink_val[]): void;
-//export function sink_abort(ctx: sink_ctx, vals: sink_val[]): void;
-//export function sink_abortstr(ctx: sink_ctx, str: string): sink_val; // always returns SINK_NIL
-//export function sink_range(ctx: sink_ctx, start: number, stop: number, step: number): sink_val;
-//export function sink_order(ctx: sink_ctx, a: sink_val, b: sink_val): number;
-//export function sink_stacktrace(ctx: sink_ctx): sink_val;
-
 export function sink_nil(): sink_val { return SINK_NIL; }
 
 export function sink_num(v: number): sink_val { return v; }
-//export function sink_num_neg(ctx: sink_ctx, a: sink_val): sink_val;
-//export function sink_num_add(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val;
-//export function sink_num_sub(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val;
-//export function sink_num_mul(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val;
-//export function sink_num_div(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val;
-//export function sink_num_mod(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val;
-//export function sink_num_pow(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val;
-//export function sink_num_abs(ctx: sink_ctx, a: sink_val): sink_val;
-//export function sink_num_sign(ctx: sink_ctx, a: sink_val): sink_val;
-//export function sink_num_max(ctx: sink_ctx, vals: sink_val[]): sink_val;
-//export function sink_num_min(ctx: sink_ctx, vals: sink_val[]): sink_val;
-//export function sink_num_clamp(ctx: sink_ctx, a: sink_val, b: sink_val, c: sink_val): sink_val;
-//export function sink_num_floor(ctx: sink_ctx, a: sink_val): sink_val;
-//export function sink_num_ceil(ctx: sink_ctx, a: sink_val): sink_val;
-//export function sink_num_round(ctx: sink_ctx, a: sink_val): sink_val;
-//export function sink_num_trunc(ctx: sink_ctx, a: sink_val): sink_val;
 export function sink_num_nan(): sink_val { return SINK_NAN; }
 export function sink_num_inf(): sink_val { return Infinity; }
 export function sink_num_isnan(v: sink_val): boolean { return typeof v === 'number' && isNaN(v); }
@@ -199,114 +134,6 @@ export function sink_num_isfinite(v: sink_val): boolean {
 export function sink_num_e(): number { return Math.E; }
 export function sink_num_pi(): number { return Math.PI; }
 export function sink_num_tau(): number { return Math.PI * 2; }
-//export function sink_num_sin(ctx: sink_ctx, a: sink_val): sink_val;
-//export function sink_num_cos(ctx: sink_ctx, a: sink_val): sink_val;
-//export function sink_num_tan(ctx: sink_ctx, a: sink_val): sink_val;
-//export function sink_num_asin(ctx: sink_ctx, a: sink_val): sink_val;
-//export function sink_num_acos(ctx: sink_ctx, a: sink_val): sink_val;
-//export function sink_num_atan(ctx: sink_ctx, a: sink_val): sink_val;
-//export function sink_num_atan2(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val;
-//export function sink_num_log(ctx: sink_ctx, a: sink_val): sink_val;
-//export function sink_num_log2(ctx: sink_ctx, a: sink_val): sink_val;
-//export function sink_num_log10(ctx: sink_ctx, a: sink_val): sink_val;
-//export function sink_num_exp(ctx: sink_ctx, a: sink_val): sink_val;
-//export function sink_num_lerp(ctx: sink_ctx, a: sink_val, b: sink_val, t: sink_val): sink_val;
-//export function sink_num_hex(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val;
-//export function sink_num_oct(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val;
-//export function sink_num_bin(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val;
-
-//export function sink_int_new(ctx: sink_ctx, a: sink_val): sink_val;
-//export function sink_int_not(ctx: sink_ctx, a: sink_val): sink_val;
-//export function sink_int_and(ctx: sink_ctx, vals: sink_val[]): sink_val;
-//export function sink_int_or (ctx: sink_ctx, vals: sink_val[]): sink_val;
-//export function sink_int_xor(ctx: sink_ctx, vals: sink_val[]): sink_val;
-//export function sink_int_shl(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val;
-//export function sink_int_shr(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val;
-//export function sink_int_sar(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val;
-//export function sink_int_add(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val;
-//export function sink_int_sub(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val;
-//export function sink_int_mul(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val;
-//export function sink_int_div(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val;
-//export function sink_int_mod(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val;
-//export function sink_int_clz(ctx: sink_ctx, a: sink_val): sink_val;
-//export function sink_int_pop(ctx: sink_ctx, a: sink_val): sink_val;
-//export function sink_int_bswap(ctx: sink_ctx, a: sink_val): sink_val;
-
-
-//export function sink_rand_seed(ctx: sink_ctx, a: number): void;
-//export function sink_rand_seedauto(ctx: sink_ctx): void;
-//export function sink_rand_int(ctx: sink_ctx): number;
-//export function sink_rand_num(ctx: sink_ctx): number;
-//export function sink_rand_getstate(ctx: sink_ctx): sink_val;
-//export function sink_rand_setstate(ctx: sink_ctx, a: sink_val): void;
-//export function sink_rand_pick(ctx: sink_ctx, ls: sink_val): sink_val;
-//export function sink_rand_shuffle(ctx: sink_ctx, ls: sink_val): void;
-
-//export function sink_str_new(ctx: sink_ctx, vals: sink_val[]): sink_val;
-//export function sink_str_cat(ctx: sink_ctx, vals: sink_val[]): sink_val;
-//export function sink_str_slice(ctx: sink_ctx, a: sink_val, start: sink_val, len: sink_val):
-//	sink_val;
-//export function sink_str_splice(ctx: sink_ctx, a: sink_val, start: sink_val, len: sink_val,
-//	b: sink_val): sink_val;
-//export function sink_str_split(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val;
-
-//export function sink_str_replace(ctx: sink_ctx, a: sink_val, b: sink_val, c: sink_val): sink_val;
-//export function sink_str_begins(ctx: sink_ctx, a: sink_val, b: sink_val): boolean;
-//export function sink_str_ends(ctx: sink_ctx, a: sink_val, b: sink_val): boolean;
-//export function sink_str_pad(ctx: sink_ctx, a: sink_val, b: number): sink_val;
-//export function sink_str_find(ctx: sink_ctx, a: sink_val, b: sink_val, c: sink_val): sink_val;
-//export function sink_str_rfind(ctx: sink_ctx, a: sink_val, b: sink_val, c: sink_val): sink_val;
-//export function sink_str_lower(ctx: sink_ctx, a: sink_val): sink_val;
-//export function sink_str_upper(ctx: sink_ctx, a: sink_val): sink_val;
-//export function sink_str_trim(ctx: sink_ctx, a: sink_val): sink_val;
-//export function sink_str_rev(ctx: sink_ctx, a: sink_val): sink_val;
-//export function sink_str_rep(ctx: sink_ctx, a: sink_val, rep: number): sink_val;
-//export function sink_str_list(ctx: sink_ctx, a: sink_val): sink_val;
-//export function sink_str_byte(ctx: sink_ctx, a: sink_val, b: number): sink_val;
-//export function sink_str_hash(ctx: sink_ctx, a: sink_val, seed: number): sink_val;
-//export function sink_str_hashplain(bytes: string, seed: number): [number, number, number, number];
-
-//export function sink_utf8_valid(ctx: sink_ctx, a: sink_val): boolean;
-//export function sink_utf8_list(ctx: sink_ctx, a: sink_val): sink_val;
-//export function sink_utf8_str(ctx: sink_ctx, a: sink_val): sink_val;
-
-//export function sink_struct_size(ctx: sink_ctx, tpl: sink_val): sink_val;
-//export function sink_struct_str(ctx: sink_ctx, ls: sink_val, tpl: sink_val): sink_val;
-//export function sink_struct_list(ctx: sink_ctx, a: sink_val, tpl: sink_val): sink_val;
-//export function sink_struct_isLE(): boolean;
-
-//export function sink_list_setuser(ctx: sink_ctx, ls: sink_val, usertype: sink_user, user: any):
-//	void;
-//export function sink_list_getuser(ctx: sink_ctx, ls: sink_val, usertype: sink_user): any;
-//export function sink_list_new(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val;
-//export function sink_list_cat(ctx: sink_ctx, vals: sink_val[]): sink_val;
-//export function sink_list_slice(ctx: sink_ctx, ls: sink_val, start: sink_val, len: sink_val):
-//	sink_val;
-//export function sink_list_splice(ctx: sink_ctx, ls: sink_val, start: sink_val, len: sink_val,
-//	ls2: sink_val): void;
-//export function sink_list_shift(ctx: sink_ctx, ls: sink_val): sink_val;
-//export function sink_list_pop(ctx: sink_ctx, ls: sink_val): sink_val;
-//export function sink_list_push(ctx: sink_ctx, ls: sink_val, a: sink_val): void;
-//export function sink_list_unshift(ctx: sink_ctx, ls: sink_val, a: sink_val): void;
-//export function sink_list_append(ctx: sink_ctx, ls: sink_val, ls2: sink_val): void;
-//export function sink_list_prepend(ctx: sink_ctx, ls: sink_val, ls2: sink_val): void;
-//export function sink_list_find(ctx: sink_ctx, ls: sink_val, a: sink_val, b: sink_val): sink_val;
-//export function sink_list_rfind(ctx: sink_ctx, ls: sink_val, a: sink_val, b: sink_val): sink_val;
-//export function sink_list_join(ctx: sink_ctx, ls: sink_val, a: sink_val): sink_val;
-//export function sink_list_joinplain(ctx: sink_ctx, vals: sink_val[], sep: string): sink_val;
-//export function sink_list_rev(ctx: sink_ctx, ls: sink_val): void;
-//export function sink_list_str(ctx: sink_ctx, ls: sink_val): sink_val;
-//export function sink_list_sort(ctx: sink_ctx, ls: sink_val): void;
-//export function sink_list_rsort(ctx: sink_ctx, ls: sink_val): void;
-
-//export function sink_pickle_json(ctx: sink_ctx, a: sink_val): sink_val;
-//export function sink_pickle_bin(ctx: sink_ctx, a: sink_val): sink_val;
-//export function sink_pickle_val(ctx: sink_ctx, a: sink_val): sink_val;
-//export function sink_pickle_valid(ctx: sink_ctx, a: sink_val): number;
-//	// 0 for invalid, 1 for JSON, 2 for binary
-//export function sink_pickle_sibling(ctx: sink_ctx, a: sink_val): boolean;
-//export function sink_pickle_circular(ctx: sink_ctx, a: sink_val): boolean;
-//export function sink_pickle_copy(ctx: sink_ctx, a: sink_val): sink_val;
 
 export function sink_user_new(ctx: sink_ctx, usertype: sink_user, user: any): sink_val {
 	//let hint = sink_ctx_getuserhint(ctx, usertype);
