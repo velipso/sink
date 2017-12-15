@@ -8867,11 +8867,11 @@ export function sink_struct_isLE(): boolean {
 }
 
 // operators
-function unop_num_neg(ctx: sink_ctx, a: sink_val): sink_val {
+function unop_num_neg(a: sink_val): sink_val {
 	return -(a as number);
 }
 
-function unop_tonum(ctx: sink_ctx, a: sink_val): sink_val {
+function unop_tonum(a: sink_val): sink_val {
 	if (sink_isnum(a))
 		return a;
 	if (!sink_isstr(a))
@@ -9022,29 +9022,16 @@ function unop_tonum(ctx: sink_ctx, a: sink_val): sink_val {
 	return numpart_calc(npi);
 }
 
-function unop_num_abs(ctx: sink_ctx, a: sink_val): sink_val {
-	return Math.abs(a as number);
-}
+let unop_num_abs = Math.abs as (a: sink_val) => sink_val;
 
-function unop_num_sign(ctx: sink_ctx, a: sink_val): sink_val {
+function unop_num_sign(a: sink_val): sink_val {
 	return isNaN(a as number) ? SINK_NAN : ((a as number) < 0 ? -1 : ((a as number) > 0 ? 1 : 0));
 }
 
-function unop_num_floor(ctx: sink_ctx, a: sink_val): sink_val {
-	return Math.floor(a as number);
-}
-
-function unop_num_ceil(ctx: sink_ctx, a: sink_val): sink_val {
-	return Math.ceil(a as number);
-}
-
-function unop_num_round(ctx: sink_ctx, a: sink_val): sink_val {
-	return Math.round(a as number);
-}
-
-function unop_num_trunc(ctx: sink_ctx, a: sink_val): sink_val {
-	return (Math as any).trunc(a as number);
-}
+let unop_num_floor = Math.floor as (a: sink_val) => sink_val;
+let unop_num_ceil  = Math.ceil  as (a: sink_val) => sink_val;
+let unop_num_round = Math.round as (a: sink_val) => sink_val;
+let unop_num_trunc = (Math as any).trunc as (a: sink_val) => sink_val;
 
 function unop_num_isnan(ctx: sink_ctx, a: sink_val): sink_val {
 	return sink_bool(isNaN(a as number));
@@ -9054,112 +9041,76 @@ function unop_num_isfinite(ctx: sink_ctx, a: sink_val): sink_val {
 	return sink_bool(isFinite(a as number));
 }
 
-function unop_num_sin(ctx: sink_ctx, a: sink_val): sink_val {
-	return Math.sin(a as number);
-}
+let unop_num_sin = Math.sin  as (a: sink_val) => sink_val;
+let unop_num_cos = Math.cos  as (a: sink_val) => sink_val;
+let unop_num_tan = Math.tan  as (a: sink_val) => sink_val;
+let unop_num_asi = Math.asin as (a: sink_val) => sink_val;
+let unop_num_aco = Math.acos as (a: sink_val) => sink_val;
+let unop_num_ata = Math.atan as (a: sink_val) => sink_val;
+let unop_num_log = Math.log  as (a: sink_val) => sink_val;
+let unop_num_log2  = (Math as any).log2  as (a: sink_val) => sink_val;
+let unop_num_log10 = (Math as any).log10 as (a: sink_val) => sink_val;
+let unop_num_exp = Math.exp as (a: sink_val) => sink_val;
 
-function unop_num_cos(ctx: sink_ctx, a: sink_val): sink_val {
-	return Math.cos(a as number);
-}
-
-function unop_num_tan(ctx: sink_ctx, a: sink_val): sink_val {
-	return Math.tan(a as number);
-}
-
-function unop_num_asin(ctx: sink_ctx, a: sink_val): sink_val {
-	return Math.asin(a as number);
-}
-
-function unop_num_acos(ctx: sink_ctx, a: sink_val): sink_val {
-	return Math.acos(a as number);
-}
-
-function unop_num_atan(ctx: sink_ctx, a: sink_val): sink_val {
-	return Math.atan(a as number);
-}
-
-function unop_num_log(ctx: sink_ctx, a: sink_val): sink_val {
-	return Math.log(a as number);
-}
-
-function unop_num_log2(ctx: sink_ctx, a: sink_val): sink_val {
-	return (Math as any).log2(a as number);
-}
-
-function unop_num_log10(ctx: sink_ctx, a: sink_val): sink_val {
-	return (Math as any).log10(a as number);
-}
-
-function unop_num_exp(ctx: sink_ctx, a: sink_val): sink_val {
-	return Math.exp(a as number);
-}
-
-function binop_num_add(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+function binop_num_add(a: sink_val, b: sink_val): sink_val {
 	return (a as number) + (b as number);
 }
 
-function binop_num_sub(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+function binop_num_sub(a: sink_val, b: sink_val): sink_val {
 	return (a as number) - (b as number);
 }
 
-function binop_num_mul(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+function binop_num_mul(a: sink_val, b: sink_val): sink_val {
 	return (a as number) * (b as number);
 }
 
-function binop_num_div(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+function binop_num_div(a: sink_val, b: sink_val): sink_val {
 	return (a as number) / (b as number);
 }
 
-function binop_num_mod(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+function binop_num_mod(a: sink_val, b: sink_val): sink_val {
 	return (a as number) % (b as number);
 }
 
-function binop_num_pow(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
-	return Math.pow(a as number, b as number);
-}
+let binop_num_pow   = Math.pow   as (a: sink_val) => sink_val;
+let binop_num_atan2 = Math.atan2 as (a: sink_val) => sink_val;
 
-function binop_num_atan2(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
-	return Math.atan2(a as number, b as number);
-}
-
-function binop_num_hex(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+function binop_num_hex(a: sink_val, b: sink_val): sink_val {
 	return isNaN(a as number) ? SINK_NAN :
 		opi_num_base(a as number, sink_isnil(b) ? 0 : (b as number), 16);
 }
 
-function binop_num_oct(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+function binop_num_oct(a: sink_val, b: sink_val): sink_val {
 	return isNaN(a as number) ? SINK_NAN :
 		opi_num_base(a as number, sink_isnil(b) ? 0 : (b as number), 8);
 }
 
-function binop_num_bin(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+function binop_num_bin(a: sink_val, b: sink_val): sink_val {
 	return isNaN(a as number) ? SINK_NAN :
 		opi_num_base(a as number, sink_isnil(b) ? 0 : (b as number), 2);
 }
 
-function triop_num_clamp(ctx: sink_ctx, a: sink_val, b: sink_val, c: sink_val): sink_val {
+function triop_num_clamp(a: sink_val, b: sink_val, c: sink_val): sink_val {
 	return isNaN(a as number) || isNaN(b as number) || isNaN(c as number) ? SINK_NAN :
 		((a as number) < (b as number) ? (b as number) :
 			((a as number) > (c as number) ? (c as number) : (a as number)));
 }
 
-function triop_num_lerp(ctx: sink_ctx, a: sink_val, b: sink_val, c: sink_val): sink_val {
+function triop_num_lerp(a: sink_val, b: sink_val, c: sink_val): sink_val {
 	return (a as number) + ((b as number) - (a as number)) * (c as number);
 }
 
-function unop_int_new(ctx: sink_ctx, a: sink_val): sink_val {
+function unop_int_new(a: sink_val): sink_val {
 	return (a as number) | 0;
 }
 
-function unop_int_not(ctx: sink_ctx, a: sink_val): sink_val {
+function unop_int_not(a: sink_val): sink_val {
 	return ~((a as number) | 0);
 }
 
-function unop_int_clz(ctx: sink_ctx, a: sink_val): sink_val {
-	return (Math as any).clz32(a);
-}
+let unop_int_clz = (Math as any).clz32 as (a: sink_val) => sink_val;
 
-function unop_int_pop(ctx: sink_ctx, a: sink_val): sink_val {
+function unop_int_pop(a: sink_val): sink_val {
 	let n = (a as number) | 0;
 	n = ((n & 0xAAAAAAAA) >>  1) + (n & 0x55555555);
 	n = ((n & 0xCCCCCCCC) >>  2) + (n & 0x33333333);
@@ -9168,55 +9119,55 @@ function unop_int_pop(ctx: sink_ctx, a: sink_val): sink_val {
 	return ((n & 0xFFFF0000) >> 16) + (n & 0x0000FFFF);
 }
 
-function unop_int_bswap(ctx: sink_ctx, a: sink_val): sink_val {
+function unop_int_bswap(a: sink_val): sink_val {
 	let n = (a as number) | 0;
 	return (n >> 24) | ((n >> 8) & 0xFF00) | ((n << 8) & 0xFF0000) | (n << 24);
 }
 
-function binop_int_and(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+function binop_int_and(a: sink_val, b: sink_val): sink_val {
 	return ((a as number) | 0) & ((b as number) | 0);
 }
 
-function binop_int_or(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+function binop_int_or(a: sink_val, b: sink_val): sink_val {
 	return ((a as number) | 0) | ((b as number) | 0);
 }
 
-function binop_int_xor(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+function binop_int_xor(a: sink_val, b: sink_val): sink_val {
 	return ((a as number) | 0) ^ ((b as number) | 0);
 }
 
-function binop_int_shl(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+function binop_int_shl(a: sink_val, b: sink_val): sink_val {
 	return ((a as number) | 0) << ((b as number) | 0);
 }
 
-function binop_int_shr(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+function binop_int_shr(a: sink_val, b: sink_val): sink_val {
 	return ((a as number) | 0) >>> ((b as number) | 0);
 }
 
-function binop_int_sar(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+function binop_int_sar(a: sink_val, b: sink_val): sink_val {
 	return ((a as number) | 0) >> ((b as number) | 0);
 }
 
-function binop_int_add(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+function binop_int_add(a: sink_val, b: sink_val): sink_val {
 	return ((a as number) | 0) + ((b as number) | 0);
 }
 
-function binop_int_sub(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+function binop_int_sub(a: sink_val, b: sink_val): sink_val {
 	return ((a as number) | 0) - ((b as number) | 0);
 }
 
-function binop_int_mul(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+function binop_int_mul(a: sink_val, b: sink_val): sink_val {
 	return ((a as number) | 0) * ((b as number) | 0);
 }
 
-function binop_int_div(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+function binop_int_div(a: sink_val, b: sink_val): sink_val {
 	let i = (b as number) | 0;
 	if (i == 0)
 		return 0;
 	return ((a as number) | 0) / i;
 }
 
-function binop_int_mod(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+function binop_int_mod(a: sink_val, b: sink_val): sink_val {
 	let i = (b as number) | 0;
 	if (i == 0)
 		return 0;
