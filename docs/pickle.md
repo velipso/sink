@@ -93,8 +93,8 @@ A sink value (S-Val) can be one of the four basic sink types (`nil`, number, str
 
 ### `0xF9` New List
 
-Lists are the only compound type.  Each new list is assigned an index internally, starting with 0
-and increasing by 1, in case it must be referenced later.
+Lists are the only compound type.  Each new list is assigned an internal index, starting with 0 and
+increasing by 1, in case it must be referenced later.
 
 | Value  | Description                                                        |
 |--------|--------------------------------------------------------------------|
