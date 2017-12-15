@@ -639,7 +639,7 @@ The `continue` and `break` statements operate as expected inside the for loops.
 
 ### Range
 
-Use `range` to loop over a range of numbers:
+Use [`range`](./range.md) to loop over a range of numbers:
 
 ```
 for var i: range 3
