@@ -18,7 +18,7 @@ Both implementations:
 * Virtual machine with a big `switch` statement
 * Register based VM with 256 registers per stack frame
 * Lexer, parser, code generator, and VM are stackless and can be paused at any moment
-* Tail recursion supported
+* Tail call optimization supported
 * REPL supported
 * All I/O is governed by the host
 
