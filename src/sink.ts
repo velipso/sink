@@ -8625,18 +8625,16 @@ export function sink_utf8_str(ctx: sink_ctx, a: sink_val): sink_val {
 	}
 	return bytes;
 }
-/*
-static inline sink_val sink_struct_size(context ctx, sink_val a){
+
+export function sink_struct_size(ctx: sink_ctx, a: sink_val): sink_val {
 	if (!sink_islist(a))
 		return SINK_NIL;
-	sink_list ls = var_castlist(ctx, a);
-	int tot = 0;
-	for (int i = 0; i < ls.size; i++){
-		sink_val b = ls.vals[i];
+	let tot = 0;
+	for (let i = 0; i < a.length; i++){
+		let b = a[i];
 		if (!sink_isnum(b))
 			return SINK_NIL;
-		struct_enum bi = (struct_enum)b.f;
-		switch (bi){
+		switch (b){
 			case struct_enum.U8  : tot += 1; break;
 			case struct_enum.U16 : tot += 2; break;
 			case struct_enum.UL16: tot += 2; break;
@@ -8661,309 +8659,213 @@ static inline sink_val sink_struct_size(context ctx, sink_val a){
 				return SINK_NIL;
 		}
 	}
-	return tot <= 0 ? SINK_NIL : sink_num(tot);
+	return tot <= 0 ? SINK_NIL : tot;
 }
 
-static inline sink_val sink_struct_str(context ctx, sink_val a, sink_val b){
+let LE: boolean = (function(){ // detect native endianness
+	var b = new ArrayBuffer(2);
+	(new DataView(b)).setInt16(0, 1, true);
+	return (new Int16Array(b))[0] === 1;
+})();
+
+export function sink_struct_str(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
 	if (!sink_islist(a) || !sink_islist(b)){
-		opi_abort(ctx, "Expecting list");
+		opi_abort(ctx, 'Expecting list');
 		return SINK_NIL;
 	}
-	sink_list data = var_castlist(ctx, a);
-	sink_list type = var_castlist(ctx, b);
-	if (type.size <= 0)
-		goto fail;
-	if (data.size % type.size !== 0)
-		goto fail;
-	for (int i = 0; i < data.size; i++){
-		if (!sink_isnum(data.vals[i]))
-			goto fail;
+	if (b.length <= 0 || a.length % b.length != 0){
+		opi_abort(ctx, 'Invalid conversion');
+		return SINK_NIL;
 	}
-	sink_val sizev = sink_struct_size(ctx, b);
-	if (sink_isnil(sizev))
-		goto fail;
-	int arsize = data.size / type.size;
-	int size = sizev.f * arsize;
-	uint8_t *bytes = mem_alloc(sizeof(uint8_t) * (size + 1));
-	int pos = 0;
-	for (int ar = 0; ar < arsize; ar++){
-		for (int i = 0; i < type.size; i++){
-			sink_val d = data.vals[i + ar * type.size];
-			struct_enum bi = type.vals[i].f;
-			switch (bi){
-				case struct_enum.U8:
-				case struct_enum.S8: {
-					uint8_t v = d.f;
-					bytes[pos++] = v;
-				} break;
-				case struct_enum.U16:
-				case struct_enum.S16: {
-					uint16_t v = d.f;
-					uint8_t *vp = (uint8_t *)&v;
-					bytes[pos++] = vp[0]; bytes[pos++] = vp[1];
-				} break;
-				case struct_enum.U32:
-				case struct_enum.S32: {
-					uint32_t v = d.f;
-					uint8_t *vp = (uint8_t *)&v;
-					bytes[pos++] = vp[0]; bytes[pos++] = vp[1];
-					bytes[pos++] = vp[2]; bytes[pos++] = vp[3];
-				} break;
-				case struct_enum.F32: {
-					float v = d.f;
-					uint8_t *vp = (uint8_t *)&v;
-					bytes[pos++] = vp[0]; bytes[pos++] = vp[1];
-					bytes[pos++] = vp[2]; bytes[pos++] = vp[3];
-				} break;
-				case struct_enum.F64: {
-					double v = d.f;
-					uint8_t *vp = (uint8_t *)&v;
-					bytes[pos++] = vp[0]; bytes[pos++] = vp[1];
-					bytes[pos++] = vp[2]; bytes[pos++] = vp[3];
-					bytes[pos++] = vp[4]; bytes[pos++] = vp[5];
-					bytes[pos++] = vp[6]; bytes[pos++] = vp[7];
-				} break;
-				case struct_enum.UL16:
-				case struct_enum.SL16: {
-					uint16_t v = d.f;
-					bytes[pos++] = (v      ) & 0xFF; bytes[pos++] = (v >>  8) & 0xFF;
-				} break;
-				case struct_enum.UB16:
-				case struct_enum.SB16: {
-					uint16_t v = d.f;
-					bytes[pos++] = (v >>  8) & 0xFF; bytes[pos++] = (v      ) & 0xFF;
-				} break;
-				case struct_enum.UL32:
-				case struct_enum.SL32: {
-					uint32_t v = d.f;
-					bytes[pos++] = (v      ) & 0xFF; bytes[pos++] = (v >>  8) & 0xFF;
-					bytes[pos++] = (v >> 16) & 0xFF; bytes[pos++] = (v >> 24) & 0xFF;
-				} break;
-				case struct_enum.UB32:
-				case struct_enum.SB32: {
-					uint32_t v = d.f;
-					bytes[pos++] = (v >> 24) & 0xFF; bytes[pos++] = (v >> 16) & 0xFF;
-					bytes[pos++] = (v >>  8) & 0xFF; bytes[pos++] = (v      ) & 0xFF;
-				} break;
-				case struct_enum.FL32: {
-					union { float f; uint32_t u; } v = { .f = d.f };
-					bytes[pos++] = (v.u      ) & 0xFF; bytes[pos++] = (v.u >>  8) & 0xFF;
-					bytes[pos++] = (v.u >> 16) & 0xFF; bytes[pos++] = (v.u >> 24) & 0xFF;
-				} break;
-				case struct_enum.FB32: {
-					union { float f; uint32_t u; } v = { .f = d.f };
-					bytes[pos++] = (v.u >> 24) & 0xFF; bytes[pos++] = (v.u >> 16) & 0xFF;
-					bytes[pos++] = (v.u >>  8) & 0xFF; bytes[pos++] = (v.u      ) & 0xFF;
-				} break;
-				case struct_enum.FL64: {
-					union { double f; uint64_t u; } v = { .f = d.f };
-					bytes[pos++] = (v.u      ) & 0xFF; bytes[pos++] = (v.u >>  8) & 0xFF;
-					bytes[pos++] = (v.u >> 16) & 0xFF; bytes[pos++] = (v.u >> 24) & 0xFF;
-					bytes[pos++] = (v.u >> 32) & 0xFF; bytes[pos++] = (v.u >> 40) & 0xFF;
-					bytes[pos++] = (v.u >> 48) & 0xFF; bytes[pos++] = (v.u >> 56) & 0xFF;
-				} break;
-				case struct_enum.FB64: {
-					union { double f; uint64_t u; } v = { .f = d.f };
-					bytes[pos++] = (v.u >> 56) & 0xFF; bytes[pos++] = (v.u >> 48) & 0xFF;
-					bytes[pos++] = (v.u >> 40) & 0xFF; bytes[pos++] = (v.u >> 32) & 0xFF;
-					bytes[pos++] = (v.u >> 24) & 0xFF; bytes[pos++] = (v.u >> 16) & 0xFF;
-					bytes[pos++] = (v.u >>  8) & 0xFF; bytes[pos++] = (v.u      ) & 0xFF;
-				} break;
+	let arsize = a.length / b.length;
+	let res = '';
+	for (let ar = 0; ar < arsize; ar++){
+		for (let i = 0; i < b.length; i++){
+			let d = a[i + ar * b.length];
+			let t = b[i];
+			if (!sink_isnum(d) || !sink_isnum(t)){
+				opi_abort(ctx, 'Invalid conversion');
+				return SINK_NIL;
 			}
-		}
-	}
-	bytes[size] = 0;
-	return sink_str_newblobgive(ctx, size, bytes);
-	fail:
-	opi_abort(ctx, "Invalid conversion");
-	return SINK_NIL;
-}
-
-static inline sink_val sink_struct_list(context ctx, sink_val a, sink_val b){
-	if (!sink_isstr(a)){
-		opi_abort(ctx, "Expecting string");
-		return SINK_NIL;
-	}
-	if (!sink_islist(b)){
-		opi_abort(ctx, "Expecting list");
-		return SINK_NIL;
-	}
-	sink_str s = var_caststr(ctx, a);
-	sink_val stsizev = sink_struct_size(ctx, b);
-	if (sink_isnil(stsizev))
-		goto fail;
-	int stsize = stsizev.f;
-	if (s.size % stsize !== 0)
-		goto fail;
-	sink_list type = var_castlist(ctx, b);
-	sink_val res = sink_list_newempty(ctx);
-	int pos = 0;
-	while (pos < s.size){
-		for (int i = 0; i < type.size; i++){
-			struct_enum bi = type.vals[i].f;
-			switch (bi){
-				case struct_enum.U8:
-					sink_list_push(ctx, res, sink_num(s.bytes[pos++]));
-					break;
-				case struct_enum.S8:
-					sink_list_push(ctx, res, sink_num((int8_t)s.bytes[pos++]));
-					break;
-				case struct_enum.U16: {
-					uint16_t *v = (uint16_t *)&s.bytes[pos];
-					sink_list_push(ctx, res, sink_num(*v));
-					pos += 2;
-				} break;
-				case struct_enum.U32: {
-					uint32_t *v = (uint32_t *)&s.bytes[pos];
-					sink_list_push(ctx, res, sink_num(*v));
-					pos += 4;
-				} break;
-				case struct_enum.S16: {
-					int16_t *v = (int16_t *)&s.bytes[pos];
-					sink_list_push(ctx, res, sink_num(*v));
-					pos += 2;
-				} break;
-				case struct_enum.S32: {
-					int32_t *v = (int32_t *)&s.bytes[pos];
-					sink_list_push(ctx, res, sink_num(*v));
-					pos += 4;
-				} break;
-				case struct_enum.F32: {
-					float *v = (float *)&s.bytes[pos];
-					sink_list_push(ctx, res, sink_num(*v));
-					pos += 4;
-				} break;
-				case struct_enum.F64: {
-					double *v = (double *)&s.bytes[pos];
-					sink_list_push(ctx, res, sink_num(*v));
-					pos += 8;
-				} break;
-				case struct_enum.UL16: {
-					uint16_t v = 0;
-					v |= s.bytes[pos++];
-					v |= ((uint16_t)s.bytes[pos++]) << 8;
-					sink_list_push(ctx, res, sink_num(v));
-				} break;
-				case struct_enum.UB16: {
-					uint16_t v = 0;
-					v |= ((uint16_t)s.bytes[pos++]) << 8;
-					v |= s.bytes[pos++];
-					sink_list_push(ctx, res, sink_num(v));
-				} break;
-				case struct_enum.UL32: {
-					uint32_t v = 0;
-					v |= s.bytes[pos++];
-					v |= ((uint32_t)s.bytes[pos++]) <<  8;
-					v |= ((uint32_t)s.bytes[pos++]) << 16;
-					v |= ((uint32_t)s.bytes[pos++]) << 24;
-					sink_list_push(ctx, res, sink_num(v));
-				} break;
-				case struct_enum.UB32: {
-					uint32_t v = 0;
-					v |= ((uint32_t)s.bytes[pos++]) << 24;
-					v |= ((uint32_t)s.bytes[pos++]) << 16;
-					v |= ((uint32_t)s.bytes[pos++]) <<  8;
-					v |= s.bytes[pos++];
-					sink_list_push(ctx, res, sink_num(v));
-				} break;
-				case struct_enum.SL16: {
-					uint16_t v = 0;
-					v |= s.bytes[pos++];
-					v |= ((uint16_t)s.bytes[pos++]) << 8;
-					sink_list_push(ctx, res, sink_num((int16_t)v));
-				} break;
-				case struct_enum.SB16: {
-					uint16_t v = 0;
-					v |= ((uint16_t)s.bytes[pos++]) << 8;
-					v |= s.bytes[pos++];
-					sink_list_push(ctx, res, sink_num((int16_t)v));
-				} break;
-				case struct_enum.SL32: {
-					uint32_t v = 0;
-					v |= s.bytes[pos++];
-					v |= ((uint32_t)s.bytes[pos++]) <<  8;
-					v |= ((uint32_t)s.bytes[pos++]) << 16;
-					v |= ((uint32_t)s.bytes[pos++]) << 24;
-					sink_list_push(ctx, res, sink_num((int32_t)v));
-				} break;
-				case struct_enum.SB32: {
-					uint32_t v = 0;
-					v |= ((uint32_t)s.bytes[pos++]) << 24;
-					v |= ((uint32_t)s.bytes[pos++]) << 16;
-					v |= ((uint32_t)s.bytes[pos++]) <<  8;
-					v |= s.bytes[pos++];
-					sink_list_push(ctx, res, sink_num((int32_t)v));
-				} break;
-				case struct_enum.FL32: {
-					union { float f; uint32_t u; } v = { .u = 0 };
-					v.u |= s.bytes[pos++];
-					v.u |= ((uint32_t)s.bytes[pos++]) <<  8;
-					v.u |= ((uint32_t)s.bytes[pos++]) << 16;
-					v.u |= ((uint32_t)s.bytes[pos++]) << 24;
-					if (isnan(v.f))
-						sink_list_push(ctx, res, sink_num_nan());
-					else
-						sink_list_push(ctx, res, sink_num(v.f));
-				} break;
-				case struct_enum.FB32: {
-					union { float f; uint32_t u; } v = { .u = 0 };
-					v.u |= ((uint32_t)s.bytes[pos++]) << 24;
-					v.u |= ((uint32_t)s.bytes[pos++]) << 16;
-					v.u |= ((uint32_t)s.bytes[pos++]) <<  8;
-					v.u |= s.bytes[pos++];
-					if (isnan(v.f))
-						sink_list_push(ctx, res, sink_num_nan());
-					else
-						sink_list_push(ctx, res, sink_num(v.f));
-				} break;
-				case struct_enum.FL64: {
-					union { double f; uint64_t u; } v = { .u = 0 };
-					v.u |= s.bytes[pos++];
-					v.u |= ((uint64_t)s.bytes[pos++]) <<  8;
-					v.u |= ((uint64_t)s.bytes[pos++]) << 16;
-					v.u |= ((uint64_t)s.bytes[pos++]) << 24;
-					v.u |= ((uint64_t)s.bytes[pos++]) << 32;
-					v.u |= ((uint64_t)s.bytes[pos++]) << 40;
-					v.u |= ((uint64_t)s.bytes[pos++]) << 48;
-					v.u |= ((uint64_t)s.bytes[pos++]) << 56;
-					if (isnan(v.f))
-						sink_list_push(ctx, res, sink_num_nan());
-					else
-						sink_list_push(ctx, res, sink_num(v.f));
-				} break;
-				case struct_enum.FB64: {
-					union { double f; uint64_t u; } v = { .u = 0 };
-					v.u |= ((uint64_t)s.bytes[pos++]) << 56;
-					v.u |= ((uint64_t)s.bytes[pos++]) << 48;
-					v.u |= ((uint64_t)s.bytes[pos++]) << 40;
-					v.u |= ((uint64_t)s.bytes[pos++]) << 32;
-					v.u |= ((uint64_t)s.bytes[pos++]) << 24;
-					v.u |= ((uint64_t)s.bytes[pos++]) << 16;
-					v.u |= ((uint64_t)s.bytes[pos++]) <<  8;
-					v.u |= s.bytes[pos++];
-					if (isnan(v.f))
-						sink_list_push(ctx, res, sink_num_nan());
-					else
-						sink_list_push(ctx, res, sink_num(v.f));
-				} break;
+			if (t === struct_enum.U8 || t === struct_enum.S8)
+				res += String.fromCharCode(d & 0xFF);
+			else if (t === struct_enum.UL16 || t === struct_enum.SL16 ||
+				(LE && (t === struct_enum.U16 || t === struct_enum.S16))){
+				dview.setUint16(0, d & 0xFFFF, true);
+				res += String.fromCharCode(dview.getUint8(0));
+				res += String.fromCharCode(dview.getUint8(1));
+			}
+			else if (t === struct_enum.UB16 || t === struct_enum.SB16 ||
+				(!LE && (t === struct_enum.U16 || t === struct_enum.S16))){
+				dview.setUint16(0, d & 0xFFFF, false);
+				res += String.fromCharCode(dview.getUint8(0));
+				res += String.fromCharCode(dview.getUint8(1));
+			}
+			else if (t === struct_enum.UL32 || t === struct_enum.SL32 ||
+				(LE && (t === struct_enum.U32 || t === struct_enum.S32))){
+				dview.setUint32(0, d & 0xFFFFFFFF, true);
+				res += String.fromCharCode(dview.getUint8(0));
+				res += String.fromCharCode(dview.getUint8(1));
+				res += String.fromCharCode(dview.getUint8(2));
+				res += String.fromCharCode(dview.getUint8(3));
+			}
+			else if (t === struct_enum.UB32 || t === struct_enum.SB32 ||
+				(!LE && (t === struct_enum.U32 || t === struct_enum.S32))){
+				dview.setUint32(0, d & 0xFFFFFFFF, false);
+				res += String.fromCharCode(dview.getUint8(0));
+				res += String.fromCharCode(dview.getUint8(1));
+				res += String.fromCharCode(dview.getUint8(2));
+				res += String.fromCharCode(dview.getUint8(3));
+			}
+			else if (t === struct_enum.FL32 || (LE && t === struct_enum.F32)){
+				dview.setFloat32(0, d, true);
+				res += String.fromCharCode(dview.getUint8(0));
+				res += String.fromCharCode(dview.getUint8(1));
+				res += String.fromCharCode(dview.getUint8(2));
+				res += String.fromCharCode(dview.getUint8(3));
+			}
+			else if (t === struct_enum.FB32 || (!LE && t === struct_enum.F32)){
+				dview.setFloat32(0, d, false);
+				res += String.fromCharCode(dview.getUint8(0));
+				res += String.fromCharCode(dview.getUint8(1));
+				res += String.fromCharCode(dview.getUint8(2));
+				res += String.fromCharCode(dview.getUint8(3));
+			}
+			else if (t === struct_enum.FL64 || (LE && t === struct_enum.F64)){
+				dview.setFloat64(0, d, true);
+				res += String.fromCharCode(dview.getUint8(0));
+				res += String.fromCharCode(dview.getUint8(1));
+				res += String.fromCharCode(dview.getUint8(2));
+				res += String.fromCharCode(dview.getUint8(3));
+				res += String.fromCharCode(dview.getUint8(4));
+				res += String.fromCharCode(dview.getUint8(5));
+				res += String.fromCharCode(dview.getUint8(6));
+				res += String.fromCharCode(dview.getUint8(7));
+			}
+			else if (t === struct_enum.FB64 || (!LE && t === struct_enum.F64)){
+				dview.setFloat64(0, d, false);
+				res += String.fromCharCode(dview.getUint8(0));
+				res += String.fromCharCode(dview.getUint8(1));
+				res += String.fromCharCode(dview.getUint8(2));
+				res += String.fromCharCode(dview.getUint8(3));
+				res += String.fromCharCode(dview.getUint8(4));
+				res += String.fromCharCode(dview.getUint8(5));
+				res += String.fromCharCode(dview.getUint8(6));
+				res += String.fromCharCode(dview.getUint8(7));
+			}
+			else{
+				opi_abort(ctx, 'Invalid conversion');
+				return SINK_NIL;
 			}
 		}
 	}
 	return res;
-	fail:
-	opi_abort(ctx, "Invalid conversion");
-	return SINK_NIL;
 }
 
-static inline bool sink_struct_isLE(){
-	union {
-		uint16_t a;
-		uint8_t b[2];
-	} v;
-	v.a = 0x1234;
-	return v.b[0] === 0x34;
+export function sink_struct_list(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+	if (!sink_isstr(a)){
+		opi_abort(ctx, 'Expecting string');
+		return SINK_NIL;
+	}
+	if (!sink_islist(b)){
+		opi_abort(ctx, 'Expecting list');
+		return SINK_NIL;
+	}
+	let size = sink_struct_size(ctx, b);
+	if (!sink_isnum(size) || a.length % size !== 0){
+		opi_abort(ctx, 'Invalid conversion');
+		return SINK_NIL;
+	}
+	let res = new sink_list();
+	let pos = 0;
+	while (pos < a.length){
+		for (let i = 0; i < b.length; i++){
+			let t = b[i];
+			if (!sink_isnum(t)){
+				opi_abort(ctx, 'Invalid conversion');
+				return SINK_NIL;
+			}
+			if (t === struct_enum.U8){
+				dview.setUint8(0, a.charCodeAt(pos++));
+				res.push(dview.getUint8(0));
+			}
+			else if (t === struct_enum.S8){
+				dview.setUint8(0, a.charCodeAt(pos++));
+				res.push(dview.getInt8(0));
+			}
+			else if (t === struct_enum.UL16 || (LE && t === struct_enum.U16)){
+				dview.setUint8(0, a.charCodeAt(pos++)); dview.setUint8(1, a.charCodeAt(pos++));
+				res.push(dview.getUint16(0, true));
+			}
+			else if (t === struct_enum.SL16 || (LE && t === struct_enum.S16)){
+				dview.setUint8(0, a.charCodeAt(pos++)); dview.setUint8(1, a.charCodeAt(pos++));
+				res.push(dview.getInt16(0, true));
+			}
+			else if (t === struct_enum.UB16 || (!LE && t === struct_enum.U16)){
+				dview.setUint8(0, a.charCodeAt(pos++)); dview.setUint8(1, a.charCodeAt(pos++));
+				res.push(dview.getUint16(0, false));
+			}
+			else if (t === struct_enum.SB16 || (!LE && t === struct_enum.S16)){
+				dview.setUint8(0, a.charCodeAt(pos++)); dview.setUint8(1, a.charCodeAt(pos++));
+				res.push(dview.getInt16(0, false));
+			}
+			else if (t === struct_enum.UL32 || (LE && t === struct_enum.U32)){
+				dview.setUint8(0, a.charCodeAt(pos++)); dview.setUint8(1, a.charCodeAt(pos++));
+				dview.setUint8(2, a.charCodeAt(pos++)); dview.setUint8(3, a.charCodeAt(pos++));
+				res.push(dview.getUint32(0, true));
+			}
+			else if (t === struct_enum.SL32 || (LE && t === struct_enum.S32)){
+				dview.setUint8(0, a.charCodeAt(pos++)); dview.setUint8(1, a.charCodeAt(pos++));
+				dview.setUint8(2, a.charCodeAt(pos++)); dview.setUint8(3, a.charCodeAt(pos++));
+				res.push(dview.getInt32(0, true));
+			}
+			else if (t === struct_enum.UB32 || (!LE && t === struct_enum.U32)){
+				dview.setUint8(0, a.charCodeAt(pos++)); dview.setUint8(1, a.charCodeAt(pos++));
+				dview.setUint8(2, a.charCodeAt(pos++)); dview.setUint8(3, a.charCodeAt(pos++));
+				res.push(dview.getUint32(0, false));
+			}
+			else if (t === struct_enum.SB32 || (!LE && t === struct_enum.S32)){
+				dview.setUint8(0, a.charCodeAt(pos++)); dview.setUint8(1, a.charCodeAt(pos++));
+				dview.setUint8(2, a.charCodeAt(pos++)); dview.setUint8(3, a.charCodeAt(pos++));
+				res.push(dview.getInt32(0, false));
+			}
+			else if (t === struct_enum.FL32 || (LE && t === struct_enum.F32)){
+				dview.setUint8(0, a.charCodeAt(pos++)); dview.setUint8(1, a.charCodeAt(pos++));
+				dview.setUint8(2, a.charCodeAt(pos++)); dview.setUint8(3, a.charCodeAt(pos++));
+				res.push(dview.getFloat32(0, true));
+			}
+			else if (t === struct_enum.FB32 || (!LE && t === struct_enum.F32)){
+				dview.setUint8(0, a.charCodeAt(pos++)); dview.setUint8(1, a.charCodeAt(pos++));
+				dview.setUint8(2, a.charCodeAt(pos++)); dview.setUint8(3, a.charCodeAt(pos++));
+				res.push(dview.getFloat32(0, false));
+			}
+			else if (t === struct_enum.FL64 || (LE && t === struct_enum.F64)){
+				dview.setUint8(0, a.charCodeAt(pos++)); dview.setUint8(1, a.charCodeAt(pos++));
+				dview.setUint8(2, a.charCodeAt(pos++)); dview.setUint8(3, a.charCodeAt(pos++));
+				dview.setUint8(4, a.charCodeAt(pos++)); dview.setUint8(5, a.charCodeAt(pos++));
+				dview.setUint8(6, a.charCodeAt(pos++)); dview.setUint8(7, a.charCodeAt(pos++));
+				res.push(dview.getFloat64(0, true));
+			}
+			else if (t === struct_enum.FB64 || (!LE && t === struct_enum.F64)){
+				dview.setUint8(0, a.charCodeAt(pos++)); dview.setUint8(1, a.charCodeAt(pos++));
+				dview.setUint8(2, a.charCodeAt(pos++)); dview.setUint8(3, a.charCodeAt(pos++));
+				dview.setUint8(4, a.charCodeAt(pos++)); dview.setUint8(5, a.charCodeAt(pos++));
+				dview.setUint8(6, a.charCodeAt(pos++)); dview.setUint8(7, a.charCodeAt(pos++));
+				res.push(dview.getFloat64(0, false));
+			}
+			else{
+				opi_abort(ctx, 'Invalid conversion');
+				return SINK_NIL;
+			}
+		}
+	}
+	return res;
 }
 
+export function sink_struct_isLE(): boolean {
+	return LE;
+}
+/*
 // operators
 static sink_val unop_num_neg(context ctx, sink_val a){
 	return sink_num(-a.f);
