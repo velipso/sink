@@ -8865,375 +8865,364 @@ export function sink_struct_list(ctx: sink_ctx, a: sink_val, b: sink_val): sink_
 export function sink_struct_isLE(): boolean {
 	return LE;
 }
-/*
+
 // operators
-static sink_val unop_num_neg(context ctx, sink_val a){
-	return sink_num(-a.f);
+function unop_num_neg(ctx: sink_ctx, a: sink_val): sink_val {
+	return -(a as number);
 }
 
-static sink_val unop_tonum(context ctx, sink_val a){
+function unop_tonum(ctx: sink_ctx, a: sink_val): sink_val {
 	if (sink_isnum(a))
 		return a;
 	if (!sink_isstr(a))
 		return SINK_NIL;
-	sink_str s = var_caststr(ctx, a);
 
-	numpart_info npi;
-	numpart_new(&npi);
-	enum {
-		TONUM_START,
-		TONUM_NEG,
-		TONUM_0,
-		TONUM_2,
-		TONUM_BODY,
-		TONUM_FRAC,
-		TONUM_EXP,
-		TONUM_EXP_BODY
-	} state = TONUM_START;
-	bool hasval = false;
-	for (int i = 0; i < s.size; i++){
-		char ch = (char)s.bytes[i];
+	let npi = numpart_new();
+	enum tonum_enum {
+		START,
+		NEG,
+		N0,
+		N2,
+		BODY,
+		FRAC,
+		EXP,
+		EXP_BODY
+	}
+	let state = tonum_enum.START;
+	let hasval = false;
+	for (let i = 0; i < a.length; i++){
+		let ch = a.charAt(i);
 		switch (state){
-			case TONUM_START:
+			case tonum_enum.START:
 				if (isNum(ch)){
 					hasval = true;
 					npi.val = toHex(ch);
 					if (npi.val === 0)
-						state = TONUM_0;
+						state = tonum_enum.N0;
 					else
-						state = TONUM_BODY;
+						state = tonum_enum.BODY;
 				}
 				else if (ch === '-'){
 					npi.sign = -1;
-					state = TONUM_NEG;
+					state = tonum_enum.NEG;
 				}
 				else if (ch === '.')
-					state = TONUM_FRAC;
+					state = tonum_enum.FRAC;
 				else if (!isSpace(ch))
 					return SINK_NIL;
 				break;
 
-			case TONUM_NEG:
+			case tonum_enum.NEG:
 				if (isNum(ch)){
 					hasval = true;
 					npi.val = toHex(ch);
 					if (npi.val === 0)
-						state = TONUM_0;
+						state = tonum_enum.N0;
 					else
-						state = TONUM_BODY;
+						state = tonum_enum.BODY;
 				}
 				else if (ch === '.')
-					state = TONUM_FRAC;
+					state = tonum_enum.FRAC;
 				else
 					return SINK_NIL;
 				break;
 
-			case TONUM_0:
+			case tonum_enum.N0:
 				if (ch === 'b'){
 					npi.base = 2;
-					state = TONUM_2;
+					state = tonum_enum.N2;
 				}
 				else if (ch === 'c'){
 					npi.base = 8;
-					state = TONUM_2;
+					state = tonum_enum.N2;
 				}
 				else if (ch === 'x'){
 					npi.base = 16;
-					state = TONUM_2;
+					state = tonum_enum.N2;
 				}
 				else if (ch === '_')
-					state = TONUM_BODY;
+					state = tonum_enum.BODY;
 				else if (ch === '.')
-					state = TONUM_FRAC;
+					state = tonum_enum.FRAC;
 				else if (ch === 'e' || ch === 'E')
-					state = TONUM_EXP;
+					state = tonum_enum.EXP;
 				else if (isNum(ch)){
 					// number has a leading zero, so just ignore it
 					// (not valid in sink, but valid at runtime for flexibility)
 					npi.val = toHex(ch);
-					state = TONUM_BODY;
+					state = tonum_enum.BODY;
 				}
 				else
-					return sink_num(0);
+					return 0;
 				break;
 
-			case TONUM_2:
+			case tonum_enum.N2:
 				if (isHex(ch)){
 					npi.val = toHex(ch);
 					if (npi.val >= npi.base)
 						return sink_num(0);
-					state = TONUM_BODY;
+					state = tonum_enum.BODY;
 				}
 				else if (ch !== '_')
 					return sink_num(0);
 				break;
 
-			case TONUM_BODY:
-				if (ch === '_')
-					/* do nothing * /;
-				else if (ch === '.')
-					state = TONUM_FRAC;
+			case tonum_enum.BODY:
+				if (ch === '.')
+					state = tonum_enum.FRAC;
 				else if ((npi.base === 10 && (ch === 'e' || ch === 'E')) ||
 					(npi.base !== 10 && (ch === 'p' || ch === 'P')))
-					state = TONUM_EXP;
+					state = tonum_enum.EXP;
 				else if (isHex(ch)){
-					int v = toHex(ch);
+					let v = toHex(ch);
 					if (v >= npi.base)
-						return sink_num(numpart_calc(npi));
+						return numpart_calc(npi);
 					else
 						npi.val = npi.val * npi.base + v;
 				}
-				else
-					return sink_num(numpart_calc(npi));
+				else if (ch !== '_')
+					return numpart_calc(npi);
 				break;
 
-			case TONUM_FRAC:
-				if (ch === '_')
-					/* do nothing * /;
-				else if (hasval && ((npi.base === 10 && (ch === 'e' || ch === 'E')) ||
+			case tonum_enum.FRAC:
+				if (hasval && ((npi.base === 10 && (ch === 'e' || ch === 'E')) ||
 					(npi.base !== 10 && (ch === 'p' || ch === 'P'))))
-					state = TONUM_EXP;
+					state = tonum_enum.EXP;
 				else if (isHex(ch)){
 					hasval = true;
-					int v = toHex(ch);
+					let v = toHex(ch);
 					if (v >= npi.base)
-						return sink_num(numpart_calc(npi));
+						return numpart_calc(npi);
 					npi.frac = npi.frac * npi.base + v;
 					npi.flen++;
 				}
-				else
-					return sink_num(numpart_calc(npi));
+				else if (ch !== '_')
+					return numpart_calc(npi);
 				break;
 
-			case TONUM_EXP:
+			case tonum_enum.EXP:
 				if (ch !== '_'){
 					npi.esign = ch === '-' ? -1 : 1;
-					state = TONUM_EXP_BODY;
+					state = tonum_enum.EXP_BODY;
 					if (ch !== '+' && ch !== '-')
 						i--;
 				}
 				break;
 
-			case TONUM_EXP_BODY:
-				if (ch === '_')
-					/* do nothing * /;
-				else if (isNum(ch))
+			case tonum_enum.EXP_BODY:
+				if (isNum(ch))
 					npi.eval = npi.eval * 10.0 + toHex(ch);
-				else
-					return sink_num(numpart_calc(npi));
+				else if (ch !== '_')
+					return numpart_calc(npi);
 				break;
 		}
 	}
-	if (state === TONUM_START || state === TONUM_NEG || (state === TONUM_FRAC && !hasval))
+	if (state === tonum_enum.START || state === tonum_enum.NEG || (state === tonum_enum.FRAC && !hasval))
 		return SINK_NIL;
-	return sink_num(numpart_calc(npi));
+	return numpart_calc(npi);
 }
 
-static sink_val unop_num_abs(context ctx, sink_val a){
-	return sink_num(fabs(a.f));
+function unop_num_abs(ctx: sink_ctx, a: sink_val): sink_val {
+	return Math.abs(a as number);
 }
 
-static sink_val unop_num_sign(context ctx, sink_val a){
-	return isnan(a.f) ? SINK_NAN : sink_num(a.f < 0 ? -1 : (a.f > 0 ? 1 : 0));
+function unop_num_sign(ctx: sink_ctx, a: sink_val): sink_val {
+	return isNaN(a as number) ? SINK_NAN : ((a as number) < 0 ? -1 : ((a as number) > 0 ? 1 : 0));
 }
 
-static sink_val unop_num_floor(context ctx, sink_val a){
-	return sink_num(floor(a.f));
+function unop_num_floor(ctx: sink_ctx, a: sink_val): sink_val {
+	return Math.floor(a as number);
 }
 
-static sink_val unop_num_ceil(context ctx, sink_val a){
-	return sink_num(ceil(a.f));
+function unop_num_ceil(ctx: sink_ctx, a: sink_val): sink_val {
+	return Math.ceil(a as number);
 }
 
-static sink_val unop_num_round(context ctx, sink_val a){
-	return sink_num(round(a.f));
+function unop_num_round(ctx: sink_ctx, a: sink_val): sink_val {
+	return Math.round(a as number);
 }
 
-static sink_val unop_num_trunc(context ctx, sink_val a){
-	return sink_num(trunc(a.f));
+function unop_num_trunc(ctx: sink_ctx, a: sink_val): sink_val {
+	return (Math as any).trunc(a as number);
 }
 
-static sink_val unop_num_isnan(context ctx, sink_val a){
-	return sink_bool(sink_num_isnan(a));
+function unop_num_isnan(ctx: sink_ctx, a: sink_val): sink_val {
+	return sink_bool(isNaN(a as number));
 }
 
-static sink_val unop_num_isfinite(context ctx, sink_val a){
-	return sink_bool(sink_num_isfinite(a));
+function unop_num_isfinite(ctx: sink_ctx, a: sink_val): sink_val {
+	return sink_bool(isFinite(a as number));
 }
 
-static sink_val unop_num_sin(context ctx, sink_val a){
-	return sink_num(sin(a.f));
+function unop_num_sin(ctx: sink_ctx, a: sink_val): sink_val {
+	return Math.sin(a as number);
 }
 
-static sink_val unop_num_cos(context ctx, sink_val a){
-	return sink_num(cos(a.f));
+function unop_num_cos(ctx: sink_ctx, a: sink_val): sink_val {
+	return Math.cos(a as number);
 }
 
-static sink_val unop_num_tan(context ctx, sink_val a){
-	return sink_num(tan(a.f));
+function unop_num_tan(ctx: sink_ctx, a: sink_val): sink_val {
+	return Math.tan(a as number);
 }
 
-static sink_val unop_num_asin(context ctx, sink_val a){
-	return sink_num(asin(a.f));
+function unop_num_asin(ctx: sink_ctx, a: sink_val): sink_val {
+	return Math.asin(a as number);
 }
 
-static sink_val unop_num_acos(context ctx, sink_val a){
-	return sink_num(acos(a.f));
+function unop_num_acos(ctx: sink_ctx, a: sink_val): sink_val {
+	return Math.acos(a as number);
 }
 
-static sink_val unop_num_atan(context ctx, sink_val a){
-	return sink_num(atan(a.f));
+function unop_num_atan(ctx: sink_ctx, a: sink_val): sink_val {
+	return Math.atan(a as number);
 }
 
-static sink_val unop_num_log(context ctx, sink_val a){
-	return sink_num(log(a.f));
+function unop_num_log(ctx: sink_ctx, a: sink_val): sink_val {
+	return Math.log(a as number);
 }
 
-static sink_val unop_num_log2(context ctx, sink_val a){
-	return sink_num(log2(a.f));
+function unop_num_log2(ctx: sink_ctx, a: sink_val): sink_val {
+	return (Math as any).log2(a as number);
 }
 
-static sink_val unop_num_log10(context ctx, sink_val a){
-	return sink_num(log10(a.f));
+function unop_num_log10(ctx: sink_ctx, a: sink_val): sink_val {
+	return (Math as any).log10(a as number);
 }
 
-static sink_val unop_num_exp(context ctx, sink_val a){
-	return sink_num(exp(a.f));
+function unop_num_exp(ctx: sink_ctx, a: sink_val): sink_val {
+	return Math.exp(a as number);
 }
 
-static sink_val binop_num_add(context ctx, sink_val a, sink_val b){
-	return sink_num(a.f + b.f);
+function binop_num_add(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+	return (a as number) + (b as number);
 }
 
-static sink_val binop_num_sub(context ctx, sink_val a, sink_val b){
-	return sink_num(a.f - b.f);
+function binop_num_sub(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+	return (a as number) - (b as number);
 }
 
-static sink_val binop_num_mul(context ctx, sink_val a, sink_val b){
-	return sink_num(a.f * b.f);
+function binop_num_mul(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+	return (a as number) * (b as number);
 }
 
-static sink_val binop_num_div(context ctx, sink_val a, sink_val b){
-	return sink_num(a.f / b.f);
+function binop_num_div(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+	return (a as number) / (b as number);
 }
 
-static sink_val binop_num_mod(context ctx, sink_val a, sink_val b){
-	return sink_num(fmod(a.f, b.f));
+function binop_num_mod(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+	return (a as number) % (b as number);
 }
 
-static sink_val binop_num_pow(context ctx, sink_val a, sink_val b){
-	return sink_num(pow(a.f, b.f));
+function binop_num_pow(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+	return Math.pow(a as number, b as number);
 }
 
-static sink_val binop_num_atan2(context ctx, sink_val a, sink_val b){
-	return sink_num(atan2(a.f, b.f));
+function binop_num_atan2(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+	return Math.atan2(a as number, b as number);
 }
 
-static sink_val binop_num_hex(context ctx, sink_val a, sink_val b){
-	return isnan(a.f) ? SINK_NAN : opi_num_base(ctx, a.f, sink_isnil(b) ? 0 : b.f, 16);
+function binop_num_hex(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+	return isNaN(a as number) ? SINK_NAN :
+		opi_num_base(a as number, sink_isnil(b) ? 0 : (b as number), 16);
 }
 
-static sink_val binop_num_oct(context ctx, sink_val a, sink_val b){
-	return isnan(a.f) ? SINK_NAN : opi_num_base(ctx, a.f, sink_isnil(b) ? 0 : b.f, 8);
+function binop_num_oct(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+	return isNaN(a as number) ? SINK_NAN :
+		opi_num_base(a as number, sink_isnil(b) ? 0 : (b as number), 8);
 }
 
-static sink_val binop_num_bin(context ctx, sink_val a, sink_val b){
-	return isnan(a.f) ? SINK_NAN : opi_num_base(ctx, a.f, sink_isnil(b) ? 0 : b.f, 2);
+function binop_num_bin(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+	return isNaN(a as number) ? SINK_NAN :
+		opi_num_base(a as number, sink_isnil(b) ? 0 : (b as number), 2);
 }
 
-static sink_val triop_num_clamp(context ctx, sink_val a, sink_val b, sink_val c){
-	return isnan(a.f) || isnan(b.f) || isnan(c.f) ? SINK_NAN :
-		sink_num(a.f < b.f ? b.f : (a.f > c.f ? c.f : a.f));
+function triop_num_clamp(ctx: sink_ctx, a: sink_val, b: sink_val, c: sink_val): sink_val {
+	return isNaN(a as number) || isNaN(b as number) || isNaN(c as number) ? SINK_NAN :
+		((a as number) < (b as number) ? (b as number) :
+			((a as number) > (c as number) ? (c as number) : (a as number)));
 }
 
-static sink_val triop_num_lerp(context ctx, sink_val a, sink_val b, sink_val c){
-	return sink_num(a.f + (b.f - a.f) * c.f);
+function triop_num_lerp(ctx: sink_ctx, a: sink_val, b: sink_val, c: sink_val): sink_val {
+	return (a as number) + ((b as number) - (a as number)) * (c as number);
 }
 
-static inline int32_t toint(sink_val v){
-	return (int32_t)(uint32_t)v.f;
+function unop_int_new(ctx: sink_ctx, a: sink_val): sink_val {
+	return (a as number) | 0;
 }
 
-static inline sink_val intnum(int32_t v){
-	return sink_num(v);
+function unop_int_not(ctx: sink_ctx, a: sink_val): sink_val {
+	return ~((a as number) | 0);
 }
 
-static sink_val unop_int_new(context ctx, sink_val a){
-	return intnum(toint(a));
+function unop_int_clz(ctx: sink_ctx, a: sink_val): sink_val {
+	return (Math as any).clz32(a);
 }
 
-static sink_val unop_int_not(context ctx, sink_val a){
-	return intnum(~toint(a));
-}
-
-static sink_val unop_int_clz(context ctx, sink_val a){
-	#ifdef BITSCAN_FFSLL
-		return sink_num(32 - fls(toint(a)));
-	#else
-	#	error Don't know how to implement bmp_alloc
-	#endif
-}
-
-static sink_val unop_int_pop(context ctx, sink_val a){
-	uint32_t n = toint(a);
+function unop_int_pop(ctx: sink_ctx, a: sink_val): sink_val {
+	let n = (a as number) | 0;
 	n = ((n & 0xAAAAAAAA) >>  1) + (n & 0x55555555);
 	n = ((n & 0xCCCCCCCC) >>  2) + (n & 0x33333333);
 	n = ((n & 0xF0F0F0F0) >>  4) + (n & 0x0F0F0F0F);
 	n = ((n & 0xFF00FF00) >>  8) + (n & 0x00FF00FF);
-	n = ((n & 0xFFFF0000) >> 16) + (n & 0x0000FFFF);
-	return intnum(n);
+	return ((n & 0xFFFF0000) >> 16) + (n & 0x0000FFFF);
 }
 
-static sink_val unop_int_bswap(context ctx, sink_val a){
-	uint32_t n = toint(a);
-	n = (n >> 24) | ((n >> 8) & 0xFF00) | ((n << 8) & 0xFF0000) | (n << 24);
-	return intnum(n);
+function unop_int_bswap(ctx: sink_ctx, a: sink_val): sink_val {
+	let n = (a as number) | 0;
+	return (n >> 24) | ((n >> 8) & 0xFF00) | ((n << 8) & 0xFF0000) | (n << 24);
 }
 
-static sink_val binop_int_and(context ctx, sink_val a, sink_val b){
-	return intnum(toint(a) & toint(b));
+function binop_int_and(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+	return ((a as number) | 0) & ((b as number) | 0);
 }
 
-static sink_val binop_int_or(context ctx, sink_val a, sink_val b){
-	return intnum(toint(a) | toint(b));
+function binop_int_or(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+	return ((a as number) | 0) | ((b as number) | 0);
 }
 
-static sink_val binop_int_xor(context ctx, sink_val a, sink_val b){
-	return intnum(toint(a) ^ toint(b));
+function binop_int_xor(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+	return ((a as number) | 0) ^ ((b as number) | 0);
 }
 
-static sink_val binop_int_shl(context ctx, sink_val a, sink_val b){
-	return intnum(toint(a) << toint(b));
+function binop_int_shl(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+	return ((a as number) | 0) << ((b as number) | 0);
 }
 
-static sink_val binop_int_shr(context ctx, sink_val a, sink_val b){
-	return intnum(((uint32_t)toint(a)) >> toint(b));
+function binop_int_shr(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+	return ((a as number) | 0) >>> ((b as number) | 0);
 }
 
-static sink_val binop_int_sar(context ctx, sink_val a, sink_val b){
-	return intnum(toint(a) >> toint(b));
+function binop_int_sar(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+	return ((a as number) | 0) >> ((b as number) | 0);
 }
 
-static sink_val binop_int_add(context ctx, sink_val a, sink_val b){
-	return intnum(toint(a) + toint(b));
+function binop_int_add(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+	return ((a as number) | 0) + ((b as number) | 0);
 }
 
-static sink_val binop_int_sub(context ctx, sink_val a, sink_val b){
-	return intnum(toint(a) - toint(b));
+function binop_int_sub(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+	return ((a as number) | 0) - ((b as number) | 0);
 }
 
-static sink_val binop_int_mul(context ctx, sink_val a, sink_val b){
-	return intnum(toint(a) * toint(b));
+function binop_int_mul(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+	return ((a as number) | 0) * ((b as number) | 0);
 }
 
-static sink_val binop_int_div(context ctx, sink_val a, sink_val b){
-	return intnum(toint(a) / toint(b));
+function binop_int_div(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+	let i = (b as number) | 0;
+	if (i == 0)
+		return 0;
+	return ((a as number) | 0) / i;
 }
 
-static sink_val binop_int_mod(context ctx, sink_val a, sink_val b){
-	return intnum(toint(a) % toint(b));
+function binop_int_mod(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+	let i = (b as number) | 0;
+	if (i == 0)
+		return 0;
+	return ((a as number) | 0) % i;
 }
-
+/*
 // inline operators
 static inline bool opi_equ(context ctx, sink_val a, sink_val b){
 	if (a.u === b.u){

@@ -10751,9 +10751,7 @@ static sink_val unop_tonum(context ctx, sink_val a){
 				break;
 
 			case TONUM_BODY:
-				if (ch == '_')
-					/* do nothing */;
-				else if (ch == '.')
+				if (ch == '.')
 					state = TONUM_FRAC;
 				else if ((npi.base == 10 && (ch == 'e' || ch == 'E')) ||
 					(npi.base != 10 && (ch == 'p' || ch == 'P')))
@@ -10765,14 +10763,12 @@ static sink_val unop_tonum(context ctx, sink_val a){
 					else
 						npi.val = npi.val * npi.base + v;
 				}
-				else
+				else if (ch != '_')
 					return sink_num(numpart_calc(npi));
 				break;
 
 			case TONUM_FRAC:
-				if (ch == '_')
-					/* do nothing */;
-				else if (hasval && ((npi.base == 10 && (ch == 'e' || ch == 'E')) ||
+				if (hasval && ((npi.base == 10 && (ch == 'e' || ch == 'E')) ||
 					(npi.base != 10 && (ch == 'p' || ch == 'P'))))
 					state = TONUM_EXP;
 				else if (isHex(ch)){
@@ -10783,7 +10779,7 @@ static sink_val unop_tonum(context ctx, sink_val a){
 					npi.frac = npi.frac * npi.base + v;
 					npi.flen++;
 				}
-				else
+				else if (ch != '_')
 					return sink_num(numpart_calc(npi));
 				break;
 
@@ -10797,11 +10793,9 @@ static sink_val unop_tonum(context ctx, sink_val a){
 				break;
 
 			case TONUM_EXP_BODY:
-				if (ch == '_')
-					/* do nothing */;
-				else if (isNum(ch))
+				if (isNum(ch))
 					npi.eval = npi.eval * 10.0 + toHex(ch);
-				else
+				else if (ch != '_')
 					return sink_num(numpart_calc(npi));
 				break;
 		}
@@ -11009,11 +11003,17 @@ static sink_val binop_int_mul(context ctx, sink_val a, sink_val b){
 }
 
 static sink_val binop_int_div(context ctx, sink_val a, sink_val b){
-	return intnum(toint(a) / toint(b));
+	int32_t i = toint(b);
+	if (i == 0)
+		return intnum(0);
+	return intnum(toint(a) / i);
 }
 
 static sink_val binop_int_mod(context ctx, sink_val a, sink_val b){
-	return intnum(toint(a) % toint(b));
+	int32_t i = toint(b);
+	if (i == 0)
+		return intnum(0);
+	return intnum(toint(a) % i);
 }
 
 // inline operators

@@ -43,3 +43,33 @@ say 42, num.oct num.nan, 2
 say 43, num.oct 2, num.nan
 say 44, num.bin num.nan, 2
 say 45, num.bin 2, num.nan
+say 46, int.new num.nan
+say 47, int.not num.nan
+say 48, int.and 1, num.nan
+say 49, int.and num.nan, 1
+say 50, int.and 1, 1, 1, 1, 1, 1, num.nan
+say 51, int.or 1, num.nan
+say 52, int.or num.nan, 1
+say 53, int.or 1, 1, 1, 1, 1, 1, num.nan
+say 54, int.xor 1, num.nan
+say 55, int.xor num.nan, 1
+say 56, int.xor 1, 1, 1, 1, 1, 1, num.nan
+say 57, int.shl 256, num.nan
+say 58, int.shl num.nan, 1
+say 59, int.shr 256, num.nan
+say 60, int.shr num.nan, 1
+say 61, int.sar 256, num.nan
+say 62, int.sar num.nan, 1
+say 63, int.add num.nan, 2
+say 64, int.add 2, num.nan
+say 65, int.sub num.nan, 2
+say 66, int.sub 2, num.nan
+say 67, int.mul num.nan, 2
+say 68, int.mul 2, num.nan
+say 69, int.div num.nan, 2
+say 70, int.div 2, num.nan
+say 71, int.mod num.nan, 2
+say 72, int.mod 2, num.nan
+say 73, int.clz num.nan
+say 74, int.pop num.nan
+say 75, int.bswap num.nan
