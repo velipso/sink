@@ -8414,12 +8414,11 @@ function sink_rand_shuffle(ctx: context_st, a: sink_val): void {
 	}
 }
 
-/*
-static inline sink_val sink_str_new(context ctx, int size, sink_val *vals){
-	return sink_list_joinplain(ctx, size, vals, 1, (const uint8_t *)" ");
+function sink_str_new(ctx: context_st, vals: sink_val[]): sink_val {
+	return sink_list_joinplain(ctx, vals, ' ');
 }
-
-static inline sink_val opi_list_push(context ctx, sink_val a, sink_val b);
+/*
+static inline sink_val sink_list_push(context ctx, sink_val a, sink_val b);
 static inline sink_val sink_str_split(context ctx, sink_val a, sink_val b){
 	if ((!sink_isstr(a) && !sink_isnum(a)) || (!sink_isstr(b) && !sink_isnum(b))){
 		opi_abortcstr(ctx, "Expecting strings");
@@ -8436,7 +8435,7 @@ static inline sink_val sink_str_split(context ctx, sink_val a, sink_val b){
 	if (nlen <= 0){
 		// split on every character
 		for (int i = 0; i < hlen; i++)
-			opi_list_push(ctx, result, sink_str_newblob(ctx, 1, &haystack.bytes[i]));
+			sink_list_push(ctx, result, sink_str_newblob(ctx, 1, &haystack.bytes[i]));
 		return result;
 	}
 
@@ -8449,7 +8448,7 @@ static inline sink_val sink_str_split(context ctx, sink_val a, sink_val b){
 	int lastmatch = 0;
 	while (hx + nlen <= hlen){
 		if (memcmp(needle.bytes, &haystack.bytes[hx], sizeof(uint8_t) * nlen) === 0){
-			opi_list_push(ctx, result,
+			sink_list_push(ctx, result,
 				sink_str_newblob(ctx, hx - lastmatch, &haystack.bytes[lastmatch]));
 			lastmatch = hx + needle.size;
 			hx += needle.size;
@@ -8461,15 +8460,15 @@ static inline sink_val sink_str_split(context ctx, sink_val a, sink_val b){
 			hx += delta[haystack.bytes[hx + nlen]];
 		}
 	}
-	opi_list_push(ctx, result,
+	sink_list_push(ctx, result,
 		sink_str_newblob(ctx, haystack.size - lastmatch, &haystack.bytes[lastmatch]));
 	return result;
 }
 
-static inline sink_val opi_list_join(context ctx, sink_val a, sink_val b);
+static inline sink_val sink_list_join(context ctx, sink_val a, sink_val b);
 static inline sink_val sink_str_replace(context ctx, sink_val a, sink_val b, sink_val c){
 	sink_val ls = sink_str_split(ctx, a, b);
-	return opi_list_join(ctx, ls, c);
+	return sink_list_join(ctx, ls, c);
 }
 
 static inline sink_val sink_str_find(context ctx, sink_val a, sink_val b, sink_val c){
@@ -8742,7 +8741,7 @@ static inline sink_val sink_str_list(context ctx, sink_val a){
 	sink_str s = var_caststr(ctx, sink_tostr(ctx, a));
 	sink_val r = sink_list_newempty(ctx);
 	for (int i = 0; i < s.size; i++)
-		opi_list_push(ctx, r, sink_num(s.bytes[i]));
+		sink_list_push(ctx, r, sink_num(s.bytes[i]));
 	return r;
 }
 
@@ -8787,7 +8786,7 @@ static inline bool opihelp_codepoint(sink_val b){
 		(b.f < 0xD800 || b.f >= 0xE000); // must not be a surrogate
 }
 
-static inline bool opi_utf8_valid(context ctx, sink_val a){
+static inline bool sink_utf8_valid(context ctx, sink_val a){
 	if (sink_isstr(a)){
 		sink_str s = var_caststr(ctx, a);
 		int state = 0;
@@ -8844,7 +8843,7 @@ static inline bool opi_utf8_valid(context ctx, sink_val a){
 	return false;
 }
 
-static inline sink_val opi_utf8_list(context ctx, sink_val a){
+static inline sink_val sink_utf8_list(context ctx, sink_val a){
 	if (!sink_isstr(a)){
 		opi_abortcstr(ctx, "Expecting string");
 		return SINK_NIL;
@@ -8858,7 +8857,7 @@ static inline sink_val opi_utf8_list(context ctx, sink_val a){
 		uint8_t b = s.bytes[i];
 		if (state === 0){
 			if (b < 0x80) // 0x00 to 0x7F
-				opi_list_push(ctx, res, sink_num(b));
+				sink_list_push(ctx, res, sink_num(b));
 			else if (b < 0xC0) // 0x80 to 0xBF
 				goto fail;
 			else if (b < 0xE0){ // 0xC0 to 0xDF
@@ -8889,7 +8888,7 @@ static inline sink_val opi_utf8_list(context ctx, sink_val a){
 					codepoint >= 0x110000 || // no huge
 					(codepoint >= 0xD800 && codepoint < 0xE000)) // no surrogates
 					goto fail;
-				opi_list_push(ctx, res, sink_num(codepoint));
+				sink_list_push(ctx, res, sink_num(codepoint));
 			}
 		}
 	}
@@ -8899,7 +8898,7 @@ static inline sink_val opi_utf8_list(context ctx, sink_val a){
 	return SINK_NIL;
 }
 
-static inline sink_val opi_utf8_str(context ctx, sink_val a){
+static inline sink_val sink_utf8_str(context ctx, sink_val a){
 	if (!sink_islist(a)){
 		opi_abortcstr(ctx, "Expecting list");
 		return SINK_NIL;
@@ -8947,7 +8946,7 @@ static inline sink_val opi_utf8_str(context ctx, sink_val a){
 	return sink_str_newblobgive(ctx, tot, bytes);
 }
 
-static inline sink_val opi_struct_size(context ctx, sink_val a){
+static inline sink_val sink_struct_size(context ctx, sink_val a){
 	if (!sink_islist(a))
 		return SINK_NIL;
 	sink_list ls = var_castlist(ctx, a);
@@ -8985,7 +8984,7 @@ static inline sink_val opi_struct_size(context ctx, sink_val a){
 	return tot <= 0 ? SINK_NIL : sink_num(tot);
 }
 
-static inline sink_val opi_struct_str(context ctx, sink_val a, sink_val b){
+static inline sink_val sink_struct_str(context ctx, sink_val a, sink_val b){
 	if (!sink_islist(a) || !sink_islist(b)){
 		opi_abortcstr(ctx, "Expecting list");
 		return SINK_NIL;
@@ -9000,7 +8999,7 @@ static inline sink_val opi_struct_str(context ctx, sink_val a, sink_val b){
 		if (!sink_isnum(data.vals[i]))
 			goto fail;
 	}
-	sink_val sizev = opi_struct_size(ctx, b);
+	sink_val sizev = sink_struct_size(ctx, b);
 	if (sink_isnil(sizev))
 		goto fail;
 	int arsize = data.size / type.size;
@@ -9100,7 +9099,7 @@ static inline sink_val opi_struct_str(context ctx, sink_val a, sink_val b){
 	return SINK_NIL;
 }
 
-static inline sink_val opi_struct_list(context ctx, sink_val a, sink_val b){
+static inline sink_val sink_struct_list(context ctx, sink_val a, sink_val b){
 	if (!sink_isstr(a)){
 		opi_abortcstr(ctx, "Expecting string");
 		return SINK_NIL;
@@ -9110,7 +9109,7 @@ static inline sink_val opi_struct_list(context ctx, sink_val a, sink_val b){
 		return SINK_NIL;
 	}
 	sink_str s = var_caststr(ctx, a);
-	sink_val stsizev = opi_struct_size(ctx, b);
+	sink_val stsizev = sink_struct_size(ctx, b);
 	if (sink_isnil(stsizev))
 		goto fail;
 	int stsize = stsizev.f;
@@ -9276,7 +9275,7 @@ static inline sink_val opi_struct_list(context ctx, sink_val a, sink_val b){
 	return SINK_NIL;
 }
 
-static inline bool opi_struct_isLE(){
+static inline bool sink_struct_isLE(){
 	union {
 		uint16_t a;
 		uint8_t b[2];
@@ -9665,7 +9664,7 @@ static inline bool opi_equ(context ctx, sink_val a, sink_val b){
 	return false;
 }
 
-static inline int opi_size(context ctx, sink_val a){
+static inline int sink_size(context ctx, sink_val a){
 	if (sink_islist(a)){
 		sink_list ls = var_castlist(ctx, a);
 		return ls.size;
@@ -9678,7 +9677,7 @@ static inline int opi_size(context ctx, sink_val a){
 	return 0;
 }
 
-static inline sink_val opi_tonum(context ctx, sink_val a){
+static inline sink_val sink_tonum(context ctx, sink_val a){
 	if (!oper_typelist(ctx, a, LT_ALLOWNIL | LT_ALLOWNUM | LT_ALLOWSTR)){
 		opi_abortcstr(ctx, "Expecting string when converting to number");
 		return SINK_NIL;
@@ -9686,7 +9685,7 @@ static inline sink_val opi_tonum(context ctx, sink_val a){
 	return oper_un(ctx, a, unop_tonum);
 }
 
-static inline void opi_say(context ctx, int size, sink_val *vals){
+static inline void sink_say(context ctx, int size, sink_val *vals){
 	if (ctx.io.f_say){
 		ctx.io.f_say(
 			ctx,
@@ -9696,7 +9695,7 @@ static inline void opi_say(context ctx, int size, sink_val *vals){
 	}
 }
 
-static inline void opi_warn(context ctx, int size, sink_val *vals){
+static inline void sink_warn(context ctx, int size, sink_val *vals){
 	if (ctx.io.f_warn){
 		ctx.io.f_warn(
 			ctx,
@@ -9706,7 +9705,7 @@ static inline void opi_warn(context ctx, int size, sink_val *vals){
 	}
 }
 
-static inline sink_val opi_ask(context ctx, int size, sink_val *vals){
+static inline sink_val sink_ask(context ctx, int size, sink_val *vals){
 	if (ctx.io.f_ask){
 		return ctx.io.f_ask(
 			ctx,
@@ -9818,7 +9817,7 @@ static inline sink_run opi_abort(context ctx, char *err){
 	return SINK_RUN_FAIL;
 }
 
-static inline sink_val opi_stacktrace(context ctx){
+static inline sink_val sink_stacktrace(context ctx){
 	sink_val ls = sink_list_newempty(ctx);
 	char *err = callstack_append(ctx, NULL, ctx.lastpc);
 	if (err)
@@ -10061,7 +10060,7 @@ static inline sink_val opi_list_at(context ctx, sink_val a, sink_val b){
 	return ls.vals[idx];
 }
 
-static inline sink_val opi_list_cat(context ctx, int argcount, sink_val *args){
+static inline sink_val sink_list_cat(context ctx, int argcount, sink_val *args){
 	int ns = 0;
 	for (int i = 0; i < argcount; i++)
 		ns += var_castlist(ctx, args[i]).size;
@@ -10079,7 +10078,7 @@ static inline sink_val opi_list_cat(context ctx, int argcount, sink_val *args){
 	return sink_list_newblobgive(ctx, ns, ns, vals);
 }
 
-static inline sink_val opi_list_slice(context ctx, sink_val a, sink_val b, sink_val c){
+static inline sink_val sink_list_slice(context ctx, sink_val a, sink_val b, sink_val c){
 	if (!sink_islist(a)){
 		opi_abortcstr(ctx, "Expecting list or string when slicing");
 		return SINK_NIL;
@@ -10095,7 +10094,7 @@ static inline sink_val opi_list_slice(context ctx, sink_val a, sink_val b, sink_
 	return sink_list_newblob(ctx, sl.len, &ls.vals[sl.start]);
 }
 
-static inline void opi_list_splice(context ctx, sink_val a, sink_val b, sink_val c, sink_val d){
+static inline void sink_list_splice(context ctx, sink_val a, sink_val b, sink_val c, sink_val d){
 	if (!sink_islist(a)){
 		opi_abortcstr(ctx, "Expecting list or string when splicing");
 		return;
@@ -10138,7 +10137,7 @@ static inline void opi_list_splice(context ctx, sink_val a, sink_val b, sink_val
 	}
 }
 
-static inline sink_val opi_list_shift(context ctx, sink_val a){
+static inline sink_val sink_list_shift(context ctx, sink_val a){
 	if (!sink_islist(a)){
 		opi_abortcstr(ctx, "Expecting list when shifting");
 		return SINK_NIL;
@@ -10156,7 +10155,7 @@ static inline sink_val opi_list_shift(context ctx, sink_val a){
 	return ret;
 }
 
-static inline sink_val opi_list_pop(context ctx, sink_val a){
+static inline sink_val sink_list_pop(context ctx, sink_val a){
 	if (!sink_islist(a)){
 		opi_abortcstr(ctx, "Expecting list when popping");
 		return SINK_NIL;
@@ -10169,7 +10168,7 @@ static inline sink_val opi_list_pop(context ctx, sink_val a){
 }
 
 static const int sink_list_grow = 200;
-static inline sink_val opi_list_push(context ctx, sink_val a, sink_val b){
+static inline sink_val sink_list_push(context ctx, sink_val a, sink_val b){
 	if (!sink_islist(a)){
 		opi_abortcstr(ctx, "Expecting list when pushing");
 		return SINK_NIL;
@@ -10194,7 +10193,7 @@ static inline void opi_list_pushnils(context ctx, sink_list ls, int totalsize){
 		ls.vals[ls.size++] = SINK_NIL;
 }
 
-static inline sink_val opi_list_unshift(context ctx, sink_val a, sink_val b){
+static inline sink_val sink_list_unshift(context ctx, sink_val a, sink_val b){
 	if (!sink_islist(a)){
 		opi_abortcstr(ctx, "Expecting list when unshifting");
 		return SINK_NIL;
@@ -10211,7 +10210,7 @@ static inline sink_val opi_list_unshift(context ctx, sink_val a, sink_val b){
 	return a;
 }
 
-static inline sink_val opi_list_append(context ctx, sink_val a, sink_val b){
+static inline sink_val sink_list_append(context ctx, sink_val a, sink_val b){
 	if (!sink_islist(a) || !sink_islist(b)){
 		opi_abortcstr(ctx, "Expecting list when appending");
 		return SINK_NIL;
@@ -10229,7 +10228,7 @@ static inline sink_val opi_list_append(context ctx, sink_val a, sink_val b){
 	return a;
 }
 
-static inline sink_val opi_list_prepend(context ctx, sink_val a, sink_val b){
+static inline sink_val sink_list_prepend(context ctx, sink_val a, sink_val b){
 	if (!sink_islist(a) || !sink_islist(b)){
 		opi_abortcstr(ctx, "Expecting list when prepending");
 		return SINK_NIL;
@@ -10249,7 +10248,7 @@ static inline sink_val opi_list_prepend(context ctx, sink_val a, sink_val b){
 	return a;
 }
 
-static inline sink_val opi_list_find(context ctx, sink_val a, sink_val b, sink_val c){
+static inline sink_val sink_list_find(context ctx, sink_val a, sink_val b, sink_val c){
 	if (!sink_islist(a)){
 		opi_abortcstr(ctx, "Expecting list for list.find");
 		return SINK_NIL;
@@ -10269,7 +10268,7 @@ static inline sink_val opi_list_find(context ctx, sink_val a, sink_val b, sink_v
 	return SINK_NIL;
 }
 
-static inline sink_val opi_list_rfind(context ctx, sink_val a, sink_val b, sink_val c){
+static inline sink_val sink_list_rfind(context ctx, sink_val a, sink_val b, sink_val c){
 	if (!sink_islist(a)){
 		opi_abortcstr(ctx, "Expecting list for list.rfind");
 		return SINK_NIL;
@@ -10289,7 +10288,7 @@ static inline sink_val opi_list_rfind(context ctx, sink_val a, sink_val b, sink_
 	return SINK_NIL;
 }
 
-static inline sink_val opi_list_join(context ctx, sink_val a, sink_val b){
+static inline sink_val sink_list_join(context ctx, sink_val a, sink_val b){
 	if (!sink_islist(a)){
 		opi_abortcstr(ctx, "Expecting list for list.join");
 		return SINK_NIL;
@@ -10303,7 +10302,7 @@ static inline sink_val opi_list_join(context ctx, sink_val a, sink_val b){
 	return sink_list_joinplain(ctx, ls.size, ls.vals, str.size, str.bytes);
 }
 
-static inline sink_val opi_list_rev(context ctx, sink_val a){
+static inline sink_val sink_list_rev(context ctx, sink_val a){
 	if (!sink_islist(a)){
 		opi_abortcstr(ctx, "Expecting list for list.rev");
 		return SINK_NIL;
@@ -10318,7 +10317,7 @@ static inline sink_val opi_list_rev(context ctx, sink_val a){
 	return a;
 }
 
-static inline sink_val opi_list_str(context ctx, sink_val a){
+static inline sink_val sink_list_str(context ctx, sink_val a){
 	if (!sink_islist(a)){
 		opi_abortcstr(ctx, "Expecting list for list.str");
 		return SINK_NIL;
@@ -10499,7 +10498,7 @@ static inline void sink_qsort_r(void *base, size_t elems, size_t elsize, void *t
 	sink_qsort_r_helper(base, 0, elems - 1, elsize, thunk, compare);
 }
 
-static inline void opi_list_sort(context ctx, sink_val a){
+static inline void sink_list_sort(context ctx, sink_val a){
 	if (!sink_islist(a)){
 		opi_abortcstr(ctx, "Expecting list for list.sort");
 		return;
@@ -10511,7 +10510,7 @@ static inline void opi_list_sort(context ctx, sink_val a){
 	list_int_free(u.li);
 }
 
-static inline void opi_list_rsort(context ctx, sink_val a){
+static inline void sink_list_rsort(context ctx, sink_val a){
 	if (!sink_islist(a)){
 		opi_abortcstr(ctx, "Expecting list for list.rsort");
 		return;
@@ -10523,14 +10522,14 @@ static inline void opi_list_rsort(context ctx, sink_val a){
 	list_int_free(u.li);
 }
 
-static inline int opi_order(context ctx, sink_val a, sink_val b){
+static inline int sink_order(context ctx, sink_val a, sink_val b){
 	list_int li = list_int_new();
 	int res = sortboth(ctx, li, &a, &b, 1);
 	list_int_free(li);
 	return res;
 }
 
-static inline sink_val opi_range(context ctx, double start, double stop, double step){
+static inline sink_val sink_range(context ctx, double start, double stop, double step){
 	int64_t count = ceil((stop - start) / step);
 	if (count > 10000000){
 		opi_abortcstr(ctx, "Range too large (maximum 10000000)");
@@ -10882,7 +10881,7 @@ static bool pk_tojson(context ctx, sink_val a, list_int li, sink_str s){
 	}
 }
 
-static inline sink_val opi_pickle_json(context ctx, sink_val a){
+static inline sink_val sink_pickle_json(context ctx, sink_val a){
 	list_int li = NULL;
 	if (sink_islist(a))
 		li = list_int_new();
@@ -11047,7 +11046,7 @@ static inline bool opi_pickle_binstr(context ctx, sink_val a, sink_str_st *out){
 	return true;
 }
 
-static inline sink_val opi_pickle_bin(context ctx, sink_val a){
+static inline sink_val sink_pickle_bin(context ctx, sink_val a){
 	sink_str_st str;
 	if (!opi_pickle_binstr(ctx, a, &str))
 		return SINK_NIL;
@@ -11379,7 +11378,7 @@ static inline bool opi_pickle_valstr(context ctx, sink_str s, sink_val *res){
 	return true;
 }
 
-static inline sink_val opi_pickle_val(context ctx, sink_val a){
+static inline sink_val sink_pickle_val(context ctx, sink_val a){
 	if (!sink_isstr(a)){
 		opi_abortcstr(ctx, "Invalid pickle data");
 		return SINK_NIL;
@@ -11464,7 +11463,7 @@ static bool pk_isbin(sink_str s, uint64_t *pos, uint32_t *index, uint32_t str_ta
 	return false;
 }
 
-static inline int opi_pickle_valid(context ctx, sink_val a){
+static inline int sink_pickle_valid(context ctx, sink_val a){
 	if (!sink_isstr(a))
 		return 0;
 	sink_str s = var_caststr(ctx, a);
@@ -11512,7 +11511,7 @@ static bool pk_sib(context ctx, sink_val a, list_int all, list_int parents){
 	return false;
 }
 
-static inline bool opi_pickle_sibling(context ctx, sink_val a){
+static inline bool sink_pickle_sibling(context ctx, sink_val a){
 	if (!sink_islist(a))
 		return false;
 	list_int all = list_int_new();
@@ -11540,7 +11539,7 @@ static bool pk_cir(context ctx, sink_val a, list_int li){
 	return false;
 }
 
-static inline bool opi_pickle_circular(context ctx, sink_val a){
+static inline bool sink_pickle_circular(context ctx, sink_val a){
 	if (!sink_islist(a))
 		return false;
 	list_int ls = list_int_new();
@@ -11586,7 +11585,7 @@ static sink_val pk_copy(context ctx, sink_val a, list_int li_src, list_int li_tg
 	}
 }
 
-static inline sink_val opi_pickle_copy(context ctx, sink_val a){
+static inline sink_val sink_pickle_copy(context ctx, sink_val a){
 	list_int li_src = NULL, li_tgt = NULL;
 	if (sink_islist(a)){
 		li_src = list_int_new();
@@ -11842,14 +11841,14 @@ static sink_run context_run(context ctx){
 
 			case op_enum.SIZE           : { // [TGT], [SRC]
 				LOAD_abcd();
-				var_set(ctx, A, B, sink_num(opi_size(ctx, var_get(ctx, C, D))));
+				var_set(ctx, A, B, sink_num(sink_size(ctx, var_get(ctx, C, D))));
 				if (ctx.failed)
 					return SINK_RUN_FAIL;
 			} break;
 
 			case op_enum.TONUM          : { // [TGT], [SRC]
 				LOAD_abcd();
-				var_set(ctx, A, B, opi_tonum(ctx, var_get(ctx, C, D)));
+				var_set(ctx, A, B, sink_tonum(ctx, var_get(ctx, C, D)));
 				if (ctx.failed)
 					return SINK_RUN_FAIL;
 			} break;
@@ -11864,7 +11863,7 @@ static sink_run context_run(context ctx){
 						listcat = false;
 				}
 				if (listcat)
-					var_set(ctx, A, B, opi_list_cat(ctx, C, p));
+					var_set(ctx, A, B, sink_list_cat(ctx, C, p));
 				else{
 					var_set(ctx, A, B, sink_str_cat(ctx, C, p));
 					if (ctx.failed)
@@ -11942,7 +11941,7 @@ static sink_run context_run(context ctx){
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
 				if (sink_islist(X))
-					var_set(ctx, A, B, opi_list_slice(ctx, X, Y, Z));
+					var_set(ctx, A, B, sink_list_slice(ctx, X, Y, Z));
 				else
 					var_set(ctx, A, B, sink_str_slice(ctx, X, Y, Z));
 				if (ctx.failed)
@@ -11973,7 +11972,7 @@ static sink_run context_run(context ctx){
 				Z = var_get(ctx, E, F);
 				W = var_get(ctx, G, H);
 				if (sink_islist(X))
-					opi_list_splice(ctx, X, Y, Z, W);
+					sink_list_splice(ctx, X, Y, Z, W);
 				else if (sink_isstr(X))
 					var_set(ctx, A, B, sink_str_splice(ctx, X, Y, Z, W));
 				else
@@ -12149,12 +12148,12 @@ static sink_run context_run(context ctx){
 						Z = sink_num(1);
 					if (!sink_isnum(Z))
 						return opi_abortcstr(ctx, "Expecting number for range step");
-					X = opi_range(ctx, X.f, Y.f, Z.f);
+					X = sink_range(ctx, X.f, Y.f, Z.f);
 				}
 				else if (sink_isnil(Y)){
 					if (!sink_isnil(Z))
 						return opi_abortcstr(ctx, "Expecting number for range stop");
-					X = opi_range(ctx, 0, X.f, 1);
+					X = sink_range(ctx, 0, X.f, 1);
 				}
 				else
 					return opi_abortcstr(ctx, "Expecting number for range stop");
@@ -12167,7 +12166,7 @@ static sink_run context_run(context ctx){
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				var_set(ctx, A, B, sink_num(opi_order(ctx, X, Y)));
+				var_set(ctx, A, B, sink_num(sink_order(ctx, X, Y)));
 			} break;
 
 			case op_enum.SAY            : { // [TGT], ARGCOUNT, [ARGS]...
@@ -12176,7 +12175,7 @@ static sink_run context_run(context ctx){
 					E = ops.bytes[ctx.pc++]; F = ops.bytes[ctx.pc++];
 					p[D] = var_get(ctx, E, F);
 				}
-				opi_say(ctx, C, p);
+				sink_say(ctx, C, p);
 				var_set(ctx, A, B, SINK_NIL);
 				if (ctx.failed)
 					return SINK_RUN_FAIL;
@@ -12188,7 +12187,7 @@ static sink_run context_run(context ctx){
 					E = ops.bytes[ctx.pc++]; F = ops.bytes[ctx.pc++];
 					p[D] = var_get(ctx, E, F);
 				}
-				opi_warn(ctx, C, p);
+				sink_warn(ctx, C, p);
 				var_set(ctx, A, B, SINK_NIL);
 				if (ctx.failed)
 					return SINK_RUN_FAIL;
@@ -12200,7 +12199,7 @@ static sink_run context_run(context ctx){
 					E = ops.bytes[ctx.pc++]; F = ops.bytes[ctx.pc++];
 					p[D] = var_get(ctx, E, F);
 				}
-				var_set(ctx, A, B, opi_ask(ctx, C, p));
+				var_set(ctx, A, B, sink_ask(ctx, C, p));
 				if (ctx.failed)
 					return SINK_RUN_FAIL;
 			} break;
@@ -12212,7 +12211,7 @@ static sink_run context_run(context ctx){
 					p[D] = var_get(ctx, E, F);
 				}
 				if (C > 0){
-					opi_say(ctx, C, p);
+					sink_say(ctx, C, p);
 					if (ctx.failed)
 						return SINK_RUN_FAIL;
 				}
@@ -12233,7 +12232,7 @@ static sink_run context_run(context ctx){
 
 			case op_enum.STACKTRACE     : { // [TGT]
 				LOAD_ab();
-				var_set(ctx, A, B, opi_stacktrace(ctx));
+				var_set(ctx, A, B, sink_stacktrace(ctx));
 			} break;
 
 			case op_enum.NUM_NEG        : { // [TGT], [SRC]
@@ -12712,13 +12711,13 @@ static sink_run context_run(context ctx){
 			case op_enum.UTF8_VALID     : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, sink_bool(opi_utf8_valid(ctx, X)));
+				var_set(ctx, A, B, sink_bool(sink_utf8_valid(ctx, X)));
 			} break;
 
 			case op_enum.UTF8_LIST      : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				X = opi_utf8_list(ctx, X);
+				X = sink_utf8_list(ctx, X);
 				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
@@ -12727,7 +12726,7 @@ static sink_run context_run(context ctx){
 			case op_enum.UTF8_STR       : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				X = opi_utf8_str(ctx, X);
+				X = sink_utf8_str(ctx, X);
 				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
@@ -12735,14 +12734,14 @@ static sink_run context_run(context ctx){
 
 			case op_enum.struct_enum.SIZE    : { // [TGT], [SRC]
 				LOAD_abcd();
-				var_set(ctx, A, B, opi_struct_size(ctx, var_get(ctx, C, D)));
+				var_set(ctx, A, B, sink_struct_size(ctx, var_get(ctx, C, D)));
 			} break;
 
 			case op_enum.struct_enum.STR     : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				X = opi_struct_str(ctx, X, Y);
+				X = sink_struct_str(ctx, X, Y);
 				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
@@ -12752,7 +12751,7 @@ static sink_run context_run(context ctx){
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				X = opi_struct_list(ctx, X, Y);
+				X = sink_struct_list(ctx, X, Y);
 				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
@@ -12760,7 +12759,7 @@ static sink_run context_run(context ctx){
 
 			case op_enum.struct_enum.ISLE    : { // [TGT]
 				LOAD_ab();
-				var_set(ctx, A, B, sink_bool(opi_struct_isLE()));
+				var_set(ctx, A, B, sink_bool(sink_struct_isLE()));
 			} break;
 
 			case op_enum.LIST_NEW       : { // [TGT], [SRC1], [SRC2]
@@ -12776,7 +12775,7 @@ static sink_run context_run(context ctx){
 			case op_enum.LIST_SHIFT     : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				X = opi_list_shift(ctx, X);
+				X = sink_list_shift(ctx, X);
 				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
@@ -12785,7 +12784,7 @@ static sink_run context_run(context ctx){
 			case op_enum.LIST_POP       : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				X = opi_list_pop(ctx, X);
+				X = sink_list_pop(ctx, X);
 				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
@@ -12795,7 +12794,7 @@ static sink_run context_run(context ctx){
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				X = opi_list_push(ctx, X, Y);
+				X = sink_list_push(ctx, X, Y);
 				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
@@ -12805,7 +12804,7 @@ static sink_run context_run(context ctx){
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				X = opi_list_unshift(ctx, X, Y);
+				X = sink_list_unshift(ctx, X, Y);
 				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
@@ -12815,7 +12814,7 @@ static sink_run context_run(context ctx){
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				X = opi_list_append(ctx, X, Y);
+				X = sink_list_append(ctx, X, Y);
 				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
@@ -12825,7 +12824,7 @@ static sink_run context_run(context ctx){
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				X = opi_list_prepend(ctx, X, Y);
+				X = sink_list_prepend(ctx, X, Y);
 				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
@@ -12836,7 +12835,7 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
-				X = opi_list_find(ctx, X, Y, Z);
+				X = sink_list_find(ctx, X, Y, Z);
 				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
@@ -12847,7 +12846,7 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
-				X = opi_list_rfind(ctx, X, Y, Z);
+				X = sink_list_rfind(ctx, X, Y, Z);
 				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
@@ -12857,7 +12856,7 @@ static sink_run context_run(context ctx){
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				X = opi_list_join(ctx, X, Y);
+				X = sink_list_join(ctx, X, Y);
 				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
@@ -12866,7 +12865,7 @@ static sink_run context_run(context ctx){
 			case op_enum.LIST_REV       : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				X = opi_list_rev(ctx, X);
+				X = sink_list_rev(ctx, X);
 				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
@@ -12875,7 +12874,7 @@ static sink_run context_run(context ctx){
 			case op_enum.LIST_STR       : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				X = opi_list_str(ctx, X);
+				X = sink_list_str(ctx, X);
 				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
@@ -12884,7 +12883,7 @@ static sink_run context_run(context ctx){
 			case op_enum.LIST_SORT      : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				opi_list_sort(ctx, X);
+				sink_list_sort(ctx, X);
 				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
@@ -12893,7 +12892,7 @@ static sink_run context_run(context ctx){
 			case op_enum.LIST_RSORT     : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				opi_list_rsort(ctx, X);
+				sink_list_rsort(ctx, X);
 				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
@@ -12902,7 +12901,7 @@ static sink_run context_run(context ctx){
 			case op_enum.PICKLE_JSON    : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				X = opi_pickle_json(ctx, X);
+				X = sink_pickle_json(ctx, X);
 				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
@@ -12911,7 +12910,7 @@ static sink_run context_run(context ctx){
 			case op_enum.PICKLE_BIN     : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				X = opi_pickle_bin(ctx, X);
+				X = sink_pickle_bin(ctx, X);
 				if (ctx.failed) // can fail in C impl because of SINK_TYPE_ASYNC
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
@@ -12920,7 +12919,7 @@ static sink_run context_run(context ctx){
 			case op_enum.PICKLE_VAL     : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				X = opi_pickle_val(ctx, X);
+				X = sink_pickle_val(ctx, X);
 				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
@@ -12929,26 +12928,26 @@ static sink_run context_run(context ctx){
 			case op_enum.PICKLE_VALID   : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				E = opi_pickle_valid(ctx, X);
+				E = sink_pickle_valid(ctx, X);
 				var_set(ctx, A, B, E === 0 ? SINK_NIL : sink_num(E));
 			} break;
 
 			case op_enum.PICKLE_SIBLING : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, sink_bool(opi_pickle_sibling(ctx, X)));
+				var_set(ctx, A, B, sink_bool(sink_pickle_sibling(ctx, X)));
 			} break;
 
 			case op_enum.PICKLE_CIRCULAR: { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, sink_bool(opi_pickle_circular(ctx, X)));
+				var_set(ctx, A, B, sink_bool(sink_pickle_circular(ctx, X)));
 			} break;
 
 			case op_enum.PICKLE_COPY    : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				X = opi_pickle_copy(ctx, X);
+				X = sink_pickle_copy(ctx, X);
 				if (ctx.failed) // can fail in C impl because of SINK_TYPE_ASYNC
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
@@ -14081,18 +14080,6 @@ const char *sink_ctx_geterr(sink_ctx ctx){
 	return ((context)ctx).err;
 }
 
-void sink_ctx_free(sink_ctx ctx){
-	context_free(ctx);
-}
-
-sink_str sink_caststr(sink_ctx ctx, sink_val str){
-	return var_caststr(ctx, str);
-}
-
-sink_list sink_castlist(sink_ctx ctx, sink_val ls){
-	return var_castlist(ctx, ls);
-}
-
 bool sink_arg_bool(int size, sink_val *args, int index){
 	if (index < 0 || index >= size)
 		return false;
@@ -14153,10 +14140,6 @@ bool sink_arg_user(sink_ctx ctx, int size, sink_val *args, int index, sink_user 
 	#undef ABORT
 
 	return true;
-}
-
-sink_val sink_tonum(sink_ctx ctx, sink_val v){
-	return opi_tonum(ctx, v);
 }
 
 static sink_str_st sinkhelp_tostr(context ctx, list_int li, sink_val v){
@@ -14265,22 +14248,6 @@ sink_val sink_tostr(sink_ctx ctx, sink_val v){
 	return sink_str_newblobgive(ctx, s.size, s.bytes);
 }
 
-int sink_size(sink_ctx ctx, sink_val v){
-	return opi_size(ctx, v);
-}
-
-void sink_say(sink_ctx ctx, int size, sink_val *vals){
-	opi_say(ctx, size, vals);
-}
-
-void sink_warn(sink_ctx ctx, int size, sink_val *vals){
-	opi_warn(ctx, size, vals);
-}
-
-sink_val sink_ask(sink_ctx ctx, int size, sink_val *vals){
-	return opi_ask(ctx, size, vals);
-}
-
 void sink_exit(sink_ctx ctx, int size, sink_val *vals){
 	if (size > 0)
 		sink_say(ctx, size, vals);
@@ -14294,18 +14261,6 @@ void sink_abort(sink_ctx ctx, int size, sink_val *vals){
 		bytes = opi_list_joinplain(ctx, size, vals, 1, (const uint8_t *)" ", &tot);
 	}
 	opi_abort(ctx, (char *)bytes);
-}
-
-sink_val sink_range(sink_ctx ctx, double start, double stop, double step){
-	return opi_range(ctx, start, stop, step);
-}
-
-int sink_order(sink_ctx ctx, sink_val a, sink_val b){
-	return opi_order(ctx, a, b);
-}
-
-sink_val sink_stacktrace(sink_ctx ctx){
-	return opi_stacktrace(ctx);
 }
 
 // numbers
@@ -14757,37 +14712,6 @@ void sink_str_hashplain(int size, const uint8_t *str, uint32_t seed, uint32_t *o
 		hash_be(size, str, seed, out);
 }
 
-// utf8
-bool sink_utf8_valid(sink_ctx ctx, sink_val a){
-	return opi_utf8_valid(ctx, a);
-}
-
-sink_val sink_utf8_list(sink_ctx ctx, sink_val a){
-	return opi_utf8_list(ctx, a);
-}
-
-sink_val sink_utf8_str(sink_ctx ctx, sink_val a){
-	return opi_utf8_str(ctx, a);
-}
-
-
-// structs
-sink_val sink_struct_size(sink_ctx ctx, sink_val tpl){
-	return opi_struct_size(ctx, tpl);
-}
-
-sink_val sink_struct_str(sink_ctx ctx, sink_val ls, sink_val tpl){
-	return opi_struct_str(ctx, ls, tpl);
-}
-
-sink_val sink_struct_list(sink_ctx ctx, sink_val a, sink_val tpl){
-	return opi_struct_list(ctx, a, tpl);
-}
-
-bool sink_struct_isLE(){
-	return opi_struct_isLE();
-}
-
 // lists
 void sink_list_setuser(sink_ctx ctx, sink_val ls, sink_user usertype, void *user){
 	sink_list ls2 = var_castlist(ctx, ls);
@@ -14849,54 +14773,6 @@ sink_val sink_list_new(sink_ctx ctx, sink_val a, sink_val b){
 	return sink_list_newblobgive(ctx, size, count, vals);
 }
 
-sink_val sink_list_cat(sink_ctx ctx, int size, sink_val *vals){
-	return opi_list_cat(ctx, size, vals);
-}
-
-sink_val sink_list_slice(sink_ctx ctx, sink_val ls, sink_val start, sink_val len){
-	return opi_list_slice(ctx, ls, start, len);
-}
-
-void sink_list_splice(sink_ctx ctx, sink_val ls, sink_val start, sink_val len, sink_val ls2){
-	opi_list_splice(ctx, ls, start, len, ls2);
-}
-
-sink_val sink_list_shift(sink_ctx ctx, sink_val ls){
-	return opi_list_shift(ctx, ls);
-}
-
-sink_val sink_list_pop(sink_ctx ctx, sink_val ls){
-	return opi_list_pop(ctx, ls);
-}
-
-void sink_list_push(sink_ctx ctx, sink_val ls, sink_val a){
-	opi_list_push(ctx, ls, a);
-}
-
-void sink_list_unshift(sink_ctx ctx, sink_val ls, sink_val a){
-	opi_list_unshift(ctx, ls, a);
-}
-
-void sink_list_append(sink_ctx ctx, sink_val ls, sink_val ls2){
-	opi_list_append(ctx, ls, ls2);
-}
-
-void sink_list_prepend(sink_ctx ctx, sink_val ls, sink_val ls2){
-	opi_list_prepend(ctx, ls, ls2);
-}
-
-sink_val sink_list_find(sink_ctx ctx, sink_val ls, sink_val a, sink_val b){
-	return opi_list_find(ctx, ls, a, b);
-}
-
-sink_val sink_list_rfind(sink_ctx ctx, sink_val ls, sink_val a, sink_val b){
-	return opi_list_rfind(ctx, ls, a, b);
-}
-
-sink_val sink_list_join(sink_ctx ctx, sink_val ls, sink_val a){
-	return opi_list_join(ctx, ls, a);
-}
-
 static inline uint8_t *opi_list_joinplain(sink_ctx ctx, int size, sink_val *vals, int sepz,
 	const uint8_t *sep, int *totv){
 	sink_val *strs = mem_alloc(sizeof(sink_val) * size);
@@ -14935,82 +14811,13 @@ sink_val sink_list_joinplain(sink_ctx ctx, int size, sink_val *vals, int sepz, c
 	return sink_str_newblobgive(ctx, tot, bytes);
 }
 
-void sink_list_rev(sink_ctx ctx, sink_val ls){
-	opi_list_rev(ctx, ls);
-}
-
-sink_val sink_list_str(sink_ctx ctx, sink_val ls){
-	return opi_list_str(ctx, ls);
-}
-
-void sink_list_sort(sink_ctx ctx, sink_val ls){
-	opi_list_sort(ctx, ls);
-}
-
-void sink_list_rsort(sink_ctx ctx, sink_val ls){
-	opi_list_rsort(ctx, ls);
-}
-
 // pickle
-sink_val sink_pickle_json(sink_ctx ctx, sink_val a){
-	return opi_pickle_json(ctx, a);
-}
-
-sink_val sink_pickle_bin(sink_ctx ctx, sink_val a){
-	return opi_pickle_bin(ctx, a);
-}
-
-sink_val sink_pickle_val(sink_ctx ctx, sink_val a){
-	return opi_pickle_val(ctx, a);
-}
-
-int sink_pickle_valid(sink_ctx ctx, sink_val a){
-	return opi_pickle_valid(ctx, a);
-}
-
-bool sink_pickle_sibling(sink_ctx ctx, sink_val a){
-	return opi_pickle_sibling(ctx, a);
-}
-
-bool sink_pickle_circular(sink_ctx ctx, sink_val a){
-	return opi_pickle_circular(ctx, a);
-}
-
-sink_val sink_pickle_copy(sink_ctx ctx, sink_val a){
-	return opi_pickle_copy(ctx, a);
-}
-
-bool sink_pickle_binstr(sink_ctx ctx, sink_val a, sink_str_st *out){
-	return opi_pickle_binstr(ctx, a, out);
-}
-
-void sink_pickle_binstrfree(sink_str_st str){
-	if (str.size >= 0 && str.bytes)
-		mem_free(str.bytes);
-}
-
-bool sink_pickle_valstr(sink_ctx ctx, sink_str_st str, sink_val *out){
-	return opi_pickle_valstr(ctx, &str, out);
-}
-
-void sink_gc_pin(sink_ctx ctx, sink_val v){
-	context_gcpin((context)ctx, v);
-}
-
-void sink_gc_unpin(sink_ctx ctx, sink_val v){
-	context_gcunpin((context)ctx, v);
-}
-
 sink_gc_level sink_gc_getlevel(sink_ctx ctx){
 	return ((context)ctx).gc_level;
 }
 
 void sink_gc_setlevel(sink_ctx ctx, sink_gc_level level){
 	((context)ctx).gc_level = level;
-}
-
-void sink_gc_run(sink_ctx ctx){
-	context_gc((context)ctx);
 }
 
 sink_val sink_abortstr(sink_ctx ctx, const char *fmt, ...){
