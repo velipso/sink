@@ -27,7 +27,7 @@ The format has the following basic sequence:
 |        | (...end string table)                                                    |
 | S-Val  | The pickled sink value, described below                                  |
 
-A sink value (S-Val) can be one of the four basic sink types:
+A sink value (S-Val) can be one of the four basic sink types (`nil`, number, string, list).
 
 ### `0xF0` Positive 8-bit Number (0 to 255)
 
