@@ -6,6 +6,12 @@ The standard library is available to all sink scripts, and is native to sink its
 execution.  These commands are available in all host environments, and always produce the same
 results.
 
+1. toc
+{:toc}
+
+Globals
+-------
+
 | Function          | Description                                                                 |
 |-------------------|-----------------------------------------------------------------------------|
 | `say a, ...`      | Output arguments to stdout (returns nil)                                    |
