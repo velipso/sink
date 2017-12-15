@@ -6,16 +6,18 @@ The standard library is available to all sink scripts, and is native to sink its
 execution.  These commands are available in all host environments, and always produce the same
 results.
 
-1. [Globals](#globals)
-2. [Number `num.*`](#number)
-3. [Integer `int.*`](#integer)
-4. [Random `rand.*`](#random)
-5. [String `str.*`](#string)
-6. [UTF-8 `utf8.*`](#utf-8)
-7. [Structured Data `struct.*`](#structured-data)
-8. [List `list.*`](#list)
-9. [Pickle `pickle.*`](#pickle)
-10. [Garbage Collection `gc.*`](#garbage-collection)
+| Section                                   | Namespace  |
+|-------------------------------------------|------------|
+| [Globals](#globals)                       | `*`        |
+| [Number](#number)                         | `num.*`    |
+| [Integer](#integer)                       | `int.*`    |
+| [Random](#random)                         | `rand.*`   |
+| [String](#string)                         | `str.*`    |
+| [UTF-8](#utf-8)                           | `utf8.*`   |
+| [Structured Data](#structured-data)       | `struct.*` |
+| [List](#list)                             | `list.*`   |
+| [Pickle](#pickle)                         | `pickle.*` |
+| [Garbage Collection](#garbage-collection) | `gc.*`     |
 
 Globals
 -------
