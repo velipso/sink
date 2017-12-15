@@ -17,43 +17,10 @@ results.
 | `isstr a`         | Returns true if `a` is a string; otherwise false                            |
 | `islist a`        | Returns true if `a` is a list; otherwise false                              |
 | [`range [start,] stop[, step]`](./range.md) | Returns a list of numbers in the interval [`start`, `stop`) |
-| `order a, b`      | Compare `a` with `b` according to the sorting precedence (-1, 0, 1)         |
+| [`order a, b`](./order.md) | Compare `a` with `b` according to the sorting precedence (-1, 0, 1) |
 | `pick cond, a, b` | If `cond` is true, return `a`, otherwise return `b` (short-circuited)       |
 | `embed 'file'`    | At compile-time, load the contents of `'file'` as a string                  |
-| `stacktrace`      | Return a list of strings with stacktrace information (if available)         |
-
-### Order
-
-The `order` command performs a deep comparison of two values.  This is used for sorting, but can
-also be used for equality.
-
-Sorting precedence:
-
-1. Nil
-2. Numbers (NaN, negative infinity to positive infinity)
-3. Strings (byte-by-byte comparison; if equal, shorter strings first)
-4. Lists (item by item comparison; if equal, shorter lists first)
-
-```
-order nil, 1            # => -1
-order 55, 5             # =>  1
-order 'a', 'ab'         # => -1
-order {}, ''            # =>  1
-order {1}, {1}          # =>  0
-order num.nan, num.nan  # =>  0
-
-list.sort {3, 2, nil, 4}   # => {nil, 2, 3, 4}
-list.rsort {3, 2, nil, 4}  # => {4, 3, 2, nil}
-```
-
-### Stacktrace
-
-Note that `stacktrace` always returns a list of strings, but the list could be empty, or the format
-of each string could change.  The `stacktrace` command should only be used for logging, and its
-contents should not be relied upon or parsed.
-
-If a sink script is compiled without debug information, `stacktrace` will simply return an empty
-list `{}`.
+| [`stacktrace`](./stacktrace.md) | Return a list of strings with stacktrace information (if available) |
 
 Number
 ------
@@ -137,47 +104,10 @@ Random
 | `rand.pick ls`    | Pick a random item out of the list `ls`                                     |
 | `rand.shuffle ls` | Shuffle the contents of list `ls` in place                                  |
 
-The random number generator is the same on all host environments, defined below.  It is fast,
-simple, and
+The random number generator is the same on all host environments, [defined here](./rand.md).
+It is fast, simple, and
 [passes many statistical tests](https://gist.github.com/voidqk/d112165a26b45244a65298933c0349a4).
 On startup, it is automatically seeded via `rand.seedauto`.
-
-```c
-// RNG has 64-bit state
-static uint32_t seed, i;
-
-void rand_seed(uint32_t s){
-  seed = s;
-  i = 0;
-}
-
-uint32_t rand_int(){
-  uint32_t m = 0x5bd1e995;
-  uint32_t k = i++ * m;
-  seed = (k ^ (k >> 24) ^ (seed * m)) * m;
-  return seed ^ (seed >> 13);
-}
-
-double rand_num(){
-  uint64_t M1 = rand_int();
-  uint64_t M2 = rand_int();
-  uint64_t M = (M1 << 20) | (M2 >> 12); // 52 bit random number
-  union { uint64_t i; double d; } u = {
-    .i = UINT64_C(0x3FF) << 52 | M
-  };
-  return u.d - 1.0;
-}
-
-void rand_getstate(uint32_t *state){
-  state[0] = seed;
-  state[1] = i;
-}
-
-void rand_setstate(const uint32_t *state){
-  seed = state[0];
-  i = state[1];
-}
-```
 
 String
 ------
@@ -201,7 +131,7 @@ Strings are 8-bit clean, and interpreted as binary data.
 | `str.rep a, b`          | Repeat string `a` `b` times                                           |
 | `str.list a`            | Convert a string to a list of bytes                                   |
 | `str.byte a, b`         | Unsigned byte from string `a` at index `b` (nil if out of range)      |
-| `str.hash a, b`         | Hash string `a` with seed `b` (interpretted as 32-bit unsigned int)   |
+| [`str.hash a, b`](./hash.md) | Hash string `a` with seed `b` (interpretted as 32-bit unsigned int) |
 
 ### Uppercase, Lowercase, Trim
 
@@ -212,142 +142,6 @@ Due to the fact strings are interpreted as binary data, and not unicode strings,
 * `str.upper` will only convert bytes a-z to A-Z (values 97-122 to 65-90).
 * `str.trim` will only remove surrounding whitespace defined as bytes 9 (tab), 10 (newline),
   11 (vertical tab), 12 (form feed), 13 (carriage return), and 32 (space).
-
-### Hash Function
-
-The `str.hash` command is defined as [Murmur3_x64_128](https://github.com/aappleby/smhasher), and
-returns the same results on all platforms, given the same input.  Murmur3 is known as a fast and
-high quality non-cryptographic hash function.
-
-The `str.hash` command will return a list of four numbers, each 32-bit unsigned integers.
-
-The seed parameter is optional, and defaults to 0.  Changing the seed is useful for generating
-different hashes for the same input.
-
-```c
-// MurmurHash3 was written by Austin Appleby, and is placed in the public
-// domain. The author hereby disclaims copyright to this source code.
-// https://github.com/aappleby/smhasher
-
-static inline uint64_t rotl64(uint64_t x, int8_t r){
-  return (x << r) | (x >> (64 - r));
-}
-
-static inline uint64_t fmix64(uint64_t k){
-  k ^= k >> 33;
-  k *= UINT64_C(0xFF51AFD7ED558CCD);
-  k ^= k >> 33;
-  k *= UINT64_C(0xC4CEB9FE1A85EC53);
-  k ^= k >> 33;
-  return k;
-}
-
-void str_hash(const uint8_t *str, uint64_t len, uint32_t seed, uint32_t *out){
-  uint64_t nblocks = len >> 4;
-
-  uint64_t h1 = seed;
-  uint64_t h2 = seed;
-
-  uint64_t c1 = UINT64_C(0x87C37B91114253D5);
-  uint64_t c2 = UINT64_C(0x4CF5AD432745937F);
-
-  for (uint64_t i = 0; i < nblocks; i++){
-    uint64_t ki = i * 16;
-    uint64_t k1 =
-      ((uint64_t)str[ki +  0]      ) |
-      ((uint64_t)str[ki +  1] <<  8) |
-      ((uint64_t)str[ki +  2] << 16) |
-      ((uint64_t)str[ki +  3] << 24) |
-      ((uint64_t)str[ki +  4] << 32) |
-      ((uint64_t)str[ki +  5] << 40) |
-      ((uint64_t)str[ki +  6] << 48) |
-      ((uint64_t)str[ki +  7] << 56);
-    uint64_t k2 =
-      ((uint64_t)str[ki +  8]      ) |
-      ((uint64_t)str[ki +  9] <<  8) |
-      ((uint64_t)str[ki + 10] << 16) |
-      ((uint64_t)str[ki + 11] << 24) |
-      ((uint64_t)str[ki + 12] << 32) |
-      ((uint64_t)str[ki + 13] << 40) |
-      ((uint64_t)str[ki + 14] << 48) |
-      ((uint64_t)str[ki + 15] << 56);
-
-    k1 *= c1;
-    k1 = rotl64(k1, 31);
-    k1 *= c2;
-    h1 ^= k1;
-
-    h1 = rotl64(h1, 27);
-    h1 += h2;
-    h1 = h1 * 5 + 0x52DCE729;
-
-    k2 *= c2;
-    k2 = rotl64(k2, 33);
-    k2 *= c1;
-    h2 ^= k2;
-
-    h2 = rotl64(h2, 31);
-    h2 += h1;
-    h2 = h2 * 5 + 0x38495AB5;
-  }
-
-  const uint8_t *tail = &str[nblocks << 4];
-
-  uint64_t k1 = 0;
-  uint64_t k2 = 0;
-
-  switch(len & 15) {
-    case 15: k2 ^= (uint64_t)(tail[14]) << 48;
-    case 14: k2 ^= (uint64_t)(tail[13]) << 40;
-    case 13: k2 ^= (uint64_t)(tail[12]) << 32;
-    case 12: k2 ^= (uint64_t)(tail[11]) << 24;
-    case 11: k2 ^= (uint64_t)(tail[10]) << 16;
-    case 10: k2 ^= (uint64_t)(tail[ 9]) << 8;
-    case  9: k2 ^= (uint64_t)(tail[ 8]) << 0;
-
-    k2 *= c2;
-    k2 = rotl64(k2, 33);
-    k2 *= c1;
-    h2 ^= k2;
-
-    case  8: k1 ^= (uint64_t)(tail[ 7]) << 56;
-    case  7: k1 ^= (uint64_t)(tail[ 6]) << 48;
-    case  6: k1 ^= (uint64_t)(tail[ 5]) << 40;
-    case  5: k1 ^= (uint64_t)(tail[ 4]) << 32;
-    case  4: k1 ^= (uint64_t)(tail[ 3]) << 24;
-    case  3: k1 ^= (uint64_t)(tail[ 2]) << 16;
-    case  2: k1 ^= (uint64_t)(tail[ 1]) << 8;
-    case  1: k1 ^= (uint64_t)(tail[ 0]) << 0;
-
-    k1 *= c1;
-    k1 = rotl64(k1, 31);
-    k1 *= c2;
-    h1 ^= k1;
-  }
-
-  h1 ^= len;
-  h2 ^= len;
-
-  h1 += h2;
-  h2 += h1;
-
-  h1 = fmix64(h1);
-  h2 = fmix64(h2);
-
-  h1 += h2;
-  h2 += h1;
-
-  out[0] = h1 & 0xFFFFFFFF;
-  out[1] = h1 >> 32;
-  out[2] = h2 & 0xFFFFFFFF;
-  out[3] = h2 >> 32;
-}
-```
-
-```
-str.hash 'hello, world', 123   # => {3439238593,  804096095, 2029097957, 3684287146}
-str.hash 'demon produce aisle' # => {2133076460, 2322631415, 1728380306, 2686374473}
-```
 
 UTF-8
 -----
@@ -469,8 +263,8 @@ deserialized to a sink value.
 | `pickle.bin a`      | Converts *any* sink value `a` to a binary serialized string               |
 | `pickle.val a`      | Converts a serialized value `a` (JSON or binary) back to a sink value     |
 | `pickle.valid a`    | Returns `nil` if `a` is invalid, `1` if JSON format, and `2` if binary    |
-| `pickle.sibling a`  | True if `a` has sibling references                                        |
-| `pickle.circular a` | True if `a` has circular references                                       |
+| [`pickle.sibling a`](./pickle-selfref.md) | True if `a` has sibling references                  |
+| [`pickle.circular a`](./pickle-selfref.md) | True if `a` has circular references                |
 | `pickle.copy a`     | Performs a deep copy of `a` (i.e., binary pickles then unpickles)         |
 
 ```
@@ -480,44 +274,6 @@ pickle.valid '{}'        # => nil, not all of JSON can be converted to sink
 pickle.valid '"\u1000"'  # => nil, only bytes in strings are supported ("\u0000" to "\u00FF")
 pickle.valid 'null'      # => 1, JSON formatted serialized sink value (`null` maps to `nil`)
 ```
-
-### List References
-
-Pickling lists is complicated because they can contain the same list multiple times, or even have
-recursive lists:
-
-```
-var a = {'hello'}
-var b = {a, a}
-say b  # {{'hello'}, {'hello'}}
-
-var c = {'world'}
-list.push c, c
-say c  # {{'world'}, {circular}}
-```
-
-List `a` is flat and doesn't contain duplicate references.
-
-List `b` contains a sibling reference.  Sibling references are when there exists multiple
-non-circular references to the same object.
-
-Sibling references can be serialized using JSON, but upon deserializing, the fact that
-`b[0] == b[1]` will be lost:
-
-```
-var b2 = b | pickle.json | pickle.val
-say b[0] == b[1]    # 1 (true)
-say b2[0] == b2[1]  # nil (false)
-```
-
-List `c` contains a circular reference -- this is when a list contains itself somewhere inside of
-it.  Circular references cannot be serialized using JSON and will cause the sink script to abort in
-failure.
-
-The `pickle.sibling` and `pickle.circular` commands can test whether an object has sibling or
-circular references.  To avoid this problem completely, it's recommended to use the binary format
-(via `pickle.bin`) in lieu of the JSON format, since it correctly handles restoring references
-(both sibling and circular).
 
 GC
 --
