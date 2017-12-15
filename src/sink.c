@@ -11087,8 +11087,8 @@ static inline sink_run opi_exit(context ctx){
 
 static inline filepos_st callstack_flp(context ctx, int pc){
 	filepos_st flp = FILEPOS_NULL;
-	int i;
-	for (i = 0; i < ctx->prg->posTable->size; i++){
+	int i = 0;
+	for ( ; i < ctx->prg->posTable->size; i++){
 		prgflp p = ctx->prg->posTable->ptrs[i];
 		if (p->pc > pc){
 			if (i > 0)
@@ -11280,16 +11280,6 @@ static inline sink_val opi_combop(context ctx, int size, sink_val *vals, binary_
 	return opi_abortformat(ctx, "Expecting number or list of numbers when %s", erop);
 }
 
-static inline sink_val opi_str_at(context ctx, sink_val a, sink_val b){
-	sink_str s = var_caststr(ctx, a);
-	int idx = b.f;
-	if (idx < 0)
-		idx += s->size;
-	if (idx < 0 || idx >= s->size)
-		return SINK_NIL;
-	return sink_str_newblob(ctx, 1, &s->bytes[idx]);
-}
-
 static inline sink_val opi_str_cat(context ctx, int argcount, sink_val *args){
 	return sink_list_joinplain(ctx, argcount, args, 0, NULL);
 }
@@ -11400,6 +11390,7 @@ static inline sink_val opi_str_splice(context ctx, sink_val a, sink_val b, sink_
 	}
 }
 
+static const int sink_list_grow = 200;
 static inline sink_val opi_list_new(context ctx, sink_val a, sink_val b){
 	if (!sink_isnil(a) && !sink_isnum(a)){
 		opi_abortcstr(ctx, "Expecting number for list.new");
@@ -11408,20 +11399,11 @@ static inline sink_val opi_list_new(context ctx, sink_val a, sink_val b){
 	int size = sink_isnil(a) ? 0 : a.f;
 	if (size <= 0)
 		return sink_list_newempty(ctx);
-	sink_val *vals = mem_alloc(sizeof(sink_val) * size);
+	int count = size < sink_list_grow ? sink_list_grow : size;
+	sink_val *vals = mem_alloc(sizeof(sink_val) * count);
 	for (int i = 0; i < size; i++)
 		vals[i] = b;
-	return sink_list_newblobgive(ctx, size, size, vals);
-}
-
-static inline sink_val opi_list_at(context ctx, sink_val a, sink_val b){
-	sink_list ls = var_castlist(ctx, a);
-	int idx = b.f;
-	if (idx < 0)
-		idx += ls->size;
-	if (idx < 0 || idx >= ls->size)
-		return SINK_NIL;
-	return ls->vals[idx];
+	return sink_list_newblobgive(ctx, size, count, vals);
 }
 
 static inline sink_val opi_list_cat(context ctx, int argcount, sink_val *args){
@@ -11531,7 +11513,6 @@ static inline sink_val opi_list_pop(context ctx, sink_val a){
 	return ls->vals[ls->size];
 }
 
-static const int sink_list_grow = 200;
 static inline sink_val opi_list_push(context ctx, sink_val a, sink_val b){
 	if (!sink_islist(a)){
 		opi_abortcstr(ctx, "Expecting list when pushing");
@@ -13293,10 +13274,25 @@ static sink_run context_run(context ctx){
 				Y = var_get(ctx, E, F);
 				if (!sink_isnum(Y))
 					return opi_abortcstr(ctx, "Expecting index to be number");
-				if (sink_islist(X))
-					var_set(ctx, A, B, opi_list_at(ctx, X, Y));
-				else
-					var_set(ctx, A, B, opi_str_at(ctx, X, Y));
+				I = Y.f;
+				if (sink_islist(X)){
+					ls = var_castlist(ctx, X);
+					if (I < 0)
+						I += ls->size;
+					if (I < 0 || I >= ls->size)
+						var_set(ctx, A, B, SINK_NIL);
+					else
+						var_set(ctx, A, B, ls->vals[I]);
+				}
+				else{
+					str = var_caststr(ctx, X);
+					if (I < 0)
+						I += str->size;
+					if (I < 0 || I >= str->size)
+						var_set(ctx, A, B, SINK_NIL);
+					else
+						var_set(ctx, A, B, sink_str_newblob(ctx, 1, &str->bytes[I]));
+				}
 			} break;
 
 			case OP_SLICE          : { // [TGT], [SRC1], [SRC2], [SRC3]
@@ -16310,16 +16306,7 @@ sink_val sink_list_newblobgive(sink_ctx ctx, int size, int count, sink_val *vals
 }
 
 sink_val sink_list_new(sink_ctx ctx, sink_val a, sink_val b){
-	if (!sink_isnum(a))
-		return opi_abortformat(ctx, "Expecting number");
-	int size = (int)a.f;
-	if (size < 0)
-		size = 0;
-	int count = size < sink_list_grow ? sink_list_grow : size;
-	sink_val *vals = mem_alloc(sizeof(sink_val) * count);
-	for (int i = 0; i < size; i++)
-		vals[i] = b;
-	return sink_list_newblobgive(ctx, size, count, vals);
+	return opi_list_new(ctx, a, b);
 }
 
 sink_val sink_list_cat(sink_ctx ctx, int size, sink_val *vals){

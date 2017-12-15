@@ -49,10 +49,10 @@ export type sink_fsread_f = (scr: sink_scr, file: string, incuser: any) =>
 export type sink_dump_f = (data: string, dumpuser: any) => boolean | Promise<boolean>;
 
 export interface sink_io_st {
-	f_say: sink_output_f;
-	f_warn: sink_output_f;
-	f_ask: sink_input_f;
-	user: any;
+	f_say?: sink_output_f;
+	f_warn?: sink_output_f;
+	f_ask?: sink_input_f;
+	user?: any;
 }
 
 export interface sink_inc_st {
@@ -9173,100 +9173,84 @@ function binop_int_mod(a: sink_val, b: sink_val): sink_val {
 		return 0;
 	return ((a as number) | 0) % i;
 }
-/*
-// inline operators
-static inline bool opi_equ(context ctx, sink_val a, sink_val b){
-	if (a.u === b.u){
-		if (sink_isnum(a))
-			return a.f === b.f;
-		return true;
-	}
-	if (sink_isstr(a) && sink_isstr(b))
-		return str_cmp(var_caststr(ctx, a), var_caststr(ctx, b)) === 0;
-	return false;
-}
 
-static inline int sink_size(context ctx, sink_val a){
-	if (sink_islist(a)){
-		sink_list ls = var_castlist(ctx, a);
-		return ls.size;
-	}
-	else if (sink_isstr(a)){
-		sink_str str = var_caststr(ctx, a);
-		return str.size;
-	}
+export function sink_size(ctx: sink_ctx, a: sink_val): number {
+	if (sink_islist(a))
+		return a.length;
+	else if (sink_isstr(a))
+		return a.length;
 	opi_abort(ctx, "Expecting string or list for size");
 	return 0;
 }
 
-static inline sink_val sink_tonum(context ctx, sink_val a){
-	if (!oper_typelist(ctx, a, LT_ALLOWNIL | LT_ALLOWNUM | LT_ALLOWSTR)){
-		opi_abort(ctx, "Expecting string when converting to number");
+export function sink_tonum(ctx: sink_ctx, a: sink_val): sink_val {
+	if (!oper_typelist(a, LT_ALLOWNIL | LT_ALLOWNUM | LT_ALLOWSTR)){
+		opi_abort(ctx, 'Expecting string when converting to number');
 		return SINK_NIL;
 	}
-	return oper_un(ctx, a, unop_tonum);
+	return oper_un(a, unop_tonum);
 }
 
-static inline void sink_say(context ctx, int size, sink_val *vals){
+export function sink_say(ctx: sink_ctx, vals: sink_val[]): undefined | Promise<undefined> {
 	if (ctx.io.f_say){
-		ctx.io.f_say(
+		return ctx.io.f_say(
 			ctx,
-			var_caststr(ctx, sink_list_joinplain(ctx, size, vals, 1, (const uint8_t *)" ")),
+			sink_list_joinplain(ctx, vals, ' '),
 			ctx.io.user
 		);
 	}
 }
 
-static inline void sink_warn(context ctx, int size, sink_val *vals){
+export function sink_warn(ctx: sink_ctx, vals: sink_val[]): undefined | Promise<undefined> {
 	if (ctx.io.f_warn){
-		ctx.io.f_warn(
+		return ctx.io.f_warn(
 			ctx,
-			var_caststr(ctx, sink_list_joinplain(ctx, size, vals, 1, (const uint8_t *)" ")),
+			sink_list_joinplain(ctx, vals, ' '),
 			ctx.io.user
 		);
 	}
 }
 
-static inline sink_val sink_ask(context ctx, int size, sink_val *vals){
+export function sink_ask(ctx: sink_ctx, vals: sink_val[]): sink_val {
 	if (ctx.io.f_ask){
 		return ctx.io.f_ask(
 			ctx,
-			var_caststr(ctx, sink_list_joinplain(ctx, size, vals, 1, (const uint8_t *)" ")),
+			sink_list_joinplain(ctx, vals, ' '),
 			ctx.io.user
 		);
 	}
 	return SINK_NIL;
 }
 
-static inline sink_run opi_exit(context ctx){
+function opi_exit(ctx: context_st): sink_run {
 	ctx.passed = true;
-	return SINK_RUN_PASS;
+	return sink_run.PASS;
 }
 
-static inline filepos_st callstack_flp(context ctx, int pc){
-	filepos_st flp = FILEPOS_NULL;
-	int i;
-	for (i = 0; i < ctx.prg.posTable.size; i++){
-		prgflp p = ctx.prg.posTable.ptrs[i];
+function callstack_flp(ctx: context_st, pc: number): filepos_st {
+	let flp = FILEPOS_NULL;
+	let i = 0;
+	for ( ; i < ctx.prg.posTable.length; i++){
+		let p = ctx.prg.posTable[i];
 		if (p.pc > pc){
 			if (i > 0)
-				flp = ((prgflp)ctx.prg.posTable.ptrs[i - 1]).flp;
+				flp = ctx.prg.posTable[i - 1].flp;
 			break;
 		}
 	}
-	if (i > 0 && i === ctx.prg.posTable.size)
-		flp = ((prgflp)ctx.prg.posTable.ptrs[i - 1]).flp;
+	if (i > 0 && i === ctx.prg.posTable.length)
+		flp = ctx.prg.posTable[i - 1].flp;
 	return flp;
 }
 
-static inline int callstack_cmdhint(context ctx, int pc){
-	for (int i = 0; i < ctx.prg.cmdTable.size; i++){
-		prgch p = ctx.prg.cmdTable.ptrs[i];
+function callstack_cmdhint(ctx: context_st, pc: number): number {
+	for (let i = 0; i < ctx.prg.cmdTable.length; i++){
+		let p = ctx.prg.cmdTable[i];
 		if (p.pc > pc){
 			// start working backwards
-			int nest = 0;
-			for (int j = i - 1; j >= 0; j--){
-				p = ctx.prg.cmdTable.ptrs[j];
+			let nest = 0;
+			for (let j = i - 1; j >= 0; j--){
+				p = ctx.prg.cmdTable[j];
 				if (p.cmdhint < 0)
 					nest++;
 				else{
@@ -9281,193 +9265,147 @@ static inline int callstack_cmdhint(context ctx, int pc){
 	return -1;
 }
 
-static char *callstack_append(context ctx, char *err, int pc){
-	filepos_st flp = callstack_flp(ctx, pc);
-	int cmdhint = callstack_cmdhint(ctx, pc);
-	const char *chn = NULL;
+function callstack_append(ctx: context_st, err: string | null, pc: number): string | null {
+	let flp = callstack_flp(ctx, pc);
+	let cmdhint = callstack_cmdhint(ctx, pc);
+	let chn: string | null = null;
 	if (cmdhint >= 0)
 		chn = program_getdebugstr(ctx.prg, cmdhint);
 	if (flp.line >= 0){
-		char *err2 = program_errormsg(ctx.prg, flp, NULL);
-		char *err3;
+		let err2 = program_errormsg(ctx.prg, flp, null);
 		if (chn){
 			if (err)
-				err3 = format("%s\n    at %s (%s)", err, chn, err2);
-			else
-				err3 = format("%s (%s)", chn, err2);
+				return err + '\n    at ' + chn + ' (' + err2 + ')';
+			return chn + ' (' + err2 + ')';
 		}
 		else{
 			if (err)
-				err3 = format("%s\n    at %s", err, err2);
-			else{
-				err3 = err2;
-				err2 = NULL;
-			}
+				return err + '\n    at ' + err2;
+			return err2;
 		}
-		if (err2)
-			mem_free(err2);
-		if (err)
-			mem_free(err);
-		return err3;
 	}
 	else if (chn){
-		char *err2;
-		if (err){
-			err2 = format("%s\n    at %s", err, chn);
-			mem_free(err);
-		}
-		else
-			err2 = format("%s", chn);
-		return err2;
+		if (err)
+			return err + '\n    at ' + chn;
+		return chn;
 	}
 	return err;
 }
-*/
+
 function opi_abort(ctx: sink_ctx, err: string | null): sink_run {
 	ctx.failed = true;
 	if (err === null)
 		return sink_run.FAIL;
-	//TODO: callstack stuff
-	//err = callstack_append(ctx, err, ctx.lastpc);
-	//for (int i = ctx.call_stk.size - 1, j = 0; i >= 0 && j < 9; i--, j++){
-	//	ccs here = ctx.call_stk.ptrs[i];
-	//	err = callstack_append(ctx, err, here.pc - 1);
-	//}
-	//if (ctx.err)
-	//	mem_free(ctx.err);
-	//ctx.err = format("Error: %s", err);
-	ctx.err = err;
+	err = callstack_append(ctx, err, ctx.lastpc);
+	for (let i = ctx.call_stk.length - 1, j = 0; i >= 0 && j < 9; i--, j++){
+		let here = ctx.call_stk[i];
+		err = callstack_append(ctx, err, here.pc - 1);
+	}
+	ctx.err = 'Error: ' + err;
 	return sink_run.FAIL;
 }
-/*
-static inline sink_val sink_stacktrace(context ctx){
-	sink_val ls = sink_list_newempty(ctx);
-	char *err = callstack_append(ctx, NULL, ctx.lastpc);
+
+export function sink_stacktrace(ctx: sink_ctx): sink_val {
+	let ls = new sink_list();
+	let err = callstack_append(ctx, null, ctx.lastpc);
 	if (err)
-		sink_list_push(ctx, ls, sink_str_newcstrgive(ctx, err));
-	for (int i = ctx.call_stk.size - 1; i >= 0; i--){
-		ccs here = ctx.call_stk.ptrs[i];
-		err = callstack_append(ctx, NULL, here.pc - 1);
+		ls.push(err);
+	for (let i = ctx.call_stk.length - 1; i >= 0; i--){
+		let here = ctx.call_stk[i];
+		err = callstack_append(ctx, null, here.pc - 1);
 		if (err)
-			sink_list_push(ctx, ls, sink_str_newcstrgive(ctx, err));
+			ls.push(err);
 	}
 	return ls;
 }
 
-static inline sink_val opi_abortformat(context ctx, const char *fmt, ...){
-	va_list args, args2;
-	va_start(args, fmt);
-	va_copy(args2, args);
-	size_t s = vsnprintf(NULL, 0, fmt, args);
-	char *buf = mem_alloc(s + 1);
-	vsprintf(buf, fmt, args2);
-	va_end(args);
-	va_end(args2);
-	opi_abort(ctx, buf);
-	return SINK_NIL;
+function opi_unop(ctx: sink_ctx, a: sink_val, f_unary: unary_f, erop: string): sink_val {
+	if (!oper_typelist(a, LT_ALLOWNUM))
+		return opi_abort(ctx, 'Expecting number or list of numbers when ' + erop);
+	return oper_un(a, f_unary);
 }
 
-static inline sink_val opi_unop(context ctx, sink_val a, unary_f f_unary, const char *erop){
-	if (!oper_typelist(ctx, a, LT_ALLOWNUM))
-		return opi_abortformat(ctx, "Expecting number or list of numbers when %s", erop);
-	return oper_un(ctx, a, f_unary);
+function opi_binop(ctx: sink_ctx, a: sink_val, b: sink_val, f_binary: binary_f, erop: string,
+	t1: number, t2: number): sink_val {
+	if (!oper_typelist(a, t1))
+		return opi_abort(ctx, 'Expecting number or list of numbers when ' + erop);
+	if (!oper_typelist(b, t2))
+		return opi_abort(ctx, 'Expecting number or list of numbers when ' + erop);
+	return oper_bin(a, b, f_binary);
 }
 
-static inline sink_val opi_binop(context ctx, sink_val a, sink_val b, binary_f f_binary,
-	const char *erop, int t1, int t2){
-	if (!oper_typelist(ctx, a, t1))
-		return opi_abortformat(ctx, "Expecting number or list of numbers when %s", erop);
-	if (!oper_typelist(ctx, b, t2))
-		return opi_abortformat(ctx, "Expecting number or list of numbers when %s", erop);
-	return oper_bin(ctx, a, b, f_binary);
+function opi_triop(ctx: sink_ctx, a: sink_val, b: sink_val, c: sink_val, f_trinary: trinary_f,
+	erop: string): sink_val {
+	if (!oper_typelist(a, LT_ALLOWNUM))
+		return opi_abort(ctx, 'Expecting number or list of numbers when ' + erop);
+	if (!oper_typelist(b, LT_ALLOWNUM))
+		return opi_abort(ctx, 'Expecting number or list of numbers when ' + erop);
+	if (!oper_typelist(c, LT_ALLOWNUM))
+		return opi_abort(ctx, 'Expecting number or list of numbers when ' + erop);
+	return oper_tri(a, b, c, f_trinary);
 }
 
-static inline sink_val opi_triop(context ctx, sink_val a, sink_val b, sink_val c,
-	trinary_f f_trinary, const char *erop){
-	if (!oper_typelist(ctx, a, LT_ALLOWNUM))
-		return opi_abortformat(ctx, "Expecting number or list of numbers when %s", erop);
-	if (!oper_typelist(ctx, b, LT_ALLOWNUM))
-		return opi_abortformat(ctx, "Expecting number or list of numbers when %s", erop);
-	if (!oper_typelist(ctx, c, LT_ALLOWNUM))
-		return opi_abortformat(ctx, "Expecting number or list of numbers when %s", erop);
-	return oper_tri(ctx, a, b, c, f_trinary);
-}
-
-static inline sink_val opi_combop(context ctx, int size, sink_val *vals, binary_f f_binary,
-	const char *erop){
-	if (size <= 0)
-		goto badtype;
-	int listsize = -1;
-	for (int i = 0; i < size; i++){
-		if (sink_islist(vals[i])){
-			sink_list ls = var_castlist(ctx, vals[i]);
-			if (ls.size > listsize)
-				listsize = ls.size;
-			for (int j = 0; j < size; j++){
-				if (!sink_isnum(ls.vals[j]))
-					goto badtype;
+function opi_combop(ctx: sink_ctx, vals: sink_val[], f_binary: binary_f, erop: string): sink_val {
+	if (vals.length <= 0)
+		return opi_abort(ctx, 'Expecting number or list of numbers when ' + erop);
+	let listsize = -1;
+	for (let i = 0; i < vals.length; i++){
+		let ls = vals[i];
+		if (sink_islist(ls)){
+			if (ls.length > listsize)
+				listsize = ls.length;
+			for (let j = 0; j < vals.length; j++){
+				if (!sink_isnum(ls[j]))
+					return opi_abort(ctx, 'Expecting number or list of numbers when ' + erop);
 			}
 		}
-		else if (!sink_isnum(vals[i]))
-			goto badtype;
+		else if (!sink_isnum(ls))
+			return opi_abort(ctx, 'Expecting number or list of numbers when ' + erop);
 	}
 
 	if (listsize < 0){
 		// no lists, so just combine
-		for (int i = 1; i < size; i++)
-			vals[0] = f_binary(ctx, vals[0], vals[i]);
+		for (let i = 1; i < vals.length; i++)
+			vals[0] = f_binary(vals[0], vals[i]);
 		return vals[0];
 	}
 	else if (listsize > 0){
-		sink_val *ret = mem_alloc(sizeof(sink_val) * listsize);
-		for (int j = 0; j < listsize; j++)
-			ret[j] = arget(ctx, vals[0], j);
-		for (int i = 1; i < size; i++){
-			for (int j = 0; j < listsize; j++)
-				ret[j] = f_binary(ctx, ret[j], arget(ctx, vals[i], j));
+		let ret = new sink_list();
+		for (let j = 0; j < listsize; j++)
+			ret.push(arget(vals[0], j));
+		for (let i = 1; i < vals.length; i++){
+			for (let j = 0; j < listsize; j++)
+				ret[j] = f_binary(ret[j], arget(vals[i], j));
 		}
-		return sink_list_newblobgive(ctx, listsize, listsize, ret);
+		return ret;
 	}
 	// otherwise, listsize === 0
-	return sink_list_newempty(ctx);
-
-	badtype:
-	return opi_abortformat(ctx, "Expecting number or list of numbers when %s", erop);
+	return new sink_list();
 }
 
-static inline sink_val opi_str_at(context ctx, sink_val a, sink_val b){
-	sink_str s = var_caststr(ctx, a);
-	int idx = b.f;
-	if (idx < 0)
-		idx += s.size;
-	if (idx < 0 || idx >= s.size)
-		return SINK_NIL;
-	return sink_str_newblob(ctx, 1, &s.bytes[idx]);
+export function sink_str_cat(ctx: sink_ctx, vals: sink_val[]): sink_val {
+	return sink_list_joinplain(ctx, vals, '');
 }
 
-static inline sink_val sink_str_cat(context ctx, int argcount, sink_val *args){
-	return sink_list_joinplain(ctx, argcount, args, 0, NULL);
+interface fix_slice_st {
+	start: number;
+	len: number;
 }
 
-typedef struct {
-	int start;
-	int len;
-} fix_slice_st;
-
-static inline fix_slice_st fix_slice(sink_val startv, sink_val lenv, int objsize){
-	int start = (int)round(startv.f);
-	if (sink_isnil(lenv)){
+function fix_slice(startv: number, lenv: number | null, objsize: number): fix_slice_st {
+	let start = Math.round(startv);
+	if (lenv === null){
 		if (start < 0)
 			start += objsize;
 		if (start < 0)
 			start = 0;
 		if (start >= objsize)
-			return (fix_slice_st){ 0, 0 };
-		return (fix_slice_st){ start, objsize - start };
+			return { start: 0, len: 0 };
+		return { start: start, len: objsize - start };
 	}
 	else{
-		int len = (int)round(lenv.f);
-		bool wasneg = start < 0;
+		let len = Math.round(lenv);
+		let wasneg = start < 0;
 		if (len < 0){
 			wasneg = start <= 0;
 			start += len;
@@ -9480,139 +9418,98 @@ static inline fix_slice_st fix_slice(sink_val startv, sink_val lenv, int objsize
 			start = 0;
 		}
 		if (len <= 0)
-			return (fix_slice_st){ 0, 0 };
+			return { start: 0, len: 0 };
 		if (start + len > objsize)
 			len = objsize - start;
-		return (fix_slice_st){ start, len };
+		return { start: start, len: len };
 	}
 }
 
-static inline sink_val sink_str_slice(context ctx, sink_val a, sink_val b, sink_val c){
+export function sink_str_slice(ctx: sink_ctx, a: sink_val, b: sink_val, c: sink_val): sink_val {
 	if (!sink_isstr(a)){
-		opi_abort(ctx, "Expecting list or string when slicing");
+		opi_abort(ctx, 'Expecting list or string when slicing');
 		return SINK_NIL;
 	}
 	if (!sink_isnum(b) || (!sink_isnil(c) && !sink_isnum(c))){
-		opi_abort(ctx, "Expecting slice values to be numbers");
+		opi_abort(ctx, 'Expecting slice values to be numbers');
 		return SINK_NIL;
 	}
-	sink_str s = var_caststr(ctx, a);
-	if (s.size <= 0)
+	if (a.length <= 0)
 		return a;
-	fix_slice_st sl = fix_slice(b, c, s.size);
+	let sl = fix_slice(b, c, a.length);
 	if (sl.len <= 0)
-		return sink_str_newblob(ctx, 0, NULL);
-	return sink_str_newblob(ctx, sl.len, &s.bytes[sl.start]);
+		return '';
+	return a.substr(sl.start, sl.len);
 }
 
-static inline sink_val sink_str_splice(context ctx, sink_val a, sink_val b, sink_val c, sink_val d){
+export function sink_str_splice(ctx: sink_ctx, a: sink_val, b: sink_val, c: sink_val,
+	d: sink_val): sink_val {
 	if (!sink_isstr(a)){
-		opi_abort(ctx, "Expecting list or string when splicing");
+		opi_abort(ctx, 'Expecting list or string when splicing');
 		return SINK_NIL;
 	}
 	if (!sink_isnum(b) || (!sink_isnil(c) && !sink_isnum(c))){
-		opi_abort(ctx, "Expecting splice values to be numbers");
+		opi_abort(ctx, 'Expecting splice values to be numbers');
 		return SINK_NIL;
 	}
 	if (!sink_isnil(d) && !sink_isstr(d)){
-		opi_abort(ctx, "Expecting spliced value to be a string");
+		opi_abort(ctx, 'Expecting spliced value to be a string');
 		return SINK_NIL;
 	}
-	sink_str s = var_caststr(ctx, a);
-	fix_slice_st sl = fix_slice(b, c, s.size);
+	let sl = fix_slice(b, c, a.length);
 	if (sink_isnil(d)){
 		if (sl.len <= 0)
 			return a;
-		int tot = s.size - sl.len;
+		let tot = a.length - sl.len;
 		if (tot <= 0)
-			return sink_str_newblob(ctx, 0, NULL);
-		uint8_t *bytes = mem_alloc(sizeof(uint8_t) * (tot + 1));
-		if (sl.start > 0)
-			memcpy(bytes, s.bytes, sizeof(uint8_t) * sl.start);
-		if (s.size > sl.start + sl.len){
-			memcpy(&bytes[sl.start], &s.bytes[sl.start + sl.len],
-				sizeof(uint8_t) * (s.size - sl.start - sl.len));
-		}
-		bytes[tot] = 0;
-		return sink_str_newblobgive(ctx, tot, bytes);
+			return '';
+		return a.substr(0, sl.start) + a.substr(sl.start + sl.len);
 	}
 	else{
-		sink_str s2 = var_caststr(ctx, d);
-		int tot = s.size - sl.len + s2.size;
+		let tot = a.length - sl.len + d.length;
 		if (tot <= 0)
-			return sink_str_newblob(ctx, 0, NULL);
-		uint8_t *bytes = mem_alloc(sizeof(uint8_t) * (tot + 1));
-		if (sl.start > 0)
-			memcpy(bytes, s.bytes, sizeof(uint8_t) * sl.start);
-		if (s2.size > 0)
-			memcpy(&bytes[sl.start], s2.bytes, sizeof(uint8_t) * s2.size);
-		if (s.size > sl.start + sl.len){
-			memcpy(&bytes[sl.start + s2.size], &s.bytes[sl.start + sl.len],
-				sizeof(uint8_t) * (s.size - sl.start - sl.len));
-		}
-		bytes[tot] = 0;
-		return sink_str_newblobgive(ctx, tot, bytes);
+			return '';
+		return a.substr(0, sl.start) + d + a.substr(sl.start + sl.len);
 	}
 }
 
-static inline sink_val opi_list_new(context ctx, sink_val a, sink_val b){
+export function sink_list_new(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
 	if (!sink_isnil(a) && !sink_isnum(a)){
-		opi_abort(ctx, "Expecting number for list.new");
+		opi_abort(ctx, 'Expecting number for list.new');
 		return SINK_NIL;
 	}
-	int size = sink_isnil(a) ? 0 : a.f;
-	if (size <= 0)
-		return sink_list_newempty(ctx);
-	sink_val *vals = mem_alloc(sizeof(sink_val) * size);
-	for (int i = 0; i < size; i++)
-		vals[i] = b;
-	return sink_list_newblobgive(ctx, size, size, vals);
+	let size = sink_isnil(a) ? 0 : a;
+	let ret = new sink_list();
+	for (let i = 0; i < size; i++)
+		ret.push(b);
+	return ret;
 }
 
-static inline sink_val opi_list_at(context ctx, sink_val a, sink_val b){
-	sink_list ls = var_castlist(ctx, a);
-	int idx = b.f;
-	if (idx < 0)
-		idx += ls.size;
-	if (idx < 0 || idx >= ls.size)
-		return SINK_NIL;
-	return ls.vals[idx];
+function opi_list_cat(ctx: sink_ctx, vals: sink_val[]): sink_val {
+	let res = new sink_list();
+	for (let i = 0; i < vals.length; i++)
+		res.push.apply(res, vals[i]);
+	return res;
 }
 
-static inline sink_val sink_list_cat(context ctx, int argcount, sink_val *args){
-	int ns = 0;
-	for (int i = 0; i < argcount; i++)
-		ns += var_castlist(ctx, args[i]).size;
-	if (ns <= 0)
-		return sink_list_newempty(ctx);
-	sink_val *vals = mem_alloc(sizeof(sink_val) * ns);
-	ns = 0;
-	for (int i = 0; i < argcount; i++){
-		sink_list ls = var_castlist(ctx, args[i]);
-		if (ls.size > 0){
-			memcpy(&vals[ns], ls.vals, sizeof(sink_val) * ls.size);
-			ns += ls.size;
-		}
-	}
-	return sink_list_newblobgive(ctx, ns, ns, vals);
-}
-
-static inline sink_val sink_list_slice(context ctx, sink_val a, sink_val b, sink_val c){
+export function sink_list_slice(ctx: sink_ctx, a: sink_val, b: sink_val, c: sink_val): sink_val {
 	if (!sink_islist(a)){
-		opi_abort(ctx, "Expecting list or string when slicing");
+		opi_abort(ctx, 'Expecting list or string when slicing');
 		return SINK_NIL;
 	}
 	if (!sink_isnum(b) || (!sink_isnil(c) && !sink_isnum(c))){
-		opi_abort(ctx, "Expecting slice values to be numbers");
+		opi_abort(ctx, 'Expecting slice values to be numbers');
 		return SINK_NIL;
 	}
-	sink_list ls = var_castlist(ctx, a);
-	fix_slice_st sl = fix_slice(b, c, ls.size);
-	if (ls.size <= 0 || sl.len <= 0)
-		return sink_list_newempty(ctx);
-	return sink_list_newblob(ctx, sl.len, &ls.vals[sl.start]);
+	let sl = fix_slice(b, c, a.length);
+	let res = new sink_list();
+	if (a.length <= 0 || sl.len <= 0)
+		return new sink_list();
+	for (let i = 0; i < sl.len; i++)
+		res.push(a[sl.start + i]);
+	return res;
 }
-
+/*
 static inline void sink_list_splice(context ctx, sink_val a, sink_val b, sink_val c, sink_val d){
 	if (!sink_islist(a)){
 		opi_abort(ctx, "Expecting list or string when splicing");
@@ -11439,14 +11336,29 @@ static sink_run context_run(context ctx){
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X) && !sink_isstr(X))
-					return opi_abort(ctx, "Expecting list or string when indexing");
+					return opi_abortcstr(ctx, "Expecting list or string when indexing");
 				Y = var_get(ctx, E, F);
 				if (!sink_isnum(Y))
-					return opi_abort(ctx, "Expecting index to be number");
-				if (sink_islist(X))
-					var_set(ctx, A, B, opi_list_at(ctx, X, Y));
-				else
-					var_set(ctx, A, B, opi_str_at(ctx, X, Y));
+					return opi_abortcstr(ctx, "Expecting index to be number");
+				I = Y.f;
+				if (sink_islist(X)){
+					ls = var_castlist(ctx, X);
+					if (I < 0)
+						I += ls->size;
+					if (I < 0 || I >= ls->size)
+						var_set(ctx, A, B, SINK_NIL);
+					else
+						var_set(ctx, A, B, ls->vals[I]);
+				}
+				else{
+					str = var_caststr(ctx, X);
+					if (I < 0)
+						I += str->size;
+					if (I < 0 || I >= str->size)
+						var_set(ctx, A, B, SINK_NIL);
+					else
+						var_set(ctx, A, B, sink_str_newblob(ctx, 1, &str->bytes[I]));
+				}
 			} break;
 
 			case op_enum.SLICE          : { // [TGT], [SRC1], [SRC2], [SRC3]
@@ -12280,7 +12192,7 @@ static sink_run context_run(context ctx){
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				X = opi_list_new(ctx, X, Y);
+				X = sink_list_new(ctx, X, Y);
 				if (ctx.failed)
 					return SINK_RUN_FAIL;
 				var_set(ctx, A, B, X);
@@ -14178,17 +14090,14 @@ sink_val sink_list_newblobgive(sink_ctx ctx, int size, int count, sink_val *vals
 	return (sink_val){ .u = SINK_TAG_LIST | index };
 }
 
-sink_val sink_list_new(sink_ctx ctx, sink_val a, sink_val b){
-	if (!sink_isnum(a))
-		return opi_abortformat(ctx, "Expecting number");
-	int size = (int)a.f;
-	if (size < 0)
-		size = 0;
-	int count = size < sink_list_grow ? sink_list_grow : size;
-	sink_val *vals = mem_alloc(sizeof(sink_val) * count);
-	for (int i = 0; i < size; i++)
-		vals[i] = b;
-	return sink_list_newblobgive(ctx, size, count, vals);
+export sink_val sink_list_cat(sink_ctx ctx, int size, sink_val *vals){
+	for (int i = 0; i < size; i++){
+		if (!sink_islist(vals[i])){
+			opi_abortcstr(ctx, "Cannot concatenate non-lists");
+			return SINK_NIL;
+		}
+	}
+	return opi_list_cat(ctx, size, vals);
 }
 
 static inline uint8_t *opi_list_joinplain(sink_ctx ctx, int size, sink_val *vals, int sepz,
