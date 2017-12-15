@@ -6,8 +6,16 @@ The standard library is available to all sink scripts, and is native to sink its
 execution.  These commands are available in all host environments, and always produce the same
 results.
 
-1. toc
-{:toc}
+1. [Globals](#globals)
+2. [Number `num.*`](#number)
+3. [Integer `int.*`](#integer)
+4. [Random `rand.*`](#random)
+5. [String `str.*`](#string)
+6. [UTF-8 `utf8.*`](#utf-8)
+7. [Structured Data `struct.*`](#structured-data)
+8. [List `list.*`](#list)
+9. [Pickle `pickle.*`](#pickle)
+10. [Garbage Collection `gc.*`](#garbage-collection)
 
 Globals
 -------
@@ -281,8 +289,8 @@ pickle.valid '"\u1000"'  # => nil, only bytes in strings are supported ("\u0000"
 pickle.valid 'null'      # => 1, JSON formatted serialized sink value (`null` maps to `nil`)
 ```
 
-GC
---
+Garbage Collection
+------------------
 
 Note: garbage collection manipulation is only available in certain environments, but the commands
 always exist and execute without error.
