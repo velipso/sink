@@ -9830,6 +9830,8 @@ static inline sink_val opi_str_split(context ctx, sink_val a, sink_val b){
 static inline sink_val opi_list_join(context ctx, sink_val a, sink_val b);
 static inline sink_val opi_str_replace(context ctx, sink_val a, sink_val b, sink_val c){
 	sink_val ls = opi_str_split(ctx, a, b);
+	if (ctx->failed)
+		return SINK_NIL;
 	return opi_list_join(ctx, ls, c);
 }
 
