@@ -13561,11 +13561,11 @@ static sink_run context_run(context ctx){
 
 			case OP_EXIT           : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
-				for (D = 0; D < C; D++){
-					E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
-					p[D] = var_get(ctx, E, F);
-				}
 				if (C > 0){
+					for (D = 0; D < C; D++){
+						E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
+						p[D] = var_get(ctx, E, F);
+					}
 					opi_say(ctx, C, p);
 					if (ctx->failed)
 						return SINK_RUN_FAIL;
@@ -14378,7 +14378,6 @@ static sink_run context_run(context ctx){
 	#undef INLINE_UNOP
 	#undef INLINE_BINOP
 	#undef INLINE_TRIOP
-	#undef RETURN_FAIL
 
 	if (ctx->prg->repl)
 		return SINK_RUN_REPLMORE;

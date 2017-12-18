@@ -7844,6 +7844,8 @@ interface context_st {
 	err: string | null;
 	passed: boolean;
 	failed: boolean;
+
+	gclevel: string;
 }
 
 function lxs_get(ctx: context_st, args: sink_val[], next: lxs_st | null): lxs_st {
@@ -7923,7 +7925,8 @@ function context_new(prg: program_st, io: sink_io_st): context_st {
 		rand_i: 0,
 		err: null,
 		passed: false,
-		failed: false
+		failed: false,
+		gclevel: 'default'
 	};
 	sink_rand_seedauto(ctx);
 	return ctx;
@@ -8039,7 +8042,7 @@ function str_cmp(a: sink_str, b: sink_str): number {
 	return a === b ? 0 : (a < b ? -1 : 1);
 }
 
-function opihelp_num_max(vals: sink_list, li: sink_list[]): sink_val {
+function opihelp_num_max(vals: sink_list | sink_val[], li: sink_list[]): sink_val {
 	let max: sink_val = SINK_NIL;
 	for (let i = 0; i < vals.length; i++){
 		let v = vals[i];
@@ -8062,11 +8065,11 @@ function opihelp_num_max(vals: sink_list, li: sink_list[]): sink_val {
 	return max;
 }
 
-function opi_num_max(vals: sink_list): sink_val {
+function opi_num_max(vals: sink_list | sink_val[]): sink_val {
 	return opihelp_num_max(vals, []);
 }
 
-function opihelp_num_min(vals: sink_list, li: sink_list[]): sink_val {
+function opihelp_num_min(vals: sink_list | sink_val[], li: sink_list[]): sink_val {
 	let min: sink_val = SINK_NIL;
 	for (let i = 0; i < vals.length; i++){
 		let v = vals[i];
@@ -8089,7 +8092,7 @@ function opihelp_num_min(vals: sink_list, li: sink_list[]): sink_val {
 	return min;
 }
 
-function opi_num_min(vals: sink_list){
+function opi_num_min(vals: sink_list | sink_val[]){
 	return opihelp_num_min(vals, []);
 }
 
@@ -9033,24 +9036,24 @@ let unop_num_ceil  = Math.ceil  as (a: sink_val) => sink_val;
 let unop_num_round = Math.round as (a: sink_val) => sink_val;
 let unop_num_trunc = (Math as any).trunc as (a: sink_val) => sink_val;
 
-function unop_num_isnan(ctx: sink_ctx, a: sink_val): sink_val {
+function unop_num_isnan(a: sink_val): sink_val {
 	return sink_bool(isNaN(a as number));
 }
 
-function unop_num_isfinite(ctx: sink_ctx, a: sink_val): sink_val {
+function unop_num_isfinite(a: sink_val): sink_val {
 	return sink_bool(isFinite(a as number));
 }
 
-let unop_num_sin = Math.sin  as (a: sink_val) => sink_val;
-let unop_num_cos = Math.cos  as (a: sink_val) => sink_val;
-let unop_num_tan = Math.tan  as (a: sink_val) => sink_val;
-let unop_num_asi = Math.asin as (a: sink_val) => sink_val;
-let unop_num_aco = Math.acos as (a: sink_val) => sink_val;
-let unop_num_ata = Math.atan as (a: sink_val) => sink_val;
-let unop_num_log = Math.log  as (a: sink_val) => sink_val;
+let unop_num_sin   = Math.sin  as (a: sink_val) => sink_val;
+let unop_num_cos   = Math.cos  as (a: sink_val) => sink_val;
+let unop_num_tan   = Math.tan  as (a: sink_val) => sink_val;
+let unop_num_asin  = Math.asin as (a: sink_val) => sink_val;
+let unop_num_acos  = Math.acos as (a: sink_val) => sink_val;
+let unop_num_atan  = Math.atan as (a: sink_val) => sink_val;
+let unop_num_log   = Math.log  as (a: sink_val) => sink_val;
 let unop_num_log2  = (Math as any).log2  as (a: sink_val) => sink_val;
 let unop_num_log10 = (Math as any).log10 as (a: sink_val) => sink_val;
-let unop_num_exp = Math.exp as (a: sink_val) => sink_val;
+let unop_num_exp   = Math.exp as (a: sink_val) => sink_val;
 
 function binop_num_add(a: sink_val, b: sink_val): sink_val {
 	return (a as number) + (b as number);
@@ -11240,32 +11243,42 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 				if (ctx.failed)
 					return sink_run.FAIL;
 			} break;
-}}return sink_run.PASS;}/*
+
 			case op_enum.EXIT           : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
-				for (D = 0; D < C; D++){
-					E = ops.bytes[ctx.pc++]; F = ops.bytes[ctx.pc++];
-					p[D] = var_get(ctx, E, F);
-				}
 				if (C > 0){
-					sink_say(ctx, C, p);
+					let p: sink_val[] = [];
+					for (D = 0; D < C; D++){
+						E = ops[ctx.pc++]; F = ops[ctx.pc++];
+						p.push(var_get(ctx, E, F));
+					}
+					let res = sink_say(ctx, p);
+					if (isPromise<undefined>(res)){
+						return res.then(function(){
+							return opi_exit(ctx);
+						}, function(err){
+							return opi_abort(ctx, '' + err);
+						});
+					}
 					if (ctx.failed)
 						return sink_run.FAIL;
 				}
 				return opi_exit(ctx);
-			} break;
+			}
 
 			case op_enum.ABORT          : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
-				for (D = 0; D < C; D++){
-					E = ops.bytes[ctx.pc++]; F = ops.bytes[ctx.pc++];
-					p[D] = var_get(ctx, E, F);
+				let err: string | null = null;
+				if (C > 0){
+					let p: sink_val[] = [];
+					for (D = 0; D < C; D++){
+						E = ops[ctx.pc++]; F = ops[ctx.pc++];
+						p.push(var_get(ctx, E, F));
+					}
+					err = sink_list_joinplain(p, ' ') as string;
 				}
-				char *err = NULL;
-				if (C > 0)
-					err = (char *)sink_list_joinplain(C, p, 1, (const uint8_t *)" ", &A);
 				return opi_abort(ctx, err);
-			} break;
+			}
 
 			case op_enum.STACKTRACE     : { // [TGT]
 				LOAD_ab();
@@ -11328,20 +11341,22 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 
 			case op_enum.NUM_MAX        : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
+				let p: sink_val[] = [];
 				for (D = 0; D < C; D++){
-					E = ops.bytes[ctx.pc++]; F = ops.bytes[ctx.pc++];
-					p[D] = var_get(ctx, E, F);
+					E = ops[ctx.pc++]; F = ops[ctx.pc++];
+					p.push(var_get(ctx, E, F));
 				}
-				var_set(ctx, A, B, opi_num_max(ctx, C, p));
+				var_set(ctx, A, B, opi_num_max(p));
 			} break;
 
 			case op_enum.NUM_MIN        : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
+				let p: sink_val[] = [];
 				for (D = 0; D < C; D++){
-					E = ops.bytes[ctx.pc++]; F = ops.bytes[ctx.pc++];
-					p[D] = var_get(ctx, E, F);
+					E = ops[ctx.pc++]; F = ops[ctx.pc++];
+					p.push(var_get(ctx, E, F));
 				}
-				var_set(ctx, A, B, opi_num_min(ctx, C, p));
+				var_set(ctx, A, B, opi_num_min(p));
 			} break;
 
 			case op_enum.NUM_CLAMP      : { // [TGT], [SRC1], [SRC2], [SRC3]
@@ -11503,11 +11518,12 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 
 			case op_enum.INT_AND        : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
+				let p: sink_val[] = [];
 				for (D = 0; D < C; D++){
-					E = ops.bytes[ctx.pc++]; F = ops.bytes[ctx.pc++];
-					p[D] = var_get(ctx, E, F);
+					E = ops[ctx.pc++]; F = ops[ctx.pc++];
+					p.push(var_get(ctx, E, F));
 				}
-				X = opi_combop(ctx, C, p, binop_int_and, txt_int_and);
+				X = opi_combop(ctx, p, binop_int_and, txt_int_and);
 				if (ctx.failed)
 					return sink_run.FAIL;
 				var_set(ctx, A, B, X);
@@ -11515,11 +11531,12 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 
 			case op_enum.INT_OR         : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
+				let p: sink_val[] = [];
 				for (D = 0; D < C; D++){
-					E = ops.bytes[ctx.pc++]; F = ops.bytes[ctx.pc++];
-					p[D] = var_get(ctx, E, F);
+					E = ops[ctx.pc++]; F = ops[ctx.pc++];
+					p.push(var_get(ctx, E, F));
 				}
-				X = opi_combop(ctx, C, p, binop_int_or, txt_int_or);
+				X = opi_combop(ctx, p, binop_int_or, txt_int_or);
 				if (ctx.failed)
 					return sink_run.FAIL;
 				var_set(ctx, A, B, X);
@@ -11527,11 +11544,12 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 
 			case op_enum.INT_XOR        : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
+				let p: sink_val[] = [];
 				for (D = 0; D < C; D++){
-					E = ops.bytes[ctx.pc++]; F = ops.bytes[ctx.pc++];
-					p[D] = var_get(ctx, E, F);
+					E = ops[ctx.pc++]; F = ops[ctx.pc++];
+					p.push(var_get(ctx, E, F));
 				}
-				X = opi_combop(ctx, C, p, binop_int_xor, txt_int_xor);
+				X = opi_combop(ctx, p, binop_int_xor, txt_int_xor);
 				if (ctx.failed)
 					return sink_run.FAIL;
 				var_set(ctx, A, B, X);
@@ -11607,10 +11625,10 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				if (sink_isnil(X))
-					X.f = 0;
+					X = 0;
 				else if (!sink_isnum(X))
-					return opi_abort(ctx, "Expecting number");
-				sink_rand_seed(ctx, X.f);
+					return opi_abort(ctx, 'Expecting number');
+				sink_rand_seed(ctx, X);
 				var_set(ctx, A, B, SINK_NIL);
 			} break;
 
@@ -11622,12 +11640,12 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 
 			case op_enum.RAND_INT       : { // [TGT]
 				LOAD_ab();
-				var_set(ctx, A, B, sink_num(sink_rand_int(ctx)));
+				var_set(ctx, A, B, sink_rand_int(ctx));
 			} break;
 
 			case op_enum.RAND_NUM       : { // [TGT]
 				LOAD_ab();
-				var_set(ctx, A, B, sink_num(sink_rand_num(ctx)));
+				var_set(ctx, A, B, sink_rand_num(ctx));
 			} break;
 
 			case op_enum.RAND_GETSTATE  : { // [TGT]
@@ -11662,11 +11680,12 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 
 			case op_enum.STR_NEW        : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
+				let p: sink_val[] = [];
 				for (D = 0; D < C; D++){
-					E = ops.bytes[ctx.pc++]; F = ops.bytes[ctx.pc++];
-					p[D] = var_get(ctx, E, F);
+					E = ops[ctx.pc++]; F = ops[ctx.pc++];
+					p.push(var_get(ctx, E, F));
 				}
-				var_set(ctx, A, B, sink_str_new(ctx, C, p));
+				var_set(ctx, A, B, sink_str_new(ctx, p));
 			} break;
 
 			case op_enum.STR_SPLIT      : { // [TGT], [SRC1], [SRC2]
@@ -11715,10 +11734,10 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				if (sink_isnil(Y))
-					Y.f = 0;
+					Y = 0;
 				else if (!sink_isnum(Y))
-					return opi_abort(ctx, "Expecting number");
-				X = sink_str_pad(ctx, X, Y.f);
+					return opi_abort(ctx, 'Expecting number');
+				X = sink_str_pad(ctx, X, Y);
 				if (ctx.failed)
 					return sink_run.FAIL;
 				var_set(ctx, A, B, X);
@@ -11787,10 +11806,10 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				if (sink_isnil(Y))
-					Y.f = 0;
+					Y = 0;
 				else if (!sink_isnum(Y))
-					return opi_abort(ctx, "Expecting number");
-				X = sink_str_rep(ctx, X, Y.f);
+					return opi_abort(ctx, 'Expecting number');
+				X = sink_str_rep(ctx, X, Y);
 				if (ctx.failed)
 					return sink_run.FAIL;
 				var_set(ctx, A, B, X);
@@ -11810,10 +11829,10 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				if (sink_isnil(Y))
-					Y.f = 0;
+					Y = 0;
 				else if (!sink_isnum(Y))
-					return opi_abort(ctx, "Expecting number");
-				X = sink_str_byte(ctx, X, Y.f);
+					return opi_abort(ctx, 'Expecting number');
+				X = sink_str_byte(ctx, X, Y);
 				if (ctx.failed)
 					return sink_run.FAIL;
 				var_set(ctx, A, B, X);
@@ -11824,10 +11843,10 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				if (sink_isnil(Y))
-					Y.f = 0;
+					Y = 0;
 				else if (!sink_isnum(Y))
-					return opi_abort(ctx, "Expecting number");
-				X = sink_str_hash(ctx, X, Y.f);
+					return opi_abort(ctx, 'Expecting number');
+				X = sink_str_hash(ctx, X, Y);
 				if (ctx.failed)
 					return sink_run.FAIL;
 				var_set(ctx, A, B, X);
@@ -11857,12 +11876,12 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 				var_set(ctx, A, B, X);
 			} break;
 
-			case op_enum.struct_enum.SIZE    : { // [TGT], [SRC]
+			case op_enum.STRUCT_SIZE    : { // [TGT], [SRC]
 				LOAD_abcd();
 				var_set(ctx, A, B, sink_struct_size(ctx, var_get(ctx, C, D)));
 			} break;
 
-			case op_enum.struct_enum.STR     : { // [TGT], [SRC1], [SRC2]
+			case op_enum.STRUCT_STR     : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
@@ -11872,7 +11891,7 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 				var_set(ctx, A, B, X);
 			} break;
 
-			case op_enum.struct_enum.LIST    : { // [TGT], [SRC1], [SRC2]
+			case op_enum.STRUCT_LIST    : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
@@ -11882,7 +11901,7 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 				var_set(ctx, A, B, X);
 			} break;
 
-			case op_enum.struct_enum.ISLE    : { // [TGT]
+			case op_enum.STRUCT_ISLE    : { // [TGT]
 				LOAD_ab();
 				var_set(ctx, A, B, sink_bool(sink_struct_isLE()));
 			} break;
@@ -12054,7 +12073,7 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				E = sink_pickle_valid(ctx, X);
-				var_set(ctx, A, B, E === 0 ? SINK_NIL : sink_num(E));
+				var_set(ctx, A, B, E === 0 ? SINK_NIL : E);
 			} break;
 
 			case op_enum.PICKLE_SIBLING : { // [TGT], [SRC]
@@ -12080,52 +12099,24 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 
 			case op_enum.GC_GETLEVEL    : { // [TGT]
 				LOAD_ab();
-				switch (ctx.gc_level){
-					case SINK_GC_NONE:
-						var_set(ctx, A, B, sink_str_newcstr(ctx, "none"));
-						break;
-					case SINK_GC_DEFAULT:
-						var_set(ctx, A, B, sink_str_newcstr(ctx, "default"));
-						break;
-					case SINK_GC_LOWMEM:
-						var_set(ctx, A, B, sink_str_newcstr(ctx, "lowmem"));
-						break;
-				}
+				var_set(ctx, A, B, ctx.gclevel);
 			} break;
 
 			case op_enum.GC_SETLEVEL    : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				if (!sink_isstr(X))
-					return opi_abort(ctx, "Expecting one of 'none', 'default', or 'lowmem'");
-				str = var_caststr(ctx, X);
-				if (strcmp((const char *)str.bytes, "none") === 0)
-					ctx.gc_level = SINK_GC_NONE;
-				else if (strcmp((const char *)str.bytes, "default") === 0){
-					ctx.gc_level = SINK_GC_DEFAULT;
-					context_gcleft(ctx, false);
-				}
-				else if (strcmp((const char *)str.bytes, "lowmem") === 0){
-					ctx.gc_level = SINK_GC_LOWMEM;
-					context_gcleft(ctx, false);
-				}
-				else
-					return opi_abort(ctx, "Expecting one of 'none', 'default', or 'lowmem'");
+				if (!sink_isstr(X) || (X !== 'none' && X !== 'default' && X !== 'lowmem'))
+					return opi_abort(ctx, 'Expecting one of \'none\', \'default\', or \'lowmem\'');
+				ctx.gclevel = X;
 				var_set(ctx, A, B, SINK_NIL);
 			} break;
 
 			case op_enum.GC_RUN         : { // [TGT]
 				LOAD_ab();
-				context_gc(ctx);
 				var_set(ctx, A, B, SINK_NIL);
 			} break;
 
 			default: break;
-		}
-		if (ctx.gc_level !== SINK_GC_NONE){
-			ctx.gc_left--;
-			if (ctx.gc_left <= 0)
-				context_gc(ctx);
 		}
 		if (ctx.timeout > 0){
 			ctx.timeout_left--;
@@ -12136,8 +12127,6 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 		}
 	}
 
-	#undef RETURN_FAIL
-
 	if (ctx.prg.repl)
 		return sink_run.REPLMORE;
 	return opi_exit(ctx);
@@ -12146,7 +12135,7 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 //
 // compiler
 //
-*/
+
 interface filepos_node_st {
 	lx: lex_st;
 	tks: tok_st[];
