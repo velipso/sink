@@ -10446,232 +10446,181 @@ export function sink_pickle_val(ctx: sink_ctx, a: sink_val): sink_val {
 	}
 	return res;
 }
-/*
-static inline bool pk_isbin_adv(sink_str s, uint64_t *pos, uint32_t amt){
-	(*pos) += amt;
-	return *pos <= s.size;
+
+function pk_isbin_adv(sp: pk_strpos, amt: number): boolean {
+	sp.pos += amt;
+	return sp.pos < sp.s.length;
 }
 
-static bool pk_isbin(sink_str s, uint64_t *pos, uint32_t *index, uint32_t str_table_size){
-	if (s.size <= *pos)
+function pk_isbin(sp: pk_strpos, index: [number], str_table_size: number): boolean {
+	if (sp.s.length <= sp.pos)
 		return false;
-	uint8_t cmd = s.bytes[*pos];
-	(*pos)++;
+	let cmd = sp.s.charCodeAt(sp.pos);
+	sp.pos++;
 	switch (cmd){
-		case 0xF0: return pk_isbin_adv(s, pos, 1);
-		case 0xF1: return pk_isbin_adv(s, pos, 1);
-		case 0xF2: return pk_isbin_adv(s, pos, 2);
-		case 0xF3: return pk_isbin_adv(s, pos, 2);
-		case 0xF4: return pk_isbin_adv(s, pos, 4);
-		case 0xF5: return pk_isbin_adv(s, pos, 4);
-		case 0xF6: return pk_isbin_adv(s, pos, 8);
+		case 0xF0: return pk_isbin_adv(sp, 1);
+		case 0xF1: return pk_isbin_adv(sp, 1);
+		case 0xF2: return pk_isbin_adv(sp, 2);
+		case 0xF3: return pk_isbin_adv(sp, 2);
+		case 0xF4: return pk_isbin_adv(sp, 4);
+		case 0xF5: return pk_isbin_adv(sp, 4);
+		case 0xF6: return pk_isbin_adv(sp, 8);
 		case 0xF7: return true;
 		case 0xF8: {
-			uint32_t str_id;
-			if (!pk_fmbin_vint(s, pos, &str_id))
-				return false;
-			if (str_id >= str_table_size)
+			let str_id = pk_fmbin_vint(sp);
+			if (str_id < 0 || str_id >= str_table_size)
 				return false;
 			return true;
-		} break;
+		}
 		case 0xF9: {
-			(*index)++;
-			uint32_t list_size;
-			if (!pk_fmbin_vint(s, pos, &list_size))
+			index[0]++;
+			let list_size = pk_fmbin_vint(sp);
+			if (list_size < 0)
 				return false;
-			for (uint32_t i = 0; i < list_size; i++){
-				if (!pk_isbin(s, pos, index, str_table_size))
+			for (let i = 0; i < list_size; i++){
+				if (!pk_isbin(sp, index, str_table_size))
 					return false;
 			}
 			return true;
-		} break;
+		}
 		case 0xFA: {
-			uint32_t ref;
-			if (!pk_fmbin_vint(s, pos, &ref))
-				return false;
-			if (ref >= *index)
+			let ref = pk_fmbin_vint(sp);
+			if (ref < 0 || ref >= index[0])
 				return false;
 			return true;
-		} break;
+		}
 	}
 	return false;
 }
 
-static inline int sink_pickle_valid(context ctx, sink_val a){
+export function sink_pickle_valid(ctx: sink_ctx, a: sink_val): number {
 	if (!sink_isstr(a))
 		return 0;
-	sink_str s = var_caststr(ctx, a);
-	if (s.bytes === NULL)
+	if (a.length === 0)
 		return 0;
-	if (s.bytes[0] === 0x01){ // binary validation
-		uint64_t pos = 1;
-		uint32_t str_table_size;
-		if (!pk_fmbin_vint(s, &pos, &str_table_size))
+	if (a.charCodeAt(0) === 0x01){ // binary validation
+		let sp = { s: a, pos: 1 };
+		let str_table_size = pk_fmbin_vint(sp);
+		if (str_table_size < 0)
 			return 0;
-		for (uint32_t i = 0; i < str_table_size; i++){
-			uint32_t str_size;
-			if (!pk_fmbin_vint(s, &pos, &str_size))
+		for (let i = 0; i < str_table_size; i++){
+			let str_size = pk_fmbin_vint(sp);
+			if (str_size < 0)
 				return 0;
-			pos += str_size; // skip over string's raw bytes
+			sp.pos += str_size; // skip over string's raw bytes
 		}
-		uint32_t index = 0;
-		if (!pk_isbin(s, &pos, &index, str_table_size))
+		if (!pk_isbin(sp, [0], str_table_size))
 			return 0;
-		if (pos !== s.size)
+		if (sp.pos !== a.length)
 			return 0;
 		return 2;
 	}
 	// otherwise, json validation
-	return pk_isjson(s) ? 1 : 0;
+	return pk_isjson(a) ? 1 : 0;
 }
 
-static bool pk_sib(context ctx, sink_val a, list_int all, list_int parents){
-	int idx = var_index(a);
-	if (list_int_has(parents, idx))
+function pk_sib(a: sink_list, all: sink_list[], parents: sink_list[]): boolean {
+	if (parents.indexOf(a) >= 0)
 		return false;
-	if (list_int_has(all, idx))
+	if (all.indexOf(a) >= 0)
 		return true;
-	list_int_push(all, idx);
-	list_int_push(parents, idx);
-	sink_list ls = var_castlist(ctx, a);
-	for (int i = 0; i < ls.size; i++){
-		sink_val b = ls.vals[i];
+	all.push(a);
+	parents.push(a);
+	for (let i = 0; i < a.length; i++){
+		let b = a[i];
 		if (!sink_islist(b))
 			continue;
-		if (pk_sib(ctx, b, all, parents))
+		if (pk_sib(b, all, parents))
 			return true;
 	}
-	list_int_pop(parents);
+	parents.pop();
 	return false;
 }
 
-static inline bool sink_pickle_sibling(context ctx, sink_val a){
+export function sink_pickle_sibling(ctx: sink_ctx, a: sink_val): boolean {
 	if (!sink_islist(a))
 		return false;
-	list_int all = list_int_new();
-	list_int parents = list_int_new();
-	bool res = pk_sib(ctx, a, all, parents);
-	list_int_free(all);
-	list_int_free(parents);
-	return res;
+	return pk_sib(a, [], []);
 }
 
-static bool pk_cir(context ctx, sink_val a, list_int li){
-	int idx = var_index(a);
-	if (list_int_has(li, idx))
+function pk_cir(a: sink_list, li: sink_list[]): boolean {
+	if (li.indexOf(a) >= 0)
 		return true;
-	list_int_push(li, idx);
-	sink_list ls = var_castlist(ctx, a);
-	for (int i = 0; i < ls.size; i++){
-		sink_val b = ls.vals[i];
+	li.push(a);
+	for (let i = 0; i < a.length; i++){
+		let b = a[i];
 		if (!sink_islist(b))
 			continue;
-		if (pk_cir(ctx, b, li))
+		if (pk_cir(b, li))
 			return true;
 	}
-	list_int_pop(li);
+	li.pop();
 	return false;
 }
 
-static inline bool sink_pickle_circular(context ctx, sink_val a){
+export function sink_pickle_circular(ctx: sink_ctx, a: sink_val): boolean {
 	if (!sink_islist(a))
 		return false;
-	list_int ls = list_int_new();
-	bool res = pk_cir(ctx, a, ls);
-	list_int_free(ls);
+	return pk_cir(a, []);
+}
+
+function pk_copy(a: sink_val, li_src: sink_val[], li_tgt: sink_val[]): sink_val {
+	if (a === null || typeof a === 'number' || typeof a === 'string')
+		return a;
+	let idxat = li_src.indexOf(a);
+	if (idxat >= 0) // use the last generated list
+		return li_tgt[idxat];
+	let res = new sink_list();
+	li_src.push(a);
+	li_tgt.push(res);
+	for (let i = 0; i < a.length; i++)
+		res.push(pk_copy(a[i], li_src, li_tgt));
 	return res;
 }
 
-static sink_val pk_copy(context ctx, sink_val a, list_int li_src, list_int li_tgt){
-	switch (sink_typeof(a)){
-		case sink_type.NIL:
-		case sink_type.NUM:
-		case sink_type.STR:
-			return a;
-		case sink_type.LIST: {
-			int idx = var_index(a);
-			int idxat = list_int_at(li_src, idx);
-			if (idxat < 0){
-				sink_list ls = var_castlist(ctx, a);
-				if (ls.size <= 0){
-					sink_val b = sink_list_newempty(ctx);
-					list_int_push(li_src, idx);
-					list_int_push(li_tgt, var_index(b));
-					return b;
-				}
-				else{
-					sink_val *m = mem_alloc(sizeof(sink_val) * ls.size);
-					memset(m, 0, sizeof(sink_val) * ls.size);
-					sink_val b = sink_list_newblobgive(ctx, ls.size, ls.size, m);
-					list_int_push(li_src, idx);
-					list_int_push(li_tgt, var_index(b));
-					for (int i = 0; i < ls.size; i++)
-						m[i] = pk_copy(ctx, ls.vals[i], li_src, li_tgt);
-					return b;
-				}
-			}
-			// otherwise, use the last generated list
-			return (sink_val){ .u = SINK_TAG_LIST | li_tgt.vals[idxat] };
-		} break;
-		case sink_type.ASYNC:
-			opi_abort(ctx, "Cannot pickle invalid value (SINK_ASYNC)");
-			return SINK_NIL;
-	}
-}
-
-static inline sink_val sink_pickle_copy(context ctx, sink_val a){
-	list_int li_src = NULL, li_tgt = NULL;
-	if (sink_islist(a)){
-		li_src = list_int_new();
-		li_tgt = list_int_new();
-	}
-	a = pk_copy(ctx, a, li_src, li_tgt);
-	if (li_src){
-		list_int_free(li_src);
-		list_int_free(li_tgt);
-	}
-	return a;
+export function sink_pickle_copy(ctx: sink_ctx, a: sink_val): sink_val {
+	return pk_copy(a, [], []);
 }
 
 // op descriptions for error messages
-static const char *txt_num_neg      = "negating";
-static const char *txt_num_add      = "adding";
-static const char *txt_num_sub      = "subtracting";
-static const char *txt_num_mul      = "multiplying";
-static const char *txt_num_div      = "dividing";
-static const char *txt_num_mod      = "taking modular";
-static const char *txt_num_pow      = "exponentiating";
-static const char *txt_num_abs      = "taking absolute value";
-static const char *txt_num_sign     = "taking sign";
-static const char *txt_num_clamp    = "clamping";
-static const char *txt_num_floor    = "taking floor";
-static const char *txt_num_ceil     = "taking ceil";
-static const char *txt_num_round    = "rounding";
-static const char *txt_num_trunc    = "truncating";
-static const char *txt_num_isnan    = "testing if NaN";
-static const char *txt_num_isfinite = "testing if finite";
-static const char *txt_num_sin      = "taking sin";
-static const char *txt_num_cos      = "taking cos";
-static const char *txt_num_tan      = "taking tan";
-static const char *txt_num_asin     = "taking arc-sin";
-static const char *txt_num_acos     = "taking arc-cos";
-static const char *txt_num_atan     = "taking arc-tan";
-static const char *txt_num_log      = "taking logarithm";
-static const char *txt_num_lerp     = "lerping";
-static const char *txt_num_hex      = "converting to hex";
-static const char *txt_num_oct      = "converting to oct";
-static const char *txt_num_bin      = "converting to bin";
-static const char *txt_int_new      = "casting to int";
-static const char *txt_int_not      = "NOTing";
-static const char *txt_int_and      = "ANDing";
-static const char *txt_int_or       = "ORing";
-static const char *txt_int_xor      = "XORing";
-static const char *txt_int_shl      = "shifting left";
-static const char *txt_int_shr      = "shifting right";
-static const char *txt_int_clz      = "counting leading zeros";
-static const char *txt_int_pop      = "population count";
-static const char *txt_int_bswap    = "byte swaping";
-
+let txt_num_neg      = 'negating';
+let txt_num_add      = 'adding';
+let txt_num_sub      = 'subtracting';
+let txt_num_mul      = 'multiplying';
+let txt_num_div      = 'dividing';
+let txt_num_mod      = 'taking modular';
+let txt_num_pow      = 'exponentiating';
+let txt_num_abs      = 'taking absolute value';
+let txt_num_sign     = 'taking sign';
+let txt_num_clamp    = 'clamping';
+let txt_num_floor    = 'taking floor';
+let txt_num_ceil     = 'taking ceil';
+let txt_num_round    = 'rounding';
+let txt_num_trunc    = 'truncating';
+let txt_num_isnan    = 'testing if NaN';
+let txt_num_isfinite = 'testing if finite';
+let txt_num_sin      = 'taking sin';
+let txt_num_cos      = 'taking cos';
+let txt_num_tan      = 'taking tan';
+let txt_num_asin     = 'taking arc-sin';
+let txt_num_acos     = 'taking arc-cos';
+let txt_num_atan     = 'taking arc-tan';
+let txt_num_log      = 'taking logarithm';
+let txt_num_lerp     = 'lerping';
+let txt_num_hex      = 'converting to hex';
+let txt_num_oct      = 'converting to oct';
+let txt_num_bin      = 'converting to bin';
+let txt_int_new      = 'casting to int';
+let txt_int_not      = 'NOTing';
+let txt_int_and      = 'ANDing';
+let txt_int_or       = 'ORing';
+let txt_int_xor      = 'XORing';
+let txt_int_shl      = 'shifting left';
+let txt_int_shr      = 'shifting right';
+let txt_int_clz      = 'counting leading zeros';
+let txt_int_pop      = 'population count';
+let txt_int_bswap    = 'byte swaping';
+/*
 static sink_run context_run(context ctx){
 	if (ctx.passed) return SINK_RUN_PASS;
 	if (ctx.failed) return SINK_RUN_FAIL;
