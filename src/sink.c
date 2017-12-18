@@ -11679,7 +11679,7 @@ static inline sink_val opi_list_str(context ctx, sink_val a){
 		int c = (int)b.f;
 		if (c < 0)
 			c = 0;
-		if (c > 255)
+		else if (c > 255)
 			c = 255;
 		bytes[i] = c;
 	}
@@ -11687,16 +11687,16 @@ static inline sink_val opi_list_str(context ctx, sink_val a){
 	return sink_str_newblobgive(ctx, ls->size, bytes);
 }
 
-static inline int sortboth(context ctx, list_int li, const sink_val *a, const sink_val *b){
-	sink_type atype = sink_typeof(*a);
-	sink_type btype = sink_typeof(*b);
+static inline int sortboth(context ctx, list_int li, sink_val a, sink_val b){
+	sink_type atype = sink_typeof(a);
+	sink_type btype = sink_typeof(b);
 
 	if (atype == SINK_TYPE_ASYNC || btype == SINK_TYPE_ASYNC){
 		opi_abortcstr(ctx, "Invalid value inside list during sort");
 		return -1;
 	}
 
-	if (a->u == b->u)
+	if (a.u == b.u)
 		return 0;
 
 	if (atype != btype){
@@ -11710,18 +11710,18 @@ static inline int sortboth(context ctx, list_int li, const sink_val *a, const si
 	}
 
 	if (atype == SINK_TYPE_NUM){
-		if (sink_num_isnan(*a)){
-			if (sink_num_isnan(*b))
+		if (sink_num_isnan(a)){
+			if (sink_num_isnan(b))
 				return 0;
 			return -1;
 		}
-		else if (sink_num_isnan(*b))
+		else if (sink_num_isnan(b))
 			return 1;
-		return a->f < b->f ? -1 : 1;
+		return a.f < b.f ? -1 : 1;
 	}
 	else if (atype == SINK_TYPE_STR){
-		sink_str s1 = var_caststr(ctx, *a);
-		sink_str s2 = var_caststr(ctx, *b);
+		sink_str s1 = var_caststr(ctx, a);
+		sink_str s2 = var_caststr(ctx, b);
 		if (s1->size == 0){
 			if (s2->size == 0)
 				return 0;
@@ -11736,14 +11736,14 @@ static inline int sortboth(context ctx, list_int li, const sink_val *a, const si
 		return res < 0 ? -1 : 1;
 	}
 	// otherwise, comparing two lists
-	int idx1 = var_index(*a);
-	int idx2 = var_index(*b);
+	int idx1 = var_index(a);
+	int idx2 = var_index(b);
 	if (list_int_has(li, idx1) || list_int_has(li, idx2)){
 		opi_abortcstr(ctx, "Cannot sort circular lists");
 		return -1;
 	}
-	sink_list ls1 = var_castlist(ctx, *a);
-	sink_list ls2 = var_castlist(ctx, *b);
+	sink_list ls1 = var_castlist(ctx, a);
+	sink_list ls2 = var_castlist(ctx, b);
 	if (ls1->size == 0){
 		if (ls2->size == 0)
 			return 0;
@@ -11755,7 +11755,7 @@ static inline int sortboth(context ctx, list_int li, const sink_val *a, const si
 	list_int_push(li, idx1);
 	list_int_push(li, idx2);
 	for (int i = 0; i < minsize; i++){
-		int res = sortboth(ctx, li, &ls1->vals[i], &ls2->vals[i]);
+		int res = sortboth(ctx, li, ls1->vals[i], ls2->vals[i]);
 		if (res != 0){
 			list_int_pop(li);
 			list_int_pop(li);
@@ -11777,11 +11777,11 @@ typedef struct {
 } sortu_st, *sortu;
 
 static int sortfwd(sortu u, const sink_val *a, const sink_val *b){
-	return sortboth(u->ctx, u->li, a, b);
+	return sortboth(u->ctx, u->li, *a, *b);
 }
 
 static int sortrev(sortu u, const sink_val *a, const sink_val *b){
-	return -sortboth(u->ctx, u->li, a, b);
+	return -sortboth(u->ctx, u->li, *a, *b);
 }
 
 typedef int (*sink_qsort_compare)(void *, const void *, const void *);
@@ -11864,7 +11864,7 @@ static inline void opi_list_rsort(context ctx, sink_val a){
 
 static inline int opi_order(context ctx, sink_val a, sink_val b){
 	list_int li = list_int_new();
-	int res = sortboth(ctx, li, &a, &b);
+	int res = sortboth(ctx, li, a, b);
 	list_int_free(li);
 	return res;
 }
