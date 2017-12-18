@@ -9778,359 +9778,261 @@ export function sink_range(ctx: sink_ctx, start: number, stop: number, step: num
 function numtostr(num: number): string {
 	return '' + num;
 }
-/*
-static inline bool pk_isjson(sink_str s){
-	enum {
-		PKV_START,
-		PKV_NULL1,
-		PKV_NULL2,
-		PKV_NULL3,
-		PKV_NUM_0,
-		PKV_NUM_NEG,
-		PKV_NUM_INT,
-		PKV_NUM_FRAC,
-		PKV_NUM_FRACE,
-		PKV_NUM_FRACE2,
-		PKV_NUM_EXP,
-		PKV_STR,
-		PKV_STR_ESC,
-		PKV_STR_U1,
-		PKV_STR_U2,
-		PKV_STR_U3,
-		PKV_STR_U4,
-		PKV_ARRAY,
-		PKV_ENDVAL
-	} state = PKV_START;
-	int arrays = 0;
-	for (int i = 0; i < s.size; i++){
-		uint8_t b = s.bytes[i];
-		uint8_t nb = i < s.size - 1 ? s.bytes[i + 1] : 0;
+
+function pk_isjson(s: sink_str): boolean {
+	enum pkv_enum {
+		START,
+		NULL1,
+		NULL2,
+		NULL3,
+		NUM_0,
+		NUM_NEG,
+		NUM_INT,
+		NUM_FRAC,
+		NUM_FRACE,
+		NUM_FRACE2,
+		NUM_EXP,
+		STR,
+		STR_ESC,
+		STR_U1,
+		STR_U2,
+		STR_U3,
+		STR_U4,
+		ARRAY,
+		ENDVAL
+	}
+	let state = pkv_enum.START;
+	let arrays = 0;
+	for (let i = 0; i < s.length; i++){
+		let b = s.charAt(i);
+		let nb = i < s.length - 1 ? s.charAt(i + 1) : '';
 		switch (state){
-			case PKV_START: // start state
+			case pkv_enum.START: // start state
 				if (b === 'n'){
 					if (nb !== 'u')
-						return 0;
-					state = PKV_NULL1;
+						return false;
+					state = pkv_enum.NULL1;
 				}
 				else if (b === '0'){
 					if (nb === '.' || nb === 'e' || nb === 'E')
-						state = PKV_NUM_0;
+						state = pkv_enum.NUM_0;
 					else
-						state = PKV_ENDVAL;
+						state = pkv_enum.ENDVAL;
 				}
 				else if (b === '-')
-					state = PKV_NUM_NEG;
-				else if (isNum((char)b)){
-					if (isNum((char)nb))
-						state = PKV_NUM_INT;
+					state = pkv_enum.NUM_NEG;
+				else if (isNum(b)){
+					if (isNum(nb))
+						state = pkv_enum.NUM_INT;
 					else if (nb === '.' || nb === 'e' || nb === 'E')
-						state = PKV_NUM_0;
+						state = pkv_enum.NUM_0;
 					else
-						state = PKV_ENDVAL;
+						state = pkv_enum.ENDVAL;
 				}
 				else if (b === '"')
-					state = PKV_STR;
+					state = pkv_enum.STR;
 				else if (b === '['){
 					arrays++;
-					if (isSpace((char)nb) || nb === ']')
-						state = PKV_ARRAY;
+					if (isSpace(nb) || nb === ']')
+						state = pkv_enum.ARRAY;
 				}
-				else if (!isSpace((char)b))
-					return 0;
+				else if (!isSpace(b))
+					return false;
 				break;
-			case PKV_NULL1:
+			case pkv_enum.NULL1:
 				if (nb !== 'l')
-					return 0;
-				state = PKV_NULL2;
+					return false;
+				state = pkv_enum.NULL2;
 				break;
-			case PKV_NULL2:
+			case pkv_enum.NULL2:
 				if (nb !== 'l')
-					return 0;
-				state = PKV_NULL3;
+					return false;
+				state = pkv_enum.NULL3;
 				break;
-			case PKV_NULL3:
-				state = PKV_ENDVAL;
+			case pkv_enum.NULL3:
+				state = pkv_enum.ENDVAL;
 				break;
-			case PKV_NUM_0:
+			case pkv_enum.NUM_0:
 				if (b === '.')
-					state = PKV_NUM_FRAC;
+					state = pkv_enum.NUM_FRAC;
 				else if (b === 'e' || b === 'E'){
 					if (nb === '+' || nb === '-')
 						i++;
-					state = PKV_NUM_EXP;
+					state = pkv_enum.NUM_EXP;
 				}
 				else
-					return 0;
+					return false;
 				break;
-			case PKV_NUM_NEG:
+			case pkv_enum.NUM_NEG:
 				if (b === '0'){
 					if (nb === '.' || nb === 'e' || nb === 'E')
-						state = PKV_NUM_0;
+						state = pkv_enum.NUM_0;
 					else
-						state = PKV_ENDVAL;
+						state = pkv_enum.ENDVAL;
 				}
-				else if (isNum((char)b)){
-					if (isNum((char)nb))
-						state = PKV_NUM_INT;
+				else if (isNum(b)){
+					if (isNum(nb))
+						state = pkv_enum.NUM_INT;
 					else if (nb === '.' || nb === 'e' || nb === 'E')
-						state = PKV_NUM_0;
+						state = pkv_enum.NUM_0;
 					else
-						state = PKV_ENDVAL;
+						state = pkv_enum.ENDVAL;
 				}
 				else
-					return 0;
+					return false;
 				break;
-			case PKV_NUM_INT:
-				if (!isNum((char)b))
-					return 0;
+			case pkv_enum.NUM_INT:
+				if (!isNum(b))
+					return false;
 				if (nb === '.' || nb === 'e' || nb === 'E')
-					state = PKV_NUM_0;
-				else if (!isNum((char)nb))
-					state = PKV_ENDVAL;
+					state = pkv_enum.NUM_0;
+				else if (!isNum(nb))
+					state = pkv_enum.ENDVAL;
 				break;
-			case PKV_NUM_FRAC:
-				if (!isNum((char)b))
-					return 0;
+			case pkv_enum.NUM_FRAC:
+				if (!isNum(b))
+					return false;
 				if (nb === 'e' || nb === 'E')
-					state = PKV_NUM_FRACE;
-				else if (!isNum((char)nb))
-					state = PKV_ENDVAL;
+					state = pkv_enum.NUM_FRACE;
+				else if (!isNum(nb))
+					state = pkv_enum.ENDVAL;
 				break;
-			case PKV_NUM_FRACE:
-				state = PKV_NUM_FRACE2;
+			case pkv_enum.NUM_FRACE:
+				state = pkv_enum.NUM_FRACE2;
 				break;
-			case PKV_NUM_FRACE2:
-				if (isNum((char)b)){
-					if (isNum((char)nb))
-						state = PKV_NUM_EXP;
+			case pkv_enum.NUM_FRACE2:
+				if (isNum(b)){
+					if (isNum(nb))
+						state = pkv_enum.NUM_EXP;
 					else
-						state = PKV_ENDVAL;
+						state = pkv_enum.ENDVAL;
 				}
 				else if (b === '+' || b === '-')
-					state = PKV_NUM_EXP;
+					state = pkv_enum.NUM_EXP;
 				else
-					return 0;
+					return false;
 				break;
-			case PKV_NUM_EXP:
-				if (!isNum((char)b))
-					return 0;
-				if (!isNum((char)nb))
-					state = PKV_ENDVAL;
+			case pkv_enum.NUM_EXP:
+				if (!isNum(b))
+					return false;
+				if (!isNum(nb))
+					state = pkv_enum.ENDVAL;
 				break;
-			case PKV_STR:
+			case pkv_enum.STR:
 				if (b === '\\')
-					state = PKV_STR_ESC;
+					state = pkv_enum.STR_ESC;
 				else if (b === '"')
-					state = PKV_ENDVAL;
-				else if (b < 0x20)
-					return 0;
+					state = pkv_enum.ENDVAL;
+				else if (b < ' ')
+					return false;
 				break;
-			case PKV_STR_ESC:
+			case pkv_enum.STR_ESC:
 				if (b === '"' || b === '\\' || b === '/' || b === 'b' ||
 					b === 'f' || b === 'n' || b === 'r' || b === 't')
-					state = PKV_STR;
+					state = pkv_enum.STR;
 				else if (b === 'u'){
 					if (nb !== '0')
-						return 0;
-					state = PKV_STR_U1;
+						return false;
+					state = pkv_enum.STR_U1;
 				}
 				else
-					return 0;
+					return false;
 				break;
-			case PKV_STR_U1:
+			case pkv_enum.STR_U1:
 				if (nb !== '0')
-					return 0;
-				state = PKV_STR_U2;
+					return false;
+				state = pkv_enum.STR_U2;
 				break;
-			case PKV_STR_U2:
-				if (!isHex((char)nb))
-					return 0;
-				state = PKV_STR_U3;
+			case pkv_enum.STR_U2:
+				if (!isHex(nb))
+					return false;
+				state = pkv_enum.STR_U3;
 				break;
-			case PKV_STR_U3:
-				if (!isHex((char)nb))
-					return 0;
-				state = PKV_STR_U4;
+			case pkv_enum.STR_U3:
+				if (!isHex(nb))
+					return false;
+				state = pkv_enum.STR_U4;
 				break;
-			case PKV_STR_U4:
-				state = PKV_STR;
+			case pkv_enum.STR_U4:
+				state = pkv_enum.STR;
 				break;
-			case PKV_ARRAY:
+			case pkv_enum.ARRAY:
 				if (b === ']')
-					state = PKV_ENDVAL;
-				else if (!isSpace((char)nb) && nb !== ']')
-					state = PKV_START;
+					state = pkv_enum.ENDVAL;
+				else if (!isSpace(nb) && nb !== ']')
+					state = pkv_enum.START;
 				break;
-			case PKV_ENDVAL:
+			case pkv_enum.ENDVAL:
 				if (arrays > 0){
 					if (b === ',')
-						state = PKV_START;
+						state = pkv_enum.START;
 					else if (b === ']')
 						arrays--;
-					else if (!isSpace((char)b))
-						return 0;
+					else if (!isSpace(b))
+						return false;
 				}
-				else if (!isSpace((char)b))
-					return 0;
+				else if (!isSpace(b))
+					return false;
 				break;
 		}
 	}
-	return state === PKV_ENDVAL;
+	return state === pkv_enum.ENDVAL;
 }
 
-static bool pk_tojson(context ctx, sink_val a, list_int li, sink_str s){
-	switch (sink_typeof(a)){
-		case sink_type.NIL:
-			set_null:
-			s.size = 4;
-			s.bytes = mem_alloc(sizeof(uint8_t) * 5);
-			s.bytes[0] = 'n';
-			s.bytes[1] = 'u';
-			s.bytes[2] = 'l';
-			s.bytes[3] = 'l';
-			s.bytes[4] = 0;
-			return true;
-		case sink_type.NUM: {
-			char buf[64];
-			int sz;
-			numtostr(a.f, buf, sizeof(buf), &sz);
-			sink_str_st s2 = { .size = sz, .bytes = (uint8_t *)buf };
-			if (pk_isjson(&s2)){
-				s.size = sz;
-				s.bytes = mem_alloc(sizeof(uint8_t) * (sz + 1));
-				memcpy(s.bytes, buf, sizeof(uint8_t) * (sz + 1));
-				return true;
-			}
-			// if C's rendering of the number is not valid JSON, then we have a goofy number, so
-			// just set it to null
-			goto set_null;
-		} break;
-		case sink_type.STR: {
-			int tot = 2;
-			sink_str src = var_caststr(ctx, a);
-			// calculate total size first
-			for (int i = 0; i < src.size; i++){
-				uint8_t b = src.bytes[i];
-				if (b === '"' || b === '\\' || b === '\b' || b === '\f' || b === '\n' || b === '\r' ||
-					b === '\t')
-					tot += 2;
-				else if (b < 0x20 || b >= 0x80) // \u00XX
-					tot += 6;
-				else
-					tot++;
-			}
-			s.size = tot;
-			s.bytes = mem_alloc(sizeof(uint8_t) * (tot + 1));
-			// render string
-			int pos = 0;
-			s.bytes[pos++] = '"';
-			for (int i = 0; i < src.size; i++){
-				uint8_t b = src.bytes[i];
-				if (b === '"' || b === '\\'){
-					s.bytes[pos++] = '\\';
-					s.bytes[pos++] = b;
-				}
-				else if (b === '\b'){
-					s.bytes[pos++] = '\\';
-					s.bytes[pos++] = 'b';
-				}
-				else if (b === '\f'){
-					s.bytes[pos++] = '\\';
-					s.bytes[pos++] = 'f';
-				}
-				else if (b === '\n'){
-					s.bytes[pos++] = '\\';
-					s.bytes[pos++] = 'n';
-				}
-				else if (b === '\r'){
-					s.bytes[pos++] = '\\';
-					s.bytes[pos++] = 'r';
-				}
-				else if (b === '\t'){
-					s.bytes[pos++] = '\\';
-					s.bytes[pos++] = 't';
-				}
-				else if (b < 0x20 || b >= 0x80){ // \u00XX
-					s.bytes[pos++] = '\\';
-					s.bytes[pos++] = 'u';
-					s.bytes[pos++] = '0';
-					s.bytes[pos++] = '0';
-					s.bytes[pos++] = toNibble((b >> 4) & 0x0F);
-					s.bytes[pos++] = toNibble(b & 0x0F);
-				}
-				else
-					s.bytes[pos++] = b;
-			}
-			s.bytes[pos++] = '"';
-			s.bytes[pos] = 0;
-			return true;
-		} break;
-		case sink_type.LIST: {
-			int idx = var_index(a);
-			if (list_int_has(li, idx))
-				return false; // circular
-			list_int_push(li, idx);
-			sink_list ls = var_castlist(ctx, a);
-			int tot = 2;
-			sink_str_st *strs = mem_alloc(sizeof(sink_str_st) * ls.size);
-			for (int i = 0; i < ls.size; i++){
-				sink_str_st s2;
-				if (!pk_tojson(ctx, ls.vals[i], li, &s2)){
-					for (int j = 0; j < i; j++)
-						mem_free(strs[j].bytes);
-					mem_free(strs);
-					return false;
-				}
-				strs[i] = s2;
-				tot += (i === 0 ? 0 : 1) + s2.size;
-			}
-			list_int_pop(li);
-			uint8_t *bytes = mem_alloc(sizeof(uint8_t) * (tot + 1));
-			bytes[0] = '[';
-			int p = 1;
-			for (int i = 0; i < ls.size; i++){
-				if (i > 0)
-					bytes[p++] = ',';
-				memcpy(&bytes[p], strs[i].bytes, sizeof(uint8_t) * strs[i].size);
-				mem_free(strs[i].bytes);
-				p += strs[i].size;
-			}
-			mem_free(strs);
-			bytes[p] = ']';
-			bytes[tot] = 0;
-			s.size = tot;
-			s.bytes = bytes;
-			return true;
-		} break;
-		case sink_type.ASYNC:
-			opi_abort(ctx, "Cannot pickle invalid value (SINK_ASYNC)");
-			return false;
+function pk_tojson(a: sink_val, li: sink_val[]): string | null {
+	if (a === null)
+		return 'null';
+	else if (typeof a === 'number'){
+		let s = numtostr(a);
+		if (pk_isjson(s))
+			return s;
+		return 'null';
+	}
+	else if (typeof a === 'string'){
+		return '"' +
+			a.replace(/\\|"|[\x00-\x1F]|[\x80-\xFF]/g, function(a){
+				if (a === '\\' || a === '"') return '\\' + a;
+				else if (a === '\b') return '\\b';
+				else if (a === '\f') return '\\f';
+				else if (a === '\n') return '\\n';
+				else if (a === '\r') return '\\r';
+				else if (a === '\t') return '\\t';
+				let s = a.charCodeAt(0).toString(16);
+				if (s.length <= 1)
+					s = '0' + s;
+				return '\\u00' + s;
+			}) + '"';
+	}
+	else{
+		if (li.indexOf(a) >= 0)
+			return null;
+		li.push(a);
+		let res = [];
+		for (let i = 0; i < a.length; i++){
+			let s2 = pk_tojson(a[i], li);
+			if (s2 === null)
+				return null;
+			res.push(s2);
+		}
+		li.pop();
+		return '[' + res.join(',') + ']';
 	}
 }
 
-static inline sink_val sink_pickle_json(context ctx, sink_val a){
-	list_int li = NULL;
-	if (sink_islist(a))
-		li = list_int_new();
-	sink_str_st s = { .size = 0, .bytes = NULL};
-	bool suc = pk_tojson(ctx, a, li, &s);
-	if (li)
-		list_int_free(li);
-	if (!suc){
-		if (s.bytes)
-			mem_free(s.bytes);
-		if (!ctx.failed)
-			opi_abort(ctx, "Cannot pickle circular structure to JSON format");
+export function sink_pickle_json(ctx: sink_ctx, a: sink_val): sink_val {
+	let res = pk_tojson(a, []);
+	if (res === null){
+		opi_abort(ctx, 'Cannot pickle circular structure to JSON format');
 		return SINK_NIL;
 	}
-	return sink_str_newblobgive(ctx, s.size, s.bytes);
+	return res;
 }
 
-static inline void pk_tobin_vint(list_byte body, uint32_t i){
+function pk_tobin_vint(body: number[], i: number): void {
 	if (i < 128)
-		list_byte_push(body, i);
+		body.push(i);
 	else{
-		list_byte_push4(body,
+		body.push(
 			0x80 | (i >> 24),
 			(i >> 16) & 0xFF,
 			(i >>  8) & 0xFF,
@@ -10138,436 +10040,358 @@ static inline void pk_tobin_vint(list_byte body, uint32_t i){
 	}
 }
 
-static void pk_tobin(context ctx, sink_val a, list_int li, uint32_t *str_table_size, list_byte strs,
-	list_byte body){
-	switch (sink_typeof(a)){
-		case sink_type.NIL:
-			list_byte_push(body, 0xF7);
-			break;
-		case sink_type.NUM: {
-			if (floor(a.f) === a.f && a.f >= -4294967296.0 && a.f < 4294967296.0){
-				int64_t num = a.f;
-				if (num < 0){
-					if (num >= -256){
-						num += 256;
-						list_byte_push2(body, 0xF1, num & 0xFF);
-					}
-					else if (num >= -65536){
-						num += 65536;
-						list_byte_push3(body, 0xF3, num & 0xFF, num >> 8);
-					}
-					else{
-						num += 4294967296;
-						list_byte_push5(body, 0xF5, num & 0xFF, (num >> 8) & 0xFF,
-							(num >> 16) & 0xFF, (num >> 24) & 0xFF);
-					}
+function pk_tobin(a: sink_val, li: sink_val[], strs: string[], body: number[]): void {
+	if (a === null)
+		body.push(0xF7);
+	else if (typeof a === 'number'){
+		if (Math.floor(a) === a && a >= -4294967296 && a < 4294967296){
+			let num = a;
+			if (num < 0){
+				if (num >= -256){
+					num += 256;
+					body.push(0xF1, num & 0xFF);
+				}
+				else if (num >= -65536){
+					num += 65536;
+					body.push(0xF3, num & 0xFF, num >> 8);
 				}
 				else{
-					if (num < 256)
-						list_byte_push2(body, 0xF0, num & 0xFF);
-					else if (num < 65536)
-						list_byte_push3(body, 0xF2, num & 0xFF, num >> 8);
-					else{
-						list_byte_push5(body, 0xF4, num & 0xFF, (num >> 8) & 0xFF,
-							(num >> 16) & 0xFF, (num >> 24) & 0xFF);
-					}
+					num += 4294967296;
+					body.push(0xF5, num & 0xFF, (num >> 8) & 0xFF,
+						(num >> 16) & 0xFF, (num >> 24) & 0xFF);
 				}
 			}
 			else{
-				list_byte_push9(body, 0xF6,
-					a.u & 0xFF, (a.u >> 8) & 0xFF, (a.u >> 16) & 0xFF, (a.u >> 24) & 0xFF,
-					(a.u >> 32) & 0xFF, (a.u >> 40) & 0xFF, (a.u >> 48) & 0xFF, (a.u >> 56) & 0xFF);
-			}
-		} break;
-		case sink_type.STR: {
-			// search for a previous string
-			sink_str s = var_caststr(ctx, a);
-			int spos = 0;
-			uint32_t sidx = 0;
-			bool found = false;
-			while (!found && sidx < *str_table_size){
-				uint32_t vi = strs.bytes[spos++];
-				if (vi >= 128){
-					vi = ((vi ^ 0x80) << 24) |
-						((uint32_t)strs.bytes[spos    ] << 16) |
-						((uint32_t)strs.bytes[spos + 1] <<  8) |
-						((uint32_t)strs.bytes[spos + 2]      );
-					spos += 3;
-				}
-				if (vi === s.size){
-					found = vi === 0 ||
-						memcmp(&strs.bytes[spos], s.bytes, sizeof(uint8_t) * vi) === 0;
-				}
-				if (!found){
-					spos += vi;
-					sidx++;
+				if (num < 256)
+					body.push(0xF0, num & 0xFF);
+				else if (num < 65536)
+					body.push(0xF2, num & 0xFF, num >> 8);
+				else{
+					body.push(0xF4, num & 0xFF, (num >> 8) & 0xFF,
+						(num >> 16) & 0xFF, (num >> 24) & 0xFF);
 				}
 			}
-			if (!found){
-				pk_tobin_vint(strs, s.size);
-				list_byte_append(strs, s.size, s.bytes);
-				sidx = *str_table_size;
-				(*str_table_size)++;
-			}
-			list_byte_push(body, 0xF8);
-			pk_tobin_vint(body, sidx);
-		} break;
-		case sink_type.LIST: {
-			int idx = var_index(a);
-			int idxat = list_int_at(li, idx);
-			if (idxat < 0){
-				list_int_push(li, idx);
-				sink_list ls = var_castlist(ctx, a);
-				list_byte_push(body, 0xF9);
-				pk_tobin_vint(body, ls.size);
-				for (int i = 0; i < ls.size; i++)
-					pk_tobin(ctx, ls.vals[i], li, str_table_size, strs, body);
-			}
-			else{
-				list_byte_push(body, 0xFA);
-				pk_tobin_vint(body, idxat);
-			}
-		} break;
-		case sink_type.ASYNC:
-			opi_abort(ctx, "Cannot pickle invalid value (SINK_ASYNC)");
-			break;
+		}
+		else{
+			dview.setFloat64(0, a, true);
+			body.push(0xF6,
+				dview.getUint8(0), dview.getUint8(1), dview.getUint8(2), dview.getUint8(3),
+				dview.getUint8(4), dview.getUint8(5), dview.getUint8(6), dview.getUint8(7));
+		}
 	}
-}
-
-static inline bool opi_pickle_binstr(context ctx, sink_val a, sink_str_st *out){
-	list_int li = NULL;
-	if (sink_islist(a))
-		li = list_int_new();
-	uint32_t str_table_size = 0;
-	list_byte strs = list_byte_new();
-	list_byte body = list_byte_new();
-	pk_tobin(ctx, a, li, &str_table_size, strs, body);
-	if (li)
-		list_int_free(li);
-	if (ctx.failed){
-		list_byte_free(strs);
-		list_byte_free(body);
-		return false;
+	else if (typeof a === 'string'){
+		// search for a previous string
+		let sidx = 0;
+		let found = false;
+		for ( ; sidx < strs.length; sidx++){
+			if (strs[sidx] === a){
+				found = true;
+				break;
+			}
+		}
+		if (!found){
+			sidx = strs.length;
+			strs.push(a);
+		}
+		body.push(0xF8);
+		pk_tobin_vint(body, sidx);
 	}
-	int tot = 1 + (str_table_size < 128 ? 1 : 4) + strs.size + body.size;
-	uint8_t *bytes = mem_alloc(sizeof(uint8_t) * (tot + 1));
-	int pos = 0;
-	bytes[pos++] = 0x01;
-	if (str_table_size < 128)
-		bytes[pos++] = str_table_size;
 	else{
-		bytes[pos++] = 0x80 | (str_table_size >> 24);
-		bytes[pos++] = (str_table_size >> 16) & 0xFF;
-		bytes[pos++] = (str_table_size >>  8) & 0xFF;
-		bytes[pos++] =  str_table_size        & 0xFF;
+		let idxat = li.indexOf(a);
+		if (idxat < 0){
+			li.push(a);
+			body.push(0xF9);
+			pk_tobin_vint(body, a.length);
+			for (let i = 0; i < a.length; i++)
+				pk_tobin(a[i], li, strs, body);
+		}
+		else{
+			body.push(0xFA);
+			pk_tobin_vint(body, idxat);
+		}
 	}
-	if (strs.size > 0){
-		memcpy(&bytes[pos], strs.bytes, sizeof(uint8_t) * strs.size);
-		pos += strs.size;
-	}
-	memcpy(&bytes[pos], body.bytes, sizeof(uint8_t) * body.size);
-	bytes[tot] = 0;
-	list_byte_free(strs);
-	list_byte_free(body);
-	*out = (sink_str_st){ .size = tot, .bytes = bytes };
-	return true;
 }
 
-static inline sink_val sink_pickle_bin(context ctx, sink_val a){
-	sink_str_st str;
-	if (!opi_pickle_binstr(ctx, a, &str))
-		return SINK_NIL;
-	return sink_str_newblobgive(ctx, str.size, str.bytes);
-}
-
-static inline bool pk_fmbin_vint(sink_str s, uint64_t *pos, uint32_t *res){
-	if (s.size <= *pos)
-		return false;
-	uint32_t v = s.bytes[*pos];
-	(*pos)++;
-	if (v < 128){
-		*res = v;
-		return true;
+export function sink_pickle_binstr(a: sink_val): string {
+	let strs: string[] = [];
+	let body: number[] = [];
+	pk_tobin(a, [], strs, body);
+	let out = String.fromCharCode(0x01);
+	let vsize: number[] = [];
+	pk_tobin_vint(vsize, strs.length);
+	out += String.fromCharCode.apply(null, vsize);
+	for (let i = 0; i < strs.length; i++){
+		vsize = [];
+		pk_tobin_vint(vsize, strs[i].length);
+		out += String.fromCharCode.apply(null, vsize) + strs[i];
 	}
-	if (s.size <= *pos + 2)
-		return false;
-	*res = ((v ^ 0x80) << 24) |
-		((uint32_t)s.bytes[*pos    ] << 16) |
-		((uint32_t)s.bytes[*pos + 1] <<  8) |
-		((uint32_t)s.bytes[*pos + 2]      );
-	(*pos) += 3;
-	return true;
+	return out + String.fromCharCode.apply(null, body);
 }
 
-static bool pk_fmbin(context ctx, sink_str s, uint64_t *pos, uint32_t str_table_size,
-	sink_val *strs, list_int li, sink_val *res){
-	if (*pos >= s.size)
+export function sink_pickle_bin(ctx: sink_ctx, a: sink_val): sink_val {
+	return sink_pickle_binstr(a);
+}
+
+interface pk_strpos {
+	s: string;
+	pos: number;
+}
+
+function pk_fmbin_vint(sp: pk_strpos): number {
+	if (sp.s.length <= sp.pos)
+		return -1;
+	let v = sp.s.charCodeAt(sp.pos);
+	sp.pos++;
+	if (v < 128)
+		return v;
+	if (sp.s.length <= sp.pos + 2)
+		return -1;
+	v = ((v ^ 0x80) << 24) |
+		(sp.s.charCodeAt(sp.pos    ) << 16) |
+		(sp.s.charCodeAt(sp.pos + 1) <<  8) |
+		(sp.s.charCodeAt(sp.pos + 2)      );
+	sp.pos += 3;
+	return v;
+}
+
+function pk_fmbin(sp: pk_strpos, strs: string[], li: sink_val[]): sink_val | false {
+	if (sp.pos >= sp.s.length)
 		return false;
-	uint8_t cmd = s.bytes[*pos];
-	(*pos)++;
+	let cmd = sp.s.charCodeAt(sp.pos);
+	sp.pos++;
 	switch (cmd){
 		case 0xF0: {
-			if (*pos >= s.size)
+			if (sp.pos >= sp.s.length)
 				return false;
-			*res = sink_num(s.bytes[*pos]);
-			(*pos)++;
-			return true;
-		} break;
+			let res = sp.s.charCodeAt(sp.pos);
+			sp.pos++;
+			return res;
+		}
 		case 0xF1: {
-			if (*pos >= s.size)
+			if (sp.pos >= sp.s.length)
 				return false;
-			*res = sink_num((int)s.bytes[*pos] - 256);
-			(*pos)++;
-			return true;
-		} break;
+			let res = sp.s.charCodeAt(sp.pos) - 256;
+			sp.pos++;
+			return res;
+		}
 		case 0xF2: {
-			if (*pos + 1 >= s.size)
+			if (sp.pos + 1 >= sp.s.length)
 				return false;
-			*res = sink_num(
-				(int)s.bytes[*pos] |
-				((int)s.bytes[*pos + 1] << 8));
-			(*pos) += 2;
-			return true;
-		} break;
+			let res = (sp.s.charCodeAt(sp.pos) |
+				(sp.s.charCodeAt(sp.pos + 1) << 8));
+			sp.pos += 2;
+			return res;
+		}
 		case 0xF3: {
-			if (*pos + 1 >= s.size)
+			if (sp.pos + 1 >= sp.s.length)
 				return false;
-			*res = sink_num(
-				((int)s.bytes[*pos] |
-				((int)s.bytes[*pos + 1] << 8)) - 65536);
-			(*pos) += 2;
-			return true;
-		} break;
+			let res = (sp.s.charCodeAt(sp.pos) |
+				(sp.s.charCodeAt(sp.pos + 1) << 8)) - 65536;
+			sp.pos += 2;
+			return res;
+		}
 		case 0xF4: {
-			if (*pos + 3 >= s.size)
+			if (sp.pos + 3 >= sp.s.length)
 				return false;
-			*res = sink_num(
-				(int)s.bytes[*pos] |
-				((int)s.bytes[*pos + 1] <<  8) |
-				((int)s.bytes[*pos + 2] << 16) |
-				((int)s.bytes[*pos + 3] << 24));
-			(*pos) += 4;
-			return true;
-		} break;
+			let res = (sp.s.charCodeAt(sp.pos) |
+				(sp.s.charCodeAt(sp.pos + 1) <<  8) |
+				(sp.s.charCodeAt(sp.pos + 2) << 16) |
+				(sp.s.charCodeAt(sp.pos + 3) << 24));
+			sp.pos += 4;
+			return res;
+		}
 		case 0xF5: {
-			if (*pos + 3 >= s.size)
+			if (sp.pos + 3 >= sp.s.length)
 				return false;
-			*res = sink_num(
-				((double)((uint32_t)s.bytes[*pos] |
-				((uint32_t)s.bytes[*pos + 1] <<  8) |
-				((uint32_t)s.bytes[*pos + 2] << 16) |
-				((uint32_t)s.bytes[*pos + 3] << 24))) - 4294967296.0);
-			(*pos) += 4;
-			return true;
-		} break;
+			let res = (sp.s.charCodeAt(sp.pos) |
+				(sp.s.charCodeAt(sp.pos + 1) <<  8) |
+				(sp.s.charCodeAt(sp.pos + 2) << 16) |
+				(sp.s.charCodeAt(sp.pos + 3) << 24)) - 4294967296;
+			sp.pos += 4;
+			return res;
+		}
 		case 0xF6: {
-			if (*pos + 7 >= s.size)
+			if (sp.pos + 7 >= sp.s.length)
 				return false;
-			res.u = ((uint64_t)s.bytes[*pos]) |
-				(((uint64_t)s.bytes[*pos + 1]) <<  8) |
-				(((uint64_t)s.bytes[*pos + 2]) << 16) |
-				(((uint64_t)s.bytes[*pos + 3]) << 24) |
-				(((uint64_t)s.bytes[*pos + 4]) << 32) |
-				(((uint64_t)s.bytes[*pos + 5]) << 40) |
-				(((uint64_t)s.bytes[*pos + 6]) << 48) |
-				(((uint64_t)s.bytes[*pos + 7]) << 56);
-			if (isnan(res.f)) // make sure no screwy NaN's come in
-				*res = sink_num_nan();
-			(*pos) += 8;
-			return true;
-		} break;
+			dview.setUint8(0, sp.s.charCodeAt(sp.pos + 0));
+			dview.setUint8(1, sp.s.charCodeAt(sp.pos + 1));
+			dview.setUint8(2, sp.s.charCodeAt(sp.pos + 2));
+			dview.setUint8(3, sp.s.charCodeAt(sp.pos + 3));
+			dview.setUint8(4, sp.s.charCodeAt(sp.pos + 4));
+			dview.setUint8(5, sp.s.charCodeAt(sp.pos + 5));
+			dview.setUint8(6, sp.s.charCodeAt(sp.pos + 6));
+			dview.setUint8(7, sp.s.charCodeAt(sp.pos + 7));
+			let res = dview.getFloat64(0, true);
+			sp.pos += 8;
+			return res;
+		}
 		case 0xF7: {
-			*res = SINK_NIL;
-			return true;
-		} break;
+			return null;
+		}
 		case 0xF8: {
-			uint32_t id;
-			if (!pk_fmbin_vint(s, pos, &id) || id >= str_table_size)
+			let id = pk_fmbin_vint(sp);
+			if (id < 0 || id >= strs.length)
 				return false;
-			*res = strs[id];
-			return true;
-		} break;
+			return strs[id];
+		}
 		case 0xF9: {
-			uint32_t sz;
-			if (!pk_fmbin_vint(s, pos, &sz))
+			let sz = pk_fmbin_vint(sp);
+			if (sz < 0)
 				return false;
-			if (sz <= 0){
-				*res = sink_list_newempty(ctx);
-				list_int_push(li, var_index(*res));
+			let res = new sink_list();
+			li.push(res);
+			for (let i = 0; i < sz; i++){
+				let e = pk_fmbin(sp, strs, li);
+				if (e === false)
+					return false;
+				res.push(e);
 			}
-			else{
-				sink_val *vals = mem_alloc(sizeof(sink_val) * sz);
-				memset(vals, 0, sizeof(sink_val) * sz);
-				*res = sink_list_newblobgive(ctx, sz, sz, vals);
-				list_int_push(li, var_index(*res));
-				for (uint32_t i = 0; i < sz; i++){
-					if (!pk_fmbin(ctx, s, pos, str_table_size, strs, li, &vals[i]))
-						return false;
-				}
-			}
-			return true;
-		} break;
+			return res;
+		}
 		case 0xFA: {
-			uint32_t id;
-			if (!pk_fmbin_vint(s, pos, &id) || id >= li.size)
+			let id = pk_fmbin_vint(sp);
+			if (id < 0 || id >= li.length)
 				return false;
-			*res = (sink_val){ .u = SINK_TAG_LIST | li.vals[id] };
-			return true;
-		} break;
+			return li[id];
+		}
 	}
 	return false;
 }
 
-static bool pk_fmjson(context ctx, sink_str s, int *pos, sink_val *res){
-	while (*pos < s.size && isSpace((char)s.bytes[*pos]))
-		(*pos)++;
-	if (*pos >= s.size)
+function pk_fmjson(sp: pk_strpos): sink_val | false {
+	while (sp.pos < sp.s.length && isSpace(sp.s.charAt(sp.pos)))
+		sp.pos++;
+	if (sp.pos >= sp.s.length)
 		return false;
-	uint8_t b = s.bytes[*pos];
-	(*pos)++;
+	let b = sp.s.charAt(sp.pos);
+	sp.pos++;
 	if (b === 'n'){
-		if (*pos + 2 >= s.size)
+		if (sp.pos + 2 >= sp.s.length)
 			return false;
-		if (s.bytes[*pos] !== 'u' ||
-			s.bytes[*pos + 1] !== 'l' ||
-			s.bytes[*pos + 2] !== 'l')
+		if (sp.s.charAt(sp.pos + 0) !== 'u' ||
+			sp.s.charAt(sp.pos + 1) !== 'l' ||
+			sp.s.charAt(sp.pos + 2) !== 'l')
 			return false;
-		(*pos) += 3;
-		*res = SINK_NIL;
-		return true;
+		sp.pos += 3;
+		return SINK_NIL;
 	}
-	else if (isNum((char)b) || b === '-'){
-		numpart_info npi;
-		numpart_new(&npi);
+	else if (isNum(b) || b === '-'){
+		let npi = numpart_new();
 		if (b === '-'){
-			if (*pos >= s.size)
+			if (sp.pos >= sp.s.length)
 				return false;
 			npi.sign = -1;
-			b = s.bytes[*pos];
-			(*pos)++;
-			if (!isNum((char)b))
+			b = sp.s.charAt(sp.pos);
+			sp.pos++;
+			if (!isNum(b))
 				return false;
 		}
 		if (b >= '1' && b <= '9'){
-			npi.val = b - '0';
-			while (*pos < s.size && isNum((char)s.bytes[*pos])){
-				npi.val = 10 * npi.val + (s.bytes[*pos] - '0');
-				(*pos)++;
+			npi.val = b.charCodeAt(0) - 48;
+			while (sp.pos < sp.s.length && isNum(sp.s.charAt(sp.pos))){
+				npi.val = 10 * npi.val + sp.s.charCodeAt(sp.pos) - 48;
+				sp.pos++;
 			}
 		}
-		if (s.bytes[*pos] === '.'){
-			(*pos)++;
-			if (*pos >= s.size || !isNum((char)s.bytes[*pos]))
+		if (sp.s.charAt(sp.pos) === '.'){
+			sp.pos++;
+			if (sp.pos >= sp.s.length || !isNum(sp.s.charAt(sp.pos)))
 				return false;
-			while (*pos < s.size && isNum((char)s.bytes[*pos])){
-				npi.frac = npi.frac * 10 + s.bytes[*pos] - '0';
+			while (sp.pos < sp.s.length && isNum(sp.s.charAt(sp.pos))){
+				npi.frac = npi.frac * 10 + sp.s.charCodeAt(sp.pos) - 48;
 				npi.flen++;
-				(*pos)++;
+				sp.pos++;
 			}
 		}
-		if (s.bytes[*pos] === 'e' || s.bytes[*pos] === 'E'){
-			(*pos)++;
-			if (*pos >= s.size)
+		if (sp.s.charAt(sp.pos) === 'e' || sp.s.charAt(sp.pos) === 'E'){
+			sp.pos++;
+			if (sp.pos >= sp.s.length)
 				return false;
-			if (s.bytes[*pos] === '-' || s.bytes[*pos] === '+'){
-				npi.esign = s.bytes[*pos] === '-' ? -1 : 1;
-				(*pos)++;
-				if (*pos >= s.size)
+			if (sp.s.charAt(sp.pos) === '-' || sp.s.charAt(sp.pos) === '+'){
+				npi.esign = sp.s.charAt(sp.pos) === '-' ? -1 : 1;
+				sp.pos++;
+				if (sp.pos >= sp.s.length)
 					return false;
 			}
-			if (!isNum((char)s.bytes[*pos]))
+			if (!isNum(sp.s.charAt(sp.pos)))
 				return false;
-			while (*pos < s.size && isNum((char)s.bytes[*pos])){
-				npi.eval = npi.eval * 10 + s.bytes[*pos] - '0';
-				(*pos)++;
+			while (sp.pos < sp.s.length && isNum(sp.s.charAt(sp.pos))){
+				npi.eval = npi.eval * 10 + sp.s.charCodeAt(sp.pos) - 48;
+				sp.pos++;
 			}
 		}
-		*res = sink_num(numpart_calc(npi));
-		return true;
+		return numpart_calc(npi);
 	}
 	else if (b === '"'){
-		list_byte str = list_byte_new();
-		while (*pos < s.size){
-			b = s.bytes[*pos];
+		let str = '';
+		while (sp.pos < sp.s.length){
+			b = sp.s.charAt(sp.pos);
 			if (b === '"'){
-				(*pos)++;
-				list_byte_null(str);
-				sink_str_st bstr = list_byte_freetostr(str);
-				*res = sink_str_newblobgive(ctx, bstr.size, bstr.bytes);
-				return true;
+				sp.pos++;
+				return str;
 			}
 			else if (b === '\\'){
-				(*pos)++;
-				if (*pos >= s.size){
-					list_byte_free(str);
+				sp.pos++;
+				if (sp.pos >= sp.s.length)
 					return false;
-				}
-				b = s.bytes[*pos];
+				b = sp.s.charAt(sp.pos);
 				if (b === '"' || b === '\\')
-					list_byte_push(str, b);
+					str += b;
 				else if (b === 'b')
-					list_byte_push(str, '\b');
+					str += '\b';
 				else if (b === 'f')
-					list_byte_push(str, '\f');
+					str += '\f';
 				else if (b === 'n')
-					list_byte_push(str, '\n');
+					str += '\n';
 				else if (b === 'r')
-					list_byte_push(str, '\r');
+					str += '\r';
 				else if (b === 't')
-					list_byte_push(str, '\t');
+					str += '\t';
 				else if (b === 'u'){
-					if (*pos + 4 >= s.size ||
-						s.bytes[*pos + 1] !== '0' || s.bytes[*pos + 2] !== '0' ||
-						!isHex(s.bytes[*pos + 3]) || !isHex(s.bytes[*pos + 4])){
-						list_byte_free(str);
+					if (sp.pos + 4 >= sp.s.length ||
+						sp.s.charAt(sp.pos + 1) !== '0' || sp.s.charAt(sp.pos + 2) !== '0' ||
+						!isHex(sp.s.charAt(sp.pos + 3)) || !isHex(sp.s.charAt(sp.pos + 4)))
 						return false;
-					}
-					list_byte_push(str,
-						(toHex(s.bytes[*pos + 3]) << 4) | toHex(s.bytes[*pos + 4]));
-					(*pos) += 4;
+					str += String.fromCharCode(
+						(toHex(sp.s.charAt(sp.pos + 3)) << 4) | toHex(sp.s.charAt(sp.pos + 4)));
+					sp.pos += 4;
 				}
-				else{
-					list_byte_free(str);
+				else
 					return false;
-				}
 			}
-			else if (b < 0x20){
-				list_byte_free(str);
+			else if (b < ' ')
 				return false;
-			}
 			else
-				list_byte_push(str, b);
-			(*pos)++;
+				str += b;
+			sp.pos++;
 		}
-		list_byte_free(str);
 		return false;
 	}
 	else if (b === '['){
-		while (*pos < s.size && isSpace((char)s.bytes[*pos]))
-			(*pos)++;
-		if (*pos >= s.size)
+		while (sp.pos < sp.s.length && isSpace(sp.s.charAt(sp.pos)))
+			sp.pos++;
+		if (sp.pos >= sp.s.length)
 			return false;
-		if (s.bytes[*pos] === ']'){
-			(*pos)++;
-			*res = sink_list_newempty(ctx);
-			return true;
+		let res = new sink_list();
+		if (sp.s.charAt(sp.pos) === ']'){
+			sp.pos++;
+			return res;
 		}
-		*res = sink_list_newempty(ctx);
 		while (true){
-			sink_val item;
-			if (!pk_fmjson(ctx, s, pos, &item))
+			let item = pk_fmjson(sp);
+			if (item === false)
 				return false;
-			sink_list_push(ctx, *res, item);
-			while (*pos < s.size && isSpace((char)s.bytes[*pos]))
-				(*pos)++;
-			if (*pos >= s.size)
+			res.push(item);
+			while (sp.pos < sp.s.length && isSpace(sp.s.charAt(sp.pos)))
+				sp.pos++;
+			if (sp.pos >= sp.s.length)
 				return false;
-			if (s.bytes[*pos] === ']'){
-				(*pos)++;
-				return true;
+			if (sp.s.charAt(sp.pos) === ']'){
+				sp.pos++;
+				return res;
 			}
-			else if (s.bytes[*pos] === ',')
-				(*pos)++;
+			else if (sp.s.charAt(sp.pos) === ',')
+				sp.pos++;
 			else
 				return false;
 		}
@@ -10575,71 +10399,54 @@ static bool pk_fmjson(context ctx, sink_str s, int *pos, sink_val *res){
 	return false;
 }
 
-static inline bool opi_pickle_valstr(context ctx, sink_str s, sink_val *res){
-	if (s.size < 1 || s.bytes[0] !== 0x01)
+export function sink_pickle_valstr(s: sink_str): sink_val | false {
+	if (s.length < 1 || s.charCodeAt(0) !== 0x01)
 		return false;
-	uint64_t pos = 1;
-	uint32_t str_table_size;
-	if (!pk_fmbin_vint(s, &pos, &str_table_size))
+	let sp = { s: s, pos: 1 };
+	let str_table_size = pk_fmbin_vint(sp);
+	if (str_table_size < 0)
 		return false;
-	sink_val *strs = NULL;
-	if (str_table_size > 0)
-		strs = mem_alloc(sizeof(sink_val) * str_table_size);
-	for (uint32_t i = 0; i < str_table_size; i++){
-		uint32_t str_size;
-		if (!pk_fmbin_vint(s, &pos, &str_size) || pos + str_size > s.size){
-			mem_free(strs);
+	let strs: string[] = [];
+	for (let i = 0; i < str_table_size; i++){
+		let str_size = pk_fmbin_vint(sp);
+		if (str_size < 0 || sp.pos + str_size > sp.s.length)
 			return false;
-		}
-		strs[i] = sink_str_newblob(ctx, str_size, &s.bytes[pos]);
-		pos += str_size;
+		strs.push(s.substr(sp.pos, str_size));
+		sp.pos += str_size;
 	}
-	list_int li = list_int_new();
-	if (!pk_fmbin(ctx, s, &pos, str_table_size, strs, li, res)){
-		mem_free(strs);
-		list_int_free(li);
-		return false;
-	}
-	mem_free(strs);
-	list_int_free(li);
-	return true;
+	return pk_fmbin(sp, strs, []);
 }
 
-static inline sink_val sink_pickle_val(context ctx, sink_val a){
-	if (!sink_isstr(a)){
-		opi_abort(ctx, "Invalid pickle data");
+export function sink_pickle_val(ctx: sink_ctx, a: sink_val): sink_val {
+	if (!sink_isstr(a) || a.length < 1){
+		opi_abort(ctx, 'Invalid pickle data');
 		return SINK_NIL;
 	}
-	sink_str s = var_caststr(ctx, a);
-	if (s.size < 1){
-		opi_abort(ctx, "Invalid pickle data");
-		return SINK_NIL;
-	}
-	if (s.bytes[0] === 0x01){ // binary decode
-		sink_val res;
-		if (!opi_pickle_valstr(ctx, s, &res)){
-			opi_abort(ctx, "Invalid pickle data");
+	if (a.charCodeAt(0) === 0x01){ // binary decode
+		let res = sink_pickle_valstr(a);
+		if (res === false){
+			opi_abort(ctx, 'Invalid pickle data');
 			return SINK_NIL;
 		}
 		return res;
 	}
 	// otherwise, json decode
-	int pos = 0;
-	sink_val res;
-	if (!pk_fmjson(ctx, s, &pos, &res)){
-		opi_abort(ctx, "Invalid pickle data");
+	let sp = { s: a, pos: 0 };
+	let res = pk_fmjson(sp);
+	if (res === false){
+		opi_abort(ctx, 'Invalid pickle data');
 		return SINK_NIL;
 	}
-	while (pos < s.size){
-		if (!isSpace(s.bytes[pos])){
-			opi_abort(ctx, "Invalid pickle data");
+	while (sp.pos < a.length){
+		if (!isSpace(a.charAt(sp.pos))){
+			opi_abort(ctx, 'Invalid pickle data');
 			return SINK_NIL;
 		}
-		pos++;
+		sp.pos++;
 	}
 	return res;
 }
-
+/*
 static inline bool pk_isbin_adv(sink_str s, uint64_t *pos, uint32_t amt){
 	(*pos) += amt;
 	return *pos <= s.size;

@@ -11922,7 +11922,7 @@ static inline bool pk_isjson(sink_str s){
 			case PKV_START: // start state
 				if (b == 'n'){
 					if (nb != 'u')
-						return 0;
+						return false;
 					state = PKV_NULL1;
 				}
 				else if (b == '0'){
@@ -11949,16 +11949,16 @@ static inline bool pk_isjson(sink_str s){
 						state = PKV_ARRAY;
 				}
 				else if (!isSpace((char)b))
-					return 0;
+					return false;
 				break;
 			case PKV_NULL1:
 				if (nb != 'l')
-					return 0;
+					return false;
 				state = PKV_NULL2;
 				break;
 			case PKV_NULL2:
 				if (nb != 'l')
-					return 0;
+					return false;
 				state = PKV_NULL3;
 				break;
 			case PKV_NULL3:
@@ -11973,7 +11973,7 @@ static inline bool pk_isjson(sink_str s){
 					state = PKV_NUM_EXP;
 				}
 				else
-					return 0;
+					return false;
 				break;
 			case PKV_NUM_NEG:
 				if (b == '0'){
@@ -11991,11 +11991,11 @@ static inline bool pk_isjson(sink_str s){
 						state = PKV_ENDVAL;
 				}
 				else
-					return 0;
+					return false;
 				break;
 			case PKV_NUM_INT:
 				if (!isNum((char)b))
-					return 0;
+					return false;
 				if (nb == '.' || nb == 'e' || nb == 'E')
 					state = PKV_NUM_0;
 				else if (!isNum((char)nb))
@@ -12003,7 +12003,7 @@ static inline bool pk_isjson(sink_str s){
 				break;
 			case PKV_NUM_FRAC:
 				if (!isNum((char)b))
-					return 0;
+					return false;
 				if (nb == 'e' || nb == 'E')
 					state = PKV_NUM_FRACE;
 				else if (!isNum((char)nb))
@@ -12022,11 +12022,11 @@ static inline bool pk_isjson(sink_str s){
 				else if (b == '+' || b == '-')
 					state = PKV_NUM_EXP;
 				else
-					return 0;
+					return false;
 				break;
 			case PKV_NUM_EXP:
 				if (!isNum((char)b))
-					return 0;
+					return false;
 				if (!isNum((char)nb))
 					state = PKV_ENDVAL;
 				break;
@@ -12035,8 +12035,8 @@ static inline bool pk_isjson(sink_str s){
 					state = PKV_STR_ESC;
 				else if (b == '"')
 					state = PKV_ENDVAL;
-				else if (b < 0x20)
-					return 0;
+				else if (b < ' ')
+					return false;
 				break;
 			case PKV_STR_ESC:
 				if (b == '"' || b == '\\' || b == '/' || b == 'b' ||
@@ -12044,25 +12044,25 @@ static inline bool pk_isjson(sink_str s){
 					state = PKV_STR;
 				else if (b == 'u'){
 					if (nb != '0')
-						return 0;
+						return false;
 					state = PKV_STR_U1;
 				}
 				else
-					return 0;
+					return false;
 				break;
 			case PKV_STR_U1:
 				if (nb != '0')
-					return 0;
+					return false;
 				state = PKV_STR_U2;
 				break;
 			case PKV_STR_U2:
 				if (!isHex((char)nb))
-					return 0;
+					return false;
 				state = PKV_STR_U3;
 				break;
 			case PKV_STR_U3:
 				if (!isHex((char)nb))
-					return 0;
+					return false;
 				state = PKV_STR_U4;
 				break;
 			case PKV_STR_U4:
@@ -12081,10 +12081,10 @@ static inline bool pk_isjson(sink_str s){
 					else if (b == ']')
 						arrays--;
 					else if (!isSpace((char)b))
-						return 0;
+						return false;
 				}
 				else if (!isSpace((char)b))
-					return 0;
+					return false;
 				break;
 		}
 	}
@@ -12541,7 +12541,7 @@ static bool pk_fmjson(context ctx, sink_str s, int *pos, sink_val *res){
 	if (b == 'n'){
 		if (*pos + 2 >= s->size)
 			return false;
-		if (s->bytes[*pos] != 'u' ||
+		if (s->bytes[*pos + 0] != 'u' ||
 			s->bytes[*pos + 1] != 'l' ||
 			s->bytes[*pos + 2] != 'l')
 			return false;
@@ -12564,7 +12564,7 @@ static bool pk_fmjson(context ctx, sink_str s, int *pos, sink_val *res){
 		if (b >= '1' && b <= '9'){
 			npi.val = b - '0';
 			while (*pos < s->size && isNum((char)s->bytes[*pos])){
-				npi.val = 10 * npi.val + (s->bytes[*pos] - '0');
+				npi.val = 10 * npi.val + s->bytes[*pos] - '0';
 				(*pos)++;
 			}
 		}
