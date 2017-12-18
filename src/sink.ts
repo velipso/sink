@@ -5314,8 +5314,6 @@ function lval_addVars(sym: symtbl_st, ex: expr_st, slot: number): lvp_st {
 }
 
 function lval_prepare(pgen: pgen_st, ex: expr_st): lvp_st | Promise<lvp_st> {
-
-
 	function handleListGroup(flp: filepos_st, exg: expr_st_GROUP): lvp_st | Promise<lvp_st> {
 		let body: lvr_st[] = [];
 		let rest: lvr_st | null = null;
@@ -12145,61 +12143,42 @@ interface filepos_node_st {
 	flp: filepos_st;
 	wascr: boolean;
 }
-/*
-static filepos_node flpn_new(int fullfile, int basefile, filepos_node next){
-	filepos_node flpn = mem_alloc(sizeof(filepos_node_st));
-	flpn.lx = lex_new();
-	flpn.tks = list_ptr_new(tok_free);
-	flpn.pgstate = list_ptr_new(pgst_free);
-	flpn.flp.fullfile = fullfile;
-	flpn.flp.basefile = basefile;
-	flpn.flp.line = 1;
-	flpn.flp.chr = 1;
-	flpn.wascr = false;
-	flpn.next = next;
-	return flpn;
+
+function flpn_new(fullfile: number, basefile: number,
+	next: filepos_node_st | null): filepos_node_st {
+	return {
+		lx: lex_new(),
+		tks: [],
+		stmts: [],
+		pgstate: [],
+		flp: { fullfile: fullfile, basefile: basefile, line: 1, chr: 1 },
+		wascr: false,
+		next: next
+	};
 }
 
-static void flpn_free(filepos_node flpn){
-	lex_free(flpn.lx);
-	list_ptr_free(flpn.tks);
-	list_ptr_free(flpn.pgstate);
-	mem_free(flpn);
-}
-*/
 interface staticinc_st {
 	name: string[];
 	type: number[]; // 0 = body, 1 = file
 	content: string[];
 }
-/*
-static inline staticinc staticinc_new(){
-	staticinc sinc = mem_alloc(sizeof(staticinc_st));
-	sinc.name = list_ptr_new(NULL);
-	sinc.type = list_byte_new();
-	sinc.content = list_ptr_new(NULL);
-	return sinc;
+
+function staticinc_new(): staticinc_st {
+	return { name: [], type: [], content: [] };
 }
 
-static inline void staticinc_addbody(staticinc sinc, const char *name, const char *body){
-	list_ptr_push(sinc.name, (void *)name);
-	list_byte_push(sinc.type, 0);
-	list_ptr_push(sinc.content, (void *)body);
+function staticinc_addbody(sinc: staticinc_st, name: string, body: string): void {
+	sinc.name.push(name);
+	sinc.type.push(0);
+	sinc.content.push(body);
 }
 
-static inline void staticinc_addfile(staticinc sinc, const char *name, const char *file){
-	list_ptr_push(sinc.name, (void *)name);
-	list_byte_push(sinc.type, 1);
-	list_ptr_push(sinc.content, (void *)file);
+function staticinc_addfile(sinc: staticinc_st, name: string, file: string): void {
+	sinc.name.push(name);
+	sinc.type.push(1);
+	sinc.content.push(file);
 }
 
-static inline void staticinc_free(staticinc sinc){
-	list_ptr_free(sinc.name);
-	list_byte_free(sinc.type);
-	list_ptr_free(sinc.content);
-	mem_free(sinc);
-}
-*/
 interface compiler_st {
 	sinc: staticinc_st;
 	pr: parser_st;
@@ -12209,58 +12188,47 @@ interface compiler_st {
 	sym: symtbl_st;
 	flpn: filepos_node_st;
 	inc: sink_inc_st;
-	msg: string;
+	msg: string | null;
 }
-/*
-static inline int script_addfile(script scr, const char *file);
 
-static compiler compiler_new(script scr, program prg, staticinc sinc, sink_inc_st inc,
-	const char *file, list_ptr paths){
-	compiler cmp = mem_alloc(sizeof(compiler_st));
-	cmp.sinc = sinc;
-	cmp.pr = parser_new();
-	cmp.scr = scr;
-	cmp.prg = prg;
-	cmp.paths = paths;
-	cmp.sym = symtbl_new(prg.repl);
+function compiler_new(scr: script_st, prg: program_st, sinc: staticinc_st, inc: sink_inc_st,
+	file: string | null, paths: string[]): compiler_st {
+	let cmp: compiler_st = {
+		sinc: sinc,
+		pr: parser_new(),
+		scr: scr,
+		prg: prg,
+		paths: paths,
+		sym: symtbl_new(prg.repl),
+		flpn: flpn_new(script_addfile(scr, file), program_addfile(prg, file), null),
+		inc: inc,
+		msg: null
+	};
 	symtbl_loadStdlib(cmp.sym);
-	cmp.flpn = flpn_new(script_addfile(scr, file), program_addfile(prg, file), NULL);
-	cmp.inc = inc;
-	cmp.msg = NULL;
 	return cmp;
 }
 
-static inline void compiler_setmsg(compiler cmp, char *msg){
-	if (cmp.msg)
-		mem_free(cmp.msg);
+function compiler_setmsg(cmp: compiler_st, msg: string | null): void {
 	cmp.msg = msg;
 }
 
-static void compiler_reset(compiler cmp){
-	compiler_setmsg(cmp, NULL);
+function compiler_reset(cmp: compiler_st): void {
+	compiler_setmsg(cmp, null);
 	lex_reset(cmp.flpn.lx);
-	parser_free(cmp.pr);
 	cmp.pr = parser_new();
-
-	list_ptr_free(cmp.flpn.tks);
-	cmp.flpn.tks = list_ptr_new(tok_free);
-
-	list_ptr_free(cmp.flpn.pgstate);
-	cmp.flpn.pgstate = list_ptr_new(pgst_free);
+	cmp.flpn.tks = [];
+	cmp.flpn.pgstate = [];
 }
 
-static char *compiler_write(compiler cmp, int size, const uint8_t *bytes);
-static char *compiler_closeLexer(compiler cmp);
-
-static bool compiler_begininc(compiler cmp, list_ptr names, const char *file){
+function compiler_begininc(cmp: compiler_st, names: string[] | true | null, file: string): boolean {
 	cmp.flpn = flpn_new(
 		script_addfile(cmp.scr, file), program_addfile(cmp.prg, file), cmp.flpn);
 	if (names){
-		char *smsg = symtbl_pushNamespace(cmp.sym, names);
+		let smsg = symtbl_pushNamespace(cmp.sym, names);
 		if (smsg){
-			filepos_node del = cmp.flpn;
+			if (cmp.flpn.next === null)
+				throw new Error('Expecting file position during include');
 			cmp.flpn = cmp.flpn.next;
-			flpn_free(del);
 			compiler_setmsg(cmp, smsg);
 			return false;
 		}
@@ -12268,187 +12236,213 @@ static bool compiler_begininc(compiler cmp, list_ptr names, const char *file){
 	return true;
 }
 
-typedef struct {
-	compiler cmp;
-	list_ptr names;
-} compiler_fileres_user_st, *compiler_fileres_user;
+interface compiler_fileres_user_st {
+	cmp: compiler_st;
+	names: true | string[] | null;
+}
 
-static bool compiler_begininc_cfu(const char *file, compiler_fileres_user cfu){
+function compiler_begininc_cfu(file: string, cfu: compiler_fileres_user_st): boolean {
 	return compiler_begininc(cfu.cmp, cfu.names, file);
 }
 
-static void compiler_endinc(compiler cmp, bool ns){
+function compiler_endinc(cmp: compiler_st, ns: boolean): void {
 	if (ns)
 		symtbl_popNamespace(cmp.sym);
-	filepos_node del = cmp.flpn;
+	if (cmp.flpn.next === null)
+		throw new Error('Expecting file position when finishing include');
 	cmp.flpn = cmp.flpn.next;
-	flpn_free(del);
 }
 
-static void compiler_endinc_cfu(bool success, const char *file, compiler_fileres_user cfu){
-	if (success)
-		compiler_closeLexer(cfu.cmp);
-	compiler_endinc(cfu.cmp, cfu.names !== NULL);
-	if (!success && cfu.cmp.msg === NULL)
-		compiler_setmsg(cfu.cmp, format("Failed to read file: %s", file));
+function compiler_endinc_cfu(success: boolean, file: string,
+	cfu: compiler_fileres_user_st): undefined | Promise<undefined> {
+	if (success){
+		return checkPromise<string | null, undefined>(
+			compiler_closeLexer(cfu.cmp),
+			handleEnd
+		);
+	}
+	return handleEnd();
+	function handleEnd(): undefined {
+		compiler_endinc(cfu.cmp, cfu.names !== null);
+		if (!success && cfu.cmp.msg === null)
+			compiler_setmsg(cfu.cmp, 'Failed to read file: ' + file);
+		return undefined;
+	}
 }
 
-static bool compiler_staticinc(compiler cmp, list_ptr names, const char *file, const char *body){
+function compiler_staticinc(cmp: compiler_st, names: string[] | true | null, file: string,
+	body: string): boolean | Promise<boolean> {
 	if (!compiler_begininc(cmp, names, file))
 		return false;
-	char *err = compiler_write(cmp, (int)strlen(body), (const uint8_t *)body);
-	if (err){
-		compiler_endinc(cmp, names !== NULL);
-		return false;
-	}
-	err = compiler_closeLexer(cmp);
-	compiler_endinc(cmp, names !== NULL);
-	if (err)
-		return false;
-	return true;
+	return checkPromise<string | null, boolean>(
+		compiler_write(cmp, body),
+		function(err: string | null): boolean | Promise<boolean> {
+			if (err){
+				compiler_endinc(cmp, names !== null);
+				return false;
+			}
+			return checkPromise<string | null, boolean>(
+				compiler_closeLexer(cmp),
+				function(err: string | null): boolean {
+					compiler_endinc(cmp, names !== null);
+					if (err)
+						return false;
+					return true;
+				}
+			);
+		}
+	);
 }
 
-static bool compiler_dynamicinc(compiler cmp, list_ptr names, const char *file, const char *from){
-	compiler_fileres_user_st cfu;
-	cfu.cmp = cmp;
-	cfu.names = names;
-	char *cwd = NULL;
+function compiler_dynamicinc(cmp: compiler_st, names: string[] | true | null, file: string,
+	from: string | null): boolean | Promise<boolean> {
+	let cfu = { cmp: cmp, names: names };
+	let cwd: string | null = null;
 	if (from)
-		cwd = pathjoin(from, "..");
-	bool res = fileres_read(cmp.scr, true, file, cwd,
-		(f_fileres_begin_f)compiler_begininc_cfu, (f_fileres_end_f)compiler_endinc_cfu, &cfu);
-	if (cwd)
-		mem_free(cwd);
-	return res;
+		cwd = pathjoin(from, '..');
+	return fileres_read(cmp.scr, true, file, cwd,
+		compiler_begininc_cfu, compiler_endinc_cfu, cfu);
 }
 
-static char *compiler_process(compiler cmp){
-	// generate statements
-	list_ptr stmts = list_ptr_new(ast_free);
-	while (cmp.flpn.tks.size > 0){
-		while (cmp.flpn.tks.size > 0){
-			tok tk = list_ptr_shift(cmp.flpn.tks);
-			tok_print(tk);
+function compiler_process(cmp: compiler_st): string | null | Promise<string | null> {
+	return handleNextFlpn();
+
+	function handleNextFlpn(): string | null | Promise<string | null> {
+		if (cmp.flpn.tks.length <= 0)
+			return null;
+
+		// generate statements
+		let stmts: ast_st[] = [];
+		while (cmp.flpn.tks.length > 0){
+			let tk = cmp.flpn.tks.shift() as tok_st;
 			if (tk.type === tok_enum.ERROR){
-				compiler_setmsg(cmp, program_errormsg(cmp.prg, tk.flp, tk.u.msg));
-				tok_free(tk);
-				list_ptr_free(stmts);
+				compiler_setmsg(cmp, program_errormsg(cmp.prg, tk.flp, tk.msg));
 				return cmp.msg;
 			}
-			const char *pmsg = parser_add(cmp.pr, tk, stmts);
+			let pmsg = parser_add(cmp.pr, tk, stmts);
 			if (pmsg){
 				compiler_setmsg(cmp, program_errormsg(cmp.prg, tk.flp, pmsg));
-				list_ptr_free(stmts);
 				return cmp.msg;
 			}
-			if (stmts.size > 0 && ((ast)stmts.ptrs[stmts.size - 1]).type === ast_enum.INCLUDE)
+			if (stmts.length > 0 && stmts[stmts.length - 1].type === ast_enumt.INCLUDE)
 				break;
 		}
 
-		// process statements
-		while (stmts.size > 0){
-			ast stmt = list_ptr_shift(stmts);
-			ast_print(stmt);
+		return handleNextStmt();
 
-			if (stmt.type === ast_enum.INCLUDE){
-				// intercept include statements to process by the compiler
-				for (int ii = 0; ii < stmt.u.incls.size; ii++){
-					incl inc = stmt.u.incls.ptrs[ii];
-					const char *file = (const char *)inc.file.bytes;
+		function handleNextStmt(): string | null | Promise<string | null> {
+			// process statements
+			if (stmts.length <= 0)
+				return handleNextFlpn();
 
-					// look if file matches a static include pseudo-file
-					bool internal = false;
-					for (int i = 0; i < cmp.sinc.name.size; i++){
-						const char *sinc_name = cmp.sinc.name.ptrs[i];
-						if (strcmp(file, sinc_name) === 0){
-							internal = true;
-							const char *sinc_content = cmp.sinc.content.ptrs[i];
-							bool is_body = cmp.sinc.type.bytes[i] === 0;
-							bool success;
-							if (is_body)
-								success = compiler_staticinc(cmp, inc.names, file, sinc_content);
-							else{
-								success = compiler_dynamicinc(cmp, inc.names, sinc_content,
-									script_getfile(cmp.scr, stmt.flp.fullfile));
-								if (!success){
-									compiler_setmsg(cmp,
-										format("Failed to include: %s", file));
-								}
-							}
-							if (!success){
-								ast_free(stmt);
-								list_ptr_free(stmts);
+			let stmt = stmts.shift() as ast_st;
+
+			function handleNextIncl(ii: number): string | null | Promise<string | null> {
+				if (stmt.type !== ast_enumt.INCLUDE)
+					throw new Error('Expecting include AST node');
+				if (ii >= stmt.incls.length)
+					return handleNextStmt();
+
+				let inc = stmt.incls[ii];
+				let file = inc.file;
+
+				// look if file matches a static include pseudo-file
+				let internal = false;
+				for (let i = 0; i < cmp.sinc.name.length; i++){
+					let sinc_name = cmp.sinc.name[i];
+					if (file === sinc_name){
+						internal = true;
+						let sinc_content = cmp.sinc.content[i];
+						let is_body = cmp.sinc.type[i] === 0;
+						if (is_body){
+							let success = compiler_staticinc(cmp, inc.names, file, sinc_content);
+							if (!success)
 								return cmp.msg;
-							}
-							break;
+							return handleExternalInc();
 						}
-					}
-
-					if (!internal){
-						bool found = compiler_dynamicinc(cmp, inc.names, file,
-							script_getfile(cmp.scr, stmt.flp.fullfile));
-						if (!found && cmp.msg === NULL)
-							compiler_setmsg(cmp, format("Failed to include: %s", file));
-						if (cmp.msg){
-							ast_free(stmt);
-							list_ptr_free(stmts);
-							return cmp.msg;
+						else{
+							return checkPromise<boolean, string | null>(
+								compiler_dynamicinc(cmp, inc.names, sinc_content,
+									script_getfile(cmp.scr, stmt.flp.fullfile)),
+								function(success: boolean): string | null | Promise<string | null> {
+									if (!success){
+										compiler_setmsg(cmp, 'Failed to include: ' + file);
+										return cmp.msg;
+									}
+									return handleExternalInc();
+								}
+							);
 						}
 					}
 				}
+				return handleExternalInc();
+
+				function handleExternalInc(): string | null | Promise<string | null> {
+					if (!internal){
+						let found = compiler_dynamicinc(cmp, inc.names, file,
+							script_getfile(cmp.scr, stmt.flp.fullfile));
+						if (!found && cmp.msg === null)
+							compiler_setmsg(cmp, 'Failed to include: ' + file);
+						if (cmp.msg)
+							return cmp.msg;
+					}
+					return handleNextIncl(ii + 1);
+				}
+			}
+
+			if (stmt.type === ast_enumt.INCLUDE){
+				// intercept include statements to process by the compiler
+				return handleNextIncl(0);
 			}
 			else{
-				list_ptr pgsl = cmp.flpn.pgstate;
-				pgr_st pg = program_gen((pgen_st){
-						.prg = cmp.prg,
-						.sym = cmp.sym,
-						.scr = cmp.scr,
-						.from = stmt.flp.fullfile
-					}, stmt,
-					pgsl.size <= 0 ? NULL : ((pgst)pgsl.ptrs[pgsl.size - 1]).state,
-					cmp.prg.repl && cmp.flpn.next === NULL && pgsl.size <= 0);
-				symtbl_print(cmp.sym);
-				switch (pg.type){
-					case PGR_OK:
-						break;
-					case PGR_PUSH:
-						list_ptr_push(pgsl, pg.u.push.pgs);
-						break;
-					case PGR_POP:
-						pgst_free(list_ptr_pop(pgsl));
-						break;
-					case PGR_ERROR:
-						compiler_setmsg(cmp,
-							program_errormsg(cmp.prg, pg.u.error.flp, pg.u.error.msg));
-						ast_free(stmt);
-						mem_free(pg.u.error.msg);
-						list_ptr_free(stmts);
-						return cmp.msg;
-					case PGR_FORVARS:
-						// impossible
-						assert(false);
-						break;
-				}
+				let pgsl = cmp.flpn.pgstate;
+				return checkPromise<pgr_st, string | null>(
+					program_gen({
+							prg: cmp.prg,
+							sym: cmp.sym,
+							scr: cmp.scr,
+							from: stmt.flp.fullfile
+						}, stmt,
+						pgsl.length <= 0 ? null : (pgsl[pgsl.length - 1] as any).state,
+						cmp.prg.repl && cmp.flpn.next === null && pgsl.length <= 0),
+					function(pg: pgr_st): string | null | Promise<string | null> {
+						switch (pg.type){
+							case pgr_enum.OK:
+								break;
+							case pgr_enum.PUSH:
+								pgsl.push(pg.pgs);
+								break;
+							case pgr_enum.POP:
+								pgsl.pop();
+								break;
+							case pgr_enum.ERROR:
+								compiler_setmsg(cmp, program_errormsg(cmp.prg, pg.flp, pg.msg));
+								return cmp.msg;
+							case pgr_enum.FORVARS:
+								// impossible
+								throw new Error('Program generator can\'t return FORVARS');
+						}
+						return handleNextStmt();
+					}
+				);
 			}
-			ast_free(stmt);
 		}
 	}
-	list_ptr_free(stmts);
-	return null;
 }
 
-static char *compiler_write(compiler cmp, int size, const uint8_t *bytes){
-	filepos_node flpn = cmp.flpn;
-	for (int i = 0; i < size; i++){
-		lex_add(flpn.lx, flpn.flp, bytes[i], flpn.tks);
-		if (bytes[i] === '\n'){
+function compiler_write(cmp: compiler_st, bytes: string): string | null | Promise<string | null> {
+	let flpn = cmp.flpn;
+	for (let i = 0; i < bytes.length; i++){
+		let b = bytes.charAt(i);
+		lex_add(flpn.lx, flpn.flp, b, flpn.tks);
+		if (b === '\n'){
 			if (!flpn.wascr){
 				flpn.flp.line++;
 				flpn.flp.chr = 1;
 			}
 			flpn.wascr = false;
 		}
-		else if (bytes[i] === '\r'){
+		else if (b === '\r'){
 			flpn.flp.line++;
 			flpn.flp.chr = 1;
 			flpn.wascr = true;
@@ -12461,39 +12455,29 @@ static char *compiler_write(compiler cmp, int size, const uint8_t *bytes){
 	return compiler_process(cmp);
 }
 
-static char *compiler_closeLexer(compiler cmp){
+function compiler_closeLexer(cmp: compiler_st): string | null | Promise<string | null> {
 	lex_close(cmp.flpn.lx, cmp.flpn.flp, cmp.flpn.tks);
 	return compiler_process(cmp);
 }
 
-static char *compiler_close(compiler cmp){
-	char *err = compiler_closeLexer(cmp);
-	if (err)
-		return err;
+function compiler_close(cmp: compiler_st): string | null | Promise<string | null> {
+	return checkPromise<string | null, string | null>(
+		compiler_closeLexer(cmp),
+		function(err: string | null): string | null {
+			if (err)
+				return err;
 
-	const char *pmsg = parser_close(cmp.pr);
-	if (pmsg){
-		compiler_setmsg(cmp, program_errormsg(cmp.prg, cmp.flpn.flp, pmsg));
-		return cmp.msg;
-	}
+			let pmsg = parser_close(cmp.pr);
+			if (pmsg){
+				compiler_setmsg(cmp, program_errormsg(cmp.prg, cmp.flpn.flp, pmsg));
+				return cmp.msg;
+			}
 
-	return null;
+			return null;
+		}
+	);
 }
-
-static void compiler_free(compiler cmp){
-	if (cmp.msg)
-		mem_free(cmp.msg);
-	parser_free(cmp.pr);
-	symtbl_free(cmp.sym);
-	filepos_node flpn = cmp.flpn;
-	while (flpn){
-		filepos_node del = flpn;
-		flpn = flpn.next;
-		flpn_free(del);
-	}
-	mem_free(cmp);
-}
-
+/*
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 //
 // API
