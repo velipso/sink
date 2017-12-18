@@ -7810,12 +7810,13 @@ function lxs_new(args: sink_val[], next: lxs_st | null){
 }
 
 interface native_st {
+	natuser: any;
 	f_native: sink_native_f;
 	hash: sink_u64;
 }
 
-function native_new(hash: sink_u64, f_native: sink_native_f): native_st {
-	return { hash: hash, f_native: f_native };
+function native_new(hash: sink_u64, natuser: any, f_native: sink_native_f): native_st {
+	return { natuser: natuser, hash: hash, f_native: f_native };
 }
 
 interface context_st {
@@ -7824,7 +7825,7 @@ interface context_st {
 
 	prg: program_st;
 	call_stk: ccs_st[];
-	lex_stk: lxs_st[];
+	lex_stk: (lxs_st | null)[];
 	user_hint: string[];
 	ccs_avail: ccs_st[];
 	lxs_avail: lxs_st[];
@@ -7843,7 +7844,6 @@ interface context_st {
 	err: string | null;
 	passed: boolean;
 	failed: boolean;
-	async: boolean;
 }
 
 function lxs_get(ctx: context_st, args: sink_val[], next: lxs_st | null): lxs_st {
@@ -7884,9 +7884,10 @@ function ccs_release(ctx: context_st, c: ccs_st): void {
 	ctx.ccs_avail.push(c);
 }
 
-function context_native(ctx: context_st, hash: sink_u64, f_native: sink_native_f): void {
+function context_native(ctx: context_st, hash: sink_u64, natuser: any,
+	f_native: sink_native_f): void {
 	if (ctx.prg.repl)
-		ctx.natives.push(native_new(hash, f_native));
+		ctx.natives.push(native_new(hash, natuser, f_native));
 	else{
 		for (let i = 0; i < ctx.natives.length; i++){
 			let nat = ctx.natives[i];
@@ -7922,8 +7923,7 @@ function context_new(prg: program_st, io: sink_io_st): context_st {
 		rand_i: 0,
 		err: null,
 		passed: false,
-		failed: false,
-		async: false
+		failed: false
 	};
 	sink_rand_seedauto(ctx);
 	return ctx;
@@ -7936,7 +7936,7 @@ function context_reset(ctx: context_st): void {
 		if (typeof s === 'undefined')
 			throw new Error('Cannot unwind call stack');
 		let lx = ctx.lex_stk[ctx.lex_index];
-		if (lx.next === null)
+		if (lx === null || lx.next === null)
 			throw new Error('Bad lexical stack');
 		ctx.lex_stk[ctx.lex_index] = lx.next;
 		lxs_release(ctx, lx);
@@ -7953,12 +7953,12 @@ function context_reset(ctx: context_st): void {
 
 function var_get(ctx: context_st, frame: number, index: number): sink_val {
 	// TODO: look at inlining this manually
-	return ctx.lex_stk[frame].vals[index];
+	return (ctx.lex_stk[frame] as lxs_st).vals[index];
 }
 
 function var_set(ctx: context_st, frame: number, index: number, val: sink_val): void {
 	// TODO: look at inlining this manually
-	ctx.lex_stk[frame].vals[index] = val;
+	(ctx.lex_stk[frame] as lxs_st).vals[index] = val;
 }
 
 function arget(ar: sink_val, index: number): sink_val {
@@ -10583,124 +10583,151 @@ export function sink_pickle_copy(ctx: sink_ctx, a: sink_val): sink_val {
 }
 
 // op descriptions for error messages
-let txt_num_neg      = 'negating';
-let txt_num_add      = 'adding';
-let txt_num_sub      = 'subtracting';
-let txt_num_mul      = 'multiplying';
-let txt_num_div      = 'dividing';
-let txt_num_mod      = 'taking modular';
-let txt_num_pow      = 'exponentiating';
-let txt_num_abs      = 'taking absolute value';
-let txt_num_sign     = 'taking sign';
-let txt_num_clamp    = 'clamping';
-let txt_num_floor    = 'taking floor';
-let txt_num_ceil     = 'taking ceil';
-let txt_num_round    = 'rounding';
-let txt_num_trunc    = 'truncating';
-let txt_num_isnan    = 'testing if NaN';
-let txt_num_isfinite = 'testing if finite';
-let txt_num_sin      = 'taking sin';
-let txt_num_cos      = 'taking cos';
-let txt_num_tan      = 'taking tan';
-let txt_num_asin     = 'taking arc-sin';
-let txt_num_acos     = 'taking arc-cos';
-let txt_num_atan     = 'taking arc-tan';
-let txt_num_log      = 'taking logarithm';
-let txt_num_lerp     = 'lerping';
-let txt_num_hex      = 'converting to hex';
-let txt_num_oct      = 'converting to oct';
-let txt_num_bin      = 'converting to bin';
-let txt_int_new      = 'casting to int';
-let txt_int_not      = 'NOTing';
-let txt_int_and      = 'ANDing';
-let txt_int_or       = 'ORing';
-let txt_int_xor      = 'XORing';
-let txt_int_shl      = 'shifting left';
-let txt_int_shr      = 'shifting right';
-let txt_int_clz      = 'counting leading zeros';
-let txt_int_pop      = 'population count';
-let txt_int_bswap    = 'byte swaping';
-/*
-static sink_run context_run(context ctx){
-	if (ctx.passed) return SINK_RUN_PASS;
-	if (ctx.failed) return SINK_RUN_FAIL;
-	if (ctx.async ) return SINK_RUN_ASYNC;
+const txt_num_neg      = 'negating';
+const txt_num_add      = 'adding';
+const txt_num_sub      = 'subtracting';
+const txt_num_mul      = 'multiplying';
+const txt_num_div      = 'dividing';
+const txt_num_mod      = 'taking modular';
+const txt_num_pow      = 'exponentiating';
+const txt_num_abs      = 'taking absolute value';
+const txt_num_sign     = 'taking sign';
+const txt_num_clamp    = 'clamping';
+const txt_num_floor    = 'taking floor';
+const txt_num_ceil     = 'taking ceil';
+const txt_num_round    = 'rounding';
+const txt_num_trunc    = 'truncating';
+const txt_num_isnan    = 'testing if NaN';
+const txt_num_isfinite = 'testing if finite';
+const txt_num_sin      = 'taking sin';
+const txt_num_cos      = 'taking cos';
+const txt_num_tan      = 'taking tan';
+const txt_num_asin     = 'taking arc-sin';
+const txt_num_acos     = 'taking arc-cos';
+const txt_num_atan     = 'taking arc-tan';
+const txt_num_log      = 'taking logarithm';
+const txt_num_lerp     = 'lerping';
+const txt_num_hex      = 'converting to hex';
+const txt_num_oct      = 'converting to oct';
+const txt_num_bin      = 'converting to bin';
+const txt_int_new      = 'casting to int';
+const txt_int_not      = 'NOTing';
+const txt_int_and      = 'ANDing';
+const txt_int_or       = 'ORing';
+const txt_int_xor      = 'XORing';
+const txt_int_shl      = 'shifting left';
+const txt_int_shr      = 'shifting right';
+const txt_int_clz      = 'counting leading zeros';
+const txt_int_pop      = 'population count';
+const txt_int_bswap    = 'byte swaping';
+
+function context_run(ctx: context_st): sink_run | Promise<sink_run> {
+	if (ctx.passed) return sink_run.PASS;
+	if (ctx.failed) return sink_run.FAIL;
 
 	if (ctx.timeout > 0 && ctx.timeout_left <= 0){
 		ctx.timeout_left = ctx.timeout;
-		return SINK_RUN_TIMEOUT;
+		return sink_run.TIMEOUT;
 	}
 
-	int A, B, C, D, E, F, G, H, I, J;
-	sink_val X, Y, Z, W;
-	sink_list ls;
-	sink_str str;
-	sink_val p[256];
+	let A: number = 0, B: number = 0, C: number = 0, D: number = 0, E: number = 0;
+	let F: number = 0, G: number = 0, H: number = 0, I: number = 0, J: number = 0;
+	let X: sink_val = 0, Y: sink_val = 0, Z: sink_val = 0, W: sink_val = 0;
+	let ls: sink_list;
+	let str: sink_str;
 
-	list_byte ops = ctx.prg.ops;
+	let ops = ctx.prg.ops;
 
-	#define LOAD_ab()                                                                      \
-		ctx.pc++;                                                                         \
-		A = ops.bytes[ctx.pc++]; B = ops.bytes[ctx.pc++];
+	function LOAD_ab(): void {
+		ctx.pc++;
+		A = ops[ctx.pc++]; B = ops[ctx.pc++];
+	}
 
-	#define LOAD_abc()                                                                     \
-		LOAD_ab();                                                                         \
-		C = ops.bytes[ctx.pc++];
+	function LOAD_abc(): void {
+		ctx.pc++;
+		A = ops[ctx.pc++]; B = ops[ctx.pc++];
+		C = ops[ctx.pc++];
+	}
 
-	#define LOAD_abcd()                                                                    \
-		LOAD_ab();                                                                         \
-		C = ops.bytes[ctx.pc++]; D = ops.bytes[ctx.pc++];
+	function LOAD_abcd(): void {
+		ctx.pc++;
+		A = ops[ctx.pc++]; B = ops[ctx.pc++];
+		C = ops[ctx.pc++]; D = ops[ctx.pc++];
+	}
 
-	#define LOAD_abcde()                                                                   \
-		LOAD_abcd();                                                                       \
-		E = ops.bytes[ctx.pc++];                                                         \
+	function LOAD_abcde(): void {
+		ctx.pc++;
+		A = ops[ctx.pc++]; B = ops[ctx.pc++];
+		C = ops[ctx.pc++]; D = ops[ctx.pc++];
+		E = ops[ctx.pc++];
+	}
 
-	#define LOAD_abcdef()                                                                  \
-		LOAD_abcd();                                                                       \
-		E = ops.bytes[ctx.pc++]; F = ops.bytes[ctx.pc++];
+	function LOAD_abcdef(): void {
+		ctx.pc++;
+		A = ops[ctx.pc++]; B = ops[ctx.pc++];
+		C = ops[ctx.pc++]; D = ops[ctx.pc++];
+		E = ops[ctx.pc++]; F = ops[ctx.pc++];
+	}
 
-	#define LOAD_abcdefg()                                                                 \
-		LOAD_abcdef();                                                                     \
-		G = ops.bytes[ctx.pc++];
+	function LOAD_abcdefg(): void {
+		ctx.pc++;
+		A = ops[ctx.pc++]; B = ops[ctx.pc++];
+		C = ops[ctx.pc++]; D = ops[ctx.pc++];
+		E = ops[ctx.pc++]; F = ops[ctx.pc++];
+		G = ops[ctx.pc++];
+	}
 
-	#define LOAD_abcdefgh()                                                                \
-		LOAD_abcdef();                                                                     \
-		G = ops.bytes[ctx.pc++]; H = ops.bytes[ctx.pc++];
+	function LOAD_abcdefgh(): void {
+		ctx.pc++;
+		A = ops[ctx.pc++]; B = ops[ctx.pc++];
+		C = ops[ctx.pc++]; D = ops[ctx.pc++];
+		E = ops[ctx.pc++]; F = ops[ctx.pc++];
+		G = ops[ctx.pc++]; H = ops[ctx.pc++];
+	}
 
-	#define LOAD_abcdefghi()                                                               \
-		LOAD_abcdefgh();                                                                   \
-		I = ops.bytes[ctx.pc++];
+	function LOAD_abcdefghi(): void {
+		ctx.pc++;
+		A = ops[ctx.pc++]; B = ops[ctx.pc++];
+		C = ops[ctx.pc++]; D = ops[ctx.pc++];
+		E = ops[ctx.pc++]; F = ops[ctx.pc++];
+		G = ops[ctx.pc++]; H = ops[ctx.pc++];
+		I = ops[ctx.pc++];
+	}
 
-	#define LOAD_abcdefghij()                                                              \
-		LOAD_abcdefgh();                                                                   \
-		I = ops.bytes[ctx.pc++]; J = ops.bytes[ctx.pc++];
+	function LOAD_abcdefghij(): void {
+		ctx.pc++;
+		A = ops[ctx.pc++]; B = ops[ctx.pc++];
+		C = ops[ctx.pc++]; D = ops[ctx.pc++];
+		E = ops[ctx.pc++]; F = ops[ctx.pc++];
+		G = ops[ctx.pc++]; H = ops[ctx.pc++];
+		I = ops[ctx.pc++]; J = ops[ctx.pc++];
+	}
 
-	#define INLINE_UNOP(func, erop)                                                        \
-		LOAD_abcd();                                                                       \
-		var_set(ctx, A, B, opi_unop(ctx, var_get(ctx, C, D), func, erop));                 \
-		if (ctx.failed)                                                                   \
-			return SINK_RUN_FAIL;
+	function INLINE_UNOP(func: unary_f, erop: string): void {
+		LOAD_abcd();
+		var_set(ctx, A, B, opi_unop(ctx, var_get(ctx, C, D), func, erop));
+	}
 
-	#define INLINE_BINOP_T(func, erop, t1, t2)                                             \
-		LOAD_abcdef();                                                                     \
-		var_set(ctx, A, B,                                                                 \
-			opi_binop(ctx, var_get(ctx, C, D), var_get(ctx, E, F), func, erop, t1, t2));   \
-		if (ctx.failed)                                                                   \
-			return SINK_RUN_FAIL;
+	function INLINE_BINOP_T(func: binary_f, erop: string, t1: number, t2: number): void {
+		LOAD_abcdef();
+		var_set(ctx, A, B,
+			opi_binop(ctx, var_get(ctx, C, D), var_get(ctx, E, F), func, erop, t1, t2));
+	}
 
-	#define INLINE_BINOP(func, erop) INLINE_BINOP_T(func, erop, LT_ALLOWNUM, LT_ALLOWNUM)
+	function INLINE_BINOP(func: binary_f, erop: string): void {
+		INLINE_BINOP_T(func, erop, LT_ALLOWNUM, LT_ALLOWNUM);
+	}
 
-	#define INLINE_TRIOP(func, erop)                                                       \
-		LOAD_abcdefgh();                                                                   \
-		var_set(ctx, A, B,                                                                 \
-			opi_triop(ctx, var_get(ctx, C, D), var_get(ctx, E, F), var_get(ctx, G, H),     \
-				func, erop));                                                              \
-		if (ctx.failed)                                                                   \
-			return SINK_RUN_FAIL;
+	function INLINE_TRIOP(func: trinary_f, erop: string): void {
+		LOAD_abcdefgh();
+		var_set(ctx, A, B,
+			opi_triop(ctx, var_get(ctx, C, D), var_get(ctx, E, F), var_get(ctx, G, H),
+				func, erop));
+	}
 
-	while (ctx.pc < ops.size){
+	while (ctx.pc < ops.length){
 		ctx.lastpc = ctx.pc;
-		switch ((op_enum)ops.bytes[ctx.pc]){
+		switch (ops[ctx.pc] as op_enum){
 			case op_enum.NOP            : { //
 				ctx.pc++;
 			} break;
@@ -10714,8 +10741,8 @@ static sink_run context_run(context ctx){
 				LOAD_ab();
 				X = var_get(ctx, A, B);
 				if (!sink_isnum(X))
-					return opi_abort(ctx, "Expecting number when incrementing");
-				var_set(ctx, A, B, sink_num(X.f + 1));
+					return opi_abort(ctx, 'Expecting number when incrementing');
+				var_set(ctx, A, B, X + 1);
 			} break;
 
 			case op_enum.NIL            : { // [TGT]
@@ -10725,74 +10752,62 @@ static sink_run context_run(context ctx){
 
 			case op_enum.NUMP8          : { // [TGT], VALUE
 				LOAD_abc();
-				var_set(ctx, A, B, sink_num(C));
+				var_set(ctx, A, B, C);
 			} break;
 
 			case op_enum.NUMN8          : { // [TGT], VALUE
 				LOAD_abc();
-				var_set(ctx, A, B, sink_num(C - 256));
+				var_set(ctx, A, B, C - 256);
 			} break;
 
 			case op_enum.NUMP16         : { // [TGT], [VALUE]
 				LOAD_abcd();
-				var_set(ctx, A, B, sink_num(C | (D << 8)));
+				var_set(ctx, A, B, C | (D << 8));
 			} break;
 
 			case op_enum.NUMN16         : { // [TGT], [VALUE]
 				LOAD_abcd();
-				var_set(ctx, A, B, sink_num((C | (D << 8)) - 65536));
+				var_set(ctx, A, B, (C | (D << 8)) - 65536);
 			} break;
 
 			case op_enum.NUMP32         : { // [TGT], [[VALUE]]
 				LOAD_abcdef();
-				var_set(ctx, A, B, sink_num(
-					((uint32_t)C) | (((uint32_t)D) << 8) |
-					(((uint32_t)E) << 16) | (((uint32_t)F) << 24)
-				));
+				C |= (D << 8) | (E << 16) | (F << 24);
+				if (C < 0)
+					C += 4294967296;
+				var_set(ctx, A, B, C);
 			} break;
 
 			case op_enum.NUMN32         : { // [TGT], [[VALUE]]
 				LOAD_abcdef();
-				var_set(ctx, A, B, sink_num(
-					(double)(((uint32_t)C) | (((uint32_t)D) << 8) |
-					(((uint32_t)E) << 16) | (((uint32_t)F) << 24)) - 4294967296.0
-				));
+				C |= (D << 8) | (E << 16) | (F << 24);
+				if (C < 0)
+					C += 4294967296;
+				var_set(ctx, A, B, C - 4294967296);
 			} break;
 
 			case op_enum.NUMDBL         : { // [TGT], [[[VALUE]]]
 				LOAD_abcdefghij();
-				X.u = ((uint64_t)C) |
-					(((uint64_t)D) << 8) |
-					(((uint64_t)E) << 16) |
-					(((uint64_t)F) << 24) |
-					(((uint64_t)G) << 32) |
-					(((uint64_t)H) << 40) |
-					(((uint64_t)I) << 48) |
-					(((uint64_t)J) << 56);
-				if (isnan(X.f)) // make sure no screwy NaN's come in
-					X = sink_num_nan();
-				var_set(ctx, A, B, X);
+				dview.setUint8(0, C);
+				dview.setUint8(1, D);
+				dview.setUint8(2, E);
+				dview.setUint8(3, F);
+				dview.setUint8(4, G);
+				dview.setUint8(5, H);
+				dview.setUint8(6, I);
+				dview.setUint8(7, J);
+				var_set(ctx, A, B, dview.getFloat64(0, true));
 			} break;
 
 			case op_enum.STR            : { // [TGT], [[INDEX]]
 				LOAD_abcdef();
 				C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
-				if (ctx.prg.repl){
-					list_byte s = ctx.prg.strTable.ptrs[C];
-					var_set(ctx, A, B, sink_str_newblob(ctx, s.size, s.bytes));
-				}
-				else
-					var_set(ctx, A, B, (sink_val){ .u = SINK_TAG_STR | C });
+				var_set(ctx, A, B, ctx.prg.strTable[C]);
 			} break;
 
 			case op_enum.LIST           : { // [TGT], HINT
 				LOAD_abc();
-				if (C <= 0)
-					var_set(ctx, A, B, sink_list_newempty(ctx));
-				else{
-					var_set(ctx, A, B,
-						sink_list_newblobgive(ctx, 0, C, mem_alloc(sizeof(sink_val) * C)));
-				}
+				var_set(ctx, A, B, new sink_list());
 			} break;
 
 			case op_enum.ISNUM          : { // [TGT], [SRC]
@@ -10821,33 +10836,34 @@ static sink_run context_run(context ctx){
 
 			case op_enum.SIZE           : { // [TGT], [SRC]
 				LOAD_abcd();
-				var_set(ctx, A, B, sink_num(sink_size(ctx, var_get(ctx, C, D))));
+				var_set(ctx, A, B, sink_size(ctx, var_get(ctx, C, D)));
 				if (ctx.failed)
-					return SINK_RUN_FAIL;
+					return sink_run.FAIL;
 			} break;
 
 			case op_enum.TONUM          : { // [TGT], [SRC]
 				LOAD_abcd();
 				var_set(ctx, A, B, sink_tonum(ctx, var_get(ctx, C, D)));
 				if (ctx.failed)
-					return SINK_RUN_FAIL;
+					return sink_run.FAIL;
 			} break;
 
 			case op_enum.CAT            : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
-				bool listcat = C > 0;
+				let listcat = C > 0;
+				let p: sink_val[] = [];
 				for (D = 0; D < C; D++){
-					E = ops.bytes[ctx.pc++]; F = ops.bytes[ctx.pc++];
-					p[D] = var_get(ctx, E, F);
+					E = ops[ctx.pc++]; F = ops[ctx.pc++];
+					p.push(var_get(ctx, E, F));
 					if (!sink_islist(p[D]))
 						listcat = false;
 				}
 				if (listcat)
-					var_set(ctx, A, B, sink_list_cat(ctx, C, p));
+					var_set(ctx, A, B, opi_list_cat(ctx, p));
 				else{
-					var_set(ctx, A, B, sink_str_cat(ctx, C, p));
+					var_set(ctx, A, B, sink_str_cat(ctx, p));
 					if (ctx.failed)
-						return SINK_RUN_FAIL;
+						return sink_run.FAIL;
 				}
 			} break;
 
@@ -10855,78 +10871,64 @@ static sink_run context_run(context ctx){
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				if (sink_isstr(X) && sink_isstr(Y)){
-					if (X.u === Y.u)
-						var_set(ctx, A, B, sink_bool(false));
-					else{
-						var_set(ctx, A, B,
-							sink_bool(str_cmp(var_caststr(ctx, X), var_caststr(ctx, Y)) < 0));
-					}
-				}
-				else if (sink_isnum(X) && sink_isnum(Y))
-					var_set(ctx, A, B, sink_bool(X.f < Y.f));
+				if ((sink_isstr(X) && sink_isstr(Y)) ||
+					(sink_isnum(X) && sink_isnum(Y)))
+					var_set(ctx, A, B, sink_bool(X < Y));
 				else
-					return opi_abort(ctx, "Expecting numbers or strings");
+					return opi_abort(ctx, 'Expecting numbers or strings');
 			} break;
 
 			case op_enum.LTE            : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				if (sink_isstr(X) && sink_isstr(Y)){
-					if (X.u === Y.u)
-						var_set(ctx, A, B, sink_bool(true));
-					else{
-						var_set(ctx, A, B,
-							sink_bool(str_cmp(var_caststr(ctx, X), var_caststr(ctx, Y)) <= 0));
-					}
-				}
-				else if (sink_isnum(X) && sink_isnum(Y))
-					var_set(ctx, A, B, sink_bool(X.f <= Y.f));
+				if ((sink_isstr(X) && sink_isstr(Y)) ||
+					(sink_isnum(X) && sink_isnum(Y)))
+					var_set(ctx, A, B, sink_bool(X <= Y));
 				else
-					return opi_abort(ctx, "Expecting numbers or strings");
+					return opi_abort(ctx, 'Expecting numbers or strings');
 			} break;
 
 			case op_enum.NEQ            : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				var_set(ctx, A, B, sink_bool(!opi_equ(ctx, X, Y)));
+				var_set(ctx, A, B, sink_bool(X !== Y));
 			} break;
 
 			case op_enum.EQU            : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				var_set(ctx, A, B, sink_bool(opi_equ(ctx, X, Y)));
+				var_set(ctx, A, B, sink_bool(X === Y));
 			} break;
 
 			case op_enum.GETAT          : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X) && !sink_isstr(X))
-					return opi_abortcstr(ctx, "Expecting list or string when indexing");
+					return opi_abort(ctx, 'Expecting list or string when indexing');
 				Y = var_get(ctx, E, F);
 				if (!sink_isnum(Y))
-					return opi_abortcstr(ctx, "Expecting index to be number");
-				I = Y.f;
+					return opi_abort(ctx, 'Expecting index to be number');
+				I = Y;
 				if (sink_islist(X)){
-					ls = var_castlist(ctx, X);
+					ls = X;
 					if (I < 0)
-						I += ls->size;
-					if (I < 0 || I >= ls->size)
+						I += ls.length;
+					if (I < 0 || I >= ls.length)
 						var_set(ctx, A, B, SINK_NIL);
 					else
-						var_set(ctx, A, B, ls->vals[I]);
+						var_set(ctx, A, B, ls[I]);
 				}
 				else{
-					str = var_caststr(ctx, X);
+					str = X;
 					if (I < 0)
-						I += str->size;
-					if (I < 0 || I >= str->size)
+						I += str.length;
+					if (I < 0 || I >= str.length)
 						var_set(ctx, A, B, SINK_NIL);
 					else
-						var_set(ctx, A, B, sink_str_newblob(ctx, 1, &str->bytes[I]));
+						var_set(ctx, A, B, str.charAt(I));
 				}
 			} break;
 
@@ -10940,25 +10942,25 @@ static sink_run context_run(context ctx){
 				else
 					var_set(ctx, A, B, sink_str_slice(ctx, X, Y, Z));
 				if (ctx.failed)
-					return SINK_RUN_FAIL;
+					return sink_run.FAIL;
 			} break;
 
 			case op_enum.SETAT          : { // [SRC1], [SRC2], [SRC3]
 				LOAD_abcdef();
 				X = var_get(ctx, A, B);
 				if (!sink_islist(X))
-					return opi_abort(ctx, "Expecting list when setting index");
+					return opi_abort(ctx, 'Expecting list when setting index');
 				Y = var_get(ctx, C, D);
 				if (!sink_isnum(Y))
-					return opi_abort(ctx, "Expecting index to be number");
-				ls = var_castlist(ctx, X);
-				A = (int)Y.f;
+					return opi_abort(ctx, 'Expecting index to be number');
+				ls = X;
+				A = Y;
 				if (A < 0)
-					A += ls.size;
+					A += ls.length;
 				while (ls.length < A + 1)
 					ls.push(SINK_NIL);
-				if (A >= 0 && A < ls.size)
-					ls.vals[A] = var_get(ctx, E, F);
+				if (A >= 0 && A < ls.length)
+					ls[A] = var_get(ctx, E, F);
 			} break;
 
 			case op_enum.SPLICE         : { // [SRC1], [SRC2], [SRC3], [SRC4]
@@ -10972,15 +10974,15 @@ static sink_run context_run(context ctx){
 				else if (sink_isstr(X))
 					var_set(ctx, A, B, sink_str_splice(ctx, X, Y, Z, W));
 				else
-					return opi_abort(ctx, "Expecting list or string when splicing");
+					return opi_abort(ctx, 'Expecting list or string when splicing');
 			} break;
 
 			case op_enum.JUMP           : { // [[LOCATION]]
 				LOAD_abcd();
 				A = A + (B << 8) + (C << 16) + ((D << 23) * 2);
-				if (ctx.prg.repl && A === -1){
+				if (ctx.prg.repl && A === 0xFFFFFFFF){
 					ctx.pc -= 5;
-					return SINK_RUN_REPLMORE;
+					return sink_run.REPLMORE;
 				}
 				ctx.pc = A;
 			} break;
@@ -10988,10 +10990,10 @@ static sink_run context_run(context ctx){
 			case op_enum.JUMPTRUE       : { // [SRC], [[LOCATION]]
 				LOAD_abcdef();
 				C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
-				if (!sink_isnil(var_get(ctx, A, B))){
-					if (ctx.prg.repl && C === -1){
+				if (var_get(ctx, A, B) !== null){
+					if (ctx.prg.repl && C === 0xFFFFFFFF){
 						ctx.pc -= 7;
-						return SINK_RUN_REPLMORE;
+						return sink_run.REPLMORE;
 					}
 					ctx.pc = C;
 				}
@@ -11000,19 +11002,19 @@ static sink_run context_run(context ctx){
 			case op_enum.JUMPFALSE      : { // [SRC], [[LOCATION]]
 				LOAD_abcdef();
 				C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
-				if (sink_isnil(var_get(ctx, A, B))){
-					if (ctx.prg.repl && C === -1){
+				if (var_get(ctx, A, B) === null){
+					if (ctx.prg.repl && C === 0xFFFFFFFF){
 						ctx.pc -= 7;
-						return SINK_RUN_REPLMORE;
+						return sink_run.REPLMORE;
 					}
 					ctx.pc = C;
 				}
 			} break;
 
 			case op_enum.CMDTAIL        : { //
-				ccs s = list_ptr_pop(ctx.call_stk);
-				lxs lx = ctx.lex_stk.ptrs[ctx.lex_index];
-				ctx.lex_stk.ptrs[ctx.lex_index] = lx.next;
+				let s = ctx.call_stk.pop() as ccs_st;
+				let lx = ctx.lex_stk[ctx.lex_index] as lxs_st;
+				ctx.lex_stk[ctx.lex_index] = lx.next;
 				lxs_release(ctx, lx);
 				ctx.lex_index = s.lex_index;
 				var_set(ctx, s.frame, s.index, SINK_NIL);
@@ -11023,15 +11025,16 @@ static sink_run context_run(context ctx){
 			case op_enum.CALL           : { // [TGT], [[LOCATION]], ARGCOUNT, [ARGS]...
 				LOAD_abcdefg();
 				C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
-				if (C === -1){
+				if (C === 0xFFFFFFFF){
 					ctx.pc -= 8;
-					return SINK_RUN_REPLMORE;
+					return sink_run.REPLMORE;
 				}
+				let p: sink_val[] = [];
 				for (I = 0; I < G; I++){
-					E = ops.bytes[ctx.pc++]; F = ops.bytes[ctx.pc++];
-					p[I] = var_get(ctx, E, F);
+					E = ops[ctx.pc++]; F = ops[ctx.pc++];
+					p.push(var_get(ctx, E, F));
 				}
-				list_ptr_push(ctx.call_stk, ccs_get(ctx, ctx.pc, A, B, ctx.lex_index));
+				ctx.call_stk.push(ccs_get(ctx, ctx.pc, A, B, ctx.lex_index));
 				ctx.pc = C - 1;
 				LOAD_abc();
 				// A is op_enum.CMDHEAD
@@ -11039,32 +11042,36 @@ static sink_run context_run(context ctx){
 					if (G <= C){
 						while (G < C)
 							p[G++] = SINK_NIL;
-						p[G] = sink_list_newempty(ctx);
+						p[G] = new sink_list();
 					}
-					else
-						p[C] = sink_list_newblob(ctx, G - C, &p[C]);
+					else{
+						let sl = p.slice(C, G); // TODO: is this G - C instead of G?
+						let np = new sink_list();
+						np.push.apply(np, sl);
+						p[C] = np;
+					}
 					G = C + 1;
 				}
 				ctx.lex_index = B;
-				while (ctx.lex_index >= ctx.lex_stk.size)
-					list_ptr_push(ctx.lex_stk, NULL);
-				ctx.lex_stk.ptrs[ctx.lex_index] =
-					lxs_get(ctx, G, p, ctx.lex_stk.ptrs[ctx.lex_index]);
+				while (ctx.lex_index >= ctx.lex_stk.length)
+					ctx.lex_stk.push(null);
+				ctx.lex_stk[ctx.lex_index] = lxs_get(ctx, p, ctx.lex_stk[ctx.lex_index]);
 			} break;
 
 			case op_enum.NATIVE         : { // [TGT], [[INDEX]], ARGCOUNT, [ARGS]...
 				LOAD_abcdefg();
+				let p: sink_val[] = [];
 				for (I = 0; I < G; I++){
-					J = ops.bytes[ctx.pc++]; H = ops.bytes[ctx.pc++];
-					p[I] = var_get(ctx, J, H);
+					J = ops[ctx.pc++]; H = ops[ctx.pc++];
+					p.push(var_get(ctx, J, H));
 				}
 				C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
-				native nat = NULL;
+				let nat: native_st | null = null;
 				if (ctx.prg.repl){
 					// if REPL, then we need to search for the hash
-					uint64_t hash = ctx.prg.keyTable.vals[C];
-					for (int i = 0; i < ctx.natives.size; i++){
-						native nat2 = ctx.natives.ptrs[i];
+					let hash = ctx.prg.keyTable[C];
+					for (let i = 0; i < ctx.natives.length; i++){
+						let nat2 = ctx.natives[i];
 						if (nat2.hash === hash){
 							nat = nat2;
 							break;
@@ -11072,30 +11079,31 @@ static sink_run context_run(context ctx){
 					}
 				}
 				else
-					nat = ctx.natives.ptrs[C];
-				if (nat === NULL || nat.f_native === NULL)
-					return opi_abort(ctx, "Native call not implemented");
-				X = nat.f_native(ctx, G, p, nat.natuser);
-				if (ctx.failed)
-					return SINK_RUN_FAIL;
-				if (sink_isasync(X)){
-					ctx.async_frame = A;
-					ctx.async_index = B;
-					ctx.timeout_left = ctx.timeout;
-					ctx.async = true;
-					return SINK_RUN_ASYNC;
+					nat = ctx.natives[C];
+				if (nat === null)
+					return opi_abort(ctx, 'Native call not implemented');
+				let nr = nat.f_native(ctx, p, nat.natuser);
+				if (isPromise<sink_val>(nr)){
+					return nr.then(function(res: sink_val){
+						var_set(ctx, A, B, res);
+						return context_run(ctx);
+					}, function(err){
+						return opi_abort(ctx, '' + err);
+					});
 				}
+				if (ctx.failed)
+					return sink_run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
 			case op_enum.RETURN         : { // [SRC]
-				if (ctx.call_stk.size <= 0)
+				if (ctx.call_stk.length <= 0)
 					return opi_exit(ctx);
 				LOAD_ab();
 				X = var_get(ctx, A, B);
-				ccs s = list_ptr_pop(ctx.call_stk);
-				lxs lx = ctx.lex_stk.ptrs[ctx.lex_index];
-				ctx.lex_stk.ptrs[ctx.lex_index] = lx.next;
+				let s = ctx.call_stk.pop() as ccs_st;
+				let lx = ctx.lex_stk[ctx.lex_index] as lxs_st;
+				ctx.lex_stk[ctx.lex_index] = lx.next;
 				lxs_release(ctx, lx);
 				ctx.lex_index = s.lex_index;
 				var_set(ctx, s.frame, s.index, X);
@@ -11106,13 +11114,14 @@ static sink_run context_run(context ctx){
 			case op_enum.RETURNTAIL     : { // [[LOCATION]], ARGCOUNT, [ARGS]...
 				LOAD_abcde();
 				A = A + (B << 8) + (C << 16) + ((D << 23) * 2);
-				if (A === -1){
+				if (A === 0xFFFFFFFF){
 					ctx.pc -= 6;
-					return SINK_RUN_REPLMORE;
+					return sink_run.REPLMORE;
 				}
+				let p: sink_val[] = [];
 				for (I = 0; I < E; I++){
-					G = ops.bytes[ctx.pc++]; H = ops.bytes[ctx.pc++];
-					p[I] = var_get(ctx, G, H);
+					G = ops[ctx.pc++]; H = ops[ctx.pc++];
+					p.push(var_get(ctx, G, H));
 				}
 				ctx.pc = A - 1;
 				LOAD_abc();
@@ -11120,16 +11129,20 @@ static sink_run context_run(context ctx){
 					if (E <= C){
 						while (E < C)
 							p[E++] = SINK_NIL;
-						p[E] = sink_list_newempty(ctx);
+						p[E] = new sink_list();
 					}
-					else
-						p[C] = sink_list_newblob(ctx, E - C, &p[C]);
+					else{
+						let sl = p.slice(C, E); // TODO: should E-C instead of E?
+						let np = new sink_list();
+						np.push.apply(np, sl);
+						p[C] = np;
+					}
 					E = C + 1;
 				}
-				lxs lx = ctx.lex_stk.ptrs[ctx.lex_index];
-				lxs lx2 = lx.next;
+				let lx = ctx.lex_stk[ctx.lex_index] as lxs_st;
+				let lx2 = lx.next;
 				lxs_release(ctx, lx);
-				ctx.lex_stk.ptrs[ctx.lex_index] = lxs_get(ctx, E, p, lx2);
+				ctx.lex_stk[ctx.lex_index] = lxs_get(ctx, p, lx2);
 			} break;
 
 			case op_enum.RANGE          : { // [TGT], [SRC1], [SRC2], [SRC3]
@@ -11138,68 +11151,96 @@ static sink_run context_run(context ctx){
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
 				if (!sink_isnum(X))
-					return opi_abort(ctx, "Expecting number for range");
+					return opi_abort(ctx, 'Expecting number for range');
 				if (sink_isnum(Y)){
 					if (sink_isnil(Z))
-						Z = sink_num(1);
+						Z = 1;
 					if (!sink_isnum(Z))
-						return opi_abort(ctx, "Expecting number for range step");
-					X = sink_range(ctx, X.f, Y.f, Z.f);
+						return opi_abort(ctx, 'Expecting number for range step');
+					X = sink_range(ctx, X, Y, Z);
 				}
 				else if (sink_isnil(Y)){
 					if (!sink_isnil(Z))
-						return opi_abort(ctx, "Expecting number for range stop");
-					X = sink_range(ctx, 0, X.f, 1);
+						return opi_abort(ctx, 'Expecting number for range stop');
+					X = sink_range(ctx, 0, X, 1);
 				}
 				else
-					return opi_abort(ctx, "Expecting number for range stop");
+					return opi_abort(ctx, 'Expecting number for range stop');
 				var_set(ctx, A, B, X);
 				if (ctx.failed)
-					return SINK_RUN_FAIL;
+					return sink_run.FAIL;
 			} break;
 
 			case op_enum.ORDER          : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				var_set(ctx, A, B, sink_num(sink_order(ctx, X, Y)));
+				var_set(ctx, A, B, sink_order(ctx, X, Y));
 			} break;
 
 			case op_enum.SAY            : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
+				let p: sink_val[] = [];
 				for (D = 0; D < C; D++){
-					E = ops.bytes[ctx.pc++]; F = ops.bytes[ctx.pc++];
-					p[D] = var_get(ctx, E, F);
+					E = ops[ctx.pc++]; F = ops[ctx.pc++];
+					p.push(var_get(ctx, E, F));
 				}
-				sink_say(ctx, C, p);
+				let res = sink_say(ctx, p);
+				if (isPromise<undefined>(res)){
+					return res.then(function(){
+						var_set(ctx, A, B, SINK_NIL);
+						return context_run(ctx);
+					}, function(err){
+						return opi_abort(ctx, '' + err);
+					});
+				}
 				var_set(ctx, A, B, SINK_NIL);
 				if (ctx.failed)
-					return SINK_RUN_FAIL;
+					return sink_run.FAIL;
 			} break;
 
 			case op_enum.WARN           : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
+				let p: sink_val[] = [];
 				for (D = 0; D < C; D++){
-					E = ops.bytes[ctx.pc++]; F = ops.bytes[ctx.pc++];
-					p[D] = var_get(ctx, E, F);
+					E = ops[ctx.pc++]; F = ops[ctx.pc++];
+					p.push(var_get(ctx, E, F));
 				}
-				sink_warn(ctx, C, p);
+				let res = sink_warn(ctx, p);
+				if (isPromise<undefined>(res)){
+					return res.then(function(){
+						var_set(ctx, A, B, SINK_NIL);
+						return context_run(ctx);
+					}, function(err){
+						return opi_abort(ctx, '' + err);
+					});
+				}
 				var_set(ctx, A, B, SINK_NIL);
 				if (ctx.failed)
-					return SINK_RUN_FAIL;
+					return sink_run.FAIL;
 			} break;
 
 			case op_enum.ASK            : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
+				let p: sink_val[] = [];
 				for (D = 0; D < C; D++){
-					E = ops.bytes[ctx.pc++]; F = ops.bytes[ctx.pc++];
-					p[D] = var_get(ctx, E, F);
+					E = ops[ctx.pc++]; F = ops[ctx.pc++];
+					p.push(var_get(ctx, E, F));
 				}
-				var_set(ctx, A, B, sink_ask(ctx, C, p));
+				let res = sink_ask(ctx, p);
+				if (isPromise<sink_val>(res)){
+					return res.then(function(v: sink_val){
+						var_set(ctx, A, B, v);
+						return context_run(ctx);
+					}, function(err){
+						return opi_abort(ctx, '' + err);
+					});
+				}
+				var_set(ctx, A, B, res);
 				if (ctx.failed)
-					return SINK_RUN_FAIL;
+					return sink_run.FAIL;
 			} break;
-
+}}return sink_run.PASS;}/*
 			case op_enum.EXIT           : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
 				for (D = 0; D < C; D++){
@@ -11209,7 +11250,7 @@ static sink_run context_run(context ctx){
 				if (C > 0){
 					sink_say(ctx, C, p);
 					if (ctx.failed)
-						return SINK_RUN_FAIL;
+						return sink_run.FAIL;
 				}
 				return opi_exit(ctx);
 			} break;
@@ -11233,38 +11274,56 @@ static sink_run context_run(context ctx){
 
 			case op_enum.NUM_NEG        : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_neg, txt_num_neg)
+				if (ctx.failed)
+					return sink_run.FAIL;
 			} break;
 
 			case op_enum.NUM_ADD        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_num_add, txt_num_add)
+				if (ctx.failed)
+					return sink_run.FAIL;
 			} break;
 
 			case op_enum.NUM_SUB        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_num_sub, txt_num_sub)
+				if (ctx.failed)
+					return sink_run.FAIL;
 			} break;
 
 			case op_enum.NUM_MUL        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_num_mul, txt_num_mul)
+				if (ctx.failed)
+					return sink_run.FAIL;
 			} break;
 
 			case op_enum.NUM_DIV        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_num_div, txt_num_div)
+				if (ctx.failed)
+					return sink_run.FAIL;
 			} break;
 
 			case op_enum.NUM_MOD        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_num_mod, txt_num_mod)
+				if (ctx.failed)
+					return sink_run.FAIL;
 			} break;
 
 			case op_enum.NUM_POW        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_num_pow, txt_num_pow)
+				if (ctx.failed)
+					return sink_run.FAIL;
 			} break;
 
 			case op_enum.NUM_ABS        : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_abs, txt_num_abs)
+				if (ctx.failed)
+					return sink_run.FAIL;
 			} break;
 
 			case op_enum.NUM_SIGN       : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_sign, txt_num_sign)
+				if (ctx.failed)
+					return sink_run.FAIL;
 			} break;
 
 			case op_enum.NUM_MAX        : { // [TGT], ARGCOUNT, [ARGS]...
@@ -11287,22 +11346,32 @@ static sink_run context_run(context ctx){
 
 			case op_enum.NUM_CLAMP      : { // [TGT], [SRC1], [SRC2], [SRC3]
 				INLINE_TRIOP(triop_num_clamp, txt_num_clamp)
+				if (ctx.failed)
+					return sink_run.FAIL;
 			} break;
 
 			case op_enum.NUM_FLOOR      : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_floor, txt_num_floor)
+				if (ctx.failed)
+					return sink_run.FAIL;
 			} break;
 
 			case op_enum.NUM_CEIL       : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_ceil, txt_num_ceil)
+				if (ctx.failed)
+					return sink_run.FAIL;
 			} break;
 
 			case op_enum.NUM_ROUND      : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_round, txt_num_round)
+				if (ctx.failed)
+					return sink_run.FAIL;
 			} break;
 
 			case op_enum.NUM_TRUNC      : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_trunc, txt_num_trunc)
+				if (ctx.failed)
+					return sink_run.FAIL;
 			} break;
 
 			case op_enum.NUM_NAN        : { // [TGT]
@@ -11317,81 +11386,119 @@ static sink_run context_run(context ctx){
 
 			case op_enum.NUM_ISNAN      : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_isnan, txt_num_isnan)
+				if (ctx.failed)
+					return sink_run.FAIL;
 			} break;
 
 			case op_enum.NUM_ISFINITE   : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_isfinite, txt_num_isfinite)
+				if (ctx.failed)
+					return sink_run.FAIL;
 			} break;
 
 			case op_enum.NUM_SIN        : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_sin, txt_num_sin)
+				if (ctx.failed)
+					return sink_run.FAIL;
 			} break;
 
 			case op_enum.NUM_COS        : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_cos, txt_num_cos)
+				if (ctx.failed)
+					return sink_run.FAIL;
 			} break;
 
 			case op_enum.NUM_TAN        : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_tan, txt_num_tan)
+				if (ctx.failed)
+					return sink_run.FAIL;
 			} break;
 
 			case op_enum.NUM_ASIN       : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_asin, txt_num_asin)
+				if (ctx.failed)
+					return sink_run.FAIL;
 			} break;
 
 			case op_enum.NUM_ACOS       : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_acos, txt_num_acos)
+				if (ctx.failed)
+					return sink_run.FAIL;
 			} break;
 
 			case op_enum.NUM_ATAN       : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_atan, txt_num_atan)
+				if (ctx.failed)
+					return sink_run.FAIL;
 			} break;
 
 			case op_enum.NUM_ATAN2      : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_num_atan2, txt_num_atan)
+				if (ctx.failed)
+					return sink_run.FAIL;
 			} break;
 
 			case op_enum.NUM_LOG        : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_log, txt_num_log)
+				if (ctx.failed)
+					return sink_run.FAIL;
 			} break;
 
 			case op_enum.NUM_LOG2       : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_log2, txt_num_log)
+				if (ctx.failed)
+					return sink_run.FAIL;
 			} break;
 
 			case op_enum.NUM_LOG10      : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_log10, txt_num_log)
+				if (ctx.failed)
+					return sink_run.FAIL;
 			} break;
 
 			case op_enum.NUM_EXP        : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_exp, txt_num_pow)
+				if (ctx.failed)
+					return sink_run.FAIL;
 			} break;
 
 			case op_enum.NUM_LERP       : { // [TGT], [SRC1], [SRC2], [SRC3]
 				INLINE_TRIOP(triop_num_lerp, txt_num_lerp)
+				if (ctx.failed)
+					return sink_run.FAIL;
 			} break;
 
 			case op_enum.NUM_HEX        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP_T(binop_num_hex, txt_num_hex, LT_ALLOWNUM,
 					LT_ALLOWNUM | LT_ALLOWNIL)
+				if (ctx.failed)
+					return sink_run.FAIL;
 			} break;
 
 			case op_enum.NUM_OCT        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP_T(binop_num_oct, txt_num_oct, LT_ALLOWNUM,
 					LT_ALLOWNUM | LT_ALLOWNIL)
+				if (ctx.failed)
+					return sink_run.FAIL;
 			} break;
 
 			case op_enum.NUM_BIN        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP_T(binop_num_bin, txt_num_bin, LT_ALLOWNUM,
 					LT_ALLOWNUM | LT_ALLOWNIL)
+				if (ctx.failed)
+					return sink_run.FAIL;
 			} break;
 
 			case op_enum.INT_NEW        : { // [TGT], [SRC]
 				INLINE_UNOP(unop_int_new, txt_int_new)
+				if (ctx.failed)
+					return sink_run.FAIL;
 			} break;
 
 			case op_enum.INT_NOT        : { // [TGT], [SRC]
 				INLINE_UNOP(unop_int_not, txt_int_not)
+				if (ctx.failed)
+					return sink_run.FAIL;
 			} break;
 
 			case op_enum.INT_AND        : { // [TGT], ARGCOUNT, [ARGS]...
@@ -11402,7 +11509,7 @@ static sink_run context_run(context ctx){
 				}
 				X = opi_combop(ctx, C, p, binop_int_and, txt_int_and);
 				if (ctx.failed)
-					return SINK_RUN_FAIL;
+					return sink_run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11414,7 +11521,7 @@ static sink_run context_run(context ctx){
 				}
 				X = opi_combop(ctx, C, p, binop_int_or, txt_int_or);
 				if (ctx.failed)
-					return SINK_RUN_FAIL;
+					return sink_run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11426,52 +11533,74 @@ static sink_run context_run(context ctx){
 				}
 				X = opi_combop(ctx, C, p, binop_int_xor, txt_int_xor);
 				if (ctx.failed)
-					return SINK_RUN_FAIL;
+					return sink_run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
 			case op_enum.INT_SHL        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_int_shl, txt_int_shl)
+				if (ctx.failed)
+					return sink_run.FAIL;
 			} break;
 
 			case op_enum.INT_SHR        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_int_shr, txt_int_shr)
+				if (ctx.failed)
+					return sink_run.FAIL;
 			} break;
 
 			case op_enum.INT_SAR        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_int_sar, txt_int_shr)
+				if (ctx.failed)
+					return sink_run.FAIL;
 			} break;
 
 			case op_enum.INT_ADD        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_int_add, txt_num_add)
+				if (ctx.failed)
+					return sink_run.FAIL;
 			} break;
 
 			case op_enum.INT_SUB        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_int_sub, txt_num_sub)
+				if (ctx.failed)
+					return sink_run.FAIL;
 			} break;
 
 			case op_enum.INT_MUL        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_int_mul, txt_num_mul)
+				if (ctx.failed)
+					return sink_run.FAIL;
 			} break;
 
 			case op_enum.INT_DIV        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_int_div, txt_num_div)
+				if (ctx.failed)
+					return sink_run.FAIL;
 			} break;
 
 			case op_enum.INT_MOD        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_int_mod, txt_num_mod)
+				if (ctx.failed)
+					return sink_run.FAIL;
 			} break;
 
 			case op_enum.INT_CLZ        : { // [TGT], [SRC]
 				INLINE_UNOP(unop_int_clz, txt_int_clz)
+				if (ctx.failed)
+					return sink_run.FAIL;
 			} break;
 
 			case op_enum.INT_POP        : { // [TGT], [SRC]
 				INLINE_UNOP(unop_int_pop, txt_int_pop)
+				if (ctx.failed)
+					return sink_run.FAIL;
 			} break;
 
 			case op_enum.INT_BSWAP      : { // [TGT], [SRC]
 				INLINE_UNOP(unop_int_bswap, txt_int_bswap)
+				if (ctx.failed)
+					return sink_run.FAIL;
 			} break;
 
 			case op_enum.RAND_SEED      : { // [TGT], [SRC]
@@ -11510,7 +11639,7 @@ static sink_run context_run(context ctx){
 				LOAD_abcd();
 				sink_rand_setstate(ctx, var_get(ctx, C, D));
 				if (ctx.failed)
-					return SINK_RUN_FAIL;
+					return sink_run.FAIL;
 				var_set(ctx, A, B, SINK_NIL);
 			} break;
 
@@ -11518,7 +11647,7 @@ static sink_run context_run(context ctx){
 				LOAD_abcd();
 				X = sink_rand_pick(ctx, var_get(ctx, C, D));
 				if (ctx.failed)
-					return SINK_RUN_FAIL;
+					return sink_run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11527,7 +11656,7 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				sink_rand_shuffle(ctx, X);
 				if (ctx.failed)
-					return SINK_RUN_FAIL;
+					return sink_run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11546,7 +11675,7 @@ static sink_run context_run(context ctx){
 				Y = var_get(ctx, E, F);
 				X = sink_str_split(ctx, X, Y);
 				if (ctx.failed)
-					return SINK_RUN_FAIL;
+					return sink_run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11557,7 +11686,7 @@ static sink_run context_run(context ctx){
 				Z = var_get(ctx, G, H);
 				X = sink_str_replace(ctx, X, Y, Z);
 				if (ctx.failed)
-					return SINK_RUN_FAIL;
+					return sink_run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11567,7 +11696,7 @@ static sink_run context_run(context ctx){
 				Y = var_get(ctx, E, F);
 				X = sink_bool(sink_str_begins(ctx, X, Y));
 				if (ctx.failed)
-					return SINK_RUN_FAIL;
+					return sink_run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11577,7 +11706,7 @@ static sink_run context_run(context ctx){
 				Y = var_get(ctx, E, F);
 				X = sink_bool(sink_str_ends(ctx, X, Y));
 				if (ctx.failed)
-					return SINK_RUN_FAIL;
+					return sink_run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11591,7 +11720,7 @@ static sink_run context_run(context ctx){
 					return opi_abort(ctx, "Expecting number");
 				X = sink_str_pad(ctx, X, Y.f);
 				if (ctx.failed)
-					return SINK_RUN_FAIL;
+					return sink_run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11602,7 +11731,7 @@ static sink_run context_run(context ctx){
 				Z = var_get(ctx, G, H);
 				X = sink_str_find(ctx, X, Y, Z);
 				if (ctx.failed)
-					return SINK_RUN_FAIL;
+					return sink_run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11613,7 +11742,7 @@ static sink_run context_run(context ctx){
 				Z = var_get(ctx, G, H);
 				X = sink_str_rfind(ctx, X, Y, Z);
 				if (ctx.failed)
-					return SINK_RUN_FAIL;
+					return sink_run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11622,7 +11751,7 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				X = sink_str_lower(ctx, X);
 				if (ctx.failed)
-					return SINK_RUN_FAIL;
+					return sink_run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11631,7 +11760,7 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				X = sink_str_upper(ctx, X);
 				if (ctx.failed)
-					return SINK_RUN_FAIL;
+					return sink_run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11640,7 +11769,7 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				X = sink_str_trim(ctx, X);
 				if (ctx.failed)
-					return SINK_RUN_FAIL;
+					return sink_run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11649,7 +11778,7 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				X = sink_str_rev(ctx, X);
 				if (ctx.failed)
-					return SINK_RUN_FAIL;
+					return sink_run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11663,7 +11792,7 @@ static sink_run context_run(context ctx){
 					return opi_abort(ctx, "Expecting number");
 				X = sink_str_rep(ctx, X, Y.f);
 				if (ctx.failed)
-					return SINK_RUN_FAIL;
+					return sink_run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11672,7 +11801,7 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				X = sink_str_list(ctx, X);
 				if (ctx.failed)
-					return SINK_RUN_FAIL;
+					return sink_run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11686,7 +11815,7 @@ static sink_run context_run(context ctx){
 					return opi_abort(ctx, "Expecting number");
 				X = sink_str_byte(ctx, X, Y.f);
 				if (ctx.failed)
-					return SINK_RUN_FAIL;
+					return sink_run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11700,7 +11829,7 @@ static sink_run context_run(context ctx){
 					return opi_abort(ctx, "Expecting number");
 				X = sink_str_hash(ctx, X, Y.f);
 				if (ctx.failed)
-					return SINK_RUN_FAIL;
+					return sink_run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11715,7 +11844,7 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				X = sink_utf8_list(ctx, X);
 				if (ctx.failed)
-					return SINK_RUN_FAIL;
+					return sink_run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11724,7 +11853,7 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				X = sink_utf8_str(ctx, X);
 				if (ctx.failed)
-					return SINK_RUN_FAIL;
+					return sink_run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11739,7 +11868,7 @@ static sink_run context_run(context ctx){
 				Y = var_get(ctx, E, F);
 				X = sink_struct_str(ctx, X, Y);
 				if (ctx.failed)
-					return SINK_RUN_FAIL;
+					return sink_run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11749,7 +11878,7 @@ static sink_run context_run(context ctx){
 				Y = var_get(ctx, E, F);
 				X = sink_struct_list(ctx, X, Y);
 				if (ctx.failed)
-					return SINK_RUN_FAIL;
+					return sink_run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11764,7 +11893,7 @@ static sink_run context_run(context ctx){
 				Y = var_get(ctx, E, F);
 				X = sink_list_new(ctx, X, Y);
 				if (ctx.failed)
-					return SINK_RUN_FAIL;
+					return sink_run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11773,7 +11902,7 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				X = sink_list_shift(ctx, X);
 				if (ctx.failed)
-					return SINK_RUN_FAIL;
+					return sink_run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11782,7 +11911,7 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				X = sink_list_pop(ctx, X);
 				if (ctx.failed)
-					return SINK_RUN_FAIL;
+					return sink_run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11792,7 +11921,7 @@ static sink_run context_run(context ctx){
 				Y = var_get(ctx, E, F);
 				X = sink_list_push(ctx, X, Y);
 				if (ctx.failed)
-					return SINK_RUN_FAIL;
+					return sink_run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11802,7 +11931,7 @@ static sink_run context_run(context ctx){
 				Y = var_get(ctx, E, F);
 				X = sink_list_unshift(ctx, X, Y);
 				if (ctx.failed)
-					return SINK_RUN_FAIL;
+					return sink_run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11812,7 +11941,7 @@ static sink_run context_run(context ctx){
 				Y = var_get(ctx, E, F);
 				X = sink_list_append(ctx, X, Y);
 				if (ctx.failed)
-					return SINK_RUN_FAIL;
+					return sink_run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11822,7 +11951,7 @@ static sink_run context_run(context ctx){
 				Y = var_get(ctx, E, F);
 				X = sink_list_prepend(ctx, X, Y);
 				if (ctx.failed)
-					return SINK_RUN_FAIL;
+					return sink_run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11833,7 +11962,7 @@ static sink_run context_run(context ctx){
 				Z = var_get(ctx, G, H);
 				X = sink_list_find(ctx, X, Y, Z);
 				if (ctx.failed)
-					return SINK_RUN_FAIL;
+					return sink_run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11844,7 +11973,7 @@ static sink_run context_run(context ctx){
 				Z = var_get(ctx, G, H);
 				X = sink_list_rfind(ctx, X, Y, Z);
 				if (ctx.failed)
-					return SINK_RUN_FAIL;
+					return sink_run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11854,7 +11983,7 @@ static sink_run context_run(context ctx){
 				Y = var_get(ctx, E, F);
 				X = sink_list_join(ctx, X, Y);
 				if (ctx.failed)
-					return SINK_RUN_FAIL;
+					return sink_run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11863,7 +11992,7 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				X = sink_list_rev(ctx, X);
 				if (ctx.failed)
-					return SINK_RUN_FAIL;
+					return sink_run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11872,7 +12001,7 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				X = sink_list_str(ctx, X);
 				if (ctx.failed)
-					return SINK_RUN_FAIL;
+					return sink_run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11881,7 +12010,7 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				sink_list_sort(ctx, X);
 				if (ctx.failed)
-					return SINK_RUN_FAIL;
+					return sink_run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11890,7 +12019,7 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				sink_list_rsort(ctx, X);
 				if (ctx.failed)
-					return SINK_RUN_FAIL;
+					return sink_run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11899,7 +12028,7 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				X = sink_pickle_json(ctx, X);
 				if (ctx.failed)
-					return SINK_RUN_FAIL;
+					return sink_run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11908,7 +12037,7 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				X = sink_pickle_bin(ctx, X);
 				if (ctx.failed) // can fail in C impl because of sink_type.ASYNC
-					return SINK_RUN_FAIL;
+					return sink_run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11917,7 +12046,7 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				X = sink_pickle_val(ctx, X);
 				if (ctx.failed)
-					return SINK_RUN_FAIL;
+					return sink_run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11945,7 +12074,7 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				X = sink_pickle_copy(ctx, X);
 				if (ctx.failed) // can fail in C impl because of sink_type.ASYNC
-					return SINK_RUN_FAIL;
+					return sink_run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -12002,27 +12131,15 @@ static sink_run context_run(context ctx){
 			ctx.timeout_left--;
 			if (ctx.timeout_left <= 0){
 				ctx.timeout_left = ctx.timeout;
-				return SINK_RUN_TIMEOUT;
+				return sink_run.TIMEOUT;
 			}
 		}
 	}
 
-	#undef LOAD_ab
-	#undef LOAD_abc
-	#undef LOAD_abcd
-	#undef LOAD_abcde
-	#undef LOAD_abcdef
-	#undef LOAD_abcdefg
-	#undef LOAD_abcdefgh
-	#undef LOAD_abcdefghi
-	#undef LOAD_abcdefghij
-	#undef INLINE_UNOP
-	#undef INLINE_BINOP
-	#undef INLINE_TRIOP
 	#undef RETURN_FAIL
 
 	if (ctx.prg.repl)
-		return SINK_RUN_REPLMORE;
+		return sink_run.REPLMORE;
 	return opi_exit(ctx);
 }
 
@@ -13067,7 +13184,7 @@ sink_run sink_ctx_run(sink_ctx ctx){
 		ctx2.err = NULL;
 	}
 	sink_run r = context_run(ctx2);
-	if (r === SINK_RUN_PASS || r === SINK_RUN_FAIL)
+	if (r === sink_run.PASS || r === sink_run.FAIL)
 		context_reset(ctx2);
 	return r;
 }
@@ -13659,17 +13776,17 @@ sink_val sink_list_newblobgive(sink_ctx ctx, int size, int count, sink_val *vals
 	ls.usertype = -1;
 	return (sink_val){ .u = SINK_TAG_LIST | index };
 }
-
-export sink_val sink_list_cat(sink_ctx ctx, int size, sink_val *vals){
-	for (int i = 0; i < size; i++){
+*/
+export function sink_list_cat(ctx: sink_ctx, vals: sink_val[]): sink_val {
+	for (let i = 0; i < vals.length; i++){
 		if (!sink_islist(vals[i])){
-			opi_abortcstr(ctx, "Cannot concatenate non-lists");
+			opi_abort(ctx, 'Cannot concatenate non-lists');
 			return SINK_NIL;
 		}
 	}
-	return opi_list_cat(ctx, size, vals);
+	return opi_list_cat(ctx, vals);
 }
-*/
+
 export function sink_list_joinplain(vals: sink_list | sink_val[], sep: string): sink_val {
 	var out = '';
 	for (let i = 0; i < vals.length; i++)
