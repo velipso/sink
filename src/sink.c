@@ -16453,6 +16453,7 @@ bool sink_pickle_valstr(sink_ctx ctx, sink_str_st str, sink_val *out){
 	return opi_pickle_valstr(ctx, &str, out);
 }
 
+// gc
 void sink_gc_pin(sink_ctx ctx, sink_val v){
 	context_gcpin((context)ctx, v);
 }

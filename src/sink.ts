@@ -9,6 +9,7 @@ export enum sink_type {
 	LIST
 }
 export type sink_str = string;
+export type sink_strnil = string | null;
 export type sink_valtrue = number | sink_str | sink_list;
 export type sink_val = null | sink_valtrue;
 export type sink_user = number;
@@ -26,6 +27,10 @@ export class sink_list extends Array<sink_val> {
 }
 
 export type sink_u64 = [number, number]; // uint64_t is stored as two 32-bit numbers
+
+function sink_u64_equ(a: sink_u64, b: sink_u64): boolean {
+	return a[0] === b[0] && a[1] === b[1];
+}
 
 export type sink_ctx = any;
 export type sink_scr = any;
@@ -64,6 +69,7 @@ export interface sink_inc_st {
 export enum sink_run {
 	PASS,
 	FAIL,
+	ASYNC,
 	TIMEOUT,
 	REPLMORE
 }
@@ -136,11 +142,10 @@ export function sink_num_pi(): number { return Math.PI; }
 export function sink_num_tau(): number { return Math.PI * 2; }
 
 export function sink_user_new(ctx: sink_ctx, usertype: sink_user, user: any): sink_val {
-	//let hint = sink_ctx_getuserhint(ctx, usertype);
-	//let ls = new sink_list(hint);
-	//sink_list_setuser(ctx, ls, usertype, user);
-	//return ls;
-	return new sink_list('TODO: this');
+	let hint = sink_ctx_getuserhint(ctx, usertype);
+	let ls = new sink_list(hint);
+	sink_list_setuser(ctx, ls, usertype, user);
+	return ls;
 }
 
 export function sink_isuser(ctx: sink_ctx, v: sink_val, usertype: sink_user): [boolean, any] {
@@ -153,27 +158,6 @@ export function sink_isuser(ctx: sink_ctx, v: sink_val, usertype: sink_user): [b
 
 function wrap_clock(): number { return (new Date()).getTime(); }
 export let sink_seedauto_src: () => number = wrap_clock;
-
-function byteequ(b: number[], str: string): boolean { // TODO: do I actually need this?
-	let i: number;
-	for (i = 0; i < str.length; i++){
-		if (b.length <= i)
-			return false;
-		if (b[i] !== str.charCodeAt(i))
-			return false;
-	}
-	return b.length === i;
-}
-
-function list_byte_equ(b1: number[], b2: number[]): boolean {
-	if (b1.length !== b2.length)
-		return false;
-	for (let i = 0; i < b1.length; i++){
-		if (b1[i] !== b2[i])
-			return false;
-	}
-	return true;
-}
 
 class list_u64 extends Array<sink_u64> {
 }
@@ -2110,7 +2094,7 @@ interface decl_st {
 	local: boolean;
 	flp: filepos_st; // location of names
 	names: string[];
-	key: string | null;
+	key: sink_strnil;
 }
 
 function decl_local(flp: filepos_st, names: string[]): decl_st {
@@ -2795,7 +2779,7 @@ function parser_start(pr: parser_st, flpS: filepos_st, state: prs_enum): null {
 	return null;
 }
 
-function parser_statement(pr: parser_st, stmts: ast_st[], more: boolean): string | null {
+function parser_statement(pr: parser_st, stmts: ast_st[], more: boolean): sink_strnil {
 	if (pr.state === null)
 		throw new Error('Parser state is null');
 	pr.level--;
@@ -2823,7 +2807,7 @@ function forceKS(tk: tok_st): tok_st_KS {
 }
 
 // returns null for success, or an error message
-function parser_process(pr: parser_st, stmts: ast_st[]): string | null {
+function parser_process(pr: parser_st, stmts: ast_st[]): sink_strnil {
 	if (pr.tk1 === null)
 		throw new Error('Parser cannot process null token');
 	if (pr.state === null)
@@ -3872,12 +3856,12 @@ function parser_process(pr: parser_st, stmts: ast_st[]): string | null {
 	}
 }
 
-function parser_add(pr: parser_st, tk: tok_st, stmts: ast_st[]): string | null {
+function parser_add(pr: parser_st, tk: tok_st, stmts: ast_st[]): sink_strnil {
 	parser_fwd(pr, tk);
 	return parser_process(pr, stmts);
 }
 
-function parser_close(pr: parser_st): string | null {
+function parser_close(pr: parser_st): sink_strnil {
 	if (pr.state === null)
 		throw new Error('Parser missing state');
 	if (pr.state.next !== null)
@@ -4260,7 +4244,7 @@ function symtbl_findNamespace(sym: symtbl_st, names: string[], max: number): sfn
 	return sfn_ok(ns);
 }
 
-function symtbl_pushNamespace(sym: symtbl_st, names: string[] | true): string | null{
+function symtbl_pushNamespace(sym: symtbl_st, names: string[] | true): sink_strnil{
 	let ns: namespace_st;
 	if (names === true){
 		// create a unique namespace and use it (via `using`) immediately
@@ -4428,7 +4412,7 @@ function symtbl_addVar(sym: symtbl_st, names: string[], slot: number): sta_st {
 	return sta_ok(varloc_new(sym.fr.level, slot));
 }
 
-function symtbl_addEnum(sym: symtbl_st, names: string[], val: number): string | null{
+function symtbl_addEnum(sym: symtbl_st, names: string[], val: number): sink_strnil{
 	let nsr = symtbl_findNamespace(sym, names, names.length - 1);
 	if (!nsr.ok)
 		return nsr.msg;
@@ -4452,7 +4436,7 @@ function symtbl_reserveVars(sym: symtbl_st, count: number): void {
 		sym.fr.vars.push(frame_enum.VAR);
 }
 
-function symtbl_addCmdLocal(sym: symtbl_st, names: string[], lbl: label_st): string | null {
+function symtbl_addCmdLocal(sym: symtbl_st, names: string[], lbl: label_st): sink_strnil {
 	let nsr = symtbl_findNamespace(sym, names, names.length - 1);
 	if (!nsr.ok)
 		return nsr.msg;
@@ -4470,7 +4454,7 @@ function symtbl_addCmdLocal(sym: symtbl_st, names: string[], lbl: label_st): str
 	return null;
 }
 
-function symtbl_addCmdNative(sym: symtbl_st, names: string[], hash: sink_u64): string | null {
+function symtbl_addCmdNative(sym: symtbl_st, names: string[], hash: sink_u64): sink_strnil {
 	let nsr = symtbl_findNamespace(sym, names, names.length - 1);
 	if (!nsr.ok)
 		return nsr.msg;
@@ -4725,15 +4709,15 @@ enum scriptmode_enum {
 
 interface script_st {
 	prg: program_st;
-	cmp: compiler_st;
+	cmp: compiler_st | null;
 	sinc: staticinc_st;
 	files: string[];
 	paths: string[];
 	inc: sink_inc_st;
-	capture_write: string | null;
-	curdir: string | null;
-	file: string;
-	err: string;
+	capture_write: sink_strnil;
+	curdir: sink_strnil;
+	file: sink_strnil;
+	err: sink_strnil;
 	mode: scriptmode_enum;
 	binstate: binstate_st;
 }
@@ -4760,11 +4744,11 @@ function pathjoin(prev: string, next: string): string {
 // file resolver
 //
 
-type f_fileres_begin_f = (file: string, fuser: any) => boolean;
-type f_fileres_end_f = (success: boolean, file: string, fuser: any) => void;
+type fileres_begin_f = (file: string, fuser: any) => boolean;
+type fileres_end_f = (success: boolean, file: string, fuser: any) => void;
 
 function fileres_try(scr: script_st, postfix: boolean, file: string,
-	f_begin: f_fileres_begin_f, f_end: f_fileres_end_f, fuser: any): boolean | Promise<boolean> {
+	f_begin: fileres_begin_f, f_end: fileres_end_f, fuser: any): boolean | Promise<boolean> {
 	let inc = scr.inc;
 	return checkPromise<sink_fstype, boolean>(
 		inc.f_fstype(file, inc.user),
@@ -4798,8 +4782,8 @@ function fileres_try(scr: script_st, postfix: boolean, file: string,
 	);
 }
 
-function fileres_read(scr: script_st, postfix: boolean, file: string, cwd: string | null,
-	f_begin: f_fileres_begin_f, f_end: f_fileres_end_f, fuser: any): boolean | Promise<boolean> {
+function fileres_read(scr: script_st, postfix: boolean, file: string, cwd: sink_strnil,
+	f_begin: fileres_begin_f, f_end: fileres_end_f, fuser: any): boolean | Promise<boolean> {
 	// if an absolute path, there is no searching, so just try to read it directly
 	if (file.charAt(0) === '/')
 		return fileres_try(scr, postfix, file, f_begin, f_end, fuser);
@@ -4857,7 +4841,7 @@ function program_adddebugstr(prg: program_st, str: string): number {
 	return prg.debugTable.length - 1;
 }
 
-function program_addfile(prg: program_st, str: string | null): number {
+function program_addfile(prg: program_st, str: sink_strnil): number {
 	if (str === null)
 		return -1;
 	// get the basename
@@ -4871,7 +4855,7 @@ function program_getdebugstr(prg: program_st, str: number): string {
 	return str < 0 || str >= prg.debugTable.length ? '' : prg.debugTable[str];
 }
 
-function program_errormsg(prg: program_st, flp: filepos_st, msg: string | null): string {
+function program_errormsg(prg: program_st, flp: filepos_st, msg: sink_strnil): string {
 	if (msg === null){
 		if (flp.basefile < 0)
 			return flp.line + ':' + flp.chr;
@@ -5936,7 +5920,7 @@ function program_evalCall(pgen: pgen_st, mode: pem_enum, intoVlc: varloc_st, flp
 			file = file.ex;
 		if (file === null || file.type !== expr_enum.STR)
 			return per_error(flp, 'Expecting constant string for `embed`');
-		let cwd: string | null = null;
+		let cwd: sink_strnil = null;
 		let efu: efu_st = {
 			pgen: pgen,
 			mode: mode,
@@ -5945,7 +5929,7 @@ function program_evalCall(pgen: pgen_st, mode: pem_enum, intoVlc: varloc_st, flp
 			pe: per_ok(VARLOC_NULL)
 		};
 		if (pgen.from >= 0)
-			cwd = pathjoin(script_getfile(pgen.scr, pgen.from), '..');
+			cwd = pathjoin(script_getfile(pgen.scr, pgen.from) as string, '..');
 		let fstr = file.str;
 		return checkPromise<boolean, per_st>(
 			fileres_read(pgen.scr, false, fstr, cwd, embed_begin, embed_end, efu),
@@ -5959,7 +5943,7 @@ function program_evalCall(pgen: pgen_st, mode: pem_enum, intoVlc: varloc_st, flp
 	else if (nsn.type === nsname_enumt.CMD_OPCODE && nsn.opcode === op_enum.STR_HASH &&
 		params !== null){
 		// attempt to str.hash at compile-time if possible
-		let str: string | null = null;
+		let str: sink_strnil = null;
 		let seed = 0;
 		let ex = params;
 		if (ex.type === expr_enum.GROUP && ex.group.length === 2){
@@ -6020,7 +6004,7 @@ function program_evalCall(pgen: pgen_st, mode: pem_enum, intoVlc: varloc_st, flp
 		let index = 0;
 		let found = false;
 		for ( ; index < prg.keyTable.length; index++){
-			if (prg.keyTable[index] === nsn.hash){ // TODO: sink_u64 equ
+			if (sink_u64_equ(prg.keyTable[index], nsn.hash)){
 				found = true;
 				break;
 			}
@@ -7026,7 +7010,7 @@ function pgs_if_check(v: any): v is pgs_if_st {
 
 interface pfvs_res_st {
 	vlc: varloc_st;
-	err: string | null;
+	err: sink_strnil;
 }
 
 function program_forVarsSingle(sym: symtbl_st, forVar: boolean,
@@ -7839,11 +7823,12 @@ interface context_st {
 	rand_seed: number;
 	rand_i: number;
 
-	err: string | null;
+	err: sink_strnil;
 	passed: boolean;
 	failed: boolean;
+	async: boolean;
 
-	gclevel: string;
+	gc_level: string;
 }
 
 function lxs_get(ctx: context_st, args: sink_val[], next: lxs_st | null): lxs_st {
@@ -7891,13 +7876,11 @@ function context_native(ctx: context_st, hash: sink_u64, natuser: any,
 	else{
 		for (let i = 0; i < ctx.natives.length; i++){
 			let nat = ctx.natives[i];
-			if (nat.hash === hash){
+			if (sink_u64_equ(nat.hash, hash)){
 				// already defined, hash collision
-				// TODO: rewrite error message for JS
-				opi_abort(ctx,
+				throw new Error(
 					'Hash collision; cannot redefine native command ' +
 					'(did you call sink_ctx_native twice for the same command?)');
-				return;
 			}
 		}
 	}
@@ -7924,7 +7907,8 @@ function context_new(prg: program_st, io: sink_io_st): context_st {
 		err: null,
 		passed: false,
 		failed: false,
-		gclevel: 'default'
+		async: false,
+		gc_level: 'default'
 	};
 	sink_rand_seedauto(ctx);
 	return ctx;
@@ -9266,10 +9250,10 @@ function callstack_cmdhint(ctx: context_st, pc: number): number {
 	return -1;
 }
 
-function callstack_append(ctx: context_st, err: string | null, pc: number): string | null {
+function callstack_append(ctx: context_st, err: sink_strnil, pc: number): sink_strnil {
 	let flp = callstack_flp(ctx, pc);
 	let cmdhint = callstack_cmdhint(ctx, pc);
-	let chn: string | null = null;
+	let chn: sink_strnil = null;
 	if (cmdhint >= 0)
 		chn = program_getdebugstr(ctx.prg, cmdhint);
 	if (flp.line >= 0){
@@ -9293,7 +9277,7 @@ function callstack_append(ctx: context_st, err: string | null, pc: number): stri
 	return err;
 }
 
-function opi_abort(ctx: sink_ctx, err: string | null): sink_run {
+function opi_abort(ctx: sink_ctx, err: sink_strnil): sink_run {
 	ctx.failed = true;
 	if (err === null)
 		return sink_run.FAIL;
@@ -9980,7 +9964,7 @@ function pk_isjson(s: sink_str): boolean {
 	return state === pkv_enum.ENDVAL;
 }
 
-function pk_tojson(a: sink_val, li: sink_val[]): string | null {
+function pk_tojson(a: sink_val, li: sink_val[]): sink_strnil {
 	if (a === null)
 		return 'null';
 	else if (typeof a === 'number'){
@@ -10197,7 +10181,7 @@ function pk_fmbin(sp: pk_strpos, strs: string[], li: sink_val[]): sink_val | fal
 			let res = (sp.s.charCodeAt(sp.pos) |
 				(sp.s.charCodeAt(sp.pos + 1) <<  8) |
 				(sp.s.charCodeAt(sp.pos + 2) << 16) |
-				(sp.s.charCodeAt(sp.pos + 3) << 24));
+				((sp.s.charCodeAt(sp.pos + 3) << 23) * 2));
 			sp.pos += 4;
 			return res;
 		}
@@ -10207,7 +10191,7 @@ function pk_fmbin(sp: pk_strpos, strs: string[], li: sink_val[]): sink_val | fal
 			let res = (sp.s.charCodeAt(sp.pos) |
 				(sp.s.charCodeAt(sp.pos + 1) <<  8) |
 				(sp.s.charCodeAt(sp.pos + 2) << 16) |
-				(sp.s.charCodeAt(sp.pos + 3) << 24)) - 4294967296;
+				((sp.s.charCodeAt(sp.pos + 3) << 23) * 2)) - 4294967296;
 			sp.pos += 4;
 			return res;
 		}
@@ -10625,6 +10609,7 @@ const txt_int_bswap    = 'byte swaping';
 function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 	if (ctx.passed) return sink_run.PASS;
 	if (ctx.failed) return sink_run.FAIL;
+	if (ctx.async ) return sink_run.ASYNC;
 
 	if (ctx.timeout > 0 && ctx.timeout_left <= 0){
 		ctx.timeout_left = ctx.timeout;
@@ -10773,17 +10758,13 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 
 			case op_enum.NUMP32         : { // [TGT], [[VALUE]]
 				LOAD_abcdef();
-				C |= (D << 8) | (E << 16) | (F << 24);
-				if (C < 0)
-					C += 4294967296;
+				C |= (D << 8) | (E << 16) | ((F << 23) * 2);
 				var_set(ctx, A, B, C);
 			} break;
 
 			case op_enum.NUMN32         : { // [TGT], [[VALUE]]
 				LOAD_abcdef();
-				C |= (D << 8) | (E << 16) | (F << 24);
-				if (C < 0)
-					C += 4294967296;
+				C |= (D << 8) | (E << 16) | ((F << 23) * 2);
 				var_set(ctx, A, B, C - 4294967296);
 			} break;
 
@@ -11073,7 +11054,7 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 					let hash = ctx.prg.keyTable[C];
 					for (let i = 0; i < ctx.natives.length; i++){
 						let nat2 = ctx.natives[i];
-						if (nat2.hash === hash){
+						if (sink_u64_equ(nat2.hash, hash)){
 							nat = nat2;
 							break;
 						}
@@ -11083,12 +11064,21 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 					nat = ctx.natives[C];
 				if (nat === null)
 					return opi_abort(ctx, 'Native call not implemented');
-				let nr = nat.f_native(ctx, p, nat.natuser);
+				let nr: sink_val | Promise<sink_val> = null;
+				try {
+					nr = nat.f_native(ctx, p, nat.natuser);
+				}
+				catch (e){
+					return opi_abort(ctx, '' + e);
+				}
 				if (isPromise<sink_val>(nr)){
+					ctx.async = true;
 					return nr.then(function(res: sink_val){
+						ctx.async = false;
 						var_set(ctx, A, B, res);
 						return context_run(ctx);
 					}, function(err){
+						ctx.async = false;
 						return opi_abort(ctx, '' + err);
 					});
 				}
@@ -11186,12 +11176,21 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 					E = ops[ctx.pc++]; F = ops[ctx.pc++];
 					p.push(var_get(ctx, E, F));
 				}
-				let res = sink_say(ctx, p);
+				let res: undefined | Promise<undefined> = undefined;
+				try {
+					res = sink_say(ctx, p);
+				}
+				catch (e){
+					return opi_abort(ctx, '' + e);
+				}
 				if (isPromise<undefined>(res)){
+					ctx.async = true;
 					return res.then(function(){
+						ctx.async = false;
 						var_set(ctx, A, B, SINK_NIL);
 						return context_run(ctx);
 					}, function(err){
+						ctx.async = false;
 						return opi_abort(ctx, '' + err);
 					});
 				}
@@ -11207,12 +11206,21 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 					E = ops[ctx.pc++]; F = ops[ctx.pc++];
 					p.push(var_get(ctx, E, F));
 				}
-				let res = sink_warn(ctx, p);
+				let res: undefined | Promise<undefined> = undefined;
+				try {
+					res = sink_warn(ctx, p);
+				}
+				catch (e){
+					return opi_abort(ctx, '' + e);
+				}
 				if (isPromise<undefined>(res)){
+					ctx.async = true;
 					return res.then(function(){
+						ctx.async = false;
 						var_set(ctx, A, B, SINK_NIL);
 						return context_run(ctx);
 					}, function(err){
+						ctx.async = false;
 						return opi_abort(ctx, '' + err);
 					});
 				}
@@ -11228,12 +11236,21 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 					E = ops[ctx.pc++]; F = ops[ctx.pc++];
 					p.push(var_get(ctx, E, F));
 				}
-				let res = sink_ask(ctx, p);
+				let res: sink_val | Promise<sink_val> = null;
+				try {
+					res = sink_ask(ctx, p);
+				}
+				catch (e){
+					return opi_abort(ctx, '' + e);
+				}
 				if (isPromise<sink_val>(res)){
+					ctx.async = true;
 					return res.then(function(v: sink_val){
+						ctx.async = false;
 						var_set(ctx, A, B, v);
 						return context_run(ctx);
 					}, function(err){
+						ctx.async = false;
 						return opi_abort(ctx, '' + err);
 					});
 				}
@@ -11250,11 +11267,20 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 						E = ops[ctx.pc++]; F = ops[ctx.pc++];
 						p.push(var_get(ctx, E, F));
 					}
-					let res = sink_say(ctx, p);
+					let res: undefined | Promise<undefined> = undefined;
+					try {
+						res = sink_say(ctx, p);
+					}
+					catch (e){
+						return opi_abort(ctx, '' + e);
+					}
 					if (isPromise<undefined>(res)){
+						ctx.async = true;
 						return res.then(function(){
+							ctx.async = false;
 							return opi_exit(ctx);
 						}, function(err){
+							ctx.async = false;
 							return opi_abort(ctx, '' + err);
 						});
 					}
@@ -11266,7 +11292,7 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 
 			case op_enum.ABORT          : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
-				let err: string | null = null;
+				let err: sink_strnil = null;
 				if (C > 0){
 					let p: sink_val[] = [];
 					for (D = 0; D < C; D++){
@@ -12097,7 +12123,7 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 
 			case op_enum.GC_GETLEVEL    : { // [TGT]
 				LOAD_ab();
-				var_set(ctx, A, B, ctx.gclevel);
+				var_set(ctx, A, B, ctx.gc_level);
 			} break;
 
 			case op_enum.GC_SETLEVEL    : { // [TGT], [SRC]
@@ -12105,7 +12131,7 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 				X = var_get(ctx, C, D);
 				if (!sink_isstr(X) || (X !== 'none' && X !== 'default' && X !== 'lowmem'))
 					return opi_abort(ctx, 'Expecting one of \'none\', \'default\', or \'lowmem\'');
-				ctx.gclevel = X;
+				ctx.gc_level = X;
 				var_set(ctx, A, B, SINK_NIL);
 			} break;
 
@@ -12188,11 +12214,11 @@ interface compiler_st {
 	sym: symtbl_st;
 	flpn: filepos_node_st;
 	inc: sink_inc_st;
-	msg: string | null;
+	msg: sink_strnil;
 }
 
 function compiler_new(scr: script_st, prg: program_st, sinc: staticinc_st, inc: sink_inc_st,
-	file: string | null, paths: string[]): compiler_st {
+	file: sink_strnil, paths: string[]): compiler_st {
 	let cmp: compiler_st = {
 		sinc: sinc,
 		pr: parser_new(),
@@ -12208,7 +12234,7 @@ function compiler_new(scr: script_st, prg: program_st, sinc: staticinc_st, inc: 
 	return cmp;
 }
 
-function compiler_setmsg(cmp: compiler_st, msg: string | null): void {
+function compiler_setmsg(cmp: compiler_st, msg: sink_strnil): void {
 	cmp.msg = msg;
 }
 
@@ -12256,7 +12282,7 @@ function compiler_endinc(cmp: compiler_st, ns: boolean): void {
 function compiler_endinc_cfu(success: boolean, file: string,
 	cfu: compiler_fileres_user_st): undefined | Promise<undefined> {
 	if (success){
-		return checkPromise<string | null, undefined>(
+		return checkPromise<sink_strnil, undefined>(
 			compiler_closeLexer(cfu.cmp),
 			handleEnd
 		);
@@ -12274,16 +12300,16 @@ function compiler_staticinc(cmp: compiler_st, names: string[] | true | null, fil
 	body: string): boolean | Promise<boolean> {
 	if (!compiler_begininc(cmp, names, file))
 		return false;
-	return checkPromise<string | null, boolean>(
+	return checkPromise<sink_strnil, boolean>(
 		compiler_write(cmp, body),
-		function(err: string | null): boolean | Promise<boolean> {
+		function(err: sink_strnil): boolean | Promise<boolean> {
 			if (err){
 				compiler_endinc(cmp, names !== null);
 				return false;
 			}
-			return checkPromise<string | null, boolean>(
+			return checkPromise<sink_strnil, boolean>(
 				compiler_closeLexer(cmp),
-				function(err: string | null): boolean {
+				function(err: sink_strnil): boolean {
 					compiler_endinc(cmp, names !== null);
 					if (err)
 						return false;
@@ -12295,19 +12321,19 @@ function compiler_staticinc(cmp: compiler_st, names: string[] | true | null, fil
 }
 
 function compiler_dynamicinc(cmp: compiler_st, names: string[] | true | null, file: string,
-	from: string | null): boolean | Promise<boolean> {
+	from: sink_strnil): boolean | Promise<boolean> {
 	let cfu = { cmp: cmp, names: names };
-	let cwd: string | null = null;
+	let cwd: sink_strnil = null;
 	if (from)
 		cwd = pathjoin(from, '..');
 	return fileres_read(cmp.scr, true, file, cwd,
 		compiler_begininc_cfu, compiler_endinc_cfu, cfu);
 }
 
-function compiler_process(cmp: compiler_st): string | null | Promise<string | null> {
+function compiler_process(cmp: compiler_st): sink_strnil | Promise<sink_strnil> {
 	return handleNextFlpn();
 
-	function handleNextFlpn(): string | null | Promise<string | null> {
+	function handleNextFlpn(): sink_strnil | Promise<sink_strnil> {
 		if (cmp.flpn.tks.length <= 0)
 			return null;
 
@@ -12330,14 +12356,14 @@ function compiler_process(cmp: compiler_st): string | null | Promise<string | nu
 
 		return handleNextStmt();
 
-		function handleNextStmt(): string | null | Promise<string | null> {
+		function handleNextStmt(): sink_strnil | Promise<sink_strnil> {
 			// process statements
 			if (stmts.length <= 0)
 				return handleNextFlpn();
 
 			let stmt = stmts.shift() as ast_st;
 
-			function handleNextIncl(ii: number): string | null | Promise<string | null> {
+			function handleNextIncl(ii: number): sink_strnil | Promise<sink_strnil> {
 				if (stmt.type !== ast_enumt.INCLUDE)
 					throw new Error('Expecting include AST node');
 				if (ii >= stmt.incls.length)
@@ -12361,10 +12387,10 @@ function compiler_process(cmp: compiler_st): string | null | Promise<string | nu
 							return handleExternalInc();
 						}
 						else{
-							return checkPromise<boolean, string | null>(
+							return checkPromise<boolean, sink_strnil>(
 								compiler_dynamicinc(cmp, inc.names, sinc_content,
 									script_getfile(cmp.scr, stmt.flp.fullfile)),
-								function(success: boolean): string | null | Promise<string | null> {
+								function(success: boolean): sink_strnil | Promise<sink_strnil> {
 									if (!success){
 										compiler_setmsg(cmp, 'Failed to include: ' + file);
 										return cmp.msg;
@@ -12377,7 +12403,7 @@ function compiler_process(cmp: compiler_st): string | null | Promise<string | nu
 				}
 				return handleExternalInc();
 
-				function handleExternalInc(): string | null | Promise<string | null> {
+				function handleExternalInc(): sink_strnil | Promise<sink_strnil> {
 					if (!internal){
 						let found = compiler_dynamicinc(cmp, inc.names, file,
 							script_getfile(cmp.scr, stmt.flp.fullfile));
@@ -12396,7 +12422,7 @@ function compiler_process(cmp: compiler_st): string | null | Promise<string | nu
 			}
 			else{
 				let pgsl = cmp.flpn.pgstate;
-				return checkPromise<pgr_st, string | null>(
+				return checkPromise<pgr_st, sink_strnil>(
 					program_gen({
 							prg: cmp.prg,
 							sym: cmp.sym,
@@ -12405,7 +12431,7 @@ function compiler_process(cmp: compiler_st): string | null | Promise<string | nu
 						}, stmt,
 						pgsl.length <= 0 ? null : (pgsl[pgsl.length - 1] as any).state,
 						cmp.prg.repl && cmp.flpn.next === null && pgsl.length <= 0),
-					function(pg: pgr_st): string | null | Promise<string | null> {
+					function(pg: pgr_st): sink_strnil | Promise<sink_strnil> {
 						switch (pg.type){
 							case pgr_enum.OK:
 								break;
@@ -12430,7 +12456,7 @@ function compiler_process(cmp: compiler_st): string | null | Promise<string | nu
 	}
 }
 
-function compiler_write(cmp: compiler_st, bytes: string): string | null | Promise<string | null> {
+function compiler_write(cmp: compiler_st, bytes: string): sink_strnil | Promise<sink_strnil> {
 	let flpn = cmp.flpn;
 	for (let i = 0; i < bytes.length; i++){
 		let b = bytes.charAt(i);
@@ -12455,15 +12481,15 @@ function compiler_write(cmp: compiler_st, bytes: string): string | null | Promis
 	return compiler_process(cmp);
 }
 
-function compiler_closeLexer(cmp: compiler_st): string | null | Promise<string | null> {
+function compiler_closeLexer(cmp: compiler_st): sink_strnil | Promise<sink_strnil> {
 	lex_close(cmp.flpn.lx, cmp.flpn.flp, cmp.flpn.tks);
 	return compiler_process(cmp);
 }
 
-function compiler_close(cmp: compiler_st): string | null | Promise<string | null> {
-	return checkPromise<string | null, string | null>(
+function compiler_close(cmp: compiler_st): sink_strnil | Promise<sink_strnil> {
+	return checkPromise<sink_strnil, sink_strnil>(
 		compiler_closeLexer(cmp),
-		function(err: string | null): string | null {
+		function(err: sink_strnil): sink_strnil {
 			if (err)
 				return err;
 
@@ -12477,7 +12503,7 @@ function compiler_close(cmp: compiler_st): string | null | Promise<string | null
 		}
 	);
 }
-/*
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 //
 // API
@@ -12488,211 +12514,215 @@ function compiler_close(cmp: compiler_st): string | null | Promise<string | null
 // script API
 //
 
-sink_scr sink_scr_new(sink_inc_st inc, const char *curdir, bool repl){
-	if (curdir !== NULL && curdir[0] !== '/')
-		fprintf(stderr, "Warning: sink current directory \"%s\" is not an absolute path\n", curdir);
-	script sc = mem_alloc(sizeof(script_st));
-	sc.prg = program_new(repl);
-	sc.cmp = NULL;
-	sc.sinc = staticinc_new();
-	sc.cup = cleanup_new();
-	sc.files = list_ptr_new(mem_free_func);
-	sc.paths = list_ptr_new(mem_free_func);
-	sc.inc = inc;
-	sc.capture_write = NULL;
-	sc.curdir = curdir ? format("%s", curdir) : NULL;
-	sc.file = NULL;
-	sc.err = NULL;
-	sc.mode = SCM_UNKNOWN;
-	sc.binstate.buf = NULL;
+export function sink_scr_new(inc: sink_inc_st, curdir: sink_strnil, repl: boolean): sink_scr {
+	if (curdir !== null && curdir.charAt(0) !== '/')
+		console.warn('Warning: sink current directory "' + curdir + '" is not an absolute path');
+	let sc: script_st = {
+		prg: program_new(repl),
+		cmp: null,
+		sinc: staticinc_new(),
+		files: [],
+		paths: [],
+		inc: inc,
+		capture_write: null,
+		curdir: curdir,
+		file: null,
+		err: null,
+		mode: scriptmode_enum.UNKNOWN,
+		binstate: {
+			state: bis_enum.HEADER,
+			str_size: 0,
+			key_size: 0,
+			dbg_size: 0,
+			pos_size: 0,
+			cmd_size: 0,
+			ops_size: 0,
+			left: 0,
+			item: 0,
+			buf: ''
+		}
+	};
 	return sc;
 }
 
-static inline int script_addfile(script scr, const char *file){
-	if (file === NULL)
+function script_addfile(scr: script_st, file: sink_strnil): number {
+	if (file === null)
 		return -1;
-	for (int i = 0; i < scr.files.size; i++){
-		if (strcmp(scr.files.ptrs[i], file) === 0)
+	for (let i = 0; i < scr.files.length; i++){
+		if (scr.files[i] === file)
 			return i;
 	}
-	list_ptr_push(scr.files, format("%s", file));
-	return scr.files.size - 1;
+	scr.files.push(file);
+	return scr.files.length - 1;
 }
 
-static inline const char *script_getfile(script scr, int file){
+function script_getfile(scr: script_st, file: number): sink_strnil {
 	if (file < 0)
 		return null;
-	return scr.files.ptrs[file];
+	return scr.files[file];
 }
 
-void sink_scr_addpath(sink_scr scr, const char *path){
-	list_ptr_push(((script)scr).paths, format("%s", path));
+export function sink_scr_addpath(scr: sink_scr, path: string): void {
+	(scr as script_st).paths.push(path);
 }
 
-void sink_scr_incbody(sink_scr scr, const char *name, const char *body){
-	staticinc_addbody(((script)scr).sinc, name, body);
+export function sink_scr_incbody(scr: sink_scr, name: string, body: string): void {
+	staticinc_addbody((scr as script_st).sinc, name, body);
 }
 
-void sink_scr_incfile(sink_scr scr, const char *name, const char *file){
-	staticinc_addfile(((script)scr).sinc, name, file);
+export function sink_scr_incfile(scr: sink_scr, name: string, file: string): void {
+	staticinc_addfile((scr as script_st).sinc, name, file);
 }
 
-void sink_scr_cleanup(sink_scr scr, void *cuser, sink_free_f f_free){
-	cleanup_add(((script)scr).cup, cuser, f_free);
-}
-
-static bool sfr_begin(const char *file, script sc){
-	if (sc.file){
-		mem_free(sc.file);
-		sc.file = NULL;
-	}
+function sfr_begin(file: string, sc: script_st): boolean {
+	if (sc.file)
+		sc.file = null;
 	if (file)
-		sc.file = format("%s", file);
+		sc.file = file;
 	return true;
 }
 
-static inline void binary_validate(script sc){
+function binary_validate(sc: script_st): void {
 	if (sc.err)
 		return;
-	if (sc.binstate.state === BIS_DONE){
+	if (sc.binstate.state === bis_enum.DONE){
 		if (!program_validate(sc.prg))
-			sc.err = format("Error: Invalid program code");
+			sc.err = 'Error: Invalid program code';
 	}
 	else
-		sc.err = format("Error: Invalid end of file");
+		sc.err = 'Error: Invalid end of file';
 }
 
-static inline void text_validate(script sc, bool close, bool resetonclose){
+function text_validate(sc: script_st, close: boolean, resetonclose: boolean): void {
+	if (sc.cmp === null)
+		throw new Error('Expecting compiler object');
 	if (sc.err && sc.prg.repl)
 		compiler_reset(sc.cmp);
 	if (close){
-		char *err2 = compiler_close(sc.cmp);
-		if (err2){
-			if (sc.err)
-				mem_free(sc.err);
-			sc.err = format("Error: %s", err2);
-		}
+		let err2 = compiler_close(sc.cmp);
+		if (err2)
+			sc.err = 'Error: ' + err2;
 		if (resetonclose)
 			compiler_reset(sc.cmp);
 	}
 }
 
-static void sfr_end(bool success, const char *file, script sc){
-	if (!success){
-		if (sc.err)
-			mem_free(sc.err);
-		sc.err = format("Error: %s", sc.cmp.msg);
-	}
+function sfr_end(success: boolean, file: string, sc: script_st): void {
+	if (sc.cmp === null)
+		throw new Error('Expecting compiler object');
+	if (!success)
+		sc.err = 'Error: ' + sc.cmp.msg;
 	else{
 		switch (sc.mode){
-			case SCM_UNKNOWN:
+			case scriptmode_enum.UNKNOWN:
 				// empty file, do nothing
 				break;
-			case SCM_BINARY:
+			case scriptmode_enum.BINARY:
 				binary_validate(sc);
 				break;
-			case SCM_TEXT:
+			case scriptmode_enum.TEXT:
 				text_validate(sc, true, false);
 				break;
 		}
 	}
 }
 
-bool sink_scr_loadfile(sink_scr scr, const char *file){
-	script sc = scr;
-	if (sc.err){
-		mem_free(sc.err);
-		sc.err = NULL;
-	}
-	bool read = fileres_read(sc, true, file, NULL,
-		(f_fileres_begin_f)sfr_begin, (f_fileres_end_f)sfr_end, sc);
-	if (!read && sc.err === NULL)
-		sc.err = format("Error: Failed to read file: %s", file);
-	return sc.err === NULL;
+export function sink_scr_loadfile(scr: sink_scr, file: string): boolean | Promise<boolean> {
+	let sc = scr as script_st;
+	if (sc.err)
+		sc.err = null;
+	return checkPromise<boolean, boolean>(
+		fileres_read(sc, true, file, null, sfr_begin, sfr_end, sc),
+		function(read: boolean): boolean {
+			if (!read && sc.err === null)
+				sc.err = 'Error: Failed to read file: ' + file;
+			return sc.err === null;
+		}
+	);
 }
 
-const char *sink_scr_getfile(sink_scr scr){
-	return ((script)scr).file;
+export function sink_scr_getfile(scr: sink_scr): sink_strnil {
+	return (scr as script_st).file;
 }
 
-const char *sink_scr_getcwd(sink_scr scr){
-	return ((script)scr).curdir;
+export function sink_scr_getcwd(scr: sink_scr): sink_strnil {
+	return (scr as script_st).curdir;
 }
 
 // byte size of each section of the binary file
-static const int BSZ_HEADER     = 28;
-static const int BSZ_STR_HEAD   =  4;
-static const int BSZ_KEY        =  8;
-static const int BSZ_DEBUG_HEAD =  4;
-static const int BSZ_POS        = 16;
-static const int BSZ_CMD        =  8;
+const BSZ_HEADER     = 28;
+const BSZ_STR_HEAD   =  4;
+const BSZ_KEY        =  8;
+const BSZ_DEBUG_HEAD =  4;
+const BSZ_POS        = 16;
+const BSZ_CMD        =  8;
 
-bool sink_scr_write(sink_scr scr, int size, const uint8_t *bytes){
-	if (size <= 0)
+export function sink_scr_write(scr: sink_scr, bytes: string): boolean {
+	if (bytes.length <= 0)
 		return true;
-	script sc = scr;
+	let sc = scr as script_st;
 
-	if (sc.capture_write){
-		// the write operation is being captured by an embed, so append to the list_byte, and
+	if (sc.capture_write !== null){
+		// the write operation is being captured by an embed, so append to the string, and
 		// return immediately
-		list_byte_append(sc.capture_write, size, bytes);
+		sc.capture_write += bytes;
 		return true;
 	}
 
 	// sink binary files start with 0xFC (invalid UTF8 start byte), so we can tell if we're binary
 	// just by looking at the first byte
-	if (sc.mode === SCM_UNKNOWN){
-		if (bytes[0] === 0xFC){
-			sc.mode = SCM_BINARY;
-			sc.binstate.state = BIS_HEADER;
+	if (sc.mode === scriptmode_enum.UNKNOWN){
+		if (bytes.charCodeAt(0) === 0xFC){
+			sc.mode = scriptmode_enum.BINARY;
+			sc.binstate.state = bis_enum.HEADER;
 			sc.binstate.left = BSZ_HEADER;
-			sc.binstate.buf = list_byte_new();
+			sc.binstate.buf = '';
 		}
 		else{
-			sc.mode = SCM_TEXT;
+			sc.mode = scriptmode_enum.TEXT;
 			sc.cmp = compiler_new(sc, sc.prg, sc.sinc, sc.inc, sc.file, sc.paths);
 		}
 	}
 
-	if (sc.mode === SCM_BINARY){
-		if (sc.err){
-			mem_free(sc.err);
-			sc.err = NULL;
+	let bs = sc.binstate;
+	let prg = sc.prg;
+
+	// read a 4 byte integer (LE)
+	function GETINT(i: number): number {
+		return (
+			(bs.buf.charCodeAt(i + 0)      ) |
+			(bs.buf.charCodeAt(i + 1) <<  8) |
+			(bs.buf.charCodeAt(i + 2) << 16) |
+			((bs.buf.charCodeAt(i + 3) << 23) * 2));
+	}
+
+	// write to the buffer up to a certain total bytes (bs.left)
+	function WRITE(): void {
+		if (bytes.length > bs.left){
+			// partial write to buf
+			bs.buf += bytes.substr(0, bs.left);
+			bytes = bytes.substr(bs.left);
+			bs.left = 0;
 		}
+		else{
+			// full write to buf
+			bs.buf += bytes;
+			bs.left -= bytes.length;
+			bytes = '';
+		}
+	}
 
-		binstate_st *bs = &sc.binstate;
-		program prg = sc.prg;
+	if (sc.mode === scriptmode_enum.BINARY){
+		if (sc.err)
+			sc.err = null;
 
-		// read a 4 byte integer (LE)
-		#define GETINT(i)    (                               \
-			(((uint32_t)bs.buf.bytes[(i) + 0])      ) |    \
-			(((uint32_t)bs.buf.bytes[(i) + 1]) <<  8) |    \
-			(((uint32_t)bs.buf.bytes[(i) + 2]) << 16) |    \
-			(((uint32_t)bs.buf.bytes[(i) + 3]) << 24))
-
-		// write to the buffer up to a certain total bytes (bs.left)
-		#define WRITE()                                      \
-			if (size > bs.left){                            \
-				/* partial write to buf * /                   \
-				list_byte_append(bs.buf, bs.left, bytes);  \
-				bytes += bs.left;                           \
-				size -= bs.left;                            \
-				bs.left = 0;                                \
-			}                                                \
-			else{                                            \
-				/* full write to buf * /                      \
-				list_byte_append(bs.buf, size, bytes);      \
-				bs.left -= size;                            \
-				size = 0;                                    \
-			}
-
-		while (size > 0){
+		while (bytes.length > 0){
 			switch (bs.state){
-				case BIS_HEADER:
-					WRITE()
+				case bis_enum.HEADER:
+					WRITE();
 					if (bs.left === 0){
 						// finished reading entire header
-						uint32_t magic = GETINT(0);
+						let magic = GETINT(0);
 						bs.str_size = GETINT(4);
 						bs.key_size = GETINT(8);
 						bs.dbg_size = GETINT(12);
@@ -12700,114 +12730,101 @@ bool sink_scr_write(sink_scr scr, int size, const uint8_t *bytes){
 						bs.cmd_size = GETINT(20);
 						bs.ops_size = GETINT(24);
 						if (magic !== 0x016B53FC){
-							sc.err = format("Error: Invalid binary header");
+							sc.err = 'Error: Invalid binary header';
 							return false;
 						}
-						debugf("binary header: strs %d, keys %d, dbgs %d, poss %d, cmds %d, ops %d",
-							bs.str_size, bs.key_size, bs.dbg_size, bs.pos_size,
-							bs.cmd_size, bs.ops_size);
-						bs.state = BIS_STR_HEAD;
+						bs.state = bis_enum.STR_HEAD;
 						bs.left = BSZ_STR_HEAD;
 						bs.item = 0;
-						bs.buf.size = 0;
+						bs.buf = '';
 					}
 					break;
-				case BIS_STR_HEAD:
+				case bis_enum.STR_HEAD:
 					if (bs.item >= bs.str_size){
-						bs.state = BIS_KEY;
+						bs.state = bis_enum.KEY;
 						bs.left = BSZ_KEY;
 						bs.item = 0;
 						break;
 					}
-					WRITE()
+					WRITE();
 					if (bs.left === 0){
-						bs.state = BIS_STR_BODY;
+						bs.state = bis_enum.STR_BODY;
 						bs.left = GETINT(0);
-						bs.buf.size = 0;
+						bs.buf = '';
 					}
 					break;
-				case BIS_STR_BODY: // variable
-					WRITE()
+				case bis_enum.STR_BODY: // variable
+					WRITE();
 					if (bs.left === 0){
-						list_byte_null(bs.buf);
-						debugf("str[%d] = \"%s\"", bs.item, (const char *)bs.buf.bytes);
-						list_ptr_push(prg.strTable, bs.buf);
-						bs.buf = list_byte_new();
-						bs.state = BIS_STR_HEAD;
+						prg.strTable.push(bs.buf);
+						bs.buf = '';
+						bs.state = bis_enum.STR_HEAD;
 						bs.left = BSZ_STR_HEAD;
 						bs.item++;
 					}
 					break;
-				case BIS_KEY:
+				case bis_enum.KEY:
 					if (bs.item >= bs.key_size){
-						bs.state = BIS_DEBUG_HEAD;
+						bs.state = bis_enum.DEBUG_HEAD;
 						bs.left = BSZ_DEBUG_HEAD;
 						bs.item = 0;
 						break;
 					}
-					WRITE()
+					WRITE();
 					if (bs.left === 0){
-						uint64_t key =
-							(((uint64_t)bs.buf.bytes[0])      ) |
-							(((uint64_t)bs.buf.bytes[1]) <<  8) |
-							(((uint64_t)bs.buf.bytes[2]) << 16) |
-							(((uint64_t)bs.buf.bytes[3]) << 24) |
-							(((uint64_t)bs.buf.bytes[4]) << 32) |
-							(((uint64_t)bs.buf.bytes[5]) << 40) |
-							(((uint64_t)bs.buf.bytes[6]) << 48) |
-							(((uint64_t)bs.buf.bytes[7]) << 56);
-						list_u64_push(prg.keyTable, key);
-						debugf("key[%d] = %016llX", bs.item, key);
+						let key1 = GETINT(0);
+						let key2 = GETINT(4);
+						let key: sink_u64 = [key1, key2];
+						prg.keyTable.push(key);
 						bs.item++;
 						bs.left = BSZ_KEY;
-						bs.buf.size = 0;
+						bs.buf = '';
 					}
 					break;
-				case BIS_DEBUG_HEAD:
+				case bis_enum.DEBUG_HEAD:
 					if (bs.item >= bs.dbg_size){
-						bs.state = BIS_POS;
+						bs.state = bis_enum.POS;
 						bs.left = BSZ_POS;
 						bs.item = 0;
 						break;
 					}
-					WRITE()
+					WRITE();
 					if (bs.left === 0){
-						bs.state = BIS_DEBUG_BODY;
+						bs.state = bis_enum.DEBUG_BODY;
 						bs.left = GETINT(0);
-						bs.buf.size = 0;
+						bs.buf = '';
 					}
 					break;
-				case BIS_DEBUG_BODY: // variable
-					WRITE()
+				case bis_enum.DEBUG_BODY: // variable
+					WRITE();
 					if (bs.left === 0){
-						list_byte_null(bs.buf);
-						debugf("dbg[%d] = \"%s\"", bs.item, (const char *)bs.buf.bytes);
-						list_ptr_push(prg.debugTable, list_byte_freetochar(bs.buf));
-						bs.buf = list_byte_new();
-						bs.state = BIS_DEBUG_HEAD;
+						prg.debugTable.push(bs.buf);
+						bs.buf = '';
+						bs.state = bis_enum.DEBUG_HEAD;
 						bs.left = BSZ_DEBUG_HEAD;
 						bs.item++;
 					}
 					break;
-				case BIS_POS:
+				case bis_enum.POS:
 					if (bs.item >= bs.pos_size){
-						bs.state = BIS_CMD;
+						bs.state = bis_enum.CMD;
 						bs.left = BSZ_CMD;
 						bs.item = 0;
 						break;
 					}
-					WRITE()
+					WRITE();
 					if (bs.left === 0){
-						prgflp p = mem_alloc(sizeof(prgflp_st));
-						p.pc           = GETINT( 0);
-						p.flp.line     = GETINT( 4);
-						p.flp.chr      = GETINT( 8);
-						p.flp.basefile = GETINT(12);
-						p.flp.fullfile = -1;
-						debugf("pos[%d] = pc %d, line %d, chr %d, bsf %d", bs.item,
-							p.pc, p.flp.line, p.flp.chr, p.flp.basefile);
-						list_ptr_push(prg.posTable, p);
-						bs.buf.size = 0;
+						let p: prgflp_st = {
+							pc: GETINT(0),
+							flp: {
+								line: GETINT(4),
+								chr: GETINT(8),
+								basefile: GETINT(12),
+								fullfile: -1
+							}
+						};
+						prg.posTable.push(p);
+						bs.buf = '';
 						bs.left = BSZ_POS;
 						bs.item++;
 						// silently validate basefile
@@ -12815,20 +12832,20 @@ bool sink_scr_write(sink_scr scr, int size, const uint8_t *bytes){
 							p.flp.basefile = -1;
 					}
 					break;
-				case BIS_CMD:
+				case bis_enum.CMD:
 					if (bs.item >= bs.cmd_size){
-						bs.state = BIS_OPS;
+						bs.state = bis_enum.OPS;
 						bs.left = bs.ops_size + 1; // add 1 to read the terminating byte
 						break;
 					}
-					WRITE()
+					WRITE();
 					if (bs.left === 0){
-						prgch p = mem_alloc(sizeof(prgch_st));
-						p.pc      = GETINT(0);
-						p.cmdhint = GETINT(4);
-						debugf("cmd[%d] = pc %d, cmh %d", bs.item, p.pc, p.cmdhint);
-						list_ptr_push(prg.cmdTable, p);
-						bs.buf.size = 0;
+						let p: prgch_st = {
+							pc: GETINT(0),
+							cmdhint: GETINT(4)
+						};
+						prg.cmdTable.push(p);
+						bs.buf = '';
 						bs.left = BSZ_CMD;
 						bs.item++;
 						// silently validate cmdhint
@@ -12836,61 +12853,56 @@ bool sink_scr_write(sink_scr scr, int size, const uint8_t *bytes){
 							p.cmdhint = -1;
 					}
 					break;
-				case BIS_OPS: // variable
-					WRITE()
+				case bis_enum.OPS: // variable
+					WRITE();
 					if (bs.left === 0){
 						// validate terminating byte
-						if (bs.buf.bytes[bs.buf.size - 1] !== 0xFD){
-							sc.err = format("Error: Invalid binary file");
+						if (bs.buf.charCodeAt(bs.buf.length - 1) !== 0xFD){
+							sc.err = 'Error: Invalid binary file';
 							return false;
 						}
-						bs.buf.size--; // trim off terminating byte
-						list_byte_free(prg.ops);
-						prg.ops = bs.buf;
-						bs.buf = NULL;
-						bs.state = BIS_DONE;
+						for (let i = 0; i < bs.buf.length - 1; i++) // trim off terminating byte
+							prg.ops.push(bs.buf.charCodeAt(i));
+						bs.buf = '';
+						bs.state = bis_enum.DONE;
 					}
 					break;
-				case BIS_DONE:
-					sc.err = format("Error: Invalid data at end of file");
+				case bis_enum.DONE:
+					sc.err = 'Error: Invalid data at end of file';
 					return false;
 			}
 		}
-		#undef GETINT
-		#undef WRITE
-		bool is_eval = !sc.prg.repl && sc.file === NULL;
+		let is_eval = !sc.prg.repl && sc.file === null;
 		if (is_eval) // if we're evaling, then we're at the end of file right now
 			binary_validate(sc);
-		return sc.err === NULL;
+		return sc.err === null;
 	}
 	else{
-		if (sc.err){
-			mem_free(sc.err);
-			sc.err = NULL;
-		}
-		char *err = compiler_write(sc.cmp, size, bytes);
+		if (sc.err)
+			sc.err = null;
+		let err = compiler_write(sc.cmp as compiler_st, bytes);
 		if (err)
-			sc.err = format("Error: %s", err);
-		bool is_eval = !sc.prg.repl && sc.file === NULL;
+			sc.err = 'Error: ' + err;
+		let is_eval = !sc.prg.repl && sc.file === null;
 		text_validate(sc, is_eval, true);
-		return sc.err === NULL;
+		return sc.err === null;
 	}
 }
 
-const char *sink_scr_geterr(sink_scr scr){
-	return ((script)scr).err;
+export function sink_scr_geterr(scr: sink_scr): sink_strnil {
+	return (scr as script_st).err;
 }
 
-int sink_scr_level(sink_scr scr){
-	if (((script)scr).mode !== SCM_TEXT)
+export function sink_scr_level(scr: sink_scr): number {
+	if ((scr as script_st).mode !== scriptmode_enum.TEXT)
 		return 0;
-	return ((script)scr).cmp.pr.level;
+	return ((scr as script_st).cmp as compiler_st).pr.level;
 }
 
-void sink_scr_dump(sink_scr scr, bool debug, void *user, sink_dump_f f_dump){
+export function sink_scr_dump(scr: sink_scr, debug: boolean, user: any, f_dump: sink_dump_f): void {
 	// all integer values are little endian
 
-	program prg = ((script)scr).prg;
+	let prg = (scr as script_st).prg;
 
 	// output header
 	// 4 bytes: header: 0xFC, 'S', 'k', file format version (always 0x01)
@@ -12900,90 +12912,85 @@ void sink_scr_dump(sink_scr scr, bool debug, void *user, sink_dump_f f_dump){
 	// 4 bytes: pos table size
 	// 4 bytes: cmd table size
 	// 4 bytes: opcode size
-	uint8_t header[28] = {0};
-	header[ 0] = 0xFC;
-	header[ 1] = 0x53;
-	header[ 2] = 0x6B;
-	header[ 3] = 0x01;
-	header[ 4] = (prg.strTable.size            ) & 0xFF;
-	header[ 5] = (prg.strTable.size       >>  8) & 0xFF;
-	header[ 6] = (prg.strTable.size       >> 16) & 0xFF;
-	header[ 7] = (prg.strTable.size       >> 24) & 0xFF;
-	header[ 8] = (prg.keyTable.size            ) & 0xFF;
-	header[ 9] = (prg.keyTable.size       >>  8) & 0xFF;
-	header[10] = (prg.keyTable.size       >> 16) & 0xFF;
-	header[11] = (prg.keyTable.size       >> 24) & 0xFF;
-	if (debug){
-		header[12] = (prg.debugTable.size      ) & 0xFF;
-		header[13] = (prg.debugTable.size >>  8) & 0xFF;
-		header[14] = (prg.debugTable.size >> 16) & 0xFF;
-		header[15] = (prg.debugTable.size >> 24) & 0xFF;
-		header[16] = (prg.posTable.size        ) & 0xFF;
-		header[17] = (prg.posTable.size   >>  8) & 0xFF;
-		header[18] = (prg.posTable.size   >> 16) & 0xFF;
-		header[19] = (prg.posTable.size   >> 24) & 0xFF;
-		header[20] = (prg.cmdTable.size        ) & 0xFF;
-		header[21] = (prg.cmdTable.size   >>  8) & 0xFF;
-		header[22] = (prg.cmdTable.size   >> 16) & 0xFF;
-		header[23] = (prg.cmdTable.size   >> 24) & 0xFF;
-	}
-	header[24] = (prg.ops.size                 ) & 0xFF;
-	header[25] = (prg.ops.size            >>  8) & 0xFF;
-	header[26] = (prg.ops.size            >> 16) & 0xFF;
-	header[27] = (prg.ops.size            >> 24) & 0xFF;
-	f_dump(header, 1, 28, user);
+	let header = '' +
+		String.fromCharCode(0xFC) +
+		String.fromCharCode(0x53) +
+		String.fromCharCode(0x6B) +
+		String.fromCharCode(0x01) +
+		String.fromCharCode(             (prg.strTable.length            ) & 0xFF)  +
+		String.fromCharCode(             (prg.strTable.length       >>  8) & 0xFF)  +
+		String.fromCharCode(             (prg.strTable.length       >> 16) & 0xFF)  +
+		String.fromCharCode(             (prg.strTable.length       >> 24) & 0xFF)  +
+		String.fromCharCode(             (prg.keyTable.length            ) & 0xFF)  +
+		String.fromCharCode(             (prg.keyTable.length       >>  8) & 0xFF)  +
+		String.fromCharCode(             (prg.keyTable.length       >> 16) & 0xFF)  +
+		String.fromCharCode(             (prg.keyTable.length       >> 24) & 0xFF)  +
+		String.fromCharCode(debug ? 0 : ((prg.debugTable.length          ) & 0xFF)) +
+		String.fromCharCode(debug ? 0 : ((prg.debugTable.length     >>  8) & 0xFF)) +
+		String.fromCharCode(debug ? 0 : ((prg.debugTable.length     >> 16) & 0xFF)) +
+		String.fromCharCode(debug ? 0 : ((prg.debugTable.length     >> 24) & 0xFF)) +
+		String.fromCharCode(debug ? 0 : ((prg.posTable.length            ) & 0xFF)) +
+		String.fromCharCode(debug ? 0 : ((prg.posTable.length       >>  8) & 0xFF)) +
+		String.fromCharCode(debug ? 0 : ((prg.posTable.length       >> 16) & 0xFF)) +
+		String.fromCharCode(debug ? 0 : ((prg.posTable.length       >> 24) & 0xFF)) +
+		String.fromCharCode(debug ? 0 : ((prg.cmdTable.length            ) & 0xFF)) +
+		String.fromCharCode(debug ? 0 : ((prg.cmdTable.length       >>  8) & 0xFF)) +
+		String.fromCharCode(debug ? 0 : ((prg.cmdTable.length       >> 16) & 0xFF)) +
+		String.fromCharCode(debug ? 0 : ((prg.cmdTable.length       >> 24) & 0xFF)) +
+		String.fromCharCode(             (prg.ops.length                 ) & 0xFF)  +
+		String.fromCharCode(             (prg.ops.length            >>  8) & 0xFF)  +
+		String.fromCharCode(             (prg.ops.length            >> 16) & 0xFF)  +
+		String.fromCharCode(             (prg.ops.length            >> 24) & 0xFF);
+	f_dump(header, user);
 
 	// output strTable
 	// 4 bytes: string size
 	// N bytes: raw string bytes
-	for (int i = 0; i < prg.strTable.size; i++){
-		list_byte str = prg.strTable.ptrs[i];
-		uint8_t sizeb[4] = {
-			(str.size      ) & 0xFF,
-			(str.size >>  8) & 0xFF,
-			(str.size >> 16) & 0xFF,
-			(str.size >> 24) & 0xFF
-		};
-		f_dump(sizeb, 1, 4, user);
-		if (str.size > 0)
-			f_dump(str.bytes, 1, str.size, user);
+	for (let i = 0; i < prg.strTable.length; i++){
+		let str = prg.strTable[i];
+		let sizeb = '' +
+			String.fromCharCode((str.length      ) & 0xFF) +
+			String.fromCharCode((str.length >>  8) & 0xFF) +
+			String.fromCharCode((str.length >> 16) & 0xFF) +
+			String.fromCharCode((str.length >> 24) & 0xFF);
+		f_dump(sizeb, user);
+		if (str.length > 0)
+			f_dump(str, user);
 	}
 
 	// output keyTable
 	// 8 bytes: hash identifier
-	for (int i = 0; i < prg.keyTable.size; i++){
-		uint64_t id = prg.keyTable.vals[i];
-		uint8_t idb[8] = {
-			(id      ) & 0xFF,
-			(id >>  8) & 0xFF,
-			(id >> 16) & 0xFF,
-			(id >> 24) & 0xFF,
-			(id >> 32) & 0xFF,
-			(id >> 40) & 0xFF,
-			(id >> 48) & 0xFF,
-			(id >> 56) & 0xFF
-		};
-		f_dump(idb, 1, 8, user);
+	for (let i = 0; i < prg.keyTable.length; i++){
+		let id = prg.keyTable[i];
+		let idb = '' +
+			String.fromCharCode((id[0]      ) & 0xFF) +
+			String.fromCharCode((id[0] >>  8) & 0xFF) +
+			String.fromCharCode((id[0] >> 16) & 0xFF) +
+			String.fromCharCode((id[0] >> 24) & 0xFF) +
+			String.fromCharCode((id[1]      ) & 0xFF) +
+			String.fromCharCode((id[1] >>  8) & 0xFF) +
+			String.fromCharCode((id[1] >> 16) & 0xFF) +
+			String.fromCharCode((id[1] >> 24) & 0xFF);
+		f_dump(idb, user);
 	}
 
 	if (debug){
 		// output debug strings
 		// 4 bytes: string length
 		// N bytes: string raw bytes
-		for (int i = 0; i < prg.debugTable.size; i++){
-			char *str = prg.debugTable.ptrs[i];
-			size_t slen = str === NULL ? 4 : strlen(str);
-			uint8_t slenb[4] = {
-				(slen      ) & 0xFF,
-				(slen >>  8) & 0xFF,
-				(slen >> 16) & 0xFF,
-				(slen >> 24) & 0xFF
-			};
-			f_dump(slenb, 1, 4, user);
-			if (str === NULL)
-				f_dump("eval", 1, 4, user);
+		for (let i = 0; i < prg.debugTable.length; i++){
+			let str = prg.debugTable[i];
+			let slen = str === null ? 4 : str.length;
+			let slenb = '' +
+				String.fromCharCode((slen      ) & 0xFF) +
+				String.fromCharCode((slen >>  8) & 0xFF) +
+				String.fromCharCode((slen >> 16) & 0xFF) +
+				String.fromCharCode((slen >> 24) & 0xFF);
+			f_dump(slenb, user);
+			if (str === null)
+				f_dump('eval', user);
 			else if (slen > 0)
-				f_dump(str, 1, slen, user);
+				f_dump(str, user);
 		}
 
 		// output pos table
@@ -12991,243 +12998,180 @@ void sink_scr_dump(sink_scr scr, bool debug, void *user, sink_dump_f f_dump){
 		// 4 bytes: line number
 		// 4 bytes: character number
 		// 4 bytes: filename debug string index
-		for (int i = 0; i < prg.posTable.size; i++){
-			prgflp p = prg.posTable.ptrs[i];
+		for (let i = 0; i < prg.posTable.length; i++){
+			let p = prg.posTable[i];
 			// find unique filename entry
-			uint8_t plcb[16] = {
-				(p.pc                ) & 0xFF,
-				(p.pc           >>  8) & 0xFF,
-				(p.pc           >> 16) & 0xFF,
-				(p.pc           >> 24) & 0xFF,
-				(p.flp.line          ) & 0xFF,
-				(p.flp.line     >>  8) & 0xFF,
-				(p.flp.line     >> 16) & 0xFF,
-				(p.flp.line     >> 24) & 0xFF,
-				(p.flp.chr           ) & 0xFF,
-				(p.flp.chr      >>  8) & 0xFF,
-				(p.flp.chr      >> 16) & 0xFF,
-				(p.flp.chr      >> 24) & 0xFF,
-				(p.flp.basefile      ) & 0xFF,
-				(p.flp.basefile >>  8) & 0xFF,
-				(p.flp.basefile >> 16) & 0xFF,
-				(p.flp.basefile >> 24) & 0xFF
-			};
-			f_dump(plcb, 1, 16, user);
+			let plcb = '' +
+				String.fromCharCode((p.pc                ) & 0xFF) +
+				String.fromCharCode((p.pc           >>  8) & 0xFF) +
+				String.fromCharCode((p.pc           >> 16) & 0xFF) +
+				String.fromCharCode((p.pc           >> 24) & 0xFF) +
+				String.fromCharCode((p.flp.line          ) & 0xFF) +
+				String.fromCharCode((p.flp.line     >>  8) & 0xFF) +
+				String.fromCharCode((p.flp.line     >> 16) & 0xFF) +
+				String.fromCharCode((p.flp.line     >> 24) & 0xFF) +
+				String.fromCharCode((p.flp.chr           ) & 0xFF) +
+				String.fromCharCode((p.flp.chr      >>  8) & 0xFF) +
+				String.fromCharCode((p.flp.chr      >> 16) & 0xFF) +
+				String.fromCharCode((p.flp.chr      >> 24) & 0xFF) +
+				String.fromCharCode((p.flp.basefile      ) & 0xFF) +
+				String.fromCharCode((p.flp.basefile >>  8) & 0xFF) +
+				String.fromCharCode((p.flp.basefile >> 16) & 0xFF) +
+				String.fromCharCode((p.flp.basefile >> 24) & 0xFF);
+			f_dump(plcb, user);
 		}
 
 		// output cmd table
 		// 4 bytes: return PC
 		// 4 bytes: hint debug string index
-		for (int i = 0; i < prg.cmdTable.size; i++){
-			prgch p = prg.cmdTable.ptrs[i];
-			uint8_t plcb[8] = {
-				(p.pc            ) & 0xFF,
-				(p.pc       >>  8) & 0xFF,
-				(p.pc       >> 16) & 0xFF,
-				(p.pc       >> 24) & 0xFF,
-				(p.cmdhint       ) & 0xFF,
-				(p.cmdhint  >>  8) & 0xFF,
-				(p.cmdhint  >> 16) & 0xFF,
-				(p.cmdhint  >> 24) & 0xFF
-			};
-			f_dump(plcb, 1, 8, user);
+		for (let i = 0; i < prg.cmdTable.length; i++){
+			let p = prg.cmdTable[i];
+			let plcb = '' +
+				String.fromCharCode((p.pc            ) & 0xFF) +
+				String.fromCharCode((p.pc       >>  8) & 0xFF) +
+				String.fromCharCode((p.pc       >> 16) & 0xFF) +
+				String.fromCharCode((p.pc       >> 24) & 0xFF) +
+				String.fromCharCode((p.cmdhint       ) & 0xFF) +
+				String.fromCharCode((p.cmdhint  >>  8) & 0xFF) +
+				String.fromCharCode((p.cmdhint  >> 16) & 0xFF) +
+				String.fromCharCode((p.cmdhint  >> 24) & 0xFF);
+			f_dump(plcb, user);
 		}
 	}
 
 	// output ops
 	// just the raw bytecode
-	if (prg.ops.size > 0)
-		f_dump(prg.ops.bytes, 1, prg.ops.size, user);
+	if (prg.ops.length > 0){
+		let out = '';
+		for (let i = 0; i < prg.ops.length; i++)
+			out += String.fromCharCode(prg.ops[i]);
+		f_dump(out, user);
+	}
 
 	// output terminating byte
 	// single 0xFD byte which is an invalid op
-	uint8_t end = 0xFD;
-	f_dump(&end, 1, 1, user);
-}
-
-void sink_scr_free(sink_scr scr){
-	script sc = scr;
-	list_ptr_free(sc.files);
-	list_ptr_free(sc.paths);
-	program_free(sc.prg);
-	staticinc_free(sc.sinc);
-	cleanup_free(sc.cup);
-	if (sc.cmp)
-		compiler_free(sc.cmp);
-	if (sc.capture_write)
-		list_byte_free(sc.capture_write);
-	if (sc.curdir)
-		mem_free(sc.curdir);
-	if (sc.file)
-		mem_free(sc.file);
-	if (sc.err)
-		mem_free(sc.err);
-	if (sc.binstate.buf)
-		list_byte_free(sc.binstate.buf);
-	mem_free(sc);
-	mem_done();
+	f_dump(String.fromCharCode(0xFD), user);
 }
 
 //
 // context API
 //
 
-sink_ctx sink_ctx_new(sink_scr scr, sink_io_st io){
-	return context_new(((script)scr).prg, io);
+export function sink_ctx_new(scr: sink_scr, io: sink_io_st): sink_ctx {
+	return context_new((scr as script_st).prg, io);
 }
 
-sink_ctx_status sink_ctx_getstatus(sink_ctx ctx){
-	context ctx2 = ctx;
+export function sink_ctx_getstatus(ctx: sink_ctx): sink_ctx_status {
+	let ctx2 = ctx as context_st;
 	if (ctx2.passed)
-		return SINK_CTX_PASSED;
+		return sink_ctx_status.PASSED;
 	else if (ctx2.failed)
-		return SINK_CTX_FAILED;
+		return sink_ctx_status.FAILED;
 	else if (ctx2.async)
-		return SINK_CTX_WAITING;
-	return SINK_CTX_READY;
+		return sink_ctx_status.WAITING;
+	return sink_ctx_status.READY;
 }
 
-void sink_ctx_native(sink_ctx ctx, const char *name, void *natuser, sink_native_f f_native){
-	context_native(ctx, native_hash((int)strlen(name), (const uint8_t *)name), natuser, f_native);
+export function sink_ctx_native(ctx: sink_ctx, name: string, natuser: any,
+	f_native: sink_native_f): void {
+	context_native(ctx as context_st, native_hash(name), natuser, f_native);
 }
 
-void sink_ctx_nativehash(sink_ctx ctx, uint64_t hash, void *natuser, sink_native_f f_native){
+export function sink_ctx_nativehash(ctx: sink_ctx, hash: sink_u64, natuser: any,
+	f_native: sink_native_f): void {
 	context_native(ctx, hash, natuser, f_native);
 }
 
-void sink_ctx_cleanup(sink_ctx ctx, void *cuser, sink_free_f f_cleanup){
-	context_cleanup(ctx, cuser, f_cleanup);
+export function sink_ctx_setuser(ctx: sink_ctx, user: any): void {
+	(ctx as context_st).user = user;
 }
 
-void sink_ctx_setuser(sink_ctx ctx, void *user, sink_free_f f_freeuser){
-	context ctx2 = ctx;
-	if (ctx2.f_freeuser)
-		ctx2.f_freeuser(ctx2.user);
-	ctx2.user = user;
-	ctx2.f_freeuser = f_freeuser;
+export function sink_ctx_getuser(ctx: sink_ctx): any {
+	return (ctx as context_st).user;
 }
 
-void *sink_ctx_getuser(sink_ctx ctx){
-	return ((context)ctx).user;
+export function sink_ctx_addusertype(ctx: sink_ctx, hint: string): sink_user {
+	(ctx as context_st).user_hint.push(hint);
+	return (ctx as context_st).user_hint.length - 1;
 }
 
-sink_user sink_ctx_addusertype(sink_ctx ctx, const char *hint, sink_free_f f_free){
-	context ctx2 = ctx;
-	list_ptr_push(ctx2.f_finalize, f_free);
-	list_ptr_push(ctx2.user_hint, (void *)hint);
-	return ctx2.f_finalize.size - 1;
+export function sink_ctx_getuserhint(ctx: sink_ctx, usertype: sink_user): string {
+	return (ctx as context_st).user_hint[usertype];
 }
 
-sink_free_f sink_ctx_getuserfree(sink_ctx ctx, sink_user usertype){
-	return ((context)ctx).f_finalize.ptrs[usertype];
-}
-
-const char *sink_ctx_getuserhint(sink_ctx ctx, sink_user usertype){
-	return ((context)ctx).user_hint.ptrs[usertype];
-}
-
-void sink_ctx_asyncresult(sink_ctx ctx, sink_val v){
-	context ctx2 = ctx;
-	if (!ctx2.async){
-		assert(false);
-		return;
-	}
-	var_set(ctx2, ctx2.async_frame, ctx2.async_index, v);
-	ctx2.async = false;
-}
-
-void sink_ctx_settimeout(sink_ctx ctx, int timeout){
-	context ctx2 = ctx;
+export function sink_ctx_settimeout(ctx: sink_ctx, timeout: number): void {
+	let ctx2 = ctx as context_st;
 	ctx2.timeout = timeout;
 	ctx2.timeout_left = timeout;
 }
 
-int sink_ctx_gettimeout(sink_ctx ctx){
-	return ((context)ctx).timeout;
+export function sink_ctx_gettimeout(ctx: sink_ctx): number {
+	return (ctx as context_st).timeout;
 }
 
-void sink_ctx_forcetimeout(sink_ctx ctx){
-	((context)ctx).timeout_left = 0;
+export function sink_ctx_forcetimeout(ctx: sink_ctx): void {
+	(ctx as context_st).timeout_left = 0;
 }
 
-sink_run sink_ctx_run(sink_ctx ctx){
-	context ctx2 = ctx;
-	if (ctx2.prg.repl && ctx2.err){
-		mem_free(ctx2.err);
-		ctx2.err = NULL;
-	}
-	sink_run r = context_run(ctx2);
+export function sink_ctx_run(ctx: sink_ctx): sink_run | Promise<sink_run> {
+	let ctx2 = ctx as context_st;
+	if (ctx2.prg.repl && ctx2.err)
+		ctx2.err = null;
+	let r = context_run(ctx2);
 	if (r === sink_run.PASS || r === sink_run.FAIL)
 		context_reset(ctx2);
 	return r;
 }
 
-const char *sink_ctx_geterr(sink_ctx ctx){
-	return ((context)ctx).err;
+export function sink_ctx_geterr(ctx: sink_ctx): sink_strnil {
+	return (ctx as context_st).err;
 }
 
-bool sink_arg_bool(int size, sink_val *args, int index){
-	if (index < 0 || index >= size)
+export function sink_arg_bool(args: sink_val[], index: number): boolean {
+	if (index < 0 || index >= args.length)
 		return false;
 	return sink_istrue(args[index]);
 }
 
-bool sink_arg_num(sink_ctx ctx, int size, sink_val *args, int index, double *num){
-	if (index < 0 || index >= size){
-		*num = 0;
-		return true;
-	}
-	if (sink_isnum(args[index])){
-		*num = args[index].f;
-		return true;
-	}
-	opi_abortformat(ctx, "Expecting number for argument %d", index + 1);
-	return false;
+export function sink_arg_num(ctx: sink_ctx, args: sink_val[], index: number): number {
+	if (index < 0 || index >= args.length)
+		return 0;
+	let a = args[index];
+	if (sink_isnum(a))
+		return a;
+	throw new Error('Expecting number for argument ' + (index + 1));
 }
 
-bool sink_arg_str(sink_ctx ctx, int size, sink_val *args, int index, sink_str *str){
-	if (index < 0 || index >= size || !sink_isstr(args[index])){
-		opi_abortformat(ctx, "Expecting string for argument %d", index + 1);
-		return false;
-	}
-	*str = var_caststr(ctx, args[index]);
-	return true;
+export function sink_arg_str(ctx: sink_ctx, args: sink_val[], index: number): string {
+	if (index < 0 || index >= args.length || !sink_isstr(args[index]))
+		throw new Error('Expecting string for argument ' + (index + 1));
+	return args[index] as string;
 }
 
-bool sink_arg_list(sink_ctx ctx, int size, sink_val *args, int index, sink_list *ls){
-	if (index < 0 || index >= size || !sink_islist(args[index])){
-		opi_abortformat(ctx, "Expecting list for argument %d", index + 1);
-		*ls = NULL;
-		return false;
-	}
-	*ls = sink_castlist(ctx, args[index]);
-	return true;
+export function sink_arg_list(ctx: sink_ctx, args: sink_val[], index: number): sink_list {
+	if (index < 0 || index >= args.length || !sink_islist(args[index]))
+		throw new Error('Expecting list for argument ' + (index + 1));
+	return args[index] as sink_list;
 }
 
-bool sink_arg_user(sink_ctx ctx, int size, sink_val *args, int index, sink_user usertype,
-	void **user){
-	context ctx2 = ctx;
-	const char *hint = ctx2.user_hint.ptrs[usertype];
-
-	#define ABORT() \
-		opi_abortformat(ctx, "Expecting user type%s%s for argument %d", \
-			hint === NULL ? "" : " ", hint === NULL ? "" : hint, index + 1)
-
-	if (index < 0 || index >= size || !sink_islist(args[index])){
-		ABORT();
-		return false;
+export function sink_arg_user(ctx: sink_ctx, args: sink_val[], index: number,
+	usertype: sink_user): any {
+	let ctx2 = ctx as context_st;
+	let hint = ctx2.user_hint[usertype];
+	let err = 'Expecting user type ' + hint + ' for argument ' + (index + 1);
+	if (index < 0 || index >= args.length)
+		throw new Error(err);
+	let ls = args[index];
+	if (!sink_islist(ls))
+		throw new Error(err);
+	try {
+		return sink_list_getuser(ctx, ls, usertype);
 	}
-	*user = sink_list_getuser(ctx, args[index], usertype);
-	if (user === NULL){
-		ABORT();
-		return false;
+	catch (e){
+		throw new Error(err);
 	}
-
-	#undef ABORT
-
-	return true;
 }
-*/
+
 function sinkhelp_tostr(li: sink_val[], v: sink_val): sink_str {
 	if (v === null)
 		return 'nil';
@@ -13257,261 +13201,218 @@ export function sink_tostr(v: sink_val): sink_str {
 		return v;
 	return sinkhelp_tostr([], v);
 }
-/*
-void sink_exit(sink_ctx ctx, int size, sink_val *vals){
-	if (size > 0)
-		sink_say(ctx, size, vals);
+
+export function sink_exit(ctx: sink_ctx, vals: sink_val[]): undefined | Promise<undefined> {
+	if (vals.length > 0){
+		return checkPromise<undefined, undefined>(
+			sink_say(ctx, vals),
+			function(): undefined {
+				opi_exit(ctx);
+				return undefined;
+			}
+		);
+	}
 	opi_exit(ctx);
 }
 
-void sink_abort(sink_ctx ctx, int size, sink_val *vals){
-	uint8_t *bytes = NULL;
-	if (size > 0){
-		int tot;
-		bytes = sink_list_joinplain(size, vals, 1, (const uint8_t *)" ", &tot);
-	}
-	opi_abort(ctx, (char *)bytes);
+export function sink_abort(ctx: sink_ctx, vals: sink_val[]): void {
+	let bytes: sink_strnil = null;
+	if (vals.length > 0)
+		bytes = sink_list_joinplain(vals, ' ') as string;
+	opi_abort(ctx, bytes);
 }
 
 // numbers
-sink_val sink_num_neg(sink_ctx ctx, sink_val a){
+export function sink_num_neg(ctx: sink_ctx, a: sink_val): sink_val {
 	return opi_unop(ctx, a, unop_num_neg, txt_num_neg);
 }
 
-sink_val sink_num_add(sink_ctx ctx, sink_val a, sink_val b){
+export function sink_num_add(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
 	return opi_binop(ctx, a, b, binop_num_add, txt_num_add, LT_ALLOWNUM, LT_ALLOWNUM);
 }
 
-sink_val sink_num_sub(sink_ctx ctx, sink_val a, sink_val b){
+export function sink_num_sub(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
 	return opi_binop(ctx, a, b, binop_num_sub, txt_num_sub, LT_ALLOWNUM, LT_ALLOWNUM);
 }
 
-sink_val sink_num_mul(sink_ctx ctx, sink_val a, sink_val b){
+export function sink_num_mul(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
 	return opi_binop(ctx, a, b, binop_num_mul, txt_num_mul, LT_ALLOWNUM, LT_ALLOWNUM);
 }
 
-sink_val sink_num_div(sink_ctx ctx, sink_val a, sink_val b){
+export function sink_num_div(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
 	return opi_binop(ctx, a, b, binop_num_div, txt_num_div, LT_ALLOWNUM, LT_ALLOWNUM);
 }
 
-sink_val sink_num_mod(sink_ctx ctx, sink_val a, sink_val b){
+export function sink_num_mod(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
 	return opi_binop(ctx, a, b, binop_num_mod, txt_num_mod, LT_ALLOWNUM, LT_ALLOWNUM);
 }
 
-sink_val sink_num_pow(sink_ctx ctx, sink_val a, sink_val b){
+export function sink_num_pow(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
 	return opi_binop(ctx, a, b, binop_num_pow, txt_num_pow, LT_ALLOWNUM, LT_ALLOWNUM);
 }
 
-sink_val sink_num_abs(sink_ctx ctx, sink_val a){
+export function sink_num_abs(ctx: sink_ctx, a: sink_val): sink_val {
 	return opi_unop(ctx, a, unop_num_abs, txt_num_abs);
 }
 
-sink_val sink_num_sign(sink_ctx ctx, sink_val a){
+export function sink_num_sign(ctx: sink_ctx, a: sink_val): sink_val{
 	return opi_unop(ctx, a, unop_num_sign, txt_num_sign);
 }
 
-sink_val sink_num_max(sink_ctx ctx, int size, sink_val *vals){
-	return opi_num_max(ctx, size, vals);
+export function sink_num_max(ctx: sink_ctx, vals: sink_val[]): sink_val {
+	return opi_num_max(vals);
 }
 
-sink_val sink_num_min(sink_ctx ctx, int size, sink_val *vals){
-	return opi_num_min(ctx, size, vals);
+export function sink_num_min(ctx: sink_ctx, vals: sink_val[]): sink_val {
+	return opi_num_min(vals);
 }
 
-sink_val sink_num_clamp(sink_ctx ctx, sink_val a, sink_val b, sink_val c){
+export function sink_num_clamp(ctx: sink_ctx, a: sink_val, b: sink_val, c: sink_val): sink_val {
 	return opi_triop(ctx, a, b, c, triop_num_clamp, txt_num_clamp);
 }
 
-sink_val sink_num_floor(sink_ctx ctx, sink_val a){
+export function sink_num_floor(ctx: sink_ctx, a: sink_val): sink_val {
 	return opi_unop(ctx, a, unop_num_floor, txt_num_floor);
 }
 
-sink_val sink_num_ceil(sink_ctx ctx, sink_val a){
+export function sink_num_ceil(ctx: sink_ctx, a: sink_val): sink_val {
 	return opi_unop(ctx, a, unop_num_ceil, txt_num_ceil);
 }
 
-sink_val sink_num_round(sink_ctx ctx, sink_val a){
+export function sink_num_round(ctx: sink_ctx, a: sink_val): sink_val {
 	return opi_unop(ctx, a, unop_num_round, txt_num_round);
 }
 
-sink_val sink_num_trunc(sink_ctx ctx, sink_val a){
+export function sink_num_trunc(ctx: sink_ctx, a: sink_val): sink_val {
 	return opi_unop(ctx, a, unop_num_trunc, txt_num_trunc);
 }
 
-sink_val sink_num_sin(sink_ctx ctx, sink_val a){
+export function sink_num_sin(ctx: sink_ctx, a: sink_val): sink_val {
 	return opi_unop(ctx, a, unop_num_sin, txt_num_sin);
 }
 
-sink_val sink_num_cos(sink_ctx ctx, sink_val a){
+export function sink_num_cos(ctx: sink_ctx, a: sink_val): sink_val {
 	return opi_unop(ctx, a, unop_num_cos, txt_num_cos);
 }
 
-sink_val sink_num_tan(sink_ctx ctx, sink_val a){
+export function sink_num_tan(ctx: sink_ctx, a: sink_val): sink_val {
 	return opi_unop(ctx, a, unop_num_tan, txt_num_tan);
 }
 
-sink_val sink_num_asin(sink_ctx ctx, sink_val a){
+export function sink_num_asin(ctx: sink_ctx, a: sink_val): sink_val {
 	return opi_unop(ctx, a, unop_num_asin, txt_num_asin);
 }
 
-sink_val sink_num_acos(sink_ctx ctx, sink_val a){
+export function sink_num_acos(ctx: sink_ctx, a: sink_val): sink_val {
 	return opi_unop(ctx, a, unop_num_acos, txt_num_acos);
 }
 
-sink_val sink_num_atan(sink_ctx ctx, sink_val a){
+export function sink_num_atan(ctx: sink_ctx, a: sink_val): sink_val {
 	return opi_unop(ctx, a, unop_num_atan, txt_num_atan);
 }
 
-sink_val sink_num_atan2(sink_ctx ctx, sink_val a, sink_val b){
+export function sink_num_atan2(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
 	return opi_binop(ctx, a, b, binop_num_atan2, txt_num_atan, LT_ALLOWNUM, LT_ALLOWNUM);
 }
 
-sink_val sink_num_log(sink_ctx ctx, sink_val a){
+export function sink_num_log(ctx: sink_ctx, a: sink_val): sink_val {
 	return opi_unop(ctx, a, unop_num_log, txt_num_log);
 }
 
-sink_val sink_num_log2(sink_ctx ctx, sink_val a){
+export function sink_num_log2(ctx: sink_ctx, a: sink_val): sink_val {
 	return opi_unop(ctx, a, unop_num_log2, txt_num_log);
 }
 
-sink_val sink_num_log10(sink_ctx ctx, sink_val a){
+export function sink_num_log10(ctx: sink_ctx, a: sink_val): sink_val {
 	return opi_unop(ctx, a, unop_num_log10, txt_num_log);
 }
 
-sink_val sink_num_exp(sink_ctx ctx, sink_val a){
+export function sink_num_exp(ctx: sink_ctx, a: sink_val): sink_val {
 	return opi_unop(ctx, a, unop_num_exp, txt_num_pow);
 }
 
-sink_val sink_num_lerp(sink_ctx ctx, sink_val a, sink_val b, sink_val t){
+export function sink_num_lerp(ctx: sink_ctx, a: sink_val, b: sink_val, t: sink_val): sink_val {
 	return opi_triop(ctx, a, b, t, triop_num_lerp, txt_num_lerp);
 }
 
-sink_val sink_num_hex(sink_ctx ctx, sink_val a, sink_val b){
+export function sink_num_hex(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
 	return opi_binop(ctx, a, b, binop_num_hex, txt_num_hex, LT_ALLOWNUM, LT_ALLOWNUM | LT_ALLOWNIL);
 }
 
-sink_val sink_num_oct(sink_ctx ctx, sink_val a, sink_val b){
+export function sink_num_oct(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
 	return opi_binop(ctx, a, b, binop_num_oct, txt_num_oct, LT_ALLOWNUM, LT_ALLOWNUM | LT_ALLOWNIL);
 }
 
-sink_val sink_num_bin(sink_ctx ctx, sink_val a, sink_val b){
+export function sink_num_bin(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
 	return opi_binop(ctx, a, b, binop_num_bin, txt_num_bin, LT_ALLOWNUM, LT_ALLOWNUM | LT_ALLOWNIL);
 }
 
 // integers
-sink_val sink_int_new(sink_ctx ctx, sink_val a){
+export function sink_int_new(ctx: sink_ctx, a: sink_val): sink_val {
 	return opi_unop(ctx, a, unop_int_new, txt_int_new);
 }
 
-sink_val sink_int_not(sink_ctx ctx, sink_val a){
+export function sink_int_not(ctx: sink_ctx, a: sink_val): sink_val {
 	return opi_unop(ctx, a, unop_int_not, txt_int_not);
 }
 
-sink_val sink_int_and(sink_ctx ctx, int size, sink_val *vals){
-	return opi_combop(ctx, size, vals, binop_int_and, txt_int_and);
+export function sink_int_and(ctx: sink_ctx, vals: sink_val[]): sink_val {
+	return opi_combop(ctx, vals, binop_int_and, txt_int_and);
 }
 
-sink_val sink_int_or(sink_ctx ctx, int size, sink_val *vals){
-	return opi_combop(ctx, size, vals, binop_int_or, txt_int_or);
+export function sink_int_or(ctx: sink_ctx, vals: sink_val[]): sink_val {
+	return opi_combop(ctx, vals, binop_int_or, txt_int_or);
 }
 
-sink_val sink_int_xor(sink_ctx ctx, int size, sink_val *vals){
-	return opi_combop(ctx, size, vals, binop_int_xor, txt_int_xor);
+export function sink_int_xor(ctx: sink_ctx, vals: sink_val[]): sink_val {
+	return opi_combop(ctx, vals, binop_int_xor, txt_int_xor);
 }
 
-sink_val sink_int_shl(sink_ctx ctx, sink_val a, sink_val b){
+export function sink_int_shl(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
 	return opi_binop(ctx, a, b, binop_int_shl, txt_int_shl, LT_ALLOWNUM, LT_ALLOWNUM);
 }
 
-sink_val sink_int_shr(sink_ctx ctx, sink_val a, sink_val b){
+export function sink_int_shr(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
 	return opi_binop(ctx, a, b, binop_int_shr, txt_int_shr, LT_ALLOWNUM, LT_ALLOWNUM);
 }
 
-sink_val sink_int_sar(sink_ctx ctx, sink_val a, sink_val b){
+export function sink_int_sar(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
 	return opi_binop(ctx, a, b, binop_int_sar, txt_int_shr, LT_ALLOWNUM, LT_ALLOWNUM);
 }
 
-sink_val sink_int_add(sink_ctx ctx, sink_val a, sink_val b){
+export function sink_int_add(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
 	return opi_binop(ctx, a, b, binop_int_add, txt_num_add, LT_ALLOWNUM, LT_ALLOWNUM);
 }
 
-sink_val sink_int_sub(sink_ctx ctx, sink_val a, sink_val b){
+export function sink_int_sub(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
 	return opi_binop(ctx, a, b, binop_int_sub, txt_num_sub, LT_ALLOWNUM, LT_ALLOWNUM);
 }
 
-sink_val sink_int_mul(sink_ctx ctx, sink_val a, sink_val b){
+export function sink_int_mul(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
 	return opi_binop(ctx, a, b, binop_int_mul, txt_num_mul, LT_ALLOWNUM, LT_ALLOWNUM);
 }
 
-sink_val sink_int_div(sink_ctx ctx, sink_val a, sink_val b){
+export function sink_int_div(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
 	return opi_binop(ctx, a, b, binop_int_div, txt_num_div, LT_ALLOWNUM, LT_ALLOWNUM);
 }
 
-sink_val sink_int_mod(sink_ctx ctx, sink_val a, sink_val b){
+export function sink_int_mod(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
 	return opi_binop(ctx, a, b, binop_int_mod, txt_num_mod, LT_ALLOWNUM, LT_ALLOWNUM);
 }
 
-sink_val sink_int_clz(sink_ctx ctx, sink_val a){
+export function sink_int_clz(ctx: sink_ctx, a: sink_val): sink_val {
 	return opi_unop(ctx, a, unop_int_clz, txt_int_clz);
 }
 
-sink_val sink_int_pop(sink_ctx ctx, sink_val a){
+export function sink_int_pop(ctx: sink_ctx, a: sink_val): sink_val {
 	return opi_unop(ctx, a, unop_int_pop, txt_int_pop);
 }
 
-sink_val sink_int_bswap(sink_ctx ctx, sink_val a){
+export function sink_int_bswap(ctx: sink_ctx, a: sink_val): sink_val {
 	return opi_unop(ctx, a, unop_int_bswap, txt_int_bswap);
 }
 
 // strings
-sink_val sink_str_newcstr(sink_ctx ctx, const char *str){
-	return sink_str_newblob(ctx, (int)strlen(str), (const uint8_t *)str);
-}
-
-sink_val sink_str_newcstrgive(sink_ctx ctx, char *str){
-	return sink_str_newblobgive(ctx, (int)strlen(str), (uint8_t *)str);
-}
-
-sink_val sink_str_newblob(sink_ctx ctx, int size, const uint8_t *bytes){
-	uint8_t *copy = NULL;
-	if (size > 0){
-		copy = mem_alloc(sizeof(uint8_t) * (size + 1));
-		memcpy(copy, bytes, sizeof(uint8_t) * size);
-		copy[size] = 0;
-	}
-	return sink_str_newblobgive(ctx, size, copy);
-}
-
-sink_val sink_str_newblobgive(sink_ctx ctx, int size, uint8_t *bytes){
-	if (!((bytes === NULL && size === 0) || bytes[size] === 0)){
-		opi_abort(ctx,
-			"Native run-time error: sink_str_newblobgive() must either be given a NULL buffer of "
-			"size 0, or the buffer must terminate with a 0");
-		if (bytes)
-			mem_free(bytes);
-		return SINK_NIL;
-	}
-	context ctx2 = ctx;
-	int index = bmp_reserve((void **)&ctx2.str_tbl, &ctx2.str_size, &ctx2.str_aloc,
-		&ctx2.str_ref, sizeof(sink_str_st));
-	sink_str s = &ctx2.str_tbl[index];
-	s.bytes = bytes;
-	s.size = size;
-	return (sink_val){ .u = SINK_TAG_STR | index };
-}
-
-sink_val sink_str_newformat(sink_ctx ctx, const char *fmt, ...){
-	va_list args, args2;
-	va_start(args, fmt);
-	va_copy(args2, args);
-	size_t s = vsnprintf(NULL, 0, fmt, args);
-	char *buf = mem_alloc(s + 1);
-	vsprintf(buf, fmt, args2);
-	va_end(args);
-	va_end(args2);
-	return sink_str_newblobgive(ctx, (int)s, (uint8_t *)buf);
-}
-*/
 export function sink_str_hashplain(str: string, seed: number): [number, number, number, number] {
 	// MurmurHash3 was written by Austin Appleby, and is placed in the public
 	// domain. The author hereby disclaims copyright to this source code.
@@ -13701,55 +13602,23 @@ export function sink_str_hashplain(str: string, seed: number): [number, number, 
 	}
 	return [uns(h1[0]), uns(h1[1]), uns(h2[0]), uns(h2[1])];
 }
-/*
+
 // lists
-void sink_list_setuser(sink_ctx ctx, sink_val ls, sink_user usertype, void *user){
-	sink_list ls2 = var_castlist(ctx, ls);
-	if (ls2.usertype >= 0){
-		sink_free_f f_free = ((context)ctx).f_finalize.ptrs[ls2.usertype];
-		if (f_free)
-			f_free(ls2.user);
-	}
-	ls2.usertype = usertype;
-	ls2.user = user;
+export function sink_list_setuser(ctx: sink_ctx, ls: sink_list, usertype: sink_user, user: any): void {
+	ls.usertype = usertype;
+	ls.user = user;
 }
 
-void *sink_list_getuser(sink_ctx ctx, sink_val ls, sink_user usertype){
-	sink_list ls2 = var_castlist(ctx, ls);
-	if (ls2.usertype !== usertype)
-		return null;
-	return ls2.user;
+export function sink_list_hasuser(ctx: sink_ctx, ls: sink_list, usertype: sink_user): boolean {
+	return ls.usertype === usertype;
 }
 
-sink_val sink_list_newblob(sink_ctx ctx, int size, const sink_val *vals){
-	int count = size + sink_list_grow;
-	sink_val *copy = mem_alloc(sizeof(sink_val) * count);
-	if (size > 0)
-		memcpy(copy, vals, sizeof(sink_val) * size);
-	return sink_list_newblobgive(ctx, size, count, copy);
+export function sink_list_getuser(ctx: sink_ctx, ls: sink_list, usertype: sink_user): any {
+	if (ls.usertype !== usertype)
+		throw new Error('Bad user type on list');
+	return ls.user;
 }
 
-sink_val sink_list_newblobgive(sink_ctx ctx, int size, int count, sink_val *vals){
-	if (vals === NULL || count === 0){
-		opi_abort(ctx,
-			"Native run-time error: sink_list_newblobgive() must be given a buffer with some "
-			"positive count");
-		if (vals)
-			mem_free(vals);
-		return SINK_NIL;
-	}
-	context ctx2 = ctx;
-	int index = bmp_reserve((void **)&ctx2.list_tbl, &ctx2.list_size, &ctx2.list_aloc,
-		&ctx2.list_ref, sizeof(sink_list_st));
-	sink_list ls = &ctx2.list_tbl[index];
-	ls.vals = vals;
-	ls.size = size;
-	ls.count = count;
-	ls.user = NULL;
-	ls.usertype = -1;
-	return (sink_val){ .u = SINK_TAG_LIST | index };
-}
-*/
 export function sink_list_cat(ctx: sink_ctx, vals: sink_val[]): sink_val {
 	for (let i = 0; i < vals.length; i++){
 		if (!sink_islist(vals[i])){
@@ -13766,27 +13635,14 @@ export function sink_list_joinplain(vals: sink_list | sink_val[], sep: string): 
 		out += (i > 0 ? sep : '') + sink_tostr(vals[i]);
 	return out;
 }
-/*
-// pickle
-sink_gc_level sink_gc_getlevel(sink_ctx ctx){
-	return ((context)ctx).gc_level;
+
+// gc
+export function sink_gc_getlevel(ctx: sink_ctx): string {
+	return (ctx as context_st).gc_level;
 }
 
-void sink_gc_setlevel(sink_ctx ctx, sink_gc_level level){
-	((context)ctx).gc_level = level;
+export function sink_gc_setlevel(ctx: sink_ctx, level: string): void {
+	if (level !== 'default' && level !== 'lowmem' && level !== 'none')
+		throw new Error('Bad GC level: ' + level);
+	(ctx as context_st).gc_level = level;
 }
-
-sink_val sink_abortstr(sink_ctx ctx, const char *fmt, ...){
-	va_list args, args2;
-	va_start(args, fmt);
-	va_copy(args2, args);
-	size_t s = vsnprintf(NULL, 0, fmt, args);
-	char *buf = mem_alloc(s + 1);
-	vsprintf(buf, fmt, args2);
-	va_end(args);
-	va_end(args2);
-	opi_abort(ctx, buf);
-	return SINK_NIL;
-}
-
-*/
