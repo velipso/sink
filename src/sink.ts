@@ -12410,7 +12410,7 @@ function compiler_process(cmp: compiler_st): strnil | Promise<strnil> {
 							scr: cmp.scr,
 							from: stmt.flp.fullfile
 						}, stmt,
-						pgsl.length <= 0 ? null : (pgsl[pgsl.length - 1] as any).state,
+						pgsl.length <= 0 ? null : pgsl[pgsl.length - 1],
 						cmp.prg.repl && cmp.flpn.next === null && pgsl.length <= 0),
 					function(pg: pgr_st): strnil | Promise<strnil> {
 						switch (pg.type){
@@ -12575,24 +12575,20 @@ function binary_validate(sc: script_st): void {
 }
 
 function text_validate(sc: script_st, close: boolean, resetonclose: boolean): void {
-	if (sc.cmp === null)
-		throw new Error('Expecting compiler object');
 	if (sc.err && sc.prg.repl)
-		compiler_reset(sc.cmp);
+		compiler_reset(sc.cmp as compiler_st);
 	if (close){
-		let err2 = compiler_close(sc.cmp);
+		let err2 = compiler_close(sc.cmp as compiler_st);
 		if (err2)
 			sc.err = 'Error: ' + err2;
 		if (resetonclose)
-			compiler_reset(sc.cmp);
+			compiler_reset(sc.cmp as compiler_st);
 	}
 }
 
 function sfr_end(success: boolean, file: string, sc: script_st): void {
-	if (sc.cmp === null)
-		throw new Error('Expecting compiler object');
 	if (!success)
-		sc.err = 'Error: ' + sc.cmp.msg;
+		sc.err = 'Error: ' + (sc.cmp as compiler_st).msg;
 	else{
 		switch (sc.mode){
 			case scriptmode_enum.UNKNOWN:

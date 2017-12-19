@@ -346,6 +346,7 @@ export function main(): boolean | Promise<boolean> {
 	let scr = sink.scr_new(inc, cwd, input_type === 'repl');
 
 	// add the appropriate paths
+	sink.scr_addpath(scr, '.');
 	/*
 	TODO: this
 	const char *sp = getenv("SINK_PATH");
