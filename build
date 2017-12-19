@@ -2,6 +2,8 @@
 
 set -e
 
+C_OPTS="-fwrapv -Werror"
+
 pushd "$(dirname "$0")" > /dev/null
 SCRIPT_DIR="$(pwd)"
 popd > /dev/null
@@ -10,126 +12,49 @@ TGT_DIR=$SCRIPT_DIR/tgt
 DIST_DIR=$TGT_DIR/dist
 TESTS_DIR=$SCRIPT_DIR/tests
 
-#
-# change these functions if you want to build the C files differently
-#
-
-compile_c() { # production compile
-	# $1 : the input .c file
-	# $2 : the output .o file
-	if which clang > /dev/null; then
-		#clang -c -o "$2" -fwrapv -Werror -DSINK_MEMTEST "$1"; echo '(memtest)'
-		clang -c -o "$2" -O2 -fwrapv -Werror "$1"
-	else
-		echo 'ERROR:'
-		echo 'Missing "clang" which is required for building.'
-		echo ''
-		echo 'Aborting build.'
-		echo ''
-		echo 'You can install "clang" by visiting:'
-		echo '   http://llvm.org/'
-		echo ''
-		exit 1
-	fi
-}
-
-compile_c_debug() { # debug compile (should define SINK_DEBUG)
-	# $1 : the input .c file
-	# $2 : the output .o file
-	clang -c -o "$2" -fwrapv -g -DSINK_DEBUG "$1"
-}
-
-link_c() { # production link
-	# $1 : the input .o files (space separated list)
-	# $2 : the output binary file
-	clang -o "$2" $1
-}
-
-link_c_debug() { # debug link
-	# $1 : the input .o files (space separated list)
-	# $2 : the output binary file
-	clang -o "$2" $1
-}
-
-#
-# ---
-#
-
-LINK_FILES=()
+BUILD_TS=0
+TEST_TS=0
+BUILD_C=0
 BUILD_DEBUG=0
-comp_and_link() {
-	# $1 : the input .c file
-	# $2 : the output .o file
-	if [ "$BUILD_DEBUG" = "1" ]; then
-		echo "Compiling $(basename "$1") (debug)..."
-		compile_c_debug "$1" "$2"
-	else
-		echo "Compiling $(basename "$1")..."
-		compile_c "$1" "$2"
-	fi
-	LINK_FILES=("${LINK_FILES[@]}" "$2")
-}
-
-link_finish() {
-	# $1 : the output binary
-	if [ "$BUILD_DEBUG" = "1" ]; then
-		echo 'Linking (debug)...'
-		link_c_debug "${LINK_FILES[*]}" "$1"
-	else
-		echo 'Linking...'
-		link_c "${LINK_FILES[*]}" "$1"
-	fi
-}
+BUILD_MEMTEST=0
+TEST_C=0
 
 case "$1" in
 	"all")
-		BUILD_JS=1
-		TEST_JS=1
+		BUILD_TS=1
+		TEST_TS=1
 		BUILD_C=1
 		TEST_C=1
 		if [ "$2" = "debug" ]; then
 			BUILD_DEBUG=1
 		fi
 		;;
-	"js")
-		BUILD_JS=1
-		TEST_JS=0
-		BUILD_C=0
-		TEST_C=0
+	"ts")
+		BUILD_TS=1
 		if [ "$2" = "debug" ]; then
 			BUILD_DEBUG=1
 		fi
 		;;
-	"test-js")
-		BUILD_JS=0
-		TEST_JS=1
-		BUILD_C=0
-		TEST_C=0
+	"test-ts")
+		TEST_TS=1
 		;;
 	"c")
-		BUILD_JS=0
-		TEST_JS=0
 		BUILD_C=1
-		TEST_C=0
 		if [ "$2" = "debug" ]; then
 			BUILD_DEBUG=1
 		fi
 		;;
-	"test-c")
-		BUILD_JS=0
-		TEST_JS=0
-		BUILD_C=0
-		TEST_C=1
-		;;
-	"")
-		BUILD_JS=1
-		TEST_JS=1
+	"test-mem")
 		BUILD_C=1
+		TEST_C=1
+		BUILD_MEMTEST=1
+		;;
+	"test-c")
 		TEST_C=1
 		;;
 	"debug")
-		BUILD_JS=1
-		TEST_JS=1
+		BUILD_TS=1
+		TEST_TS=1
 		BUILD_C=1
 		TEST_C=1
 		BUILD_DEBUG=1
@@ -160,17 +85,18 @@ README
 		exit 0
 		;;
 	*)
-		echo './build [command] [debug]'
+		echo './build <command> [debug]'
 		echo ''
 		echo 'Commands:'
-		echo '  all       Build and test everything (default)'
-		echo '  js        Build the JavaScript sources (node + browser)'
-		echo '  test-js   Run the tests against the JavaScript build'
+		echo '  all       Build and test everything'
+		echo '  ts        Build the TypeScript sources (node + browser)'
+		echo '  test-ts   Run the tests against the TypeScript build'
 		echo '  c         Build the C source'
 		echo '  test-c    Run the tests against the C build'
+		echo '  test-mem  Build and test for memory leaks in C source'
 		echo ''
 		echo '  clean     Delete the tgt directory'
-		echo '  dist      Publish JavaScript builds to ./dist'
+		echo '  dist      Publish TypeScript builds to ./dist'
 		echo ''
 		echo 'If "debug" is specified, then builds will be debug versions'
 		exit 0
@@ -178,7 +104,7 @@ README
 esac
 
 run_test() {
-	# $1 : 'js' or 'c'
+	# $1 : 'ts' or 'c'
 	# $2 : test directory
 	test_prog="$1"
 	test_dir="$2"
@@ -190,9 +116,9 @@ run_test() {
 
 	printf "%3s.%-14s  " "$test_num" "$test_name"
 
-	if [ "$test_prog" = "js" ]; then
+	if [ "$test_prog" = "ts" ]; then
 		set +e
-		$DIST_DIR/sink/cmd.js "$test_dir"/"$test_name".sink "$test_name" > "$out" 2>"$err"
+		$TGT_DIR/driver.js "$test_dir"/"$test_name".sink "$test_name" > "$out" 2>"$err"
 		status=$?
 		set -e
 	else
@@ -217,9 +143,24 @@ run_test() {
 			set -e
 			if [ "$status" = "0" ]; then
 				# passed running text file, let's try compiling now
-				if [ "$test_prog" = "js" ]; then
-					# TODO: compile using JS
-					echo PASS
+				if [ "$test_prog" = "ts" ]; then
+					out2=$(mktemp "$TGT_DIR"/test_output.stdout.XXXXXX)
+					$TGT_DIR/driver.js -c -d "$test_dir"/"$test_name".sink > $TGT_DIR/bin.sink
+					$TGT_DIR/driver.js $TGT_DIR/bin.sink > "$out2"
+					set +e
+					d=$(diff -u --label 'Expected Output' "$out" --label 'Actual Output' "$out2")
+					status=$?
+					set -e
+					rm -f "$out2"
+					if [ "$status" = "0" ]; then
+						echo PASS
+					else
+						echo FAIL on compile
+						echo "$d"
+						rm -f "$out"
+						rm -f "$err"
+						exit 1
+					fi
 				else
 					out2=$(mktemp "$TGT_DIR"/test_output.stdout.XXXXXX)
 					$TGT_DIR/sink -c -d "$test_dir"/"$test_name".sink > $TGT_DIR/bin.sink
@@ -264,7 +205,7 @@ run_test() {
 }
 
 run_tests() {
-	# $1 : 'js' or 'c'
+	# $1 : 'ts' or 'c'
 	for test_dir in $TESTS_DIR/?.*; do
 		run_test "$1" "$test_dir"
 	done
@@ -273,62 +214,69 @@ run_tests() {
 	done
 }
 
-#
-# JavaScript build
-#
-if [ "$BUILD_JS" = "1" ]; then
-	echo Building JavaScript...
+EXIT=0
 
-	# build node version
-	mkdir -p $DIST_DIR/sink
-	cp -Rf $SRC_DIR/*.js $DIST_DIR/sink
-
-	# build browser version
-	if which browserify > /dev/null; then
-		#browserify $DIST_DIR/sink/index.js -o $DIST_DIR/sink.js
-		echo 'TODO: browserify'
-	else
-		echo 'WARNING:'
-		echo 'Missing "browserify" which is required for building.'
-		echo ''
-		echo 'Skipping browser build.'
-		echo ''
-		echo 'You can install "browserify" via:'
-		if which npm > /dev/null; then
-			echo '   npm install -g browserify'
-		else
-			echo '   1. Installing node.js from https://nodejs.org/'
-			echo '   2. Executing: npm install -g browserify'
+#
+# TypeScript build
+#
+if [ "$BUILD_TS" = "1" ]; then
+	echo Building TypeScript...
+	mkdir -p $TGT_DIR
+	if which tsc > /dev/null; then
+		pushd "$SRC_DIR" > /dev/null
+		set +e
+		tsc
+		status=$?
+		set -e
+		popd > /dev/null
+		if [ "$status" != "0" ]; then
+			echo 'TypeScript errors'
+			exit 1
 		fi
+		cp $SRC_DIR/driver.js $TGT_DIR/driver.js
+		chmod +x $TGT_DIR/driver.js
+	else
 		echo ''
+		echo 'ERROR:'
+		echo 'Missing "tsc" which is required for building.'
+		echo ''
+		echo 'Skipping TypeScript build.'
+		echo ''
+		echo 'You can install "tsc" by visiting:'
+		echo '  https://www.typescriptlang.org/'
+		echo ''
+		EXIT=1
 	fi
 fi
 
-if [ "$TEST_JS" = "1" ]; then
-	echo Testing JavaScript build...
+if [ "$TEST_TS" = "1" ]; then
+	echo Testing TypeScript build...
 	if which node > /dev/null; then
-		if [ -e $DIST_DIR/sink/cmd.js ]; then
-			run_tests js
+		if [ -e $TGT_DIR/driver.js ]; then
+			run_tests ts
 		else
+			echo ''
 			echo 'ERROR:'
-			echo 'Missing JavaScript build of sink.'
+			echo 'Missing TypeScript build of sink.'
 			echo ''
-			echo 'Aborting tests for JavaScript build.'
+			echo 'Skipping tests for TypeScript build.'
 			echo ''
-			echo 'You can build the JavaScript version of sink via:'
-			echo '   ./build js'
+			echo 'You can build the TypeScript version of sink via:'
+			echo '   ./build ts'
 			echo ''
-			exit 1
+			EXIT=1
 		fi
 	else
-		echo 'WARNING:'
-		echo 'Missing "node" which is required for running JavaScript tests.'
 		echo ''
-		echo 'Skipping tests for JavaScript build.'
+		echo 'ERROR:'
+		echo 'Missing "node" which is required for running TypeScript tests.'
+		echo ''
+		echo 'Skipping tests for TypeScript build.'
 		echo ''
 		echo 'You can install "node" by visiting:'
 		echo '   https://nodejs.org/'
 		echo ''
+		EXIT=1
 	fi
 fi
 
@@ -337,18 +285,55 @@ fi
 #
 if [ "$BUILD_C" = "1" ]; then
 	echo Building C...
-
 	mkdir -p $TGT_DIR
-
-	comp_and_link src/sink.c       $TGT_DIR/sink.o
-	comp_and_link src/sink_shell.c $TGT_DIR/sink_shell.o
-	comp_and_link src/cmd.c        $TGT_DIR/cmd.o
-	link_finish $TGT_DIR/sink
+	if which clang > /dev/null; then
+		if [ "$BUILD_MEMTEST" = "1" ]; then
+			C_OPTS="$C_OPTS -DSINK_MEMTEST"
+			echo Memory Test
+		elif [ "$BUILD_DEBUG" = "1" ]; then
+			C_OPTS="$C_OPTS -g -DSINK_DEBUG"
+			echo Debug Build
+		else
+			C_OPTS="$C_OPTS -O2"
+		fi
+		clang $C_OPTS              \
+			-o $TGT_DIR/sink       \
+			$SRC_DIR/sink.c        \
+			$SRC_DIR/sink_shell.c  \
+			$SRC_DIR/cmd.c
+	else
+		echo ''
+		echo 'ERROR:'
+		echo 'Missing "clang" which is required for building.'
+		echo ''
+		echo 'Skipping C build.'
+		echo ''
+		echo 'You can install "clang" by visiting:'
+		echo '   http://llvm.org/'
+		echo ''
+		EXIT=1
+	fi
 fi
 
 if [ "$TEST_C" = "1" ]; then
 	echo Testing C build...
-	run_tests c
+	if which $TGT_DIR/sink > /dev/null; then
+		run_tests c
+	else
+		echo ''
+		echo 'ERROR:'
+		echo 'Missing C build of sink.'
+		echo ''
+		echo 'Skipping tests for C build.'
+		echo ''
+		echo 'You can build the C version of sink via:'
+		echo '   ./build c'
+		echo ''
+		EXIT=1
+	fi
 fi
 
+if [ "$EXIT" = "1" ]; then
+	exit 1
+fi
 echo Done

@@ -2,8 +2,17 @@
 <html lang="en">
 <head>
 	<title>Sink REPL</title>
-	<script src="./sink.js"></script>
-	<script src="./sink_shell.js"></script>
+	<script>
+// provide a dummy `define` function, which is usually provided by RequireJS, but we only have one
+// file so who cares
+function define(deps, factory){
+	window.sink = {};
+	factory(null, window.sink);
+}
+define.amd = true;
+	</script>
+	<script src="../tgt/sink.js"></script>
+	<!-- script src="./sink_shell.js"></script -->
 	<style>
 html, body {
 	padding: 0;
@@ -20,9 +29,7 @@ html, body {
 
 var cnv = document.getElementById('cnv');
 var ctx = cnv.getContext('2d');
-var lines = [
-	'#0f0', 'Sink Demo'
-];
+var lines = ['#0f0', 'Sink REPL'];
 var commands = [];
 var upArrowSelectedCommand = 0;
 var cursorLoc = 0;
@@ -51,9 +58,9 @@ function redraw(){
 		y += 40;
 	}
 	if (y + 40 < cnv.height){
-		ctx.fillStyle = '#fff';
-		ctx.fillText(inputPrompt + inputLine, 10, y);
 		if (allowInput !== false) {
+			ctx.fillStyle = '#fff';
+			ctx.fillText(inputPrompt + inputLine, 10, y);
 			var wms = ctx.measureText('w');
 			var pms = ctx.measureText(inputPrompt + inputLine.substr(0, cursorLoc));
 			var gray = 255;
@@ -61,8 +68,7 @@ function redraw(){
 				Math.round(gray) + ', ' +
 				Math.round(gray) + ', ' +
 				Math.round(gray) + ')';
-			ctx.globalAlpha=0.5;
-
+			ctx.globalAlpha = 0.5;
 			ctx.fillRect(12 + pms.width, y + 5, wms.width, 40);
 		}
 	}
@@ -73,12 +79,15 @@ function redraw(){
 }
 
 window.addEventListener('paste', function(e){
-	var clipboardData, pastedData;
+	if (allowInput === false)
+		return;
 	e.stopPropagation();
 	e.preventDefault();
-	clipboardData = e.clipboardData || window.clipboardData;
-	pastedData = clipboardData.getData('Text');
-	alert(pastedData);
+	var clipboardData = e.clipboardData || window.clipboardData;
+	var txt = clipboardData.getData('Text');
+	inputLine = inputLine.substr(0, cursorLoc) + txt + inputLine.substr(cursorLoc);
+	cursorLoc += txt.length;
+	redraw();
 });
 
 window.addEventListener('mousedown', function(e){
@@ -88,6 +97,8 @@ window.addEventListener('mousedown', function(e){
 });
 
 window.addEventListener('keydown', function(e){
+	if (e.ctrlKey || e.altKey || e.metaKey)
+		return;
 	e.preventDefault();
 	if (allowInput === false)
 		return;
@@ -139,45 +150,79 @@ window.addEventListener('keydown', function(e){
 		inputLine = inputLine.substr(0, cursorLoc) + e.key + inputLine.substr(cursorLoc);
 		cursorLoc++;
 	}
+	redraw();
 });
 
-setInterval(redraw, 0);
 cnv.focus();
 
-Sink.repl(
-	function(levels){
-		return new Promise(function(resolve, reject){
-			inputPrompt = ': ';
-			if (levels > 0)
-				inputPrompt = (new Array(levels + 1)).join('..') + '. ';
-			if (inLine < 10)
-				inputPrompt = ' ' + inLine + inputPrompt;
-			else
-				inputPrompt = inLine + inputPrompt;
-			allowInput = resolve;
-		});
-	},
-	function(){
-		return 'none';
-	},
-	function(){
-		return false;
-	},
-	function(str){
-		lines.push('#fff');
-		lines.push(str);
-	},
-	function(str){
-		lines.push('#f00');
-		lines.push(str);
-	},
-	function(str){
-		return prompt(str);
-	},
-	[SinkShell],
-	['.']
-);
+var sk_scr = sink.scr_new({
+	f_fstype: function(){ return sink.fstype.NONE; },
+	f_fsread: function(){ return false },
+}, '/', true);
 
+var sk_ctx = sink.ctx_new(sk_scr, {
+	f_say: function(sk_ctx, str){
+		lines.push('#fff', str);
+	},
+	f_warn: function(sk_ctx, str){
+		lines.push('#f00', str);
+	},
+	f_ask: function(sk_ctx, str){
+		return prompt(str);
+	}
+});
+
+function isPromise(p){
+	return typeof p === 'object' && p !== null && typeof p.then === 'function';
+}
+
+function checkPromise(v, func){
+	if (isPromise(v))
+		return v.then(func);
+	return func(v);
+}
+
+function readLine(){
+	var levels = sink.scr_level(sk_scr);
+	inputPrompt = ': ';
+	if (levels > 0)
+		inputPrompt = (new Array(levels + 1)).join('..') + '. ';
+	if (inLine < 10)
+		inputPrompt = ' ' + inLine + inputPrompt;
+	else
+		inputPrompt = inLine + inputPrompt;
+	allowInput = function(str){
+		checkPromise(
+			sink.scr_write(sk_scr, str),
+			function(written){
+				if (!written){
+					sink.scr_geterr(sk_scr).split('\n').forEach(function(err){
+						lines.push('#f00', err);
+					});
+				}
+				if (sink.scr_level(sk_scr) <= 0){
+					checkPromise(
+						sink.ctx_run(sk_ctx),
+						function(res){
+							if (res === sink.run.PASS)
+								return;
+							else if (res === sink.run.FAIL){
+								sink.ctx_geterr(sk_ctx).split('\n').forEach(function(err){
+									lines.push('#f00', err);
+								});
+							}
+							readLine();
+						}
+					);
+				}
+				else
+					readLine();
+			}
+		);
+	};
+	redraw();
+}
+readLine();
 	</script>
 </body>
 </html>

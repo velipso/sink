@@ -14,15 +14,15 @@
 #	include <unistd.h> // getcwd
 #endif
 
-static void sink_stdio_say(sink_ctx ctx, sink_str str, void *iouser){
+static void io_say(sink_ctx ctx, sink_str str, void *iouser){
 	printf("%.*s\n", str->size, str->bytes);
 }
 
-static void sink_stdio_warn(sink_ctx ctx, sink_str str, void *iouser){
+static void io_warn(sink_ctx ctx, sink_str str, void *iouser){
 	fprintf(stderr, "%.*s\n", str->size, str->bytes);
 }
 
-static sink_val sink_stdio_ask(sink_ctx ctx, sink_str str, void *iouser){
+static sink_val io_ask(sink_ctx ctx, sink_str str, void *iouser){
 	printf("%.*s", str->size, str->bytes);
 	char buf[1000];
 	if (fgets(buf, sizeof(buf), stdin) == NULL)
@@ -35,10 +35,10 @@ static sink_val sink_stdio_ask(sink_ctx ctx, sink_str str, void *iouser){
 	return sink_str_newblob(ctx, sz, (const uint8_t *)buf);
 }
 
-static sink_io_st sink_stdio = (sink_io_st){
-	.f_say = sink_stdio_say,
-	.f_warn = sink_stdio_warn,
-	.f_ask = sink_stdio_ask,
+static sink_io_st io = (sink_io_st){
+	.f_say = io_say,
+	.f_warn = io_warn,
+	.f_ask = io_ask,
 	.user = NULL
 };
 
@@ -116,7 +116,7 @@ static sink_inc_st inc = {
 
 static inline sink_ctx newctx(sink_scr scr, int argc, char **argv){
 	// create the context with the standard I/O
-	sink_ctx ctx = sink_ctx_new(scr, sink_stdio);
+	sink_ctx ctx = sink_ctx_new(scr, io);
 
 	// add any libraries
 	sink_shell_ctx(ctx, argc, argv);
@@ -271,8 +271,8 @@ int main_compile_eval(sink_scr scr, const char *eval, bool debug){
 void print_version(){
 	printf(
 		"Sink v1.0\n"
-		"Copyright (c) 2016-2017 Sean Connelly (@voidqk), MIT License\n"
-		"https://github.com/voidqk/sink  http://syntheti.cc\n");
+		"Copyright (c) 2016-2018 Sean Connelly (@voidqk), MIT License\n"
+		"https://github.com/voidqk/sink  http://sean.cm\n");
 }
 
 void print_help(){

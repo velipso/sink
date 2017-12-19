@@ -1,27 +1,31 @@
 {
-	"name": "sink",
-	"version": "0.0.1",
-	"description": "Minimalistic programming language for embedding small scripts in larger programs",
-	"main": "./src-js/index.js",
-	"bin": {
-		"sink": "./src-js/cmd.js"
-	},
-	"repository": {
-		"type": "git",
-		"url": "git@github.com:voidqk/sink.git"
-	},
-	"keywords": [
-		"programming language",
-		"scripting"
-	],
-	"author": {
-		"name": "Sean",
-		"twitter": "voidqk",
-		"url": "http://syntheti.cc"
-	},
-	"license": "MIT",
-	"bugs": {
-		"url": "https://github.com/voidqk/sink/issues"
-	},
-	"homepage": "https://github.com/voidqk/sink"
+  "name": "sink",
+  "version": "0.0.1",
+  "description": "Minimalistic programming language for embedding small scripts in larger programs",
+  "main": "./dist/sink/sink.js",
+  "bin": {
+    "sink": "./dist/sink/cmd.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:voidqk/sink.git"
+  },
+  "keywords": [
+    "programming language",
+    "scripting"
+  ],
+  "author": {
+    "name": "Sean",
+    "twitter": "voidqk",
+    "url": "http://sean.cm"
+  },
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/voidqk/sink/issues"
+  },
+  "homepage": "https://github.com/voidqk/sink",
+  "devDependencies": {
+    "@types/es6-promise": "0.0.33",
+    "@types/node": "^8.5.1"
+  }
 }

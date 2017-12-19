@@ -1,22 +1,22 @@
-// (c) Copyright 2016-2017, Sean Connelly (@voidqk), http://syntheti.cc
+// (c) Copyright 2016-2018, Sean Connelly (@voidqk), http://sean.cm
 // MIT License
 // Project Home: https://github.com/voidqk/sink
 
-export enum sink_type {
+export enum type {
 	NIL,
 	NUM,
 	STR,
 	LIST
 }
-export type sink_str = string;
-export type sink_strnil = string | null;
-export type sink_valtrue = number | sink_str | sink_list;
-export type sink_val = null | sink_valtrue;
-export type sink_user = number;
-export class sink_list extends Array<sink_val> {
-	usertype: sink_user;
+export type str = string;
+export type strnil = string | null;
+export type valtrue = number | str | list;
+export type val = null | valtrue;
+export type user = number;
+export class list extends Array<val> {
+	usertype: user;
 	user: any;
-	constructor(...args: sink_val[]) {
+	constructor(...args: val[]) {
 		super();
 		args.unshift(0);
 		args.unshift(0);
@@ -26,47 +26,42 @@ export class sink_list extends Array<sink_val> {
 	}
 }
 
-export type sink_u64 = [number, number]; // uint64_t is stored as two 32-bit numbers
+export type u64 = [number, number]; // uint64_t is stored as two 32-bit numbers
 
-function sink_u64_equ(a: sink_u64, b: sink_u64): boolean {
+function u64_equ(a: u64, b: u64): boolean {
 	return a[0] === b[0] && a[1] === b[1];
 }
 
-export type sink_ctx = any;
-export type sink_scr = any;
+export type ctx = any;
+export type scr = any;
 
-export enum sink_fstype {
+export enum fstype {
 	NONE,
 	FILE,
 	DIR
 }
 
-export type sink_output_f = (ctx: sink_ctx, str: sink_str, iouser: any) =>
-	undefined | Promise<undefined>;
-export type sink_input_f = (ctx: sink_ctx, str: sink_str, iouser: any) =>
-	sink_val | Promise<sink_val>;
-export type sink_native_f = (ctx: sink_ctx, args: sink_val[], natuser: any) =>
-	sink_val | Promise<sink_val>;
-export type sink_fstype_f = (file: string, incuser: any) =>
-	sink_fstype | Promise<sink_fstype>;
-export type sink_fsread_f = (scr: sink_scr, file: string, incuser: any) =>
-	boolean | Promise<boolean>;
-export type sink_dump_f = (data: string, dumpuser: any) => boolean | Promise<boolean>;
+export type output_f = (ctx: ctx, str: str, iouser: any) => void | Promise<void>;
+export type input_f = (ctx: ctx, str: str, iouser: any) => val | Promise<val>;
+export type native_f = (ctx: ctx, args: val[], natuser: any) => val | Promise<val>;
+export type fstype_f = (file: string, incuser: any) => fstype | Promise<fstype>;
+export type fsread_f = (scr: scr, file: string, incuser: any) => boolean | Promise<boolean>;
+export type dump_f = (data: string, dumpuser: any) => void;
 
-export interface sink_io_st {
-	f_say?: sink_output_f;
-	f_warn?: sink_output_f;
-	f_ask?: sink_input_f;
+export interface io_st {
+	f_say?: output_f;
+	f_warn?: output_f;
+	f_ask?: input_f;
 	user?: any;
 }
 
-export interface sink_inc_st {
-	f_fstype: sink_fstype_f;
-	f_fsread: sink_fsread_f;
-	user: any;
+export interface inc_st {
+	f_fstype: fstype_f;
+	f_fsread: fsread_f;
+	user?: any;
 }
 
-export enum sink_run {
+export enum run {
 	PASS,
 	FAIL,
 	ASYNC,
@@ -74,15 +69,15 @@ export enum sink_run {
 	REPLMORE
 }
 
-export enum sink_ctx_status {
+export enum ctx_status {
 	READY,
 	WAITING,
 	PASSED,
 	FAILED
 }
 
-export const SINK_NAN = Number.NaN;
-export const SINK_NIL = null;
+export const NAN = Number.NaN;
+export const NIL = null;
 
 function isPromise<T>(p: any): p is Promise<T> {
 	return typeof p === 'object' && p !== null && typeof (<Promise<T>>p).then === 'function';
@@ -94,62 +89,62 @@ function checkPromise<T, U>(v: T | Promise<T>, func: (v2: T) => U | Promise<U>):
 	return func(v);
 }
 
-export function sink_bool(f: boolean): sink_val { return f ? 1 : SINK_NIL; }
-export function sink_istrue(v: sink_val): v is sink_valtrue { return v !== SINK_NIL; }
-export function sink_isfalse(v: sink_val): v is null { return v === SINK_NIL; }
-export function sink_isnil(v: sink_val): v is null { return v === SINK_NIL; }
-export function sink_isasync(v: sink_val | Promise<sink_val>): v is Promise<sink_val> {
-	return isPromise<sink_val>(v);
+export function bool(f: boolean): val { return f ? 1 : NIL; }
+export function istrue(v: val): v is valtrue { return v !== NIL; }
+export function isfalse(v: val): v is null { return v === NIL; }
+export function isnil(v: val): v is null { return v === NIL; }
+export function isasync(v: val | Promise<val>): v is Promise<val> {
+	return isPromise<val>(v);
 }
-export function sink_isstr(v: sink_val): v is sink_str { return typeof v === 'string'; }
-export function sink_islist(v: sink_val): v is sink_list {
+export function isstr(v: val): v is str { return typeof v === 'string'; }
+export function islist(v: val): v is list {
 	return typeof v === 'object' && v !== null;
 }
-export function sink_isnum(v: sink_val): v is number { return typeof v === 'number'; }
-export function sink_typeof(v: sink_val): sink_type {
-	if      (sink_isnil  (v)) return sink_type.NIL;
-	else if (sink_isstr  (v)) return sink_type.STR;
-	else if (sink_islist (v)) return sink_type.LIST;
-	else                      return sink_type.NUM;
+export function isnum(v: val): v is number { return typeof v === 'number'; }
+export function sink_typeof(v: val): type {
+	if      (isnil (v)) return type.NIL;
+	else if (isstr (v)) return type.STR;
+	else if (islist(v)) return type.LIST;
+	else                return type.NUM;
 }
-export function sink_castnum(v: sink_val): number {
-	if (!sink_isnum(v))
+export function castnum(v: val): number {
+	if (!isnum(v))
 		throw new Error('Cannot cast non-number to number.');
 	return v;
 }
-export function sink_caststr(str: sink_val): string {
-	if (!sink_isstr(str))
+export function caststr(str: val): string {
+	if (!isstr(str))
 		throw new Error('Cannot cast non-string to string.');
 	return str;
 }
-export function sink_castlist(ls: sink_val): sink_list {
-	if (!sink_islist(ls))
+export function castlist(ls: val): list {
+	if (!islist(ls))
 		throw new Error('Cannot cast non-list to list.');
 	return ls;
 }
 
-export function sink_nil(): sink_val { return SINK_NIL; }
+export function nil(): val { return NIL; }
 
-export function sink_num(v: number): sink_val { return v; }
-export function sink_num_nan(): sink_val { return SINK_NAN; }
-export function sink_num_inf(): sink_val { return Infinity; }
-export function sink_num_isnan(v: sink_val): boolean { return typeof v === 'number' && isNaN(v); }
-export function sink_num_isfinite(v: sink_val): boolean {
+export function num(v: number): val { return v; }
+export function num_nan(): val { return NAN; }
+export function num_inf(): val { return Infinity; }
+export function num_isnan(v: val): boolean { return typeof v === 'number' && isNaN(v); }
+export function num_isfinite(v: val): boolean {
 	return typeof v === 'number' && isFinite(v);
 }
-export function sink_num_e(): number { return Math.E; }
-export function sink_num_pi(): number { return Math.PI; }
-export function sink_num_tau(): number { return Math.PI * 2; }
+export function num_e(): number { return Math.E; }
+export function num_pi(): number { return Math.PI; }
+export function num_tau(): number { return Math.PI * 2; }
 
-export function sink_user_new(ctx: sink_ctx, usertype: sink_user, user: any): sink_val {
-	let hint = sink_ctx_getuserhint(ctx, usertype);
-	let ls = new sink_list(hint);
-	sink_list_setuser(ctx, ls, usertype, user);
+export function user_new(ctx: ctx, usertype: user, user: any): val {
+	let hint = ctx_getuserhint(ctx, usertype);
+	let ls = new list(hint);
+	list_setuser(ctx, ls, usertype, user);
 	return ls;
 }
 
-export function sink_isuser(ctx: sink_ctx, v: sink_val, usertype: sink_user): [boolean, any] {
-	if (!sink_islist(v))
+export function isuser(ctx: ctx, v: val, usertype: user): [boolean, any] {
+	if (!islist(v))
 		return [false, null];
 	if (v.usertype !== usertype)
 		return [false, null];
@@ -157,9 +152,9 @@ export function sink_isuser(ctx: sink_ctx, v: sink_val, usertype: sink_user): [b
 }
 
 function wrap_clock(): number { return (new Date()).getTime(); }
-export let sink_seedauto_src: () => number = wrap_clock;
+export let seedauto_src: () => number = wrap_clock;
 
-class list_u64 extends Array<sink_u64> {
+class list_u64 extends Array<u64> {
 }
 
 interface varloc_st {
@@ -177,8 +172,8 @@ function varloc_isnull(vlc: varloc_st): boolean {
 	return vlc.frame < 0;
 }
 
-function native_hash(bytes: string): sink_u64 {
-	let hash = sink_str_hashplain(bytes, 0);
+function native_hash(bytes: string): u64 {
+	let hash = str_hashplain(bytes, 0);
 	return [hash[0], hash[1]];
 }
 
@@ -2094,7 +2089,7 @@ interface decl_st {
 	local: boolean;
 	flp: filepos_st; // location of names
 	names: string[];
-	key: sink_strnil;
+	key: strnil;
 }
 
 function decl_local(flp: filepos_st, names: string[]): decl_st {
@@ -2491,15 +2486,12 @@ function ast_label(flp: filepos_st, ident: string): ast_st {
 //
 
 interface ets_st {
-	tk: tok_st;
+	tk: tok_st_KS;
 	next: ets_st | null;
 }
 
-function ets_new(tk: tok_st, next: ets_st | null): ets_st { // exprPreStack, exprMidStack
-	return {
-		tk: tk,
-		next: next
-	};
+function ets_new(tk: tok_st_KS, next: ets_st | null): ets_st { // exprPreStack, exprMidStack
+	return { tk: tk, next: next };
 }
 
 interface exs_st {
@@ -2508,10 +2500,7 @@ interface exs_st {
 }
 
 function exs_new(ex: expr_st, next: exs_st | null): exs_st { // exprStack
-	return {
-		ex: ex,
-		next: next
-	};
+	return { ex: ex, next: next };
 }
 
 interface eps_st {
@@ -2520,10 +2509,7 @@ interface eps_st {
 }
 
 function eps_new(e: ets_st, next: eps_st | null){ // exprPreStackStack
-	return {
-		e: e,
-		next: next
-	};
+	return { e: e, next: next };
 }
 
 //
@@ -2779,7 +2765,7 @@ function parser_start(pr: parser_st, flpS: filepos_st, state: prs_enum): null {
 	return null;
 }
 
-function parser_statement(pr: parser_st, stmts: ast_st[], more: boolean): sink_strnil {
+function parser_statement(pr: parser_st, stmts: ast_st[], more: boolean): strnil {
 	if (pr.state === null)
 		throw new Error('Parser state is null');
 	pr.level--;
@@ -2799,15 +2785,8 @@ function parser_lookup(pr: parser_st, flpL: filepos_st, retstate: prs_enum): nul
 	return null;
 }
 
-// function to enforce a tok_st_KS, to fanagle TypeScript's type-checking
-function forceKS(tk: tok_st): tok_st_KS {
-	if (tk.type !== tok_enum.KS)
-		throw new Error('Parser mid must be keyword');
-	return tk;
-}
-
 // returns null for success, or an error message
-function parser_process(pr: parser_st, stmts: ast_st[]): sink_strnil {
+function parser_process(pr: parser_st, stmts: ast_st[]): strnil {
 	if (pr.tk1 === null)
 		throw new Error('Parser cannot process null token');
 	if (pr.state === null)
@@ -3526,7 +3505,7 @@ function parser_process(pr: parser_st, stmts: ast_st[]): sink_strnil {
 			// fall through
 		case prs_enum.EXPR_PRE:
 			if (tok_isPre(tk1)){
-				st.exprPreStack = ets_new(tk1, st.exprPreStack);
+				st.exprPreStack = ets_new(tk1 as tok_st_KS, st.exprPreStack);
 				return null;
 			}
 			st.state = prs_enum.EXPR_TERM;
@@ -3753,10 +3732,12 @@ function parser_process(pr: parser_st, stmts: ast_st[]): sink_strnil {
 			while (true){
 				// fight between the Pre and the Mid
 				while (true){
+					if (st.exprPreStack === null)
+						break;
 					if (tk1.type !== tok_enum.KS || st.exprPreStack === null ||
 						st.exprPreStack.tk.type !== tok_enum.KS)
 						throw new Error('Parser expression mid expecting keyword');
-					if (st.exprPreStack === null || !tok_isPreBeforeMid(st.exprPreStack.tk, tk1))
+					if (!tok_isPreBeforeMid(st.exprPreStack.tk, tk1 as tok_st_KS))
 						break;
 					// apply the Pre
 					let ptk = st.exprPreStack.tk;
@@ -3768,9 +3749,9 @@ function parser_process(pr: parser_st, stmts: ast_st[]): sink_strnil {
 
 				// if we've exhaused the exprPreStack, then check against the exprMidStack
 				if (st.exprPreStack === null && st.exprMidStack !== null &&
-					tok_isMidBeforeMid(forceKS(st.exprMidStack.tk), tk1)){
+					tok_isMidBeforeMid(st.exprMidStack.tk, tk1 as tok_st_KS)){
 					// apply the previous Mid
-					let mtk = forceKS(st.exprMidStack.tk);
+					let mtk = st.exprMidStack.tk as tok_st_KS;
 					if (st.exprStack === null)
 						throw new Error('Parser expression mid expecting expression stack');
 					if (st.exprTerm === null)
@@ -3792,13 +3773,13 @@ function parser_process(pr: parser_st, stmts: ast_st[]): sink_strnil {
 			// finally, we're safe to apply the Mid...
 			// except instead of applying it, we need to schedule to apply it, in case another
 			// operator takes precedence over this one
-			st.exprPreStackStack = eps_new(st.exprPreStack, st.exprPreStackStack);
+			st.exprPreStackStack = eps_new(st.exprPreStack as ets_st, st.exprPreStackStack);
 			st.exprPreStack = null;
 			if (st.exprTerm === null)
 				throw new Error('Parser expression mid expecting expression');
 			st.exprStack = exs_new(st.exprTerm, st.exprStack);
 			st.exprTerm = null;
-			st.exprMidStack = ets_new(tk1, st.exprMidStack);
+			st.exprMidStack = ets_new(tk1 as tok_st_KS, st.exprMidStack);
 			pr.tk1 = null;
 			st.state = prs_enum.EXPR_PRE;
 			return null;
@@ -3807,7 +3788,7 @@ function parser_process(pr: parser_st, stmts: ast_st[]): sink_strnil {
 			while (true){
 				// apply any outstanding Pre's
 				while (st.exprPreStack !== null){
-					let ptk = forceKS(st.exprPreStack.tk);
+					let ptk = st.exprPreStack.tk;
 					if (st.exprTerm === null)
 						throw new Error('Parser expression end expecting expression');
 					st.exprTerm = expr_prefix(ptk.flp, ptk.k, st.exprTerm);
@@ -3822,10 +3803,10 @@ function parser_process(pr: parser_st, stmts: ast_st[]): sink_strnil {
 
 				// fight between the left Pre and the Mid
 				while (st.exprPreStack !== null &&
-					(st.exprMidStack === null || tok_isPreBeforeMid(
-						forceKS(st.exprPreStack.tk), forceKS(st.exprMidStack.tk)))){
+					(st.exprMidStack === null ||
+						tok_isPreBeforeMid(st.exprPreStack.tk, st.exprMidStack.tk))){
 					// apply the Pre to the left side
-					let ptk = forceKS(st.exprPreStack.tk);
+					let ptk = st.exprPreStack.tk;
 					if (st.exprStack === null)
 						throw new Error('Parser expression end expecting expression stack');
 					st.exprStack.ex = expr_prefix(ptk.flp, ptk.k, st.exprStack.ex);
@@ -3836,7 +3817,7 @@ function parser_process(pr: parser_st, stmts: ast_st[]): sink_strnil {
 					break;
 
 				// apply the Mid
-				let mtk = forceKS(st.exprMidStack.tk);
+				let mtk = st.exprMidStack.tk;
 				if (st.exprStack === null || st.exprTerm === null)
 					throw new Error('Parser expression end expecting expression stack');
 				let pri = parser_infix(mtk.flp, mtk.k, st.exprStack.ex, st.exprTerm);
@@ -3856,12 +3837,12 @@ function parser_process(pr: parser_st, stmts: ast_st[]): sink_strnil {
 	}
 }
 
-function parser_add(pr: parser_st, tk: tok_st, stmts: ast_st[]): sink_strnil {
+function parser_add(pr: parser_st, tk: tok_st, stmts: ast_st[]): strnil {
 	parser_fwd(pr, tk);
 	return parser_process(pr, stmts);
 }
 
-function parser_close(pr: parser_st): sink_strnil {
+function parser_close(pr: parser_st): strnil {
 	if (pr.state === null)
 		throw new Error('Parser missing state');
 	if (pr.state.next !== null)
@@ -3996,7 +3977,7 @@ interface nsname_st_CMD_LOCAL {
 interface nsname_st_CMD_NATIVE {
 	name: string;
 	type: nsname_enumt.CMD_NATIVE;
-	hash: sink_u64;
+	hash: u64;
 }
 interface nsname_st_CMD_OPCODE {
 	name: string;
@@ -4038,7 +4019,7 @@ function nsname_cmdLocal(name: string, fr: frame_st, lbl: label_st): nsname_st {
 	};
 }
 
-function nsname_cmdNative(name: string, hash: sink_u64): nsname_st {
+function nsname_cmdNative(name: string, hash: u64): nsname_st {
 	return {
 		name: name,
 		type: nsname_enumt.CMD_NATIVE,
@@ -4244,7 +4225,7 @@ function symtbl_findNamespace(sym: symtbl_st, names: string[], max: number): sfn
 	return sfn_ok(ns);
 }
 
-function symtbl_pushNamespace(sym: symtbl_st, names: string[] | true): sink_strnil{
+function symtbl_pushNamespace(sym: symtbl_st, names: string[] | true): strnil{
 	let ns: namespace_st;
 	if (names === true){
 		// create a unique namespace and use it (via `using`) immediately
@@ -4412,7 +4393,7 @@ function symtbl_addVar(sym: symtbl_st, names: string[], slot: number): sta_st {
 	return sta_ok(varloc_new(sym.fr.level, slot));
 }
 
-function symtbl_addEnum(sym: symtbl_st, names: string[], val: number): sink_strnil{
+function symtbl_addEnum(sym: symtbl_st, names: string[], val: number): strnil{
 	let nsr = symtbl_findNamespace(sym, names, names.length - 1);
 	if (!nsr.ok)
 		return nsr.msg;
@@ -4436,7 +4417,7 @@ function symtbl_reserveVars(sym: symtbl_st, count: number): void {
 		sym.fr.vars.push(frame_enum.VAR);
 }
 
-function symtbl_addCmdLocal(sym: symtbl_st, names: string[], lbl: label_st): sink_strnil {
+function symtbl_addCmdLocal(sym: symtbl_st, names: string[], lbl: label_st): strnil {
 	let nsr = symtbl_findNamespace(sym, names, names.length - 1);
 	if (!nsr.ok)
 		return nsr.msg;
@@ -4454,7 +4435,7 @@ function symtbl_addCmdLocal(sym: symtbl_st, names: string[], lbl: label_st): sin
 	return null;
 }
 
-function symtbl_addCmdNative(sym: symtbl_st, names: string[], hash: sink_u64): sink_strnil {
+function symtbl_addCmdNative(sym: symtbl_st, names: string[], hash: u64): strnil {
 	let nsr = symtbl_findNamespace(sym, names, names.length - 1);
 	if (!nsr.ok)
 		return nsr.msg;
@@ -4533,9 +4514,9 @@ function symtbl_loadStdlib(sym: symtbl_st): void {
 		SAC(sym, 'inf'       , op_enum.NUM_INF        ,  0);
 		SAC(sym, 'isnan'     , op_enum.NUM_ISNAN      ,  1);
 		SAC(sym, 'isfinite'  , op_enum.NUM_ISFINITE   ,  1);
-		SAE(sym, 'e'         , sink_num_e()               );
-		SAE(sym, 'pi'        , sink_num_pi()              );
-		SAE(sym, 'tau'       , sink_num_tau()             );
+		SAE(sym, 'e'         , num_e()               );
+		SAE(sym, 'pi'        , num_pi()              );
+		SAE(sym, 'tau'       , num_tau()             );
 		SAC(sym, 'sin'       , op_enum.NUM_SIN        ,  1);
 		SAC(sym, 'cos'       , op_enum.NUM_COS        ,  1);
 		SAC(sym, 'tan'       , op_enum.NUM_TAN        ,  1);
@@ -4667,7 +4648,7 @@ function symtbl_loadStdlib(sym: symtbl_st): void {
 
 interface program_st {
 	strTable: string[];
-	keyTable: sink_u64[];
+	keyTable: u64[];
 	debugTable: string[];
 	posTable: prgflp_st[];
 	cmdTable: prgch_st[];
@@ -4713,11 +4694,11 @@ interface script_st {
 	sinc: staticinc_st;
 	files: string[];
 	paths: string[];
-	inc: sink_inc_st;
-	capture_write: sink_strnil;
-	curdir: sink_strnil;
-	file: sink_strnil;
-	err: sink_strnil;
+	inc: inc_st;
+	capture_write: strnil;
+	curdir: strnil;
+	file: strnil;
+	err: strnil;
 	mode: scriptmode_enum;
 	binstate: binstate_st;
 }
@@ -4750,11 +4731,11 @@ type fileres_end_f = (success: boolean, file: string, fuser: any) => void;
 function fileres_try(scr: script_st, postfix: boolean, file: string,
 	f_begin: fileres_begin_f, f_end: fileres_end_f, fuser: any): boolean | Promise<boolean> {
 	let inc = scr.inc;
-	return checkPromise<sink_fstype, boolean>(
+	return checkPromise<fstype, boolean>(
 		inc.f_fstype(file, inc.user),
-		function(fst: sink_fstype): boolean | Promise<boolean> {
+		function(fst: fstype): boolean | Promise<boolean> {
 			switch (fst){
-				case sink_fstype.FILE:
+				case fstype.FILE:
 					if (f_begin(file, fuser)){
 						return checkPromise<boolean, boolean>(
 							inc.f_fsread(scr, file, inc.user),
@@ -4764,14 +4745,14 @@ function fileres_try(scr: script_st, postfix: boolean, file: string,
 							});
 					}
 					return true;
-				case sink_fstype.NONE:
+				case fstype.NONE:
 					if (!postfix)
 						return false;
 					// try adding a .sink extension
 					if (file.substr(-5) === '.sink')
 						return false;
 					return fileres_try(scr, false, file + '.sink', f_begin, f_end, fuser);
-				case sink_fstype.DIR:
+				case fstype.DIR:
 					if (!postfix)
 						return false;
 					// try looking for index.sink inside the directory
@@ -4782,7 +4763,7 @@ function fileres_try(scr: script_st, postfix: boolean, file: string,
 	);
 }
 
-function fileres_read(scr: script_st, postfix: boolean, file: string, cwd: sink_strnil,
+function fileres_read(scr: script_st, postfix: boolean, file: string, cwd: strnil,
 	f_begin: fileres_begin_f, f_end: fileres_end_f, fuser: any): boolean | Promise<boolean> {
 	// if an absolute path, there is no searching, so just try to read it directly
 	if (file.charAt(0) === '/')
@@ -4841,7 +4822,7 @@ function program_adddebugstr(prg: program_st, str: string): number {
 	return prg.debugTable.length - 1;
 }
 
-function program_addfile(prg: program_st, str: sink_strnil): number {
+function program_addfile(prg: program_st, str: strnil): number {
 	if (str === null)
 		return -1;
 	// get the basename
@@ -4855,7 +4836,7 @@ function program_getdebugstr(prg: program_st, str: number): string {
 	return str < 0 || str >= prg.debugTable.length ? '' : prg.debugTable[str];
 }
 
-function program_errormsg(prg: program_st, flp: filepos_st, msg: sink_strnil): string {
+function program_errormsg(prg: program_st, flp: filepos_st, msg: strnil): string {
 	if (msg === null){
 		if (flp.basefile < 0)
 			return flp.line + ':' + flp.chr;
@@ -5805,7 +5786,7 @@ interface efu_st {
 }
 
 function embed_begin(file: string, efu: efu_st): boolean {
-	// in order to capture the `sink_scr_write`, we need to set `capture_write`
+	// in order to capture the `scr_write`, we need to set `capture_write`
 	efu.pgen.scr.capture_write = '';
 	return true;
 }
@@ -5920,7 +5901,7 @@ function program_evalCall(pgen: pgen_st, mode: pem_enum, intoVlc: varloc_st, flp
 			file = file.ex;
 		if (file === null || file.type !== expr_enum.STR)
 			return per_error(flp, 'Expecting constant string for `embed`');
-		let cwd: sink_strnil = null;
+		let cwd: strnil = null;
 		let efu: efu_st = {
 			pgen: pgen,
 			mode: mode,
@@ -5943,7 +5924,7 @@ function program_evalCall(pgen: pgen_st, mode: pem_enum, intoVlc: varloc_st, flp
 	else if (nsn.type === nsname_enumt.CMD_OPCODE && nsn.opcode === op_enum.STR_HASH &&
 		params !== null){
 		// attempt to str.hash at compile-time if possible
-		let str: sink_strnil = null;
+		let str: strnil = null;
 		let seed = 0;
 		let ex = params;
 		if (ex.type === expr_enum.GROUP && ex.group.length === 2){
@@ -5967,7 +5948,7 @@ function program_evalCall(pgen: pgen_st, mode: pem_enum, intoVlc: varloc_st, flp
 		}
 		if (str !== null){
 			// we can perform a static hash!
-			let out = sink_str_hashplain(str, seed);
+			let out = str_hashplain(str, seed);
 			let ex = expr_list(flp, expr_group(flp, expr_group(flp, expr_group(flp,
 				expr_num(flp, out[0]),
 				expr_num(flp, out[1])),
@@ -6004,7 +5985,7 @@ function program_evalCall(pgen: pgen_st, mode: pem_enum, intoVlc: varloc_st, flp
 		let index = 0;
 		let found = false;
 		for ( ; index < prg.keyTable.length; index++){
-			if (sink_u64_equ(prg.keyTable[index], nsn.hash)){
+			if (u64_equ(prg.keyTable[index], nsn.hash)){
 				found = true;
 				break;
 			}
@@ -7010,7 +6991,7 @@ function pgs_if_check(v: any): v is pgs_if_st {
 
 interface pfvs_res_st {
 	vlc: varloc_st;
-	err: sink_strnil;
+	err: strnil;
 }
 
 function program_forVarsSingle(sym: symtbl_st, forVar: boolean,
@@ -7780,24 +7761,24 @@ function ccs_new(pc: number, frame: number, index: number, lex_index: number): c
 }
 
 interface lxs_st {
-	vals: sink_val[];
+	vals: val[];
 	next: lxs_st | null;
 }
 
-function lxs_new(args: sink_val[], next: lxs_st | null){
+function lxs_new(args: val[], next: lxs_st | null){
 	let ls: lxs_st = { vals: args.concat(), next: next };
 	for (let i = args.length; i < 256; i++)
-		ls.vals.push(SINK_NIL);
+		ls.vals.push(NIL);
 	return ls;
 }
 
 interface native_st {
 	natuser: any;
-	f_native: sink_native_f;
-	hash: sink_u64;
+	f_native: native_f;
+	hash: u64;
 }
 
-function native_new(hash: sink_u64, natuser: any, f_native: sink_native_f): native_st {
+function native_new(hash: u64, natuser: any, f_native: native_f): native_st {
 	return { natuser: natuser, hash: hash, f_native: f_native };
 }
 
@@ -7812,7 +7793,7 @@ interface context_st {
 	ccs_avail: ccs_st[];
 	lxs_avail: lxs_st[];
 
-	io: sink_io_st;
+	io: io_st;
 
 	lex_index: number;
 	pc: number;
@@ -7823,7 +7804,7 @@ interface context_st {
 	rand_seed: number;
 	rand_i: number;
 
-	err: sink_strnil;
+	err: strnil;
 	passed: boolean;
 	failed: boolean;
 	async: boolean;
@@ -7831,7 +7812,7 @@ interface context_st {
 	gc_level: string;
 }
 
-function lxs_get(ctx: context_st, args: sink_val[], next: lxs_st | null): lxs_st {
+function lxs_get(ctx: context_st, args: val[], next: lxs_st | null): lxs_st {
 	// TODO: speed test to see if lxs_avail is a speed boost
 	if (ctx.lxs_avail.length > 0){
 		let ls = ctx.lxs_avail.pop();
@@ -7839,7 +7820,7 @@ function lxs_get(ctx: context_st, args: sink_val[], next: lxs_st | null): lxs_st
 			throw new Error('No lxs structures available');
 		ls.vals = args.concat();
 		for (let i = args.length; i < 256; i++)
-			ls.vals.push(SINK_NIL);
+			ls.vals.push(NIL);
 		ls.next = next;
 		return ls;
 	}
@@ -7869,24 +7850,24 @@ function ccs_release(ctx: context_st, c: ccs_st): void {
 	ctx.ccs_avail.push(c);
 }
 
-function context_native(ctx: context_st, hash: sink_u64, natuser: any,
-	f_native: sink_native_f): void {
+function context_native(ctx: context_st, hash: u64, natuser: any,
+	f_native: native_f): void {
 	if (ctx.prg.repl)
 		ctx.natives.push(native_new(hash, natuser, f_native));
 	else{
 		for (let i = 0; i < ctx.natives.length; i++){
 			let nat = ctx.natives[i];
-			if (sink_u64_equ(nat.hash, hash)){
+			if (u64_equ(nat.hash, hash)){
 				// already defined, hash collision
 				throw new Error(
 					'Hash collision; cannot redefine native command ' +
-					'(did you call sink_ctx_native twice for the same command?)');
+					'(did you call ctx_native twice for the same command?)');
 			}
 		}
 	}
 }
 
-function context_new(prg: program_st, io: sink_io_st): context_st {
+function context_new(prg: program_st, io: io_st): context_st {
 	let ctx: context_st = {
 		user: null,
 		natives: [],
@@ -7910,7 +7891,7 @@ function context_new(prg: program_st, io: sink_io_st): context_st {
 		async: false,
 		gc_level: 'default'
 	};
-	sink_rand_seedauto(ctx);
+	rand_seedauto(ctx);
 	return ctx;
 }
 
@@ -7936,24 +7917,24 @@ function context_reset(ctx: context_st): void {
 	ctx.timeout_left = ctx.timeout;
 }
 
-function var_get(ctx: context_st, frame: number, index: number): sink_val {
+function var_get(ctx: context_st, frame: number, index: number): val {
 	// TODO: look at inlining this manually
 	return (ctx.lex_stk[frame] as lxs_st).vals[index];
 }
 
-function var_set(ctx: context_st, frame: number, index: number, val: sink_val): void {
+function var_set(ctx: context_st, frame: number, index: number, val: val): void {
 	// TODO: look at inlining this manually
 	(ctx.lex_stk[frame] as lxs_st).vals[index] = val;
 }
 
-function arget(ar: sink_val, index: number): sink_val {
-	if (sink_islist(ar))
+function arget(ar: val, index: number): val {
+	if (islist(ar))
 		return index >= ar.length ? 0 : ar[index];
 	return ar;
 }
 
-function arsize(ar: sink_val): number {
-	if (sink_islist(ar))
+function arsize(ar: val): number {
+	if (islist(ar))
 		return ar.length;
 	return 1;
 }
@@ -7962,17 +7943,17 @@ const LT_ALLOWNIL = 1;
 const LT_ALLOWNUM = 2;
 const LT_ALLOWSTR = 4;
 
-function oper_typemask(a: sink_val, mask: number): boolean {
+function oper_typemask(a: val, mask: number): boolean {
 	switch (sink_typeof(a)){
-		case sink_type.NIL : return (mask & LT_ALLOWNIL) !== 0;
-		case sink_type.NUM : return (mask & LT_ALLOWNUM) !== 0;
-		case sink_type.STR : return (mask & LT_ALLOWSTR) !== 0;
-		case sink_type.LIST: return false;
+		case type.NIL : return (mask & LT_ALLOWNIL) !== 0;
+		case type.NUM : return (mask & LT_ALLOWNUM) !== 0;
+		case type.STR : return (mask & LT_ALLOWSTR) !== 0;
+		case type.LIST: return false;
 	}
 }
 
-function oper_typelist(a: sink_val, mask: number): boolean {
-	if (sink_islist(a)){
+function oper_typelist(a: val, mask: number): boolean {
+	if (islist(a)){
 		for (let i = 0; i < a.length; i++){
 			if (!oper_typemask(a[i], mask))
 				return false;
@@ -7982,11 +7963,11 @@ function oper_typelist(a: sink_val, mask: number): boolean {
 	return oper_typemask(a, mask);
 }
 
-type unary_f = (v: sink_val) => sink_val;
+type unary_f = (v: val) => val;
 
-function oper_un(a: sink_val, f_unary: unary_f): sink_val {
-	if (sink_islist(a)){
-		let ret = new sink_list();
+function oper_un(a: val, f_unary: unary_f): val {
+	if (islist(a)){
+		let ret = new list();
 		for (let i = 0; i < a.length; i++)
 			ret.push(f_unary(a[i]));
 		return ret;
@@ -7994,12 +7975,12 @@ function oper_un(a: sink_val, f_unary: unary_f): sink_val {
 	return f_unary(a);
 }
 
-type binary_f = (a: sink_val, b: sink_val) => sink_val;
+type binary_f = (a: val, b: val) => val;
 
-function oper_bin(a: sink_val, b: sink_val, f_binary: binary_f): sink_val {
-	if (sink_islist(a) || sink_islist(b)){
+function oper_bin(a: val, b: val, f_binary: binary_f): val {
+	if (islist(a) || islist(b)){
 		let m = Math.max(arsize(a), arsize(b));
-		let ret = new sink_list();
+		let ret = new list();
 		for (let i = 0; i < m; i++)
 			ret.push(f_binary(arget(a, i), arget(b, i)));
 		return ret;
@@ -8007,12 +7988,12 @@ function oper_bin(a: sink_val, b: sink_val, f_binary: binary_f): sink_val {
 	return f_binary(a, b);
 }
 
-type trinary_f = (a: sink_val, b: sink_val, c: sink_val) => sink_val;
+type trinary_f = (a: val, b: val, c: val) => val;
 
-function oper_tri(a: sink_val, b: sink_val, c: sink_val, f_trinary: trinary_f): sink_val {
-	if (sink_islist(a) || sink_islist(b) || sink_islist(c)){
+function oper_tri(a: val, b: val, c: val, f_trinary: trinary_f): val {
+	if (islist(a) || islist(b) || islist(c)){
 		let m = Math.max(arsize(a), arsize(b), arsize(c));
-		let ret = new sink_list();
+		let ret = new list();
 		for (let i = 0; i < m; i++)
 			ret.push(f_trinary(arget(a, i), arget(b, i), arget(c, i)));
 		return ret;
@@ -8020,25 +8001,25 @@ function oper_tri(a: sink_val, b: sink_val, c: sink_val, f_trinary: trinary_f): 
 	return f_trinary(a, b, c);
 }
 
-function str_cmp(a: sink_str, b: sink_str): number {
+function str_cmp(a: str, b: str): number {
 	return a === b ? 0 : (a < b ? -1 : 1);
 }
 
-function opihelp_num_max(vals: sink_list | sink_val[], li: sink_list[]): sink_val {
-	let max: sink_val = SINK_NIL;
+function opihelp_num_max(vals: list | val[], li: list[]): val {
+	let max: val = NIL;
 	for (let i = 0; i < vals.length; i++){
 		let v = vals[i];
-		if (sink_isnum(v)){
-			if (sink_isnil(max) || v > max)
+		if (isnum(v)){
+			if (isnil(max) || v > max)
 				max = v;
 		}
-		else if (sink_islist(v)){
+		else if (islist(v)){
 			if (li.indexOf(v) >= 0)
-				return SINK_NIL;
+				return NIL;
 			li.push(v);
 
 			let lm = opihelp_num_max(v, li);
-			if (!sink_isnil(lm) && (sink_isnil(max) || lm > max))
+			if (!isnil(lm) && (isnil(max) || lm > max))
 				max = lm;
 
 			li.pop();
@@ -8047,25 +8028,25 @@ function opihelp_num_max(vals: sink_list | sink_val[], li: sink_list[]): sink_va
 	return max;
 }
 
-function opi_num_max(vals: sink_list | sink_val[]): sink_val {
+function opi_num_max(vals: list | val[]): val {
 	return opihelp_num_max(vals, []);
 }
 
-function opihelp_num_min(vals: sink_list | sink_val[], li: sink_list[]): sink_val {
-	let min: sink_val = SINK_NIL;
+function opihelp_num_min(vals: list | val[], li: list[]): val {
+	let min: val = NIL;
 	for (let i = 0; i < vals.length; i++){
 		let v = vals[i];
-		if (sink_isnum(v)){
-			if (sink_isnil(min) || v < min)
+		if (isnum(v)){
+			if (isnil(min) || v < min)
 				min = v;
 		}
-		else if (sink_islist(v)){
+		else if (islist(v)){
 			if (li.indexOf(v) >= 0)
-				return SINK_NIL;
+				return NIL;
 			li.push(v);
 
 			let lm = opihelp_num_min(v, li);
-			if (!sink_isnil(lm) && (sink_isnil(min) || lm < min))
+			if (!isnil(lm) && (isnil(min) || lm < min))
 				min = lm;
 
 			li.pop();
@@ -8074,11 +8055,11 @@ function opihelp_num_min(vals: sink_list | sink_val[], li: sink_list[]): sink_va
 	return min;
 }
 
-function opi_num_min(vals: sink_list | sink_val[]){
+function opi_num_min(vals: list | val[]){
 	return opihelp_num_min(vals, []);
 }
 
-function opi_num_base(num: number, len: number, base: number): sink_val {
+function opi_num_base(num: number, len: number, base: number): val {
 	if (len > 256)
 		len = 256;
 	const digits = '0123456789ABCDEF';
@@ -8132,20 +8113,20 @@ function opi_num_base(num: number, len: number, base: number): sink_val {
 	return buf;
 }
 
-export function sink_rand_seedauto(ctx: sink_ctx): void {
+export function rand_seedauto(ctx: ctx): void {
 	ctx.rand_seed = (Math.random() * 0x10000000) | 0;
 	ctx.rand_i = (Math.random() * 0x10000000) | 0;
 	for (let i = 0; i < 1000; i++)
-		sink_rand_int(ctx);
+		rand_int(ctx);
 	ctx.rand_i = 0;
 }
 
-export function sink_rand_seed(ctx: sink_ctx, n: number): void {
+export function rand_seed(ctx: ctx, n: number): void {
 	ctx.rand_seed = n | 0;
 	ctx.rand_i = 0;
 }
 
-export function sink_rand_int(ctx: sink_ctx): number {
+export function rand_int(ctx: ctx): number {
 	const m = 0x5bd1e995;
 	let k = (Math as any).imul(ctx.rand_i, m);
 	ctx.rand_i = (ctx.rand_i + 1) | 0;
@@ -8156,35 +8137,35 @@ export function sink_rand_int(ctx: sink_ctx): number {
 	return res;
 }
 
-export function sink_rand_num(ctx: sink_ctx): number {
-	var M1 = sink_rand_int(ctx);
-	var M2 = sink_rand_int(ctx);
+export function rand_num(ctx: ctx): number {
+	var M1 = rand_int(ctx);
+	var M2 = rand_int(ctx);
 	var view = new DataView(new ArrayBuffer(8));
 	view.setInt32(0, (M1 << 20) | (M2 >>> 12), true);
 	view.setInt32(4, 0x3FF00000 | (M1 >>> 12), true);
 	return view.getFloat64(0, true) - 1;
 }
 
-export function sink_rand_getstate(ctx: sink_ctx): sink_list {
+export function rand_getstate(ctx: ctx): list {
 	// slight goofy logic to convert int32 to uint32
 	if (ctx.rand_i < 0){
 		if (ctx.rand_seed < 0)
-			return new sink_list(ctx.rand_seed + 0x100000000, ctx.rand_i + 0x100000000);
-		return new sink_list(ctx.rand_seed, ctx.rand_i + 0x100000000);
+			return new list(ctx.rand_seed + 0x100000000, ctx.rand_i + 0x100000000);
+		return new list(ctx.rand_seed, ctx.rand_i + 0x100000000);
 	}
 	else if (ctx.rand_seed < 0)
-		return new sink_list(ctx.rand_seed + 0x100000000, ctx.rand_i);
-	return new sink_list(ctx.rand_seed, ctx.rand_i);
+		return new list(ctx.rand_seed + 0x100000000, ctx.rand_i);
+	return new list(ctx.rand_seed, ctx.rand_i);
 }
 
-export function sink_rand_setstate(ctx: sink_ctx, a: sink_val): void {
-	if (!sink_islist(a) || a.length < 2){
+export function rand_setstate(ctx: ctx, a: val): void {
+	if (!islist(a) || a.length < 2){
 		opi_abort(ctx, 'Expecting list of two integers');
 		return;
 	}
 	let A = a[0];
 	let B = a[1];
-	if (!sink_isnum(A) || !sink_isnum(B)){
+	if (!isnum(A) || !isnum(B)){
 		opi_abort(ctx, 'Expecting list of two integers');
 		return;
 	}
@@ -8192,24 +8173,24 @@ export function sink_rand_setstate(ctx: sink_ctx, a: sink_val): void {
 	ctx.rand_i = B | 0;
 }
 
-export function sink_rand_pick(ctx: sink_ctx, a: sink_val): sink_val {
-	if (!sink_islist(a)){
+export function rand_pick(ctx: ctx, a: val): val {
+	if (!islist(a)){
 		opi_abort(ctx, 'Expecting list');
-		return SINK_NIL;
+		return NIL;
 	}
 	if (a.length <= 0)
-		return SINK_NIL;
-	return a[Math.floor(sink_rand_num(ctx) * a.length)];
+		return NIL;
+	return a[Math.floor(rand_num(ctx) * a.length)];
 }
 
-export function sink_rand_shuffle(ctx: sink_ctx, a: sink_val): void {
-	if (!sink_islist(a)){
+export function rand_shuffle(ctx: ctx, a: val): void {
+	if (!islist(a)){
 		opi_abort(ctx, 'Expecting list');
 		return;
 	}
 	let m = a.length;
 	while (m > 1){
-		let i = Math.floor(sink_rand_num(ctx) * m);
+		let i = Math.floor(rand_num(ctx) * m);
 		m--;
 		if (m != i){
 			let t = a[m];
@@ -8219,107 +8200,107 @@ export function sink_rand_shuffle(ctx: sink_ctx, a: sink_val): void {
 	}
 }
 
-export function sink_str_new(ctx: sink_ctx, vals: sink_val[]): sink_val {
-	return sink_list_joinplain(vals, ' ');
+export function str_new(ctx: ctx, vals: val[]): val {
+	return list_joinplain(vals, ' ');
 }
 
-export function sink_str_split(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
-	if ((!sink_isstr(a) && !sink_isnum(a)) || (!sink_isstr(b) && !sink_isnum(b))){
+export function str_split(ctx: ctx, a: val, b: val): val {
+	if ((!isstr(a) && !isnum(a)) || (!isstr(b) && !isnum(b))){
 		opi_abort(ctx, 'Expecting strings');
-		return SINK_NIL;
+		return NIL;
 	}
-	let haystack = sink_tostr(a);
-	let needle = sink_tostr(b);
-	let result = new sink_list();
+	let haystack = tostr(a);
+	let needle = tostr(b);
+	let result = new list();
 	result.push.apply(result, haystack.split(needle));
 	return result;
 }
 
-export function sink_str_replace(ctx: sink_ctx, a: sink_val, b: sink_val, c: sink_val): sink_val {
-	let ls = sink_str_split(ctx, a, b);
+export function str_replace(ctx: ctx, a: val, b: val, c: val): val {
+	let ls = str_split(ctx, a, b);
 	if (ctx.failed)
-		return SINK_NIL;
-	return sink_list_join(ctx, ls, c);
+		return NIL;
+	return list_join(ctx, ls, c);
 }
 
-export function sink_str_find(ctx: sink_ctx, a: sink_val, b: sink_val, c: sink_val): sink_val {
+export function str_find(ctx: ctx, a: val, b: val, c: val): val {
 	let hx: number;
-	if (sink_isnil(c))
+	if (isnil(c))
 		hx = 0;
-	else if (sink_isnum(c))
+	else if (isnum(c))
 		hx = c;
 	else{
 		opi_abort(ctx, 'Expecting number');
-		return SINK_NIL;
+		return NIL;
 	}
-	if ((!sink_isstr(a) && !sink_isnum(a)) || (!sink_isstr(b) && !sink_isnum(b))){
+	if ((!isstr(a) && !isnum(a)) || (!isstr(b) && !isnum(b))){
 		opi_abort(ctx, 'Expecting strings');
-		return SINK_NIL;
+		return NIL;
 	}
-	let haystack = sink_tostr(a);
-	let needle = sink_tostr(b);
+	let haystack = tostr(a);
+	let needle = tostr(b);
 	if (needle.length <= 0)
 		return 0;
 
 	let pos = haystack.indexOf(needle);
 	if (pos >= 0)
 		return pos;
-	return SINK_NIL;
+	return NIL;
 }
 
-export function sink_str_rfind(ctx: sink_ctx, a: sink_val, b: sink_val, c: sink_val): sink_val {
+export function str_rfind(ctx: ctx, a: val, b: val, c: val): val {
 	let hx: number;
-	if (sink_isnum(c))
+	if (isnum(c))
 		hx = c;
-	else if (!sink_isnil(c)){
+	else if (!isnil(c)){
 		opi_abort(ctx, 'Expecting number');
-		return SINK_NIL;
+		return NIL;
 	}
-	if ((!sink_isstr(a) && !sink_isnum(a)) || (!sink_isstr(b) && !sink_isnum(b))){
+	if ((!isstr(a) && !isnum(a)) || (!isstr(b) && !isnum(b))){
 		opi_abort(ctx, 'Expecting strings');
-		return SINK_NIL;
+		return NIL;
 	}
-	let haystack = sink_tostr(a);
-	let needle = sink_tostr(b);
+	let haystack = tostr(a);
+	let needle = tostr(b);
 
 	if (needle.length <= 0)
 		return haystack.length;
 
-	if (sink_isnil(c))
+	if (isnil(c))
 		hx = haystack.length - needle.length;
 
 	let pos = haystack.lastIndexOf(needle);
 	if (pos >= 0)
 		return pos;
-	return SINK_NIL;
+	return NIL;
 }
 
-export function sink_str_begins(ctx: sink_ctx, a: sink_val, b: sink_val): boolean {
-	if ((!sink_isstr(a) && !sink_isnum(a)) || (!sink_isstr(b) && !sink_isnum(b))){
+export function str_begins(ctx: ctx, a: val, b: val): boolean {
+	if ((!isstr(a) && !isnum(a)) || (!isstr(b) && !isnum(b))){
 		opi_abort(ctx, 'Expecting strings');
 		return false;
 	}
-	let s1 = sink_tostr(a);
-	let s2 = sink_tostr(b);
+	let s1 = tostr(a);
+	let s2 = tostr(b);
 	return s2.length == 0 || (s1.length >= s2.length && s1.substr(0, s2.length) === s2);
 }
 
-export function sink_str_ends(ctx: sink_ctx, a: sink_val, b: sink_val): boolean {
-	if ((!sink_isstr(a) && !sink_isnum(a)) || (!sink_isstr(b) && !sink_isnum(b))){
+export function str_ends(ctx: ctx, a: val, b: val): boolean {
+	if ((!isstr(a) && !isnum(a)) || (!isstr(b) && !isnum(b))){
 		opi_abort(ctx, 'Expecting strings');
 		return false;
 	}
-	let s1 = sink_tostr(a);
-	let s2 = sink_tostr(b);
+	let s1 = tostr(a);
+	let s2 = tostr(b);
 	return s2.length === 0 || (s1.length >= s2.length && s1.substr(-s2.length) === s2);
 }
 
-export function sink_str_pad(ctx: sink_ctx, a: sink_val, b: number): sink_val {
-	if (!sink_isstr(a) && !sink_isnum(a)){
+export function str_pad(ctx: ctx, a: val, b: number): val {
+	if (!isstr(a) && !isnum(a)){
 		opi_abort(ctx, 'Expecting string');
-		return SINK_NIL;
+		return NIL;
 	}
-	let s = sink_tostr(a);
+	let s = tostr(a);
 	if (b < 0){ // left pad
 		b = -b;
 		if (s.length >= b)
@@ -8333,48 +8314,48 @@ export function sink_str_pad(ctx: sink_ctx, a: sink_val, b: number): sink_val {
 	}
 }
 
-function opihelp_str_lower(ctx: sink_ctx, a: sink_val): sink_val {
-	if (!sink_isstr(a) && !sink_isnum(a)){
+function opihelp_str_lower(ctx: ctx, a: val): val {
+	if (!isstr(a) && !isnum(a)){
 		opi_abort(ctx, 'Expecting string');
-		return SINK_NIL;
+		return NIL;
 	}
-	let s = sink_tostr(a);
+	let s = tostr(a);
 	return s.replace(/[A-Z]/g, function(ch: string): string { return ch.toLowerCase(); });
 }
 
-function opihelp_str_upper(ctx: sink_ctx, a: sink_val): sink_val {
-	if (!sink_isstr(a) && !sink_isnum(a)){
+function opihelp_str_upper(ctx: ctx, a: val): val {
+	if (!isstr(a) && !isnum(a)){
 		opi_abort(ctx, 'Expecting string');
-		return SINK_NIL;
+		return NIL;
 	}
-	let s = sink_tostr(a);
+	let s = tostr(a);
 	return s.replace(/[a-z]/g, function(ch: string): string { return ch.toUpperCase(); });
 }
 
-function opihelp_str_trim(ctx: sink_ctx, a: sink_val): sink_val {
-	if (!sink_isstr(a) && !sink_isnum(a)){
+function opihelp_str_trim(ctx: ctx, a: val): val {
+	if (!isstr(a) && !isnum(a)){
 		opi_abort(ctx, 'Expecting string');
-		return SINK_NIL;
+		return NIL;
 	}
-	let s = sink_tostr(a);
+	let s = tostr(a);
 	return s.replace(/^[\x09\x0A\x0B\x0C\x0D\x20]*|[\x09\x0A\x0B\x0C\x0D\x20]*$/g, '');
 }
 
-function opihelp_str_rev(ctx: sink_ctx, a: sink_val): sink_val{
-	if (!sink_isstr(a) && !sink_isnum(a)){
+function opihelp_str_rev(ctx: ctx, a: val): val{
+	if (!isstr(a) && !isnum(a)){
 		opi_abort(ctx, 'Expecting string');
-		return SINK_NIL;
+		return NIL;
 	}
-	let s = sink_tostr(a);
+	let s = tostr(a);
 	if (s.length <= 0)
 		return a;
 	return s.split('').reverse().join('');
 }
 
-function opi_str_unop(ctx: sink_ctx, a: sink_val,
-	single: (ctx: sink_ctx, a: sink_val) => sink_val): sink_val {
-	if (sink_islist(a)){
-		let ret = new sink_list();
+function opi_str_unop(ctx: ctx, a: val,
+	single: (ctx: ctx, a: val) => val): val {
+	if (islist(a)){
+		let ret = new list();
 		for (let i = 0; i < a.length; i++)
 			ret.push(single(ctx, a[i]));
 		return ret;
@@ -8383,71 +8364,71 @@ function opi_str_unop(ctx: sink_ctx, a: sink_val,
 }
 
 // allow unary string commands to work on lists too
-export function sink_str_lower(ctx: sink_ctx, a: sink_val): sink_val {
+export function str_lower(ctx: ctx, a: val): val {
 	return opi_str_unop(ctx, a, opihelp_str_lower);
 }
-export function sink_str_upper(ctx: sink_ctx, a: sink_val): sink_val {
+export function str_upper(ctx: ctx, a: val): val {
 	return opi_str_unop(ctx, a, opihelp_str_upper);
 }
-export function sink_str_trim(ctx: sink_ctx, a: sink_val): sink_val {
+export function str_trim(ctx: ctx, a: val): val {
 	return opi_str_unop(ctx, a, opihelp_str_trim);
 }
-export function sink_str_rev(ctx: sink_ctx, a: sink_val): sink_val {
+export function str_rev(ctx: ctx, a: val): val {
 	return opi_str_unop(ctx, a, opihelp_str_rev);
 }
 
-export function sink_str_rep(ctx: sink_ctx, a: sink_val, rep: number): sink_val {
-	if (!sink_isstr(a) && !sink_isnum(a)){
+export function str_rep(ctx: ctx, a: val, rep: number): val {
+	if (!isstr(a) && !isnum(a)){
 		opi_abort(ctx, 'Expecting string');
-		return SINK_NIL;
+		return NIL;
 	}
 	if (rep <= 0)
 		return '';
 	else if (rep === 1)
 		return a;
-	let s = sink_tostr(a);
+	let s = tostr(a);
 	if (s.length <= 0)
 		return s;
 	let size = s.length * rep;
 	if (size > 100000000){
 		opi_abort(ctx, 'Constructed string is too large');
-		return SINK_NIL;
+		return NIL;
 	}
 	return (new Array(rep + 1)).join(s);
 }
 
-export function sink_str_list(ctx: sink_ctx, a: sink_val): sink_val{
-	if (!sink_isstr(a) && !sink_isnum(a)){
+export function str_list(ctx: ctx, a: val): val{
+	if (!isstr(a) && !isnum(a)){
 		opi_abort(ctx, 'Expecting string');
-		return SINK_NIL;
+		return NIL;
 	}
-	let s = sink_tostr(a);
-	let r = new sink_list();
+	let s = tostr(a);
+	let r = new list();
 	for (let i = 0; i < s.length; i++)
 		r.push(s.charCodeAt(i));
 	return r;
 }
 
-export function sink_str_byte(ctx: sink_ctx, a: sink_val, b: number): sink_val {
-	if (!sink_isstr(a)){
+export function str_byte(ctx: ctx, a: val, b: number): val {
+	if (!isstr(a)){
 		opi_abort(ctx, 'Expecting string');
-		return SINK_NIL;
+		return NIL;
 	}
 	if (b < 0)
 		b += a.length;
 	if (b < 0 || b >= a.length)
-		return SINK_NIL;
+		return NIL;
 	return a.charCodeAt(b);
 }
 
-export function sink_str_hash(ctx: sink_ctx, a: sink_val, seed: number): sink_val {
-	if (!sink_isstr(a) && !sink_isnum(a)){
+export function str_hash(ctx: ctx, a: val, seed: number): val {
+	if (!isstr(a) && !isnum(a)){
 		opi_abort(ctx, 'Expecting string');
-		return SINK_NIL;
+		return NIL;
 	}
-	let s = sink_tostr(a);
-	let out = sink_str_hashplain(s, seed);
-	return new sink_list(out[0], out[1], out[2], out[3]);
+	let s = tostr(a);
+	let out = str_hashplain(s, seed);
+	return new list(out[0], out[1], out[2], out[3]);
 }
 
 // 1   7  U+00000  U+00007F  0xxxxxxx
@@ -8455,15 +8436,15 @@ export function sink_str_hash(ctx: sink_ctx, a: sink_val, seed: number): sink_va
 // 3  16  U+00800  U+00FFFF  1110xxxx  10xxxxxx  10xxxxxx
 // 4  21  U+10000  U+10FFFF  11110xxx  10xxxxxx  10xxxxxx  10xxxxxx
 
-function opihelp_codepoint(b: sink_val): boolean {
-	return sink_isnum(b) && // must be a number
+function opihelp_codepoint(b: val): boolean {
+	return isnum(b) && // must be a number
 		Math.floor(b) == b && // must be an integer
 		b >= 0 && b < 0x110000 && // must be within total range
 		(b < 0xD800 || b >= 0xE000); // must not be a surrogate
 }
 
-export function sink_utf8_valid(ctx: sink_ctx, a: sink_val): boolean {
-	if (sink_isstr(a)){
+export function utf8_valid(ctx: ctx, a: val): boolean {
+	if (isstr(a)){
 		let state = 0;
 		let codepoint = 0;
 		let min = 0;
@@ -8507,7 +8488,7 @@ export function sink_utf8_valid(ctx: sink_ctx, a: sink_val): boolean {
 		}
 		return state == 0;
 	}
-	else if (sink_islist(a)){
+	else if (islist(a)){
 		for (let i = 0; i < a.length; i++){
 			if (!opihelp_codepoint(a[i]))
 				return false;
@@ -8517,12 +8498,12 @@ export function sink_utf8_valid(ctx: sink_ctx, a: sink_val): boolean {
 	return false;
 }
 
-export function sink_utf8_list(ctx: sink_ctx, a: sink_val): sink_val {
-	if (!sink_isstr(a)){
+export function utf8_list(ctx: ctx, a: val): val {
+	if (!isstr(a)){
 		opi_abort(ctx, 'Expecting string');
-		return SINK_NIL;
+		return NIL;
 	}
-	let res = new sink_list();
+	let res = new list();
 	let state = 0;
 	let codepoint = 0;
 	let min = 0;
@@ -8533,7 +8514,7 @@ export function sink_utf8_list(ctx: sink_ctx, a: sink_val): sink_val {
 				res.push(b);
 			else if (b < 0xC0){ // 0x80 to 0xBF
 				opi_abort(ctx, 'Invalid UTF-8 string');
-				return SINK_NIL;
+				return NIL;
 			}
 			else if (b < 0xE0){ // 0xC0 to 0xDF
 				codepoint = b & 0x1F;
@@ -8552,13 +8533,13 @@ export function sink_utf8_list(ctx: sink_ctx, a: sink_val): sink_val {
 			}
 			else{
 				opi_abort(ctx, 'Invalid UTF-8 string');
-				return SINK_NIL;
+				return NIL;
 			}
 		}
 		else{
 			if (b < 0x80 || b >= 0xC0){
 				opi_abort(ctx, 'Invalid UTF-8 string');
-				return SINK_NIL;
+				return NIL;
 			}
 			codepoint = (codepoint << 6) | (b & 0x3F);
 			state--;
@@ -8567,7 +8548,7 @@ export function sink_utf8_list(ctx: sink_ctx, a: sink_val): sink_val {
 					codepoint >= 0x110000 || // no huge
 					(codepoint >= 0xD800 && codepoint < 0xE000)){ // no surrogates
 					opi_abort(ctx, 'Invalid UTF-8 string');
-					return SINK_NIL;
+					return NIL;
 				}
 				res.push(codepoint);
 			}
@@ -8576,17 +8557,17 @@ export function sink_utf8_list(ctx: sink_ctx, a: sink_val): sink_val {
 	return res;
 }
 
-export function sink_utf8_str(ctx: sink_ctx, a: sink_val): sink_val {
-	if (!sink_islist(a)){
+export function utf8_str(ctx: ctx, a: val): val {
+	if (!islist(a)){
 		opi_abort(ctx, "Expecting list");
-		return SINK_NIL;
+		return NIL;
 	}
 	let bytes = '';
 	for (let i = 0; i < a.length; i++){
 		let b = a[i];
 		if (!opihelp_codepoint(b)){
 			opi_abort(ctx, 'Invalid list of codepoints');
-			return SINK_NIL;
+			return NIL;
 		}
 		if (typeof b !== 'number')
 			throw new Error('Expecting list of numbers for utf8.str');
@@ -8611,14 +8592,14 @@ export function sink_utf8_str(ctx: sink_ctx, a: sink_val): sink_val {
 	return bytes;
 }
 
-export function sink_struct_size(ctx: sink_ctx, a: sink_val): sink_val {
-	if (!sink_islist(a))
-		return SINK_NIL;
+export function struct_size(ctx: ctx, a: val): val {
+	if (!islist(a))
+		return NIL;
 	let tot = 0;
 	for (let i = 0; i < a.length; i++){
 		let b = a[i];
-		if (!sink_isnum(b))
-			return SINK_NIL;
+		if (!isnum(b))
+			return NIL;
 		switch (b){
 			case struct_enum.U8  : tot += 1; break;
 			case struct_enum.U16 : tot += 2; break;
@@ -8641,10 +8622,10 @@ export function sink_struct_size(ctx: sink_ctx, a: sink_val): sink_val {
 			case struct_enum.FL64: tot += 8; break;
 			case struct_enum.FB64: tot += 8; break;
 			default:
-				return SINK_NIL;
+				return NIL;
 		}
 	}
-	return tot <= 0 ? SINK_NIL : tot;
+	return tot <= 0 ? NIL : tot;
 }
 
 let LE: boolean = (function(){ // detect native endianness
@@ -8653,14 +8634,14 @@ let LE: boolean = (function(){ // detect native endianness
 	return (new Int16Array(b))[0] === 1;
 })();
 
-export function sink_struct_str(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
-	if (!sink_islist(a) || !sink_islist(b)){
+export function struct_str(ctx: ctx, a: val, b: val): val {
+	if (!islist(a) || !islist(b)){
 		opi_abort(ctx, 'Expecting list');
-		return SINK_NIL;
+		return NIL;
 	}
 	if (b.length <= 0 || a.length % b.length != 0){
 		opi_abort(ctx, 'Invalid conversion');
-		return SINK_NIL;
+		return NIL;
 	}
 	let arsize = a.length / b.length;
 	let res = '';
@@ -8668,9 +8649,9 @@ export function sink_struct_str(ctx: sink_ctx, a: sink_val, b: sink_val): sink_v
 		for (let i = 0; i < b.length; i++){
 			let d = a[i + ar * b.length];
 			let t = b[i];
-			if (!sink_isnum(d) || !sink_isnum(t)){
+			if (!isnum(d) || !isnum(t)){
 				opi_abort(ctx, 'Invalid conversion');
-				return SINK_NIL;
+				return NIL;
 			}
 			if (t === struct_enum.U8 || t === struct_enum.S8)
 				res += String.fromCharCode(d & 0xFF);
@@ -8740,35 +8721,35 @@ export function sink_struct_str(ctx: sink_ctx, a: sink_val, b: sink_val): sink_v
 			}
 			else{
 				opi_abort(ctx, 'Invalid conversion');
-				return SINK_NIL;
+				return NIL;
 			}
 		}
 	}
 	return res;
 }
 
-export function sink_struct_list(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
-	if (!sink_isstr(a)){
+export function struct_list(ctx: ctx, a: val, b: val): val {
+	if (!isstr(a)){
 		opi_abort(ctx, 'Expecting string');
-		return SINK_NIL;
+		return NIL;
 	}
-	if (!sink_islist(b)){
+	if (!islist(b)){
 		opi_abort(ctx, 'Expecting list');
-		return SINK_NIL;
+		return NIL;
 	}
-	let size = sink_struct_size(ctx, b);
-	if (!sink_isnum(size) || a.length % size !== 0){
+	let size = struct_size(ctx, b);
+	if (!isnum(size) || a.length % size !== 0){
 		opi_abort(ctx, 'Invalid conversion');
-		return SINK_NIL;
+		return NIL;
 	}
-	let res = new sink_list();
+	let res = new list();
 	let pos = 0;
 	while (pos < a.length){
 		for (let i = 0; i < b.length; i++){
 			let t = b[i];
-			if (!sink_isnum(t)){
+			if (!isnum(t)){
 				opi_abort(ctx, 'Invalid conversion');
-				return SINK_NIL;
+				return NIL;
 			}
 			if (t === struct_enum.U8){
 				dview.setUint8(0, a.charCodeAt(pos++));
@@ -8840,27 +8821,27 @@ export function sink_struct_list(ctx: sink_ctx, a: sink_val, b: sink_val): sink_
 			}
 			else{
 				opi_abort(ctx, 'Invalid conversion');
-				return SINK_NIL;
+				return NIL;
 			}
 		}
 	}
 	return res;
 }
 
-export function sink_struct_isLE(): boolean {
+export function struct_isLE(): boolean {
 	return LE;
 }
 
 // operators
-function unop_num_neg(a: sink_val): sink_val {
+function unop_num_neg(a: val): val {
 	return -(a as number);
 }
 
-function unop_tonum(a: sink_val): sink_val {
-	if (sink_isnum(a))
+function unop_tonum(a: val): val {
+	if (isnum(a))
 		return a;
-	if (!sink_isstr(a))
-		return SINK_NIL;
+	if (!isstr(a))
+		return NIL;
 
 	let npi = numpart_new();
 	enum tonum_enum {
@@ -8894,7 +8875,7 @@ function unop_tonum(a: sink_val): sink_val {
 				else if (ch === '.')
 					state = tonum_enum.FRAC;
 				else if (!isSpace(ch))
-					return SINK_NIL;
+					return NIL;
 				break;
 
 			case tonum_enum.NEG:
@@ -8909,7 +8890,7 @@ function unop_tonum(a: sink_val): sink_val {
 				else if (ch === '.')
 					state = tonum_enum.FRAC;
 				else
-					return SINK_NIL;
+					return NIL;
 				break;
 
 			case tonum_enum.N0:
@@ -8945,11 +8926,11 @@ function unop_tonum(a: sink_val): sink_val {
 				if (isHex(ch)){
 					npi.val = toHex(ch);
 					if (npi.val >= npi.base)
-						return sink_num(0);
+						return num(0);
 					state = tonum_enum.BODY;
 				}
 				else if (ch !== '_')
-					return sink_num(0);
+					return num(0);
 				break;
 
 			case tonum_enum.BODY:
@@ -9003,99 +8984,99 @@ function unop_tonum(a: sink_val): sink_val {
 		}
 	}
 	if (state === tonum_enum.START || state === tonum_enum.NEG || (state === tonum_enum.FRAC && !hasval))
-		return SINK_NIL;
+		return NIL;
 	return numpart_calc(npi);
 }
 
-let unop_num_abs = Math.abs as (a: sink_val) => sink_val;
+let unop_num_abs = Math.abs as (a: val) => val;
 
-function unop_num_sign(a: sink_val): sink_val {
-	return isNaN(a as number) ? SINK_NAN : ((a as number) < 0 ? -1 : ((a as number) > 0 ? 1 : 0));
+function unop_num_sign(a: val): val {
+	return isNaN(a as number) ? NAN : ((a as number) < 0 ? -1 : ((a as number) > 0 ? 1 : 0));
 }
 
-let unop_num_floor = Math.floor as (a: sink_val) => sink_val;
-let unop_num_ceil  = Math.ceil  as (a: sink_val) => sink_val;
-let unop_num_round = Math.round as (a: sink_val) => sink_val;
-let unop_num_trunc = (Math as any).trunc as (a: sink_val) => sink_val;
+let unop_num_floor = Math.floor as (a: val) => val;
+let unop_num_ceil  = Math.ceil  as (a: val) => val;
+let unop_num_round = Math.round as (a: val) => val;
+let unop_num_trunc = (Math as any).trunc as (a: val) => val;
 
-function unop_num_isnan(a: sink_val): sink_val {
-	return sink_bool(isNaN(a as number));
+function unop_num_isnan(a: val): val {
+	return bool(isNaN(a as number));
 }
 
-function unop_num_isfinite(a: sink_val): sink_val {
-	return sink_bool(isFinite(a as number));
+function unop_num_isfinite(a: val): val {
+	return bool(isFinite(a as number));
 }
 
-let unop_num_sin   = Math.sin  as (a: sink_val) => sink_val;
-let unop_num_cos   = Math.cos  as (a: sink_val) => sink_val;
-let unop_num_tan   = Math.tan  as (a: sink_val) => sink_val;
-let unop_num_asin  = Math.asin as (a: sink_val) => sink_val;
-let unop_num_acos  = Math.acos as (a: sink_val) => sink_val;
-let unop_num_atan  = Math.atan as (a: sink_val) => sink_val;
-let unop_num_log   = Math.log  as (a: sink_val) => sink_val;
-let unop_num_log2  = (Math as any).log2  as (a: sink_val) => sink_val;
-let unop_num_log10 = (Math as any).log10 as (a: sink_val) => sink_val;
-let unop_num_exp   = Math.exp as (a: sink_val) => sink_val;
+let unop_num_sin   = Math.sin  as (a: val) => val;
+let unop_num_cos   = Math.cos  as (a: val) => val;
+let unop_num_tan   = Math.tan  as (a: val) => val;
+let unop_num_asin  = Math.asin as (a: val) => val;
+let unop_num_acos  = Math.acos as (a: val) => val;
+let unop_num_atan  = Math.atan as (a: val) => val;
+let unop_num_log   = Math.log  as (a: val) => val;
+let unop_num_log2  = (Math as any).log2  as (a: val) => val;
+let unop_num_log10 = (Math as any).log10 as (a: val) => val;
+let unop_num_exp   = Math.exp as (a: val) => val;
 
-function binop_num_add(a: sink_val, b: sink_val): sink_val {
+function binop_num_add(a: val, b: val): val {
 	return (a as number) + (b as number);
 }
 
-function binop_num_sub(a: sink_val, b: sink_val): sink_val {
+function binop_num_sub(a: val, b: val): val {
 	return (a as number) - (b as number);
 }
 
-function binop_num_mul(a: sink_val, b: sink_val): sink_val {
+function binop_num_mul(a: val, b: val): val {
 	return (a as number) * (b as number);
 }
 
-function binop_num_div(a: sink_val, b: sink_val): sink_val {
+function binop_num_div(a: val, b: val): val {
 	return (a as number) / (b as number);
 }
 
-function binop_num_mod(a: sink_val, b: sink_val): sink_val {
+function binop_num_mod(a: val, b: val): val {
 	return (a as number) % (b as number);
 }
 
-let binop_num_pow   = Math.pow   as (a: sink_val) => sink_val;
-let binop_num_atan2 = Math.atan2 as (a: sink_val) => sink_val;
+let binop_num_pow   = Math.pow   as (a: val) => val;
+let binop_num_atan2 = Math.atan2 as (a: val) => val;
 
-function binop_num_hex(a: sink_val, b: sink_val): sink_val {
-	return isNaN(a as number) ? SINK_NAN :
-		opi_num_base(a as number, sink_isnil(b) ? 0 : (b as number), 16);
+function binop_num_hex(a: val, b: val): val {
+	return isNaN(a as number) ? NAN :
+		opi_num_base(a as number, isnil(b) ? 0 : (b as number), 16);
 }
 
-function binop_num_oct(a: sink_val, b: sink_val): sink_val {
-	return isNaN(a as number) ? SINK_NAN :
-		opi_num_base(a as number, sink_isnil(b) ? 0 : (b as number), 8);
+function binop_num_oct(a: val, b: val): val {
+	return isNaN(a as number) ? NAN :
+		opi_num_base(a as number, isnil(b) ? 0 : (b as number), 8);
 }
 
-function binop_num_bin(a: sink_val, b: sink_val): sink_val {
-	return isNaN(a as number) ? SINK_NAN :
-		opi_num_base(a as number, sink_isnil(b) ? 0 : (b as number), 2);
+function binop_num_bin(a: val, b: val): val {
+	return isNaN(a as number) ? NAN :
+		opi_num_base(a as number, isnil(b) ? 0 : (b as number), 2);
 }
 
-function triop_num_clamp(a: sink_val, b: sink_val, c: sink_val): sink_val {
-	return isNaN(a as number) || isNaN(b as number) || isNaN(c as number) ? SINK_NAN :
+function triop_num_clamp(a: val, b: val, c: val): val {
+	return isNaN(a as number) || isNaN(b as number) || isNaN(c as number) ? NAN :
 		((a as number) < (b as number) ? (b as number) :
 			((a as number) > (c as number) ? (c as number) : (a as number)));
 }
 
-function triop_num_lerp(a: sink_val, b: sink_val, c: sink_val): sink_val {
+function triop_num_lerp(a: val, b: val, c: val): val {
 	return (a as number) + ((b as number) - (a as number)) * (c as number);
 }
 
-function unop_int_new(a: sink_val): sink_val {
+function unop_int_new(a: val): val {
 	return (a as number) | 0;
 }
 
-function unop_int_not(a: sink_val): sink_val {
+function unop_int_not(a: val): val {
 	return ~((a as number) | 0);
 }
 
-let unop_int_clz = (Math as any).clz32 as (a: sink_val) => sink_val;
+let unop_int_clz = (Math as any).clz32 as (a: val) => val;
 
-function unop_int_pop(a: sink_val): sink_val {
+function unop_int_pop(a: val): val {
 	let n = (a as number) | 0;
 	n = ((n & 0xAAAAAAAA) >>  1) + (n & 0x55555555);
 	n = ((n & 0xCCCCCCCC) >>  2) + (n & 0x33333333);
@@ -9104,112 +9085,112 @@ function unop_int_pop(a: sink_val): sink_val {
 	return ((n & 0xFFFF0000) >> 16) + (n & 0x0000FFFF);
 }
 
-function unop_int_bswap(a: sink_val): sink_val {
+function unop_int_bswap(a: val): val {
 	let n = (a as number) | 0;
 	return (n >> 24) | ((n >> 8) & 0xFF00) | ((n << 8) & 0xFF0000) | (n << 24);
 }
 
-function binop_int_and(a: sink_val, b: sink_val): sink_val {
+function binop_int_and(a: val, b: val): val {
 	return ((a as number) | 0) & ((b as number) | 0);
 }
 
-function binop_int_or(a: sink_val, b: sink_val): sink_val {
+function binop_int_or(a: val, b: val): val {
 	return ((a as number) | 0) | ((b as number) | 0);
 }
 
-function binop_int_xor(a: sink_val, b: sink_val): sink_val {
+function binop_int_xor(a: val, b: val): val {
 	return ((a as number) | 0) ^ ((b as number) | 0);
 }
 
-function binop_int_shl(a: sink_val, b: sink_val): sink_val {
+function binop_int_shl(a: val, b: val): val {
 	return ((a as number) | 0) << ((b as number) | 0);
 }
 
-function binop_int_shr(a: sink_val, b: sink_val): sink_val {
+function binop_int_shr(a: val, b: val): val {
 	return ((a as number) | 0) >>> ((b as number) | 0);
 }
 
-function binop_int_sar(a: sink_val, b: sink_val): sink_val {
+function binop_int_sar(a: val, b: val): val {
 	return ((a as number) | 0) >> ((b as number) | 0);
 }
 
-function binop_int_add(a: sink_val, b: sink_val): sink_val {
+function binop_int_add(a: val, b: val): val {
 	return ((a as number) | 0) + ((b as number) | 0);
 }
 
-function binop_int_sub(a: sink_val, b: sink_val): sink_val {
+function binop_int_sub(a: val, b: val): val {
 	return ((a as number) | 0) - ((b as number) | 0);
 }
 
-function binop_int_mul(a: sink_val, b: sink_val): sink_val {
+function binop_int_mul(a: val, b: val): val {
 	return ((a as number) | 0) * ((b as number) | 0);
 }
 
-function binop_int_div(a: sink_val, b: sink_val): sink_val {
+function binop_int_div(a: val, b: val): val {
 	let i = (b as number) | 0;
 	if (i == 0)
 		return 0;
 	return ((a as number) | 0) / i;
 }
 
-function binop_int_mod(a: sink_val, b: sink_val): sink_val {
+function binop_int_mod(a: val, b: val): val {
 	let i = (b as number) | 0;
 	if (i == 0)
 		return 0;
 	return ((a as number) | 0) % i;
 }
 
-export function sink_size(ctx: sink_ctx, a: sink_val): number {
-	if (sink_islist(a))
+export function size(ctx: ctx, a: val): number {
+	if (islist(a))
 		return a.length;
-	else if (sink_isstr(a))
+	else if (isstr(a))
 		return a.length;
 	opi_abort(ctx, "Expecting string or list for size");
 	return 0;
 }
 
-export function sink_tonum(ctx: sink_ctx, a: sink_val): sink_val {
+export function tonum(ctx: ctx, a: val): val {
 	if (!oper_typelist(a, LT_ALLOWNIL | LT_ALLOWNUM | LT_ALLOWSTR)){
 		opi_abort(ctx, 'Expecting string when converting to number');
-		return SINK_NIL;
+		return NIL;
 	}
 	return oper_un(a, unop_tonum);
 }
 
-export function sink_say(ctx: sink_ctx, vals: sink_val[]): undefined | Promise<undefined> {
+export function say(ctx: ctx, vals: val[]): void | Promise<void> {
 	if (ctx.io.f_say){
 		return ctx.io.f_say(
 			ctx,
-			sink_list_joinplain(vals, ' '),
+			list_joinplain(vals, ' '),
 			ctx.io.user
 		);
 	}
 }
 
-export function sink_warn(ctx: sink_ctx, vals: sink_val[]): undefined | Promise<undefined> {
+export function warn(ctx: ctx, vals: val[]): void | Promise<void> {
 	if (ctx.io.f_warn){
 		return ctx.io.f_warn(
 			ctx,
-			sink_list_joinplain(vals, ' '),
+			list_joinplain(vals, ' '),
 			ctx.io.user
 		);
 	}
 }
 
-export function sink_ask(ctx: sink_ctx, vals: sink_val[]): sink_val {
+export function ask(ctx: ctx, vals: val[]): val {
 	if (ctx.io.f_ask){
 		return ctx.io.f_ask(
 			ctx,
-			sink_list_joinplain(vals, ' '),
+			list_joinplain(vals, ' '),
 			ctx.io.user
 		);
 	}
-	return SINK_NIL;
+	return NIL;
 }
 
-function opi_exit(ctx: context_st): sink_run {
+function opi_exit(ctx: context_st): run {
 	ctx.passed = true;
-	return sink_run.PASS;
+	return run.PASS;
 }
 
 function callstack_flp(ctx: context_st, pc: number): filepos_st {
@@ -9250,10 +9231,10 @@ function callstack_cmdhint(ctx: context_st, pc: number): number {
 	return -1;
 }
 
-function callstack_append(ctx: context_st, err: sink_strnil, pc: number): sink_strnil {
+function callstack_append(ctx: context_st, err: strnil, pc: number): strnil {
 	let flp = callstack_flp(ctx, pc);
 	let cmdhint = callstack_cmdhint(ctx, pc);
-	let chn: sink_strnil = null;
+	let chn: strnil = null;
 	if (cmdhint >= 0)
 		chn = program_getdebugstr(ctx.prg, cmdhint);
 	if (flp.line >= 0){
@@ -9277,21 +9258,21 @@ function callstack_append(ctx: context_st, err: sink_strnil, pc: number): sink_s
 	return err;
 }
 
-function opi_abort(ctx: sink_ctx, err: sink_strnil): sink_run {
+function opi_abort(ctx: ctx, err: strnil): run {
 	ctx.failed = true;
 	if (err === null)
-		return sink_run.FAIL;
+		return run.FAIL;
 	err = callstack_append(ctx, err, ctx.lastpc);
 	for (let i = ctx.call_stk.length - 1, j = 0; i >= 0 && j < 9; i--, j++){
 		let here = ctx.call_stk[i];
 		err = callstack_append(ctx, err, here.pc - 1);
 	}
 	ctx.err = 'Error: ' + err;
-	return sink_run.FAIL;
+	return run.FAIL;
 }
 
-export function sink_stacktrace(ctx: sink_ctx): sink_val {
-	let ls = new sink_list();
+export function stacktrace(ctx: ctx): val {
+	let ls = new list();
 	let err = callstack_append(ctx, null, ctx.lastpc);
 	if (err)
 		ls.push(err);
@@ -9304,14 +9285,14 @@ export function sink_stacktrace(ctx: sink_ctx): sink_val {
 	return ls;
 }
 
-function opi_unop(ctx: sink_ctx, a: sink_val, f_unary: unary_f, erop: string): sink_val {
+function opi_unop(ctx: ctx, a: val, f_unary: unary_f, erop: string): val {
 	if (!oper_typelist(a, LT_ALLOWNUM))
 		return opi_abort(ctx, 'Expecting number or list of numbers when ' + erop);
 	return oper_un(a, f_unary);
 }
 
-function opi_binop(ctx: sink_ctx, a: sink_val, b: sink_val, f_binary: binary_f, erop: string,
-	t1: number, t2: number): sink_val {
+function opi_binop(ctx: ctx, a: val, b: val, f_binary: binary_f, erop: string,
+	t1: number, t2: number): val {
 	if (!oper_typelist(a, t1))
 		return opi_abort(ctx, 'Expecting number or list of numbers when ' + erop);
 	if (!oper_typelist(b, t2))
@@ -9319,8 +9300,8 @@ function opi_binop(ctx: sink_ctx, a: sink_val, b: sink_val, f_binary: binary_f, 
 	return oper_bin(a, b, f_binary);
 }
 
-function opi_triop(ctx: sink_ctx, a: sink_val, b: sink_val, c: sink_val, f_trinary: trinary_f,
-	erop: string): sink_val {
+function opi_triop(ctx: ctx, a: val, b: val, c: val, f_trinary: trinary_f,
+	erop: string): val {
 	if (!oper_typelist(a, LT_ALLOWNUM))
 		return opi_abort(ctx, 'Expecting number or list of numbers when ' + erop);
 	if (!oper_typelist(b, LT_ALLOWNUM))
@@ -9330,21 +9311,21 @@ function opi_triop(ctx: sink_ctx, a: sink_val, b: sink_val, c: sink_val, f_trina
 	return oper_tri(a, b, c, f_trinary);
 }
 
-function opi_combop(ctx: sink_ctx, vals: sink_val[], f_binary: binary_f, erop: string): sink_val {
+function opi_combop(ctx: ctx, vals: val[], f_binary: binary_f, erop: string): val {
 	if (vals.length <= 0)
 		return opi_abort(ctx, 'Expecting number or list of numbers when ' + erop);
 	let listsize = -1;
 	for (let i = 0; i < vals.length; i++){
 		let ls = vals[i];
-		if (sink_islist(ls)){
+		if (islist(ls)){
 			if (ls.length > listsize)
 				listsize = ls.length;
 			for (let j = 0; j < vals.length; j++){
-				if (!sink_isnum(ls[j]))
+				if (!isnum(ls[j]))
 					return opi_abort(ctx, 'Expecting number or list of numbers when ' + erop);
 			}
 		}
-		else if (!sink_isnum(ls))
+		else if (!isnum(ls))
 			return opi_abort(ctx, 'Expecting number or list of numbers when ' + erop);
 	}
 
@@ -9355,7 +9336,7 @@ function opi_combop(ctx: sink_ctx, vals: sink_val[], f_binary: binary_f, erop: s
 		return vals[0];
 	}
 	else if (listsize > 0){
-		let ret = new sink_list();
+		let ret = new list();
 		for (let j = 0; j < listsize; j++)
 			ret.push(arget(vals[0], j));
 		for (let i = 1; i < vals.length; i++){
@@ -9365,11 +9346,11 @@ function opi_combop(ctx: sink_ctx, vals: sink_val[], f_binary: binary_f, erop: s
 		return ret;
 	}
 	// otherwise, listsize === 0
-	return new sink_list();
+	return new list();
 }
 
-export function sink_str_cat(ctx: sink_ctx, vals: sink_val[]): sink_val {
-	return sink_list_joinplain(vals, '');
+export function str_cat(ctx: ctx, vals: val[]): val {
+	return list_joinplain(vals, '');
 }
 
 interface fix_slice_st {
@@ -9410,14 +9391,14 @@ function fix_slice(startv: number, lenv: number | null, objsize: number): fix_sl
 	}
 }
 
-export function sink_str_slice(ctx: sink_ctx, a: sink_val, b: sink_val, c: sink_val): sink_val {
-	if (!sink_isstr(a)){
+export function str_slice(ctx: ctx, a: val, b: val, c: val): val {
+	if (!isstr(a)){
 		opi_abort(ctx, 'Expecting list or string when slicing');
-		return SINK_NIL;
+		return NIL;
 	}
-	if (!sink_isnum(b) || (!sink_isnil(c) && !sink_isnum(c))){
+	if (!isnum(b) || (!isnil(c) && !isnum(c))){
 		opi_abort(ctx, 'Expecting slice values to be numbers');
-		return SINK_NIL;
+		return NIL;
 	}
 	if (a.length <= 0)
 		return a;
@@ -9427,22 +9408,22 @@ export function sink_str_slice(ctx: sink_ctx, a: sink_val, b: sink_val, c: sink_
 	return a.substr(sl.start, sl.len);
 }
 
-export function sink_str_splice(ctx: sink_ctx, a: sink_val, b: sink_val, c: sink_val,
-	d: sink_val): sink_val {
-	if (!sink_isstr(a)){
+export function str_splice(ctx: ctx, a: val, b: val, c: val,
+	d: val): val {
+	if (!isstr(a)){
 		opi_abort(ctx, 'Expecting list or string when splicing');
-		return SINK_NIL;
+		return NIL;
 	}
-	if (!sink_isnum(b) || (!sink_isnil(c) && !sink_isnum(c))){
+	if (!isnum(b) || (!isnil(c) && !isnum(c))){
 		opi_abort(ctx, 'Expecting splice values to be numbers');
-		return SINK_NIL;
+		return NIL;
 	}
-	if (!sink_isnil(d) && !sink_isstr(d)){
+	if (!isnil(d) && !isstr(d)){
 		opi_abort(ctx, 'Expecting spliced value to be a string');
-		return SINK_NIL;
+		return NIL;
 	}
 	let sl = fix_slice(b, c, a.length);
-	if (sink_isnil(d)){
+	if (isnil(d)){
 		if (sl.len <= 0)
 			return a;
 		let tot = a.length - sl.len;
@@ -9458,59 +9439,59 @@ export function sink_str_splice(ctx: sink_ctx, a: sink_val, b: sink_val, c: sink
 	}
 }
 
-export function sink_list_new(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
-	if (!sink_isnil(a) && !sink_isnum(a)){
+export function list_new(ctx: ctx, a: val, b: val): val {
+	if (!isnil(a) && !isnum(a)){
 		opi_abort(ctx, 'Expecting number for list.new');
-		return SINK_NIL;
+		return NIL;
 	}
-	let size = sink_isnil(a) ? 0 : a;
-	let ret = new sink_list();
+	let size = isnil(a) ? 0 : a;
+	let ret = new list();
 	for (let i = 0; i < size; i++)
 		ret.push(b);
 	return ret;
 }
 
-function opi_list_cat(ctx: sink_ctx, vals: sink_val[]): sink_val {
-	let res = new sink_list();
+function opi_list_cat(ctx: ctx, vals: val[]): val {
+	let res = new list();
 	for (let i = 0; i < vals.length; i++)
 		res.push.apply(res, vals[i]);
 	return res;
 }
 
-export function sink_list_slice(ctx: sink_ctx, a: sink_val, b: sink_val, c: sink_val): sink_val {
-	if (!sink_islist(a)){
+export function list_slice(ctx: ctx, a: val, b: val, c: val): val {
+	if (!islist(a)){
 		opi_abort(ctx, 'Expecting list or string when slicing');
-		return SINK_NIL;
+		return NIL;
 	}
-	if (!sink_isnum(b) || (!sink_isnil(c) && !sink_isnum(c))){
+	if (!isnum(b) || (!isnil(c) && !isnum(c))){
 		opi_abort(ctx, 'Expecting slice values to be numbers');
-		return SINK_NIL;
+		return NIL;
 	}
 	let sl = fix_slice(b, c, a.length);
-	let res = new sink_list();
+	let res = new list();
 	if (a.length <= 0 || sl.len <= 0)
-		return new sink_list();
+		return new list();
 	for (let i = 0; i < sl.len; i++)
 		res.push(a[sl.start + i]);
 	return res;
 }
 
-export function sink_list_splice(ctx: sink_ctx, a: sink_val, b: sink_val, c: sink_val,
-	d: sink_val): void {
-	if (!sink_islist(a)){
+export function list_splice(ctx: ctx, a: val, b: val, c: val,
+	d: val): void {
+	if (!islist(a)){
 		opi_abort(ctx, 'Expecting list or string when splicing');
 		return;
 	}
-	if (!sink_isnum(b) || (!sink_isnil(c) && !sink_isnum(c))){
+	if (!isnum(b) || (!isnil(c) && !isnum(c))){
 		opi_abort(ctx, 'Expecting splice values to be numbers');
 		return;
 	}
-	if (!sink_isnil(d) && !sink_islist(d)){
+	if (!isnil(d) && !islist(d)){
 		opi_abort(ctx, 'Expecting spliced value to be a list');
 		return;
 	}
 	let sl = fix_slice(b, c, a.length);
-	if (sink_isnil(d)){
+	if (isnil(d)){
 		if (sl.len <= 0)
 			return;
 		a.splice(sl.start, sl.len);
@@ -9523,128 +9504,128 @@ export function sink_list_splice(ctx: sink_ctx, a: sink_val, b: sink_val, c: sin
 	}
 }
 
-export function sink_list_shift(ctx: sink_ctx, a: sink_val): sink_val {
-	if (!sink_islist(a)){
+export function list_shift(ctx: ctx, a: val): val {
+	if (!islist(a)){
 		opi_abort(ctx, 'Expecting list when shifting');
-		return SINK_NIL;
+		return NIL;
 	}
 	if (a.length <= 0)
-		return SINK_NIL;
-	return a.shift() as sink_val;
+		return NIL;
+	return a.shift() as val;
 }
 
-export function sink_list_pop(ctx: sink_ctx, a: sink_val): sink_val {
-	if (!sink_islist(a)){
+export function list_pop(ctx: ctx, a: val): val {
+	if (!islist(a)){
 		opi_abort(ctx, 'Expecting list when popping');
-		return SINK_NIL;
+		return NIL;
 	}
 	if (a.length <= 0)
-		return SINK_NIL;
-	return a.pop() as sink_val;
+		return NIL;
+	return a.pop() as val;
 }
 
-export function sink_list_push(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
-	if (!sink_islist(a)){
+export function list_push(ctx: ctx, a: val, b: val): val {
+	if (!islist(a)){
 		opi_abort(ctx, 'Expecting list when pushing');
-		return SINK_NIL;
+		return NIL;
 	}
 	a.push(b);
 	return a;
 }
 
-export function sink_list_unshift(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
-	if (!sink_islist(a)){
+export function list_unshift(ctx: ctx, a: val, b: val): val {
+	if (!islist(a)){
 		opi_abort(ctx, 'Expecting list when unshifting');
-		return SINK_NIL;
+		return NIL;
 	}
 	a.unshift(b);
 	return a;
 }
 
-export function sink_list_append(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
-	if (!sink_islist(a) || !sink_islist(b)){
+export function list_append(ctx: ctx, a: val, b: val): val {
+	if (!islist(a) || !islist(b)){
 		opi_abort(ctx, 'Expecting list when appending');
-		return SINK_NIL;
+		return NIL;
 	}
 	if (b.length > 0)
 		a.push.apply(a, b);
 	return a;
 }
 
-export function sink_list_prepend(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
-	if (!sink_islist(a) || !sink_islist(b)){
+export function list_prepend(ctx: ctx, a: val, b: val): val {
+	if (!islist(a) || !islist(b)){
 		opi_abort(ctx, 'Expecting list when prepending');
-		return SINK_NIL;
+		return NIL;
 	}
 	if (b.length > 0)
 		a.unshift.apply(a, b);
 	return a;
 }
 
-export function sink_list_find(ctx: sink_ctx, a: sink_val, b: sink_val, c: sink_val): sink_val {
-	if (!sink_islist(a)){
+export function list_find(ctx: ctx, a: val, b: val, c: val): val {
+	if (!islist(a)){
 		opi_abort(ctx, 'Expecting list for list.find');
-		return SINK_NIL;
+		return NIL;
 	}
-	if (!sink_isnil(c) && !sink_isnum(c)){
+	if (!isnil(c) && !isnum(c)){
 		opi_abort(ctx, 'Expecting number for list.find');
-		return SINK_NIL;
+		return NIL;
 	}
-	let pos = (sink_isnil(c) || isNaN(c)) ? 0 : c;
+	let pos = (isnil(c) || isNaN(c)) ? 0 : c;
 	if (pos < 0)
 		pos = 0;
 	let res = a.indexOf(b, pos);
 	if (res >= 0)
 		return res;
-	return SINK_NIL;
+	return NIL;
 }
 
-export function sink_list_rfind(ctx: sink_ctx, a: sink_val, b: sink_val, c: sink_val): sink_val {
-	if (!sink_islist(a)){
+export function list_rfind(ctx: ctx, a: val, b: val, c: val): val {
+	if (!islist(a)){
 		opi_abort(ctx, 'Expecting list for list.rfind');
-		return SINK_NIL;
+		return NIL;
 	}
-	if (!sink_isnil(c) && !sink_isnum(c)){
+	if (!isnil(c) && !isnum(c)){
 		opi_abort(ctx, 'Expecting number for list.rfind');
-		return SINK_NIL;
+		return NIL;
 	}
-	let pos = (sink_isnil(c) || isNaN(c)) ? a.length - 1 : c;
+	let pos = (isnil(c) || isNaN(c)) ? a.length - 1 : c;
 	if (pos < 0 || pos >= a.length)
 		pos = a.length - 1;
 	let res = a.lastIndexOf(b, pos);
 	if (res >= 0)
 		return res;
-	return SINK_NIL;
+	return NIL;
 }
 
-export function sink_list_join(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
-	if (!sink_islist(a)){
+export function list_join(ctx: ctx, a: val, b: val): val {
+	if (!islist(a)){
 		opi_abort(ctx, 'Expecting list for list.join');
-		return SINK_NIL;
+		return NIL;
 	}
-	return sink_list_joinplain(a, sink_isnil(b) ? '' : sink_tostr(b));
+	return list_joinplain(a, isnil(b) ? '' : tostr(b));
 }
 
-export function sink_list_rev(ctx: sink_ctx, a: sink_val): sink_val {
-	if (!sink_islist(a)){
+export function list_rev(ctx: ctx, a: val): val {
+	if (!islist(a)){
 		opi_abort(ctx, 'Expecting list for list.rev');
-		return SINK_NIL;
+		return NIL;
 	}
 	a.reverse();
 	return a;
 }
 
-export function sink_list_str(ctx: sink_ctx, a: sink_val): sink_val {
-	if (!sink_islist(a)){
+export function list_str(ctx: ctx, a: val): val {
+	if (!islist(a)){
 		opi_abort(ctx, 'Expecting list for list.str');
-		return SINK_NIL;
+		return NIL;
 	}
 	let res = '';
 	for (let i = 0; i < a.length; i++){
 		let b = a[i];
-		if (!sink_isnum(b)){
+		if (!isnum(b)){
 			opi_abort(ctx, 'Expecting list of integers for list.str');
-			return SINK_NIL;
+			return NIL;
 		}
 		if (b < 0)
 			b = 0;
@@ -9655,7 +9636,7 @@ export function sink_list_str(ctx: sink_ctx, a: sink_val): sink_val {
 	return res;
 }
 
-function sortboth(ctx: sink_ctx, li: sink_val[], a: sink_val, b: sink_val): number {
+function sortboth(ctx: ctx, li: val[], a: val, b: val): number {
 	let atype = sink_typeof(a);
 	let btype = sink_typeof(b);
 
@@ -9663,16 +9644,16 @@ function sortboth(ctx: sink_ctx, li: sink_val[], a: sink_val, b: sink_val): numb
 		return 0;
 
 	if (atype !== btype){
-		if (atype === sink_type.NIL)
+		if (atype === type.NIL)
 			return -1;
-		else if (atype === sink_type.NUM)
-			return btype === sink_type.NIL ? 1 : -1;
-		else if (atype === sink_type.STR)
-			return btype === sink_type.LIST ? -1 : 1;
+		else if (atype === type.NUM)
+			return btype === type.NIL ? 1 : -1;
+		else if (atype === type.STR)
+			return btype === type.LIST ? -1 : 1;
 		return 1;
 	}
 
-	if (atype === sink_type.NUM){
+	if (atype === type.NUM){
 		if (isNaN(a as number)){
 			if (isNaN(b as number))
 				return 0;
@@ -9682,15 +9663,15 @@ function sortboth(ctx: sink_ctx, li: sink_val[], a: sink_val, b: sink_val): numb
 			return 1;
 		return (a as number) < (b as number) ? -1 : 1;
 	}
-	else if (atype === sink_type.STR)
+	else if (atype === type.STR)
 		return (a as string) < (b as string) ? -1 : 1;
 	// otherwise, comparing two lists
 	if (li.indexOf(a) >= 0 || li.indexOf(b) >= 0){
 		opi_abort(ctx, 'Cannot sort circular lists');
 		return -1;
 	}
-	let ls1 = a as sink_list;
-	let ls2 = b as sink_list;
+	let ls1 = a as list;
+	let ls2 = b as list;
 	if (ls1.length === 0){
 		if (ls2.length === 0)
 			return 0;
@@ -9722,39 +9703,39 @@ function sortboth(ctx: sink_ctx, li: sink_val[], a: sink_val, b: sink_val): numb
 	return 0;
 }
 
-export function sink_list_sort(ctx: sink_ctx, a: sink_val): void {
-	if (!sink_islist(a)){
+export function list_sort(ctx: ctx, a: val): void {
+	if (!islist(a)){
 		opi_abort(ctx, 'Expecting list for list.sort');
 		return;
 	}
-	let li: sink_val[] = [];
-	a.sort(function(a: sink_val, b: sink_val): number {
+	let li: val[] = [];
+	a.sort(function(a: val, b: val): number {
 		return sortboth(ctx, li, a, b);
 	});
 }
 
-export function sink_list_rsort(ctx: sink_ctx, a: sink_val): void {
-	if (!sink_islist(a)){
+export function list_rsort(ctx: ctx, a: val): void {
+	if (!islist(a)){
 		opi_abort(ctx, 'Expecting list for list.rsort');
 		return;
 	}
-	let li: sink_val[] = [];
-	a.sort(function(a: sink_val, b: sink_val): number {
+	let li: val[] = [];
+	a.sort(function(a: val, b: val): number {
 		return -sortboth(ctx, li, a, b);
 	});
 }
 
-export function sink_order(ctx: sink_ctx, a: sink_val, b: sink_val): number {
+export function order(ctx: ctx, a: val, b: val): number {
 	return sortboth(ctx, [], a, b);
 }
 
-export function sink_range(ctx: sink_ctx, start: number, stop: number, step: number): sink_val {
+export function range(ctx: ctx, start: number, stop: number, step: number): val {
 	let count = Math.ceil((stop - start) / step);
 	if (count > 10000000){
 		opi_abort(ctx, 'Range too large (maximum 10000000)');
-		return SINK_NIL;
+		return NIL;
 	}
-	let ret = new sink_list();
+	let ret = new list();
 	for (let i = 0; i < count; i++)
 		ret.push(start + i * step);
 	return ret;
@@ -9764,7 +9745,7 @@ function numtostr(num: number): string {
 	return '' + num;
 }
 
-function pk_isjson(s: sink_str): boolean {
+function pk_isjson(s: str): boolean {
 	enum pkv_enum {
 		START,
 		NULL1,
@@ -9964,7 +9945,7 @@ function pk_isjson(s: sink_str): boolean {
 	return state === pkv_enum.ENDVAL;
 }
 
-function pk_tojson(a: sink_val, li: sink_val[]): sink_strnil {
+function pk_tojson(a: val, li: val[]): strnil {
 	if (a === null)
 		return 'null';
 	else if (typeof a === 'number'){
@@ -10004,11 +9985,11 @@ function pk_tojson(a: sink_val, li: sink_val[]): sink_strnil {
 	}
 }
 
-export function sink_pickle_json(ctx: sink_ctx, a: sink_val): sink_val {
+export function pickle_json(ctx: ctx, a: val): val {
 	let res = pk_tojson(a, []);
 	if (res === null){
 		opi_abort(ctx, 'Cannot pickle circular structure to JSON format');
-		return SINK_NIL;
+		return NIL;
 	}
 	return res;
 }
@@ -10025,7 +10006,7 @@ function pk_tobin_vint(body: number[], i: number): void {
 	}
 }
 
-function pk_tobin(a: sink_val, li: sink_val[], strs: string[], body: number[]): void {
+function pk_tobin(a: val, li: val[], strs: string[], body: number[]): void {
 	if (a === null)
 		body.push(0xF7);
 	else if (typeof a === 'number'){
@@ -10097,7 +10078,7 @@ function pk_tobin(a: sink_val, li: sink_val[], strs: string[], body: number[]): 
 	}
 }
 
-export function sink_pickle_binstr(a: sink_val): string {
+export function pickle_binstr(a: val): string {
 	let strs: string[] = [];
 	let body: number[] = [];
 	pk_tobin(a, [], strs, body);
@@ -10113,8 +10094,8 @@ export function sink_pickle_binstr(a: sink_val): string {
 	return out + String.fromCharCode.apply(null, body);
 }
 
-export function sink_pickle_bin(ctx: sink_ctx, a: sink_val): sink_val {
-	return sink_pickle_binstr(a);
+export function pickle_bin(ctx: ctx, a: val): val {
+	return pickle_binstr(a);
 }
 
 interface pk_strpos {
@@ -10139,7 +10120,7 @@ function pk_fmbin_vint(sp: pk_strpos): number {
 	return v;
 }
 
-function pk_fmbin(sp: pk_strpos, strs: string[], li: sink_val[]): sink_val | false {
+function pk_fmbin(sp: pk_strpos, strs: string[], li: val[]): val | false {
 	if (sp.pos >= sp.s.length)
 		return false;
 	let cmd = sp.s.charCodeAt(sp.pos);
@@ -10223,7 +10204,7 @@ function pk_fmbin(sp: pk_strpos, strs: string[], li: sink_val[]): sink_val | fal
 			let sz = pk_fmbin_vint(sp);
 			if (sz < 0)
 				return false;
-			let res = new sink_list();
+			let res = new list();
 			li.push(res);
 			for (let i = 0; i < sz; i++){
 				let e = pk_fmbin(sp, strs, li);
@@ -10243,7 +10224,7 @@ function pk_fmbin(sp: pk_strpos, strs: string[], li: sink_val[]): sink_val | fal
 	return false;
 }
 
-function pk_fmjson(sp: pk_strpos): sink_val | false {
+function pk_fmjson(sp: pk_strpos): val | false {
 	while (sp.pos < sp.s.length && isSpace(sp.s.charAt(sp.pos)))
 		sp.pos++;
 	if (sp.pos >= sp.s.length)
@@ -10258,7 +10239,7 @@ function pk_fmjson(sp: pk_strpos): sink_val | false {
 			sp.s.charAt(sp.pos + 2) !== 'l')
 			return false;
 		sp.pos += 3;
-		return SINK_NIL;
+		return NIL;
 	}
 	else if (isNum(b) || b === '-'){
 		let npi = numpart_new();
@@ -10357,7 +10338,7 @@ function pk_fmjson(sp: pk_strpos): sink_val | false {
 			sp.pos++;
 		if (sp.pos >= sp.s.length)
 			return false;
-		let res = new sink_list();
+		let res = new list();
 		if (sp.s.charAt(sp.pos) === ']'){
 			sp.pos++;
 			return res;
@@ -10384,7 +10365,7 @@ function pk_fmjson(sp: pk_strpos): sink_val | false {
 	return false;
 }
 
-export function sink_pickle_valstr(s: sink_str): sink_val | false {
+export function pickle_valstr(s: str): val | false {
 	if (s.length < 1 || s.charCodeAt(0) !== 0x01)
 		return false;
 	let sp = { s: s, pos: 1 };
@@ -10402,16 +10383,16 @@ export function sink_pickle_valstr(s: sink_str): sink_val | false {
 	return pk_fmbin(sp, strs, []);
 }
 
-export function sink_pickle_val(ctx: sink_ctx, a: sink_val): sink_val {
-	if (!sink_isstr(a) || a.length < 1){
+export function pickle_val(ctx: ctx, a: val): val {
+	if (!isstr(a) || a.length < 1){
 		opi_abort(ctx, 'Invalid pickle data');
-		return SINK_NIL;
+		return NIL;
 	}
 	if (a.charCodeAt(0) === 0x01){ // binary decode
-		let res = sink_pickle_valstr(a);
+		let res = pickle_valstr(a);
 		if (res === false){
 			opi_abort(ctx, 'Invalid pickle data');
-			return SINK_NIL;
+			return NIL;
 		}
 		return res;
 	}
@@ -10420,12 +10401,12 @@ export function sink_pickle_val(ctx: sink_ctx, a: sink_val): sink_val {
 	let res = pk_fmjson(sp);
 	if (res === false){
 		opi_abort(ctx, 'Invalid pickle data');
-		return SINK_NIL;
+		return NIL;
 	}
 	while (sp.pos < a.length){
 		if (!isSpace(a.charAt(sp.pos))){
 			opi_abort(ctx, 'Invalid pickle data');
-			return SINK_NIL;
+			return NIL;
 		}
 		sp.pos++;
 	}
@@ -10478,8 +10459,8 @@ function pk_isbin(sp: pk_strpos, index: [number], str_table_size: number): boole
 	return false;
 }
 
-export function sink_pickle_valid(ctx: sink_ctx, a: sink_val): number {
-	if (!sink_isstr(a))
+export function pickle_valid(ctx: ctx, a: val): number {
+	if (!isstr(a))
 		return 0;
 	if (a.length === 0)
 		return 0;
@@ -10504,7 +10485,7 @@ export function sink_pickle_valid(ctx: sink_ctx, a: sink_val): number {
 	return pk_isjson(a) ? 1 : 0;
 }
 
-function pk_sib(a: sink_list, all: sink_list[], parents: sink_list[]): boolean {
+function pk_sib(a: list, all: list[], parents: list[]): boolean {
 	if (parents.indexOf(a) >= 0)
 		return false;
 	if (all.indexOf(a) >= 0)
@@ -10513,7 +10494,7 @@ function pk_sib(a: sink_list, all: sink_list[], parents: sink_list[]): boolean {
 	parents.push(a);
 	for (let i = 0; i < a.length; i++){
 		let b = a[i];
-		if (!sink_islist(b))
+		if (!islist(b))
 			continue;
 		if (pk_sib(b, all, parents))
 			return true;
@@ -10522,19 +10503,19 @@ function pk_sib(a: sink_list, all: sink_list[], parents: sink_list[]): boolean {
 	return false;
 }
 
-export function sink_pickle_sibling(ctx: sink_ctx, a: sink_val): boolean {
-	if (!sink_islist(a))
+export function pickle_sibling(ctx: ctx, a: val): boolean {
+	if (!islist(a))
 		return false;
 	return pk_sib(a, [], []);
 }
 
-function pk_cir(a: sink_list, li: sink_list[]): boolean {
+function pk_cir(a: list, li: list[]): boolean {
 	if (li.indexOf(a) >= 0)
 		return true;
 	li.push(a);
 	for (let i = 0; i < a.length; i++){
 		let b = a[i];
-		if (!sink_islist(b))
+		if (!islist(b))
 			continue;
 		if (pk_cir(b, li))
 			return true;
@@ -10543,19 +10524,19 @@ function pk_cir(a: sink_list, li: sink_list[]): boolean {
 	return false;
 }
 
-export function sink_pickle_circular(ctx: sink_ctx, a: sink_val): boolean {
-	if (!sink_islist(a))
+export function pickle_circular(ctx: ctx, a: val): boolean {
+	if (!islist(a))
 		return false;
 	return pk_cir(a, []);
 }
 
-function pk_copy(a: sink_val, li_src: sink_val[], li_tgt: sink_val[]): sink_val {
+function pk_copy(a: val, li_src: val[], li_tgt: val[]): val {
 	if (a === null || typeof a === 'number' || typeof a === 'string')
 		return a;
 	let idxat = li_src.indexOf(a);
 	if (idxat >= 0) // use the last generated list
 		return li_tgt[idxat];
-	let res = new sink_list();
+	let res = new list();
 	li_src.push(a);
 	li_tgt.push(res);
 	for (let i = 0; i < a.length; i++)
@@ -10563,7 +10544,7 @@ function pk_copy(a: sink_val, li_src: sink_val[], li_tgt: sink_val[]): sink_val 
 	return res;
 }
 
-export function sink_pickle_copy(ctx: sink_ctx, a: sink_val): sink_val {
+export function pickle_copy(ctx: ctx, a: val): val {
 	return pk_copy(a, [], []);
 }
 
@@ -10606,21 +10587,21 @@ const txt_int_clz      = 'counting leading zeros';
 const txt_int_pop      = 'population count';
 const txt_int_bswap    = 'byte swaping';
 
-function context_run(ctx: context_st): sink_run | Promise<sink_run> {
-	if (ctx.passed) return sink_run.PASS;
-	if (ctx.failed) return sink_run.FAIL;
-	if (ctx.async ) return sink_run.ASYNC;
+function context_run(ctx: context_st): run | Promise<run> {
+	if (ctx.passed) return run.PASS;
+	if (ctx.failed) return run.FAIL;
+	if (ctx.async ) return run.ASYNC;
 
 	if (ctx.timeout > 0 && ctx.timeout_left <= 0){
 		ctx.timeout_left = ctx.timeout;
-		return sink_run.TIMEOUT;
+		return run.TIMEOUT;
 	}
 
 	let A: number = 0, B: number = 0, C: number = 0, D: number = 0, E: number = 0;
 	let F: number = 0, G: number = 0, H: number = 0, I: number = 0, J: number = 0;
-	let X: sink_val = 0, Y: sink_val = 0, Z: sink_val = 0, W: sink_val = 0;
-	let ls: sink_list;
-	let str: sink_str;
+	let X: val = 0, Y: val = 0, Z: val = 0, W: val = 0;
+	let ls: list;
+	let str: str;
 
 	let ops = ctx.prg.ops;
 
@@ -10726,14 +10707,14 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 			case op_enum.INC            : { // [TGT/SRC]
 				LOAD_ab();
 				X = var_get(ctx, A, B);
-				if (!sink_isnum(X))
+				if (!isnum(X))
 					return opi_abort(ctx, 'Expecting number when incrementing');
 				var_set(ctx, A, B, X + 1);
 			} break;
 
 			case op_enum.NIL            : { // [TGT]
 				LOAD_ab();
-				var_set(ctx, A, B, SINK_NIL);
+				var_set(ctx, A, B, NIL);
 			} break;
 
 			case op_enum.NUMP8          : { // [TGT], VALUE
@@ -10789,63 +10770,63 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 
 			case op_enum.LIST           : { // [TGT], HINT
 				LOAD_abc();
-				var_set(ctx, A, B, new sink_list());
+				var_set(ctx, A, B, new list());
 			} break;
 
 			case op_enum.ISNUM          : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, sink_bool(sink_isnum(X)));
+				var_set(ctx, A, B, bool(isnum(X)));
 			} break;
 
 			case op_enum.ISSTR          : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, sink_bool(sink_isstr(X)));
+				var_set(ctx, A, B, bool(isstr(X)));
 			} break;
 
 			case op_enum.ISLIST         : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, sink_bool(sink_islist(X)));
+				var_set(ctx, A, B, bool(islist(X)));
 			} break;
 
 			case op_enum.NOT            : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, sink_bool(sink_isfalse(X)));
+				var_set(ctx, A, B, bool(isfalse(X)));
 			} break;
 
 			case op_enum.SIZE           : { // [TGT], [SRC]
 				LOAD_abcd();
-				var_set(ctx, A, B, sink_size(ctx, var_get(ctx, C, D)));
+				var_set(ctx, A, B, size(ctx, var_get(ctx, C, D)));
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 			} break;
 
 			case op_enum.TONUM          : { // [TGT], [SRC]
 				LOAD_abcd();
-				var_set(ctx, A, B, sink_tonum(ctx, var_get(ctx, C, D)));
+				var_set(ctx, A, B, tonum(ctx, var_get(ctx, C, D)));
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 			} break;
 
 			case op_enum.CAT            : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
 				let listcat = C > 0;
-				let p: sink_val[] = [];
+				let p: val[] = [];
 				for (D = 0; D < C; D++){
 					E = ops[ctx.pc++]; F = ops[ctx.pc++];
 					p.push(var_get(ctx, E, F));
-					if (!sink_islist(p[D]))
+					if (!islist(p[D]))
 						listcat = false;
 				}
 				if (listcat)
 					var_set(ctx, A, B, opi_list_cat(ctx, p));
 				else{
-					var_set(ctx, A, B, sink_str_cat(ctx, p));
+					var_set(ctx, A, B, str_cat(ctx, p));
 					if (ctx.failed)
-						return sink_run.FAIL;
+						return run.FAIL;
 				}
 			} break;
 
@@ -10853,9 +10834,9 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				if ((sink_isstr(X) && sink_isstr(Y)) ||
-					(sink_isnum(X) && sink_isnum(Y)))
-					var_set(ctx, A, B, sink_bool(X < Y));
+				if ((isstr(X) && isstr(Y)) ||
+					(isnum(X) && isnum(Y)))
+					var_set(ctx, A, B, bool(X < Y));
 				else
 					return opi_abort(ctx, 'Expecting numbers or strings');
 			} break;
@@ -10864,9 +10845,9 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				if ((sink_isstr(X) && sink_isstr(Y)) ||
-					(sink_isnum(X) && sink_isnum(Y)))
-					var_set(ctx, A, B, sink_bool(X <= Y));
+				if ((isstr(X) && isstr(Y)) ||
+					(isnum(X) && isnum(Y)))
+					var_set(ctx, A, B, bool(X <= Y));
 				else
 					return opi_abort(ctx, 'Expecting numbers or strings');
 			} break;
@@ -10875,31 +10856,31 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				var_set(ctx, A, B, sink_bool(X !== Y));
+				var_set(ctx, A, B, bool(X !== Y));
 			} break;
 
 			case op_enum.EQU            : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				var_set(ctx, A, B, sink_bool(X === Y));
+				var_set(ctx, A, B, bool(X === Y));
 			} break;
 
 			case op_enum.GETAT          : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
-				if (!sink_islist(X) && !sink_isstr(X))
+				if (!islist(X) && !isstr(X))
 					return opi_abort(ctx, 'Expecting list or string when indexing');
 				Y = var_get(ctx, E, F);
-				if (!sink_isnum(Y))
+				if (!isnum(Y))
 					return opi_abort(ctx, 'Expecting index to be number');
 				I = Y;
-				if (sink_islist(X)){
+				if (islist(X)){
 					ls = X;
 					if (I < 0)
 						I += ls.length;
 					if (I < 0 || I >= ls.length)
-						var_set(ctx, A, B, SINK_NIL);
+						var_set(ctx, A, B, NIL);
 					else
 						var_set(ctx, A, B, ls[I]);
 				}
@@ -10908,7 +10889,7 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 					if (I < 0)
 						I += str.length;
 					if (I < 0 || I >= str.length)
-						var_set(ctx, A, B, SINK_NIL);
+						var_set(ctx, A, B, NIL);
 					else
 						var_set(ctx, A, B, str.charAt(I));
 				}
@@ -10919,28 +10900,28 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
-				if (sink_islist(X))
-					var_set(ctx, A, B, sink_list_slice(ctx, X, Y, Z));
+				if (islist(X))
+					var_set(ctx, A, B, list_slice(ctx, X, Y, Z));
 				else
-					var_set(ctx, A, B, sink_str_slice(ctx, X, Y, Z));
+					var_set(ctx, A, B, str_slice(ctx, X, Y, Z));
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 			} break;
 
 			case op_enum.SETAT          : { // [SRC1], [SRC2], [SRC3]
 				LOAD_abcdef();
 				X = var_get(ctx, A, B);
-				if (!sink_islist(X))
+				if (!islist(X))
 					return opi_abort(ctx, 'Expecting list when setting index');
 				Y = var_get(ctx, C, D);
-				if (!sink_isnum(Y))
+				if (!isnum(Y))
 					return opi_abort(ctx, 'Expecting index to be number');
 				ls = X;
 				A = Y;
 				if (A < 0)
 					A += ls.length;
 				while (ls.length < A + 1)
-					ls.push(SINK_NIL);
+					ls.push(NIL);
 				if (A >= 0 && A < ls.length)
 					ls[A] = var_get(ctx, E, F);
 			} break;
@@ -10951,10 +10932,10 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 				Y = var_get(ctx, C, D);
 				Z = var_get(ctx, E, F);
 				W = var_get(ctx, G, H);
-				if (sink_islist(X))
-					sink_list_splice(ctx, X, Y, Z, W);
-				else if (sink_isstr(X))
-					var_set(ctx, A, B, sink_str_splice(ctx, X, Y, Z, W));
+				if (islist(X))
+					list_splice(ctx, X, Y, Z, W);
+				else if (isstr(X))
+					var_set(ctx, A, B, str_splice(ctx, X, Y, Z, W));
 				else
 					return opi_abort(ctx, 'Expecting list or string when splicing');
 			} break;
@@ -10964,7 +10945,7 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 				A = A + (B << 8) + (C << 16) + ((D << 23) * 2);
 				if (ctx.prg.repl && A === 0xFFFFFFFF){
 					ctx.pc -= 5;
-					return sink_run.REPLMORE;
+					return run.REPLMORE;
 				}
 				ctx.pc = A;
 			} break;
@@ -10975,7 +10956,7 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 				if (var_get(ctx, A, B) !== null){
 					if (ctx.prg.repl && C === 0xFFFFFFFF){
 						ctx.pc -= 7;
-						return sink_run.REPLMORE;
+						return run.REPLMORE;
 					}
 					ctx.pc = C;
 				}
@@ -10987,7 +10968,7 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 				if (var_get(ctx, A, B) === null){
 					if (ctx.prg.repl && C === 0xFFFFFFFF){
 						ctx.pc -= 7;
-						return sink_run.REPLMORE;
+						return run.REPLMORE;
 					}
 					ctx.pc = C;
 				}
@@ -10999,7 +10980,7 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 				ctx.lex_stk[ctx.lex_index] = lx.next;
 				lxs_release(ctx, lx);
 				ctx.lex_index = s.lex_index;
-				var_set(ctx, s.frame, s.index, SINK_NIL);
+				var_set(ctx, s.frame, s.index, NIL);
 				ctx.pc = s.pc;
 				ccs_release(ctx, s);
 			} break;
@@ -11009,9 +10990,9 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 				C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
 				if (C === 0xFFFFFFFF){
 					ctx.pc -= 8;
-					return sink_run.REPLMORE;
+					return run.REPLMORE;
 				}
-				let p: sink_val[] = [];
+				let p: val[] = [];
 				for (I = 0; I < G; I++){
 					E = ops[ctx.pc++]; F = ops[ctx.pc++];
 					p.push(var_get(ctx, E, F));
@@ -11023,12 +11004,12 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 				if (C !== 0xFF){
 					if (G <= C){
 						while (G < C)
-							p[G++] = SINK_NIL;
-						p[G] = new sink_list();
+							p[G++] = NIL;
+						p[G] = new list();
 					}
 					else{
 						let sl = p.slice(C, G); // TODO: is this G - C instead of G?
-						let np = new sink_list();
+						let np = new list();
 						np.push.apply(np, sl);
 						p[C] = np;
 					}
@@ -11042,7 +11023,7 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 
 			case op_enum.NATIVE         : { // [TGT], [[INDEX]], ARGCOUNT, [ARGS]...
 				LOAD_abcdefg();
-				let p: sink_val[] = [];
+				let p: val[] = [];
 				for (I = 0; I < G; I++){
 					J = ops[ctx.pc++]; H = ops[ctx.pc++];
 					p.push(var_get(ctx, J, H));
@@ -11054,7 +11035,7 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 					let hash = ctx.prg.keyTable[C];
 					for (let i = 0; i < ctx.natives.length; i++){
 						let nat2 = ctx.natives[i];
-						if (sink_u64_equ(nat2.hash, hash)){
+						if (u64_equ(nat2.hash, hash)){
 							nat = nat2;
 							break;
 						}
@@ -11064,16 +11045,16 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 					nat = ctx.natives[C];
 				if (nat === null)
 					return opi_abort(ctx, 'Native call not implemented');
-				let nr: sink_val | Promise<sink_val> = null;
+				let nr: val | Promise<val> = null;
 				try {
 					nr = nat.f_native(ctx, p, nat.natuser);
 				}
 				catch (e){
 					return opi_abort(ctx, '' + e);
 				}
-				if (isPromise<sink_val>(nr)){
+				if (isPromise<val>(nr)){
 					ctx.async = true;
-					return nr.then(function(res: sink_val){
+					return nr.then(function(res: val){
 						ctx.async = false;
 						var_set(ctx, A, B, res);
 						return context_run(ctx);
@@ -11083,7 +11064,7 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 					});
 				}
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11107,9 +11088,9 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 				A = A + (B << 8) + (C << 16) + ((D << 23) * 2);
 				if (A === 0xFFFFFFFF){
 					ctx.pc -= 6;
-					return sink_run.REPLMORE;
+					return run.REPLMORE;
 				}
-				let p: sink_val[] = [];
+				let p: val[] = [];
 				for (I = 0; I < E; I++){
 					G = ops[ctx.pc++]; H = ops[ctx.pc++];
 					p.push(var_get(ctx, G, H));
@@ -11119,12 +11100,12 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 				if (C !== 0xFF){
 					if (E <= C){
 						while (E < C)
-							p[E++] = SINK_NIL;
-						p[E] = new sink_list();
+							p[E++] = NIL;
+						p[E] = new list();
 					}
 					else{
 						let sl = p.slice(C, E); // TODO: should E-C instead of E?
-						let np = new sink_list();
+						let np = new list();
 						np.push.apply(np, sl);
 						p[C] = np;
 					}
@@ -11141,44 +11122,44 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
-				if (!sink_isnum(X))
+				if (!isnum(X))
 					return opi_abort(ctx, 'Expecting number for range');
-				if (sink_isnum(Y)){
-					if (sink_isnil(Z))
+				if (isnum(Y)){
+					if (isnil(Z))
 						Z = 1;
-					if (!sink_isnum(Z))
+					if (!isnum(Z))
 						return opi_abort(ctx, 'Expecting number for range step');
-					X = sink_range(ctx, X, Y, Z);
+					X = range(ctx, X, Y, Z);
 				}
-				else if (sink_isnil(Y)){
-					if (!sink_isnil(Z))
+				else if (isnil(Y)){
+					if (!isnil(Z))
 						return opi_abort(ctx, 'Expecting number for range stop');
-					X = sink_range(ctx, 0, X, 1);
+					X = range(ctx, 0, X, 1);
 				}
 				else
 					return opi_abort(ctx, 'Expecting number for range stop');
 				var_set(ctx, A, B, X);
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 			} break;
 
 			case op_enum.ORDER          : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				var_set(ctx, A, B, sink_order(ctx, X, Y));
+				var_set(ctx, A, B, order(ctx, X, Y));
 			} break;
 
 			case op_enum.SAY            : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
-				let p: sink_val[] = [];
+				let p: val[] = [];
 				for (D = 0; D < C; D++){
 					E = ops[ctx.pc++]; F = ops[ctx.pc++];
 					p.push(var_get(ctx, E, F));
 				}
-				let res: undefined | Promise<undefined> = undefined;
+				let res: void | Promise<void>;
 				try {
-					res = sink_say(ctx, p);
+					res = say(ctx, p);
 				}
 				catch (e){
 					return opi_abort(ctx, '' + e);
@@ -11187,28 +11168,28 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 					ctx.async = true;
 					return res.then(function(){
 						ctx.async = false;
-						var_set(ctx, A, B, SINK_NIL);
+						var_set(ctx, A, B, NIL);
 						return context_run(ctx);
 					}, function(err){
 						ctx.async = false;
 						return opi_abort(ctx, '' + err);
 					});
 				}
-				var_set(ctx, A, B, SINK_NIL);
+				var_set(ctx, A, B, NIL);
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 			} break;
 
 			case op_enum.WARN           : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
-				let p: sink_val[] = [];
+				let p: val[] = [];
 				for (D = 0; D < C; D++){
 					E = ops[ctx.pc++]; F = ops[ctx.pc++];
 					p.push(var_get(ctx, E, F));
 				}
-				let res: undefined | Promise<undefined> = undefined;
+				let res: void | Promise<void>;
 				try {
-					res = sink_warn(ctx, p);
+					res = warn(ctx, p);
 				}
 				catch (e){
 					return opi_abort(ctx, '' + e);
@@ -11217,35 +11198,35 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 					ctx.async = true;
 					return res.then(function(){
 						ctx.async = false;
-						var_set(ctx, A, B, SINK_NIL);
+						var_set(ctx, A, B, NIL);
 						return context_run(ctx);
 					}, function(err){
 						ctx.async = false;
 						return opi_abort(ctx, '' + err);
 					});
 				}
-				var_set(ctx, A, B, SINK_NIL);
+				var_set(ctx, A, B, NIL);
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 			} break;
 
 			case op_enum.ASK            : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
-				let p: sink_val[] = [];
+				let p: val[] = [];
 				for (D = 0; D < C; D++){
 					E = ops[ctx.pc++]; F = ops[ctx.pc++];
 					p.push(var_get(ctx, E, F));
 				}
-				let res: sink_val | Promise<sink_val> = null;
+				let res: val | Promise<val> = null;
 				try {
-					res = sink_ask(ctx, p);
+					res = ask(ctx, p);
 				}
 				catch (e){
 					return opi_abort(ctx, '' + e);
 				}
-				if (isPromise<sink_val>(res)){
+				if (isPromise<val>(res)){
 					ctx.async = true;
-					return res.then(function(v: sink_val){
+					return res.then(function(v: val){
 						ctx.async = false;
 						var_set(ctx, A, B, v);
 						return context_run(ctx);
@@ -11256,20 +11237,20 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 				}
 				var_set(ctx, A, B, res);
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 			} break;
 
 			case op_enum.EXIT           : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
 				if (C > 0){
-					let p: sink_val[] = [];
+					let p: val[] = [];
 					for (D = 0; D < C; D++){
 						E = ops[ctx.pc++]; F = ops[ctx.pc++];
 						p.push(var_get(ctx, E, F));
 					}
-					let res: undefined | Promise<undefined> = undefined;
+					let res: void | Promise<void>;
 					try {
-						res = sink_say(ctx, p);
+						res = say(ctx, p);
 					}
 					catch (e){
 						return opi_abort(ctx, '' + e);
@@ -11285,87 +11266,87 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 						});
 					}
 					if (ctx.failed)
-						return sink_run.FAIL;
+						return run.FAIL;
 				}
 				return opi_exit(ctx);
 			}
 
 			case op_enum.ABORT          : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
-				let err: sink_strnil = null;
+				let err: strnil = null;
 				if (C > 0){
-					let p: sink_val[] = [];
+					let p: val[] = [];
 					for (D = 0; D < C; D++){
 						E = ops[ctx.pc++]; F = ops[ctx.pc++];
 						p.push(var_get(ctx, E, F));
 					}
-					err = sink_list_joinplain(p, ' ') as string;
+					err = list_joinplain(p, ' ') as string;
 				}
 				return opi_abort(ctx, err);
 			}
 
 			case op_enum.STACKTRACE     : { // [TGT]
 				LOAD_ab();
-				var_set(ctx, A, B, sink_stacktrace(ctx));
+				var_set(ctx, A, B, stacktrace(ctx));
 			} break;
 
 			case op_enum.NUM_NEG        : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_neg, txt_num_neg)
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 			} break;
 
 			case op_enum.NUM_ADD        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_num_add, txt_num_add)
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 			} break;
 
 			case op_enum.NUM_SUB        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_num_sub, txt_num_sub)
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 			} break;
 
 			case op_enum.NUM_MUL        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_num_mul, txt_num_mul)
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 			} break;
 
 			case op_enum.NUM_DIV        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_num_div, txt_num_div)
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 			} break;
 
 			case op_enum.NUM_MOD        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_num_mod, txt_num_mod)
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 			} break;
 
 			case op_enum.NUM_POW        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_num_pow, txt_num_pow)
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 			} break;
 
 			case op_enum.NUM_ABS        : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_abs, txt_num_abs)
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 			} break;
 
 			case op_enum.NUM_SIGN       : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_sign, txt_num_sign)
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 			} break;
 
 			case op_enum.NUM_MAX        : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
-				let p: sink_val[] = [];
+				let p: val[] = [];
 				for (D = 0; D < C; D++){
 					E = ops[ctx.pc++]; F = ops[ctx.pc++];
 					p.push(var_get(ctx, E, F));
@@ -11375,7 +11356,7 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 
 			case op_enum.NUM_MIN        : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
-				let p: sink_val[] = [];
+				let p: val[] = [];
 				for (D = 0; D < C; D++){
 					E = ops[ctx.pc++]; F = ops[ctx.pc++];
 					p.push(var_get(ctx, E, F));
@@ -11386,339 +11367,339 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 			case op_enum.NUM_CLAMP      : { // [TGT], [SRC1], [SRC2], [SRC3]
 				INLINE_TRIOP(triop_num_clamp, txt_num_clamp)
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 			} break;
 
 			case op_enum.NUM_FLOOR      : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_floor, txt_num_floor)
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 			} break;
 
 			case op_enum.NUM_CEIL       : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_ceil, txt_num_ceil)
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 			} break;
 
 			case op_enum.NUM_ROUND      : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_round, txt_num_round)
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 			} break;
 
 			case op_enum.NUM_TRUNC      : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_trunc, txt_num_trunc)
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 			} break;
 
 			case op_enum.NUM_NAN        : { // [TGT]
 				LOAD_ab();
-				var_set(ctx, A, B, sink_num_nan());
+				var_set(ctx, A, B, num_nan());
 			} break;
 
 			case op_enum.NUM_INF        : { // [TGT]
 				LOAD_ab();
-				var_set(ctx, A, B, sink_num_inf());
+				var_set(ctx, A, B, num_inf());
 			} break;
 
 			case op_enum.NUM_ISNAN      : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_isnan, txt_num_isnan)
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 			} break;
 
 			case op_enum.NUM_ISFINITE   : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_isfinite, txt_num_isfinite)
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 			} break;
 
 			case op_enum.NUM_SIN        : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_sin, txt_num_sin)
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 			} break;
 
 			case op_enum.NUM_COS        : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_cos, txt_num_cos)
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 			} break;
 
 			case op_enum.NUM_TAN        : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_tan, txt_num_tan)
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 			} break;
 
 			case op_enum.NUM_ASIN       : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_asin, txt_num_asin)
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 			} break;
 
 			case op_enum.NUM_ACOS       : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_acos, txt_num_acos)
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 			} break;
 
 			case op_enum.NUM_ATAN       : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_atan, txt_num_atan)
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 			} break;
 
 			case op_enum.NUM_ATAN2      : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_num_atan2, txt_num_atan)
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 			} break;
 
 			case op_enum.NUM_LOG        : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_log, txt_num_log)
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 			} break;
 
 			case op_enum.NUM_LOG2       : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_log2, txt_num_log)
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 			} break;
 
 			case op_enum.NUM_LOG10      : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_log10, txt_num_log)
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 			} break;
 
 			case op_enum.NUM_EXP        : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_exp, txt_num_pow)
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 			} break;
 
 			case op_enum.NUM_LERP       : { // [TGT], [SRC1], [SRC2], [SRC3]
 				INLINE_TRIOP(triop_num_lerp, txt_num_lerp)
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 			} break;
 
 			case op_enum.NUM_HEX        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP_T(binop_num_hex, txt_num_hex, LT_ALLOWNUM,
 					LT_ALLOWNUM | LT_ALLOWNIL)
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 			} break;
 
 			case op_enum.NUM_OCT        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP_T(binop_num_oct, txt_num_oct, LT_ALLOWNUM,
 					LT_ALLOWNUM | LT_ALLOWNIL)
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 			} break;
 
 			case op_enum.NUM_BIN        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP_T(binop_num_bin, txt_num_bin, LT_ALLOWNUM,
 					LT_ALLOWNUM | LT_ALLOWNIL)
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 			} break;
 
 			case op_enum.INT_NEW        : { // [TGT], [SRC]
 				INLINE_UNOP(unop_int_new, txt_int_new)
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 			} break;
 
 			case op_enum.INT_NOT        : { // [TGT], [SRC]
 				INLINE_UNOP(unop_int_not, txt_int_not)
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 			} break;
 
 			case op_enum.INT_AND        : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
-				let p: sink_val[] = [];
+				let p: val[] = [];
 				for (D = 0; D < C; D++){
 					E = ops[ctx.pc++]; F = ops[ctx.pc++];
 					p.push(var_get(ctx, E, F));
 				}
 				X = opi_combop(ctx, p, binop_int_and, txt_int_and);
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
 			case op_enum.INT_OR         : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
-				let p: sink_val[] = [];
+				let p: val[] = [];
 				for (D = 0; D < C; D++){
 					E = ops[ctx.pc++]; F = ops[ctx.pc++];
 					p.push(var_get(ctx, E, F));
 				}
 				X = opi_combop(ctx, p, binop_int_or, txt_int_or);
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
 			case op_enum.INT_XOR        : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
-				let p: sink_val[] = [];
+				let p: val[] = [];
 				for (D = 0; D < C; D++){
 					E = ops[ctx.pc++]; F = ops[ctx.pc++];
 					p.push(var_get(ctx, E, F));
 				}
 				X = opi_combop(ctx, p, binop_int_xor, txt_int_xor);
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
 			case op_enum.INT_SHL        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_int_shl, txt_int_shl)
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 			} break;
 
 			case op_enum.INT_SHR        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_int_shr, txt_int_shr)
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 			} break;
 
 			case op_enum.INT_SAR        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_int_sar, txt_int_shr)
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 			} break;
 
 			case op_enum.INT_ADD        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_int_add, txt_num_add)
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 			} break;
 
 			case op_enum.INT_SUB        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_int_sub, txt_num_sub)
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 			} break;
 
 			case op_enum.INT_MUL        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_int_mul, txt_num_mul)
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 			} break;
 
 			case op_enum.INT_DIV        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_int_div, txt_num_div)
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 			} break;
 
 			case op_enum.INT_MOD        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_int_mod, txt_num_mod)
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 			} break;
 
 			case op_enum.INT_CLZ        : { // [TGT], [SRC]
 				INLINE_UNOP(unop_int_clz, txt_int_clz)
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 			} break;
 
 			case op_enum.INT_POP        : { // [TGT], [SRC]
 				INLINE_UNOP(unop_int_pop, txt_int_pop)
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 			} break;
 
 			case op_enum.INT_BSWAP      : { // [TGT], [SRC]
 				INLINE_UNOP(unop_int_bswap, txt_int_bswap)
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 			} break;
 
 			case op_enum.RAND_SEED      : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				if (sink_isnil(X))
+				if (isnil(X))
 					X = 0;
-				else if (!sink_isnum(X))
+				else if (!isnum(X))
 					return opi_abort(ctx, 'Expecting number');
-				sink_rand_seed(ctx, X);
-				var_set(ctx, A, B, SINK_NIL);
+				rand_seed(ctx, X);
+				var_set(ctx, A, B, NIL);
 			} break;
 
 			case op_enum.RAND_SEEDAUTO  : { // [TGT]
 				LOAD_ab();
-				sink_rand_seedauto(ctx);
-				var_set(ctx, A, B, SINK_NIL);
+				rand_seedauto(ctx);
+				var_set(ctx, A, B, NIL);
 			} break;
 
 			case op_enum.RAND_INT       : { // [TGT]
 				LOAD_ab();
-				var_set(ctx, A, B, sink_rand_int(ctx));
+				var_set(ctx, A, B, rand_int(ctx));
 			} break;
 
 			case op_enum.RAND_NUM       : { // [TGT]
 				LOAD_ab();
-				var_set(ctx, A, B, sink_rand_num(ctx));
+				var_set(ctx, A, B, rand_num(ctx));
 			} break;
 
 			case op_enum.RAND_GETSTATE  : { // [TGT]
 				LOAD_ab();
-				var_set(ctx, A, B, sink_rand_getstate(ctx));
+				var_set(ctx, A, B, rand_getstate(ctx));
 			} break;
 
 			case op_enum.RAND_SETSTATE  : { // [TGT], [SRC]
 				LOAD_abcd();
-				sink_rand_setstate(ctx, var_get(ctx, C, D));
+				rand_setstate(ctx, var_get(ctx, C, D));
 				if (ctx.failed)
-					return sink_run.FAIL;
-				var_set(ctx, A, B, SINK_NIL);
+					return run.FAIL;
+				var_set(ctx, A, B, NIL);
 			} break;
 
 			case op_enum.RAND_PICK      : { // [TGT], [SRC]
 				LOAD_abcd();
-				X = sink_rand_pick(ctx, var_get(ctx, C, D));
+				X = rand_pick(ctx, var_get(ctx, C, D));
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
 			case op_enum.RAND_SHUFFLE   : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				sink_rand_shuffle(ctx, X);
+				rand_shuffle(ctx, X);
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
 			case op_enum.STR_NEW        : { // [TGT], ARGCOUNT, [ARGS]...
 				LOAD_abc();
-				let p: sink_val[] = [];
+				let p: val[] = [];
 				for (D = 0; D < C; D++){
 					E = ops[ctx.pc++]; F = ops[ctx.pc++];
 					p.push(var_get(ctx, E, F));
 				}
-				var_set(ctx, A, B, sink_str_new(ctx, p));
+				var_set(ctx, A, B, str_new(ctx, p));
 			} break;
 
 			case op_enum.STR_SPLIT      : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				X = sink_str_split(ctx, X, Y);
+				X = str_split(ctx, X, Y);
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11727,9 +11708,9 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
-				X = sink_str_replace(ctx, X, Y, Z);
+				X = str_replace(ctx, X, Y, Z);
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11737,9 +11718,9 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				X = sink_bool(sink_str_begins(ctx, X, Y));
+				X = bool(str_begins(ctx, X, Y));
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11747,9 +11728,9 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				X = sink_bool(sink_str_ends(ctx, X, Y));
+				X = bool(str_ends(ctx, X, Y));
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11757,13 +11738,13 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				if (sink_isnil(Y))
+				if (isnil(Y))
 					Y = 0;
-				else if (!sink_isnum(Y))
+				else if (!isnum(Y))
 					return opi_abort(ctx, 'Expecting number');
-				X = sink_str_pad(ctx, X, Y);
+				X = str_pad(ctx, X, Y);
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11772,9 +11753,9 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
-				X = sink_str_find(ctx, X, Y, Z);
+				X = str_find(ctx, X, Y, Z);
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11783,45 +11764,45 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
-				X = sink_str_rfind(ctx, X, Y, Z);
+				X = str_rfind(ctx, X, Y, Z);
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
 			case op_enum.STR_LOWER      : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				X = sink_str_lower(ctx, X);
+				X = str_lower(ctx, X);
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
 			case op_enum.STR_UPPER      : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				X = sink_str_upper(ctx, X);
+				X = str_upper(ctx, X);
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
 			case op_enum.STR_TRIM       : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				X = sink_str_trim(ctx, X);
+				X = str_trim(ctx, X);
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
 			case op_enum.STR_REV        : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				X = sink_str_rev(ctx, X);
+				X = str_rev(ctx, X);
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11829,22 +11810,22 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				if (sink_isnil(Y))
+				if (isnil(Y))
 					Y = 0;
-				else if (!sink_isnum(Y))
+				else if (!isnum(Y))
 					return opi_abort(ctx, 'Expecting number');
-				X = sink_str_rep(ctx, X, Y);
+				X = str_rep(ctx, X, Y);
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
 			case op_enum.STR_LIST       : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				X = sink_str_list(ctx, X);
+				X = str_list(ctx, X);
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11852,13 +11833,13 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				if (sink_isnil(Y))
+				if (isnil(Y))
 					Y = 0;
-				else if (!sink_isnum(Y))
+				else if (!isnum(Y))
 					return opi_abort(ctx, 'Expecting number');
-				X = sink_str_byte(ctx, X, Y);
+				X = str_byte(ctx, X, Y);
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11866,52 +11847,52 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				if (sink_isnil(Y))
+				if (isnil(Y))
 					Y = 0;
-				else if (!sink_isnum(Y))
+				else if (!isnum(Y))
 					return opi_abort(ctx, 'Expecting number');
-				X = sink_str_hash(ctx, X, Y);
+				X = str_hash(ctx, X, Y);
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
 			case op_enum.UTF8_VALID     : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, sink_bool(sink_utf8_valid(ctx, X)));
+				var_set(ctx, A, B, bool(utf8_valid(ctx, X)));
 			} break;
 
 			case op_enum.UTF8_LIST      : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				X = sink_utf8_list(ctx, X);
+				X = utf8_list(ctx, X);
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
 			case op_enum.UTF8_STR       : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				X = sink_utf8_str(ctx, X);
+				X = utf8_str(ctx, X);
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
 			case op_enum.STRUCT_SIZE    : { // [TGT], [SRC]
 				LOAD_abcd();
-				var_set(ctx, A, B, sink_struct_size(ctx, var_get(ctx, C, D)));
+				var_set(ctx, A, B, struct_size(ctx, var_get(ctx, C, D)));
 			} break;
 
 			case op_enum.STRUCT_STR     : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				X = sink_struct_str(ctx, X, Y);
+				X = struct_str(ctx, X, Y);
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11919,42 +11900,42 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				X = sink_struct_list(ctx, X, Y);
+				X = struct_list(ctx, X, Y);
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
 			case op_enum.STRUCT_ISLE    : { // [TGT]
 				LOAD_ab();
-				var_set(ctx, A, B, sink_bool(sink_struct_isLE()));
+				var_set(ctx, A, B, bool(struct_isLE()));
 			} break;
 
 			case op_enum.LIST_NEW       : { // [TGT], [SRC1], [SRC2]
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				X = sink_list_new(ctx, X, Y);
+				X = list_new(ctx, X, Y);
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
 			case op_enum.LIST_SHIFT     : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				X = sink_list_shift(ctx, X);
+				X = list_shift(ctx, X);
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
 			case op_enum.LIST_POP       : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				X = sink_list_pop(ctx, X);
+				X = list_pop(ctx, X);
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11962,9 +11943,9 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				X = sink_list_push(ctx, X, Y);
+				X = list_push(ctx, X, Y);
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11972,9 +11953,9 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				X = sink_list_unshift(ctx, X, Y);
+				X = list_unshift(ctx, X, Y);
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11982,9 +11963,9 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				X = sink_list_append(ctx, X, Y);
+				X = list_append(ctx, X, Y);
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11992,9 +11973,9 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				X = sink_list_prepend(ctx, X, Y);
+				X = list_prepend(ctx, X, Y);
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -12003,9 +11984,9 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
-				X = sink_list_find(ctx, X, Y, Z);
+				X = list_find(ctx, X, Y, Z);
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -12014,9 +11995,9 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
-				X = sink_list_rfind(ctx, X, Y, Z);
+				X = list_rfind(ctx, X, Y, Z);
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -12024,100 +12005,100 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				Y = var_get(ctx, E, F);
-				X = sink_list_join(ctx, X, Y);
+				X = list_join(ctx, X, Y);
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
 			case op_enum.LIST_REV       : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				X = sink_list_rev(ctx, X);
+				X = list_rev(ctx, X);
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
 			case op_enum.LIST_STR       : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				X = sink_list_str(ctx, X);
+				X = list_str(ctx, X);
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
 			case op_enum.LIST_SORT      : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				sink_list_sort(ctx, X);
+				list_sort(ctx, X);
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
 			case op_enum.LIST_RSORT     : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				sink_list_rsort(ctx, X);
+				list_rsort(ctx, X);
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
 			case op_enum.PICKLE_JSON    : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				X = sink_pickle_json(ctx, X);
+				X = pickle_json(ctx, X);
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
 			case op_enum.PICKLE_BIN     : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				X = sink_pickle_bin(ctx, X);
-				if (ctx.failed) // can fail in C impl because of sink_type.ASYNC
-					return sink_run.FAIL;
+				X = pickle_bin(ctx, X);
+				if (ctx.failed) // can fail in C impl because of type.ASYNC
+					return run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
 			case op_enum.PICKLE_VAL     : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				X = sink_pickle_val(ctx, X);
+				X = pickle_val(ctx, X);
 				if (ctx.failed)
-					return sink_run.FAIL;
+					return run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
 			case op_enum.PICKLE_VALID   : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				E = sink_pickle_valid(ctx, X);
-				var_set(ctx, A, B, E === 0 ? SINK_NIL : E);
+				E = pickle_valid(ctx, X);
+				var_set(ctx, A, B, E === 0 ? NIL : E);
 			} break;
 
 			case op_enum.PICKLE_SIBLING : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, sink_bool(sink_pickle_sibling(ctx, X)));
+				var_set(ctx, A, B, bool(pickle_sibling(ctx, X)));
 			} break;
 
 			case op_enum.PICKLE_CIRCULAR: { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				var_set(ctx, A, B, sink_bool(sink_pickle_circular(ctx, X)));
+				var_set(ctx, A, B, bool(pickle_circular(ctx, X)));
 			} break;
 
 			case op_enum.PICKLE_COPY    : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				X = sink_pickle_copy(ctx, X);
-				if (ctx.failed) // can fail in C impl because of sink_type.ASYNC
-					return sink_run.FAIL;
+				X = pickle_copy(ctx, X);
+				if (ctx.failed) // can fail in C impl because of type.ASYNC
+					return run.FAIL;
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -12129,15 +12110,15 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 			case op_enum.GC_SETLEVEL    : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				if (!sink_isstr(X) || (X !== 'none' && X !== 'default' && X !== 'lowmem'))
+				if (!isstr(X) || (X !== 'none' && X !== 'default' && X !== 'lowmem'))
 					return opi_abort(ctx, 'Expecting one of \'none\', \'default\', or \'lowmem\'');
 				ctx.gc_level = X;
-				var_set(ctx, A, B, SINK_NIL);
+				var_set(ctx, A, B, NIL);
 			} break;
 
 			case op_enum.GC_RUN         : { // [TGT]
 				LOAD_ab();
-				var_set(ctx, A, B, SINK_NIL);
+				var_set(ctx, A, B, NIL);
 			} break;
 
 			default: break;
@@ -12146,13 +12127,13 @@ function context_run(ctx: context_st): sink_run | Promise<sink_run> {
 			ctx.timeout_left--;
 			if (ctx.timeout_left <= 0){
 				ctx.timeout_left = ctx.timeout;
-				return sink_run.TIMEOUT;
+				return run.TIMEOUT;
 			}
 		}
 	}
 
 	if (ctx.prg.repl)
-		return sink_run.REPLMORE;
+		return run.REPLMORE;
 	return opi_exit(ctx);
 }
 
@@ -12213,12 +12194,12 @@ interface compiler_st {
 	paths: string[];
 	sym: symtbl_st;
 	flpn: filepos_node_st;
-	inc: sink_inc_st;
-	msg: sink_strnil;
+	inc: inc_st;
+	msg: strnil;
 }
 
-function compiler_new(scr: script_st, prg: program_st, sinc: staticinc_st, inc: sink_inc_st,
-	file: sink_strnil, paths: string[]): compiler_st {
+function compiler_new(scr: script_st, prg: program_st, sinc: staticinc_st, inc: inc_st,
+	file: strnil, paths: string[]): compiler_st {
 	let cmp: compiler_st = {
 		sinc: sinc,
 		pr: parser_new(),
@@ -12234,7 +12215,7 @@ function compiler_new(scr: script_st, prg: program_st, sinc: staticinc_st, inc: 
 	return cmp;
 }
 
-function compiler_setmsg(cmp: compiler_st, msg: sink_strnil): void {
+function compiler_setmsg(cmp: compiler_st, msg: strnil): void {
 	cmp.msg = msg;
 }
 
@@ -12282,7 +12263,7 @@ function compiler_endinc(cmp: compiler_st, ns: boolean): void {
 function compiler_endinc_cfu(success: boolean, file: string,
 	cfu: compiler_fileres_user_st): undefined | Promise<undefined> {
 	if (success){
-		return checkPromise<sink_strnil, undefined>(
+		return checkPromise<strnil, undefined>(
 			compiler_closeLexer(cfu.cmp),
 			handleEnd
 		);
@@ -12300,16 +12281,16 @@ function compiler_staticinc(cmp: compiler_st, names: string[] | true | null, fil
 	body: string): boolean | Promise<boolean> {
 	if (!compiler_begininc(cmp, names, file))
 		return false;
-	return checkPromise<sink_strnil, boolean>(
+	return checkPromise<strnil, boolean>(
 		compiler_write(cmp, body),
-		function(err: sink_strnil): boolean | Promise<boolean> {
+		function(err: strnil): boolean | Promise<boolean> {
 			if (err){
 				compiler_endinc(cmp, names !== null);
 				return false;
 			}
-			return checkPromise<sink_strnil, boolean>(
+			return checkPromise<strnil, boolean>(
 				compiler_closeLexer(cmp),
-				function(err: sink_strnil): boolean {
+				function(err: strnil): boolean {
 					compiler_endinc(cmp, names !== null);
 					if (err)
 						return false;
@@ -12321,19 +12302,19 @@ function compiler_staticinc(cmp: compiler_st, names: string[] | true | null, fil
 }
 
 function compiler_dynamicinc(cmp: compiler_st, names: string[] | true | null, file: string,
-	from: sink_strnil): boolean | Promise<boolean> {
+	from: strnil): boolean | Promise<boolean> {
 	let cfu = { cmp: cmp, names: names };
-	let cwd: sink_strnil = null;
+	let cwd: strnil = null;
 	if (from)
 		cwd = pathjoin(from, '..');
 	return fileres_read(cmp.scr, true, file, cwd,
 		compiler_begininc_cfu, compiler_endinc_cfu, cfu);
 }
 
-function compiler_process(cmp: compiler_st): sink_strnil | Promise<sink_strnil> {
+function compiler_process(cmp: compiler_st): strnil | Promise<strnil> {
 	return handleNextFlpn();
 
-	function handleNextFlpn(): sink_strnil | Promise<sink_strnil> {
+	function handleNextFlpn(): strnil | Promise<strnil> {
 		if (cmp.flpn.tks.length <= 0)
 			return null;
 
@@ -12356,14 +12337,14 @@ function compiler_process(cmp: compiler_st): sink_strnil | Promise<sink_strnil> 
 
 		return handleNextStmt();
 
-		function handleNextStmt(): sink_strnil | Promise<sink_strnil> {
+		function handleNextStmt(): strnil | Promise<strnil> {
 			// process statements
 			if (stmts.length <= 0)
 				return handleNextFlpn();
 
 			let stmt = stmts.shift() as ast_st;
 
-			function handleNextIncl(ii: number): sink_strnil | Promise<sink_strnil> {
+			function handleNextIncl(ii: number): strnil | Promise<strnil> {
 				if (stmt.type !== ast_enumt.INCLUDE)
 					throw new Error('Expecting include AST node');
 				if (ii >= stmt.incls.length)
@@ -12387,10 +12368,10 @@ function compiler_process(cmp: compiler_st): sink_strnil | Promise<sink_strnil> 
 							return handleExternalInc();
 						}
 						else{
-							return checkPromise<boolean, sink_strnil>(
+							return checkPromise<boolean, strnil>(
 								compiler_dynamicinc(cmp, inc.names, sinc_content,
 									script_getfile(cmp.scr, stmt.flp.fullfile)),
-								function(success: boolean): sink_strnil | Promise<sink_strnil> {
+								function(success: boolean): strnil | Promise<strnil> {
 									if (!success){
 										compiler_setmsg(cmp, 'Failed to include: ' + file);
 										return cmp.msg;
@@ -12403,7 +12384,7 @@ function compiler_process(cmp: compiler_st): sink_strnil | Promise<sink_strnil> 
 				}
 				return handleExternalInc();
 
-				function handleExternalInc(): sink_strnil | Promise<sink_strnil> {
+				function handleExternalInc(): strnil | Promise<strnil> {
 					if (!internal){
 						let found = compiler_dynamicinc(cmp, inc.names, file,
 							script_getfile(cmp.scr, stmt.flp.fullfile));
@@ -12422,7 +12403,7 @@ function compiler_process(cmp: compiler_st): sink_strnil | Promise<sink_strnil> 
 			}
 			else{
 				let pgsl = cmp.flpn.pgstate;
-				return checkPromise<pgr_st, sink_strnil>(
+				return checkPromise<pgr_st, strnil>(
 					program_gen({
 							prg: cmp.prg,
 							sym: cmp.sym,
@@ -12431,7 +12412,7 @@ function compiler_process(cmp: compiler_st): sink_strnil | Promise<sink_strnil> 
 						}, stmt,
 						pgsl.length <= 0 ? null : (pgsl[pgsl.length - 1] as any).state,
 						cmp.prg.repl && cmp.flpn.next === null && pgsl.length <= 0),
-					function(pg: pgr_st): sink_strnil | Promise<sink_strnil> {
+					function(pg: pgr_st): strnil | Promise<strnil> {
 						switch (pg.type){
 							case pgr_enum.OK:
 								break;
@@ -12456,7 +12437,7 @@ function compiler_process(cmp: compiler_st): sink_strnil | Promise<sink_strnil> 
 	}
 }
 
-function compiler_write(cmp: compiler_st, bytes: string): sink_strnil | Promise<sink_strnil> {
+function compiler_write(cmp: compiler_st, bytes: string): strnil | Promise<strnil> {
 	let flpn = cmp.flpn;
 	for (let i = 0; i < bytes.length; i++){
 		let b = bytes.charAt(i);
@@ -12481,15 +12462,15 @@ function compiler_write(cmp: compiler_st, bytes: string): sink_strnil | Promise<
 	return compiler_process(cmp);
 }
 
-function compiler_closeLexer(cmp: compiler_st): sink_strnil | Promise<sink_strnil> {
+function compiler_closeLexer(cmp: compiler_st): strnil | Promise<strnil> {
 	lex_close(cmp.flpn.lx, cmp.flpn.flp, cmp.flpn.tks);
 	return compiler_process(cmp);
 }
 
-function compiler_close(cmp: compiler_st): sink_strnil | Promise<sink_strnil> {
-	return checkPromise<sink_strnil, sink_strnil>(
+function compiler_close(cmp: compiler_st): strnil | Promise<strnil> {
+	return checkPromise<strnil, strnil>(
 		compiler_closeLexer(cmp),
-		function(err: sink_strnil): sink_strnil {
+		function(err: strnil): strnil {
 			if (err)
 				return err;
 
@@ -12514,7 +12495,7 @@ function compiler_close(cmp: compiler_st): sink_strnil | Promise<sink_strnil> {
 // script API
 //
 
-export function sink_scr_new(inc: sink_inc_st, curdir: sink_strnil, repl: boolean): sink_scr {
+export function scr_new(inc: inc_st, curdir: strnil, repl: boolean): scr {
 	if (curdir !== null && curdir.charAt(0) !== '/')
 		console.warn('Warning: sink current directory "' + curdir + '" is not an absolute path');
 	let sc: script_st = {
@@ -12545,7 +12526,7 @@ export function sink_scr_new(inc: sink_inc_st, curdir: sink_strnil, repl: boolea
 	return sc;
 }
 
-function script_addfile(scr: script_st, file: sink_strnil): number {
+function script_addfile(scr: script_st, file: strnil): number {
 	if (file === null)
 		return -1;
 	for (let i = 0; i < scr.files.length; i++){
@@ -12556,21 +12537,21 @@ function script_addfile(scr: script_st, file: sink_strnil): number {
 	return scr.files.length - 1;
 }
 
-function script_getfile(scr: script_st, file: number): sink_strnil {
+function script_getfile(scr: script_st, file: number): strnil {
 	if (file < 0)
 		return null;
 	return scr.files[file];
 }
 
-export function sink_scr_addpath(scr: sink_scr, path: string): void {
+export function scr_addpath(scr: scr, path: string): void {
 	(scr as script_st).paths.push(path);
 }
 
-export function sink_scr_incbody(scr: sink_scr, name: string, body: string): void {
+export function scr_incbody(scr: scr, name: string, body: string): void {
 	staticinc_addbody((scr as script_st).sinc, name, body);
 }
 
-export function sink_scr_incfile(scr: sink_scr, name: string, file: string): void {
+export function scr_incfile(scr: scr, name: string, file: string): void {
 	staticinc_addfile((scr as script_st).sinc, name, file);
 }
 
@@ -12627,7 +12608,7 @@ function sfr_end(success: boolean, file: string, sc: script_st): void {
 	}
 }
 
-export function sink_scr_loadfile(scr: sink_scr, file: string): boolean | Promise<boolean> {
+export function scr_loadfile(scr: scr, file: string): boolean | Promise<boolean> {
 	let sc = scr as script_st;
 	if (sc.err)
 		sc.err = null;
@@ -12641,11 +12622,11 @@ export function sink_scr_loadfile(scr: sink_scr, file: string): boolean | Promis
 	);
 }
 
-export function sink_scr_getfile(scr: sink_scr): sink_strnil {
+export function scr_getfile(scr: scr): strnil {
 	return (scr as script_st).file;
 }
 
-export function sink_scr_getcwd(scr: sink_scr): sink_strnil {
+export function scr_getcwd(scr: scr): strnil {
 	return (scr as script_st).curdir;
 }
 
@@ -12657,7 +12638,7 @@ const BSZ_DEBUG_HEAD =  4;
 const BSZ_POS        = 16;
 const BSZ_CMD        =  8;
 
-export function sink_scr_write(scr: sink_scr, bytes: string): boolean {
+export function scr_write(scr: scr, bytes: string): boolean | Promise<boolean> {
 	if (bytes.length <= 0)
 		return true;
 	let sc = scr as script_st;
@@ -12774,7 +12755,7 @@ export function sink_scr_write(scr: sink_scr, bytes: string): boolean {
 					if (bs.left === 0){
 						let key1 = GETINT(0);
 						let key2 = GETINT(4);
-						let key: sink_u64 = [key1, key2];
+						let key: u64 = [key1, key2];
 						prg.keyTable.push(key);
 						bs.item++;
 						bs.left = BSZ_KEY;
@@ -12880,26 +12861,30 @@ export function sink_scr_write(scr: sink_scr, bytes: string): boolean {
 	else{
 		if (sc.err)
 			sc.err = null;
-		let err = compiler_write(sc.cmp as compiler_st, bytes);
-		if (err)
-			sc.err = 'Error: ' + err;
-		let is_eval = !sc.prg.repl && sc.file === null;
-		text_validate(sc, is_eval, true);
-		return sc.err === null;
+		return checkPromise<strnil, boolean>(
+			compiler_write(sc.cmp as compiler_st, bytes),
+			function(err: strnil): boolean {
+				if (err)
+					sc.err = 'Error: ' + err;
+				let is_eval = !sc.prg.repl && sc.file === null;
+				text_validate(sc, is_eval, true);
+				return sc.err === null;
+			}
+		);
 	}
 }
 
-export function sink_scr_geterr(scr: sink_scr): sink_strnil {
+export function scr_geterr(scr: scr): strnil {
 	return (scr as script_st).err;
 }
 
-export function sink_scr_level(scr: sink_scr): number {
+export function scr_level(scr: scr): number {
 	if ((scr as script_st).mode !== scriptmode_enum.TEXT)
 		return 0;
 	return ((scr as script_st).cmp as compiler_st).pr.level;
 }
 
-export function sink_scr_dump(scr: sink_scr, debug: boolean, user: any, f_dump: sink_dump_f): void {
+export function scr_dump(scr: scr, debug: boolean, user: any, f_dump: dump_f): void {
 	// all integer values are little endian
 
 	let prg = (scr as script_st).prg;
@@ -13057,122 +13042,122 @@ export function sink_scr_dump(scr: sink_scr, debug: boolean, user: any, f_dump: 
 // context API
 //
 
-export function sink_ctx_new(scr: sink_scr, io: sink_io_st): sink_ctx {
+export function ctx_new(scr: scr, io: io_st): ctx {
 	return context_new((scr as script_st).prg, io);
 }
 
-export function sink_ctx_getstatus(ctx: sink_ctx): sink_ctx_status {
+export function ctx_getstatus(ctx: ctx): ctx_status {
 	let ctx2 = ctx as context_st;
 	if (ctx2.passed)
-		return sink_ctx_status.PASSED;
+		return ctx_status.PASSED;
 	else if (ctx2.failed)
-		return sink_ctx_status.FAILED;
+		return ctx_status.FAILED;
 	else if (ctx2.async)
-		return sink_ctx_status.WAITING;
-	return sink_ctx_status.READY;
+		return ctx_status.WAITING;
+	return ctx_status.READY;
 }
 
-export function sink_ctx_native(ctx: sink_ctx, name: string, natuser: any,
-	f_native: sink_native_f): void {
+export function ctx_native(ctx: ctx, name: string, natuser: any,
+	f_native: native_f): void {
 	context_native(ctx as context_st, native_hash(name), natuser, f_native);
 }
 
-export function sink_ctx_nativehash(ctx: sink_ctx, hash: sink_u64, natuser: any,
-	f_native: sink_native_f): void {
+export function ctx_nativehash(ctx: ctx, hash: u64, natuser: any,
+	f_native: native_f): void {
 	context_native(ctx, hash, natuser, f_native);
 }
 
-export function sink_ctx_setuser(ctx: sink_ctx, user: any): void {
+export function ctx_setuser(ctx: ctx, user: any): void {
 	(ctx as context_st).user = user;
 }
 
-export function sink_ctx_getuser(ctx: sink_ctx): any {
+export function ctx_getuser(ctx: ctx): any {
 	return (ctx as context_st).user;
 }
 
-export function sink_ctx_addusertype(ctx: sink_ctx, hint: string): sink_user {
+export function ctx_addusertype(ctx: ctx, hint: string): user {
 	(ctx as context_st).user_hint.push(hint);
 	return (ctx as context_st).user_hint.length - 1;
 }
 
-export function sink_ctx_getuserhint(ctx: sink_ctx, usertype: sink_user): string {
+export function ctx_getuserhint(ctx: ctx, usertype: user): string {
 	return (ctx as context_st).user_hint[usertype];
 }
 
-export function sink_ctx_settimeout(ctx: sink_ctx, timeout: number): void {
+export function ctx_settimeout(ctx: ctx, timeout: number): void {
 	let ctx2 = ctx as context_st;
 	ctx2.timeout = timeout;
 	ctx2.timeout_left = timeout;
 }
 
-export function sink_ctx_gettimeout(ctx: sink_ctx): number {
+export function ctx_gettimeout(ctx: ctx): number {
 	return (ctx as context_st).timeout;
 }
 
-export function sink_ctx_forcetimeout(ctx: sink_ctx): void {
+export function ctx_forcetimeout(ctx: ctx): void {
 	(ctx as context_st).timeout_left = 0;
 }
 
-export function sink_ctx_run(ctx: sink_ctx): sink_run | Promise<sink_run> {
+export function ctx_run(ctx: ctx): run | Promise<run> {
 	let ctx2 = ctx as context_st;
 	if (ctx2.prg.repl && ctx2.err)
 		ctx2.err = null;
 	let r = context_run(ctx2);
-	if (r === sink_run.PASS || r === sink_run.FAIL)
+	if (r === run.PASS || r === run.FAIL)
 		context_reset(ctx2);
 	return r;
 }
 
-export function sink_ctx_geterr(ctx: sink_ctx): sink_strnil {
+export function ctx_geterr(ctx: ctx): strnil {
 	return (ctx as context_st).err;
 }
 
-export function sink_arg_bool(args: sink_val[], index: number): boolean {
+export function arg_bool(args: val[], index: number): boolean {
 	if (index < 0 || index >= args.length)
 		return false;
-	return sink_istrue(args[index]);
+	return istrue(args[index]);
 }
 
-export function sink_arg_num(ctx: sink_ctx, args: sink_val[], index: number): number {
+export function arg_num(ctx: ctx, args: val[], index: number): number {
 	if (index < 0 || index >= args.length)
 		return 0;
 	let a = args[index];
-	if (sink_isnum(a))
+	if (isnum(a))
 		return a;
 	throw new Error('Expecting number for argument ' + (index + 1));
 }
 
-export function sink_arg_str(ctx: sink_ctx, args: sink_val[], index: number): string {
-	if (index < 0 || index >= args.length || !sink_isstr(args[index]))
+export function arg_str(ctx: ctx, args: val[], index: number): string {
+	if (index < 0 || index >= args.length || !isstr(args[index]))
 		throw new Error('Expecting string for argument ' + (index + 1));
 	return args[index] as string;
 }
 
-export function sink_arg_list(ctx: sink_ctx, args: sink_val[], index: number): sink_list {
-	if (index < 0 || index >= args.length || !sink_islist(args[index]))
+export function arg_list(ctx: ctx, args: val[], index: number): list {
+	if (index < 0 || index >= args.length || !islist(args[index]))
 		throw new Error('Expecting list for argument ' + (index + 1));
-	return args[index] as sink_list;
+	return args[index] as list;
 }
 
-export function sink_arg_user(ctx: sink_ctx, args: sink_val[], index: number,
-	usertype: sink_user): any {
+export function arg_user(ctx: ctx, args: val[], index: number,
+	usertype: user): any {
 	let ctx2 = ctx as context_st;
 	let hint = ctx2.user_hint[usertype];
 	let err = 'Expecting user type ' + hint + ' for argument ' + (index + 1);
 	if (index < 0 || index >= args.length)
 		throw new Error(err);
 	let ls = args[index];
-	if (!sink_islist(ls))
+	if (!islist(ls))
 		throw new Error(err);
 	try {
-		return sink_list_getuser(ctx, ls, usertype);
+		return list_getuser(ctx, ls, usertype);
 	}
 	catch (e){
 		throw new Error(err);
 	}
 }
 
-function sinkhelp_tostr(li: sink_val[], v: sink_val): sink_str {
+function sinkhelp_tostr(li: val[], v: val): str {
 	if (v === null)
 		return 'nil';
 	else if (typeof v === 'number'){
@@ -13196,231 +13181,230 @@ function sinkhelp_tostr(li: sink_val[], v: sink_val): sink_str {
 	}
 }
 
-export function sink_tostr(v: sink_val): sink_str {
-	if (sink_isstr(v))
+export function tostr(v: val): str {
+	if (isstr(v))
 		return v;
 	return sinkhelp_tostr([], v);
 }
 
-export function sink_exit(ctx: sink_ctx, vals: sink_val[]): undefined | Promise<undefined> {
+export function exit(ctx: ctx, vals: val[]): void | Promise<void> {
 	if (vals.length > 0){
-		return checkPromise<undefined, undefined>(
-			sink_say(ctx, vals),
-			function(): undefined {
+		return checkPromise<void, void>(
+			say(ctx, vals),
+			function(){
 				opi_exit(ctx);
-				return undefined;
 			}
 		);
 	}
 	opi_exit(ctx);
 }
 
-export function sink_abort(ctx: sink_ctx, vals: sink_val[]): void {
-	let bytes: sink_strnil = null;
+export function abort(ctx: ctx, vals: val[]): void {
+	let bytes: strnil = null;
 	if (vals.length > 0)
-		bytes = sink_list_joinplain(vals, ' ') as string;
+		bytes = list_joinplain(vals, ' ') as string;
 	opi_abort(ctx, bytes);
 }
 
 // numbers
-export function sink_num_neg(ctx: sink_ctx, a: sink_val): sink_val {
+export function num_neg(ctx: ctx, a: val): val {
 	return opi_unop(ctx, a, unop_num_neg, txt_num_neg);
 }
 
-export function sink_num_add(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+export function num_add(ctx: ctx, a: val, b: val): val {
 	return opi_binop(ctx, a, b, binop_num_add, txt_num_add, LT_ALLOWNUM, LT_ALLOWNUM);
 }
 
-export function sink_num_sub(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+export function num_sub(ctx: ctx, a: val, b: val): val {
 	return opi_binop(ctx, a, b, binop_num_sub, txt_num_sub, LT_ALLOWNUM, LT_ALLOWNUM);
 }
 
-export function sink_num_mul(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+export function num_mul(ctx: ctx, a: val, b: val): val {
 	return opi_binop(ctx, a, b, binop_num_mul, txt_num_mul, LT_ALLOWNUM, LT_ALLOWNUM);
 }
 
-export function sink_num_div(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+export function num_div(ctx: ctx, a: val, b: val): val {
 	return opi_binop(ctx, a, b, binop_num_div, txt_num_div, LT_ALLOWNUM, LT_ALLOWNUM);
 }
 
-export function sink_num_mod(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+export function num_mod(ctx: ctx, a: val, b: val): val {
 	return opi_binop(ctx, a, b, binop_num_mod, txt_num_mod, LT_ALLOWNUM, LT_ALLOWNUM);
 }
 
-export function sink_num_pow(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+export function num_pow(ctx: ctx, a: val, b: val): val {
 	return opi_binop(ctx, a, b, binop_num_pow, txt_num_pow, LT_ALLOWNUM, LT_ALLOWNUM);
 }
 
-export function sink_num_abs(ctx: sink_ctx, a: sink_val): sink_val {
+export function num_abs(ctx: ctx, a: val): val {
 	return opi_unop(ctx, a, unop_num_abs, txt_num_abs);
 }
 
-export function sink_num_sign(ctx: sink_ctx, a: sink_val): sink_val{
+export function num_sign(ctx: ctx, a: val): val{
 	return opi_unop(ctx, a, unop_num_sign, txt_num_sign);
 }
 
-export function sink_num_max(ctx: sink_ctx, vals: sink_val[]): sink_val {
+export function num_max(ctx: ctx, vals: val[]): val {
 	return opi_num_max(vals);
 }
 
-export function sink_num_min(ctx: sink_ctx, vals: sink_val[]): sink_val {
+export function num_min(ctx: ctx, vals: val[]): val {
 	return opi_num_min(vals);
 }
 
-export function sink_num_clamp(ctx: sink_ctx, a: sink_val, b: sink_val, c: sink_val): sink_val {
+export function num_clamp(ctx: ctx, a: val, b: val, c: val): val {
 	return opi_triop(ctx, a, b, c, triop_num_clamp, txt_num_clamp);
 }
 
-export function sink_num_floor(ctx: sink_ctx, a: sink_val): sink_val {
+export function num_floor(ctx: ctx, a: val): val {
 	return opi_unop(ctx, a, unop_num_floor, txt_num_floor);
 }
 
-export function sink_num_ceil(ctx: sink_ctx, a: sink_val): sink_val {
+export function num_ceil(ctx: ctx, a: val): val {
 	return opi_unop(ctx, a, unop_num_ceil, txt_num_ceil);
 }
 
-export function sink_num_round(ctx: sink_ctx, a: sink_val): sink_val {
+export function num_round(ctx: ctx, a: val): val {
 	return opi_unop(ctx, a, unop_num_round, txt_num_round);
 }
 
-export function sink_num_trunc(ctx: sink_ctx, a: sink_val): sink_val {
+export function num_trunc(ctx: ctx, a: val): val {
 	return opi_unop(ctx, a, unop_num_trunc, txt_num_trunc);
 }
 
-export function sink_num_sin(ctx: sink_ctx, a: sink_val): sink_val {
+export function num_sin(ctx: ctx, a: val): val {
 	return opi_unop(ctx, a, unop_num_sin, txt_num_sin);
 }
 
-export function sink_num_cos(ctx: sink_ctx, a: sink_val): sink_val {
+export function num_cos(ctx: ctx, a: val): val {
 	return opi_unop(ctx, a, unop_num_cos, txt_num_cos);
 }
 
-export function sink_num_tan(ctx: sink_ctx, a: sink_val): sink_val {
+export function num_tan(ctx: ctx, a: val): val {
 	return opi_unop(ctx, a, unop_num_tan, txt_num_tan);
 }
 
-export function sink_num_asin(ctx: sink_ctx, a: sink_val): sink_val {
+export function num_asin(ctx: ctx, a: val): val {
 	return opi_unop(ctx, a, unop_num_asin, txt_num_asin);
 }
 
-export function sink_num_acos(ctx: sink_ctx, a: sink_val): sink_val {
+export function num_acos(ctx: ctx, a: val): val {
 	return opi_unop(ctx, a, unop_num_acos, txt_num_acos);
 }
 
-export function sink_num_atan(ctx: sink_ctx, a: sink_val): sink_val {
+export function num_atan(ctx: ctx, a: val): val {
 	return opi_unop(ctx, a, unop_num_atan, txt_num_atan);
 }
 
-export function sink_num_atan2(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+export function num_atan2(ctx: ctx, a: val, b: val): val {
 	return opi_binop(ctx, a, b, binop_num_atan2, txt_num_atan, LT_ALLOWNUM, LT_ALLOWNUM);
 }
 
-export function sink_num_log(ctx: sink_ctx, a: sink_val): sink_val {
+export function num_log(ctx: ctx, a: val): val {
 	return opi_unop(ctx, a, unop_num_log, txt_num_log);
 }
 
-export function sink_num_log2(ctx: sink_ctx, a: sink_val): sink_val {
+export function num_log2(ctx: ctx, a: val): val {
 	return opi_unop(ctx, a, unop_num_log2, txt_num_log);
 }
 
-export function sink_num_log10(ctx: sink_ctx, a: sink_val): sink_val {
+export function num_log10(ctx: ctx, a: val): val {
 	return opi_unop(ctx, a, unop_num_log10, txt_num_log);
 }
 
-export function sink_num_exp(ctx: sink_ctx, a: sink_val): sink_val {
+export function num_exp(ctx: ctx, a: val): val {
 	return opi_unop(ctx, a, unop_num_exp, txt_num_pow);
 }
 
-export function sink_num_lerp(ctx: sink_ctx, a: sink_val, b: sink_val, t: sink_val): sink_val {
+export function num_lerp(ctx: ctx, a: val, b: val, t: val): val {
 	return opi_triop(ctx, a, b, t, triop_num_lerp, txt_num_lerp);
 }
 
-export function sink_num_hex(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+export function num_hex(ctx: ctx, a: val, b: val): val {
 	return opi_binop(ctx, a, b, binop_num_hex, txt_num_hex, LT_ALLOWNUM, LT_ALLOWNUM | LT_ALLOWNIL);
 }
 
-export function sink_num_oct(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+export function num_oct(ctx: ctx, a: val, b: val): val {
 	return opi_binop(ctx, a, b, binop_num_oct, txt_num_oct, LT_ALLOWNUM, LT_ALLOWNUM | LT_ALLOWNIL);
 }
 
-export function sink_num_bin(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+export function num_bin(ctx: ctx, a: val, b: val): val {
 	return opi_binop(ctx, a, b, binop_num_bin, txt_num_bin, LT_ALLOWNUM, LT_ALLOWNUM | LT_ALLOWNIL);
 }
 
 // integers
-export function sink_int_new(ctx: sink_ctx, a: sink_val): sink_val {
+export function int_new(ctx: ctx, a: val): val {
 	return opi_unop(ctx, a, unop_int_new, txt_int_new);
 }
 
-export function sink_int_not(ctx: sink_ctx, a: sink_val): sink_val {
+export function int_not(ctx: ctx, a: val): val {
 	return opi_unop(ctx, a, unop_int_not, txt_int_not);
 }
 
-export function sink_int_and(ctx: sink_ctx, vals: sink_val[]): sink_val {
+export function int_and(ctx: ctx, vals: val[]): val {
 	return opi_combop(ctx, vals, binop_int_and, txt_int_and);
 }
 
-export function sink_int_or(ctx: sink_ctx, vals: sink_val[]): sink_val {
+export function int_or(ctx: ctx, vals: val[]): val {
 	return opi_combop(ctx, vals, binop_int_or, txt_int_or);
 }
 
-export function sink_int_xor(ctx: sink_ctx, vals: sink_val[]): sink_val {
+export function int_xor(ctx: ctx, vals: val[]): val {
 	return opi_combop(ctx, vals, binop_int_xor, txt_int_xor);
 }
 
-export function sink_int_shl(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+export function int_shl(ctx: ctx, a: val, b: val): val {
 	return opi_binop(ctx, a, b, binop_int_shl, txt_int_shl, LT_ALLOWNUM, LT_ALLOWNUM);
 }
 
-export function sink_int_shr(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+export function int_shr(ctx: ctx, a: val, b: val): val {
 	return opi_binop(ctx, a, b, binop_int_shr, txt_int_shr, LT_ALLOWNUM, LT_ALLOWNUM);
 }
 
-export function sink_int_sar(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+export function int_sar(ctx: ctx, a: val, b: val): val {
 	return opi_binop(ctx, a, b, binop_int_sar, txt_int_shr, LT_ALLOWNUM, LT_ALLOWNUM);
 }
 
-export function sink_int_add(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+export function int_add(ctx: ctx, a: val, b: val): val {
 	return opi_binop(ctx, a, b, binop_int_add, txt_num_add, LT_ALLOWNUM, LT_ALLOWNUM);
 }
 
-export function sink_int_sub(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+export function int_sub(ctx: ctx, a: val, b: val): val {
 	return opi_binop(ctx, a, b, binop_int_sub, txt_num_sub, LT_ALLOWNUM, LT_ALLOWNUM);
 }
 
-export function sink_int_mul(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+export function int_mul(ctx: ctx, a: val, b: val): val {
 	return opi_binop(ctx, a, b, binop_int_mul, txt_num_mul, LT_ALLOWNUM, LT_ALLOWNUM);
 }
 
-export function sink_int_div(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+export function int_div(ctx: ctx, a: val, b: val): val {
 	return opi_binop(ctx, a, b, binop_int_div, txt_num_div, LT_ALLOWNUM, LT_ALLOWNUM);
 }
 
-export function sink_int_mod(ctx: sink_ctx, a: sink_val, b: sink_val): sink_val {
+export function int_mod(ctx: ctx, a: val, b: val): val {
 	return opi_binop(ctx, a, b, binop_int_mod, txt_num_mod, LT_ALLOWNUM, LT_ALLOWNUM);
 }
 
-export function sink_int_clz(ctx: sink_ctx, a: sink_val): sink_val {
+export function int_clz(ctx: ctx, a: val): val {
 	return opi_unop(ctx, a, unop_int_clz, txt_int_clz);
 }
 
-export function sink_int_pop(ctx: sink_ctx, a: sink_val): sink_val {
+export function int_pop(ctx: ctx, a: val): val {
 	return opi_unop(ctx, a, unop_int_pop, txt_int_pop);
 }
 
-export function sink_int_bswap(ctx: sink_ctx, a: sink_val): sink_val {
+export function int_bswap(ctx: ctx, a: val): val {
 	return opi_unop(ctx, a, unop_int_bswap, txt_int_bswap);
 }
 
 // strings
-export function sink_str_hashplain(str: string, seed: number): [number, number, number, number] {
+export function str_hashplain(str: string, seed: number): [number, number, number, number] {
 	// MurmurHash3 was written by Austin Appleby, and is placed in the public
 	// domain. The author hereby disclaims copyright to this source code.
 	// https://github.com/aappleby/smhasher
 
 	// 64-bit operations store numbers as [low int32_t, high int32_t]
 
-	function x64_add(a: sink_u64, b: sink_u64): sink_u64 {
+	function x64_add(a: u64, b: u64): u64 {
 		let A0 = a[0] & 0xFFFF; // lowest 16 bits
 		let A1 = a[0] >>> 16;   // ...
 		let A2 = a[1] & 0xFFFF; // ...
@@ -13436,7 +13420,7 @@ export function sink_str_hashplain(str: string, seed: number): [number, number, 
 		return [(R0 & 0xFFFF) | ((R1 & 0xFFFF) << 16), (R2 & 0xFFFF) | ((R3 & 0xFFFF) << 16)];
 	}
 
-	function x64_mul(a: sink_u64, b: sink_u64): sink_u64 {
+	function x64_mul(a: u64, b: u64): u64 {
 		var A0 = a[0] & 0xFFFF; // lowest 16 bits
 		var A1 = a[0] >>> 16;   // ...
 		var A2 = a[1] & 0xFFFF; // ...
@@ -13463,7 +13447,7 @@ export function sink_str_hashplain(str: string, seed: number): [number, number, 
 		return [(R0 & 0xFFFF) | ((R1 & 0xFFFF) << 16), (R2 & 0xFFFF) | ((R3 & 0xFFFF) << 16)];
 	}
 
-	function x64_rotl(a: sink_u64, b: number): sink_u64 {
+	function x64_rotl(a: u64, b: number): u64 {
 		b %= 64;
 		if (b == 0)
 			return a;
@@ -13475,7 +13459,7 @@ export function sink_str_hashplain(str: string, seed: number): [number, number, 
 		return [(a[1] << b) | (a[0] >>> (32 - b)), (a[0] << b) | (a[1] >>> (32 - b))];
 	}
 
-	function x64_shl(a: sink_u64, b: number): sink_u64 {
+	function x64_shl(a: u64, b: number): u64 {
 		if (b <= 0)
 			return a;
 		else if (b >= 64)
@@ -13485,7 +13469,7 @@ export function sink_str_hashplain(str: string, seed: number): [number, number, 
 		return [a[0] << b, (a[1] << b) | (a[0] >>> (32 - b))];
 	}
 
-	function x64_shr(a: sink_u64, b: number): sink_u64 {
+	function x64_shr(a: u64, b: number): u64 {
 		if (b <= 0)
 			return a;
 		else if (b >= 64)
@@ -13495,11 +13479,11 @@ export function sink_str_hashplain(str: string, seed: number): [number, number, 
 		return [(a[0] >>> b) | (a[1] << (32 - b)), a[1] >>> b];
 	}
 
-	function x64_xor(a: sink_u64, b: sink_u64): sink_u64 {
+	function x64_xor(a: u64, b: u64): u64 {
 		return [a[0] ^ b[0], a[1] ^ b[1]];
 	}
 
-	function x64_fmix(a: sink_u64): sink_u64 {
+	function x64_fmix(a: u64): u64 {
 		a = x64_xor(a, x64_shr(a, 33));
 		a = x64_mul(a, [0xED558CCD, 0xFF51AFD7]);
 		a = x64_xor(a, x64_shr(a, 33));
@@ -13508,7 +13492,7 @@ export function sink_str_hashplain(str: string, seed: number): [number, number, 
 		return a;
 	}
 
-	function getblock(i: number): sink_u64 {
+	function getblock(i: number): u64 {
 		return [
 			(str.charCodeAt(i + 0)      ) |
 			(str.charCodeAt(i + 1) <<  8) |
@@ -13524,10 +13508,10 @@ export function sink_str_hashplain(str: string, seed: number): [number, number, 
 	// hash code
 
 	let nblocks = str.length >>> 4;
-	let h1: sink_u64 = [seed, 0];
-	let h2: sink_u64 = [seed, 0];
-	let c1: sink_u64 = [0x114253D5, 0x87C37B91];
-	let c2: sink_u64 = [0x2745937F, 0x4CF5AD43];
+	let h1: u64 = [seed, 0];
+	let h2: u64 = [seed, 0];
+	let c1: u64 = [0x114253D5, 0x87C37B91];
+	let c2: u64 = [0x2745937F, 0x4CF5AD43];
 	for (let i = 0; i < nblocks; i++){
 		let k1 = getblock((i * 2 + 0) * 8);
 		let k2 = getblock((i * 2 + 1) * 8);
@@ -13551,8 +13535,8 @@ export function sink_str_hashplain(str: string, seed: number): [number, number, 
 		h2 = x64_add(x64_mul(h2, [5, 0]), [0x38495AB5, 0]);
 	}
 
-	let k1: sink_u64 = [0, 0];
-	let k2: sink_u64 = [0, 0];
+	let k1: u64 = [0, 0];
+	let k2: u64 = [0, 0];
 	var tail = str.substr(nblocks << 4);
 
 	switch(tail.length) {
@@ -13604,44 +13588,44 @@ export function sink_str_hashplain(str: string, seed: number): [number, number, 
 }
 
 // lists
-export function sink_list_setuser(ctx: sink_ctx, ls: sink_list, usertype: sink_user, user: any): void {
+export function list_setuser(ctx: ctx, ls: list, usertype: user, user: any): void {
 	ls.usertype = usertype;
 	ls.user = user;
 }
 
-export function sink_list_hasuser(ctx: sink_ctx, ls: sink_list, usertype: sink_user): boolean {
+export function list_hasuser(ctx: ctx, ls: list, usertype: user): boolean {
 	return ls.usertype === usertype;
 }
 
-export function sink_list_getuser(ctx: sink_ctx, ls: sink_list, usertype: sink_user): any {
+export function list_getuser(ctx: ctx, ls: list, usertype: user): any {
 	if (ls.usertype !== usertype)
 		throw new Error('Bad user type on list');
 	return ls.user;
 }
 
-export function sink_list_cat(ctx: sink_ctx, vals: sink_val[]): sink_val {
+export function list_cat(ctx: ctx, vals: val[]): val {
 	for (let i = 0; i < vals.length; i++){
-		if (!sink_islist(vals[i])){
+		if (!islist(vals[i])){
 			opi_abort(ctx, 'Cannot concatenate non-lists');
-			return SINK_NIL;
+			return NIL;
 		}
 	}
 	return opi_list_cat(ctx, vals);
 }
 
-export function sink_list_joinplain(vals: sink_list | sink_val[], sep: string): sink_val {
+export function list_joinplain(vals: list | val[], sep: string): val {
 	var out = '';
 	for (let i = 0; i < vals.length; i++)
-		out += (i > 0 ? sep : '') + sink_tostr(vals[i]);
+		out += (i > 0 ? sep : '') + tostr(vals[i]);
 	return out;
 }
 
 // gc
-export function sink_gc_getlevel(ctx: sink_ctx): string {
+export function gc_getlevel(ctx: ctx): string {
 	return (ctx as context_st).gc_level;
 }
 
-export function sink_gc_setlevel(ctx: sink_ctx, level: string): void {
+export function gc_setlevel(ctx: ctx, level: string): void {
 	if (level !== 'default' && level !== 'lowmem' && level !== 'none')
 		throw new Error('Bad GC level: ' + level);
 	(ctx as context_st).gc_level = level;
