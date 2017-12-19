@@ -3,6 +3,7 @@
 // Project Home: https://github.com/voidqk/sink
 
 import sink = require('./sink.js');
+import sink_shell = require('./sink_shell.js');
 import fs = require('fs');
 import path = require('path');
 import readline = require('readline');
@@ -59,8 +60,12 @@ function fsread(scr: sink.scr, file: string): Promise<boolean> {
 				resolve(false); // `false` indicates there was an error reading file
 			}
 			else{
-				sink.scr_write(scr, data);
-				resolve(true); // `true` indicates that the file was read
+				checkPromise<boolean, void>(
+					sink.scr_write(scr, data),
+					function(err: boolean): void {
+						resolve(true); // `true` indicates that the file was read
+					}
+				);
 			}
 		});
 	});
@@ -73,7 +78,7 @@ let inc: sink.inc_st = {
 
 function newctx(scr: sink.scr, argv: string[]): sink.ctx {
 	let ctx = sink.ctx_new(scr, io);
-	// TODO: use argv when loading sink_shell
+	sink_shell.ctx(ctx);
 	return ctx;
 }
 
@@ -361,7 +366,7 @@ export function main(): boolean | Promise<boolean> {
 	*/
 
 	// add any libraries
-	//TODO: sink_shell_scr(scr);
+	sink_shell.scr(scr);
 
 	// load include paths and declaration key/files
 	for (i = 1; argv[i] !== input_content && i < argv.length; i++){

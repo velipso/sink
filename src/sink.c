@@ -14720,6 +14720,9 @@ static char *compiler_closeLexer(compiler cmp){
 }
 
 static char *compiler_close(compiler cmp){
+	if (cmp->msg)
+		return cmp->msg;
+
 	char *err = compiler_closeLexer(cmp);
 	if (err)
 		return err;

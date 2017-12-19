@@ -544,12 +544,12 @@ function op_numint(b: number[], tgt: varloc_st, num: number): void {
 		}
 		else if (num >= -65536){
 			num += 65536;
-			b.push(op_enum.NUMN16, tgt.frame, tgt.index, num & 0xFF, num >> 8);
+			b.push(op_enum.NUMN16, tgt.frame, tgt.index, num & 0xFF, num >>> 8);
 		}
 		else{
 			num += 4294967296;
 			b.push(op_enum.NUMN32, tgt.frame, tgt.index,
-				num & 0xFF, (num >> 8) & 0xFF, (num >> 16) & 0xFF, (num >> 24) & 0xFF);
+				num & 0xFF, (num >>> 8) & 0xFF, (num >>> 16) & 0xFF, (num >>> 24) & 0xFF);
 		}
 	}
 	else{
@@ -557,11 +557,11 @@ function op_numint(b: number[], tgt: varloc_st, num: number): void {
 			b.push(op_enum.NUMP8, tgt.frame, tgt.index, num & 0xFF);
 		}
 		else if (num < 65536){
-			b.push(op_enum.NUMP16, tgt.frame, tgt.index, num & 0xFF, num >> 8);
+			b.push(op_enum.NUMP16, tgt.frame, tgt.index, num & 0xFF, num >>> 8);
 		}
 		else{
 			b.push(op_enum.NUMP32, tgt.frame, tgt.index,
-				num & 0xFF, (num >> 8) & 0xFF, (num >> 16) & 0xFF, (num >> 24) & 0xFF);
+				num & 0xFF, (num >>> 8) & 0xFF, (num >>> 16) & 0xFF, (num >>> 24) & 0xFF);
 		}
 	}
 }
@@ -2913,6 +2913,7 @@ function parser_process(pr: parser_st, stmts: ast_st[]): strnil {
 			if (st.names === null || st.names === true)
 				throw new Error('Parser expecting names to be list of strings');
 			st.next.exprTerm = expr_names(flpL, st.names);
+			st.names = null;
 			parser_pop(pr);
 			return parser_process(pr, stmts);
 
@@ -2981,6 +2982,7 @@ function parser_process(pr: parser_st, stmts: ast_st[]): strnil {
 			if (st.names === null || st.names === true)
 				throw new Error('Parser lvalues should be list of strings');
 			st.next.exprTerm = expr_prefix(flpL, ks_enum.PERIOD3, expr_names(flpL, st.names));
+			st.names = null;
 			parser_pop(pr);
 			return parser_process(pr, stmts);
 
@@ -3070,6 +3072,7 @@ function parser_process(pr: parser_st, stmts: ast_st[]): strnil {
 			if (st.next === null)
 				throw new Error('Parser expecting lvalues to return state');
 			st.lvalues.push(expr_prefix(flpL, ks_enum.PERIOD3, expr_names(flpL, st.names)));
+			st.names = null;
 			st.next.lvalues = st.lvalues;
 			parser_pop(pr);
 			return parser_process(pr, stmts);
@@ -3486,6 +3489,7 @@ function parser_process(pr: parser_st, stmts: ast_st[]): strnil {
 			st.state = prs_enum.EVAL_EXPR;
 			parser_push(pr, prs_enum.EXPR_POST);
 			pr.state.exprTerm = expr_names(flpL, st.names);
+			st.names = null;
 			return parser_process(pr, stmts);
 
 		case prs_enum.EVAL:
@@ -3578,6 +3582,7 @@ function parser_process(pr: parser_st, stmts: ast_st[]): strnil {
 			if (st.names === null || st.names === true)
 				throw new Error('Parser expression expecting names');
 			st.exprTerm = expr_names(flpL, st.names);
+			st.names = null;
 			st.state = prs_enum.EXPR_POST;
 			return parser_process(pr, stmts);
 
@@ -4205,8 +4210,10 @@ function symtbl_findNamespace(sym: symtbl_st, names: string[], max: number): sfn
 			let nsn = ns.names[i];
 			if (nsn.name === name){
 				if (nsn.type !== nsname_enumt.NAMESPACE){
-					if (!sym.repl)
+					if (!sym.repl){
+						console.trace('here');
 						return sfn_error('Not a namespace: "' + nsn.name + '"');
+					}
 					nsn = ns.names[i] = nsname_namespace(nsn.name, namespace_new(ns.fr));
 				}
 				if (nsn.type !== nsname_enumt.NAMESPACE)
@@ -4828,7 +4835,7 @@ function program_addfile(prg: program_st, str: strnil): number {
 	// get the basename
 	let i = str.lastIndexOf('/');
 	if (i >= 0)
-		str = str.substr(0, i);
+		str = str.substr(i + 1);
 	return program_adddebugstr(prg, str);
 }
 
@@ -7774,11 +7781,11 @@ function lxs_new(args: val[], next: lxs_st | null){
 
 interface native_st {
 	natuser: any;
-	f_native: native_f;
+	f_native: native_f | null;
 	hash: u64;
 }
 
-function native_new(hash: u64, natuser: any, f_native: native_f): native_st {
+function native_new(hash: u64, natuser: any, f_native: native_f | null): native_st {
 	return { natuser: natuser, hash: hash, f_native: f_native };
 }
 
@@ -7858,10 +7865,15 @@ function context_native(ctx: context_st, hash: u64, natuser: any,
 		for (let i = 0; i < ctx.natives.length; i++){
 			let nat = ctx.natives[i];
 			if (u64_equ(nat.hash, hash)){
-				// already defined, hash collision
-				throw new Error(
-					'Hash collision; cannot redefine native command ' +
-					'(did you call ctx_native twice for the same command?)');
+				if (nat.f_native !== null){
+					// already defined, hash collision
+					throw new Error(
+						'Hash collision; cannot redefine native command ' +
+						'(did you call sink.ctx_native twice for the same command?)');
+				}
+				nat.natuser = natuser;
+				nat.f_native = f_native;
+				return;
 			}
 		}
 	}
@@ -7891,6 +7903,11 @@ function context_new(prg: program_st, io: io_st): context_st {
 		async: false,
 		gc_level: 'default'
 	};
+	// if not a REPL, then natives can be built now
+	if (!prg.repl){
+		for (let i = 0; i < prg.keyTable.length; i++)
+			ctx.natives.push(native_new(prg.keyTable[i], null, null));
+	}
 	rand_seedauto(ctx);
 	return ctx;
 }
@@ -8084,7 +8101,7 @@ function opi_num_base(num: number, len: number, base: number): val {
 	let nint = Math.floor(num);
 	let nfra = num - nint;
 	while (nint > 0 && bodysize < 50){
-		buf2 += digits.charAt(nint % base);
+		buf2 = digits.charAt(nint % base) + buf2;
 		bodysize++;
 		nint = Math.floor(nint / base);
 	}
@@ -9498,9 +9515,9 @@ export function list_splice(ctx: ctx, a: val, b: val, c: val,
 	}
 	else{
 		let t = d.concat();
-		d.unshift(sl.len);
-		d.unshift(sl.start);
-		a.splice.apply(a, d);
+		t.unshift(sl.len);
+		t.unshift(sl.start);
+		a.splice.apply(a, t);
 	}
 }
 
@@ -9742,6 +9759,12 @@ export function range(ctx: ctx, start: number, stop: number, step: number): val 
 }
 
 function numtostr(num: number): string {
+	if (isNaN(num))
+		return 'nan';
+	else if (num === Infinity)
+		return 'inf';
+	else if (num === -Infinity)
+		return '-inf';
 	return '' + num;
 }
 
@@ -10159,9 +10182,9 @@ function pk_fmbin(sp: pk_strpos, strs: string[], li: val[]): val | false {
 		case 0xF4: {
 			if (sp.pos + 3 >= sp.s.length)
 				return false;
-			let res = (sp.s.charCodeAt(sp.pos) |
-				(sp.s.charCodeAt(sp.pos + 1) <<  8) |
-				(sp.s.charCodeAt(sp.pos + 2) << 16) |
+			let res = (sp.s.charCodeAt(sp.pos) +
+				(sp.s.charCodeAt(sp.pos + 1) <<  8) +
+				(sp.s.charCodeAt(sp.pos + 2) << 16) +
 				((sp.s.charCodeAt(sp.pos + 3) << 23) * 2));
 			sp.pos += 4;
 			return res;
@@ -10169,9 +10192,9 @@ function pk_fmbin(sp: pk_strpos, strs: string[], li: val[]): val | false {
 		case 0xF5: {
 			if (sp.pos + 3 >= sp.s.length)
 				return false;
-			let res = (sp.s.charCodeAt(sp.pos) |
-				(sp.s.charCodeAt(sp.pos + 1) <<  8) |
-				(sp.s.charCodeAt(sp.pos + 2) << 16) |
+			let res = (sp.s.charCodeAt(sp.pos) +
+				(sp.s.charCodeAt(sp.pos + 1) <<  8) +
+				(sp.s.charCodeAt(sp.pos + 2) << 16) +
 				((sp.s.charCodeAt(sp.pos + 3) << 23) * 2)) - 4294967296;
 			sp.pos += 4;
 			return res;
@@ -10739,13 +10762,17 @@ function context_run(ctx: context_st): run | Promise<run> {
 
 			case op_enum.NUMP32         : { // [TGT], [[VALUE]]
 				LOAD_abcdef();
-				C |= (D << 8) | (E << 16) | ((F << 23) * 2);
+				C |= (D << 8) | (E << 16) | (F << 24);
+				if (C < 0)
+					C += 4294967296;
 				var_set(ctx, A, B, C);
 			} break;
 
 			case op_enum.NUMN32         : { // [TGT], [[VALUE]]
 				LOAD_abcdef();
-				C |= (D << 8) | (E << 16) | ((F << 23) * 2);
+				C |= (D << 8) | (E << 16) | (F << 24);
+				if (C < 0)
+					C += 4294967296;
 				var_set(ctx, A, B, C - 4294967296);
 			} break;
 
@@ -11043,7 +11070,7 @@ function context_run(ctx: context_st): run | Promise<run> {
 				}
 				else
 					nat = ctx.natives[C];
-				if (nat === null)
+				if (nat === null || nat.f_native === null)
 					return opi_abort(ctx, 'Native call not implemented');
 				let nr: val | Promise<val> = null;
 				try {
@@ -11065,7 +11092,7 @@ function context_run(ctx: context_st): run | Promise<run> {
 				}
 				if (ctx.failed)
 					return run.FAIL;
-				var_set(ctx, A, B, X);
+				var_set(ctx, A, B, nr);
 			} break;
 
 			case op_enum.RETURN         : { // [SRC]
@@ -12307,8 +12334,7 @@ function compiler_dynamicinc(cmp: compiler_st, names: string[] | true | null, fi
 	let cwd: strnil = null;
 	if (from)
 		cwd = pathjoin(from, '..');
-	return fileres_read(cmp.scr, true, file, cwd,
-		compiler_begininc_cfu, compiler_endinc_cfu, cfu);
+	return fileres_read(cmp.scr, true, file, cwd, compiler_begininc_cfu, compiler_endinc_cfu, cfu);
 }
 
 function compiler_process(cmp: compiler_st): strnil | Promise<strnil> {
@@ -12385,15 +12411,19 @@ function compiler_process(cmp: compiler_st): strnil | Promise<strnil> {
 				return handleExternalInc();
 
 				function handleExternalInc(): strnil | Promise<strnil> {
-					if (!internal){
-						let found = compiler_dynamicinc(cmp, inc.names, file,
-							script_getfile(cmp.scr, stmt.flp.fullfile));
-						if (!found && cmp.msg === null)
-							compiler_setmsg(cmp, 'Failed to include: ' + file);
-						if (cmp.msg)
-							return cmp.msg;
-					}
-					return handleNextIncl(ii + 1);
+					if (internal)
+						return handleNextIncl(ii + 1);
+					return checkPromise<boolean, strnil>(
+						compiler_dynamicinc(cmp, inc.names, file,
+							script_getfile(cmp.scr, stmt.flp.fullfile)),
+						function(found: boolean): strnil | Promise<strnil> {
+							if (!found && cmp.msg === null)
+								compiler_setmsg(cmp, 'Failed to include: ' + file);
+							if (cmp.msg)
+								return cmp.msg;
+							return handleNextIncl(ii + 1);
+						}
+					);
 				}
 			}
 
@@ -12468,6 +12498,8 @@ function compiler_closeLexer(cmp: compiler_st): strnil | Promise<strnil> {
 }
 
 function compiler_close(cmp: compiler_st): strnil | Promise<strnil> {
+	if (cmp.msg)
+		return cmp.msg;
 	return checkPromise<strnil, strnil>(
 		compiler_closeLexer(cmp),
 		function(err: strnil): strnil {
@@ -12667,9 +12699,9 @@ export function scr_write(scr: scr, bytes: string): boolean | Promise<boolean> {
 	// read a 4 byte integer (LE)
 	function GETINT(i: number): number {
 		return (
-			(bs.buf.charCodeAt(i + 0)      ) |
-			(bs.buf.charCodeAt(i + 1) <<  8) |
-			(bs.buf.charCodeAt(i + 2) << 16) |
+			(bs.buf.charCodeAt(i + 0)      ) +
+			(bs.buf.charCodeAt(i + 1) <<  8) +
+			(bs.buf.charCodeAt(i + 2) << 16) +
 			((bs.buf.charCodeAt(i + 3) << 23) * 2));
 	}
 
