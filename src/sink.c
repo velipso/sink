@@ -1,4 +1,4 @@
-// (c) Copyright 2016-2017, Sean Connelly (@voidqk), http://syntheti.cc
+// (c) Copyright 2016-2018, Sean Connelly (@voidqk), http://sean.cm
 // MIT License
 // Project Home: https://github.com/voidqk/sink
 
