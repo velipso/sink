@@ -305,10 +305,10 @@ always exist and execute without error.
 
 ### GC Level
 
-The garbage collection (GC) level is one of the strings:
+The garbage collection (GC) level is one of the constants:
 
-* `'none'` - Do not perform automatic GC
-* `'default'` - Perform automatic GC at a reasonable frequency for most applications
-* `'lowmem'` - Perform automatic GC at a high frequency for lower memory applications
+* `gc.NONE` - Do not perform automatic GC
+* `gc.DEFAULT` - Perform automatic GC at a reasonable frequency for most applications
+* `gc.LOWMEM` - Perform automatic GC at a high frequency for lower memory applications
 
 No matter what the level is set to, running `gc.run` will always perform a full collection.
