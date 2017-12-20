@@ -14313,17 +14313,7 @@ static sink_run context_run(context ctx){
 
 			case OP_GC_GETLEVEL    : { // [TGT]
 				LOAD_ab();
-				switch (ctx->gc_level){
-					case SINK_GC_NONE:
-						var_set(ctx, A, B, sink_str_newcstr(ctx, "none"));
-						break;
-					case SINK_GC_DEFAULT:
-						var_set(ctx, A, B, sink_str_newcstr(ctx, "default"));
-						break;
-					case SINK_GC_LOWMEM:
-						var_set(ctx, A, B, sink_str_newcstr(ctx, "lowmem"));
-						break;
-				}
+				var_set(ctx, A, B, sink_num(ctx->gc_level));
 			} break;
 
 			case OP_GC_SETLEVEL    : { // [TGT], [SRC]
@@ -14335,8 +14325,7 @@ static sink_run context_run(context ctx){
 				if (J != SINK_GC_NONE && J != SINK_GC_DEFAULT && J != SINK_GC_LOWMEM)
 					return opi_abortcstr(ctx, "Expecting one of gc.NONE, gc.DEFAULT, or gc.LOWMEM");
 				ctx->gc_level = J;
-				if (ctx->gc_level != SINK_GC_NONE)
-					context_gcleft(ctx, false);
+				context_gcleft(ctx, false);
 				var_set(ctx, A, B, SINK_NIL);
 			} break;
 

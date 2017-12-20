@@ -1,0 +1,11 @@
+say gc.getlevel
+say gc.NONE
+say gc.DEFAULT
+say gc.LOWMEM
+gc.setlevel gc.NONE
+say gc.getlevel
+gc.setlevel gc.LOWMEM
+say gc.getlevel
+gc.setlevel gc.DEFAULT
+say gc.getlevel
+gc.run
