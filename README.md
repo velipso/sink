@@ -10,14 +10,10 @@ embeddable, with support for a REPL as used in debug consoles.
 
 ### Sink the Language
 
-First read the [Crash Course](https://github.com/voidqk/sink/blob/master/docs/crash-course.md)
-tutorial to understand how to write sink code.
-
-You can play with the [Online Demo](https://rawgit.com/voidqk/sink/master/dist/repl.html) to test
-language features in a REPL.
-
-The [Standard Library](https://github.com/voidqk/sink/blob/master/docs/lib.md) documents all
-commands that come with sink out of the box.
+* [Crash Course](https://github.com/voidqk/sink/blob/master/docs/crash-course.md) (Tutorial)
+&larr; Read This
+* [Online Demo](https://rawgit.com/voidqk/sink/master/dist/repl.html)
+* [Standard Library](https://github.com/voidqk/sink/blob/master/docs/lib.md)
 
 ### Sink for Embedding
 
