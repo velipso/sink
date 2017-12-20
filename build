@@ -11,6 +11,7 @@ SRC_DIR=$SCRIPT_DIR/src
 TGT_DIR=$SCRIPT_DIR/tgt
 DIST_DIR=$TGT_DIR/dist
 TESTS_DIR=$SCRIPT_DIR/tests
+DIST_DIR=$SCRIPT_DIR/dist
 
 BUILD_TS=0
 TEST_TS=0
@@ -61,28 +62,25 @@ case "$1" in
 		;;
 	"clean")
 		echo Cleaning...
-		rm -rf $TGT_DIR
+		rm -rf "$TGT_DIR"
 		echo Done
 		exit 0
 		;;
 	"dist")
 		echo Publishing builds to ./dist
-		rm -rf $SCRIPT_DIR/dist
-		cp -Rf $TGT_DIR/dist $SCRIPT_DIR/
-
-		cat <<README > $SCRIPT_DIR/dist/README.md
-# Builds for Distribution
-
-This build is a SNAPSHOT and not an official release.  You might not want to use it.
-
-Built on: $(date -u)
-
-* \`sink.js\`: Browser version of Sink
-* \`sink/*\`: NPM/Node.js version of Sink
-README
-
-		echo Done
-		exit 0
+		rm -rf "$DIST_DIR"
+		mkdir -p "$DIST_DIR"
+		cp "$SRC_DIR/cmd.ts" "$DIST_DIR"
+		cp "$SRC_DIR/repl.html" "$DIST_DIR"
+		cp "$SRC_DIR/sink.ts" "$DIST_DIR"
+		cp "$SRC_DIR/sink_shell.ts" "$DIST_DIR"
+		cp "$TGT_DIR/cmd.d.ts" "$DIST_DIR"
+		cp "$TGT_DIR/cmd.js" "$DIST_DIR"
+		cp "$TGT_DIR/driver.js" "$DIST_DIR"
+		cp "$TGT_DIR/sink.d.ts" "$DIST_DIR"
+		cp "$TGT_DIR/sink.js" "$DIST_DIR"
+		cp "$TGT_DIR/sink_shell.d.ts" "$DIST_DIR"
+		cp "$TGT_DIR/sink_shell.js" "$DIST_DIR"
 		;;
 	*)
 		echo './build <command> [debug]'
@@ -144,24 +142,30 @@ run_test() {
 			if [ "$status" = "0" ]; then
 				# passed running text file, let's try compiling now
 				if [ "$test_prog" = "ts" ]; then
-					# TODO: test typescript compiler
-					#out2=$(mktemp "$TGT_DIR"/test_output.stdout.XXXXXX)
-					#$TGT_DIR/driver.js -c -d "$test_dir"/"$test_name".sink > $TGT_DIR/bin.sink
-					#$TGT_DIR/driver.js $TGT_DIR/bin.sink > "$out2"
-					#set +e
-					#d=$(diff -u --label 'Expected Output' "$out" --label 'Actual Output' "$out2")
-					#status=$?
-					#set -e
-					#rm -f "$out2"
-					#if [ "$status" = "0" ]; then
+					out2=$(mktemp "$TGT_DIR"/test_output.stdout.XXXXXX)
+					$TGT_DIR/driver.js -c -d "$test_dir"/"$test_name".sink > "$TGT_DIR/bin.sink"
+					$TGT_DIR/sink -c -d "$test_dir"/"$test_name".sink > "$TGT_DIR/bin2.sink"
+					if ! cmp --silent "$TGT_DIR/bin.sink" "$TGT_DIR/bin2.sink"; then
+						echo MISMATCH binary against C compiler
+						rm -f "$out"
+						rm -f "$err"
+						exit 1
+					fi
+					$TGT_DIR/driver.js $TGT_DIR/bin.sink > "$out2"
+					set +e
+					d=$(diff -u --label 'Expected Output' "$out" --label 'Actual Output' "$out2")
+					status=$?
+					set -e
+					rm -f "$out2"
+					if [ "$status" = "0" ]; then
 						echo PASS
-					#else
-					#	echo FAIL on compile
-					#	echo "$d"
-					#	rm -f "$out"
-					#	rm -f "$err"
-					#	exit 1
-					#fi
+					else
+						echo FAIL on compile
+						echo "$d"
+						rm -f "$out"
+						rm -f "$err"
+						exit 1
+					fi
 				else
 					out2=$(mktemp "$TGT_DIR"/test_output.stdout.XXXXXX)
 					$TGT_DIR/sink -c -d "$test_dir"/"$test_name".sink > $TGT_DIR/bin.sink
