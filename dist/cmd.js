@@ -60,7 +60,7 @@
                     resolve(false);
                 }
                 else {
-                    checkPromise(sink.scr_write(scr, data), function (err) {
+                    sink.checkPromise(sink.scr_write(scr, data), function (err) {
                         resolve(true);
                     });
                 }
@@ -85,14 +85,6 @@
             return;
         console.error(err);
     }
-    function isPromise(p) {
-        return typeof p === 'object' && p !== null && typeof p.then === 'function';
-    }
-    function checkPromise(v, func) {
-        if (isPromise(v))
-            return v.then(func);
-        return func(v);
-    }
     function main_repl(scr, argv) {
         return new Promise(function (resolve) {
             var ctx = newctx(scr, argv);
@@ -115,11 +107,11 @@
                     line++;
                     rl.close();
                     var buf = ans + '\n';
-                    checkPromise(sink.scr_write(scr, buf), function (written) {
+                    sink.checkPromise(sink.scr_write(scr, buf), function (written) {
                         if (!written)
                             printscrerr(scr);
                         if (sink.scr_level(scr) <= 0) {
-                            checkPromise(sink.ctx_run(ctx), function (res) {
+                            sink.checkPromise(sink.ctx_run(ctx), function (res) {
                                 switch (res) {
                                     case sink.run.PASS:
                                         resolve(true);
@@ -149,13 +141,13 @@
         });
     }
     function main_run(scr, file, argv) {
-        return checkPromise(sink.scr_loadfile(scr, file), function (loaded) {
+        return sink.checkPromise(sink.scr_loadfile(scr, file), function (loaded) {
             if (!loaded) {
                 printscrerr(scr);
                 return false;
             }
             var ctx = newctx(scr, argv);
-            return checkPromise(sink.ctx_run(ctx), function (res) {
+            return sink.checkPromise(sink.ctx_run(ctx), function (res) {
                 if (res == sink.run.FAIL)
                     printctxerr(ctx);
                 return res == sink.run.PASS;
@@ -163,13 +155,13 @@
         });
     }
     function main_eval(scr, ev, argv) {
-        return checkPromise(sink.scr_write(scr, ev), function (written) {
+        return sink.checkPromise(sink.scr_write(scr, ev), function (written) {
             if (!written) {
                 printscrerr(scr);
                 return false;
             }
             var ctx = newctx(scr, argv);
-            return checkPromise(sink.ctx_run(ctx), function (res) {
+            return sink.checkPromise(sink.ctx_run(ctx), function (res) {
                 if (res == sink.run.FAIL)
                     printctxerr(ctx);
                 return res == sink.run.PASS;
@@ -185,7 +177,7 @@
         process.stdout.write(dump_data, 'binary');
     }
     function main_compile_file(scr, file, debug) {
-        return checkPromise(sink.scr_loadfile(scr, file), function (loaded) {
+        return sink.checkPromise(sink.scr_loadfile(scr, file), function (loaded) {
             if (!loaded) {
                 printscrerr(scr);
                 return false;
@@ -195,7 +187,7 @@
         });
     }
     function main_compile_eval(scr, ev, debug) {
-        return checkPromise(sink.scr_write(scr, ev), function (written) {
+        return sink.checkPromise(sink.scr_write(scr, ev), function (written) {
             if (!written) {
                 printscrerr(scr);
                 return false;

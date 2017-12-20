@@ -79,11 +79,13 @@ var __extends = (this && this.__extends) || (function () {
     function isPromise(p) {
         return typeof p === 'object' && p !== null && typeof p.then === 'function';
     }
+    exports.isPromise = isPromise;
     function checkPromise(v, func) {
         if (isPromise(v))
             return v.then(func);
         return func(v);
     }
+    exports.checkPromise = checkPromise;
     function bool(f) { return f ? 1 : exports.NIL; }
     exports.bool = bool;
     function istrue(v) { return v !== exports.NIL; }

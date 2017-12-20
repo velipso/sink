@@ -85,11 +85,12 @@ export enum ctx_status {
 export const NAN = Number.NaN;
 export const NIL = null;
 
-function isPromise<T>(p: any): p is Promise<T> {
+export function isPromise<T>(p: any): p is Promise<T> {
 	return typeof p === 'object' && p !== null && typeof (<Promise<T>>p).then === 'function';
 }
 
-function checkPromise<T, U>(v: T | Promise<T>, func: (v2: T) => U | Promise<U>): U | Promise<U> {
+export function checkPromise<T, U>(v: T | Promise<T>,
+	func: (v2: T) => U | Promise<U>): U | Promise<U> {
 	if (isPromise<T>(v))
 		return v.then(func);
 	return func(v);

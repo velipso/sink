@@ -60,7 +60,7 @@ function fsread(scr: sink.scr, file: string): Promise<boolean> {
 				resolve(false); // `false` indicates there was an error reading file
 			}
 			else{
-				checkPromise<boolean, void>(
+				sink.checkPromise<boolean, void>(
 					sink.scr_write(scr, data),
 					function(err: boolean): void {
 						resolve(true); // `true` indicates that the file was read
@@ -93,16 +93,6 @@ function printctxerr(ctx: sink.ctx): void {
 	console.error(err);
 }
 
-function isPromise<T>(p: any): p is Promise<T> {
-	return typeof p === 'object' && p !== null && typeof (<Promise<T>>p).then === 'function';
-}
-
-function checkPromise<T, U>(v: T | Promise<T>, func: (v2: T) => U | Promise<U>): U | Promise<U> {
-	if (isPromise<T>(v))
-		return v.then(func);
-	return func(v);
-}
-
 function main_repl(scr: sink.scr, argv: string[]): Promise<boolean> {
 	return new Promise(function(resolve){
 		let ctx = newctx(scr, argv);
@@ -125,13 +115,13 @@ function main_repl(scr: sink.scr, argv: string[]): Promise<boolean> {
 				line++;
 				rl.close();
 				let buf = ans + '\n';
-				checkPromise<boolean, void>(
+				sink.checkPromise<boolean, void>(
 					sink.scr_write(scr, buf),
 					function(written: boolean){
 						if (!written)
 							printscrerr(scr);
 						if (sink.scr_level(scr) <= 0){
-							checkPromise<sink.run, void>(
+							sink.checkPromise<sink.run, void>(
 								sink.ctx_run(ctx),
 								function(res: sink.run): void {
 									switch (res){
@@ -167,7 +157,7 @@ function main_repl(scr: sink.scr, argv: string[]): Promise<boolean> {
 }
 
 function main_run(scr: sink.scr, file: string, argv: string[]): boolean | Promise<boolean> {
-	return checkPromise<boolean, boolean>(
+	return sink.checkPromise<boolean, boolean>(
 		sink.scr_loadfile(scr, file),
 		function(loaded: boolean): boolean | Promise<boolean> {
 			if (!loaded){
@@ -175,7 +165,7 @@ function main_run(scr: sink.scr, file: string, argv: string[]): boolean | Promis
 				return false;
 			}
 			let ctx = newctx(scr, argv);
-			return checkPromise<sink.run, boolean>(
+			return sink.checkPromise<sink.run, boolean>(
 				sink.ctx_run(ctx),
 				function(res: sink.run): boolean {
 					if (res == sink.run.FAIL)
@@ -188,7 +178,7 @@ function main_run(scr: sink.scr, file: string, argv: string[]): boolean | Promis
 }
 
 function main_eval(scr: sink.scr, ev: string, argv: string[]): boolean | Promise<boolean> {
-	return checkPromise<boolean, boolean>(
+	return sink.checkPromise<boolean, boolean>(
 		sink.scr_write(scr, ev),
 		function(written: boolean): boolean | Promise<boolean> {
 			if (!written){
@@ -196,7 +186,7 @@ function main_eval(scr: sink.scr, ev: string, argv: string[]): boolean | Promise
 				return false;
 			}
 			let ctx = newctx(scr, argv);
-			return checkPromise<sink.run, boolean>(
+			return sink.checkPromise<sink.run, boolean>(
 				sink.ctx_run(ctx),
 				function(res: sink.run): boolean {
 					if (res == sink.run.FAIL)
@@ -220,7 +210,7 @@ function perform_dump(scr: sink.scr, debug: boolean): void {
 
 function main_compile_file(scr: sink.scr, file: string,
 	debug: boolean): boolean | Promise<boolean> {
-	return checkPromise<boolean, boolean>(
+	return sink.checkPromise<boolean, boolean>(
 		sink.scr_loadfile(scr, file),
 		function(loaded: boolean): boolean {
 			if (!loaded){
@@ -234,7 +224,7 @@ function main_compile_file(scr: sink.scr, file: string,
 }
 
 function main_compile_eval(scr: sink.scr, ev: string, debug: boolean): boolean | Promise<boolean> {
-	return checkPromise<boolean, boolean>(
+	return sink.checkPromise<boolean, boolean>(
 		sink.scr_write(scr, ev),
 		function(written: boolean): boolean {
 			if (!written){

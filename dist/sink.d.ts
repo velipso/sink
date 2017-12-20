@@ -59,6 +59,8 @@ export declare enum ctx_status {
 }
 export declare const NAN: number;
 export declare const NIL: null;
+export declare function isPromise<T>(p: any): p is Promise<T>;
+export declare function checkPromise<T, U>(v: T | Promise<T>, func: (v2: T) => U | Promise<U>): U | Promise<U>;
 export declare function bool(f: boolean): val;
 export declare function istrue(v: val): v is valtrue;
 export declare function isfalse(v: val): v is null;
