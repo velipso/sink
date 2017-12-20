@@ -53,6 +53,12 @@ var __extends = (this && this.__extends) || (function () {
         fstype[fstype["FILE"] = 1] = "FILE";
         fstype[fstype["DIR"] = 2] = "DIR";
     })(fstype = exports.fstype || (exports.fstype = {}));
+    var gc_level;
+    (function (gc_level) {
+        gc_level[gc_level["NONE"] = 0] = "NONE";
+        gc_level[gc_level["DEFAULT"] = 1] = "DEFAULT";
+        gc_level[gc_level["LOWMEM"] = 2] = "LOWMEM";
+    })(gc_level = exports.gc_level || (exports.gc_level = {}));
     var run;
     (function (run) {
         run[run["PASS"] = 0] = "PASS";
@@ -3978,6 +3984,9 @@ var __extends = (this && this.__extends) || (function () {
         SAC(sym, 'getlevel', op_enum.GC_GETLEVEL, 0);
         SAC(sym, 'setlevel', op_enum.GC_SETLEVEL, 1);
         SAC(sym, 'run', op_enum.GC_RUN, 0);
+        SAE(sym, 'NONE', gc_level.NONE);
+        SAE(sym, 'DEFAULT', gc_level.DEFAULT);
+        SAE(sym, 'LOWMEM', gc_level.LOWMEM);
         symtbl_popNamespace(sym);
     }
     var bis_enum;
@@ -6497,7 +6506,7 @@ var __extends = (this && this.__extends) || (function () {
             passed: false,
             failed: false,
             async: false,
-            gc_level: 'default'
+            gc_level: gc_level.DEFAULT
         };
         if (!prg.repl) {
             for (var i = 0; i < prg.keyTable.length; i++)
@@ -10804,8 +10813,9 @@ var __extends = (this && this.__extends) || (function () {
                     {
                         LOAD_abcd();
                         X = var_get(ctx, C, D);
-                        if (!isstr(X) || (X !== 'none' && X !== 'default' && X !== 'lowmem'))
-                            return opi_abort(ctx, 'Expecting one of \'none\', \'default\', or \'lowmem\'');
+                        if (!isnum(X) ||
+                            (X !== gc_level.NONE && X !== gc_level.DEFAULT && X !== gc_level.LOWMEM))
+                            return opi_abort(ctx, 'Expecting one of gc.NONE, gc.DEFAULT, or gc.LOWMEM');
                         ctx.gc_level = X;
                         var_set(ctx, A, B, exports.NIL);
                     }
@@ -12099,8 +12109,6 @@ var __extends = (this && this.__extends) || (function () {
     }
     exports.gc_getlevel = gc_getlevel;
     function gc_setlevel(ctx, level) {
-        if (level !== 'default' && level !== 'lowmem' && level !== 'none')
-            throw new Error('Bad GC level: ' + level);
         ctx.gc_level = level;
     }
     exports.gc_setlevel = gc_setlevel;

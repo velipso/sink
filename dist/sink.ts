@@ -41,6 +41,12 @@ export enum fstype {
 	DIR
 }
 
+export enum gc_level {
+	NONE,
+	DEFAULT,
+	LOWMEM
+}
+
 export type output_f = (ctx: ctx, str: str, iouser: any) => void | Promise<void>;
 export type input_f = (ctx: ctx, str: str, iouser: any) => val | Promise<val>;
 export type native_f = (ctx: ctx, args: val[], natuser: any) => val | Promise<val>;
@@ -4713,6 +4719,9 @@ function symtbl_loadStdlib(sym: symtbl_st): void {
 		SAC(sym, 'getlevel'  , op_enum.GC_GETLEVEL    ,  0);
 		SAC(sym, 'setlevel'  , op_enum.GC_SETLEVEL    ,  1);
 		SAC(sym, 'run'       , op_enum.GC_RUN         ,  0);
+		SAE(sym, 'NONE'      , gc_level.NONE              );
+		SAE(sym, 'DEFAULT'   , gc_level.DEFAULT           );
+		SAE(sym, 'LOWMEM'    , gc_level.LOWMEM            );
 	symtbl_popNamespace(sym);
 }
 
@@ -7888,7 +7897,7 @@ interface context_st {
 	failed: boolean;
 	async: boolean;
 
-	gc_level: string;
+	gc_level: gc_level;
 }
 
 function lxs_get(ctx: context_st, args: val[], next: lxs_st | null): lxs_st {
@@ -7973,7 +7982,7 @@ function context_new(prg: program_st, io: io_st): context_st {
 		passed: false,
 		failed: false,
 		async: false,
-		gc_level: 'default'
+		gc_level: gc_level.DEFAULT
 	};
 	// if not a REPL, then natives can be built now
 	if (!prg.repl){
@@ -12214,8 +12223,9 @@ function context_run(ctx: context_st): run | Promise<run> {
 			case op_enum.GC_SETLEVEL    : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				if (!isstr(X) || (X !== 'none' && X !== 'default' && X !== 'lowmem'))
-					return opi_abort(ctx, 'Expecting one of \'none\', \'default\', or \'lowmem\'');
+				if (!isnum(X) ||
+					(X !== gc_level.NONE && X !== gc_level.DEFAULT && X !== gc_level.LOWMEM))
+					return opi_abort(ctx, 'Expecting one of gc.NONE, gc.DEFAULT, or gc.LOWMEM');
 				ctx.gc_level = X;
 				var_set(ctx, A, B, NIL);
 			} break;
@@ -13726,12 +13736,10 @@ export function list_joinplain(vals: list | val[], sep: string): val {
 }
 
 // gc
-export function gc_getlevel(ctx: ctx): string {
+export function gc_getlevel(ctx: ctx): gc_level {
 	return (ctx as context_st).gc_level;
 }
 
-export function gc_setlevel(ctx: ctx, level: string): void {
-	if (level !== 'default' && level !== 'lowmem' && level !== 'none')
-		throw new Error('Bad GC level: ' + level);
+export function gc_setlevel(ctx: ctx, level: gc_level): void {
 	(ctx as context_st).gc_level = level;
 }

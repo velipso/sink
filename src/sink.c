@@ -5931,6 +5931,9 @@ static inline void symtbl_loadStdlib(symtbl sym){
 		SAC(sym, "getlevel"  , OP_GC_GETLEVEL    ,  0);
 		SAC(sym, "setlevel"  , OP_GC_SETLEVEL    ,  1);
 		SAC(sym, "run"       , OP_GC_RUN         ,  0);
+		SAE(sym, "NONE"      , SINK_GC_NONE          );
+		SAE(sym, "DEFAULT"   , SINK_GC_DEFAULT       );
+		SAE(sym, "LOWMEM"    , SINK_GC_LOWMEM        );
 	symtbl_popNamespace(sym);
 }
 
@@ -14326,21 +14329,14 @@ static sink_run context_run(context ctx){
 			case OP_GC_SETLEVEL    : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				if (!sink_isstr(X))
-					return opi_abortcstr(ctx, "Expecting one of 'none', 'default', or 'lowmem'");
-				str = var_caststr(ctx, X);
-				if (strcmp((const char *)str->bytes, "none") == 0)
-					ctx->gc_level = SINK_GC_NONE;
-				else if (strcmp((const char *)str->bytes, "default") == 0){
-					ctx->gc_level = SINK_GC_DEFAULT;
+				if (!sink_isnum(X))
+					return opi_abortcstr(ctx, "Expecting one of gc.NONE, gc.DEFAULT, or gc.LOWMEM");
+				J = (int)X.f;
+				if (J != SINK_GC_NONE && J != SINK_GC_DEFAULT && J != SINK_GC_LOWMEM)
+					return opi_abortcstr(ctx, "Expecting one of gc.NONE, gc.DEFAULT, or gc.LOWMEM");
+				ctx->gc_level = J;
+				if (ctx->gc_level != SINK_GC_NONE)
 					context_gcleft(ctx, false);
-				}
-				else if (strcmp((const char *)str->bytes, "lowmem") == 0){
-					ctx->gc_level = SINK_GC_LOWMEM;
-					context_gcleft(ctx, false);
-				}
-				else
-					return opi_abortcstr(ctx, "Expecting one of 'none', 'default', or 'lowmem'");
 				var_set(ctx, A, B, SINK_NIL);
 			} break;
 

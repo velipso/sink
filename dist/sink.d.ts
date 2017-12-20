@@ -22,6 +22,11 @@ export declare enum fstype {
     FILE = 1,
     DIR = 2,
 }
+export declare enum gc_level {
+    NONE = 0,
+    DEFAULT = 1,
+    LOWMEM = 2,
+}
 export declare type output_f = (ctx: ctx, str: str, iouser: any) => void | Promise<void>;
 export declare type input_f = (ctx: ctx, str: str, iouser: any) => val | Promise<val>;
 export declare type native_f = (ctx: ctx, args: val[], natuser: any) => val | Promise<val>;
@@ -227,5 +232,5 @@ export declare function list_hasuser(ctx: ctx, ls: list, usertype: user): boolea
 export declare function list_getuser(ctx: ctx, ls: list, usertype: user): any;
 export declare function list_cat(ctx: ctx, vals: val[]): val;
 export declare function list_joinplain(vals: list | val[], sep: string): val;
-export declare function gc_getlevel(ctx: ctx): string;
-export declare function gc_setlevel(ctx: ctx, level: string): void;
+export declare function gc_getlevel(ctx: ctx): gc_level;
+export declare function gc_setlevel(ctx: ctx, level: gc_level): void;
