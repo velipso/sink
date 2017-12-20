@@ -42,14 +42,25 @@ var sink = require('./sink');
 Or the browser via [RequireJS](http://requirejs.org/):
 
 ```html
-<head>
-  <script src="require.js"></script>
-</head>
-<body>
-  <script>
-  requirejs(['sink'], function(sink){
-  	... your code here ...
-  });
-  </script>
-</body>
+<script src="require.js"></script>
+<script>
+requirejs(['sink'], function(sink){
+  ... your code here ...
+});
+</script>
 ```
+
+API Layout
+==========
+
+The API is in four basic sections:
+
+1. Script API (loading a program into memory, compiling if necessary)
+2. Context API (executing a program)
+3. Sink Commands API (executing commands from the [standard library](https://github.com/voidqk/sink/blob/master/docs/lib.md))
+4. Helper Functions (things to make your life a little easier)
+
+Script API
+----------
+
+TODO
