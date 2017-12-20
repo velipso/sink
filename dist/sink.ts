@@ -107,21 +107,6 @@ export function sink_typeof(v: val): type {
 	else if (islist(v)) return type.LIST;
 	else                return type.NUM;
 }
-export function castnum(v: val): number {
-	if (!isnum(v))
-		throw new Error('Cannot cast non-number to number.');
-	return v;
-}
-export function caststr(str: val): string {
-	if (!isstr(str))
-		throw new Error('Cannot cast non-string to string.');
-	return str;
-}
-export function castlist(ls: val): list {
-	if (!islist(ls))
-		throw new Error('Cannot cast non-list to list.');
-	return ls;
-}
 
 export function nil(): val { return NIL; }
 

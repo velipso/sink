@@ -109,24 +109,6 @@ var __extends = (this && this.__extends) || (function () {
             return type.NUM;
     }
     exports.sink_typeof = sink_typeof;
-    function castnum(v) {
-        if (!isnum(v))
-            throw new Error('Cannot cast non-number to number.');
-        return v;
-    }
-    exports.castnum = castnum;
-    function caststr(str) {
-        if (!isstr(str))
-            throw new Error('Cannot cast non-string to string.');
-        return str;
-    }
-    exports.caststr = caststr;
-    function castlist(ls) {
-        if (!islist(ls))
-            throw new Error('Cannot cast non-list to list.');
-        return ls;
-    }
-    exports.castlist = castlist;
     function nil() { return exports.NIL; }
     exports.nil = nil;
     function num(v) { return v; }
