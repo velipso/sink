@@ -11248,7 +11248,7 @@ static inline sink_val opi_combop(context ctx, int size, sink_val *vals, binary_
 			sink_list ls = var_castlist(ctx, vals[i]);
 			if (ls->size > listsize)
 				listsize = ls->size;
-			for (int j = 0; j < size; j++){
+			for (int j = 0; j < ls->size; j++){
 				if (!sink_isnum(ls->vals[j]))
 					goto badtype;
 			}

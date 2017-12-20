@@ -125,37 +125,42 @@ function main_repl(scr: sink.scr, argv: string[]): Promise<boolean> {
 				line++;
 				rl.close();
 				let buf = ans + '\n';
-				if (!sink.scr_write(scr, buf))
-					printscrerr(scr);
-				if (sink.scr_level(scr) <= 0){
-					checkPromise<sink.run, void>(
-						sink.ctx_run(ctx),
-						function(res: sink.run): void {
-							switch (res){
-								case sink.run.PASS:
-									resolve(true);
-									return;
-								case sink.run.FAIL:
-									printctxerr(ctx);
-									break;
-								case sink.run.ASYNC:
-									console.error('REPL invoked async function');
-									resolve(false);
-									return;
-								case sink.run.TIMEOUT:
-									console.error('REPL returned timeout (impossible)');
-									resolve(false);
-									return;
-								case sink.run.REPLMORE:
-									// do nothing
-									break;
-							}
-							nextLine();
+				checkPromise<boolean, void>(
+					sink.scr_write(scr, buf),
+					function(written: boolean){
+						if (!written)
+							printscrerr(scr);
+						if (sink.scr_level(scr) <= 0){
+							checkPromise<sink.run, void>(
+								sink.ctx_run(ctx),
+								function(res: sink.run): void {
+									switch (res){
+										case sink.run.PASS:
+											resolve(true);
+											return;
+										case sink.run.FAIL:
+											printctxerr(ctx);
+											break;
+										case sink.run.ASYNC:
+											console.error('REPL invoked async function');
+											resolve(false);
+											return;
+										case sink.run.TIMEOUT:
+											console.error('REPL returned timeout (impossible)');
+											resolve(false);
+											return;
+										case sink.run.REPLMORE:
+											// do nothing
+											break;
+									}
+									nextLine();
+								}
+							);
 						}
-					);
-				}
-				else
-					nextLine();
+						else
+							nextLine();
+					}
+				);
 			});
 		}
 	});

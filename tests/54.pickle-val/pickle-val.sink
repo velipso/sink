@@ -2,10 +2,11 @@ def JB a
 	var j = pickle.json a
 	var b = pickle.bin a
 	if (order (pickle.val j), a) != 0
-		say a
+		say "JSON isn't equal: '$a' != '${pickle.val j}'"
 		say 'fail'
 	end
 	if (order (pickle.val b), a) != 0
+		say "BIN isn't equal: '$a' != '${pickle.val b}'"
 		say 'fail'
 	end
 end

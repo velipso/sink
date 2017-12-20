@@ -890,6 +890,10 @@ interface filepos_st {
 
 const FILEPOS_NULL: filepos_st = { basefile: -1, fullfile: -1, line: -1, chr: -1 };
 
+function filepos_copy(flp: filepos_st): filepos_st {
+	return { fullfile: flp.fullfile, basefile: flp.basefile, line: flp.line, chr: flp.chr };
+}
+
 enum tok_enum {
 	NEWLINE,
 	KS,
@@ -1189,11 +1193,91 @@ function numpart_new(info?: numpart_info): numpart_info {
 	return info;
 }
 
+// strangely, in JavaScript (at least in node v6.9.1), Math.pow doesn't always return the exact same
+// results as typing in the number directly...
+//
+// node:
+//   > 1e100
+//   1e+100
+//   > Math.pow(10, 100)
+//   1.0000000000000002e+100
+//
+// so I created a table of hardcoded powers of 10, both the positive and negative
+//
+// tables stop at their respective values due to manually testing the limits:
+//
+// node:
+//   > 1e308
+//   1e+308
+//   > 1e309
+//   Infinity
+//   > 1e-323
+//   1e-323
+//   > 1e-324
+//   0
+const powp10 = [ 1, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9, 1e10, 1e11, 1e12, 1e13, 1e14, 1e15,
+	1e16, 1e17, 1e18, 1e19, 1e20, 1e21, 1e22, 1e23, 1e24, 1e25, 1e26, 1e27, 1e28, 1e29, 1e30, 1e31,
+	1e32, 1e33, 1e34, 1e35, 1e36, 1e37, 1e38, 1e39, 1e40, 1e41, 1e42, 1e43, 1e44, 1e45, 1e46, 1e47,
+	1e48, 1e49, 1e50, 1e51, 1e52, 1e53, 1e54, 1e55, 1e56, 1e57, 1e58, 1e59, 1e60, 1e61, 1e62, 1e63,
+	1e64, 1e65, 1e66, 1e67, 1e68, 1e69, 1e70, 1e71, 1e72, 1e73, 1e74, 1e75, 1e76, 1e77, 1e78, 1e79,
+	1e80, 1e81, 1e82, 1e83, 1e84, 1e85, 1e86, 1e87, 1e88, 1e89, 1e90, 1e91, 1e92, 1e93, 1e94, 1e95,
+	1e96, 1e97, 1e98, 1e99, 1e100, 1e101, 1e102, 1e103, 1e104, 1e105, 1e106, 1e107, 1e108, 1e109,
+	1e110, 1e111, 1e112, 1e113, 1e114, 1e115, 1e116, 1e117, 1e118, 1e119, 1e120, 1e121, 1e122,
+	1e123, 1e124, 1e125, 1e126, 1e127, 1e128, 1e129, 1e130, 1e131, 1e132, 1e133, 1e134, 1e135,
+	1e136, 1e137, 1e138, 1e139, 1e140, 1e141, 1e142, 1e143, 1e144, 1e145, 1e146, 1e147, 1e148,
+	1e149, 1e150, 1e151, 1e152, 1e153, 1e154, 1e155, 1e156, 1e157, 1e158, 1e159, 1e160, 1e161,
+	1e162, 1e163, 1e164, 1e165, 1e166, 1e167, 1e168, 1e169, 1e170, 1e171, 1e172, 1e173, 1e174,
+	1e175, 1e176, 1e177, 1e178, 1e179, 1e180, 1e181, 1e182, 1e183, 1e184, 1e185, 1e186, 1e187,
+	1e188, 1e189, 1e190, 1e191, 1e192, 1e193, 1e194, 1e195, 1e196, 1e197, 1e198, 1e199, 1e200,
+	1e201, 1e202, 1e203, 1e204, 1e205, 1e206, 1e207, 1e208, 1e209, 1e210, 1e211, 1e212, 1e213,
+	1e214, 1e215, 1e216, 1e217, 1e218, 1e219, 1e220, 1e221, 1e222, 1e223, 1e224, 1e225, 1e226,
+	1e227, 1e228, 1e229, 1e230, 1e231, 1e232, 1e233, 1e234, 1e235, 1e236, 1e237, 1e238, 1e239,
+	1e240, 1e241, 1e242, 1e243, 1e244, 1e245, 1e246, 1e247, 1e248, 1e249, 1e250, 1e251, 1e252,
+	1e253, 1e254, 1e255, 1e256, 1e257, 1e258, 1e259, 1e260, 1e261, 1e262, 1e263, 1e264, 1e265,
+	1e266, 1e267, 1e268, 1e269, 1e270, 1e271, 1e272, 1e273, 1e274, 1e275, 1e276, 1e277, 1e278,
+	1e279, 1e280, 1e281, 1e282, 1e283, 1e284, 1e285, 1e286, 1e287, 1e288, 1e289, 1e290, 1e291,
+	1e292, 1e293, 1e294, 1e295, 1e296, 1e297, 1e298, 1e299, 1e300, 1e301, 1e302, 1e303, 1e304,
+	1e305, 1e306, 1e307, 1e308
+];
+const pown10 = [ 1, 1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9, 1e-10, 1e-11, 1e-12,
+	1e-13, 1e-14, 1e-15, 1e-16, 1e-17, 1e-18, 1e-19, 1e-20, 1e-21, 1e-22, 1e-23, 1e-24, 1e-25,
+	1e-26, 1e-27, 1e-28, 1e-29, 1e-30, 1e-31, 1e-32, 1e-33, 1e-34, 1e-35, 1e-36, 1e-37, 1e-38,
+	1e-39, 1e-40, 1e-41, 1e-42, 1e-43, 1e-44, 1e-45, 1e-46, 1e-47, 1e-48, 1e-49, 1e-50, 1e-51,
+	1e-52, 1e-53, 1e-54, 1e-55, 1e-56, 1e-57, 1e-58, 1e-59, 1e-60, 1e-61, 1e-62, 1e-63, 1e-64,
+	1e-65, 1e-66, 1e-67, 1e-68, 1e-69, 1e-70, 1e-71, 1e-72, 1e-73, 1e-74, 1e-75, 1e-76, 1e-77,
+	1e-78, 1e-79, 1e-80, 1e-81, 1e-82, 1e-83, 1e-84, 1e-85, 1e-86, 1e-87, 1e-88, 1e-89, 1e-90,
+	1e-91, 1e-92, 1e-93, 1e-94, 1e-95, 1e-96, 1e-97, 1e-98, 1e-99, 1e-100, 1e-101, 1e-102, 1e-103,
+	1e-104, 1e-105, 1e-106, 1e-107, 1e-108, 1e-109, 1e-110, 1e-111, 1e-112, 1e-113, 1e-114, 1e-115,
+	1e-116, 1e-117, 1e-118, 1e-119, 1e-120, 1e-121, 1e-122, 1e-123, 1e-124, 1e-125, 1e-126, 1e-127,
+	1e-128, 1e-129, 1e-130, 1e-131, 1e-132, 1e-133, 1e-134, 1e-135, 1e-136, 1e-137, 1e-138, 1e-139,
+	1e-140, 1e-141, 1e-142, 1e-143, 1e-144, 1e-145, 1e-146, 1e-147, 1e-148, 1e-149, 1e-150, 1e-151,
+	1e-152, 1e-153, 1e-154, 1e-155, 1e-156, 1e-157, 1e-158, 1e-159, 1e-160, 1e-161, 1e-162, 1e-163,
+	1e-164, 1e-165, 1e-166, 1e-167, 1e-168, 1e-169, 1e-170, 1e-171, 1e-172, 1e-173, 1e-174, 1e-175,
+	1e-176, 1e-177, 1e-178, 1e-179, 1e-180, 1e-181, 1e-182, 1e-183, 1e-184, 1e-185, 1e-186, 1e-187,
+	1e-188, 1e-189, 1e-190, 1e-191, 1e-192, 1e-193, 1e-194, 1e-195, 1e-196, 1e-197, 1e-198, 1e-199,
+	1e-200, 1e-201, 1e-202, 1e-203, 1e-204, 1e-205, 1e-206, 1e-207, 1e-208, 1e-209, 1e-210, 1e-211,
+	1e-212, 1e-213, 1e-214, 1e-215, 1e-216, 1e-217, 1e-218, 1e-219, 1e-220, 1e-221, 1e-222, 1e-223,
+	1e-224, 1e-225, 1e-226, 1e-227, 1e-228, 1e-229, 1e-230, 1e-231, 1e-232, 1e-233, 1e-234, 1e-235,
+	1e-236, 1e-237, 1e-238, 1e-239, 1e-240, 1e-241, 1e-242, 1e-243, 1e-244, 1e-245, 1e-246, 1e-247,
+	1e-248, 1e-249, 1e-250, 1e-251, 1e-252, 1e-253, 1e-254, 1e-255, 1e-256, 1e-257, 1e-258, 1e-259,
+	1e-260, 1e-261, 1e-262, 1e-263, 1e-264, 1e-265, 1e-266, 1e-267, 1e-268, 1e-269, 1e-270, 1e-271,
+	1e-272, 1e-273, 1e-274, 1e-275, 1e-276, 1e-277, 1e-278, 1e-279, 1e-280, 1e-281, 1e-282, 1e-283,
+	1e-284, 1e-285, 1e-286, 1e-287, 1e-288, 1e-289, 1e-290, 1e-291, 1e-292, 1e-293, 1e-294, 1e-295,
+	1e-296, 1e-297, 1e-298, 1e-299, 1e-300, 1e-301, 1e-302, 1e-303, 1e-304, 1e-305, 1e-306, 1e-307,
+	1e-308, 1e-309, 1e-310, 1e-311, 1e-312, 1e-313, 1e-314, 1e-315, 1e-316, 1e-317, 1e-318, 1e-319,
+	1e-320, 1e-321, 1e-322, 1e-323
+];
+
 function numpart_calc(info: numpart_info): number {
 	let val = info.val;
 	let e = 1;
 	if (info.eval > 0){
-		e = Math.pow(info.base === 10 ? 10.0 : 2.0, info.esign * info.eval);
+		if (info.base == 10 && info.esign > 0 && info.eval < powp10.length)
+			e = powp10[info.eval];
+		else if (info.base == 10 && info.esign < 0 && info.eval < pown10.length)
+			e = pown10[info.eval];
+		else
+			e = Math.pow(info.base == 10 ? 10 : 2, info.esign * info.eval);
 		val *= e;
 	}
 	if (info.flen > 0){
@@ -4210,10 +4294,8 @@ function symtbl_findNamespace(sym: symtbl_st, names: string[], max: number): sfn
 			let nsn = ns.names[i];
 			if (nsn.name === name){
 				if (nsn.type !== nsname_enumt.NAMESPACE){
-					if (!sym.repl){
-						console.trace('here');
+					if (!sym.repl)
 						return sfn_error('Not a namespace: "' + nsn.name + '"');
-					}
 					nsn = ns.names[i] = nsname_namespace(nsn.name, namespace_new(ns.fr));
 				}
 				if (nsn.type !== nsname_enumt.NAMESPACE)
@@ -5980,66 +6062,71 @@ function program_evalCall(pgen: pgen_st, mode: pem_enum, intoVlc: varloc_st, flp
 		p.push(VARLOC_NULL);
 	let argcount: number[] = [0];
 	let pe: per_st[] = [per_ok(VARLOC_NULL)];
-	if (!program_evalCallArgcount(pgen, params, argcount, pe, p))
-		return pe[0];
+	return checkPromise<boolean, per_st>(
+		program_evalCallArgcount(pgen, params, argcount, pe, p),
+		function(evc: boolean): per_st {
+			if (!evc)
+				return pe[0];
 
-	program_flp(prg, flp);
-	let oarg = true;
-	if (nsn.type === nsname_enumt.CMD_LOCAL)
-		label_call(nsn.lbl, prg.ops, intoVlc, argcount[0]);
-	else if (nsn.type === nsname_enumt.CMD_NATIVE){
-		// search for the hash
-		let index = 0;
-		let found = false;
-		for ( ; index < prg.keyTable.length; index++){
-			if (u64_equ(prg.keyTable[index], nsn.hash)){
-				found = true;
-				break;
+			program_flp(prg, flp);
+			let oarg = true;
+			if (nsn.type === nsname_enumt.CMD_LOCAL)
+				label_call(nsn.lbl, prg.ops, intoVlc, argcount[0]);
+			else if (nsn.type === nsname_enumt.CMD_NATIVE){
+				// search for the hash
+				let index = 0;
+				let found = false;
+				for ( ; index < prg.keyTable.length; index++){
+					if (u64_equ(prg.keyTable[index], nsn.hash)){
+						found = true;
+						break;
+					}
+				}
+				if (!found){
+					if (prg.keyTable.length >= 0x7FFFFFFF) // using too many native calls?
+						return per_error(flp, 'Too many native commands');
+					index = prg.keyTable.length;
+					prg.keyTable.push(nsn.hash);
+				}
+				op_native(prg.ops, intoVlc, index, argcount[0]);
 			}
-		}
-		if (!found){
-			if (prg.keyTable.length >= 0x7FFFFFFF) // using too many native calls?
-				return per_error(flp, 'Too many native commands');
-			index = prg.keyTable.length;
-			prg.keyTable.push(nsn.hash);
-		}
-		op_native(prg.ops, intoVlc, index, argcount[0]);
-	}
-	else{ // nsname_enumt.CMD_OPCODE
-		if (nsn.params < 0)
-			op_parama(prg.ops, nsn.opcode, intoVlc, argcount[0]);
-		else{
-			oarg = false;
-			if (nsn.params > argcount[0]){
-				let ts = symtbl_addTemp(sym);
-				if (!ts.ok)
-					return per_error(flp, ts.msg);
-				p[argcount[0] + 0] = p[argcount[0] + 1] = p[argcount[0] + 2] = ts.vlc;
-				op_nil(prg.ops, p[argcount[0]]);
-				argcount[0]++;
+			else{ // nsname_enumt.CMD_OPCODE
+				if (nsn.params < 0)
+					op_parama(prg.ops, nsn.opcode, intoVlc, argcount[0]);
+				else{
+					oarg = false;
+					if (nsn.params > argcount[0]){
+						let ts = symtbl_addTemp(sym);
+						if (!ts.ok)
+							return per_error(flp, ts.msg);
+						p[argcount[0] + 0] = p[argcount[0] + 1] = p[argcount[0] + 2] = ts.vlc;
+						op_nil(prg.ops, p[argcount[0]]);
+						argcount[0]++;
+					}
+					if (nsn.params === 0)
+						op_param0(prg.ops, nsn.opcode, intoVlc);
+					else if (nsn.params === 1)
+						op_param1(prg.ops, nsn.opcode, intoVlc, p[0]);
+					else if (nsn.params === 2)
+						op_param2(prg.ops, nsn.opcode, intoVlc, p[0], p[1]);
+					else // nsn.params === 3
+						op_param3(prg.ops, nsn.opcode, intoVlc, p[0], p[1], p[2]);
+				}
 			}
-			if (nsn.params === 0)
-				op_param0(prg.ops, nsn.opcode, intoVlc);
-			else if (nsn.params === 1)
-				op_param1(prg.ops, nsn.opcode, intoVlc, p[0]);
-			else if (nsn.params === 2)
-				op_param2(prg.ops, nsn.opcode, intoVlc, p[0], p[1]);
-			else // nsn.params === 3
-				op_param3(prg.ops, nsn.opcode, intoVlc, p[0], p[1], p[2]);
+
+			for (let i = 0; i < argcount[0]; i++){
+				if (oarg)
+					op_arg(prg.ops, p[i]);
+				symtbl_clearTemp(sym, p[i]);
+			}
+
+			if (mode === pem_enum.EMPTY){
+				symtbl_clearTemp(sym, intoVlc);
+				return per_ok(VARLOC_NULL);
+			}
+			return per_ok(intoVlc);
 		}
-	}
-
-	for (let i = 0; i < argcount[0]; i++){
-		if (oarg)
-			op_arg(prg.ops, p[i]);
-		symtbl_clearTemp(sym, p[i]);
-	}
-
-	if (mode === pem_enum.EMPTY){
-		symtbl_clearTemp(sym, intoVlc);
-		return per_ok(VARLOC_NULL);
-	}
-	return per_ok(intoVlc);
+	);
 }
 
 function program_lvalCheckNil(pgen: pgen_st, lv: lvr_st, jumpFalse: boolean, inverted: boolean,
@@ -8241,7 +8328,7 @@ export function str_replace(ctx: ctx, a: val, b: val, c: val): val {
 }
 
 export function str_find(ctx: ctx, a: val, b: val, c: val): val {
-	let hx: number;
+	let hx = 0;
 	if (isnil(c))
 		hx = 0;
 	else if (isnum(c))
@@ -8258,15 +8345,16 @@ export function str_find(ctx: ctx, a: val, b: val, c: val): val {
 	let needle = tostr(b);
 	if (needle.length <= 0)
 		return 0;
-
-	let pos = haystack.indexOf(needle);
+	if (hx < 0)
+		hx += haystack.length;
+	let pos = haystack.indexOf(needle, hx);
 	if (pos >= 0)
 		return pos;
 	return NIL;
 }
 
 export function str_rfind(ctx: ctx, a: val, b: val, c: val): val {
-	let hx: number;
+	let hx = 0;
 	if (isnum(c))
 		hx = c;
 	else if (!isnil(c)){
@@ -8279,14 +8367,13 @@ export function str_rfind(ctx: ctx, a: val, b: val, c: val): val {
 	}
 	let haystack = tostr(a);
 	let needle = tostr(b);
-
 	if (needle.length <= 0)
 		return haystack.length;
-
 	if (isnil(c))
 		hx = haystack.length - needle.length;
-
-	let pos = haystack.lastIndexOf(needle);
+	if (hx < 0)
+		hx += haystack.length;
+	let pos = haystack.lastIndexOf(needle, hx);
 	if (pos >= 0)
 		return pos;
 	return NIL;
@@ -8318,16 +8405,17 @@ export function str_pad(ctx: ctx, a: val, b: number): val {
 		return NIL;
 	}
 	let s = tostr(a);
+	b |= 0;
 	if (b < 0){ // left pad
 		b = -b;
 		if (s.length >= b)
 			return s;
-		return (new Array(b + 1)).join(' ') + s;
+		return (new Array(b - s.length + 1)).join(' ') + s;
 	}
 	else{ // right pad
 		if (s.length >= b)
 			return s;
-		return s + (new Array(b + 1)).join(' ');
+		return s + (new Array(b - s.length + 1)).join(' ');
 	}
 }
 
@@ -9095,16 +9183,20 @@ let unop_int_clz = (Math as any).clz32 as (a: val) => val;
 
 function unop_int_pop(a: val): val {
 	let n = (a as number) | 0;
-	n = ((n & 0xAAAAAAAA) >>  1) + (n & 0x55555555);
-	n = ((n & 0xCCCCCCCC) >>  2) + (n & 0x33333333);
-	n = ((n & 0xF0F0F0F0) >>  4) + (n & 0x0F0F0F0F);
-	n = ((n & 0xFF00FF00) >>  8) + (n & 0x00FF00FF);
-	return ((n & 0xFFFF0000) >> 16) + (n & 0x0000FFFF);
+	n = (n & 0x55555555) + ((n >>  1) & 0x55555555);
+	n = (n & 0x33333333) + ((n >>  2) & 0x33333333);
+	n = (n & 0x0F0F0F0F) + ((n >>  4) & 0x0F0F0F0F);
+	n = (n & 0x00FF00FF) + ((n >>  8) & 0x00FF00FF);
+	n = (n & 0x0000FFFF) + ((n >> 16) & 0x0000FFFF);
+	return n;
 }
 
 function unop_int_bswap(a: val): val {
 	let n = (a as number) | 0;
-	return (n >> 24) | ((n >> 8) & 0xFF00) | ((n << 8) & 0xFF0000) | (n << 24);
+	n = (n >>> 24) | ((n >>> 8) & 0xFF00) | ((n << 8) & 0xFF0000) | (n << 24);
+	if (n < 0)
+		n += 0x100000000;
+	return n;
 }
 
 function binop_int_and(a: val, b: val): val {
@@ -9337,7 +9429,7 @@ function opi_combop(ctx: ctx, vals: val[], f_binary: binary_f, erop: string): va
 		if (islist(ls)){
 			if (ls.length > listsize)
 				listsize = ls.length;
-			for (let j = 0; j < vals.length; j++){
+			for (let j = 0; j < ls.length; j++){
 				if (!isnum(ls[j]))
 					return opi_abort(ctx, 'Expecting number or list of numbers when ' + erop);
 			}
@@ -9986,7 +10078,7 @@ function pk_tojson(a: val, li: val[]): strnil {
 				else if (a === '\n') return '\\n';
 				else if (a === '\r') return '\\r';
 				else if (a === '\t') return '\\t';
-				let s = a.charCodeAt(0).toString(16);
+				let s = a.charCodeAt(0).toString(16).toUpperCase();
 				if (s.length <= 1)
 					s = '0' + s;
 				return '\\u00' + s;
@@ -10022,10 +10114,10 @@ function pk_tobin_vint(body: number[], i: number): void {
 		body.push(i);
 	else{
 		body.push(
-			0x80 | (i >> 24),
-			(i >> 16) & 0xFF,
-			(i >>  8) & 0xFF,
-			 i        & 0xFF);
+			0x80 | (i >>> 24),
+			(i >>> 16) & 0xFF,
+			(i >>>  8) & 0xFF,
+			 i         & 0xFF);
 	}
 }
 
@@ -10042,22 +10134,22 @@ function pk_tobin(a: val, li: val[], strs: string[], body: number[]): void {
 				}
 				else if (num >= -65536){
 					num += 65536;
-					body.push(0xF3, num & 0xFF, num >> 8);
+					body.push(0xF3, num & 0xFF, num >>> 8);
 				}
 				else{
 					num += 4294967296;
-					body.push(0xF5, num & 0xFF, (num >> 8) & 0xFF,
-						(num >> 16) & 0xFF, (num >> 24) & 0xFF);
+					body.push(0xF5, num & 0xFF, (num >>> 8) & 0xFF,
+						(num >>> 16) & 0xFF, (num >>> 24) & 0xFF);
 				}
 			}
 			else{
 				if (num < 256)
 					body.push(0xF0, num & 0xFF);
 				else if (num < 65536)
-					body.push(0xF2, num & 0xFF, num >> 8);
+					body.push(0xF2, num & 0xFF, num >>> 8);
 				else{
-					body.push(0xF4, num & 0xFF, (num >> 8) & 0xFF,
-						(num >> 16) & 0xFF, (num >> 24) & 0xFF);
+					body.push(0xF4, num & 0xFF, (num >>> 8) & 0xFF,
+						(num >>> 16) & 0xFF, (num >>> 24) & 0xFF);
 				}
 			}
 		}
@@ -10438,7 +10530,7 @@ export function pickle_val(ctx: ctx, a: val): val {
 
 function pk_isbin_adv(sp: pk_strpos, amt: number): boolean {
 	sp.pos += amt;
-	return sp.pos < sp.s.length;
+	return sp.pos <= sp.s.length;
 }
 
 function pk_isbin(sp: pk_strpos, index: [number], str_table_size: number): boolean {
@@ -12471,7 +12563,7 @@ function compiler_write(cmp: compiler_st, bytes: string): strnil | Promise<strni
 	let flpn = cmp.flpn;
 	for (let i = 0; i < bytes.length; i++){
 		let b = bytes.charAt(i);
-		lex_add(flpn.lx, flpn.flp, b, flpn.tks);
+		lex_add(flpn.lx, filepos_copy(flpn.flp), b, flpn.tks);
 		if (b === '\n'){
 			if (!flpn.wascr){
 				flpn.flp.line++;
