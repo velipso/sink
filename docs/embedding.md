@@ -100,9 +100,61 @@ function sink.scr_new(inc: sink.inc_st, curdir: string | null, repl: boolean): s
 
 An object that provides functions for the compiler to read files from the filesystem.
 
+When a script uses `include` or `embed`, the compiler will query these functions (using the search
+path) to figure out how to resolve to the correct file, and read the file.
+
+```c
+typedef enum {
+  SINK_FSTYPE_NONE,
+  SINK_FSTYPE_FILE,
+  SINK_FSTYPE_DIR
+} sink_fstype;
+
+typedef sink_fstype (*sink_fstype_f)(const char *file, void *incuser);
+typedef bool (*sink_fsread_f)(sink_scr scr, const char *file, void *incuser);
+
+typedef struct {
+  sink_fstype_f f_fstype;
+  sink_fsread_f f_fsread;
+  void *user;
+} sink_inc_st;
+```
+
+```typescript
+enum sink.fstype {
+  NONE,
+  FILE,
+  DIR
+}
+
+type sink.fstype_f = (file: string, incuser: any) => sink.fstype | Promise<sink.fstype>;
+type sink.fsread_f = (scr: sink.scr, file: string, incuser: any) => boolean | Promise<boolean>;
+
+interface sink.inc_st {
+  f_fstype: sink.fstype_f;
+  f_fsread: sink.fsread_f;
+  user?: any;
+}
+```
+
+The `f_fstype` function should query the filesystem, and return one of the results: `NONE` for a
+file that doesn't exist, `FILE` for a file, and `DIR` for a directory.
+
+The `f_fsread` function should attempt to open the provided file, and write it to the Script object
+using [`scr_write`](#scr_write).  It should return `true` if the file was read successfully, and
+`false` if the file failed to be read.
+
+Please see [cmd.c](https://github.com/voidqk/sink/blob/master/src/cmd.c) or
+[cmd.ts](https://github.com/voidqk/sink/blob/master/src/cmd.ts) for example implementations of these
+functions.  Note that the TypeScript/JavaScript version must deal with Promises correctly, and can
+return a Promise if the operations are asynchronous.
+
 #### `curdir`
 
 The current directory (or `null`/`NULL`).
+
+This is used when a script includes or embeds a relative path, in order to construct an aboslute
+path.
 
 #### `repl`
 
