@@ -4,7 +4,7 @@ Crash Course
 Sink is a minimal programming language specifically designed to be embedded in larger programs,
 similar in spirit to Lua (but more simple).
 
-It has JavaScript and C99 implementations, which compile and execute the same source code with
+It has TypeScript and C99 implementations, which compile and execute the same source code with
 exactly the same results.  Sink can also be compiled to bytecode.
 
 The API allows the host environment to define native commands, and includes support for a REPL,

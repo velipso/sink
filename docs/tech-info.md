@@ -29,7 +29,7 @@ C99 implementation:
 * Easy to build, just two files: `sink.h` and `sink.c`
 * Asynchronous commands via special value `SINK_ASYNC`
 
-JavaScript implementation:
+TypeScript implementation:
 
 * Values are stored as JavaScript values `null`, numbers, strings, and arrays
 * Relies on the native JavaScript garbage collector

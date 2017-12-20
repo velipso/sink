@@ -2,7 +2,7 @@
 sink
 ====
 
-Minimal programming language for embedding small scripts in larger programs, with JavaScript and C99
+Minimal programming language for embedding small scripts in larger programs, with TypeScript and C99
 implementations.
 
 **Note: Development in progress, use at your own risk**

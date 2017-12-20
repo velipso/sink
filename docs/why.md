@@ -39,14 +39,14 @@ Surely someone could make a lot of complaints about sink too.  No language is pe
 
 But sink was created to scratch my particular itch.
 
-### Need JavaScript + C99 Implementation
+### Need TypeScript + C99 Implementation
 
 Embedding languages typically think of JavaScript as an afterthought, perhaps accomplished via
 Emscripten or a third-party port.
 
-Having a JavaScript implementation is really nice because I can build web applications that use the
-same language, with the same standard library.  That means I can create cross-platform tools for
-creating resources for my games.
+Having a JavaScript implementation, via TypeScript, is really nice because I can build web
+applications that use the same language, with the same standard library.  That means I can create
+cross-platform tools for creating resources for my games.
 
 ### Compile-Time Symbol Table
 
