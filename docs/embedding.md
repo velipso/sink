@@ -55,10 +55,12 @@ API Layout
 
 The API is in four basic sections:
 
-1. Script API (loading a program into memory, compiling if necessary)
-2. Context API (executing a program)
-3. Sink Commands API (executing commands from the [standard library](https://github.com/voidqk/sink/blob/master/docs/lib.md))
-4. Helper Functions (things to make your life a little easier)
+| Section                     | Description                                           |
+|-----------------------------|-------------------------------------------------------|
+| [Script API](#script-api)   | Loading a program into memory, compiling if necessary |
+| [Context API](#context-api) | Executing a program, pausing/resuming execution       |
+| [Sink Commands API](#sink-commands-api) | Executing commands from the [standard library](https://github.com/voidqk/sink/blob/master/docs/lib.md) inside a context |
+| [Helper Functions](#helper-functions) | Things to make your life a little easier    |
 
 Script API
 ----------
