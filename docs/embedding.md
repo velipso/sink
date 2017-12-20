@@ -1,5 +1,10 @@
 
-General Guide to Embedding
+Guide to Embedding
+==================
+
+(in progress... TODO)
+
+Grabbing the Correct Files
 ==========================
 
 Embedding starts with dropping in the correct files:
@@ -50,8 +55,14 @@ requirejs(['sink'], function(sink){
 </script>
 ```
 
-API Layout
-==========
+API
+===
+
+The API is very similar across the implementations.  The TypeScript API will be access via
+`sink.some_function`, whereas the C99 API is `sink_some_function`.  See the appropriate header files
+([`sink.h`](https://github.com/voidqk/sink/blob/master/src/sink.h) and
+[`sink.d.ts`](https://github.com/voidqk/sink/blob/master/dist/sink.d.ts)) for the exact
+declarations.
 
 The API is in four basic sections:
 
