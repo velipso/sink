@@ -65,6 +65,23 @@ The API is in four basic sections:
 Script API
 ----------
 
+| Functions                       |
+|---------------------------------|
+| [`scr_new`](#scr_new)           |
+| [`scr_new`](#scr_new)           |
+| [`scr_addpath`](#scr_addpath)   |
+| [`scr_incbody`](#scr_incbody)   |
+| [`scr_incfile`](#scr_incfile)   |
+| [`scr_getfile`](#scr_getfile)   |
+| [`scr_getcwd`](#scr_getcwd)     |
+| [`scr_geterr`](#scr_geterr)     |
+| [`scr_cleanup`](#scr_cleanup)   |
+| [`scr_loadfile`](#scr_loadfile) |
+| [`scr_write`](#scr_write)       |
+| [`scr_level`](#scr_level)       |
+| [`scr_dump`](#scr_dump)         |
+| [`scr_free`](#scr_free)         |
+
 The Script API is used for loading a program into memory.  It can load a script and compile it into
 bytecode, or load bytecode directly.  It does not *execute* any code.
 
