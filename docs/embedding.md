@@ -160,6 +160,8 @@ Please see [cmd.c](https://github.com/voidqk/sink/blob/master/src/cmd.c) or
 functions.  Note that the TypeScript/JavaScript version must deal with Promises correctly, and can
 return a Promise if the operations are asynchronous.
 
+The `user` field is passed through to the `incuser` argument in the functions, at your discretion.
+
 #### `curdir`
 
 The current directory (or `null`/`NULL`).
@@ -169,7 +171,7 @@ path.
 
 #### `repl`
 
-Flag indicating whether the script is a [REPL](https://en.wikipedia.org/wiki/Read%E2%80%93eval%E2%80%93print_loop)
+Flag indicating whether the script is a [REPL](https://en.wikipedia.org/wiki/Read%E2%80%93eval%E2%80%93print_loop).
 
 REPL scripts have slightly different rules during compilation, centered around allowing the user to
 re-define symbols.
