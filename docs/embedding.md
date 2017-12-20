@@ -65,22 +65,21 @@ The API is in four basic sections:
 Script API
 ----------
 
-| Functions                       |
-|---------------------------------|
-| [`scr_new`](#scr_new)           |
-| [`scr_new`](#scr_new)           |
-| [`scr_addpath`](#scr_addpath)   |
-| [`scr_incbody`](#scr_incbody)   |
-| [`scr_incfile`](#scr_incfile)   |
-| [`scr_getfile`](#scr_getfile)   |
-| [`scr_getcwd`](#scr_getcwd)     |
-| [`scr_geterr`](#scr_geterr)     |
-| [`scr_cleanup`](#scr_cleanup)   |
-| [`scr_loadfile`](#scr_loadfile) |
-| [`scr_write`](#scr_write)       |
-| [`scr_level`](#scr_level)       |
-| [`scr_dump`](#scr_dump)         |
-| [`scr_free`](#scr_free)         |
+| Functions                       | Description                                               |
+|---------------------------------|-----------------------------------------------------------|
+| [`scr_new`](#scr_new)           | Create a new Script object                                |
+| [`scr_addpath`](#scr_addpath)   | Add a search path for including/embedding files           |
+| [`scr_incbody`](#scr_incbody)   | Provide a string to be included for a special filename    |
+| [`scr_incfile`](#scr_incfile)   | Provide a file to be included for a special filename      |
+| [`scr_getfile`](#scr_getfile)   | Get the fully resolved filename of the script             |
+| [`scr_getcwd`](#scr_getcwd)     | Get the current working directory of the script           |
+| [`scr_geterr`](#scr_geterr)     | Get any error message associated with the script          |
+| [`scr_cleanup`](#scr_cleanup)   | Add user-defined objects to be freed when Script is freed |
+| [`scr_loadfile`](#scr_loadfile) | Load a file through the include system                    |
+| [`scr_write`](#scr_write)       | Write file contents into the Script object                |
+| [`scr_level`](#scr_level)       | Get the level of nesting for REPLs                        |
+| [`scr_dump`](#scr_dump)         | Dump the compiled bytecode                                |
+| [`scr_free`](#scr_free)         | Free a Script object                                      |
 
 The Script API is used for loading a program into memory.  It can load a script and compile it into
 bytecode, or load bytecode directly.  It does not *execute* any code.
