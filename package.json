@@ -1,10 +1,10 @@
 {
   "name": "sink",
-  "version": "0.0.1",
+  "version": "0.1",
   "description": "Minimalistic programming language for embedding small scripts in larger programs",
   "main": "./dist/sink/sink.js",
   "bin": {
-    "sink": "./dist/sink/cmd.js"
+    "sink": "./dist/sink/driver.js"
   },
   "repository": {
     "type": "git",
