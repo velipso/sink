@@ -11,6 +11,7 @@ SRC_DIR=$SCRIPT_DIR/src
 TGT_DIR=$SCRIPT_DIR/tgt
 DIST_DIR=$TGT_DIR/dist
 TESTS_DIR=$SCRIPT_DIR/tests
+LIB_DIR=$SCRIPT_DIR/lib
 DIST_DIR=$SCRIPT_DIR/dist
 
 BUILD_TS=0
@@ -70,6 +71,7 @@ case "$1" in
 		echo Publishing builds to ./dist
 		rm -rf "$DIST_DIR"
 		mkdir -p "$DIST_DIR"
+		cp "$LIB_DIR/require.js" "$DIST_DIR"
 		cp "$SRC_DIR/cmd.ts" "$DIST_DIR"
 		cp "$SRC_DIR/repl.html" "$DIST_DIR"
 		cp "$SRC_DIR/sink.ts" "$DIST_DIR"

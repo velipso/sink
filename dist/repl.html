@@ -2,24 +2,7 @@
 <html lang="en">
 <head>
 	<title>Sink REPL</title>
-	<script>
-// provide a dummy `define` function, which is usually provided by RequireJS, but we only have one
-// file so who cares
-function define(deps, factory){
-	window.sink = {};
-	factory(null, window.sink);
-}
-define.amd = true;
-	</script>
-	<script src="sink.js"></script>
-	<script>
-function define(deps, factory){
-	window.sink_shell = {};
-	factory(null, window.sink_shell);
-}
-define.amd = true;
-	</script>
-	<script src="sink_shell.js"></script>
+	<script src="require.js"></script>
 	<style>
 html, body {
 	padding: 0;
@@ -33,6 +16,7 @@ html, body {
 <body>
 	<canvas id="cnv" width="1" height="1" tabindex="0"></canvas>
 	<script>
+requirejs(['sink', 'sink_shell'], function(sink, sink_shell){
 
 var cnv = document.getElementById('cnv');
 var ctx = cnv.getContext('2d');
@@ -234,6 +218,8 @@ function readLine(){
 	redraw();
 }
 readLine();
+
+}); // end requirejs
 	</script>
 </body>
 </html>
