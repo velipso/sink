@@ -145,6 +145,8 @@ const char *sink_scr_getfile(sink_scr scr);
 const char *sink_scr_getcwd(sink_scr scr);
 const char *sink_scr_geterr(sink_scr scr);
 void        sink_scr_cleanup(sink_scr scr, void *cuser, sink_free_f f_free);
+void        sink_scr_setuser(sink_scr scr, void *user, sink_free_f f_free);
+void *      sink_scr_getuser(sink_scr scr);
 bool        sink_scr_loadfile(sink_scr scr, const char *file);
 bool        sink_scr_write(sink_scr scr, int size, const uint8_t *bytes);
 int         sink_scr_level(sink_scr scr);

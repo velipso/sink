@@ -76,6 +76,9 @@ The API is in four basic sections:
 Script API
 ==========
 
+The Script API is used for loading a program into memory.  It can load a script and compile it into
+bytecode, or load bytecode directly.  It does not *execute* any code.
+
 | Functions                       | Description                                               |
 |---------------------------------|-----------------------------------------------------------|
 | [`scr_new`](#scr_new)           | Create a new Script object                                |
@@ -86,14 +89,13 @@ Script API
 | [`scr_getcwd`](#scr_getcwd)     | Get the current working directory of the script           |
 | [`scr_geterr`](#scr_geterr)     | Get any error message associated with the script          |
 | [`scr_cleanup`](#scr_cleanup)   | Add user-defined objects to be freed when Script is freed |
+| [`scr_setuser`](#scr_setuser)   | Set a user-defined value associated with the Script       |
+| [`scr_getuser`](#scr_getuser)   | Get a previously set user-defined value                   |
 | [`scr_loadfile`](#scr_loadfile) | Load a file through the include system                    |
 | [`scr_write`](#scr_write)       | Write file contents into the Script object                |
 | [`scr_level`](#scr_level)       | Get the level of nesting for REPLs                        |
 | [`scr_dump`](#scr_dump)         | Dump the compiled bytecode                                |
 | [`scr_free`](#scr_free)         | Free a Script object                                      |
-
-The Script API is used for loading a program into memory.  It can load a script and compile it into
-bytecode, or load bytecode directly.  It does not *execute* any code.
 
 scr_new
 -------
@@ -375,6 +377,16 @@ The pointer to be freed when the Script object is freed.
 
 The function used to free `cuser`.
 
+scr_setuser
+-----------
+
+TODO
+
+scr_getuser
+-----------
+
+TODO
+
 scr_loadfile
 ------------
 
@@ -538,3 +550,29 @@ the Script object before freeing the Script object itself.
 ### `scr`
 
 The Script object.
+
+Context API
+===========
+
+The Context API is used for executing a Script.  It controls how and when to run the bytecode on the
+virtual machine.
+
+| Functions                               | Description                                           |
+|-----------------------------------------|-------------------------------------------------------|
+| [`ctx_new`](#ctx_new)                   | Create a new Context object                           |
+| [`ctx_getstatus`](#ctx_getstatus)       | Get the status of the Context's virtual machine       |
+| [`ctx_geterr`](#ctx_geterr)             | Get any error message associated with the run-time    |
+| [`ctx_native`](#ctx_native)             | Add a native command using a string                   |
+| [`ctx_nativehash`](#ctx_nativehash)     | Add a native command using a 64-bit hash              |
+| [`ctx_cleanup`](#ctx_cleanup)           | Add user-defined objects to be freed when Context is freed |
+| [`ctx_setuser`](#ctx_setuser)           | Set a user-defined value associated with the Context  |
+| [`ctx_getuser`](#ctx_getuser)           | Get a previously set user-defined value               |
+| [`ctx_addusertype`](#ctx_addusertype)   | Add a new usertype, for use with list's user data     |
+| [`ctx_getuserfree`](#ctx_getuserfree)   | Get a usertype's free function                        |
+| [`ctx_getuserhint`](#ctx_getuserhint)   | Get a usertype's hint string                          |
+| [`ctx_asyncresult`](#ctx_asyncresult)   | Provide a result to an asynchronous operation         |
+| [`ctx_settimeout`](#ctx_settimeout)     | Set a timeout so the machine pauses itself            |
+| [`ctx_gettimeout`](#ctx_gettimeout)     | Get the current timeout value                         |
+| [`ctx_forcetimeout`](#ctx_forcetimeout) | Force a timeout to occur immediately                  |
+| [`ctx_run`](#ctx_run)                   | Run the virtual machine                               |
+| [`ctx_free`](#ctx_free)                 | Free a Context object                                 |

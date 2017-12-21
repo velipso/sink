@@ -5978,6 +5978,8 @@ typedef struct {
 typedef struct compiler_struct compiler_st, *compiler;
 typedef struct staticinc_struct staticinc_st, *staticinc;
 typedef struct {
+	void *user;
+	sink_free_f f_freeuser;
 	program prg;
 	compiler cmp;
 	staticinc sinc;
@@ -14749,6 +14751,8 @@ sink_scr sink_scr_new(sink_inc_st inc, const char *curdir, bool repl){
 	if (curdir != NULL && curdir[0] != '/')
 		fprintf(stderr, "Warning: sink current directory \"%s\" is not an absolute path\n", curdir);
 	script sc = mem_alloc(sizeof(script_st));
+	sc->user = NULL;
+	sc->f_freeuser = NULL;
 	sc->prg = program_new(repl);
 	sc->cmp = NULL;
 	sc->sinc = staticinc_new();
@@ -14796,6 +14800,18 @@ void sink_scr_incfile(sink_scr scr, const char *name, const char *file){
 
 void sink_scr_cleanup(sink_scr scr, void *cuser, sink_free_f f_free){
 	cleanup_add(((script)scr)->cup, cuser, f_free);
+}
+
+void sink_scr_setuser(sink_scr scr, void *user, sink_free_f f_freeuser){
+	script scr2 = scr;
+	if (scr2->f_freeuser)
+		scr2->f_freeuser(scr2->user);
+	scr2->user = user;
+	scr2->f_freeuser = f_freeuser;
+}
+
+void *sink_scr_getuser(sink_scr scr){
+	return ((script)scr)->user;
 }
 
 static bool sfr_begin(const char *file, script sc){

@@ -82,6 +82,8 @@ export declare function num_tau(): number;
 export declare function user_new(ctx: ctx, usertype: user, user: any): val;
 export declare function isuser(ctx: ctx, v: val, usertype: user): [boolean, any];
 export declare let seedauto_src: () => number;
+export declare function scr_setuser(scr: scr, user: any): void;
+export declare function scr_getuser(scr: scr): any;
 export declare function rand_seedauto(ctx: ctx): void;
 export declare function rand_seed(ctx: ctx, n: number): void;
 export declare function rand_int(ctx: ctx): number;

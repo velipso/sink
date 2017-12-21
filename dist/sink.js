@@ -4010,6 +4010,14 @@ var __extends = (this && this.__extends) || (function () {
         scriptmode_enum[scriptmode_enum["BINARY"] = 1] = "BINARY";
         scriptmode_enum[scriptmode_enum["TEXT"] = 2] = "TEXT";
     })(scriptmode_enum || (scriptmode_enum = {}));
+    function scr_setuser(scr, user) {
+        scr.user = user;
+    }
+    exports.scr_setuser = scr_setuser;
+    function scr_getuser(scr) {
+        return scr.user;
+    }
+    exports.scr_getuser = scr_getuser;
     function pathjoin(prev, next) {
         var p = (prev + '/' + next).split('/');
         var ret = [];
@@ -11097,6 +11105,7 @@ var __extends = (this && this.__extends) || (function () {
         if (curdir !== null && curdir.charAt(0) !== '/')
             console.warn('Warning: sink current directory "' + curdir + '" is not an absolute path');
         var sc = {
+            user: null,
             prg: program_new(repl),
             cmp: null,
             sinc: staticinc_new(),

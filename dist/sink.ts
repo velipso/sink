@@ -4785,6 +4785,15 @@ interface script_st {
 	err: strnil;
 	mode: scriptmode_enum;
 	binstate: binstate_st;
+	user: any;
+}
+
+export function scr_setuser(scr: scr, user: any): void {
+	(scr as script_st).user = user;
+}
+
+export function scr_getuser(scr: scr): any {
+	return (scr as script_st).user;
 }
 
 //
@@ -12619,6 +12628,7 @@ export function scr_new(inc: inc_st, curdir: strnil, repl: boolean): scr {
 	if (curdir !== null && curdir.charAt(0) !== '/')
 		console.warn('Warning: sink current directory "' + curdir + '" is not an absolute path');
 	let sc: script_st = {
+		user: null,
 		prg: program_new(repl),
 		cmp: null,
 		sinc: staticinc_new(),
