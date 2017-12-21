@@ -485,7 +485,7 @@ scr_dump
 Output the compiled bytecode using the supplied `f_dump` function.
 
 ```c
-typedef size_t (*sink_dump_f)(const void *restrict ptr, size_t size, size_t nitems,
+typedef size_t (*sink_dump_f)(const void *restrict dumpuser, size_t size, size_t nitems,
   void *restrict user);
 
 void sink_scr_dump(sink_scr scr, bool debug, void *user, sink_dump_f f_dump);
@@ -510,7 +510,7 @@ of the bytecode, and exposes filenames and line numbers to the end-user.
 
 ### `user`
 
-User-supplied value that is passed directly to `f_dump`.
+User-supplied value that is passed directly to `f_dump` as parameter `dumpuser`.
 
 ### `f_dump`
 
