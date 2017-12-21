@@ -74,7 +74,7 @@ The API is in four basic sections:
 | [Helper Functions](#helper-functions) | Things to make your life a little easier    |
 
 Script API
-----------
+==========
 
 | Functions                       | Description                                               |
 |---------------------------------|-----------------------------------------------------------|
@@ -95,7 +95,8 @@ Script API
 The Script API is used for loading a program into memory.  It can load a script and compile it into
 bytecode, or load bytecode directly.  It does not *execute* any code.
 
-### scr_new
+scr_new
+-------
 
 Create a new Script object.
 
@@ -107,7 +108,7 @@ sink_scr sink_scr_new(sink_inc_st inc, const char *curdir, bool repl);
 function sink.scr_new(inc: sink.inc_st, curdir: string | null, repl: boolean): sink.scr;
 ```
 
-#### `inc`
+### `inc`
 
 An object that provides functions for the compiler to read files from the filesystem.
 
@@ -162,14 +163,14 @@ return a Promise if the operations are asynchronous.
 
 The `user` field is passed through to the `incuser` argument in the functions, at your discretion.
 
-#### `curdir`
+### `curdir`
 
 The current directory (or `null`/`NULL`).
 
 This is used when a script includes or embeds a relative path, in order to construct an aboslute
 path.
 
-#### `repl`
+### `repl`
 
 Flag indicating whether the script is a [REPL](https://en.wikipedia.org/wiki/Read%E2%80%93eval%E2%80%93print_loop).
 
