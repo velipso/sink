@@ -6020,7 +6020,18 @@ static void pathjoin_apply(char *res, int *r, int len, const char *buf, bool pos
 		}
 		return;
 	}
-	res[(*r)++] = posix ? '/' : '\\';
+	if (posix)
+		res[(*r)++] = '/';
+	else{
+		if (*r) // if in middle of windows path
+			res[(*r)++] = '\\'; // just join with backslash
+		else if (len < 2 || buf[1] != ':'){ // otherwise, if we're starting a \\host path
+			// add the initial double backslashes
+			res[(*r)++] = '\\';
+			res[(*r)++] = '\\';
+		}
+		// otherwise, we're starting a drive path, so don't prefix the drive with anything
+	}
 	for (int i = 0; i < len; i++)
 		res[(*r)++] = buf[i];
 }
