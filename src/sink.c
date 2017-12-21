@@ -11,9 +11,8 @@
 #	include <strings.h>  // ffsll
 #	define BITSCAN_FFSLL
 #else
-#	error Unknown platform
-	// if windows, looks like you'll want:
-	// _BitScanForward64 from intrin.h
+#	include <intrin.h>
+#	define BITSCAN_WIN
 #endif
 
 #ifdef SINK_DEBUG
@@ -8976,13 +8975,17 @@ static inline int bmp_alloc(uint64_t *bmp, int count){
 			continue;
 		}
 
-	#ifdef BITSCAN_FFSLL
+	#if defined(BITSCAN_FFSLL)
 		int pos = ffsll(~*bmp) - 1;
-		*bmp |= UINT64_C(1) << pos;
-		return loop * 64 + pos;
+	#elif defined(BITSCAN_WIN)
+		unsigned long pos;
+		_BitScanForward64(&pos, ~*bmp);
 	#else
 	#	error Don't know how to implement bmp_alloc
 	#endif
+
+		*bmp |= UINT64_C(1) << pos;
+		return loop * 64 + pos;
 
 	}
 	return -1;
@@ -10948,8 +10951,12 @@ static sink_val unop_int_not(context ctx, sink_val a){
 }
 
 static sink_val unop_int_clz(context ctx, sink_val a){
-	#ifdef BITSCAN_FFSLL
+	#if defined(BITSCAN_FFSLL)
 		return sink_num(32 - fls(toint(a)));
+	#elif defined(BITSCAN_WIN)
+		unsigned long pos;
+		_BitScanReverse64(&pos, toint(a));
+		return sink_num(pos);
 	#else
 	#	error Don't know how to implement bmp_alloc
 	#endif
