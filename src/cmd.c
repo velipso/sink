@@ -74,6 +74,10 @@ static inline void catchint(){
 
 #include <sys/stat.h>
 
+#if !defined(S_ISDIR)
+#	define S_ISDIR(st_mode) (st_mode & S_IFDIR)
+#endif
+
 static bool isdir(const char *dir){
 	struct stat buf;
 	if (stat(dir, &buf) != 0)
