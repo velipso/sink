@@ -378,7 +378,8 @@ The function used to free `cuser`.
 scr_loadfile
 ------------
 
-Load the script's file from the include filesystem.
+Load the script's file from the include filesystem.  Returns `true` if the file was loaded without
+error, or `false` if there was an error.  The error is accessible via [`scr_geterr`](#scr_geterr).
 
 ```c
 bool sink_scr_loadfile(sink_scr scr, const char *file);
@@ -392,8 +393,10 @@ A script can be loaded directly via [`scr_write`](#scr_write), but the compiler 
 filename information.  Instead, using `scr_loadfile` will kick off loading the data using the
 include system, so that any errors are correctly identified as coming from the source file.
 
-This will query for the file using [`fstype`](#inc), and load the file using [`fsread`](#inc), which
-should call `scr_write`.
+This will query for the file using [`f_fstype`](#inc), and load the file using [`f_fsread`](#inc),
+which should call `scr_write`.
+
+Note that the TypeScript/JavaScript version must deal with the possibility of receiving a Promise.
 
 ### `scr`
 
@@ -402,3 +405,135 @@ The Script object.
 ### `file`
 
 The file to load using the include system.
+
+scr_write
+---------
+
+Write the contents of a file or buffer into the Script object.  This is how all data is loaded into
+the Script.  Returns `true` if the data was processed without error, or `false` if a compile-time
+error occurred.  The error can be retrieved via [`scr_geterr`](#scr_geterr).
+
+```c
+bool sink_scr_write(sink_scr scr, int size, const uint8_t *bytes);
+```
+
+```typescript
+function scr_write(scr: sink.scr, bytes: string): boolean | Promise<boolean>;
+```
+
+Loading source code into the Script object is done with `scr_write`.  The function can be called
+directly after creating a Script object, or it can be called indirectly through
+[`scr_loadfile`](#scr_loadfile) -- which will eventually call [`f_fsread`](#inc) which should call
+`scr_write` to write the data.
+
+Note that the TypeScript/JavaScript version must deal with the possibility of receiving a Promise.
+
+### `scr`
+
+The Script object.
+
+### `size`
+
+The size of the `bytes` array (C only).
+
+### `bytes`
+
+The raw bytes to load.  Note: in TypeScript/JavaScript, the string is interpretted as
+[`'binary'` encoding](https://nodejs.org/api/buffer.html#buffer_buffers_and_character_encodings).
+
+scr_level
+---------
+
+Returns the current nesting level for a REPL.  A value of `0` indicates no nesting.
+
+```c
+int sink_scr_level(sink_scr scr);
+```
+
+```typescript
+function sink.scr_level(scr: sink.scr): number;
+```
+
+When typing in a series of lines in a REPL, the nesting level is how many indentations should be
+shown in the prompt.  For example, a session might look like this:
+
+```
+ 1: if rand.num < 0.5     # nesting level 0
+ 2... for var v: range 5  # nesting level 1
+ 3..... say v + 100       # nesting level 2
+ 4..... end               # nesting level 2
+ 5... end                 # nesting level 1
+100
+101
+102
+103
+104
+ 6:                       # nesting level 0
+ ```
+
+The nesting level determines how many periods to draw to indent the line, and when the nesting
+level hits `0`, it's known that a full statement has been entered, so the context is ran to catch
+up to what's been entered.
+
+### `scr`
+
+The Script object.
+
+scr_dump
+--------
+
+Output the compiled bytecode using the supplied `f_dump` function.
+
+```c
+typedef size_t (*sink_dump_f)(const void *restrict ptr, size_t size, size_t nitems,
+  void *restrict user);
+
+void sink_scr_dump(sink_scr scr, bool debug, void *user, sink_dump_f f_dump);
+```
+
+```typescript
+type dump_f = (data: string, dumpuser: any) => void;
+
+function scr_dump(scr: sink.scr, debug: boolean, user: any, f_dump: sink.dump_f): void;
+```
+
+### `scr`
+
+The Script object.
+
+### `debug`
+
+Output debug information.
+
+Debug information allows for stacktraces to be populated for run-time errors, but increases the size
+of the bytecode, and exposes filenames and line numbers to the end-user.
+
+### `user`
+
+User-supplied value that is passed directly to `f_dump`.
+
+### `f_dump`
+
+The function called to dump the bytecode.
+
+Note that this function has the same signature as `fwrite` in the C implementation, so that the
+file pointer can be passed in as `user`, and `fwrite` can be passed in as `f_dump`, for convenience.
+
+The TypeScript implementation is passed string `data` in
+[`'binary'` encoding](https://nodejs.org/api/buffer.html#buffer_buffers_and_character_encodings).
+
+scr_free
+--------
+
+Free the Script object (C only).
+
+```c
+void sink_scr_free(sink_scr scr);
+```
+
+Note this will also free any [`scr_cleanup`](#scr_cleanup) pointers that have been associated with
+the Script object before freeing the Script object itself.
+
+### `scr`
+
+The Script object.
