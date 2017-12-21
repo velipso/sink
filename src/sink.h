@@ -137,7 +137,7 @@ static const uint64_t SINK_TAG_LIST =        UINT64_C(0x7FF0000400000000);
 static const uint64_t SINK_TAG_MASK =        UINT64_C(0xFFFFFFFF80000000);
 static const uint64_t SINK_NAN_MASK =        UINT64_C(0x7FF8000000000000);
 
-sink_scr    sink_scr_new(sink_inc_st inc, const char *curdir, bool repl);
+sink_scr    sink_scr_new(sink_inc_st inc, const char *curdir, const char *pathsep, bool repl);
 void        sink_scr_addpath(sink_scr scr, const char *path);
 void        sink_scr_incbody(sink_scr scr, const char *name, const char *body);
 void        sink_scr_incfile(sink_scr scr, const char *name, const char *file);

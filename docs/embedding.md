@@ -103,11 +103,12 @@ scr_new
 Create a new Script object.
 
 ```c
-sink_scr sink_scr_new(sink_inc_st inc, const char *curdir, bool repl);
+sink_scr sink_scr_new(sink_inc_st inc, const char *curdir, const char *pathsep, bool repl);
 ```
 
 ```typescript
-function sink.scr_new(inc: sink.inc_st, curdir: string | null, repl: boolean): sink.scr;
+function sink.scr_new(inc: sink.inc_st, curdir: string | null, pathsep: string, repl: boolean):
+  sink.scr;
 ```
 
 ### `inc`
@@ -172,6 +173,12 @@ The current working directory (or `null`/`NULL`).
 
 This is used when a script includes or embeds a relative path, in order to construct an aboslute
 path.
+
+### `pathsep`
+
+A string of characters that are valid path seperators.  For POSIX and Mac file systems, this should
+just be `"/"`.  In Windows file systems, this should be `"\\/"`.  The first character will be used
+for joining paths, and all characters will be used for splitting paths.
 
 ### `repl`
 

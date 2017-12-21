@@ -4781,6 +4781,7 @@ interface script_st {
 	inc: inc_st;
 	capture_write: strnil;
 	curdir: strnil;
+	pathsep: string;
 	file: strnil;
 	err: strnil;
 	mode: scriptmode_enum;
@@ -4800,8 +4801,13 @@ export function scr_getuser(scr: scr): any {
 // pathjoin
 //
 
-function pathjoin(prev: string, next: string): string {
-	let p = (prev + '/' + next).split('/');
+function pathjoin(prev: string, next: string, pathsep: string): string {
+	var rx = '';
+	for (let i = 0; i < pathsep.length; i++){
+		let hex = ('00' + pathsep.charCodeAt(i).toString(16)).substr(-2);
+		rx += (i == 0 ? '' : '|') + '\\x' + hex;
+	}
+	let p = (prev + pathsep.charAt(0) + next).split(new RegExp(rx, 'g'));
 	let ret = [];
 	for (let i = 0; i < p.length; i++){
 		if ((i !== 0 && p[i] === '') || p[i] === '.')
@@ -4811,7 +4817,7 @@ function pathjoin(prev: string, next: string): string {
 		else
 			ret.push(p[i]);
 	}
-	return ret.join('/');
+	return ret.join(pathsep.charAt(0));
 }
 
 //
@@ -4849,7 +4855,8 @@ function fileres_try(scr: script_st, postfix: boolean, file: string,
 					if (!postfix)
 						return false;
 					// try looking for index.sink inside the directory
-					return fileres_try(scr, false, pathjoin(file, 'index.sink'), f_begin, f_end, fuser);
+					return fileres_try(scr, false, pathjoin(file, 'index.sink', scr.pathsep),
+						f_begin, f_end, fuser);
 			}
 			throw new Error('Bad file type');
 		}
@@ -4873,11 +4880,11 @@ function fileres_read(scr: script_st, postfix: boolean, file: string, cwd: strni
 		let path = paths[i];
 		let join: string;
 		if (path.charAt(0) === '/') // search path is absolute
-			join = pathjoin(path, file);
+			join = pathjoin(path, file, scr.pathsep);
 		else{ // search path is relative
 			if (cwd === null)
 				return nextPath(i + 1);
-			join = pathjoin(pathjoin(cwd, path), file);
+			join = pathjoin(pathjoin(cwd, path, scr.pathsep), file, scr.pathsep);
 		}
 		return checkPromise<boolean, boolean>(
 			fileres_try(scr, postfix, join, f_begin, f_end, fuser),
@@ -6003,7 +6010,7 @@ function program_evalCall(pgen: pgen_st, mode: pem_enum, intoVlc: varloc_st, flp
 			pe: per_ok(VARLOC_NULL)
 		};
 		if (pgen.from >= 0)
-			cwd = pathjoin(script_getfile(pgen.scr, pgen.from) as string, '..');
+			cwd = pathjoin(script_getfile(pgen.scr, pgen.from) as string, '..', pgen.scr.pathsep);
 		let fstr = file.str;
 		return checkPromise<boolean, per_st>(
 			fileres_read(pgen.scr, false, fstr, cwd, embed_begin, embed_end, efu),
@@ -12430,7 +12437,7 @@ function compiler_dynamicinc(cmp: compiler_st, names: string[] | true | null, fi
 	let cfu = { cmp: cmp, names: names };
 	let cwd: strnil = null;
 	if (from)
-		cwd = pathjoin(from, '..');
+		cwd = pathjoin(from, '..', cmp.scr.pathsep);
 	return fileres_read(cmp.scr, true, file, cwd, compiler_begininc_cfu, compiler_endinc_cfu, cfu);
 }
 
@@ -12624,9 +12631,7 @@ function compiler_close(cmp: compiler_st): strnil | Promise<strnil> {
 // script API
 //
 
-export function scr_new(inc: inc_st, curdir: strnil, repl: boolean): scr {
-	if (curdir !== null && curdir.charAt(0) !== '/')
-		console.warn('Warning: sink current directory "' + curdir + '" is not an absolute path');
+export function scr_new(inc: inc_st, curdir: strnil, pathsep: string, repl: boolean): scr {
 	let sc: script_st = {
 		user: null,
 		prg: program_new(repl),
@@ -12637,6 +12642,7 @@ export function scr_new(inc: inc_st, curdir: strnil, repl: boolean): scr {
 		inc: inc,
 		capture_write: null,
 		curdir: curdir,
+		pathsep: pathsep,
 		file: null,
 		err: null,
 		mode: scriptmode_enum.UNKNOWN,

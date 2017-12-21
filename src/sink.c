@@ -5988,6 +5988,7 @@ typedef struct {
 	sink_inc_st inc;
 	list_byte capture_write;
 	char *curdir;
+	char *pathsep;
 	char *file;
 	char *err;
 	enum {
@@ -6002,42 +6003,52 @@ typedef struct {
 // pathjoin
 //
 
-static void pathjoin_apply(char *res, int *r, int len, const char *buf){
+static inline bool issep(char ch, const char *pathsep){
+	int i = 0;
+	while (pathsep[i]){
+		if (pathsep[i] == ch)
+			return true;
+		i++;
+	}
+	return false;
+}
+
+static void pathjoin_apply(char *res, int *r, int len, const char *buf, const char *pathsep){
 	if (len <= 0 || (len == 1 && buf[0] == '.'))
 		return;
 	if (len == 2 && buf[0] == '.' && buf[1] == '.'){
 		for (int i = *r - 1; i >= 0; i--){
-			if (res[i] == '/'){
+			if (issep(res[i], pathsep)){
 				*r = i;
 				return;
 			}
 		}
 		return;
 	}
-	res[(*r)++] = '/';
+	res[(*r)++] = pathsep[0];
 	for (int i = 0; i < len; i++)
 		res[(*r)++] = buf[i];
 }
 
-static void pathjoin_helper(char *res, int *r, int len, const char *buf){
+static void pathjoin_helper(char *res, int *r, int len, const char *buf, const char *pathsep){
 	for (int i = 0; i < len; i++){
-		if (buf[i] == '/')
+		if (issep(buf[i], pathsep))
 			continue;
 		int start = i;
-		while (i < len && buf[i] != '/')
+		while (i < len && !issep(buf[i], pathsep))
 			i++;
-		pathjoin_apply(res, r, i - start, &buf[start]);
+		pathjoin_apply(res, r, i - start, &buf[start], pathsep);
 	}
 }
 
-static char *pathjoin(const char *prev, const char *next){
+static char *pathjoin(const char *prev, const char *next, const char *pathsep){
 	int prev_len = (int)strlen(prev);
 	int next_len = (int)strlen(next);
 	int len = prev_len + next_len + 2;
 	char *res = mem_alloc(sizeof(char) * len);
 	int r = 0;
-	pathjoin_helper(res, &r, prev_len, prev);
-	pathjoin_helper(res, &r, next_len, next);
+	pathjoin_helper(res, &r, prev_len, prev, pathsep);
+	pathjoin_helper(res, &r, next_len, next, pathsep);
 	res[r++] = 0;
 	return res;
 }
@@ -6084,7 +6095,7 @@ static bool fileres_try(script scr, bool postfix, const char *file,
 			if (!postfix)
 				break;
 			// try looking for index.sink inside the directory
-			char *join = pathjoin(file, "index.sink");
+			char *join = pathjoin(file, "index.sink", scr->pathsep);
 			result = fileres_try(scr, false, join, f_begin, f_end, fuser);
 			mem_free(join);
 		} break;
@@ -6105,12 +6116,12 @@ static bool fileres_read(script scr, bool postfix, const char *file, const char 
 		char *path = paths->ptrs[i];
 		char *join;
 		if (path[0] == '/') // search path is absolute
-			join = pathjoin(path, file);
+			join = pathjoin(path, file, scr->pathsep);
 		else{ // search path is relative
 			if (cwd == NULL)
 				continue;
-			char *tmp = pathjoin(cwd, path);
-			join = pathjoin(tmp, file);
+			char *tmp = pathjoin(cwd, path, scr->pathsep);
+			join = pathjoin(tmp, file, scr->pathsep);
 			mem_free(tmp);
 		}
 		bool found = fileres_try(scr, postfix, join, f_begin, f_end, fuser);
@@ -7217,7 +7228,7 @@ static per_st program_evalCall(pgen_st pgen, pem_enum mode, varloc_st intoVlc,
 			.flp = flp
 		};
 		if (pgen.from >= 0)
-			cwd = pathjoin(script_getfile(pgen.scr, pgen.from), "..");
+			cwd = pathjoin(script_getfile(pgen.scr, pgen.from), "..", pgen.scr->pathsep);
 		list_byte fstr = file->u.str;
 		list_byte_null(fstr);
 		bool res = fileres_read(pgen.scr, false, (const char *)fstr->bytes, cwd,
@@ -14561,7 +14572,7 @@ static bool compiler_dynamicinc(compiler cmp, list_ptr names, const char *file, 
 	cfu.names = names;
 	char *cwd = NULL;
 	if (from)
-		cwd = pathjoin(from, "..");
+		cwd = pathjoin(from, "..", cmp->scr->pathsep);
 	bool res = fileres_read(cmp->scr, true, file, cwd,
 		(f_fileres_begin_f)compiler_begininc_cfu, (f_fileres_end_f)compiler_endinc_cfu, &cfu);
 	if (cwd)
@@ -14754,9 +14765,7 @@ static void compiler_free(compiler cmp){
 // script API
 //
 
-sink_scr sink_scr_new(sink_inc_st inc, const char *curdir, bool repl){
-	if (curdir != NULL && curdir[0] != '/')
-		fprintf(stderr, "Warning: sink current directory \"%s\" is not an absolute path\n", curdir);
+sink_scr sink_scr_new(sink_inc_st inc, const char *curdir, const char *pathsep, bool repl){
 	script sc = mem_alloc(sizeof(script_st));
 	sc->user = NULL;
 	sc->f_freeuser = NULL;
@@ -14769,6 +14778,7 @@ sink_scr sink_scr_new(sink_inc_st inc, const char *curdir, bool repl){
 	sc->inc = inc;
 	sc->capture_write = NULL;
 	sc->curdir = curdir ? format("%s", curdir) : NULL;
+	sc->pathsep = format("%s", pathsep);
 	sc->file = NULL;
 	sc->err = NULL;
 	sc->mode = SCM_UNKNOWN;
@@ -15340,6 +15350,7 @@ void sink_scr_free(sink_scr scr){
 		list_byte_free(sc->capture_write);
 	if (sc->curdir)
 		mem_free(sc->curdir);
+	mem_free(sc->pathsep);
 	if (sc->file)
 		mem_free(sc->file);
 	if (sc->err)
