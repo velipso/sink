@@ -87,8 +87,8 @@ typedef sink_val (*sink_input_f)(sink_ctx ctx, sink_str str, void *iouser);
 typedef sink_val (*sink_native_f)(sink_ctx ctx, int size, sink_val *args, void *natuser);
 typedef sink_fstype (*sink_fstype_f)(const char *file, void *incuser);
 typedef bool (*sink_fsread_f)(sink_scr scr, const char *file, void *incuser);
-typedef size_t (*sink_dump_f)(const void *restrict dumpuser, size_t size, size_t nitems,
-	void *restrict user);
+typedef size_t (*sink_dump_f)(const void *restrict ptr, size_t size, size_t nitems,
+	void *restrict dumpuser);
 
 typedef struct {
 	sink_output_f f_say;
