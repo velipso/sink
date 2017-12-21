@@ -924,10 +924,43 @@ function sink.ctx_getuser(ctx: sink.ctx): any;
 
 The Context object.
 
+ctx_addusertype
+---------------
+
+Add a new user type to be associated with hidden data attached to lists.
+
+```c
+typedef int sink_user;
+typedef void (*sink_free_f)(void *ptr);
+
+sink_user sink_ctx_addusertype(sink_ctx ctx, const char *hint, sink_free_f f_free);
+```
+
+```typescript
+type sink.user = number;
+
+function sink.ctx_addusertype(ctx: sink.ctx, hint: string): sink.user;
+```
+
+User types are ways for a host to attach custom data to lists.
+
+For example, suppose you want a sprite object:
+
+```c
+sprite the_sprite = sprite_new();
+sink_user sprite_type = sink_ctx_addusertype(ctx, "sprite", sprite_free);
+sink_val s = sink_user_new(ctx, sprite_type, the_sprite);
+// `s` can be returned to sink scripts
+// it will look like {'sprite'} to them, but have `the_sprite` attached to it
+
+...
+
+TODO more
+```
+
 # TODO
 
 ```
-sink_user sink_ctx_addusertype(sink_ctx ctx, const char *hint, sink_free_f f_free);
 sink_free_f sink_ctx_getuserfree(sink_ctx ctx, sink_user usertype);
 const char *sink_ctx_getuserhint(sink_ctx ctx, sink_user usertype);
 void sink_ctx_asyncresult(sink_ctx ctx, sink_val v);

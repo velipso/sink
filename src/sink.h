@@ -242,9 +242,9 @@ static inline sink_val sink_num_nan(){ return SINK_NAN; }
 static inline sink_val sink_num_inf(){ return sink_num(INFINITY); }
 static inline bool     sink_num_isnan(sink_val v){ return (v.u & SINK_NAN_MASK) == SINK_NAN_MASK; }
 static inline bool     sink_num_isfinite(sink_val v){ return isfinite(v.f); }
-static inline sink_val sink_num_e(){ return sink_num(M_E); }
-static inline sink_val sink_num_pi(){ return sink_num(M_PI); }
-static inline sink_val sink_num_tau(){ return sink_num(M_PI * 2.0); }
+static inline sink_val sink_num_e(){ return sink_num(2.71828182845904523536028747135266250); }
+static inline sink_val sink_num_pi(){ return sink_num(3.14159265358979323846264338327950288); }
+static inline sink_val sink_num_tau(){ return sink_num(6.28318530717958647692528676655900576); }
 sink_val sink_num_sin(sink_ctx ctx, sink_val a);
 sink_val sink_num_cos(sink_ctx ctx, sink_val a);
 sink_val sink_num_tan(sink_ctx ctx, sink_val a);

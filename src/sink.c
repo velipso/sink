@@ -16270,6 +16270,8 @@ void sink_list_setuser(sink_ctx ctx, sink_val ls, sink_user usertype, void *user
 }
 
 void *sink_list_getuser(sink_ctx ctx, sink_val ls, sink_user usertype){
+	if (!sink_islist(ls))
+		return NULL;
 	sink_list ls2 = var_castlist(ctx, ls);
 	if (ls2->usertype != usertype)
 		return NULL;
