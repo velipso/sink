@@ -166,7 +166,7 @@ The `user` field is passed through to the `incuser` argument in the functions, a
 
 ### `curdir`
 
-The current directory (or `null`/`NULL`).
+The current working directory (or `null`/`NULL`).
 
 This is used when a script includes or embeds a relative path, in order to construct an aboslute
 path.
@@ -297,3 +297,108 @@ The literal name the user must type in the `include` statement to search for the
 
 The file to actually search for during the include.
 
+scr_getfile
+-----------
+
+Get the fully resolved filename of the current script.
+
+```c
+const char *sink_scr_getfile(sink_scr scr);
+```
+
+```typescript
+function sink.scr_getfile(scr: sink.scr): string | null;
+```
+
+If you kick-off loading the script via an [`scr_loadfile`](#scr_loadfile) call with a relative file,
+then this function will return the fully resolved (absolute path) of the filename that was found and
+loaded.
+
+### `scr`
+
+The Script object.
+
+scr_getcwd
+----------
+
+Returns the current working directory, as specified earlier from the [`scr_new`](#scr_new) call.
+
+```c
+const char *sink_scr_getcwd(sink_scr scr);
+```
+
+```typescript
+function scr_getcwd(scr: sink.scr): string | null;
+```
+
+scr_geterr
+----------
+
+Returns the current error message of the script (compile-time error, or `null`/`NULL` for no error).
+Only needs to be checked if [`scr_write`](#scr_write) returns `false`.
+
+```c
+const char *sink_scr_geterr(sink_scr scr);
+```
+
+```typescript
+function scr_geterr(scr: sink.scr): string | null;
+```
+
+### `scr`
+
+The Script object.
+
+scr_cleanup
+-----------
+
+Provide a pointer and free function to be executed when the Script object is freed (C only).
+
+```c
+typedef void (*sink_free_f)(void *ptr);
+
+void sink_scr_cleanup(sink_scr scr, void *cuser, sink_free_f f_free);
+```
+
+This is useful for libraries that allocate their own objects when loading into a sink Script object.
+They can ensure the objects are cleaned up when the Script object is freed.
+
+### `scr`
+
+The Script object.
+
+### `cuser`
+
+The pointer to be freed when the Script object is freed.
+
+### `f_free`
+
+The function used to free `cuser`.
+
+scr_loadfile
+------------
+
+Load the script's file from the include filesystem.
+
+```c
+bool sink_scr_loadfile(sink_scr scr, const char *file);
+```
+
+```typescript
+function sink.scr_loadfile(scr: sink.scr, file: string): boolean | Promise<boolean>;
+```
+
+A script can be loaded directly via [`scr_write`](#scr_write), but the compiler won't have any
+filename information.  Instead, using `scr_loadfile` will kick off loading the data using the
+include system, so that any errors are correctly identified as coming from the source file.
+
+This will query for the file using [`fstype`](#inc), and load the file using [`fsread`](#inc), which
+should call `scr_write`.
+
+### `scr`
+
+The Script object.
+
+### `file`
+
+The file to load using the include system.
