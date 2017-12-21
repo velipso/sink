@@ -1,6 +1,6 @@
 {
   "name": "sink",
-  "version": "0.1",
+  "version": "0.1.0",
   "description": "Minimalistic programming language for embedding small scripts in larger programs",
   "main": "./dist/sink/sink.js",
   "bin": {

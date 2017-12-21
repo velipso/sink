@@ -7,7 +7,7 @@
 #include <string.h>
 #include <time.h>
 
-#ifdef SINK_MAC
+#if defined(SINK_MAC) || defined(SINK_POSIX)
 #	include <strings.h>  // ffsll
 #	define BITSCAN_FFSLL
 #else

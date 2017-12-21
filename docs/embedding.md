@@ -380,12 +380,50 @@ The function used to free `cuser`.
 scr_setuser
 -----------
 
-TODO
+Set a user-defined value associated with the Script object.  The value can be retrieved by
+[`scr_getuser`](#scr_getuser).
+
+```c
+typedef void (*sink_free_f)(void *ptr);
+
+void sink_scr_setuser(sink_scr scr, void *user, sink_free_f f_free);
+```
+
+```typescript
+function sink.scr_setuser(scr: sink.scr, user: any): void;
+```
+
+### `scr`
+
+The Script object.
+
+### `user`
+
+The user-defined value.
+
+### `f_free`
+
+The function used to free the object (C only).  If the user-defined value is overwritten by another
+call to `scr_setuser`, or if the Script object is freed, then the current `user` value is freed via
+`f_free`.
 
 scr_getuser
 -----------
 
-TODO
+Get the user-defined value associated with the Script object, previously set with
+[`scr_setuser`](#scr_setuser).
+
+```c
+void *sink_scr_getuser(sink_scr scr);
+```
+
+```typescript
+function sink.scr_getuser(scr: sink.scr): any;
+```
+
+### `scr`
+
+The Script object.
 
 scr_loadfile
 ------------
@@ -544,8 +582,9 @@ Free the Script object (C only).
 void sink_scr_free(sink_scr scr);
 ```
 
-Note this will also free any [`scr_cleanup`](#scr_cleanup) pointers that have been associated with
-the Script object before freeing the Script object itself.
+Note this will also free any [`scr_setuser`](#scr_setuser) value, and any
+[`scr_cleanup`](#scr_cleanup) pointers that have been associated with the Script object, before
+freeing the Script object itself.
 
 ### `scr`
 
@@ -576,3 +615,114 @@ virtual machine.
 | [`ctx_forcetimeout`](#ctx_forcetimeout) | Force a timeout to occur immediately                  |
 | [`ctx_run`](#ctx_run)                   | Run the virtual machine                               |
 | [`ctx_free`](#ctx_free)                 | Free a Context object                                 |
+
+ctx_new
+-------
+
+Create a new Context object.
+
+```c
+typedef void (*sink_output_f)(sink_ctx ctx, sink_str str, void *iouser);
+typedef sink_val (*sink_input_f)(sink_ctx ctx, sink_str str, void *iouser);
+
+typedef struct {
+  sink_output_f f_say;
+  sink_output_f f_warn;
+  sink_input_f f_ask;
+  void *user;
+} sink_io_st;
+
+sink_ctx sink_ctx_new(sink_scr scr, sink_io_st io);
+```
+
+```typescript
+type sink.output_f = (ctx: sink.ctx, str: sink.str, iouser: any) => void | Promise<void>;
+type sink.input_f = (ctx: sink.ctx, str: sink.str, iouser: any) => sink.val | Promise<sink.val>;
+
+interface sink.io_st {
+    f_say?: sink.output_f;
+    f_warn?: sink.output_f;
+    f_ask?: sink.input_f;
+    user?: any;
+}
+
+function sink.ctx_new(scr: sink.scr, io: sink.io_st): sink.ctx;
+```
+
+### `scr`
+
+The Script object to execute in the Context.
+
+### `io`
+
+The input/output functions for the machine.
+
+The `f_say`, `f_warn`, and `f_ask` functions are called when the associated `say`, `warn`, and `ask`
+commands are executed in the script.  The C versions must be synchronous, but the TypeScript
+versions can return a Promise if needed.
+
+The `f_ask` function should also return the value that the end-user input.  Return `NIL` for any
+cancelled or end-of-file situation, and a string for any binary input.
+
+The `user` field is mapped to `iouser`, and can be used for anything.
+
+ctx_getstatus
+-------------
+
+Get the status of the Context's virtual machine.
+
+```c
+typedef enum {
+  SINK_CTX_READY,
+  SINK_CTX_WAITING,
+  SINK_CTX_PASSED,
+  SINK_CTX_FAILED
+} sink_ctx_status;
+
+sink_ctx_status sink_ctx_getstatus(sink_ctx ctx);
+```
+
+```typescript
+enum sink.ctx_status {
+  READY,
+  WAITING,
+  PASSED,
+  FAILED
+}
+
+function sink.ctx_getstatus(ctx: sink.ctx): sink.ctx_status;
+```
+
+Returns one of the following values:
+
+* `READY` - The virtual machine is ready for execution via [`ctx_run`](#ctx_run).
+* `WAITING` - The virtual machine is waiting for an asynchronous operation to finish.
+* `PASSED` - The virtual machine finished executing the script and exited successfully.
+* `FAILED` - The virtual machine finished executing the script and exited in failure.
+
+### `ctx`
+
+The Context object.
+
+ctx_geterr
+----------
+
+TODO
+
+```
+const char *sink_ctx_geterr(sink_ctx ctx);
+void sink_ctx_native(sink_ctx ctx, const char *name, void *natuser, sink_native_f f_native);
+void sink_ctx_nativehash(sink_ctx ctx, uint64_t hash, void *natuser, sink_native_f f_native);
+void sink_ctx_cleanup(sink_ctx ctx, void *cuser, sink_free_f f_cleanup);
+void sink_ctx_setuser(sink_ctx ctx, void *user, sink_free_f f_free);
+void *sink_ctx_getuser(sink_ctx ctx);
+sink_user sink_ctx_addusertype(sink_ctx ctx, const char *hint, sink_free_f f_free);
+sink_free_f sink_ctx_getuserfree(sink_ctx ctx, sink_user usertype);
+const char *sink_ctx_getuserhint(sink_ctx ctx, sink_user usertype);
+void sink_ctx_asyncresult(sink_ctx ctx, sink_val v);
+void sink_ctx_settimeout(sink_ctx ctx, int timeout);
+int sink_ctx_gettimeout(sink_ctx ctx);
+void sink_ctx_forcetimeout(sink_ctx ctx);
+sink_run sink_ctx_run(sink_ctx ctx);
+void sink_ctx_free(sink_ctx ctx);
+```

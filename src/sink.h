@@ -13,11 +13,11 @@
 
 // platform detection
 #if !defined(SINK_WIN) && !defined(SINK_MAC) && !defined(SINK_POSIX)
-#	ifdef _WIN32
+#	if defined(_WIN32)
 #		define SINK_WIN
 #	elif __APPLE__
 #		define SINK_MAC
-#	elif __linux__ || __unix__ || defined(_POSIX_VERSION)
+#	elif __linux__ || __unix__ || defined(_POSIX_VERSION) || defined(__CYGWIN__)
 #		define SINK_POSIX
 #	else
 #		error "Unknown compiler"
@@ -115,7 +115,7 @@ typedef enum {
 	SINK_CTX_READY,
 	SINK_CTX_WAITING, // waiting for an async result
 	SINK_CTX_PASSED,
-	SINK_CTX_FAILED,
+	SINK_CTX_FAILED
 } sink_ctx_status;
 
 // Values are jammed into sNaNs, like so:
