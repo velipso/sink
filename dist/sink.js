@@ -11677,10 +11677,10 @@ var __extends = (this && this.__extends) || (function () {
         if (index < 0 || index >= args.length)
             throw new Error(err);
         var ls = args[index];
-        if (!islist(ls))
+        if (!islist(ls) || !list_hasuser(ctx, ls, usertype))
             throw new Error(err);
         try {
-            return list_getuser(ctx, ls, usertype);
+            return list_getuser(ctx, ls);
         }
         catch (e) {
             throw new Error(err);
@@ -12092,18 +12092,18 @@ var __extends = (this && this.__extends) || (function () {
     }
     exports.str_hashplain = str_hashplain;
     function list_setuser(ctx, ls, usertype, user) {
+        if (!islist(ls))
+            throw new Error('Expecting list for sink.list_setuser');
         ls.usertype = usertype;
         ls.user = user;
     }
     exports.list_setuser = list_setuser;
     function list_hasuser(ctx, ls, usertype) {
-        return ls.usertype === usertype;
+        return islist(ls) && ls.usertype === usertype;
     }
     exports.list_hasuser = list_hasuser;
-    function list_getuser(ctx, ls, usertype) {
-        if (ls.usertype !== usertype)
-            throw new Error('Bad user type on list');
-        return ls.user;
+    function list_getuser(ctx, ls) {
+        return islist(ls) ? ls.user : null;
     }
     exports.list_getuser = list_getuser;
     function list_cat(ctx, vals) {
