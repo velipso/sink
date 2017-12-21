@@ -9327,9 +9327,9 @@ static inline void context_gcunpin(context ctx, sink_val v){
 }
 
 static inline void context_free(context ctx){
-	cleanup_free(ctx->cup);
-	if (ctx->user && ctx->f_freeuser)
+	if (ctx->f_freeuser)
 		ctx->f_freeuser(ctx->user);
+	cleanup_free(ctx->cup);
 	list_ptr_free(ctx->natives);
 	context_clearref(ctx);
 	context_sweep(ctx);
@@ -15320,11 +15320,13 @@ void sink_scr_dump(sink_scr scr, bool debug, void *user, sink_dump_f f_dump){
 
 void sink_scr_free(sink_scr scr){
 	script sc = scr;
+	if (sc->f_freeuser)
+		sc->f_freeuser(sc->user);
+	cleanup_free(sc->cup);
 	list_ptr_free(sc->files);
 	list_ptr_free(sc->paths);
 	program_free(sc->prg);
 	staticinc_free(sc->sinc);
-	cleanup_free(sc->cup);
 	if (sc->cmp)
 		compiler_free(sc->cmp);
 	if (sc->capture_write)
