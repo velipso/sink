@@ -707,12 +707,150 @@ The Context object.
 ctx_geterr
 ----------
 
-TODO
+Returns the current run-time error message of the virtual machine, or `null`/`NULL` for no message.
+
+```c
+const char *sink_ctx_geterr(sink_ctx ctx);
+```
+
+```typescript
+function sink.ctx_geterr(ctx: sink.ctx): string | null;
+```
+
+Note: This function will return `null` if the script calls `abort` without any parameters, so this
+function cannot be used to check the error status of the VM.  Use [`ctx_getstatus`](#ctx_getstatus)
+instead.
+
+### `ctx`
+
+The Context object.
+
+ctx_native
+----------
+
+Add a native command implementation to the virtual machine using a string identifier.
+
+```c
+typedef sink_val (*sink_native_f)(sink_ctx ctx, int size, sink_val *args, void *natuser);
+
+void sink_ctx_native(sink_ctx ctx, const char *name, void *natuser, sink_native_f f_native);
+```
+
+```typescript
+type sink.native_f = (ctx: sink.ctx, args: sink.val[], natuser: any) =>
+  sink.val | Promise<sink.val>;
+
+function sink.ctx_native(ctx: sink.ctx, name: string, natuser: any, f_native: sink.native_f): void;
+```
+
+Native commands are stored using 64-bit hashes of string keys.  This function will perform the hash
+on `name`, then call [`ctx_nativehash`](#ctx_nativehash) to add the native function to the run-time.
+
+Native commands are accessed in sink via the `declare` statement:
 
 ```
-const char *sink_ctx_geterr(sink_ctx ctx);
-void sink_ctx_native(sink_ctx ctx, const char *name, void *natuser, sink_native_f f_native);
+# somewhere in sink
+declare foo 'company.product.foo'
+```
+
+This is wired to a host function via:
+
+```c
+sink_val my_foo(sink_ctx ctx, int size, sink_val *args, void *natuser){
+  // implementation here
+  // return SINK_ASYNC for an asynchronous result
+}
+
+...
+
+sink_ctx_native(ctx, "company.product.foo", NULL, my_foo);
+```
+
+```typescript
+function my_foo(ctx: sink.ctx, args: sink.val[], natuser: any): sink.val | Promise<sink.val> {
+  // implementation here
+  // return a Promise<sink.val> for an asynchronous result
+}
+
+...
+
+sink.ctx_native(ctx, 'company.product.foo', null, my_foo);
+```
+
+Notice that the `name` parameter matches the declaration in sink.
+
+### `ctx`
+
+The Context object.
+
+### `name`
+
+The string to be hashed for eventual lookup.
+
+### `natuser`
+
+User-defined value passed to `f_native`.
+
+### `f_native`
+
+The native function implementation.
+
+ctx_nativehash
+--------------
+
+Add a native command implementation to the virtual machine using a specific hash value.
+
+```c
+typedef sink_val (*sink_native_f)(sink_ctx ctx, int size, sink_val *args, void *natuser);
+
 void sink_ctx_nativehash(sink_ctx ctx, uint64_t hash, void *natuser, sink_native_f f_native);
+```
+
+```typescript
+type sink.u64 = [number, number];
+type sink.native_f = (ctx: sink.ctx, args: sink.val[], natuser: any) =>
+  sink.val | Promise<sink.val>;
+
+function sink.ctx_nativehash(ctx: sink.ctx, hash: sink.u64, natuser: any,
+  f_native: sink.native_f): void;
+```
+
+See [`ctx_native`](#ctx_native) for documentation on native functions.
+
+The hash value can be calculated using the algorithm below (written in sink):
+
+```
+# calculate the uint64_t C hash value
+def native_c_hash name
+  var h = str.hash name, 0 | num.hex 8
+  return h[1] ~ h[0][2:]
+end
+
+# calculate the sink.u64 TypeScript hash value
+def native_ts_hash name
+  var h = str.hash name, 0 | num.hex 8
+  return "[ ${h[0]}, ${h[1]} ]"
+end
+```
+
+### `ctx`
+
+The Context object.
+
+### `hash`
+
+The 64-bit hash.  In TypeScript this is stored as an array with two elements, each an unsigned
+32-bit number.
+
+### `natuser`
+
+User-defined value passed to `f_native`.
+
+### `f_native`
+
+The native function implementation.
+
+```
 void sink_ctx_cleanup(sink_ctx ctx, void *cuser, sink_free_f f_cleanup);
 void sink_ctx_setuser(sink_ctx ctx, void *user, sink_free_f f_free);
 void *sink_ctx_getuser(sink_ctx ctx);
