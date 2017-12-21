@@ -59,12 +59,19 @@ static inline void catchint(){
 }
 
 #else
-#	error Don't know how to catch Ctrl+C for other platforms
+
+static inline void catchint(){
+	// do nothing, I guess
+}
+
 #endif
 
 #if defined(SINK_POSIX) || defined(SINK_MAC)
+#	include <dirent.h>
+#else
+#	include <sys/types.h>
+#endif
 
-#include <dirent.h>
 #include <sys/stat.h>
 
 static bool isdir(const char *dir){
@@ -95,10 +102,6 @@ static bool fsread(sink_scr scr, const char *file, void *user){
 	fclose(fp);
 	return true; // `true` indicates that the file was read
 }
-
-#else
-#	error Don't know how to perform includes for other platforms
-#endif
 
 static sink_fstype fstype(const char *file, void *user){
 	if (isdir(file))
