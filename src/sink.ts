@@ -4737,6 +4737,7 @@ interface program_st {
 	posTable: prgflp_st[];
 	cmdTable: prgch_st[];
 	ops: number[];
+	posix: boolean;
 	repl: boolean;
 }
 
@@ -4781,7 +4782,7 @@ interface script_st {
 	inc: inc_st;
 	capture_write: strnil;
 	curdir: strnil;
-	pathsep: string;
+	posix: boolean;
 	file: strnil;
 	err: strnil;
 	mode: scriptmode_enum;
@@ -4801,13 +4802,12 @@ export function scr_getuser(scr: scr): any {
 // pathjoin
 //
 
-function pathjoin(prev: string, next: string, pathsep: string): string {
-	var rx = '';
-	for (let i = 0; i < pathsep.length; i++){
-		let hex = ('00' + pathsep.charCodeAt(i).toString(16)).substr(-2);
-		rx += (i == 0 ? '' : '|') + '\\x' + hex;
-	}
-	let p = (prev + pathsep.charAt(0) + next).split(new RegExp(rx, 'g'));
+function pathjoin(prev: string, next: string, posix: boolean): string {
+	let p;
+	if (posix)
+		p = (prev + '/' + next).split('/');
+	else
+		p = (prev + '\\' + next).split(/\\|\//g);
 	let ret = [];
 	for (let i = 0; i < p.length; i++){
 		if ((i !== 0 && p[i] === '') || p[i] === '.')
@@ -4817,7 +4817,7 @@ function pathjoin(prev: string, next: string, pathsep: string): string {
 		else
 			ret.push(p[i]);
 	}
-	return ret.join(pathsep.charAt(0));
+	return ret.join(posix ? '/' : '\\');
 }
 
 //
@@ -4855,7 +4855,7 @@ function fileres_try(scr: script_st, postfix: boolean, file: string,
 					if (!postfix)
 						return false;
 					// try looking for index.sink inside the directory
-					return fileres_try(scr, false, pathjoin(file, 'index.sink', scr.pathsep),
+					return fileres_try(scr, false, pathjoin(file, 'index.sink', scr.posix),
 						f_begin, f_end, fuser);
 			}
 			throw new Error('Bad file type');
@@ -4863,10 +4863,15 @@ function fileres_try(scr: script_st, postfix: boolean, file: string,
 	);
 }
 
+function isabs(file: string, posix: boolean): boolean {
+	return (posix && file.charAt(0) == '/') ||
+		(!posix && (file.charAt(1) == ':' || (file.charAt(0) == '/' && file.charAt(1) == '/')));
+}
+
 function fileres_read(scr: script_st, postfix: boolean, file: string, cwd: strnil,
 	f_begin: fileres_begin_f, f_end: fileres_end_f, fuser: any): boolean | Promise<boolean> {
 	// if an absolute path, there is no searching, so just try to read it directly
-	if (file.charAt(0) === '/')
+	if (isabs(file, scr.posix))
 		return fileres_try(scr, postfix, file, f_begin, f_end, fuser);
 	// otherwise, we have a relative path, so we need to go through our search list
 	if (cwd === null)
@@ -4879,12 +4884,12 @@ function fileres_read(scr: script_st, postfix: boolean, file: string, cwd: strni
 			return false;
 		let path = paths[i];
 		let join: string;
-		if (path.charAt(0) === '/') // search path is absolute
-			join = pathjoin(path, file, scr.pathsep);
+		if (isabs(path, scr.posix)) // search path is absolute
+			join = pathjoin(path, file, scr.posix);
 		else{ // search path is relative
 			if (cwd === null)
 				return nextPath(i + 1);
-			join = pathjoin(pathjoin(cwd, path, scr.pathsep), file, scr.pathsep);
+			join = pathjoin(pathjoin(cwd, path, scr.posix), file, scr.posix);
 		}
 		return checkPromise<boolean, boolean>(
 			fileres_try(scr, postfix, join, f_begin, f_end, fuser),
@@ -4901,7 +4906,7 @@ function fileres_read(scr: script_st, postfix: boolean, file: string, cwd: strni
 // program
 //
 
-function program_new(repl: boolean): program_st {
+function program_new(posix: boolean, repl: boolean): program_st {
 	return {
 		strTable: [],
 		keyTable: [],
@@ -4909,6 +4914,7 @@ function program_new(repl: boolean): program_st {
 		posTable: [],
 		cmdTable: [],
 		ops: [],
+		posix: posix,
 		repl: repl
 	};
 }
@@ -6010,7 +6016,7 @@ function program_evalCall(pgen: pgen_st, mode: pem_enum, intoVlc: varloc_st, flp
 			pe: per_ok(VARLOC_NULL)
 		};
 		if (pgen.from >= 0)
-			cwd = pathjoin(script_getfile(pgen.scr, pgen.from) as string, '..', pgen.scr.pathsep);
+			cwd = pathjoin(script_getfile(pgen.scr, pgen.from) as string, '..', pgen.scr.posix);
 		let fstr = file.str;
 		return checkPromise<boolean, per_st>(
 			fileres_read(pgen.scr, false, fstr, cwd, embed_begin, embed_end, efu),
@@ -12437,7 +12443,7 @@ function compiler_dynamicinc(cmp: compiler_st, names: string[] | true | null, fi
 	let cfu = { cmp: cmp, names: names };
 	let cwd: strnil = null;
 	if (from)
-		cwd = pathjoin(from, '..', cmp.scr.pathsep);
+		cwd = pathjoin(from, '..', cmp.scr.posix);
 	return fileres_read(cmp.scr, true, file, cwd, compiler_begininc_cfu, compiler_endinc_cfu, cfu);
 }
 
@@ -12631,10 +12637,10 @@ function compiler_close(cmp: compiler_st): strnil | Promise<strnil> {
 // script API
 //
 
-export function scr_new(inc: inc_st, curdir: strnil, pathsep: string, repl: boolean): scr {
+export function scr_new(inc: inc_st, curdir: strnil, posix: boolean, repl: boolean): scr {
 	let sc: script_st = {
 		user: null,
-		prg: program_new(repl),
+		prg: program_new(posix, repl),
 		cmp: null,
 		sinc: staticinc_new(),
 		files: [],
@@ -12642,7 +12648,7 @@ export function scr_new(inc: inc_st, curdir: strnil, pathsep: string, repl: bool
 		inc: inc,
 		capture_write: null,
 		curdir: curdir,
-		pathsep: pathsep,
+		posix: posix,
 		file: null,
 		err: null,
 		mode: scriptmode_enum.UNKNOWN,

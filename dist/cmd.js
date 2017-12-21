@@ -297,7 +297,7 @@
         }
         var s_argv = argv.slice(i);
         var cwd = process.cwd();
-        var scr = sink.scr_new(inc, cwd, path.sep + '/', input_type === 'repl');
+        var scr = sink.scr_new(inc, cwd, path.sep === '/', input_type === 'repl');
         sink.scr_addpath(scr, '.');
         sink_shell.scr(scr);
         for (i = 1; argv[i] !== input_content && i < argv.length; i++) {

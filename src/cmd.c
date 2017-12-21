@@ -390,11 +390,11 @@ int main(int argc, char **argv){
 	// create the script with the current working directory
 	char *cwd = getcwd(NULL, 0);
 #if defined(SINK_WIN)
-	const char *pathsep = "\\/";
+	bool posix = false;
 #else
-	const char *pathsep = "/";
+	bool posix = true;
 #endif
-	sink_scr scr = sink_scr_new(inc, cwd, pathsep, input_type == INPUT_REPL);
+	sink_scr scr = sink_scr_new(inc, cwd, posix, input_type == INPUT_REPL);
 	free(cwd);
 
 	// add the appropriate paths

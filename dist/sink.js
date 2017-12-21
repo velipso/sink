@@ -4018,13 +4018,12 @@ var __extends = (this && this.__extends) || (function () {
         return scr.user;
     }
     exports.scr_getuser = scr_getuser;
-    function pathjoin(prev, next, pathsep) {
-        var rx = '';
-        for (var i = 0; i < pathsep.length; i++) {
-            var hex = ('00' + pathsep.charCodeAt(i).toString(16)).substr(-2);
-            rx += (i == 0 ? '' : '|') + '\\x' + hex;
-        }
-        var p = (prev + pathsep.charAt(0) + next).split(new RegExp(rx, 'g'));
+    function pathjoin(prev, next, posix) {
+        var p;
+        if (posix)
+            p = (prev + '/' + next).split('/');
+        else
+            p = (prev + '\\' + next).split(/\\|\//g);
         var ret = [];
         for (var i = 0; i < p.length; i++) {
             if ((i !== 0 && p[i] === '') || p[i] === '.')
@@ -4034,7 +4033,7 @@ var __extends = (this && this.__extends) || (function () {
             else
                 ret.push(p[i]);
         }
-        return ret.join(pathsep.charAt(0));
+        return ret.join(posix ? '/' : '\\');
     }
     function fileres_try(scr, postfix, file, f_begin, f_end, fuser) {
         var inc = scr.inc;
@@ -4057,13 +4056,17 @@ var __extends = (this && this.__extends) || (function () {
                 case fstype.DIR:
                     if (!postfix)
                         return false;
-                    return fileres_try(scr, false, pathjoin(file, 'index.sink', scr.pathsep), f_begin, f_end, fuser);
+                    return fileres_try(scr, false, pathjoin(file, 'index.sink', scr.posix), f_begin, f_end, fuser);
             }
             throw new Error('Bad file type');
         });
     }
+    function isabs(file, posix) {
+        return (posix && file.charAt(0) == '/') ||
+            (!posix && (file.charAt(1) == ':' || (file.charAt(0) == '/' && file.charAt(1) == '/')));
+    }
     function fileres_read(scr, postfix, file, cwd, f_begin, f_end, fuser) {
-        if (file.charAt(0) === '/')
+        if (isabs(file, scr.posix))
             return fileres_try(scr, postfix, file, f_begin, f_end, fuser);
         if (cwd === null)
             cwd = scr.curdir;
@@ -4074,12 +4077,12 @@ var __extends = (this && this.__extends) || (function () {
                 return false;
             var path = paths[i];
             var join;
-            if (path.charAt(0) === '/')
-                join = pathjoin(path, file, scr.pathsep);
+            if (isabs(path, scr.posix))
+                join = pathjoin(path, file, scr.posix);
             else {
                 if (cwd === null)
                     return nextPath(i + 1);
-                join = pathjoin(pathjoin(cwd, path, scr.pathsep), file, scr.pathsep);
+                join = pathjoin(pathjoin(cwd, path, scr.posix), file, scr.posix);
             }
             return checkPromise(fileres_try(scr, postfix, join, f_begin, f_end, fuser), function (found) {
                 if (found)
@@ -4088,7 +4091,7 @@ var __extends = (this && this.__extends) || (function () {
             });
         }
     }
-    function program_new(repl) {
+    function program_new(posix, repl) {
         return {
             strTable: [],
             keyTable: [],
@@ -4096,6 +4099,7 @@ var __extends = (this && this.__extends) || (function () {
             posTable: [],
             cmdTable: [],
             ops: [],
+            posix: posix,
             repl: repl
         };
     }
@@ -4955,7 +4959,7 @@ var __extends = (this && this.__extends) || (function () {
                 pe: per_ok(VARLOC_NULL)
             };
             if (pgen.from >= 0)
-                cwd = pathjoin(script_getfile(pgen.scr, pgen.from), '..', pgen.scr.pathsep);
+                cwd = pathjoin(script_getfile(pgen.scr, pgen.from), '..', pgen.scr.posix);
             var fstr_1 = file.str;
             return checkPromise(fileres_read(pgen.scr, false, fstr_1, cwd, embed_begin, embed_end, efu_1), function (res) {
                 if (!res)
@@ -10960,7 +10964,7 @@ var __extends = (this && this.__extends) || (function () {
         var cfu = { cmp: cmp, names: names };
         var cwd = null;
         if (from)
-            cwd = pathjoin(from, '..', cmp.scr.pathsep);
+            cwd = pathjoin(from, '..', cmp.scr.posix);
         return fileres_read(cmp.scr, true, file, cwd, compiler_begininc_cfu, compiler_endinc_cfu, cfu);
     }
     function compiler_process(cmp) {
@@ -11106,10 +11110,10 @@ var __extends = (this && this.__extends) || (function () {
             return null;
         });
     }
-    function scr_new(inc, curdir, pathsep, repl) {
+    function scr_new(inc, curdir, posix, repl) {
         var sc = {
             user: null,
-            prg: program_new(repl),
+            prg: program_new(posix, repl),
             cmp: null,
             sinc: staticinc_new(),
             files: [],
@@ -11117,7 +11121,7 @@ var __extends = (this && this.__extends) || (function () {
             inc: inc,
             capture_write: null,
             curdir: curdir,
-            pathsep: pathsep,
+            posix: posix,
             file: null,
             err: null,
             mode: scriptmode_enum.UNKNOWN,

@@ -151,7 +151,7 @@ export declare function pickle_valid(ctx: ctx, a: val): number;
 export declare function pickle_sibling(ctx: ctx, a: val): boolean;
 export declare function pickle_circular(ctx: ctx, a: val): boolean;
 export declare function pickle_copy(ctx: ctx, a: val): val;
-export declare function scr_new(inc: inc_st, curdir: strnil, pathsep: string, repl: boolean): scr;
+export declare function scr_new(inc: inc_st, curdir: strnil, posix: boolean, repl: boolean): scr;
 export declare function scr_addpath(scr: scr, path: string): void;
 export declare function scr_incbody(scr: scr, name: string, body: string): void;
 export declare function scr_incfile(scr: scr, name: string, file: string): void;

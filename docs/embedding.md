@@ -107,7 +107,7 @@ sink_scr sink_scr_new(sink_inc_st inc, const char *curdir, const char *pathsep, 
 ```
 
 ```typescript
-function sink.scr_new(inc: sink.inc_st, curdir: string | null, pathsep: string, repl: boolean):
+function sink.scr_new(inc: sink.inc_st, curdir: string | null, posix: boolean, repl: boolean):
   sink.scr;
 ```
 
@@ -174,11 +174,14 @@ The current working directory (or `null`/`NULL`).
 This is used when a script includes or embeds a relative path, in order to construct an aboslute
 path.
 
-### `pathsep`
+### `posix`
 
-A string of characters that are valid path seperators.  For POSIX and Mac file systems, this should
-just be `"/"`.  In Windows file systems, this should be `"\\/"`.  The first character will be used
-for joining paths, and all characters will be used for splitting paths.
+If true, then path routines will use POSIX logic.  It will treat `/` as a path seperator, and any
+path starting with `/` will be considered an aboslute path.
+
+If false, then path routines will use Windows logic.  It will treat `/` and `\` as path seperators,
+join paths using `\`, and paths starting with a drive letter or network name will be considered
+absolute (i.e., `c:\foo` or `//host/computer/foo`).
 
 ### `repl`
 
