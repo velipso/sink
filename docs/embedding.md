@@ -980,7 +980,6 @@ let sprite_type: sink.user = sink.ctx_addusertype(ctx, 'sprite');
 // creating a list with the_sprite attached to it
 let the_sprite: sprite = new sprite();
 let s: sink.val = sink.user_new(ctx, sprite_type, the_sprite);
-
 // `s` can be returned to sink scripts
 // it will look like {'sprite'} to them, but have `the_sprite` attached to it
 
