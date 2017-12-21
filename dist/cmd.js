@@ -4,7 +4,7 @@
         if (v !== undefined) module.exports = v;
     }
     else if (typeof define === "function" && define.amd) {
-        define(["require", "exports", "./sink.js", "./sink_shell.js", "fs", "readline"], factory);
+        define(["require", "exports", "./sink.js", "./sink_shell.js", "fs", "path", "readline"], factory);
     }
 })(function (require, exports) {
     "use strict";
@@ -12,6 +12,7 @@
     var sink = require("./sink.js");
     var sink_shell = require("./sink_shell.js");
     var fs = require("fs");
+    var path = require("path");
     var readline = require("readline");
     function io_say(ctx, str, iouser) {
         console.log(str);
@@ -296,7 +297,7 @@
         }
         var s_argv = argv.slice(i);
         var cwd = process.cwd();
-        var scr = sink.scr_new(inc, cwd, input_type === 'repl');
+        var scr = sink.scr_new(inc, cwd, path.sep + '/', input_type === 'repl');
         sink.scr_addpath(scr, '.');
         sink_shell.scr(scr);
         for (i = 1; argv[i] !== input_content && i < argv.length; i++) {

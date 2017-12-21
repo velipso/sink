@@ -349,7 +349,7 @@ export function main(): boolean | Promise<boolean> {
 
 	// create the script with the current working directory
 	let cwd = process.cwd();
-	let scr = sink.scr_new(inc, cwd, input_type === 'repl');
+	let scr = sink.scr_new(inc, cwd, path.sep + '/', input_type === 'repl');
 
 	// add the appropriate paths
 	sink.scr_addpath(scr, '.');

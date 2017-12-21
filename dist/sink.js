@@ -4018,8 +4018,13 @@ var __extends = (this && this.__extends) || (function () {
         return scr.user;
     }
     exports.scr_getuser = scr_getuser;
-    function pathjoin(prev, next) {
-        var p = (prev + '/' + next).split('/');
+    function pathjoin(prev, next, pathsep) {
+        var rx = '';
+        for (var i = 0; i < pathsep.length; i++) {
+            var hex = ('00' + pathsep.charCodeAt(i).toString(16)).substr(-2);
+            rx += (i == 0 ? '' : '|') + '\\x' + hex;
+        }
+        var p = (prev + pathsep.charAt(0) + next).split(new RegExp(rx, 'g'));
         var ret = [];
         for (var i = 0; i < p.length; i++) {
             if ((i !== 0 && p[i] === '') || p[i] === '.')
@@ -4029,7 +4034,7 @@ var __extends = (this && this.__extends) || (function () {
             else
                 ret.push(p[i]);
         }
-        return ret.join('/');
+        return ret.join(pathsep.charAt(0));
     }
     function fileres_try(scr, postfix, file, f_begin, f_end, fuser) {
         var inc = scr.inc;
@@ -4052,7 +4057,7 @@ var __extends = (this && this.__extends) || (function () {
                 case fstype.DIR:
                     if (!postfix)
                         return false;
-                    return fileres_try(scr, false, pathjoin(file, 'index.sink'), f_begin, f_end, fuser);
+                    return fileres_try(scr, false, pathjoin(file, 'index.sink', scr.pathsep), f_begin, f_end, fuser);
             }
             throw new Error('Bad file type');
         });
@@ -4070,11 +4075,11 @@ var __extends = (this && this.__extends) || (function () {
             var path = paths[i];
             var join;
             if (path.charAt(0) === '/')
-                join = pathjoin(path, file);
+                join = pathjoin(path, file, scr.pathsep);
             else {
                 if (cwd === null)
                     return nextPath(i + 1);
-                join = pathjoin(pathjoin(cwd, path), file);
+                join = pathjoin(pathjoin(cwd, path, scr.pathsep), file, scr.pathsep);
             }
             return checkPromise(fileres_try(scr, postfix, join, f_begin, f_end, fuser), function (found) {
                 if (found)
@@ -4950,7 +4955,7 @@ var __extends = (this && this.__extends) || (function () {
                 pe: per_ok(VARLOC_NULL)
             };
             if (pgen.from >= 0)
-                cwd = pathjoin(script_getfile(pgen.scr, pgen.from), '..');
+                cwd = pathjoin(script_getfile(pgen.scr, pgen.from), '..', pgen.scr.pathsep);
             var fstr_1 = file.str;
             return checkPromise(fileres_read(pgen.scr, false, fstr_1, cwd, embed_begin, embed_end, efu_1), function (res) {
                 if (!res)
@@ -10955,7 +10960,7 @@ var __extends = (this && this.__extends) || (function () {
         var cfu = { cmp: cmp, names: names };
         var cwd = null;
         if (from)
-            cwd = pathjoin(from, '..');
+            cwd = pathjoin(from, '..', cmp.scr.pathsep);
         return fileres_read(cmp.scr, true, file, cwd, compiler_begininc_cfu, compiler_endinc_cfu, cfu);
     }
     function compiler_process(cmp) {
@@ -11101,9 +11106,7 @@ var __extends = (this && this.__extends) || (function () {
             return null;
         });
     }
-    function scr_new(inc, curdir, repl) {
-        if (curdir !== null && curdir.charAt(0) !== '/')
-            console.warn('Warning: sink current directory "' + curdir + '" is not an absolute path');
+    function scr_new(inc, curdir, pathsep, repl) {
         var sc = {
             user: null,
             prg: program_new(repl),
@@ -11114,6 +11117,7 @@ var __extends = (this && this.__extends) || (function () {
             inc: inc,
             capture_write: null,
             curdir: curdir,
+            pathsep: pathsep,
             file: null,
             err: null,
             mode: scriptmode_enum.UNKNOWN,
