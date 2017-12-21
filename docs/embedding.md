@@ -328,7 +328,7 @@ const char *sink_scr_getcwd(sink_scr scr);
 ```
 
 ```typescript
-function scr_getcwd(scr: sink.scr): string | null;
+function sink.scr_getcwd(scr: sink.scr): string | null;
 ```
 
 scr_geterr
@@ -342,7 +342,7 @@ const char *sink_scr_geterr(sink_scr scr);
 ```
 
 ```typescript
-function scr_geterr(scr: sink.scr): string | null;
+function sink.scr_geterr(scr: sink.scr): string | null;
 ```
 
 ### `scr`
@@ -418,7 +418,7 @@ bool sink_scr_write(sink_scr scr, int size, const uint8_t *bytes);
 ```
 
 ```typescript
-function scr_write(scr: sink.scr, bytes: string): boolean | Promise<boolean>;
+function sink.scr_write(scr: sink.scr, bytes: string): boolean | Promise<boolean>;
 ```
 
 Loading source code into the Script object is done with `scr_write`.  The function can be called
@@ -494,7 +494,7 @@ void sink_scr_dump(sink_scr scr, bool debug, void *user, sink_dump_f f_dump);
 ```typescript
 type dump_f = (data: string, dumpuser: any) => void;
 
-function scr_dump(scr: sink.scr, debug: boolean, user: any, f_dump: sink.dump_f): void;
+function sink.scr_dump(scr: sink.scr, debug: boolean, user: any, f_dump: sink.dump_f): void;
 ```
 
 ### `scr`
