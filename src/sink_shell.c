@@ -5,7 +5,7 @@
 #include "sink_shell.h"
 #include <stdio.h>
 
-#ifdef SINK_WIN32
+#if defined(SINK_WIN)
 #	include <direct.h> // _getcwd
 #	define getcwd _getcwd
 #else

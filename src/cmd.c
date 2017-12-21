@@ -7,7 +7,7 @@
 #include <string.h>
 #include <stdio.h>
 
-#ifdef SINK_WIN
+#if defined(SINK_WIN)
 #	include <direct.h> // _getcwd
 #	define getcwd _getcwd
 #else
