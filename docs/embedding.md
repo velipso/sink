@@ -157,7 +157,7 @@ The `f_fsread` function should attempt to open the provided file, and write it t
 using [`scr_write`](#scr_write).  It should return `true` if the file was read successfully, and
 `false` if the file failed to be read.
 
-Please see [cmd.c](https://github.com/voidqk/sink/blob/master/src/cmd.c) or
+See [cmd.c](https://github.com/voidqk/sink/blob/master/src/cmd.c) or
 [cmd.ts](https://github.com/voidqk/sink/blob/master/src/cmd.ts) for example implementations of these
 functions.  Note that the TypeScript/JavaScript version must deal with Promises correctly, and can
 return a Promise if the operations are asynchronous.
@@ -195,3 +195,105 @@ test # => outputs 2 in a REPL
 
 Normally, defining something twice will result in a compile-time error (`Cannot redefine "test"`).
 In a REPL, re-definitions are allowed.
+
+scr_addpath
+-----------
+
+Add a path to the list of search paths during an `include` or `embed` statement.
+
+```c
+void sink_scr_addpath(sink_scr scr, const char *path);
+```
+
+```typescript
+function sink.scr_addpath(scr: sink.scr, path: string): void;
+```
+
+If a file with a relative path is included or embedded, sink will iterate over the search paths.
+If a search path is relative, it will be combined with the [current working directory](#curdir),
+along with the target file, to create an absolute path.
+
+It's recommended to at least add `"."` as a search path so that the current directory will be
+searched when including/embedding a file.
+
+### `scr`
+
+The Script object.
+
+### `path`
+
+The path to add to the list of search paths.
+
+scr_incbody
+-----------
+
+Define a module in-memory, so that if the end-user performs an `include 'name'`, the provided
+source code (`body`) is used as the content.
+
+```c
+void sink_scr_incbody(sink_scr scr, const char *name, const char *body);
+```
+
+```typescript
+function sink.scr_incbody(scr: sink.scr, name: string, body: string): void;
+```
+
+This function is used for native libraries to provide a short name that end-users can use to include
+the necessary definitions.
+
+For example, suppose you want to build a `shapes` library, that included commands for drawing
+circles and rectangles.  You would do:
+
+```typescript
+sink.scr_incbody(scr, 'shapes',
+  'declare circle     "company.shapes.circle"     \n' +
+  'declare rectangle  "company.shapes.rectangle"  \n');
+```
+
+Then when the end-user runs `include 'shapes'`, instead of searching for a `'shapes'` file in the
+filesystem, it will pull the contents directly from memory.
+
+### `src`
+
+The Script object.
+
+### `name`
+
+The literal name the user must type in the `include` statement to pull in the content.
+
+### `body`
+
+The content of the included library.
+
+scr_incfile
+-----------
+
+Define a module that references a file, so that if the end-user performs an `include 'name'`, the
+file searched for in the include system is `file`.
+
+```c
+void sink_scr_incfile(sink_scr scr, const char *name, const char *file);
+```
+
+```typescript
+function sink.scr_incfile(scr: sink.scr, name: string, file: string): void;
+```
+
+This function has the same basic usage as [`scr_incbody`](#scr_incbody), except instead of providing
+the contents directly, the file contents are stored inside an actual file.
+
+This is useful if a library wants to make the definitions available as an external file, and simply
+wants to reference the file instead of having the contents directly in memory.
+
+### `scr`
+
+The Script object.
+
+### `name`
+
+The literal name the user must type in the `include` statement to search for the file.
+
+### `file`
+
+The file to actually search for during the include.
+
