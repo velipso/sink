@@ -518,6 +518,7 @@ The function called to dump the bytecode.
 
 Note that this function has the same signature as `fwrite` in the C implementation, so that the
 file pointer can be passed in as `user`, and `fwrite` can be passed in as `f_dump`, for convenience.
+The `size_t` return value is ignored.
 
 The TypeScript implementation is passed string `data` in
 [`'binary'` encoding](https://nodejs.org/api/buffer.html#buffer_buffers_and_character_encodings).
