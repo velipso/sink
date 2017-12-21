@@ -503,7 +503,7 @@ The Script object.
 
 ### `debug`
 
-Output debug information.
+Flag whether to output debug information.
 
 Debug information allows for stacktraces to be populated for run-time errors, but increases the size
 of the bytecode, and exposes filenames and line numbers to the end-user.
