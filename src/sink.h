@@ -329,7 +329,8 @@ bool     sink_struct_isLE();
 
 // lists
 void     sink_list_setuser(sink_ctx ctx, sink_val ls, sink_user usertype, void *user);
-void *   sink_list_getuser(sink_ctx ctx, sink_val ls, sink_user usertype);
+bool     sink_list_hasuser(sink_ctx ctx, sink_val ls, sink_user usertype);
+void *   sink_list_getuser(sink_ctx ctx, sink_val ls);
 sink_val sink_list_newblob(sink_ctx ctx, int size, const sink_val *vals);
 sink_val sink_list_newblobgive(sink_ctx ctx, int size, int count, sink_val *vals);
 static inline sink_val sink_list_newempty(sink_ctx ctx){ return sink_list_newblob(ctx, 0, NULL); }

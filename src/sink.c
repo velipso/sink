@@ -15528,22 +15528,13 @@ bool sink_arg_user(sink_ctx ctx, int size, sink_val *args, int index, sink_user 
 	context ctx2 = ctx;
 	const char *hint = ctx2->user_hint->ptrs[usertype];
 
-	#define ABORT() \
-		opi_abortformat(ctx, "Expecting user type%s%s for argument %d", \
-			hint == NULL ? "" : " ", hint == NULL ? "" : hint, index + 1)
-
-	if (index < 0 || index >= size || !sink_islist(args[index])){
-		ABORT();
+	if (index < 0 || index >= size || !sink_islist(args[index]) ||
+		!sink_list_hasuser(ctx, args[index], usertype)){
+		opi_abortformat(ctx, "Expecting user type%s%s for argument %d",
+			hint == NULL ? "" : " ", hint == NULL ? "" : hint, index + 1);
 		return false;
 	}
-	*user = sink_list_getuser(ctx, args[index], usertype);
-	if (user == NULL){
-		ABORT();
-		return false;
-	}
-
-	#undef ABORT
-
+	*user = sink_list_getuser(ctx, args[index]);
 	return true;
 }
 
@@ -16291,6 +16282,7 @@ bool sink_struct_isLE(){
 
 // lists
 void sink_list_setuser(sink_ctx ctx, sink_val ls, sink_user usertype, void *user){
+	assert(sink_islist(ls));
 	sink_list ls2 = var_castlist(ctx, ls);
 	if (ls2->usertype >= 0){
 		sink_free_f f_free = ((context)ctx)->f_finalize->ptrs[ls2->usertype];
@@ -16301,12 +16293,17 @@ void sink_list_setuser(sink_ctx ctx, sink_val ls, sink_user usertype, void *user
 	ls2->user = user;
 }
 
-void *sink_list_getuser(sink_ctx ctx, sink_val ls, sink_user usertype){
+bool sink_list_hasuser(sink_ctx ctx, sink_val ls, sink_user usertype){
+	if (!sink_islist(ls))
+		return false;
+	sink_list ls2 = var_castlist(ctx, ls);
+	return ls2->usertype == usertype;
+}
+
+void *sink_list_getuser(sink_ctx ctx, sink_val ls){
 	if (!sink_islist(ls))
 		return NULL;
 	sink_list ls2 = var_castlist(ctx, ls);
-	if (ls2->usertype != usertype)
-		return NULL;
 	return ls2->user;
 }
 

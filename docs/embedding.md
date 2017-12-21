@@ -957,16 +957,60 @@ User types are ways for a host to attach custom data to lists.
 For example, suppose you want a sprite object:
 
 ```c
-sprite the_sprite = sprite_new();
+// register the type (once)
 sink_user sprite_type = sink_ctx_addusertype(ctx, "sprite", sprite_free);
+
+// creating a list with the_sprite attached to it
+sprite the_sprite = sprite_new();
 sink_val s = sink_user_new(ctx, sprite_type, the_sprite);
 // `s` can be returned to sink scripts
 // it will look like {'sprite'} to them, but have `the_sprite` attached to it
 
-...
-
-TODO more
+// extract a sprite from a list
+if (sink_list_hasuser(ctx, s, sprite_type)){
+  sprite the_sprite = sink_list_getuser(ctx, s);
+  // use the_sprite
+}
 ```
+
+```typescript
+// register the type (once)
+let sprite_type: sink.user = sink.ctx_addusertype(ctx, 'sprite');
+
+// creating a list with the_sprite attached to it
+let the_sprite: sprite = new sprite();
+let s: sink.val = sink.user_new(ctx, sprite_type, the_sprite);
+
+// `s` can be returned to sink scripts
+// it will look like {'sprite'} to them, but have `the_sprite` attached to it
+
+// extract a sprite from a list
+if (sink.list_hasuser(ctx, s, sprite_type)){
+  let the_sprite: sprite = sink.list_getuser(ctx, s) as sprite;
+  // use the_sprite
+}
+```
+
+### `ctx`
+
+The Context object.
+
+### `hint`
+
+The string used inside the list when building a user object.
+
+Note that this doesn't have any real meaning -- it simply exists so that when the end-user prints
+out the object, it says something useful.
+
+This should never be used for type checking.  Instead, a host should provide a native function
+like `issprite` that will use [`list_hasuser`](#list_hasuser) to query the actual underlying type.
+
+### `f_free`
+
+The function used to free the object, or `NULL` (C only).
+
+This function will be called when the garbage collector determines that the list container is
+unreachable and should be collected.
 
 # TODO
 

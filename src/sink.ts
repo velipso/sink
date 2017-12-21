@@ -13285,10 +13285,10 @@ export function arg_user(ctx: ctx, args: val[], index: number,
 	if (index < 0 || index >= args.length)
 		throw new Error(err);
 	let ls = args[index];
-	if (!islist(ls))
+	if (!islist(ls) || !list_hasuser(ctx, ls, usertype))
 		throw new Error(err);
 	try {
-		return list_getuser(ctx, ls, usertype);
+		return list_getuser(ctx, ls);
 	}
 	catch (e){
 		throw new Error(err);
@@ -13726,19 +13726,19 @@ export function str_hashplain(str: string, seed: number): [number, number, numbe
 }
 
 // lists
-export function list_setuser(ctx: ctx, ls: list, usertype: user, user: any): void {
+export function list_setuser(ctx: ctx, ls: val, usertype: user, user: any): void {
+	if (!islist(ls))
+		throw new Error('Expecting list for sink.list_setuser');
 	ls.usertype = usertype;
 	ls.user = user;
 }
 
-export function list_hasuser(ctx: ctx, ls: list, usertype: user): boolean {
-	return ls.usertype === usertype;
+export function list_hasuser(ctx: ctx, ls: val, usertype: user): boolean {
+	return islist(ls) && ls.usertype === usertype;
 }
 
-export function list_getuser(ctx: ctx, ls: list, usertype: user): any {
-	if (ls.usertype !== usertype)
-		throw new Error('Bad user type on list');
-	return ls.user;
+export function list_getuser(ctx: ctx, ls: val): any {
+	return islist(ls) ? ls.user : null;
 }
 
 export function list_cat(ctx: ctx, vals: val[]): val {
