@@ -850,10 +850,83 @@ User-defined value passed to `f_native`.
 
 The native function implementation.
 
+ctx_cleanup
+-----------
+
+Provide a pointer and free function to be executed when the Context object is freed (C only).
+
+```c
+typedef void (*sink_free_f)(void *ptr);
+
+void sink_ctx_cleanup(sink_ctx ctx, void *cuser, sink_free_f f_free);
 ```
-void sink_ctx_cleanup(sink_ctx ctx, void *cuser, sink_free_f f_cleanup);
+
+This is useful for libraries that allocate their own objects when loading into a sink Context
+object.  They can ensure the objects are cleaned up when the Context object is freed.
+
+### `ctx`
+
+The Context object.
+
+### `cuser`
+
+The pointer to be freed when the Context object is freed.
+
+### `f_free`
+
+The function used to free `cuser`.
+
+ctx_setuser
+-----------
+
+Set a user-defined value associated with the Context object.  The value can be retrieved by
+[`ctx_getuser`](#ctx_getuser).
+
+```c
+typedef void (*sink_free_f)(void *ptr);
+
 void sink_ctx_setuser(sink_ctx ctx, void *user, sink_free_f f_free);
+```
+
+```typescript
+function sink.ctx_setuser(ctx: sink.ctx, user: any): void;
+```
+
+### `ctx`
+
+The Context object.
+
+### `user`
+
+The user-defined value.
+
+### `f_free`
+
+The function used to free the object (C only).  If the user-defined value is overwritten by another
+call to `ctx_setuser`, or if the Context object is freed, then the current `user` value is freed via
+`f_free`.
+
+ctx_getuser
+-----------
+
+Get the user-defined value associated with the Context object, previously set with
+[`ctx_setuser`](#ctx_setuser).
+
+```c
 void *sink_ctx_getuser(sink_ctx ctx);
+```
+
+```typescript
+function sink.ctx_getuser(ctx: sink.ctx): any;
+```
+
+### `ctx`
+
+The Context object.
+
+# TODO
+
+```
 sink_user sink_ctx_addusertype(sink_ctx ctx, const char *hint, sink_free_f f_free);
 sink_free_f sink_ctx_getuserfree(sink_ctx ctx, sink_user usertype);
 const char *sink_ctx_getuserhint(sink_ctx ctx, sink_user usertype);

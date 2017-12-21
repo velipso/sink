@@ -161,7 +161,7 @@ void            sink_ctx_native(sink_ctx ctx, const char *name, void *natuser,
 	sink_native_f f_native);
 void            sink_ctx_nativehash(sink_ctx ctx, uint64_t hash, void *natuser,
 	sink_native_f f_native);
-void            sink_ctx_cleanup(sink_ctx ctx, void *cuser, sink_free_f f_cleanup);
+void            sink_ctx_cleanup(sink_ctx ctx, void *cuser, sink_free_f f_free);
 void            sink_ctx_setuser(sink_ctx ctx, void *user, sink_free_f f_free);
 void *          sink_ctx_getuser(sink_ctx ctx);
 sink_user       sink_ctx_addusertype(sink_ctx ctx, const char *hint, sink_free_f f_free);

@@ -15370,8 +15370,8 @@ void sink_ctx_nativehash(sink_ctx ctx, uint64_t hash, void *natuser, sink_native
 	context_native(ctx, hash, natuser, f_native);
 }
 
-void sink_ctx_cleanup(sink_ctx ctx, void *cuser, sink_free_f f_cleanup){
-	context_cleanup(ctx, cuser, f_cleanup);
+void sink_ctx_cleanup(sink_ctx ctx, void *cuser, sink_free_f f_free){
+	context_cleanup(ctx, cuser, f_free);
 }
 
 void sink_ctx_setuser(sink_ctx ctx, void *user, sink_free_f f_freeuser){
