@@ -181,7 +181,7 @@ path starting with `/` will be considered an aboslute path.
 
 If false, then path routines will use Windows logic.  It will treat `/` and `\` as path seperators,
 join paths using `\`, and paths starting with a drive letter or network name will be considered
-absolute (i.e., `c:\foo` or `//host/computer/foo`).
+absolute (i.e., `c:\foo` or `\\host\computer\foo`).
 
 ### `repl`
 
