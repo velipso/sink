@@ -10977,9 +10977,12 @@ static sink_val unop_int_clz(context ctx, sink_val a){
 	#if defined(BITSCAN_FFSLL)
 		return sink_num(32 - fls(toint(a)));
 	#elif defined(BITSCAN_WIN)
+		int i = toint(a);
+		if (i == 0)
+			return sink_num(32);
 		unsigned long pos;
-		_BitScanReverse(&pos, toint(a));
-		return sink_num(32 - pos);
+		_BitScanReverse(&pos, i);
+		return sink_num(31 - pos);
 	#else
 	#	error Don't know how to implement bmp_alloc
 	#endif
