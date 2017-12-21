@@ -149,8 +149,9 @@ interface sink.inc_st {
 }
 ```
 
-The `f_fstype` function should query the filesystem, and return one of the results: `NONE` for a
-file that doesn't exist, `FILE` for a file, and `DIR` for a directory.
+The `f_fstype` function should query the filesystem, and return one of the results: `NONE`
+(i.e., `SINK_FSTYPE_NONE` in C, and `sink.fstype.NONE` in TypeScript) for a file that doesn't exist,
+`FILE` for a file, and `DIR` for a directory.
 
 The `f_fsread` function should attempt to open the provided file, and write it to the Script object
 using [`scr_write`](#scr_write).  It should return `true` if the file was read successfully, and
