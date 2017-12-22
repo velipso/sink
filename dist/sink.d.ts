@@ -184,6 +184,7 @@ export declare function arg_user(ctx: ctx, args: val[], index: number, usertype:
 export declare function tostr(v: val): str;
 export declare function exit(ctx: ctx, vals: val[]): void | Promise<void>;
 export declare function abort(ctx: ctx, vals: val[]): void;
+export declare function abortstr(ctx: ctx, str: string): val;
 export declare function num_neg(ctx: ctx, a: val): val;
 export declare function num_add(ctx: ctx, a: val, b: val): val;
 export declare function num_sub(ctx: ctx, a: val, b: val): val;

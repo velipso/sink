@@ -11743,6 +11743,11 @@ var __extends = (this && this.__extends) || (function () {
         opi_abort(ctx, bytes);
     }
     exports.abort = abort;
+    function abortstr(ctx, str) {
+        opi_abort(ctx, str);
+        return exports.NIL;
+    }
+    exports.abortstr = abortstr;
     function num_neg(ctx, a) {
         return opi_unop(ctx, a, unop_num_neg, txt_num_neg);
     }

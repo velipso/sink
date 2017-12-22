@@ -74,7 +74,7 @@
     };
     function newctx(scr, argv) {
         var ctx = sink.ctx_new(scr, io);
-        sink_shell.ctx(ctx);
+        sink_shell.ctx(ctx, argv);
         return ctx;
     }
     function printscrerr(scr) {
@@ -278,6 +278,10 @@
                 input_content = argv[i + 1];
                 i += 2;
                 input_type = 'eval';
+                break;
+            }
+            else if (a === '--') {
+                i++;
                 break;
             }
             else {
