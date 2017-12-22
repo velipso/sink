@@ -13232,6 +13232,17 @@ export function ctx_gettimeout(ctx: ctx): number {
 	return (ctx as context_st).timeout;
 }
 
+export function ctx_ticktimeout(ctx: ctx, amount: number): void {
+	let ctx2 = ctx as context_st;
+	if (amount > ctx2.timeout_left)
+		amount = ctx2.timeout_left;
+	if (amount < -ctx2.timeout)
+		amount = -ctx2.timeout;
+	ctx2.timeout_left -= amount;
+	if (ctx2.timeout_left > ctx2.timeout)
+		ctx2.timeout_left = ctx2.timeout;
+}
+
 export function ctx_forcetimeout(ctx: ctx): void {
 	(ctx as context_st).timeout_left = 0;
 }

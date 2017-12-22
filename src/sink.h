@@ -170,6 +170,7 @@ const char *    sink_ctx_getuserhint(sink_ctx ctx, sink_user usertype);
 void            sink_ctx_asyncresult(sink_ctx ctx, sink_val v);
 void            sink_ctx_settimeout(sink_ctx ctx, int timeout);
 int             sink_ctx_gettimeout(sink_ctx ctx);
+void            sink_ctx_ticktimeout(sink_ctx ctx, int amount);
 void            sink_ctx_forcetimeout(sink_ctx ctx);
 sink_run        sink_ctx_run(sink_ctx ctx);
 void            sink_ctx_free(sink_ctx ctx);

@@ -172,6 +172,7 @@ export declare function ctx_addusertype(ctx: ctx, hint: string): user;
 export declare function ctx_getuserhint(ctx: ctx, usertype: user): string;
 export declare function ctx_settimeout(ctx: ctx, timeout: number): void;
 export declare function ctx_gettimeout(ctx: ctx): number;
+export declare function ctx_ticktimeout(ctx: ctx, amount: number): void;
 export declare function ctx_forcetimeout(ctx: ctx): void;
 export declare function ctx_run(ctx: ctx): run | Promise<run>;
 export declare function ctx_geterr(ctx: ctx): strnil;

@@ -15445,12 +15445,25 @@ void sink_ctx_asyncresult(sink_ctx ctx, sink_val v){
 
 void sink_ctx_settimeout(sink_ctx ctx, int timeout){
 	context ctx2 = ctx;
+	if (timeout < 0)
+		timeout = 0;
 	ctx2->timeout = timeout;
 	ctx2->timeout_left = timeout;
 }
 
 int sink_ctx_gettimeout(sink_ctx ctx){
 	return ((context)ctx)->timeout;
+}
+
+void sink_ctx_ticktimeout(sink_ctx ctx, int amount){
+	context ctx2 = ctx;
+	if (amount > ctx2->timeout_left)
+		amount = ctx2->timeout_left;
+	if (amount < -ctx2->timeout)
+		amount = -ctx2->timeout;
+	ctx2->timeout_left -= amount;
+	if (ctx2->timeout_left > ctx2->timeout)
+		ctx2->timeout_left = ctx2->timeout;
 }
 
 void sink_ctx_forcetimeout(sink_ctx ctx){

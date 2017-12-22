@@ -622,6 +622,7 @@ virtual machine.
 | [`ctx_asyncresult`](#ctx_asyncresult)   | Provide a result to an asynchronous operation         |
 | [`ctx_settimeout`](#ctx_settimeout)     | Set a timeout so the machine pauses itself            |
 | [`ctx_gettimeout`](#ctx_gettimeout)     | Get the current timeout value                         |
+| [`ctx_ticktimeout`](#ctx_ticktimeout)   | Decrease the current timeout by an amount             |
 | [`ctx_forcetimeout`](#ctx_forcetimeout) | Force a timeout to occur immediately                  |
 | [`ctx_run`](#ctx_run)                   | Run the virtual machine                               |
 | [`ctx_free`](#ctx_free)                 | Free a Context object                                 |
@@ -1011,15 +1012,224 @@ The function used to free the object, or `NULL` (C only).
 This function will be called when the garbage collector determines that the list container is
 unreachable and should be collected.
 
-# TODO
+ctx_getuserfree
+---------------
 
-```
+Get the `f_free` function associated with a user type (C only).  See:
+[`ctx_addusertype`](#ctx_addusertype).
+
+```c
+typedef int sink_user;
+
 sink_free_f sink_ctx_getuserfree(sink_ctx ctx, sink_user usertype);
+```
+
+### `ctx`
+
+The Context object.
+
+### `usertype`
+
+The user type returned from `ctx_addusertype`.
+
+ctx_getuserhint
+---------------
+
+Get the `hint` associated with a user type.  See: [`ctx_addusertype`](#ctx_addusertype).
+
+```c
+typedef int sink_user;
+
 const char *sink_ctx_getuserhint(sink_ctx ctx, sink_user usertype);
+```
+
+```typescript
+type sink.user = number;
+
+function sink.ctx_getuserhint(ctx: sink.ctx, usertype: sink.user): string;
+```
+
+### `ctx`
+
+The Context object.
+
+### `usertype`
+
+The user type returned from `ctx_addusertype`.
+
+ctx_asyncresult
+---------------
+
+Provide the result to an asynchronous operation (C only).
+
+```c
 void sink_ctx_asyncresult(sink_ctx ctx, sink_val v);
+```
+
+This will allow the virtual machine to be resumed with a follow-up call to [`ctx_run`](#ctx_run),
+and will change the contex's [status](#ctx_getstatus) from `SINK_CTX_WAITING` to `SINK_CTX_READY`.
+
+This function should be called after receiving a `SINK_RUN_ASYNC` result from `ctx_run`.
+
+A TypeScript version of this function doesn't exist because `ctx_run` will return a Promise instead.
+
+### `ctx`
+
+The Context object.
+
+### `v`
+
+The value that is the result of the asynchornous operation.
+
+ctx_settimeout
+--------------
+
+Set a timeout so that the virtual machine will only execute a certain number of operations before
+returning from [`ctx_run`](#ctx_run).
+
+```c
 void sink_ctx_settimeout(sink_ctx ctx, int timeout);
+```
+
+```typescript
+function sink.ctx_settimeout(ctx: sink.ctx, timeout: number): void;
+```
+
+### `ctx`
+
+The Context object.
+
+### `timeout`
+
+Roughly the number of operations to execute before returning from `ctx_run` with a `TIMEOUT` result.
+Use `0` to disable a timeout entirely, which is the default state.
+
+ctx_gettimeout
+--------------
+
+Get the current timeout setting from the virtual machine.  See: [`ctx_settimeout`](#ctx_settimeout).
+
+```c
 int sink_ctx_gettimeout(sink_ctx ctx);
+```
+
+```typescript
+function sink.ctx_gettimeout(ctx: sink.ctx): number;
+```
+
+The return value will be `0` if timing out is disabled.
+
+### `ctx`
+
+The Context object.
+
+ctx_ticktimeout
+---------------
+
+Decrease the current timeout value by `amount`.
+
+```c
+void sink_ctx_ticktimeout(sink_ctx ctx, int amount);
+```
+
+```typescript
+function sink.ctx_ticktimeout(ctx: sink.ctx, amount: number): void
+```
+
+Use this function to inform the virtual machine that an operation has taken a long time, so the
+value used to track when a timeout happens needs to reflect this delay.
+
+For example, if a native command takes a long time, it could inform the machine to decrease the
+internal timer by 50 ticks via `sink.ctx_ticktimeout(ctx, 50)`.
+
+### `ctx`
+
+The Context object.
+
+### `amount`
+
+The amount of ticks to decrease the timer (positive number).
+
+ctx_forcetimeout
+----------------
+
+Force a timeout to occur immediately.  Timeouts must be enabled via
+[`ctx_settimeout`](#ctx_settimeout) for this to work.
+
+```c
 void sink_ctx_forcetimeout(sink_ctx ctx);
+```
+
+```typescript
+function sink.ctx_forcetimeout(ctx: sink.ctx): void;
+```
+
+This will immediately expire the internal timer, so that when control returns to
+[`ctx_run`](#ctx_run), it will immediately return `TIMEOUT`.
+
+### `ctx`
+
+The Context object.
+
+ctx_run
+-------
+
+Run the virtual machine.  This is the main function used to execute a script.
+
+```c
+typedef enum {
+  SINK_RUN_PASS,
+  SINK_RUN_FAIL,
+  SINK_RUN_ASYNC,
+  SINK_RUN_TIMEOUT,
+  SINK_RUN_REPLMORE
+} sink_run;
+
 sink_run sink_ctx_run(sink_ctx ctx);
+```
+
+```typescript
+enum sink.run {
+  PASS,
+  FAIL,
+  ASYNC,
+  TIMEOUT,
+  REPLMORE
+}
+
+function sink.ctx_run(ctx: sink.ctx): sink.run | Promise<sink.run>;
+```
+
+This function will execute the bytecode and dispatch [I/O](#ctx_new) and [native](#ctx_native)
+functions as needed.
+
+It will return one of the following values:
+
+* `PASS` - Execution has finished and the script exited successfully.
+* `FAIL` - Execution has finished and the script exited in failure.  Use [`ctx_geterr`](#ctx_geterr)
+  to get the run-time error message, if it exists.
+* `ASYNC` - The machine is waiting for an asynchronous operation to complete.
+* `TIMEOUT` - The machine's [timeout](#ctx_settimeout) has triggered.  Run `ctx_run` to resume.
+* `REPLMORE` - The machine has detected it has executed as much as it could before needing more
+  source code entered from the REPL.  This only happens if the Script is in [REPL mode](#scr_new).
+
+### `ctx`
+
+The Context object.
+
+ctx_free
+--------
+
+Free the Context object (C only).
+
+```c
 void sink_ctx_free(sink_ctx ctx);
 ```
+
+Note this will also free any [`ctx_setuser`](#ctx_setuser) value, and any
+[`ctx_cleanup`](#ctx_cleanup) pointers that have been associated with the Context object, before
+freeing the Context object itself.
+
+### `ctx`
+
+The Context object.
