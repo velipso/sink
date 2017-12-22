@@ -169,7 +169,7 @@ The `user` field is passed through to the `incuser` argument in the functions, a
 
 ### `curdir`
 
-The current working directory (or `null`/`NULL`).
+The current working directory (or `null`/`NULL`).  This must be an absolute path.
 
 This is used when a script includes or embeds a relative path, in order to construct an aboslute
 path.
