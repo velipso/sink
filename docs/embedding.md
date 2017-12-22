@@ -103,7 +103,7 @@ scr_new
 Create a new Script object.
 
 ```c
-sink_scr sink_scr_new(sink_inc_st inc, const char *curdir, const char *pathsep, bool repl);
+sink_scr sink_scr_new(sink_inc_st inc, const char *curdir, bool posix, bool repl);
 ```
 
 ```typescript
