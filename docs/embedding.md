@@ -1004,7 +1004,8 @@ like `issprite` that will use [`list_hasuser`](#list_hasuser) to query the actua
 The function used to free the object, or `NULL` (C only).
 
 This function will be called when the garbage collector determines that the list container is
-unreachable and should be collected.
+unreachable and should be collected.  It will also be called if the user value is ever overwritten
+via [`list_setuser`](#list_setuser).
 
 ctx_getuserfree
 ---------------
