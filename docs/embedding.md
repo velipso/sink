@@ -1095,6 +1095,14 @@ void sink_ctx_settimeout(sink_ctx ctx, int timeout);
 function sink.ctx_settimeout(ctx: sink.ctx, timeout: number): void;
 ```
 
+For example, if the timeout is 1000, then the VM will run 1000 ticks before timing out.  Each
+machine instruction counts as 1 tick, and a garbage collection cycle counts as 100 ticks.  Native
+functions can consume ticks via [`ctx_ticktimeout`](#ctx_ticktimeout), or empty the available ticks
+to 0 via [`ctx_forcetimeout`](#ctx_forcetimeout).
+
+When there are no ticks left, `ctx_run` returns `TIMEOUT` and resets the available ticks to
+`timeout`.  The machine is resumed with another call to `ctx_run`, and the process repeats.
+
 ### `ctx`
 
 The Context object.
@@ -1137,7 +1145,7 @@ function sink.ctx_ticktimeout(ctx: sink.ctx, amount: number): void
 ```
 
 Use this function to inform the virtual machine that an operation has taken a long time, so the
-value used to track when a timeout happens needs to reflect this delay.
+value used to track when a timeout happens reflects this delay.
 
 For example, if a native command takes a long time, it could inform the machine to decrease the
 internal timer by 50 ticks via `sink.ctx_ticktimeout(ctx, 50)`.
@@ -1148,7 +1156,7 @@ The Context object.
 
 ### `amount`
 
-The amount of ticks to decrease the timer (positive number).
+The amount of ticks to decrease the timer.  This value should be positive.
 
 ctx_forcetimeout
 ----------------
