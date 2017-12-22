@@ -115,8 +115,8 @@ function sink.scr_new(inc: sink.inc_st, curdir: string | null, posix: boolean, r
 
 An object that provides functions for the compiler to read files from the filesystem.
 
-When a script uses `include` or `embed`, the compiler will query these functions (using the search
-path) to figure out how to resolve to the correct file, and read the file.
+When a script uses `include` or `embed`, the compiler will query these functions (using the
+[search path](#scr_addpath)) to figure out how to resolve to the correct file, and read the file.
 
 ```c
 typedef enum {
