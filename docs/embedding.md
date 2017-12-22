@@ -1162,7 +1162,7 @@ ctx_forcetimeout
 ----------------
 
 Force a timeout to occur immediately.  Timeouts must be enabled via
-[`ctx_settimeout`](#ctx_settimeout) for this to work.
+[`ctx_settimeout`](#ctx_settimeout) for this to have an effect.
 
 ```c
 void sink_ctx_forcetimeout(sink_ctx ctx);
