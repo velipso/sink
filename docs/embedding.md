@@ -194,15 +194,9 @@ For example, the following script will result in a compile-time error, but works
 entered one line at a time:
 
 ```
-def test
-  say 1
-end
-
-def test
-  say 2
-end
-
-test # => outputs 2 in a REPL
+var test = 1
+var test = 2
+say test # => outputs 2 in a REPL
 ```
 
 Normally, defining something twice will result in a compile-time error (`Cannot redefine "test"`).
