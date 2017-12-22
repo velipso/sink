@@ -13355,6 +13355,11 @@ export function abort(ctx: ctx, vals: val[]): void {
 	opi_abort(ctx, bytes);
 }
 
+export function abortstr(ctx: ctx, str: string): val {
+	opi_abort(ctx, str);
+	return NIL;
+}
+
 // numbers
 export function num_neg(ctx: ctx, a: val): val {
 	return opi_unop(ctx, a, unop_num_neg, txt_num_neg);

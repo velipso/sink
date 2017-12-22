@@ -365,6 +365,10 @@ int main(int argc, char **argv){
 			input_type = INPUT_EVAL;
 			break;
 		}
+		else if (strcmp(argv[i], "--") == 0){
+			i++;
+			break;
+		}
 		else{
 			if (argv[i][0] == '-'){
 				// some unknown option

@@ -1,7 +1,7 @@
 
 include 'shell'
 
-if isstr pwd
+if islist version
 	say 'pass'
 else
 	say 'fail'
@@ -11,7 +11,7 @@ namespace a.b.c.d
 	include 'shell'
 end
 
-if isstr a.b.c.d.pwd
+if islist a.b.c.d.version
 	say 'pass'
 else
 	say 'fail'

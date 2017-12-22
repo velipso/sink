@@ -12,10 +12,51 @@
 #	include <unistd.h> // getcwd
 #endif
 
+#define VERSION_MAJ  1
+#define VERSION_MIN  0
+#define VERSION_PAT  0
+
 typedef struct {
 	char **args;
 	int size;
 } uargs_st, *uargs;
+
+static sink_val L_version(sink_ctx ctx, int size, sink_val *args, void *nuser){
+	int reqmaj = 0, reqmin = 0, reqpat = 0;
+	if (size >= 1){
+		if (!sink_isnum(args[0]))
+			return sink_abortstr(ctx, "Expecting number");
+		reqmaj = sink_castnum(args[0]);
+	}
+	if (size >= 2){
+		if (!sink_isnum(args[1]))
+			return sink_abortstr(ctx, "Expecting number");
+		reqmin = sink_castnum(args[1]);
+	}
+	if (size >= 3){
+		if (!sink_isnum(args[2]))
+			return sink_abortstr(ctx, "Expecting number");
+		reqpat = sink_castnum(args[2]);
+	}
+
+	if (reqmaj > VERSION_MAJ)
+		goto fail;
+	else if (reqmaj == VERSION_MAJ){
+		if (reqmin > VERSION_MIN)
+			goto fail;
+		else if (reqmin == VERSION_MIN){
+			if (reqpat > VERSION_PAT)
+				goto fail;
+		}
+	}
+
+	sink_val ls[3] = { sink_num(VERSION_MAJ), sink_num(VERSION_MIN), sink_num(VERSION_PAT) };
+	return sink_list_newblob(ctx, 3, ls);
+
+	fail:
+	return sink_abortstr(ctx, "Script requires version %d.%d.%d, but sink is version %d.%d.%d",
+		reqmaj, reqmin, reqpat, VERSION_MAJ, VERSION_MIN, VERSION_PAT);
+}
 
 static sink_val L_args(sink_ctx ctx, int size, sink_val *args, uargs a){
 	sink_val ar = sink_list_newblob(ctx, 0, NULL);
@@ -37,24 +78,8 @@ static sink_val L_pwd(sink_ctx ctx, int size, sink_val *args, void *nuser){
 
 void sink_shell_scr(sink_scr scr){
 	sink_scr_incbody(scr, "shell",
-		"declare args  'sink.shell.args' ;"
-		"declare cat   'sink.shell.cat'  ;"
-		"declare cd    'sink.shell.cd'   ;"
-		"declare cp    'sink.shell.cp'   ;"
-		"declare env   'sink.shell.env'  ;"
-		"declare exec  'sink.shell.exec' ;"
-		"declare glob  'sink.shell.glob' ;"
-		"declare head  'sink.shell.head' ;"
-		"declare ls    'sink.shell.ls'   ;"
-		"declare mv    'sink.shell.mv'   ;"
-		"declare mkdir 'sink.shell.mkdir';"
-		"declare pushd 'sink.shell.pushd';"
-		"declare popd  'sink.shell.popd' ;"
-		"declare pwd   'sink.shell.pwd'  ;"
-		"declare rm    'sink.shell.rm'   ;"
-		"declare tail  'sink.shell.tail' ;"
-		"declare test  'sink.shell.test' ;"
-		"declare which 'sink.shell.which';"
+		"declare version 'sink.shell.version';"
+		"declare args    'sink.shell.args'   ;"
 	);
 }
 
@@ -68,6 +93,6 @@ void sink_shell_ctx(sink_ctx ctx, int argc, char **argv){
 	a->args = argv;
 	a->size = argc;
 	sink_ctx_cleanup(ctx, a, free);
+	sink_ctx_native(ctx, "sink.shell.version", NULL, (sink_native_f)L_version);
 	sink_ctx_native(ctx, "sink.shell.args", a, (sink_native_f)L_args);
-	sink_ctx_native(ctx, "sink.shell.pwd", NULL, L_pwd);
 }

@@ -78,7 +78,7 @@ let inc: sink.inc_st = {
 
 function newctx(scr: sink.scr, argv: string[]): sink.ctx {
 	let ctx = sink.ctx_new(scr, io);
-	sink_shell.ctx(ctx);
+	sink_shell.ctx(ctx, argv);
 	return ctx;
 }
 
@@ -324,6 +324,10 @@ export function main(): boolean | Promise<boolean> {
 			input_content = argv[i + 1];
 			i += 2; // skip over script
 			input_type = 'eval';
+			break;
+		}
+		else if (a === '--'){
+			i++;
 			break;
 		}
 		else{
