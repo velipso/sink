@@ -1213,6 +1213,15 @@ It will return one of the following values:
 * `REPLMORE` - The machine has detected it has executed as much as it could before needing more
   source code entered from the REPL.  This only happens if the Script is in [REPL mode](#scr_new).
 
+Note that the TypeScript version will return a Promise for an asynchronous operation -- not
+`sink.run.ASYNC`.  The value `sink.run.ASYNC` is returned only if the `ctx_run` is called on a
+context that is waiting for a Promise to resolve.
+
+On the other hand, the C version will return `SINK_RUN_ASYNC` if a native function returns
+`SINK_ASYNC`.  It is up to the host to eventually call [`ctx_asyncresult`](#ctx_asyncresult) to
+move the [status](#ctx_getstatus) from `WAITING` to `READY`, and then call `ctx_run` again to resume
+execution with the result.
+
 ### `ctx`
 
 The Context object.
