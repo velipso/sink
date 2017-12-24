@@ -6050,7 +6050,7 @@ static void pathjoin_helper(char *res, int *r, int len, const char *buf, bool po
 static char *pathjoin(const char *prev, const char *next, bool posix){
 	int prev_len = (int)strlen(prev);
 	int next_len = (int)strlen(next);
-	int len = prev_len + next_len + 2;
+	int len = prev_len + next_len + 4;
 	char *res = mem_alloc(sizeof(char) * len);
 	int r = 0;
 	pathjoin_helper(res, &r, prev_len, prev, posix);
