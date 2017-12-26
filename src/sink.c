@@ -35,9 +35,11 @@
 #	define oplogf(msg, ...)
 #endif
 
+#if !defined(SINK_DEBUG) && !defined(SINK_MEMTEST)
 sink_malloc_f  sink_malloc  = malloc;
 sink_realloc_f sink_realloc = realloc;
 sink_free_f    sink_free    = free;
+#endif
 
 static inline void *mem_prod_alloc(size_t s){
 	void *p = sink_malloc(s);
@@ -76,9 +78,31 @@ typedef struct m_debug_memlist_struct {
 
 static m_debug_memlist memlist = NULL;
 
+static inline void *md_malloc(size_t s){
+	void *p = malloc(s);
+	if (p == NULL){
+		fprintf(stderr, "Out of memory!\n");
+		exit(1);
+	}
+	return p;
+}
+
+static inline void *md_realloc(void *p, size_t s){
+	p = realloc(p, s);
+	if (p == NULL){
+		fprintf(stderr, "Out of memory!\n");
+		exit(1);
+	}
+	return p;
+}
+
+static inline void md_free(void *p){
+	free(p);
+}
+
 static void *mem_debug_alloc(size_t s, const char *file, int line){
-	void *p = mem_prod_alloc(s);
-	m_debug_memlist m = mem_prod_alloc(sizeof(m_debug_memlist_st));
+	void *p = md_malloc(s);
+	m_debug_memlist m = md_malloc(sizeof(m_debug_memlist_st));
 	m->p = p;
 	m->file = file;
 	m->line = line;
@@ -90,8 +114,8 @@ static void *mem_debug_alloc(size_t s, const char *file, int line){
 static void *mem_debug_realloc(void *p, size_t s, const char *file, int line){
 	void *new_p;
 	if (p == NULL){
-		m_debug_memlist m = mem_prod_alloc(sizeof(m_debug_memlist_st));
-		m->p = new_p = mem_prod_realloc(p, s);
+		m_debug_memlist m = md_malloc(sizeof(m_debug_memlist_st));
+		m->p = new_p = md_realloc(p, s);
 		m->file = file;
 		m->line = line;
 		m->next = memlist;
@@ -103,7 +127,7 @@ static void *mem_debug_realloc(void *p, size_t s, const char *file, int line){
 		while (m){
 			if (m->p == p){
 				found = true;
-				m->p = new_p = mem_prod_realloc(p, s);
+				m->p = new_p = md_realloc(p, s);
 				m->file = file;
 				m->line = line;
 				break;
@@ -126,10 +150,10 @@ static void mem_debug_free(void *p, const char *file, int line){
 	while (*m){
 		if ((*m)->p == p){
 			found = true;
-			mem_prod_free(p);
+			md_free(p);
 			void *f = *m;
 			*m = (*m)->next;
-			mem_prod_free(f);
+			md_free(f);
 			break;
 		}
 		m = &(*m)->next;
@@ -148,16 +172,28 @@ static void mem_debug_done(){
 			printf("%s:%d (%p)\n", m->file, m->line, m->p);
 			m_debug_memlist f = m;
 			m = m->next;
-			mem_prod_free(f->p);
-			mem_prod_free(f);
+			md_free(f->p);
+			md_free(f);
 		}
 		memlist = NULL;
 	}
 }
 
+static void *mem_alloc_func(size_t s){
+	return mem_debug_alloc(s, "<indirect>", 0);
+}
+
+static void *mem_realloc_func(void *p, size_t s){
+	return mem_debug_realloc(p, s, "<indirect>", 0);
+}
+
 static void mem_free_func(void *p){
 	mem_debug_free(p, "<indirect>", 0);
 }
+
+sink_malloc_f  sink_malloc  = mem_alloc_func;
+sink_realloc_f sink_realloc = mem_realloc_func;
+sink_free_f    sink_free    = mem_free_func;
 
 #	define mem_alloc(s)       mem_debug_alloc(s, __FILE__, __LINE__)
 #	define mem_realloc(p, s)  mem_debug_realloc(p, s, __FILE__, __LINE__)

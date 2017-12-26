@@ -3,12 +3,12 @@
 # Project Home: https://github.com/voidqk/sink
 
 #
-# this script will run the tests
+# this script will search for sink executables to test, and run the test suite against them
 #
 
 include 'shell'
 
-# TODO: replace with `path.join file.script, '..'` once path.join is done
+# TODO: use `path.join` once that works
 var path_list = file.script | str.split '/'
 list.pop path_list
 var tests_dir = path_list | list.join '/'
@@ -20,7 +20,31 @@ list.push path_list, 'bin.sink'
 var bin_sink = path_list | list.join '/'
 list.pop path_list
 list.push path_list, 'sink'
-var sink_exe = path_list | list.join '/'
+var sink_posix = path_list | list.join '/'
+list.pop path_list
+list.push path_list, 'sink.exe'
+var sink_win = path_list | list.join '/'
+list.pop path_list
+list.push path_list, 'driver.js'
+var sink_js = path_list | list.join '/'
+
+# search for sink executables to test
+var sink_exes = {}
+if file.exists sink_posix
+	say (str.pad 'Testing POSIX:', 20), sink_posix
+	list.push sink_exes, sink_posix
+end
+if file.exists sink_win
+	say (str.pad 'Testing Windows:', 20), sink_win
+	list.push sink_exes, sink_win
+end
+if file.exists sink_js
+	say (str.pad 'Testing JavaScript:', 20), sink_js
+	list.push sink_exes, sink_js
+end
+if &sink_exes == 0
+	abort 'No sink executables found to test'
+end
 
 # get list of tests
 var tests = {}
@@ -34,15 +58,6 @@ for var test: tests_list
 	if +test[0] && +test[1] && test[2] == '.'
 		list.push tests, test
 	end
-end
-
-def test_failed test_num, test_name, reason
-	say (str.pad test_num, -4) ~ '.' ~ (str.pad test_name, 30) ~ 'FAIL'
-	abort reason
-end
-
-def test_passed test_num, test_name
-	say (str.pad test_num, -4) ~ '.' ~ (str.pad test_name, 30) ~ 'PASS'
 end
 
 def print_diff answer, actual
@@ -60,46 +75,75 @@ for var test: tests
 	var pass_file = test_dir ~ '/' ~ 'pass.txt'                 # TODO: path.join
 	var fail_file = test_dir ~ '/' ~ 'fail.txt'                 # TODO: path.join
 
-	var {status, stdout, stderr} = run sink_exe, {test_script}, nil, nil, 1
+	declare test_failed
 
-	if status == 0
-		# script succeeded
+	var bin_data = nil
+	for var sink_exe: sink_exes
+		# run the script
+		var {status, stdout, stderr} = run sink_exe, {test_script}, nil, nil, 1
 
-		# check stdout
-		if !file.exists pass_file
-			say stdout
-			test_failed test_num, test_name, 'Expecting script to fail but it passed'
-		end
-		var answer = file.read pass_file
-		if answer != stdout
-			print_diff answer, stdout
-			test_failed test_num, test_name, 'Incorrect results'
-		end
+		if status == 0
+			#
+			# script succeeded
+			#
 
-		# check compiling
-		var {cstatus, cstdout, cstderr} = run sink_exe, {'-c', '-d', test_script}, nil, nil, 1
-		if cstatus != 0
-			say cstderr
-			test_failed test_num, test_name, 'Failed to compile script'
-		end
-		file.write bin_sink, cstdout
-		var {rstatus, rstdout, rstderr} = run sink_exe, {bin_sink}, nil, nil, 1
-		if rstatus != 0
-			say rstderr
-			test_failed test_num, test_name, 'Failed to execute bytecode'
-		end
-		if answer != rstdout
-			print_diff answer, rstdout
-			test_failed test_num, test_name, 'Incorrect bytecode results'
-		end
+			# check stdout
+			if !file.exists pass_file
+				say stdout
+				test_failed 'Expecting script to fail but it passed'
+			end
+			var answer = file.read pass_file
+			if answer != stdout
+				print_diff answer, stdout
+				test_failed 'Incorrect results'
+			end
 
-		test_passed test_num, test_name
-	else
-		# script failed
-		if file.exists pass_file
-			say stderr
-			test_failed test_num, test_name, 'Expecting script to pass but it failed'
+			# check compiling
+			var {cstatus, cstdout, cstderr} = run sink_exe, {'-c', '-d', test_script}, nil, nil, 1
+			if cstatus != 0
+				say cstderr
+				test_failed 'Failed to compile script'
+			end
+			if bin_data == nil
+				bin_data = cstdout
+			else
+				if bin_data != cstdout
+					say 'Compiler 1:', sink_exes[0]
+					say 'Compiler 2:', sink_exe
+					test_failed 'Mismatched compiler results'
+				end
+			end
+			file.write bin_sink, cstdout
+			var {rstatus, rstdout, rstderr} = run sink_exe, {bin_sink}, nil, nil, 1
+			if rstatus != 0
+				say rstderr
+				test_failed 'Failed to execute bytecode'
+			end
+			if answer != rstdout
+				print_diff answer, rstdout
+				test_failed 'Incorrect bytecode results'
+			end
+		else
+			#
+			# script failed
+			#
+
+			if file.exists pass_file
+				say stderr
+				test_failed 'Expecting script to pass but it failed'
+			end
 		end
-		test_passed test_num, test_name
 	end
+
+	def test_result res
+		say (str.pad test_num, -4) ~ '.' ~ (str.pad test_name, 20) ~ res
+	end
+
+	def test_failed reason
+		test_result 'FAIL'
+		abort reason
+	end
+
+	# test passed
+	test_result 'PASS'
 end

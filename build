@@ -10,23 +10,18 @@ popd > /dev/null
 SRC_DIR=$SCRIPT_DIR/src
 TGT_DIR=$SCRIPT_DIR/tgt
 DIST_DIR=$TGT_DIR/dist
-TESTS_DIR=$SCRIPT_DIR/tests
 LIB_DIR=$SCRIPT_DIR/lib
 DIST_DIR=$SCRIPT_DIR/dist
 
 BUILD_TS=0
-TEST_TS=0
 BUILD_C=0
 BUILD_DEBUG=0
-BUILD_MEMTEST=0
-TEST_C=0
+BUILD_MEM=0
 
 case "$1" in
 	"all")
 		BUILD_TS=1
-		TEST_TS=1
 		BUILD_C=1
-		TEST_C=1
 		if [ "$2" = "debug" ]; then
 			BUILD_DEBUG=1
 		fi
@@ -37,29 +32,20 @@ case "$1" in
 			BUILD_DEBUG=1
 		fi
 		;;
-	"test-ts")
-		TEST_TS=1
-		;;
 	"c")
 		BUILD_C=1
 		if [ "$2" = "debug" ]; then
 			BUILD_DEBUG=1
 		fi
 		;;
-	"test-mem")
-		BUILD_C=1
-		TEST_C=1
-		BUILD_MEMTEST=1
-		;;
-	"test-c")
-		TEST_C=1
-		;;
 	"debug")
 		BUILD_TS=1
-		TEST_TS=1
 		BUILD_C=1
-		TEST_C=1
 		BUILD_DEBUG=1
+		;;
+	"mem")
+		BUILD_C=1
+		BUILD_MEM=1
 		;;
 	"clean")
 		echo Cleaning...
@@ -88,138 +74,17 @@ case "$1" in
 		echo './build <command> [debug]'
 		echo ''
 		echo 'Commands:'
-		echo '  all       Build and test everything'
+		echo '  all       Build everything'
 		echo '  ts        Build the TypeScript sources (node + browser)'
-		echo '  test-ts   Run the tests against the TypeScript build'
 		echo '  c         Build the C source'
-		echo '  test-c    Run the tests against the C build'
-		echo '  test-mem  Build and test for memory leaks in C source'
-		echo ''
+		echo '  mem       Build the C source with memory leak detection'
 		echo '  clean     Delete the tgt directory'
-		echo '  dist      Publish TypeScript builds to ./dist'
+		echo '  dist      Publish builds to ./dist'
 		echo ''
 		echo 'If "debug" is specified, then builds will be debug versions'
 		exit 0
 		;;
 esac
-
-run_test() {
-	# $1 : 'ts' or 'c'
-	# $2 : test directory
-	test_prog="$1"
-	test_dir="$2"
-	out=$(mktemp "$TGT_DIR"/test_output.stdout.XXXXXX)
-	err=$(mktemp "$TGT_DIR"/test_output.stderr.XXXXXX)
-	test_base=$(basename "$test_dir")
-	test_num=$(echo "$test_base" | cut -d . -f 1)
-	test_name=$(echo "$test_base" | cut -d . -f 2)
-
-	printf "%3s.%-14s  " "$test_num" "$test_name"
-
-	if [ "$test_prog" = "ts" ]; then
-		set +e
-		$TGT_DIR/driver.js "$test_dir"/"$test_name".sink "$test_name" > "$out" 2>"$err"
-		status=$?
-		set -e
-	else
-		set +e
-		$TGT_DIR/sink "$test_dir"/"$test_name".sink "$test_name" > "$out" 2>"$err"
-		status=$?
-		set -e
-	fi
-
-	if [ -e "$test_dir"/pass.txt ]; then
-		if [ "$status" != "0" ]; then
-			echo FAIL
-			cat "$err"
-			rm -f "$out"
-			rm -f "$err"
-			exit 1
-		else
-			set +e
-			d=$(diff -u --label 'Expected Output' "$test_dir"/pass.txt --label \
-				'Actual Output' "$out")
-			status=$?
-			set -e
-			if [ "$status" = "0" ]; then
-				# passed running text file, let's try compiling now
-				if [ "$test_prog" = "ts" ]; then
-					out2=$(mktemp "$TGT_DIR"/test_output.stdout.XXXXXX)
-					$TGT_DIR/driver.js -c -d "$test_dir"/"$test_name".sink > "$TGT_DIR/bin.sink"
-					$TGT_DIR/sink -c -d "$test_dir"/"$test_name".sink > "$TGT_DIR/bin2.sink"
-					if ! cmp --silent "$TGT_DIR/bin.sink" "$TGT_DIR/bin2.sink"; then
-						echo MISMATCH binary against C compiler
-						rm -f "$out"
-						rm -f "$err"
-						exit 1
-					fi
-					$TGT_DIR/driver.js $TGT_DIR/bin.sink > "$out2"
-					set +e
-					d=$(diff -u --label 'Expected Output' "$out" --label 'Actual Output' "$out2")
-					status=$?
-					set -e
-					rm -f "$out2"
-					if [ "$status" = "0" ]; then
-						echo PASS
-					else
-						echo FAIL on compile
-						echo "$d"
-						rm -f "$out"
-						rm -f "$err"
-						exit 1
-					fi
-				else
-					out2=$(mktemp "$TGT_DIR"/test_output.stdout.XXXXXX)
-					$TGT_DIR/sink -c -d "$test_dir"/"$test_name".sink > $TGT_DIR/bin.sink
-					$TGT_DIR/sink $TGT_DIR/bin.sink > "$out2"
-					set +e
-					d=$(diff -u --label 'Expected Output' "$out" --label 'Actual Output' "$out2")
-					status=$?
-					set -e
-					rm -f "$out2"
-					if [ "$status" = "0" ]; then
-						echo PASS
-					else
-						echo FAIL on compile
-						echo "$d"
-						rm -f "$out"
-						rm -f "$err"
-						exit 1
-					fi
-				fi
-			else
-				echo FAIL
-				echo "$d"
-				rm -f "$out"
-				rm -f "$err"
-				exit 1
-			fi
-		fi
-	else
-		if [ "$status" = "0" ]; then
-			echo FAIL
-			echo 'Expecting test to result in error; instead it ran with the result:'
-			cat "$out"
-			rm -f "$out"
-			rm -f "$err"
-			exit 1
-		else
-			echo PASS
-		fi
-	fi
-	rm -f "$out"
-	rm -f "$err"
-}
-
-run_tests() {
-	# $1 : 'ts' or 'c'
-	for test_dir in $TESTS_DIR/?.*; do
-		run_test "$1" "$test_dir"
-	done
-	for test_dir in $TESTS_DIR/??.*; do
-		run_test "$1" "$test_dir"
-	done
-}
 
 EXIT=0
 
@@ -256,37 +121,6 @@ if [ "$BUILD_TS" = "1" ]; then
 	fi
 fi
 
-if [ "$TEST_TS" = "1" ]; then
-	echo Testing TypeScript build...
-	if which node > /dev/null; then
-		if [ -e $TGT_DIR/driver.js ]; then
-			run_tests ts
-		else
-			echo ''
-			echo 'ERROR:'
-			echo 'Missing TypeScript build of sink.'
-			echo ''
-			echo 'Skipping tests for TypeScript build.'
-			echo ''
-			echo 'You can build the TypeScript version of sink via:'
-			echo '   ./build ts'
-			echo ''
-			EXIT=1
-		fi
-	else
-		echo ''
-		echo 'ERROR:'
-		echo 'Missing "node" which is required for running TypeScript tests.'
-		echo ''
-		echo 'Skipping tests for TypeScript build.'
-		echo ''
-		echo 'You can install "node" by visiting:'
-		echo '   https://nodejs.org/'
-		echo ''
-		EXIT=1
-	fi
-fi
-
 #
 # C build
 #
@@ -294,7 +128,7 @@ if [ "$BUILD_C" = "1" ]; then
 	echo Building C...
 	mkdir -p $TGT_DIR
 	if which clang > /dev/null; then
-		if [ "$BUILD_MEMTEST" = "1" ]; then
+		if [ "$BUILD_MEM" = "1" ]; then
 			C_OPTS="$C_OPTS -DSINK_MEMTEST"
 			echo Memory Test
 		elif [ "$BUILD_DEBUG" = "1" ]; then
@@ -317,24 +151,6 @@ if [ "$BUILD_C" = "1" ]; then
 		echo ''
 		echo 'You can install "clang" by visiting:'
 		echo '   http://llvm.org/'
-		echo ''
-		EXIT=1
-	fi
-fi
-
-if [ "$TEST_C" = "1" ]; then
-	echo Testing C build...
-	if which $TGT_DIR/sink > /dev/null; then
-		run_tests c
-	else
-		echo ''
-		echo 'ERROR:'
-		echo 'Missing C build of sink.'
-		echo ''
-		echo 'Skipping tests for C build.'
-		echo ''
-		echo 'You can build the C version of sink via:'
-		echo '   ./build c'
 		echo ''
 		EXIT=1
 	fi
