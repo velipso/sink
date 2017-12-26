@@ -11,7 +11,7 @@
 #	include <strings.h>  // ffsll
 #	define BITSCAN_FFSLL
 #else
-#	include <intrin.h>
+#	include <intrin.h>   // _BitScanForward64, _BitScanReverse
 #	define BITSCAN_WIN
 #endif
 
@@ -34,34 +34,6 @@
 #	define oplog(msg)
 #	define oplogf(msg, ...)
 #endif
-
-#if !defined(SINK_DEBUG) && !defined(SINK_MEMTEST)
-sink_malloc_f  sink_malloc  = malloc;
-sink_realloc_f sink_realloc = realloc;
-sink_free_f    sink_free    = free;
-#endif
-
-static inline void *mem_prod_alloc(size_t s){
-	void *p = sink_malloc(s);
-	if (p == NULL){
-		fprintf(stderr, "Out of memory!\n");
-		exit(1);
-	}
-	return p;
-}
-
-static inline void *mem_prod_realloc(void *p, size_t s){
-	p = sink_realloc(p, s);
-	if (p == NULL){
-		fprintf(stderr, "Out of memory!\n");
-		exit(1);
-	}
-	return p;
-}
-
-static inline void mem_prod_free(void *p){
-	sink_free(p);
-}
 
 #if defined(SINK_DEBUG) || defined(SINK_MEMTEST)
 
@@ -200,6 +172,37 @@ sink_free_f    sink_free    = mem_free_func;
 #	define mem_free(p)        mem_debug_free(p, __FILE__, __LINE__)
 #	define mem_done()         mem_debug_done()
 #else
+
+//
+// production memory routines wired to sink_malloc/etc
+//
+
+sink_malloc_f  sink_malloc  = malloc;
+sink_realloc_f sink_realloc = realloc;
+sink_free_f    sink_free    = free;
+
+static inline void *mem_prod_alloc(size_t s){
+	void *p = sink_malloc(s);
+	if (p == NULL){
+		fprintf(stderr, "Out of memory!\n");
+		exit(1);
+	}
+	return p;
+}
+
+static inline void *mem_prod_realloc(void *p, size_t s){
+	p = sink_realloc(p, s);
+	if (p == NULL){
+		fprintf(stderr, "Out of memory!\n");
+		exit(1);
+	}
+	return p;
+}
+
+static inline void mem_prod_free(void *p){
+	sink_free(p);
+}
+
 #	define mem_alloc(s)       mem_prod_alloc(s)
 #	define mem_realloc(p, s)  mem_prod_realloc(p, s)
 #	define mem_free(p)        mem_prod_free(p)
