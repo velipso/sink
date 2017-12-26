@@ -31,7 +31,7 @@ typedef void (*sink_free_f)(void *ptr);
 // all memory management is through these functions, which default to stdlib's malloc/realloc/free
 // overwrite these global variables with your own functions if desired
 extern sink_malloc_f  sink_malloc;
-extern sink_realloc_f sink_relloc;
+extern sink_realloc_f sink_realloc;
 extern sink_free_f    sink_free;
 
 // the source of randomness when performing `rand.seedauto`
@@ -295,6 +295,7 @@ sink_val sink_str_newcstr(sink_ctx ctx, const char *str);
 sink_val sink_str_newcstrgive(sink_ctx ctx, char *str);
 sink_val sink_str_newblob(sink_ctx ctx, int size, const uint8_t *bytes);
 sink_val sink_str_newblobgive(sink_ctx ctx, int size, uint8_t *bytes);
+static inline sink_val sink_str_newempty(sink_ctx ctx){ return sink_str_newblobgive(ctx, 0, NULL); }
 sink_val sink_str_newformat(sink_ctx ctx, const char *fmt, ...);
 sink_val sink_str_new(sink_ctx ctx, int size, sink_val *vals);
 sink_val sink_str_cat(sink_ctx ctx, int size, sink_val *vals);

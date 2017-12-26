@@ -6111,7 +6111,7 @@ static bool fileres_try(script scr, bool postfix, const char *file,
 
 static inline bool isabs(const char *file, bool posix){
 	return (posix && file[0] == '/') ||
-		(!posix && file[0] != 0 && (file[1] == ':' || (file[0] == '/' && file[1] == '/')));
+		(!posix && file[0] != 0 && (file[1] == ':' || (file[0] == '\\' && file[1] == '\\')));
 }
 
 static bool fileres_read(script scr, bool postfix, const char *file, const char *cwd,

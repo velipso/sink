@@ -8,6 +8,6 @@
 #include "sink.h"
 
 void sink_shell_scr(sink_scr scr);
-void sink_shell_ctx(sink_ctx ctx, int size, char **args);
+void sink_shell_ctx(sink_ctx ctx, int size, char **args, const char *sink_exe);
 
 #endif // SINK_SHELL__H

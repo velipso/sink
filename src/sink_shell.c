@@ -7,11 +7,18 @@
 #include <string.h>
 
 #if defined(SINK_WIN)
-#	include <direct.h> // _getcwd
+#	include <direct.h>     // _getcwd
 #	define getcwd _getcwd
 #else
-#	include <unistd.h>   // getcwd
-#	include <sys/stat.h> // stat
+#	include <sys/stat.h>   // stat
+#	include <sys/types.h>  // necessary for read
+#	include <sys/uio.h>    // necessary for read
+#	include <fcntl.h>      // O_CLOEXEC
+#	include <unistd.h>     // getcwd, fork, pipe, dup2, close, read, write, execv, _exit
+#	include <sys/wait.h>   // waitpid
+#	include <poll.h>       // poll
+#	include <string.h>     // strerror
+#	include <errno.h>      // errno
 #endif
 
 #define VERSION_MAJ  1
@@ -23,6 +30,7 @@ typedef struct {
 	int size;
 } uargs_st, *uargs;
 
+// allocate memory using sink_malloc
 static inline void *sink_malloc_safe(size_t s){
 	void *p = sink_malloc(s);
 	if (p == NULL){
@@ -30,6 +38,28 @@ static inline void *sink_malloc_safe(size_t s){
 		exit(1);
 	}
 	return p;
+}
+
+static inline void *sink_realloc_safe(void *p, size_t s){
+	p = sink_realloc(p, s);
+	if (p == NULL){
+		fprintf(stderr, "Out of memory!\n");
+		exit(1);
+	}
+	return p;
+}
+
+// string formatter using sink_malloc_safe
+static char *format(const char *fmt, ...){
+	va_list args, args2;
+	va_start(args, fmt);
+	va_copy(args2, args);
+	size_t s = vsnprintf(NULL, 0, fmt, args);
+	char *buf = sink_malloc_safe(s + 1);
+	vsprintf(buf, fmt, args2);
+	va_end(args);
+	va_end(args2);
+	return buf;
 }
 
 static sink_val L_version(sink_ctx ctx, int size, sink_val *args, void *nuser){
@@ -153,6 +183,14 @@ static inline bool ispathdiv(char ch){
 #endif
 }
 
+static inline bool isabs(const char *file){
+#if defined(SINK_WIN)
+	return file[0] != 0 && (file[1] == ':' || (file[0] == '\\' && file[1] == '\\'));
+#else
+	return file[0] == '/';
+#endif
+}
+
 static inline char *Li_which_testexe(char *p){
 #if defined(SINK_WIN)
 #	error Implement Li_which_testexe for Windows (use GetBinaryType I think)
@@ -166,10 +204,17 @@ static inline char *Li_which_testexe(char *p){
 #endif
 }
 
-static inline char *Li_which(const char *cmd){
+static char *Li_which(const char *cmd){
+	// returns an aboslute path string owned by sink_malloc if an executable was found
+	// otherwise, returns NULL
+
 	// filter out "." and ".."
 	if (cmd[0] == '.' && (cmd[1] == 0 || (cmd[1] == '.' && cmd[2] == 0)))
 		return NULL;
+
+	// return absolute paths
+	if (isabs(cmd))
+		return Li_which_testexe(format("%s", cmd));
 
 	// search for a path delimeter
 	for (int i = 0; cmd[i] != 0; i++){
@@ -221,180 +266,412 @@ static sink_val L_which(sink_ctx ctx, int size, sink_val *args, void *nuser){
 	return sink_str_newblobgive(ctx, strlen(res), (uint8_t *)res);
 }
 
+#if defined(SINK_WIN)
+#	error Implement L_run API
+#else
+
+typedef struct {
+	int args_max;
+	int args_size;
+	char **args;
+	int envs_max;
+	int envs_size;
+	char **envs;
+} rundata_st, *rundata;
+
+static inline void RD_make(rundata rd, char *abs_cmd){
+	rd->args_max = 50;
+	rd->args_size = 0;
+	rd->args = sink_malloc_safe(sizeof(char *) * rd->args_max);
+	rd->args[rd->args_size++] = abs_cmd;
+	rd->envs_max = 0;
+	rd->envs_size = 0;
+	rd->envs = NULL;
+}
+
+static inline void RD_push_arg(rundata rd, char *ptr){
+	if (rd->args_size + 1 >= rd->args_max){
+		rd->args_max = rd->args_size + 10;
+		rd->args = sink_realloc_safe(rd->args, sizeof(char *) * rd->args_max);
+	}
+	rd->args[rd->args_size++] = ptr;
+}
+
+static inline void RD_add_arg(rundata rd, sink_str str){
+	RD_push_arg(rd, (char *)str->bytes);
+}
+
+static inline void RD_push_env(rundata rd, char *ptr){
+	if (rd->envs_size + 1 >= rd->envs_max){
+		rd->envs_max = rd->envs_size + 10;
+		rd->envs = sink_realloc_safe(rd->envs, sizeof(char *) * rd->envs_max);
+	}
+	rd->envs[rd->envs_size++] = ptr;
+}
+
+static inline void RD_add_env(rundata rd, sink_str key, sink_str val){
+	// TODO: test this with keys that have equals inside of them
+	RD_push_env(rd, format("%s=%s", (char *)key->bytes, (char *)val->bytes));
+}
+
+static inline void RD_finish(rundata rd, bool hasargs, bool hasenvs){
+	RD_push_arg(rd, NULL);
+	if (hasenvs)
+		RD_push_env(rd, NULL);
+}
+
+static inline void RD_destroy(rundata rd){
+	sink_free(rd->args[0]); // free abs_cmd
+	sink_free(rd->args);
+	if (rd->envs){
+		for (int i = 0; i < rd->envs_size; i++)
+			sink_free(rd->envs[i]);
+		sink_free(rd->envs);
+	}
+}
+
+#endif
+
 static sink_val L_run(sink_ctx ctx, int size, sink_val *args, void *nuser){
+	sink_str file;
+	if (!sink_arg_str(ctx, size, args, 0, &file))
+		return SINK_NIL;
+	if (file->bytes == NULL)
+		return sink_abortstr(ctx, "Invalid command");
+	char *abs_cmd = Li_which((const char *)file->bytes);
+	if (abs_cmd == NULL)
+		return sink_abortstr(ctx, "Command not found: %.*s", file->size, file->bytes);
+
+	rundata_st rd;
+	RD_make(&rd, abs_cmd);
+
+	bool hasargs = false;
+	bool hasenvs = false;
+	int writein_size = 0;
+	const uint8_t *writein = NULL;
+	const char *emptystr = "";
+	bool capture = false;
+
+	if (size >= 2 && !sink_isnil(args[1])){
+		hasargs = true;
+
+		// validate args list
+		sink_list args_ls;
+		if (!sink_arg_list(ctx, size, args, 1, &args_ls)){
+			RD_destroy(&rd);
+			return SINK_NIL;
+		}
+		for (int i = 0; i < args_ls->size; i++){
+			if (!sink_isstr(args_ls->vals[i]) && !sink_isnum(args_ls->vals[i])){
+				RD_destroy(&rd);
+				return sink_abortstr(ctx, "Argument list must be a list of strings");
+			}
+		}
+
+		// load args list into rd
+		for (int i = 0; i < args_ls->size; i++){
+			sink_str args_s = sink_caststr(ctx, sink_tostr(ctx, args_ls->vals[i]));
+			RD_add_arg(&rd, args_s);
+		}
+	}
+
+	if (size >= 3 && !sink_isnil(args[2])){
+		hasenvs = true;
+
+		// validate env list
+		sink_list env_ls;
+		if (!sink_arg_list(ctx, size, args, 2, &env_ls)){
+			RD_destroy(&rd);
+			return SINK_NIL;
+		}
+		for (int i = 0; i < env_ls->size; i++){
+			if (!sink_islist(env_ls->vals[i])){
+				RD_destroy(&rd);
+				return sink_abortstr(ctx, "Environment list must be list of {'KEY', 'VALUE'}");
+			}
+			sink_list kv = sink_castlist(ctx, env_ls->vals[i]);
+			if (kv->size != 2 ||
+				!sink_isstr(kv->vals[0]) ||
+				(!sink_isstr(kv->vals[1]) && !sink_isnum(kv->vals[1]))){
+				RD_destroy(&rd);
+				return sink_abortstr(ctx, "Environment list must be list of {'KEY', 'VALUE'}");
+			}
+		}
+
+		// load env list into rd
+		for (int i = 0; i < env_ls->size; i++){
+			sink_list kv = sink_castlist(ctx, env_ls->vals[i]);
+			sink_str key = sink_caststr(ctx, kv->vals[0]);
+			sink_str val = sink_caststr(ctx, sink_tostr(ctx, kv->vals[1]));
+			RD_add_env(&rd, key, val);
+		}
+	}
+
+	if (size >= 4 && !sink_isnil(args[3])){
+		sink_str inp_s;
+		if (!sink_arg_str(ctx, size, args, 3, &inp_s))
+			return SINK_NIL;
+		if (inp_s->bytes == NULL)
+			writein = (const uint8_t *)emptystr;
+		else{
+			writein = inp_s->bytes;
+			writein_size = inp_s->size;
+		}
+	}
+
+	if (size >= 5)
+		capture = sink_istrue(args[4]);
+
+	RD_finish(&rd, hasargs, hasenvs);
+
+	//
+	// gathered args/envs inside rd, stdin with writein, and capture flag -- now spawn the process
+	//
+
 #if defined(SINK_WIN)
 #	error Implement sink.shell.run in Windows
 #else
-/*
-#include <stdio.h>
-#include <stdbool.h>
 
-#include <sys/types.h>  // necessary for read
-#include <sys/uio.h>    // necessary for read
-#include <unistd.h>     // vfork, _exit, sleep, pipe, dup, dup2, close, read, STDOUT_FILENO, STDERR_FILENO, STDIN_FILENO, execv
-#include <sys/wait.h>   // waitpid
-#include <poll.h>       // poll
-#include <string.h>     // strerror
-#include <errno.h>      // errno
+	const int R = 0, W = 1; // indicies into pipes for read/write
+	int fd_exe[2], fd_in[2], fd_out[2], fd_err[2];
 
-#define READ_END 0
-#define WRITE_END 1
-
-// Do I need this?
-//   The call ``fcntl(d, F_SETFD, 1)'' is provided, which arranges that a descriptor will
-//   be closed after a successful execve; the call ``fcntl(d, F_SETFD, 0)'' restores the
-//   default, which is to not close the descriptor.
-
-static void transfer_fd(int from, int to){
-	dup2(from, to);
-	close(from);
-}
-
-static void print_fds(const char *head){
-	printf("%s\n", head);
-	for (int i = 0; i < FD_SETSIZE; i++){
-		int fd_dup = dup(i);
-		if (fd_dup == -1)
-			continue;
-		close(fd_dup);
-		printf("%4i\n", i);
+#if defined(SINK_POSIX)
+	// the O_CLOEXEC is necessary to make it so the fd_exe file descriptors will automatically be
+	// closed when an execve happens; this flag must also be set during pipe2 (instead of fcntl)
+	// to prevent a race condition -- see `man 2 open`
+	if (pipe2(fd_exe, O_CLOEXEC) != 0){
+		RD_destroy(&rd);
+		return sink_abortstr(ctx, "Failed to create pipe: %s", strerror(errno));
 	}
-}
+#else
+	// it looks like Mac OSX doesn't implement pipe2, so this code is a race condition in multi-
+	// threaded programs that use fork -- it could leak a file descriptor.  See `man 2 open`
+	//
+	// there is no fix for this (that I know of) other than putting locks around *every* fork in the
+	// entire program, and around the following code, so that the FD_CLOEXEC flags can be set
+	// atomically
 
-static void stdflush(){
-	fflush(stdout);
-	fsync(STDOUT_FILENO);
-	fflush(stderr);
-	fsync(STDERR_FILENO);
-}
-
-int main(int argc, char **argv){
-	int fd_stdin[2];
-	int fd_stdout[2];
-	int fd_stderr[2];
-	if (pipe(fd_stdin) != 0){
-		fprintf(stderr, "failed to create pipe: %s\n", strerror(errno));
-		return 1;
+	//GlobalForkLock();
+	if (pipe(fd_exe) != 0){
+		//GlobalForkUnlock();
+		RD_destroy(&rd);
+		return sink_abortstr(ctx, "Failed to create pipe: %s", strerror(errno));
 	}
-	if (pipe(fd_stdout) != 0){
-		close(fd_stdin[0]);
-		close(fd_stdin[1]);
-		fprintf(stderr, "failed to create pipe: %s\n", strerror(errno));
-		return 1;
+	fcntl(fd_exe[0], F_SETFD, FD_CLOEXEC);
+	fcntl(fd_exe[1], F_SETFD, FD_CLOEXEC);
+	//GlobalForkUnlock();
+#endif
+
+	if (writein){
+		if (pipe(fd_in) != 0){
+			RD_destroy(&rd);
+			close(fd_exe[R]);
+			close(fd_exe[W]);
+			return sink_abortstr(ctx, "Failed to create pipe: %s", strerror(errno));
+		}
 	}
-	if (pipe(fd_stderr) != 0){
-		close(fd_stdin[0]);
-		close(fd_stdin[1]);
-		close(fd_stdout[0]);
-		close(fd_stdout[1]);
-		fprintf(stderr, "failed to create pipe: %s\n", strerror(errno));
-		return 1;
-	}
-	pid_t chpid = fork();
-	printf("pid: %d\n", chpid);
-	if (chpid == 0){
-		// child
-		close(fd_stdin[WRITE_END]);
-		transfer_fd(fd_stdin[READ_END], STDIN_FILENO);
-		close(fd_stdout[READ_END]);
-		transfer_fd(fd_stdout[WRITE_END], STDOUT_FILENO);
-		close(fd_stderr[READ_END]);
-		transfer_fd(fd_stderr[WRITE_END], STDERR_FILENO);
-
-		const char *args[] = {
-			"/Users/sean/proj/temp/forkpipe/test",
-			"-l",
-			"-a",
-			NULL
-		};
-		execv("/Users/sean/proj/temp/forkpipe/test", args);
-
-	}
-	else{
-		// parent
-		printf("closing extraneous fds\n");
-		close(fd_stdin[READ_END]);
-		close(fd_stdout[WRITE_END]);
-		close(fd_stderr[WRITE_END]);
-		//const char *writebuf = "hello from stdin\n";
-		//write(fd_stdin[WRITE_END], writebuf, strlen(writebuf));
-		close(fd_stdin[WRITE_END]);
-		print_fds("parent_fds");
-		char buf[1000];
-
-		// poll for stdout/stderr
-		struct pollfd p_fds[2];
-		int p_fds_size = 2;
-		p_fds[0] = (struct pollfd){ .fd = fd_stdout[READ_END], .events = POLLIN, .revents = 0 };
-		p_fds[1] = (struct pollfd){ .fd = fd_stderr[READ_END], .events = POLLIN, .revents = 0 };
-
-		while (true){
-			printf("polling...\n");
-			int r = poll(p_fds, p_fds_size, -1);
-			if (r == -1){
-				fprintf(stderr, "poll error: %s\n", strerror(errno));
-				break;
+	if (capture){
+		if (pipe(fd_out) != 0){
+			RD_destroy(&rd);
+			close(fd_exe[R]);
+			close(fd_exe[W]);
+			if (writein){
+				close(fd_in[R]);
+				close(fd_in[W]);
 			}
-			else if (r == 0)
+			return sink_abortstr(ctx, "Failed to create pipe: %s", strerror(errno));
+		}
+		if (pipe(fd_err) != 0){
+			RD_destroy(&rd);
+			close(fd_exe[R]);
+			close(fd_exe[W]);
+			if (writein){
+				close(fd_in[R]);
+				close(fd_in[W]);
+			}
+			close(fd_out[R]);
+			close(fd_out[W]);
+			return sink_abortstr(ctx, "Failed to create pipe: %s", strerror(errno));
+		}
+	}
+
+	// spawn the child
+	pid_t chpid = fork();
+
+	if (chpid == 0){
+		// inside child
+
+		// setup stdfiles to point to the correct pipes
+		close(fd_exe[R]);
+		if (writein){
+			dup2(fd_in[R], STDIN_FILENO);
+			close(fd_in[R]);
+			close(fd_in[W]);
+		}
+		if (capture){
+			dup2(fd_out[W], STDOUT_FILENO);
+			close(fd_out[R]);
+			close(fd_out[W]);
+			dup2(fd_err[W], STDERR_FILENO);
+			close(fd_err[R]);
+			close(fd_err[W]);
+		}
+
+		if (hasenvs)
+			execve(abs_cmd, rd.args, rd.envs);
+		else
+			execv(abs_cmd, rd.args);
+
+		// execve failed, so write failure to fd_exe[W]
+		char buf[200];
+		int sz = snprintf(buf, sizeof(buf), "Failed to launch process: %s", strerror(errno));
+		write(fd_exe[W], buf, sz);
+		close(fd_exe[W]);
+		_exit(1);
+	}
+
+	// inside parent
+	RD_destroy(&rd);
+
+	// setup files to be polled
+	struct pollfd pfds[3];
+	int pfds_size = 0;
+	pfds[pfds_size++] = (struct pollfd){ .fd = fd_exe[R], .events = POLLIN, .revents = 0 };
+	close(fd_exe[W]);
+	if (writein){
+		close(fd_in[R]);
+		write(fd_in[W], writein, writein_size);
+		close(fd_in[W]);
+	}
+	if (capture){
+		pfds[pfds_size++] = (struct pollfd){ .fd = fd_out[R], .events = POLLIN, .revents = 0 };
+		close(fd_out[W]);
+		pfds[pfds_size++] = (struct pollfd){ .fd = fd_err[R], .events = POLLIN, .revents = 0 };
+		close(fd_err[W]);
+	}
+
+	// buffers for captured data
+	int capexe_size = 0;
+	char capexe[202];
+	int capout_size = 0;
+	int capout_max = 0;
+	uint8_t *capout = NULL;
+	int caperr_size = 0;
+	int caperr_max = 0;
+	uint8_t *caperr = NULL;
+
+	// poll the files to see which ones can be read from
+	while (pfds_size > 0){
+		int r = poll(pfds, pfds_size, -1);
+		if (r == -1){
+			for (int i = 0; i < pfds_size; i++)
+				close(pfds[i].fd);
+			if (capout)
+				sink_free(capout);
+			if (caperr)
+				sink_free(caperr);
+			return sink_abortstr(ctx, "Poll error: %s", strerror(errno));
+		}
+		else if (r == 0)
+			continue;
+		for (int i = 0; i < pfds_size; i++){
+			if (pfds[i].revents == 0)
 				continue;
-			for (int i = 0; i < p_fds_size; i++){
-				if (p_fds[i].revents != 0){
-					// process events
-					p_fds[i].revents = 0;
-					char buf[1000];
-					ssize_t sz = read(p_fds[i].fd, buf, sizeof(buf));
-					if (sz == -1)
-						fprintf(stderr, "read error: %s\n", strerror(errno));
-					else if (sz == 0){
-						// file closed
-						if (p_fds[i].fd == fd_stdout[READ_END]){
-							printf("stdout closed\n");
-							if (p_fds_size == 2){
-								// stderr is still open, so move it to the first entry
-								p_fds[0] = p_fds[1];
-								i--;
-							}
-						}
-						else
-							printf("stderr closed\n");
-						p_fds_size--;
-						if (p_fds_size == 0)
-							goto no_more_data;
+			// process read
+			pfds[i].revents = 0;
+			char buf[1000];
+			ssize_t sz = read(pfds[i].fd, buf, sizeof(buf));
+			if (sz == -1){
+				for (int j = 0; j < pfds_size; j++)
+					close(pfds[j].fd);
+				if (capout)
+					sink_free(capout);
+				if (caperr)
+					sink_free(caperr);
+				return sink_abortstr(ctx, "Read error: %s", strerror(errno));
+			}
+			else if (sz == 0){
+				// fd eof
+				close(pfds[i].fd);
+				for (int j = i + 1; j < pfds_size; j++)
+					pfds[j - 1] = pfds[j];
+				pfds_size--;
+			}
+			else{
+				if (pfds[i].fd == fd_exe[R]){
+					// append to capexe
+					if (capexe_size + sz < 200){
+						memcpy(&capexe[capexe_size], buf, sz);
+						capexe_size += sz;
 					}
-					else{
-						printf("read %s data: <%.*s>\n",
-							p_fds[i].fd == fd_stdout[READ_END] ? "stdout" : "stderr",
-							(int)sz, buf);
+				}
+				else if (pfds[i].fd == fd_out[R]){
+					// append to capout
+					if (capout_size + sz + 1 > capout_max){ // always leave room for an extra byte
+						capout_max = capout_size + sz + 1000;
+						capout = sink_realloc_safe(capout, capout_max);
 					}
+					memcpy(&capout[capout_size], buf, sz);
+					capout_size += sz;
+				}
+				else if (pfds[i].fd == fd_err[R]){
+					// append to caperr
+					if (caperr_size + sz + 1 > caperr_max){ // always leave room for an extra byte
+						caperr_max = caperr_size + sz + 1000;
+						caperr = sink_realloc_safe(caperr, caperr_max);
+					}
+					memcpy(&caperr[caperr_size], buf, sz);
+					caperr_size += sz;
 				}
 			}
 		}
-		no_more_data:;
-
-		int status = 0;
-		pid_t wpid = waitpid(chpid, &status, 0);
-		if (wpid == chpid){
-			printf("waitpid returned %d status %d\n", wpid, status);
-			if (WIFEXITED(status))
-				printf("exited normally with exit status %d\n", WEXITSTATUS(status));
-			else if (WIFSIGNALED(status))
-				printf("exited due to signal %d\n", WTERMSIG(status));
-			else if (WIFSTOPPED(status))
-				printf("exited due to stop %d\n", WSTOPSIG(status));
-			else
-				printf("unknown reason for exit\n");
-		}
-		else{
-			fprintf(stderr, "failed to wait for child: %s\n", strerror(errno));
-			return 1;
-		}
-		close(fd_stdout[READ_END]);
-		close(fd_stderr[READ_END]);
 	}
-	return 0;
-}
-*/
-	return SINK_NIL;
+
+	// check if the child failed at execve
+	if (capexe_size > 0){
+		if (capout)
+			sink_free(capout);
+		if (caperr)
+			sink_free(caperr);
+		return sink_abortstr(ctx, "%.*s", capexe_size, capexe);
+	}
+
+	// wait for the process to exit and get exit status
+	int wstatus = 0;
+	sink_val xstatus = SINK_NIL;
+	pid_t wpid = waitpid(chpid, &wstatus, 0);
+	if (wpid != chpid){
+		if (capout)
+			sink_free(capout);
+		if (caperr)
+			sink_free(caperr);
+		return sink_abortstr(ctx, "Failed to wait for child: %s", strerror(errno));
+	}
+	if (WIFEXITED(wstatus))
+		xstatus = sink_num(WEXITSTATUS(wstatus));
+	else if (WIFSIGNALED(wstatus))
+		xstatus = sink_num(-WTERMSIG(wstatus));
+	else if (WIFSTOPPED(wstatus))
+		xstatus = sink_num(-WSTOPSIG(wstatus));
+
+	if (capture){
+		sink_val capout_s, caperr_s;
+		if (capout){
+			capout[capout_size] = 0; // null terminate
+			capout_s = sink_str_newblobgive(ctx, capout_size, capout);
+		}
+		else
+			capout_s = sink_str_newempty(ctx);
+		if (caperr){
+			caperr[caperr_size] = 0; // null terminate
+			caperr_s = sink_str_newblobgive(ctx, caperr_size, caperr);
+		}
+		else
+			caperr_s = sink_str_newempty(ctx);
+		sink_val res[3] = { xstatus, capout_s, caperr_s };
+		return sink_list_newblob(ctx, 3, res);
+	}
+	return xstatus;
 #endif
 }
 
@@ -407,27 +684,44 @@ static sink_val L_pwd(sink_ctx ctx, int size, sink_val *args, void *nuser){
 	return a;
 }
 
+static sink_val L_file_sink(sink_ctx ctx, int size, sink_val *args, const char *sink_exe){
+	return sink_str_newcstr(ctx, sink_exe);
+}
+
 void sink_shell_scr(sink_scr scr){
 	sink_scr_incbody(scr, "shell",
-		"declare version 'sink.shell.version';"
-		"declare args    'sink.shell.args'   ;"
-		"declare run     'sink.shell.run'    ;"
-		"declare which   'sink.shell.which'  ;"
+		"declare version   'sink.shell.version'  ;"
+		"declare args      'sink.shell.args'     ;"
+		"declare run       'sink.shell.run'      ;"
+		"declare which     'sink.shell.which'    ;"
+		"declare file.sink 'sink.shell.file.sink';"
 	);
 }
 
-void sink_shell_ctx(sink_ctx ctx, int argc, char **argv){
-	uargs a = malloc(sizeof(uargs_st));
-	if (a == NULL){
-		fprintf(stderr, "Error: Out of Memory!\n");
-		exit(1);
-		return;
-	}
+void sink_shell_ctx(sink_ctx ctx, int argc, char **argv, const char *sink_exe){
+	uargs a = sink_malloc_safe(sizeof(uargs_st));
 	a->args = argv;
 	a->size = argc;
-	sink_ctx_cleanup(ctx, a, free);
-	sink_ctx_native(ctx, "sink.shell.version", NULL, (sink_native_f)L_version);
-	sink_ctx_native(ctx, "sink.shell.args"   , a   , (sink_native_f)L_args   );
-	sink_ctx_native(ctx, "sink.shell.run"    , NULL, (sink_native_f)L_run    );
-	sink_ctx_native(ctx, "sink.shell.which"  , NULL, (sink_native_f)L_which  );
+	sink_ctx_cleanup(ctx, a, sink_free);
+
+	char *s;
+	if (isabs(sink_exe))
+		s = format("%s", sink_exe);
+	else{
+		char *cwd = getcwd(NULL, 0);
+		if (cwd == NULL){
+			fprintf(stderr, "Failed to get current directory when initializing sink_shell\n");
+			exit(1);
+			return;
+		}
+		s = pathjoin(cwd, sink_exe);
+		free(cwd);
+	}
+	sink_ctx_cleanup(ctx, s, sink_free);
+
+	sink_ctx_native(ctx, "sink.shell.version"  , NULL     , (sink_native_f)L_version  );
+	sink_ctx_native(ctx, "sink.shell.args"     , a        , (sink_native_f)L_args     );
+	sink_ctx_native(ctx, "sink.shell.run"      , NULL     , (sink_native_f)L_run      );
+	sink_ctx_native(ctx, "sink.shell.which"    , NULL     , (sink_native_f)L_which    );
+	sink_ctx_native(ctx, "sink.shell.file.sink", s        , (sink_native_f)L_file_sink);
 }

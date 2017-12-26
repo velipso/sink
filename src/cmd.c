@@ -121,12 +121,12 @@ static sink_inc_st inc = {
 	.user = NULL
 };
 
-static inline sink_ctx newctx(sink_scr scr, int argc, char **argv){
+static inline sink_ctx newctx(sink_scr scr, int argc, char **argv, const char *sink_exe){
 	// create the context with the standard I/O
 	sink_ctx ctx = sink_ctx_new(scr, io);
 
 	// add any libraries
-	sink_shell_ctx(ctx, argc, argv);
+	sink_shell_ctx(ctx, argc, argv, sink_exe);
 
 	return ctx;
 }
@@ -155,9 +155,9 @@ static inline void printctxerr(sink_ctx ctx){
 	fprintf(stderr, "%s\n", err);
 }
 
-static int main_repl(sink_scr scr, int argc, char **argv){
+static int main_repl(sink_scr scr, int argc, char **argv, const char *sink_exe){
 	int res = 0;
-	sink_ctx ctx = newctx(scr, argc, argv);
+	sink_ctx ctx = newctx(scr, argc, argv, sink_exe);
 	int line = 1;
 	int bufsize = 0;
 	int bufcount = 200;
@@ -223,13 +223,13 @@ static int main_repl(sink_scr scr, int argc, char **argv){
 	return res;
 }
 
-int main_run(sink_scr scr, const char *file, int argc, char **argv){
+int main_run(sink_scr scr, const char *file, int argc, char **argv, const char *sink_exe){
 	if (!sink_scr_loadfile(scr, file)){
 		printscrerr(scr);
 		sink_scr_free(scr);
 		return 1;
 	}
-	sink_ctx ctx = newctx(scr, argc, argv);
+	sink_ctx ctx = newctx(scr, argc, argv, sink_exe);
 	sink_run res = sink_ctx_run(ctx);
 	if (res == SINK_RUN_FAIL)
 		printctxerr(ctx);
@@ -238,13 +238,13 @@ int main_run(sink_scr scr, const char *file, int argc, char **argv){
 	return res == SINK_RUN_PASS ? 0 : 1;
 }
 
-int main_eval(sink_scr scr, const char *eval, int argc, char **argv){
+int main_eval(sink_scr scr, const char *eval, int argc, char **argv, const char *sink_exe){
 	if (!sink_scr_write(scr, strlen(eval), (const uint8_t *)eval)){
 		printscrerr(scr);
 		sink_scr_free(scr);
 		return 1;
 	}
-	sink_ctx ctx = newctx(scr, argc, argv);
+	sink_ctx ctx = newctx(scr, argc, argv, sink_exe);
 	sink_run res = sink_ctx_run(ctx);
 	if (res == SINK_RUN_FAIL)
 		printctxerr(ctx);
@@ -427,19 +427,21 @@ int main(int argc, char **argv){
 		}
 	}
 
+	const char *sink_exe = argv[0];
+
 	switch (input_type){
 		case INPUT_FILE:
 			if (compile)
 				return main_compile_file(scr, input_content, compile_debug);
-			return main_run(scr, input_content, s_argc, s_argv);
+			return main_run(scr, input_content, s_argc, s_argv, sink_exe);
 
 		case INPUT_REPL:
-			return main_repl(scr, s_argc, s_argv);
+			return main_repl(scr, s_argc, s_argv, sink_exe);
 
 		case INPUT_EVAL:
 			if (compile)
 				return main_compile_eval(scr, input_content, compile_debug);
-			return main_eval(scr, input_content, s_argc, s_argv);
+			return main_eval(scr, input_content, s_argc, s_argv, sink_exe);
 	}
 	// shouldn't happen
 	return 1;
