@@ -505,7 +505,9 @@ static sink_val L_run(sink_ctx ctx, int size, sink_val *args, void *nuser){
 	}
 
 	// spawn the child
+	//GlobalForkLock(); // see notes above for Mac OSX
 	pid_t chpid = fork();
+	//GlobalForkUnlock();
 
 	if (chpid == 0){
 		// inside child
@@ -827,9 +829,9 @@ void sink_shell_scr(sink_scr scr){
 		"declare file.write   'sink.shell.file.write'  ;"
 		"declare dir.work     'sink.shell.dir.work'    ;"
 		"declare dir.list     'sink.shell.dir.list'    ;"
+		"declare path.join    'sink.shell.path.join'   ;"
 		"declare path.joinp   'sink.shell.path.joinp'  ;"
 		"declare path.joinw   'sink.shell.path.joinw'  ;"
-		"declare path.join    'sink.shell.path.join'   ;"
 	);
 }
 
@@ -880,11 +882,11 @@ void sink_shell_ctx(sink_ctx ctx, int argc, char **argv, const char *sink_exe, c
 	sink_ctx_native(ctx, "sink.shell.file.write"  , NULL     , (sink_native_f)L_file_write  );
 	sink_ctx_native(ctx, "sink.shell.dir.work"    , NULL     , (sink_native_f)L_dir_work    );
 	sink_ctx_native(ctx, "sink.shell.dir.list"    , NULL     , (sink_native_f)L_dir_list    );
-	sink_ctx_native(ctx, "sink.shell.path.joinp"  , NULL     , (sink_native_f)L_path_joinp  );
-	sink_ctx_native(ctx, "sink.shell.path.joinw"  , NULL     , (sink_native_f)L_path_joinw  );
 #if defined(SINK_WIN)
 	sink_ctx_native(ctx, "sink.shell.path.join"   , NULL     , (sink_native_f)L_path_joinw  );
 #else
 	sink_ctx_native(ctx, "sink.shell.path.join"   , NULL     , (sink_native_f)L_path_joinp  );
 #endif
+	sink_ctx_native(ctx, "sink.shell.path.joinp"  , NULL     , (sink_native_f)L_path_joinp  );
+	sink_ctx_native(ctx, "sink.shell.path.joinw"  , NULL     , (sink_native_f)L_path_joinw  );
 }

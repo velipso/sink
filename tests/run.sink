@@ -121,6 +121,8 @@ for var test: tests
 					test_failed 'Mismatched compiler results'
 				end
 			end
+
+			# check bytecode execution results
 			file.write bin_sink, cstdout
 			var {rstatus, rstdout, rstderr} = run sink_exe, {bin_sink}, nil, nil, 1
 			if rstatus != 0
