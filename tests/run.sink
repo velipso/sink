@@ -61,10 +61,18 @@ for var test: tests_list
 end
 
 def print_diff answer, actual
-	say '>> EXPECTED:'
-	say answer
-	say '>> INSTEAD GOT:'
-	say actual
+	if which 'diff'
+		var ansf = tgt_dir ~ '/' ~ 'temp1.txt'
+		var actf = tgt_dir ~ '/' ~ 'temp2.txt'
+		file.write ansf, answer
+		file.write actf, actual
+		run 'diff', {'-u', '--label', 'Expected Output', ansf, '--label', 'Actual Output', actf}
+	else
+		say '>> EXPECTED:'
+		say answer
+		say '>> ACTUAL:'
+		say actual
+	end
 end
 
 for var test: tests
