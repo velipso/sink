@@ -16,9 +16,9 @@ environment.
 
 ```
 run, which
-file: read, copy, write, delete, temp, head, tail, permissions?, touch?, script?, sink?
+file: read, canread, copy, write, canwrite, exists, delete, temp, head, tail, permissions?, touch?, script?, sink?
 dir: create, delete, change, working, list
-path: join, dirname, basename, stat
+path: join, basename, stat
 symlink: create, delete, resolve
 date
 sleep

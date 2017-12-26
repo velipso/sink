@@ -121,12 +121,13 @@ static sink_inc_st inc = {
 	.user = NULL
 };
 
-static inline sink_ctx newctx(sink_scr scr, int argc, char **argv, const char *sink_exe){
+static inline sink_ctx newctx(sink_scr scr, int argc, char **argv, const char *sink_exe,
+	const char *script){
 	// create the context with the standard I/O
 	sink_ctx ctx = sink_ctx_new(scr, io);
 
 	// add any libraries
-	sink_shell_ctx(ctx, argc, argv, sink_exe);
+	sink_shell_ctx(ctx, argc, argv, sink_exe, script);
 
 	return ctx;
 }
@@ -157,7 +158,7 @@ static inline void printctxerr(sink_ctx ctx){
 
 static int main_repl(sink_scr scr, int argc, char **argv, const char *sink_exe){
 	int res = 0;
-	sink_ctx ctx = newctx(scr, argc, argv, sink_exe);
+	sink_ctx ctx = newctx(scr, argc, argv, sink_exe, NULL);
 	int line = 1;
 	int bufsize = 0;
 	int bufcount = 200;
@@ -229,7 +230,7 @@ int main_run(sink_scr scr, const char *file, int argc, char **argv, const char *
 		sink_scr_free(scr);
 		return 1;
 	}
-	sink_ctx ctx = newctx(scr, argc, argv, sink_exe);
+	sink_ctx ctx = newctx(scr, argc, argv, sink_exe, sink_scr_getfile(scr));
 	sink_run res = sink_ctx_run(ctx);
 	if (res == SINK_RUN_FAIL)
 		printctxerr(ctx);
@@ -244,7 +245,7 @@ int main_eval(sink_scr scr, const char *eval, int argc, char **argv, const char 
 		sink_scr_free(scr);
 		return 1;
 	}
-	sink_ctx ctx = newctx(scr, argc, argv, sink_exe);
+	sink_ctx ctx = newctx(scr, argc, argv, sink_exe, NULL);
 	sink_run res = sink_ctx_run(ctx);
 	if (res == SINK_RUN_FAIL)
 		printctxerr(ctx);

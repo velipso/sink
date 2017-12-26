@@ -1,0 +1,105 @@
+# (c) Copyright 2016-2018, Sean Connelly (@voidqk), http://sean.cm
+# MIT License
+# Project Home: https://github.com/voidqk/sink
+
+#
+# this script will run the tests
+#
+
+include 'shell'
+
+# TODO: replace with `path.join file.script, '..'` once path.join is done
+var path_list = file.script | str.split '/'
+list.pop path_list
+var tests_dir = path_list | list.join '/'
+list.pop path_list
+var sink_dir = path_list | list.join '/'
+list.push path_list, 'tgt'
+var tgt_dir = path_list | list.join '/'
+list.push path_list, 'bin.sink'
+var bin_sink = path_list | list.join '/'
+list.pop path_list
+list.push path_list, 'sink'
+var sink_exe = path_list | list.join '/'
+
+# get list of tests
+var tests = {}
+var tests_list = dir.list tests_dir
+for var test: tests_list
+	if +test[0] && test[1] == '.'
+		list.push tests, test
+	end
+end
+for var test: tests_list
+	if +test[0] && +test[1] && test[2] == '.'
+		list.push tests, test
+	end
+end
+
+def test_failed test_num, test_name, reason
+	say (str.pad test_num, -4) ~ '.' ~ (str.pad test_name, 30) ~ 'FAIL'
+	abort reason
+end
+
+def test_passed test_num, test_name
+	say (str.pad test_num, -4) ~ '.' ~ (str.pad test_name, 30) ~ 'PASS'
+end
+
+def print_diff answer, actual
+	say '>> EXPECTED:'
+	say answer
+	say '>> INSTEAD GOT:'
+	say actual
+end
+
+for var test: tests
+	var test_dir = tests_dir ~ '/' ~ test                       # TODO: path.join
+	var test_num = +test
+	var test_name = (test | str.split '.')[1:] | list.join '.'
+	var test_script = test_dir ~ '/' ~ test_name ~ '.sink'      # TODO: path.join
+	var pass_file = test_dir ~ '/' ~ 'pass.txt'                 # TODO: path.join
+	var fail_file = test_dir ~ '/' ~ 'fail.txt'                 # TODO: path.join
+
+	var {status, stdout, stderr} = run sink_exe, {test_script}, nil, nil, 1
+
+	if status == 0
+		# script succeeded
+
+		# check stdout
+		if !file.exists pass_file
+			say stdout
+			test_failed test_num, test_name, 'Expecting script to fail but it passed'
+		end
+		var answer = file.read pass_file
+		if answer != stdout
+			print_diff answer, stdout
+			test_failed test_num, test_name, 'Incorrect results'
+		end
+
+		# check compiling
+		var {cstatus, cstdout, cstderr} = run sink_exe, {'-c', '-d', test_script}, nil, nil, 1
+		if cstatus != 0
+			say cstderr
+			test_failed test_num, test_name, 'Failed to compile script'
+		end
+		file.write bin_sink, cstdout
+		var {rstatus, rstdout, rstderr} = run sink_exe, {bin_sink}, nil, nil, 1
+		if rstatus != 0
+			say rstderr
+			test_failed test_num, test_name, 'Failed to execute bytecode'
+		end
+		if answer != rstdout
+			print_diff answer, rstdout
+			test_failed test_num, test_name, 'Incorrect bytecode results'
+		end
+
+		test_passed test_num, test_name
+	else
+		# script failed
+		if file.exists pass_file
+			say stderr
+			test_failed test_num, test_name, 'Expecting script to pass but it failed'
+		end
+		test_passed test_num, test_name
+	end
+end

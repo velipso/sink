@@ -14,11 +14,12 @@
 #	include <sys/types.h>  // necessary for read
 #	include <sys/uio.h>    // necessary for read
 #	include <fcntl.h>      // O_CLOEXEC
-#	include <unistd.h>     // getcwd, fork, pipe, dup2, close, read, write, execv, _exit
+#	include <unistd.h>     // getcwd, fork, pipe, dup2, close, read, write, execv, _exit, access
 #	include <sys/wait.h>   // waitpid
 #	include <poll.h>       // poll
 #	include <string.h>     // strerror
 #	include <errno.h>      // errno
+#	include <dirent.h>     // opendir, readdir, closedir
 #endif
 
 #define VERSION_MAJ  1
@@ -188,6 +189,14 @@ static inline bool isabs(const char *file){
 	return file[0] != 0 && (file[1] == ':' || (file[0] == '\\' && file[1] == '\\'));
 #else
 	return file[0] == '/';
+#endif
+}
+
+static inline bool isabs_s(int sz, const char *file){
+#if defined(SINK_WIN)
+	return sz >= 2 && (file[1] == ':' || (file[0] == '\\' && file[1] == '\\'));
+#else
+	return sz >= 1 && file[0] == '/';
 #endif
 }
 
@@ -675,7 +684,7 @@ static sink_val L_run(sink_ctx ctx, int size, sink_val *args, void *nuser){
 #endif
 }
 
-static sink_val L_pwd(sink_ctx ctx, int size, sink_val *args, void *nuser){
+static sink_val L_dir_work(sink_ctx ctx, int size, sink_val *args, void *nuser){
 	char *cwd = getcwd(NULL, 0);
 	if (cwd == NULL)
 		return sink_abortstr(ctx, "Failed to get current directory");
@@ -684,44 +693,198 @@ static sink_val L_pwd(sink_ctx ctx, int size, sink_val *args, void *nuser){
 	return a;
 }
 
+static sink_val L_dir_list(sink_ctx ctx, int size, sink_val *args, void *nuser){
+	sink_str dir;
+	if (!sink_arg_str(ctx, size, args, 0, &dir))
+		return SINK_NIL;
+
+	sink_val res = sink_list_newempty(ctx);
+
+	// TODO: windows version
+
+	struct dirent *ep;
+	DIR *dp = opendir((const char *)dir->bytes);
+	if (dp == NULL)
+		return sink_abortstr(ctx, "Failed to read directory: %.*s", dir->size, dir->bytes);
+	while (true){
+		ep = readdir(dp);
+		if (ep == NULL)
+			break;
+		if ((ep->d_namlen == 1 && ep->d_name[0] == '.') ||
+			(ep->d_namlen == 2 && ep->d_name[0] == '.' && ep->d_name[1] == '.'))
+			continue;
+		sink_list_push(ctx, res, sink_str_newblob(ctx, ep->d_namlen, (const uint8_t *)ep->d_name));
+	}
+	closedir(dp);
+
+	sink_list_sort(ctx, res);
+	return res;
+}
+
+static sink_val L_file_canread(sink_ctx ctx, int size, sink_val *args, void *nuser){
+	sink_str file;
+	if (!sink_arg_str(ctx, size, args, 0, &file))
+		return SINK_NIL;
+	FILE *fp = fopen((const char *)file->bytes, "rb");
+	if (fp){
+		fclose(fp);
+		return sink_bool(true);
+	}
+	return SINK_NIL;
+}
+
+static sink_val L_file_exists(sink_ctx ctx, int size, sink_val *args, void *nuser){
+	sink_str file;
+	if (!sink_arg_str(ctx, size, args, 0, &file))
+		return SINK_NIL;
+	return sink_bool(access((const char *)file->bytes, F_OK) != -1);
+}
+
+static sink_val L_file_read(sink_ctx ctx, int size, sink_val *args, void *nuser){
+	sink_str file;
+	if (!sink_arg_str(ctx, size, args, 0, &file))
+		return SINK_NIL;
+	FILE *fp = fopen((const char *)file->bytes, "rb");
+	if (fp == NULL)
+		return sink_abortstr(ctx, "Could not read file: %.*s", file->size, file->bytes);
+	fseek(fp, 0L, SEEK_END);
+	long sz = ftell(fp);
+	fseek(fp, 0L, SEEK_SET);
+	uint8_t *buf = sink_malloc_safe(sz + 1);
+	fread(buf, sz, 1, fp);
+	fclose(fp);
+	buf[sz] = 0;
+	return sink_str_newblobgive(ctx, sz, buf);
+}
+
 static sink_val L_file_sink(sink_ctx ctx, int size, sink_val *args, const char *sink_exe){
 	return sink_str_newcstr(ctx, sink_exe);
 }
 
+static sink_val L_file_script(sink_ctx ctx, int size, sink_val *args, const char *script){
+	if (script == NULL)
+		return SINK_NIL;
+	return sink_str_newcstr(ctx, script);
+}
+
+static sink_val L_file_write(sink_ctx ctx, int size, sink_val *args, void *nuser){
+	sink_str file;
+	if (!sink_arg_str(ctx, size, args, 0, &file))
+		return SINK_NIL;
+	FILE *fp = fopen((const char *)file->bytes, "wb");
+	if (fp == NULL)
+		return sink_abortstr(ctx, "Could not write to file: %.*s", file->size, file->bytes);
+	if (size >= 2){
+		sink_str data;
+		if (size == 2)
+			data = sink_caststr(ctx, sink_tostr(ctx, args[1]));
+		else
+			data = sink_caststr(ctx, sink_str_new(ctx, size - 1, &args[1]));
+		if (data->size > 0)
+			fwrite(data->bytes, data->size, 1, fp);
+	}
+	fclose(fp);
+	return SINK_NIL;
+}
+
+static sink_val L_path_joinp(sink_ctx ctx, int size, sink_val *args, void *nuser){
+	sink_str start;
+	if (!sink_arg_str(ctx, size, args, 0, &start))
+		return SINK_NIL;
+	if (size == 1)
+		return args[0];
+	for (int i = 1; i < size; i++){
+		if (!sink_isstr(args[i]))
+			return sink_abortstr(ctx, "Expecting string for argument %d", i + 1);
+	}
+
+	bool abs = start->size > 0 && start->bytes[0] == '/';
+
+	sink_val comp_v = sink_list_newempty(ctx);
+	sink_list comp = sink_castlist(ctx, comp_v);
+
+	// TODO: this
+
+	return SINK_NIL;
+}
+
+static sink_val L_path_joinw(sink_ctx ctx, int size, sink_val *args, void *nuser){
+	// TODO: this
+	return SINK_NIL;
+}
+
 void sink_shell_scr(sink_scr scr){
 	sink_scr_incbody(scr, "shell",
-		"declare version   'sink.shell.version'  ;"
-		"declare args      'sink.shell.args'     ;"
-		"declare run       'sink.shell.run'      ;"
-		"declare which     'sink.shell.which'    ;"
-		"declare file.sink 'sink.shell.file.sink';"
+		"declare version      'sink.shell.version'     ;"
+		"declare args         'sink.shell.args'        ;"
+		"declare run          'sink.shell.run'         ;"
+		"declare which        'sink.shell.which'       ;"
+		"declare file.canread 'sink.shell.file.canread';"
+		"declare file.exists  'sink.shell.file.exists' ;"
+		"declare file.read    'sink.shell.file.read'   ;"
+		"declare file.sink    'sink.shell.file.sink'   ;"
+		"declare file.script  'sink.shell.file.script' ;"
+		"declare file.write   'sink.shell.file.write'  ;"
+		"declare dir.work     'sink.shell.dir.work'    ;"
+		"declare dir.list     'sink.shell.dir.list'    ;"
+		"declare path.joinp   'sink.shell.path.joinp'  ;"
+		"declare path.joinw   'sink.shell.path.joinw'  ;"
+		"declare path.join    'sink.shell.path.join'   ;"
 	);
 }
 
-void sink_shell_ctx(sink_ctx ctx, int argc, char **argv, const char *sink_exe){
+void sink_shell_ctx(sink_ctx ctx, int argc, char **argv, const char *sink_exe, const char *script){
 	uargs a = sink_malloc_safe(sizeof(uargs_st));
 	a->args = argv;
 	a->size = argc;
 	sink_ctx_cleanup(ctx, a, sink_free);
 
-	char *s;
-	if (isabs(sink_exe))
-		s = format("%s", sink_exe);
-	else{
-		char *cwd = getcwd(NULL, 0);
+	char *cwd = NULL;
+	if (!isabs(sink_exe) || (script && !isabs(script))){
+		cwd = getcwd(NULL, 0);
 		if (cwd == NULL){
 			fprintf(stderr, "Failed to get current directory when initializing sink_shell\n");
 			exit(1);
 			return;
 		}
-		s = pathjoin(cwd, sink_exe);
-		free(cwd);
 	}
-	sink_ctx_cleanup(ctx, s, sink_free);
 
-	sink_ctx_native(ctx, "sink.shell.version"  , NULL     , (sink_native_f)L_version  );
-	sink_ctx_native(ctx, "sink.shell.args"     , a        , (sink_native_f)L_args     );
-	sink_ctx_native(ctx, "sink.shell.run"      , NULL     , (sink_native_f)L_run      );
-	sink_ctx_native(ctx, "sink.shell.which"    , NULL     , (sink_native_f)L_which    );
-	sink_ctx_native(ctx, "sink.shell.file.sink", s        , (sink_native_f)L_file_sink);
+	char *si;
+	if (isabs(sink_exe))
+		si = format("%s", sink_exe);
+	else
+		si = pathjoin(cwd, sink_exe);
+	sink_ctx_cleanup(ctx, si, sink_free);
+
+	char *sc = NULL;
+	if (script){
+		if (isabs(script))
+			sc = format("%s", script);
+		else
+			sc = pathjoin(cwd, script);
+		sink_ctx_cleanup(ctx, sc, sink_free);
+	}
+
+	if (cwd)
+		free(cwd);
+
+	sink_ctx_native(ctx, "sink.shell.version"     , NULL     , (sink_native_f)L_version     );
+	sink_ctx_native(ctx, "sink.shell.args"        , a        , (sink_native_f)L_args        );
+	sink_ctx_native(ctx, "sink.shell.run"         , NULL     , (sink_native_f)L_run         );
+	sink_ctx_native(ctx, "sink.shell.which"       , NULL     , (sink_native_f)L_which       );
+	sink_ctx_native(ctx, "sink.shell.file.canread", NULL     , (sink_native_f)L_file_canread);
+	sink_ctx_native(ctx, "sink.shell.file.exists" , NULL     , (sink_native_f)L_file_exists );
+	sink_ctx_native(ctx, "sink.shell.file.read"   , NULL     , (sink_native_f)L_file_read   );
+	sink_ctx_native(ctx, "sink.shell.file.sink"   , si       , (sink_native_f)L_file_sink   );
+	sink_ctx_native(ctx, "sink.shell.file.script" , sc       , (sink_native_f)L_file_script );
+	sink_ctx_native(ctx, "sink.shell.file.write"  , NULL     , (sink_native_f)L_file_write  );
+	sink_ctx_native(ctx, "sink.shell.dir.work"    , NULL     , (sink_native_f)L_dir_work    );
+	sink_ctx_native(ctx, "sink.shell.dir.list"    , NULL     , (sink_native_f)L_dir_list    );
+	sink_ctx_native(ctx, "sink.shell.path.joinp"  , NULL     , (sink_native_f)L_path_joinp  );
+	sink_ctx_native(ctx, "sink.shell.path.joinw"  , NULL     , (sink_native_f)L_path_joinw  );
+#if defined(SINK_WIN)
+	sink_ctx_native(ctx, "sink.shell.path.join"   , NULL     , (sink_native_f)L_path_joinw  );
+#else
+	sink_ctx_native(ctx, "sink.shell.path.join"   , NULL     , (sink_native_f)L_path_joinp  );
+#endif
 }
