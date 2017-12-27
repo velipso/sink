@@ -395,7 +395,7 @@ static inline void RD_add_arg(rundata rd, sink_str str){
 		rd->cmd = sink_realloc_safe(rd->cmd, sizeof(char) * rd->cmd_max);
 	}
 	rd->cmd[rd->cmd_size++] = ' ';
-	RD_quote(str->bytes, &rd->cmd[rd->cmd_size]);
+	RD_quote((const char *)str->bytes, &rd->cmd[rd->cmd_size]);
 	rd->cmd_size += qs;
 }
 
@@ -858,14 +858,14 @@ static sink_val L_dir_list(sink_ctx ctx, int size, sink_val *args, void *nuser){
 	// Check that the input path plus 3 is not longer than MAX_PATH.
 	// Three characters are for the "\*" plus NULL appended below.
 	size_t dirlen;
-	StringCchLength(dir->bytes, MAX_PATH, &dirlen);
+	StringCchLength((const char *)dir->bytes, MAX_PATH, &dirlen);
 	if (dirlen > (MAX_PATH - 3))
 		return sink_abortstr(ctx, "Directory path is too long: %.*s", dir->size, dir->bytes);
 
 	// Prepare string for use with FindFile functions.  First, copy the
 	// string to a buffer, then append '\*' to the directory name.
 	TCHAR wdir[MAX_PATH];
-	StringCchCopy(wdir, MAX_PATH, dir->bytes);
+	StringCchCopy(wdir, MAX_PATH, (const char *)dir->bytes);
 	StringCchCat(wdir, MAX_PATH, TEXT("\\*"));
 
 	// Find the first file in the directory.
