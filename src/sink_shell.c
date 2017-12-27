@@ -9,6 +9,7 @@
 #if defined(SINK_WIN)
 #	include <direct.h>     // _getcwd
 #	define getcwd _getcwd
+#	include <windows.h>    // GetFileAttributes, GetLastError
 #else
 #	include <sys/stat.h>   // stat
 #	include <sys/types.h>  // necessary for read
@@ -883,7 +884,16 @@ static sink_val L_file_exists(sink_ctx ctx, int size, sink_val *args, void *nuse
 	sink_str file;
 	if (!sink_arg_str(ctx, size, args, 0, &file))
 		return SINK_NIL;
+#if defined(SINK_WIN)
+	// TODO: test this with network paths that are *just* \\host\computer
+	// I think `file.exists` should return true
+	DWORD a = GetFileAttributes(file->bytes);
+	if (a == INVALID_FILE_ATTRIBUTES)
+		return sink_bool(GetLastError() == ERROR_BAD_NETPATH);
+	return sink_bool(true);
+#else
 	return sink_bool(access((const char *)file->bytes, F_OK) != -1);
+#endif
 }
 
 static sink_val L_file_read(sink_ctx ctx, int size, sink_val *args, void *nuser){
