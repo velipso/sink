@@ -912,6 +912,9 @@ static sink_val L_dir_list(sink_ctx ctx, int size, sink_val *args, void *nuser){
 
 	// List all the files in the directory with some info about them.
 	do {
+		if (ffd.cFileName[0] == '.' &&
+			(ffd.cFileName[1] == 0 || (ffd.cFileName[1] == '.' && ffd.cFileName[2] == 0)))
+			continue;
 		sink_list_push(ctx, res, sink_str_newcstr(ctx, ffd.cFileName));
 	} while (FindNextFile(find, &ffd) != 0);
 
