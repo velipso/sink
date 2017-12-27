@@ -1259,6 +1259,12 @@ See the [C header file](https://github.com/voidqk/sink/blob/master/src/sink.h) a
 [TypeScript declaration file](https://github.com/voidqk/sink/blob/master/dist/sink.d.ts) for
 function parameters.  It should be straight-forward.
 
+Note: the following commands are not available at run-time because they only work at compile-time:
+
+* `pick` - this is compiled into an equivalent `if` statement
+* `embed` - this loads files strictly at compile-time as strings
+* `include` - this loads files strictly at compile-time as code
+
 | Sink Command      | Host Function     |
 |-------------------|-------------------|
 | `+x`              | `tonum`           |
@@ -1389,12 +1395,6 @@ function parameters.  It should be straight-forward.
 | `gc.getlevel`     | `gc_getlevel`     |
 | `gc.setlevel`     | `gc_setlevel`     |
 | `gc.run`          | `gc_run`          |
-
-Note: the following commands are not available at run-time because they only work at compile-time:
-
-* `pick` - this is compiled into an equivalent `if` statement
-* `embed` - this loads files strictly at compile-time as strings
-* `include` - this loads files strictly at compile-time as code
 
 Misc/Helper Functions
 =====================
