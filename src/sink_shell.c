@@ -610,7 +610,8 @@ static sink_val L_run(sink_ctx ctx, int size, sink_val *args, void *nuser){
 	//
 
 #if defined(SINK_WIN)
-#	error Implement sink.shell.run in Windows
+	// TODO: this
+	return SINK_NIL;
 #else
 
 	const int R = 0, W = 1; // indicies into pipes for read/write
