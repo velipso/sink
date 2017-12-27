@@ -14,6 +14,23 @@
 #	include <unistd.h> // getcwd
 #endif
 
+#if defined(SINK_WIN)
+static inline FILE *fopen_i(const char *file, const char *mode){
+	// remove annoying warnings about using "deprecated" (ugh) fopen
+	FILE *fp;
+	errno_t err = fopen_s(&fp, file, mode);
+	if (err == 0)
+		return fp;
+	if (fp){
+		fclose(fp);
+		fp = NULL;
+	}
+	return fp;
+}
+#else
+#	define fopen_i(a, b) fopen(a, b)
+#endif
+
 static void io_say(sink_ctx ctx, sink_str str, void *iouser){
 	printf("%.*s\n", str->size, str->bytes);
 }
@@ -86,7 +103,7 @@ static bool isdir(const char *dir){
 }
 
 static bool isfile(const char *file){
-	FILE *fp = fopen(file, "rb");
+	FILE *fp = fopen_i(file, "rb");
 	if (fp == NULL)
 		return false;
 	fclose(fp);
@@ -94,7 +111,7 @@ static bool isfile(const char *file){
 }
 
 static bool fsread(sink_scr scr, const char *file, void *user){
-	FILE *fp = fopen(file, "rb");
+	FILE *fp = fopen_i(file, "rb");
 	if (fp == NULL)
 		return false; // `false` indicates that the file couldn't be read
 	char buf[5000];

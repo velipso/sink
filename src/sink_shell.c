@@ -386,10 +386,10 @@ static inline void RD_make(rundata rd, char *abs_cmd){
 }
 
 static inline void RD_add_arg(rundata rd, sink_str str){
-	int qs = RD_quote_size(str->bytes);
+	int qs = RD_quote_size((const char *)str->bytes);
 	if (rd->cmd_size + qs + 2 > rd->cmd_max){
 		rd->cmd_max = rd->cmd_size + qs + 2 + 30;
-		rd->cmd = sink_realloc_safe(rd->cmd, sizeof(char) * cd->cmd_max);
+		rd->cmd = sink_realloc_safe(rd->cmd, sizeof(char) * rd->cmd_max);
 	}
 	rd->cmd[rd->cmd_size++] = ' ';
 	RD_quote(str->bytes, &rd->cmd[rd->cmd_size]);
@@ -927,11 +927,28 @@ static sink_val L_dir_list(sink_ctx ctx, int size, sink_val *args, void *nuser){
 	return res;
 }
 
+#if defined(SINK_WIN)
+static inline FILE *fopen_i(const char *file, const char *mode){
+	// remove annoying warnings about using "deprecated" (ugh) fopen
+	FILE *fp;
+	errno_t err = fopen_s(&fp, file, mode);
+	if (err == 0)
+		return fp;
+	if (fp){
+		fclose(fp);
+		fp = NULL;
+	}
+	return fp;
+}
+#else
+#	define fopen_i(a, b) fopen(a, b)
+#endif
+
 static sink_val L_file_canread(sink_ctx ctx, int size, sink_val *args, void *nuser){
 	sink_str file;
 	if (!sink_arg_str(ctx, size, args, 0, &file))
 		return SINK_NIL;
-	FILE *fp = fopen((const char *)file->bytes, "rb");
+	FILE *fp = fopen_i((const char *)file->bytes, "rb");
 	if (fp){
 		fclose(fp);
 		return sink_bool(true);
@@ -959,7 +976,7 @@ static sink_val L_file_read(sink_ctx ctx, int size, sink_val *args, void *nuser)
 	sink_str file;
 	if (!sink_arg_str(ctx, size, args, 0, &file))
 		return SINK_NIL;
-	FILE *fp = fopen((const char *)file->bytes, "rb");
+	FILE *fp = fopen_i((const char *)file->bytes, "rb");
 	if (fp == NULL)
 		return sink_abortstr(ctx, "Could not read file: %.*s", file->size, file->bytes);
 	fseek(fp, 0L, SEEK_END);
@@ -986,7 +1003,7 @@ static sink_val L_file_write(sink_ctx ctx, int size, sink_val *args, void *nuser
 	sink_str file;
 	if (!sink_arg_str(ctx, size, args, 0, &file))
 		return SINK_NIL;
-	FILE *fp = fopen((const char *)file->bytes, "wb");
+	FILE *fp = fopen_i((const char *)file->bytes, "wb");
 	if (fp == NULL)
 		return sink_abortstr(ctx, "Could not write to file: %.*s", file->size, file->bytes);
 	if (size >= 2){
