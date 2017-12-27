@@ -77,21 +77,6 @@ for var test: tests_list
 	end
 end
 
-def print_diff answer, actual
-	var ansf = tgt_dir ~ sep ~ 'temp1.txt'
-	var actf = tgt_dir ~ sep ~ 'temp2.txt'
-	file.write ansf, answer
-	file.write actf, actual
-	if which 'diff'
-		run 'diff', {'-u', '--label', 'Expected Output', ansf, '--label', 'Actual Output', actf}
-	else
-		say '>> EXPECTED:'
-		say answer
-		say '>> ACTUAL:'
-		say actual
-	end
-end
-
 for var test: tests
 	var test_dir = tests_dir ~ sep ~ test                       # TODO: path.join
 	var test_num = +test
@@ -101,6 +86,7 @@ for var test: tests
 	var fail_file = test_dir ~ sep ~ 'fail.txt'                 # TODO: path.join
 
 	declare test_failed
+	declare check_diff
 
 	var bin_data = nil
 	for var sink_exe: sink_exes
@@ -118,10 +104,7 @@ for var test: tests
 				test_failed 'Expecting script to fail but it passed'
 			end
 			var answer = file.read pass_file
-			if answer != stdout
-				print_diff answer, stdout
-				test_failed 'Incorrect results'
-			end
+			check_diff answer, stdout
 
 			# check compiling
 			var {cstatus, cstdout, cstderr} = dorun sink_exe, {'-c', '-d', test_script}
@@ -146,10 +129,7 @@ for var test: tests
 				say rstderr
 				test_failed 'Failed to execute bytecode'
 			end
-			if answer != rstdout
-				print_diff answer, rstdout
-				test_failed 'Incorrect bytecode results'
-			end
+			check_diff answer, stdout
 		else
 			#
 			# script failed
@@ -169,6 +149,28 @@ for var test: tests
 	def test_failed reason
 		test_result 'FAIL'
 		abort reason
+	end
+
+	def check_diff answer, actual
+		if windows
+			actual = actual | str.split "\r\n" | list.join "\n"
+		end
+		if answer == actual
+			return
+		end
+		var ansf = tgt_dir ~ sep ~ 'temp1.txt'
+		var actf = tgt_dir ~ sep ~ 'temp2.txt'
+		file.write ansf, answer
+		file.write actf, actual
+		if which 'diff'
+			run 'diff', {'-u', '--label', 'Expected Output', ansf, '--label', 'Actual Output', actf}
+		else
+			say '>> EXPECTED:'
+			say answer
+			say '>> ACTUAL:'
+			say actual
+		end
+		test_failed 'Incorrect results'
 	end
 
 	# test passed
