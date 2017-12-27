@@ -206,7 +206,7 @@ static inline bool isabs_s(int sz, const char *file){
 
 static inline char *Li_which_testexe(char *p){
 #if defined(SINK_WIN)
-	WORD type;
+	DWORD type;
 	if (GetBinaryType(p, &type))
 		return p;
 	sink_free(p);
