@@ -206,7 +206,11 @@ static inline bool isabs_s(int sz, const char *file){
 
 static inline char *Li_which_testexe(char *p){
 #if defined(SINK_WIN)
-#	error Implement Li_which_testexe for Windows (use GetBinaryType I think)
+	WORD type;
+	if (GetBinaryType(p, &type))
+		return p;
+	sink_free(p);
+	return NULL;
 #else
 	// returns p if it's executable, or NULL if not (and must free p using sink_free)
 	struct stat sb;
