@@ -690,6 +690,10 @@ static sink_val L_run(sink_ctx ctx, int size, sink_val *args, void *nuser){
 		fd_in_W = NULL;
 	}
 
+	// TODO: this is wrong because (I suspect) the internal buffers (stdout, stderr) can become
+	// filled, which will cause the child to wait until the buffers have room before printing more
+	// but since we don't clear the buffers until *after* the process exists, we're stuck
+
 	WaitForSingleObject(pri.hProcess, INFINITE);
 	DWORD exitcode = 0;
 	GetExitCodeProcess(pri.hProcess, &exitcode);

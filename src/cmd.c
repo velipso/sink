@@ -10,6 +10,8 @@
 #if defined(SINK_WIN)
 #	include <direct.h> // _getcwd
 #	define getcwd _getcwd
+#	include <io.h>     // _setmode, _fileno
+#	include <fcntl.h>  // _O_BINARY
 #else
 #	include <unistd.h> // getcwd
 #endif
@@ -293,7 +295,7 @@ int main_compile_file(sink_scr scr, const char *file, bool debug){
 		return 1;
 	}
 #if defined(SINK_WIN)
-	setmode(fileno(stdout), O_BINARY);
+	_setmode(_fileno(stdout), _O_BINARY);
 #endif
 	sink_scr_dump(scr, debug, (void *)stdout, (sink_dump_f)fwrite);
 	sink_scr_free(scr);
@@ -307,7 +309,7 @@ int main_compile_eval(sink_scr scr, const char *eval, bool debug){
 		return 1;
 	}
 #if defined(SINK_WIN)
-	setmode(fileno(stdout), O_BINARY);
+	_setmode(_fileno(stdout), _O_BINARY);
 #endif
 	sink_scr_dump(scr, debug, (void *)stdout, (sink_dump_f)fwrite);
 	sink_scr_free(scr);
