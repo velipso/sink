@@ -30,13 +30,14 @@ var sink_js = path_list | list.join '/'
 
 # search for sink executables to test
 var sink_exes = {}
-if file.exists sink_posix
-	say (str.pad 'Testing POSIX:', 20), sink_posix
-	list.push sink_exes, sink_posix
-end
+var windows = nil
 if file.exists sink_win
+	windows = 1
 	say (str.pad 'Testing Windows:', 20), sink_win
 	list.push sink_exes, sink_win
+elseif file.exists sink_posix
+	say (str.pad 'Testing POSIX:', 20), sink_posix
+	list.push sink_exes, sink_posix
 end
 if file.exists sink_js
 	say (str.pad 'Testing JavaScript:', 20), sink_js
@@ -44,6 +45,16 @@ if file.exists sink_js
 end
 if &sink_exes == 0
 	abort 'No sink executables found to test'
+end
+
+def dorun exe, args
+	# if windows is attempting to run the node.js version, we have to pass through node.exe, instead
+	# of running the .js file directly
+	if windows && exe == sink_js
+		list.unshift args, exe
+		return run 'node.exe', args, nil, nil, 1
+	end
+	return run exe, args, nil, nil, 1
 end
 
 # get list of tests
@@ -88,7 +99,7 @@ for var test: tests
 	var bin_data = nil
 	for var sink_exe: sink_exes
 		# run the script
-		var {status, stdout, stderr} = run sink_exe, {test_script}, nil, nil, 1
+		var {status, stdout, stderr} = dorun sink_exe, {test_script}
 
 		if status == 0
 			#
@@ -107,7 +118,7 @@ for var test: tests
 			end
 
 			# check compiling
-			var {cstatus, cstdout, cstderr} = run sink_exe, {'-c', '-d', test_script}, nil, nil, 1
+			var {cstatus, cstdout, cstderr} = dorun sink_exe, {'-c', '-d', test_script}
 			if cstatus != 0
 				say cstderr
 				test_failed 'Failed to compile script'
@@ -124,7 +135,7 @@ for var test: tests
 
 			# check bytecode execution results
 			file.write bin_sink, cstdout
-			var {rstatus, rstdout, rstderr} = run sink_exe, {bin_sink}, nil, nil, 1
+			var {rstatus, rstdout, rstderr} = dorun sink_exe, {bin_sink}
 			if rstatus != 0
 				say rstderr
 				test_failed 'Failed to execute bytecode'
