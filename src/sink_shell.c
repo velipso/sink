@@ -10,6 +10,8 @@
 #	include <direct.h>     // _getcwd
 #	define getcwd _getcwd
 #	include <windows.h>    // GetFileAttributes, GetLastError
+#	include <tchar.h>      // TCHAR
+#	include <strsafe.h>    // StringCchLength, StringCchCopy, StringCchCat
 #else
 #	include <sys/stat.h>   // stat
 #	include <sys/types.h>  // necessary for read
