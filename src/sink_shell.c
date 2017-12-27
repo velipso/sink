@@ -513,6 +513,22 @@ static inline void RD_destroy(rundata rd){
 
 #endif
 
+#if defined(SINK_WIN)
+static inline sink_val win_abortstr(sink_ctx ctx, DWORD err, const char *fmt){
+	LPVOID msg;
+	FormatMessage(
+		FORMAT_MESSAGE_ALLOCATE_BUFFER |
+		FORMAT_MESSAGE_FROM_SYSTEM |
+		FORMAT_MESSAGE_IGNORE_INSERTS,
+		NULL, err,
+		MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+		(LPTSTR)&msg, 0, NULL);
+	sink_abortstr(ctx, fmt, msg);
+	LocalFree(msg);
+	return SINK_NIL;
+}
+#endif
+
 static sink_val L_run(sink_ctx ctx, int size, sink_val *args, void *nuser){
 	sink_str file;
 	if (!sink_arg_str(ctx, size, args, 0, &file))
@@ -610,8 +626,90 @@ static sink_val L_run(sink_ctx ctx, int size, sink_val *args, void *nuser){
 	//
 
 #if defined(SINK_WIN)
-	// TODO: this
-	return SINK_NIL;
+
+	sink_val res = SINK_NIL;
+	HANDLE fd_in_R  = NULL, fd_in_W  = NULL;
+	HANDLE fd_out_R = NULL, fd_out_W = NULL;
+	HANDLE fd_err_R = NULL, fd_err_W = NULL;
+	PROCESS_INFORMATION pri;
+	STARTUPINFO si;
+	ZeroMemory(&pi, sizeof(PROCESS_INFORMATION));
+	ZeroMemory(&si, sizeof(STARTUPINFO));
+	SECURITY_ATTRIBUTES sec;
+	sec.nLength = sizeof(SECURITY_ATTRIBUTES);
+	sec.bInheritHandle = TRUE;
+	sec.lpSecurityDescriptor = NULL;
+
+	if (writein){
+		if (!CreatePipe(&fd_in_R, &fd_in_W, &sec, 0)){
+			win_abortstr(ctx, GetLastError(), "Failed to create pipe: %s");
+			goto cleanup;
+		}
+		if (!SetHandleInformation(fd_in_W, HANDLE_FLAG_INHERIT, 0)){
+			win_abortstr(ctx, GetLastError(), "Failed to set handle information: %s");
+			goto cleanup;
+		}
+	}
+
+	if (capture){
+		if (!CreatePipe(&fd_out_R, &fd_out_W, &sec, 0)){
+			win_abortstr(ctx, GetLastError(), "Failed to create pipe: %s");
+			goto cleanup;
+		}
+		if (!SetHandleInformation(fd_out_R, HANDLE_FLAG_INHERIT, 0)){
+			win_abortstr(ctx, GetLastError(), "Failed to set handle information: %s");
+			goto cleanup;
+		}
+
+		if (!CreatePipe(&fd_err_R, &fd_err_W, &sec, 0)){
+			win_abortstr(ctx, GetLastError(), "Failed to create pipe: %s");
+			goto cleanup;
+		}
+		if (!SetHandleInformation(fd_err_R, HANDLE_FLAG_INHERIT, 0)){
+			win_abortstr(ctx, GetLastError(), "Failed to set handle information: %s");
+			goto cleanup;
+		}
+	}
+
+	si.cb = sizeof(STARTUPINFO);
+	si.hStdInput  = writein ? fd_in_R  : GetStdHandle(STD_INPUT_HANDLE );
+	si.hStdOutput = capture ? fd_out_W : GetStdHandle(STD_OUTPUT_HANDLE);
+	si.hStdError  = capture ? fd_err_W : GetStdHandle(STD_ERROR_HANDLE );
+	si.dwFlags |= STARTF_USESTDHANDLES;
+
+	printf("app \"%s\" cmd \"%s\"\n", rd.app, rd.cmd);
+	if (!CreateProcess(rd.app, rd.cmd, NULL, NULL, TRUE, 0, hasenvs ? rd.env : NULL, NULL,
+		&siStartInfo, &piProcInfo)){
+		win_abortstr(ctx, GetLastError(), "Failed to create process: %s");
+		goto cleanup;
+	}
+
+	if (writein){
+		CloseHandle(fd_in_R);
+		fd_in_R = NULL;
+		WriteFile(fd_in_W, writein, writein_size, NULL, NULL);
+		CloseHandle(fd_in_W);
+		fd_in_W = NULL;
+	}
+
+	// TODO: poll stdout/stderr
+
+	WaitForSingleObject(pri.hProcess, INFINITE);
+	DWORD exitcode = 0;
+	GetExitCodeProcess(pri.hProcess, &exitcode);
+	res = sink_num(exitcode);
+
+cleanup:
+	if (fd_in_R ) CloseHandle(fd_in_R );
+	if (fd_in_W ) CloseHandle(fd_in_W );
+	if (fd_out_R) CloseHandle(fd_out_R);
+	if (fd_out_W) CloseHandle(fd_out_W);
+	if (fd_err_R) CloseHandle(fd_err_R);
+	if (fd_err_W) CloseHandle(fd_err_W);
+	if (pri.hProcess) CloseHandle(pri.hProcess);
+	if (pri.hThread ) CloseHandle(pri.hThread );
+	RD_destroy(&rd);
+	return res;
 #else
 
 	const int R = 0, W = 1; // indicies into pipes for read/write
@@ -896,19 +994,8 @@ static sink_val L_dir_list(sink_ctx ctx, int size, sink_val *args, void *nuser){
 	// Find the first file in the directory.
 	WIN32_FIND_DATA ffd;
 	HANDLE find = FindFirstFile(wdir, &ffd);
-	if (find == INVALID_HANDLE_VALUE){
-		LPVOID msg;
-		FormatMessage(
-			FORMAT_MESSAGE_ALLOCATE_BUFFER |
-			FORMAT_MESSAGE_FROM_SYSTEM |
-			FORMAT_MESSAGE_IGNORE_INSERTS,
-			NULL, GetLastError(),
-			MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-			(LPTSTR)&msg, 0, NULL);
-		sink_abortstr(ctx, "Failed to list directory: %s", msg);
-		LocalFree(msg);
-		return SINK_NIL;
-	}
+	if (find == INVALID_HANDLE_VALUE)
+		return win_abortstr(ctx, GetLastError(), "Failed to list directory: %s");
 
 	// List all the files in the directory with some info about them.
 	do {
@@ -919,19 +1006,8 @@ static sink_val L_dir_list(sink_ctx ctx, int size, sink_val *args, void *nuser){
 	} while (FindNextFile(find, &ffd) != 0);
 
 	DWORD err = GetLastError();
-	if (err != ERROR_NO_MORE_FILES){
-		LPVOID msg;
-		FormatMessage(
-			FORMAT_MESSAGE_ALLOCATE_BUFFER |
-			FORMAT_MESSAGE_FROM_SYSTEM |
-			FORMAT_MESSAGE_IGNORE_INSERTS,
-			NULL, err,
-			MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-			(LPTSTR)&msg, 0, NULL);
-		sink_abortstr(ctx, "Failed to list directory: %s", msg);
-		LocalFree(msg);
-		return SINK_NIL;
-	}
+	if (err != ERROR_NO_MORE_FILES)
+		return win_abortstr(ctx, err, "Failed to list directory: %s");
 
 	FindClose(find);
 
