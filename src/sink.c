@@ -221,13 +221,17 @@ sink_seedauto_src_f sink_seedauto_src = wrap_clock;
 // string creation
 //
 
+#if !defined(SINK_WIN)
+#	define vsprintf_s(a, b, c, d)  vsprintf(a, c, d)
+#endif
+
 static char *format(const char *fmt, ...){
 	va_list args, args2;
 	va_start(args, fmt);
 	va_copy(args2, args);
 	size_t s = vsnprintf(NULL, 0, fmt, args);
 	char *buf = mem_alloc(s + 1);
-	vsprintf(buf, fmt, args2);
+	vsprintf_s(buf, s + 1, fmt, args2);
 	va_end(args);
 	va_end(args2);
 	return buf;
@@ -11282,7 +11286,7 @@ static inline sink_val opi_abortformat(context ctx, const char *fmt, ...){
 	va_copy(args2, args);
 	size_t s = vsnprintf(NULL, 0, fmt, args);
 	char *buf = mem_alloc(s + 1);
-	vsprintf(buf, fmt, args2);
+	vsprintf_s(buf, s + 1, fmt, args2);
 	va_end(args);
 	va_end(args2);
 	opi_abort(ctx, buf);
@@ -16009,7 +16013,7 @@ sink_val sink_str_newformat(sink_ctx ctx, const char *fmt, ...){
 	va_copy(args2, args);
 	size_t s = vsnprintf(NULL, 0, fmt, args);
 	char *buf = mem_alloc(s + 1);
-	vsprintf(buf, fmt, args2);
+	vsprintf_s(buf, s + 1, fmt, args2);
 	va_end(args);
 	va_end(args2);
 	return sink_str_newblobgive(ctx, (int)s, (uint8_t *)buf);
@@ -16569,7 +16573,7 @@ sink_val sink_abortstr(sink_ctx ctx, const char *fmt, ...){
 	va_copy(args2, args);
 	size_t s = vsnprintf(NULL, 0, fmt, args);
 	char *buf = mem_alloc(s + 1);
-	vsprintf(buf, fmt, args2);
+	vsprintf_s(buf, s + 1, fmt, args2);
 	va_end(args);
 	va_end(args2);
 	opi_abort(ctx, buf);

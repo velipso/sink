@@ -21,6 +21,7 @@
 #	include <string.h>     // strerror
 #	include <errno.h>      // errno
 #	include <dirent.h>     // opendir, readdir, closedir
+#	define vsprintf_s(a, b, c, d) vsprintf(a, c, d)
 #endif
 
 #define VERSION_MAJ  1
@@ -58,7 +59,7 @@ static char *format(const char *fmt, ...){
 	va_copy(args2, args);
 	size_t s = vsnprintf(NULL, 0, fmt, args);
 	char *buf = sink_malloc_safe(s + 1);
-	vsprintf(buf, fmt, args2);
+	vsprintf_s(buf, s + 1, fmt, args2);
 	va_end(args);
 	va_end(args2);
 	return buf;
