@@ -275,8 +275,152 @@ static sink_val L_which(sink_ctx ctx, int size, sink_val *args, void *nuser){
 	return sink_str_newblobgive(ctx, strlen(res), (uint8_t *)res);
 }
 
+// rundata (RD) implementation
+// stores the arguments/environment variables of a call to `run`
 #if defined(SINK_WIN)
-#	error Implement L_run API
+
+typedef struct {
+	char *app;
+	int cmd_max;
+	int cmd_size;
+	char *cmd;
+	int env_max;
+	int env_size;
+	char *env;
+} rundata_st, *rundata;
+
+static int RD_quote_size(const char *str){
+	// return the size of a string that has been Windows-quoted (not including NULL terminator)
+	int sz = strlen(str);
+
+	// only quote arguments that contain space, tab, newline, vertical tab, or quote
+	bool found = false;
+	for (int i = 0; i < sz && !found; i++){
+		char ch = str[i];
+		found = ch == ' ' || ch == '\t' || ch == '\n' || ch == '\v' || ch == '"';
+	}
+	if (!found)
+		return sz;
+
+	int res = 2; // start quote + end quote
+	for (int i = 0; i < sz; i++){
+		int bs = 0;
+		while (str[i] == '\\'){
+			i++;
+			bs++;
+		}
+		if (str[i] == 0)
+			res += 2 * bs; // escape each backslash
+		else if (str[i] == '"')
+			res += 2 * bs + 2; // escape each backslash, escape the quote
+		else
+			res += bs + 1; // unescaped backslash, unescaped literal
+	}
+	return res;
+}
+
+static void RD_quote(const char *str, char *into){
+	// quote a string using Windows logic, where `into` is a buffer of length `RD_quote_size(str)+1`
+	int sz = strlen(str);
+
+	// only quote arguments that contain space, tab, newline, vertical tab, or quote
+	bool found = false;
+	for (int i = 0; i < sz && !found; i++){
+		char ch = str[i];
+		found = ch == ' ' || ch == '\t' || ch == '\n' || ch == '\v' || ch == '"';
+	}
+	if (!found){
+		// just copy directly, don't need to quote it
+		for (int i = 0; i <= sz; i++) // copy string + NULL
+			into[i] = str[i];
+		return;
+	}
+
+	int idx = 0;
+	into[idx++] = '"';
+	for (int i = 0; i < sz; i++){
+		int bs = 0;
+		while (str[i] == '\\'){
+			i++;
+			bs++;
+		}
+		if (str[i] == 0){
+			// escape each backslash
+			for (int j = 0; j < bs; j++){
+				into[idx++] = '\\';
+				into[idx++] = '\\';
+			}
+		}
+		else if (str[i] == '"'){
+			// escape each backslash, escape the quote
+			for (int j = 0; j < bs; j++){
+				into[idx++] = '\\';
+				into[idx++] = '\\';
+			}
+			into[idx++] = '\\';
+			into[idx++] = '"';
+		}
+		else{
+			// unescaped backslash, unescaped literal
+			for (int j = 0; j < bs; j++)
+				into[idx++] = '\\';
+			into[idx++] = str[i];
+		}
+	}
+	into[idx++] = '"';
+	into[idx] = 0;
+}
+
+static inline void RD_make(rundata rd, char *abs_cmd){
+	int qs = RD_quote_size(abs_cmd);
+	rd->app = sink_malloc_safe(sizeof(char) * (qs + 1));
+	RD_quote(abs_cmd, rd->app);
+	rd->cmd = format("%s", rd->app);
+	rd->cmd_max = qs + 1;
+	rd->cmd_size = qs;
+	rd->env_max = 0;
+	rd->env_size = 0;
+	rd->env = NULL;
+	sink_free(abs_cmd); // don't need it anymore
+}
+
+static inline void RD_add_arg(rundata rd, sink_str str){
+	int qs = RD_quote_size(str->bytes);
+	if (rd->cmd_size + qs + 2 > rd->cmd_max){
+		rd->cmd_max = rd->cmd_size + qs + 2 + 30;
+		rd->cmd = sink_realloc_safe(rd->cmd, sizeof(char) * cd->cmd_max);
+	}
+	rd->cmd[rd->cmd_size++] = ' ';
+	RD_quote(str->bytes, &rd->cmd[rd->cmd_size]);
+	rd->cmd_size += qs;
+}
+
+static inline void RD_add_env(rundata rd, sink_str key, sink_str val){
+	// TODO: test this with keys that have equals inside of them, empty keys, empty vals
+	if (rd->env_size + key->size + 1 + val->size + 2 > rd->env_max){
+		rd->env_max = rd->env_size + key->size + 1 + val->size + 2 + 30;
+		rd->env = sink_realloc_safe(rd->env, sizeof(char) * rd->env_max);
+	}
+	for (int i = 0; i < key->size && key->bytes[i] != 0; i++)
+		rd->env[rd->env_size++] = key->bytes[i];
+	rd->env[rd->env_size++] = '=';
+	for (int i = 0; i < val->size && val->bytes[i] != 0; i++)
+		rd->env[rd->env_size++] = val->bytes[i];
+	// double NULL terminate
+	rd->env[rd->env_size] = 0;
+	rd->env[rd->env_size + 1] = 0;
+}
+
+static inline void RD_finish(rundata rd, bool hasargs, bool hasenvs){
+}
+
+static inline void RD_destroy(rundata rd){
+	sink_free(rd->app);
+	sink_free(rd->cmd);
+	if (rd->env)
+		sink_free(rd->env);
+}
+
 #else
 
 typedef struct {
@@ -299,7 +443,7 @@ static inline void RD_make(rundata rd, char *abs_cmd){
 }
 
 static inline void RD_push_arg(rundata rd, char *ptr){
-	if (rd->args_size + 1 >= rd->args_max){
+	if (rd->args_size + 1 > rd->args_max){
 		rd->args_max = rd->args_size + 10;
 		rd->args = sink_realloc_safe(rd->args, sizeof(char *) * rd->args_max);
 	}
@@ -311,7 +455,7 @@ static inline void RD_add_arg(rundata rd, sink_str str){
 }
 
 static inline void RD_push_env(rundata rd, char *ptr){
-	if (rd->envs_size + 1 >= rd->envs_max){
+	if (rd->envs_size + 1 > rd->envs_max){
 		rd->envs_max = rd->envs_size + 10;
 		rd->envs = sink_realloc_safe(rd->envs, sizeof(char *) * rd->envs_max);
 	}
@@ -319,7 +463,7 @@ static inline void RD_push_env(rundata rd, char *ptr){
 }
 
 static inline void RD_add_env(rundata rd, sink_str key, sink_str val){
-	// TODO: test this with keys that have equals inside of them
+	// TODO: test this with keys that have equals inside of them, empty keys, empty vals
 	RD_push_env(rd, format("%s=%s", (char *)key->bytes, (char *)val->bytes));
 }
 
