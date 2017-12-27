@@ -677,7 +677,6 @@ static sink_val L_run(sink_ctx ctx, int size, sink_val *args, void *nuser){
 	si.hStdError  = capture ? fd_err_W : GetStdHandle(STD_ERROR_HANDLE );
 	si.dwFlags |= STARTF_USESTDHANDLES;
 
-	printf("app \"%s\" cmd \"%s\"\n", rd.app, rd.cmd);
 	if (!CreateProcess(rd.app, rd.cmd, NULL, NULL, TRUE, 0, rd.env, NULL, &si, &pri)){
 		win_abortstr(ctx, GetLastError(), "Failed to create process: %s");
 		goto cleanup;
@@ -695,18 +694,20 @@ static sink_val L_run(sink_ctx ctx, int size, sink_val *args, void *nuser){
 	DWORD exitcode = 0;
 	GetExitCodeProcess(pri.hProcess, &exitcode);
 	if (capture){
+		CloseHandle(fd_out_W);
+		fd_out_W = NULL;
+		CloseHandle(fd_err_W);
+		fd_err_W = NULL;
 		sink_val capout = sink_list_newempty(ctx);
 		sink_val caperr = sink_list_newempty(ctx);
-		char buf[1000];
+		char buf[2000];
 		DWORD bytes;
 		while (true){
-			printf("reading from stdout\n");
 			if (!ReadFile(fd_out_R, buf, sizeof(buf), &bytes, NULL) || bytes == 0)
 				break;
 			sink_list_push(ctx, capout, sink_str_newblob(ctx, bytes, (const uint8_t *)buf));
 		}
 		while (true){
-			printf("reading from stderr\n");
 			if (!ReadFile(fd_err_R, buf, sizeof(buf), &bytes, NULL) || bytes == 0)
 				break;
 			sink_list_push(ctx, caperr, sink_str_newblob(ctx, bytes, (const uint8_t *)buf));
@@ -730,6 +731,7 @@ cleanup:
 	if (pri.hThread ) CloseHandle(pri.hThread );
 	RD_destroy(&rd);
 	return res;
+
 #else
 
 	const int R = 0, W = 1; // indicies into pipes for read/write
