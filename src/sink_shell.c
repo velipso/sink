@@ -702,15 +702,15 @@ static sink_val L_run(sink_ctx ctx, int size, sink_val *args, void *nuser){
 		while (true){
 			if (!ReadFile(fd_out_R, buf, sizeof(buf), &bytes, NULL) || bytes == 0)
 				break;
-			sink_list_push(ctx, capout, sink_str_newblob(ctx, bytes, buf));
+			sink_list_push(ctx, capout, sink_str_newblob(ctx, bytes, (const uint8_t *)buf));
 		}
 		while (true){
 			if (!ReadFile(fd_err_R, buf, sizeof(buf), &bytes, NULL) || bytes == 0)
 				break;
-			sink_list_push(ctx, caperr, sink_str_newblob(ctx, bytes, buf));
+			sink_list_push(ctx, caperr, sink_str_newblob(ctx, bytes, (const uint8_t *)buf));
 		}
-		capout = sink_list_join(ctx, capout, sink_str_newempty());
-		caperr = sink_list_join(ctx, caperr, sink_str_newempty());
+		capout = sink_list_join(ctx, capout, sink_str_newempty(ctx));
+		caperr = sink_list_join(ctx, caperr, sink_str_newempty(ctx));
 		sink_val rv[3] = { sink_num(exitcode), capout, caperr };
 		res = sink_list_newblob(ctx, 3, rv);
 	}
