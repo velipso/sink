@@ -13782,7 +13782,3 @@ export function gc_getlevel(ctx: ctx): gc_level {
 export function gc_setlevel(ctx: ctx, level: gc_level): void {
 	(ctx as context_st).gc_level = level;
 }
-
-export function gc_run(ctx: ctx): void {
-	// do nothing
-}

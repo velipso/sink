@@ -11709,7 +11709,7 @@ var __extends = (this && this.__extends) || (function () {
             return numtostr(v);
         }
         else if (typeof v === 'string')
-            return '\'' + v.replace(/\//g, '\\\\').replace(/'/g, '\\\'') + '\'';
+            return '\'' + v.replace(/'/g, '\'\'') + '\'';
         else {
             if (li.indexOf(v) >= 0)
                 return '{circular}';
