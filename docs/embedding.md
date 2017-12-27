@@ -1261,7 +1261,8 @@ function parameters.  It should be straight-forward.
 
 Note: the following commands are not available at run-time because they only work at compile-time:
 
-* `pick` - this is compiled into an equivalent `if` statement
+* `pick` - this is compiled into an equivalent `if` statement, in order to implement
+  [short-circuit evaluation](https://en.wikipedia.org/wiki/Short-circuit_evaluation)
 * `embed` - this loads files strictly at compile-time as strings
 * `include` - this loads files strictly at compile-time as code
 
