@@ -217,6 +217,21 @@ static inline char *Li_which_testexe(char *p){
 #endif
 }
 
+#if defined(SINK_WIN)
+static inline const char *getenv_i(const char *name){
+	char *buf;
+	_dupenv_s(&buf, NULL, name);
+	return buf;
+}
+
+static inline void freeenv_i(const char *ptr){
+	free((char *)ptr);
+}
+#else
+#	define getenv_i(s) getenv(s)
+#	define freeenv_i(s)
+#endif
+
 static char *Li_which(const char *cmd){
 	// returns an aboslute path string owned by sink_malloc if an executable was found
 	// otherwise, returns NULL
@@ -244,7 +259,9 @@ static char *Li_which(const char *cmd){
 	}
 
 	// no path delimeter, so search PATH environment variable
-	const char *path = getenv("PATH");
+	const char *path = getenv_i("PATH");
+	if (path == NULL)
+		return NULL;
 	char curpath[2001];
 	int curpathi = 0;
 	for (int i = 0; path[i] != 0; i++){
@@ -254,8 +271,10 @@ static char *Li_which(const char *cmd){
 			// we have a path to test
 			curpath[curpathi] = 0;
 			char *join = pathjoin(curpath, cmd);
-			if (Li_which_testexe(join))
+			if (Li_which_testexe(join)){
+				freeenv_i(path);
 				return join;
+			}
 			// nope, not executable
 			curpathi = 0;
 		}
@@ -264,6 +283,7 @@ static char *Li_which(const char *cmd){
 				curpath[curpathi++] = path[i];
 		}
 	}
+	freeenv_i(path);
 	return NULL;
 }
 
@@ -887,7 +907,7 @@ static sink_val L_dir_list(sink_ctx ctx, int size, sink_val *args, void *nuser){
 
 	// List all the files in the directory with some info about them.
 	do {
-		sink_list_push(ctx, res, sink_str_newcstr(ctx, (const uint8_t *)ffd.cFileName));
+		sink_list_push(ctx, res, sink_str_newcstr(ctx, ffd.cFileName));
 	} while (FindNextFile(find, &ffd) != 0);
 
 	DWORD err = GetLastError();

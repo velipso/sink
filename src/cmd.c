@@ -31,6 +31,21 @@ static inline FILE *fopen_i(const char *file, const char *mode){
 #	define fopen_i(a, b) fopen(a, b)
 #endif
 
+#if defined(SINK_WIN)
+static inline const char *getenv_i(const char *name){
+	char *buf;
+	_dupenv_s(&buf, NULL, name);
+	return buf;
+}
+
+static inline void freeenv_i(const char *ptr){
+	free((char *)ptr);
+}
+#else
+#	define getenv_i(s) getenv(s)
+#	define freeenv_i(s)
+#endif
+
 static void io_say(sink_ctx ctx, sink_str str, void *iouser){
 	printf("%.*s\n", str->size, str->bytes);
 }
@@ -420,7 +435,7 @@ int main(int argc, char **argv){
 	free(cwd);
 
 	// add the appropriate paths
-	const char *sp = getenv("SINK_PATH");
+	const char *sp = getenv_i("SINK_PATH");
 	if (sp == NULL){
 		// if no environment variable, then add a default path of the current directory
 		sink_scr_addpath(scr, ".");
@@ -428,6 +443,7 @@ int main(int argc, char **argv){
 	else{
 		fprintf(stderr, "TODO: process SINK_PATH\n");
 		abort();
+		freeenv_i(sp);
 	}
 
 	// add any libraries
