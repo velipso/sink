@@ -691,12 +691,31 @@ static sink_val L_run(sink_ctx ctx, int size, sink_val *args, void *nuser){
 		fd_in_W = NULL;
 	}
 
-	// TODO: poll stdout/stderr
-
 	WaitForSingleObject(pri.hProcess, INFINITE);
 	DWORD exitcode = 0;
 	GetExitCodeProcess(pri.hProcess, &exitcode);
-	res = sink_num(exitcode);
+	if (capture){
+		sink_val capout = sink_list_newempty(ctx);
+		sink_val caperr = sink_list_newempty(ctx);
+		char buf[1000];
+		DWORD bytes;
+		while (true){
+			if (!ReadFile(fd_out_R, buf, sizeof(buf), &bytes, NULL) || bytes == 0)
+				break;
+			sink_list_push(ctx, capout, sink_str_newblob(ctx, bytes, buf));
+		}
+		while (true){
+			if (!ReadFile(fd_err_R, buf, sizeof(buf), &bytes, NULL) || bytes == 0)
+				break;
+			sink_list_push(ctx, caperr, sink_str_newblob(ctx, bytes, buf));
+		}
+		capout = sink_list_join(ctx, capout, sink_str_newempty());
+		caperr = sink_list_join(ctx, caperr, sink_str_newempty());
+		sink_val rv[3] = { sink_num(exitcode), capout, caperr };
+		res = sink_list_newblob(ctx, 3, rv);
+	}
+	else
+		res = sink_num(exitcode);
 
 cleanup:
 	if (fd_in_R ) CloseHandle(fd_in_R );
