@@ -71,7 +71,7 @@ The API is in four basic sections:
 | [Script API](#script-api)   | Loading a program into memory, compiling if necessary |
 | [Context API](#context-api) | Executing a program, pausing/resuming execution       |
 | [Sink Commands API](#sink-commands-api) | Executing commands from the [standard library](https://github.com/voidqk/sink/blob/master/docs/lib.md) inside a context |
-| [Helper Functions](#helper-functions) | Things to make your life a little easier    |
+| [Misc/Helper Functions](#misc-helper-functions) | Assorted functions to make life easier |
 
 Script API
 ==========
@@ -1245,3 +1245,263 @@ freeing the Context object itself.
 ### `ctx`
 
 The Context object.
+
+Sink Commands API
+=================
+
+The entire [standard library](https://github.com/voidqk/sink/blob/master/docs/lib.md) is available
+from the host environment.
+
+In C, the host function is prefixed with `sink_`, and in TypeScript/JavaScript, the host function
+is prefixed with `sink.`.
+
+See the [C header file](https://github.com/voidqk/sink/blob/master/src/sink.h) and the
+[TypeScript declaration file](https://github.com/voidqk/sink/blob/master/dist/sink.d.ts) for
+function parameters.  It should be straight-forward.
+
+| Sink Command      | Host Function     |
+|-------------------|-------------------|
+| `+x`              | `tonum`           |
+| `'' ~ x`          | `tostr`           |
+| `&x`              | `size`            |
+| `say`             | `say`             |
+| `warn`            | `warn`            |
+| `ask`             | `ask`             |
+| `exit`            | `exit`            |
+| `abort`           | `abort`           |
+| `isnum`           | `isnum`           |
+| `isstr`           | `isstr`           |
+| `islist`          | `islist`          |
+| `range`           | `range`           |
+| `order`           | `order`           |
+| `stacktrace`      | `stacktrace`      |
+| `nil`             | `nil`             |
+| `-x`              | `num_neg`         |
+| `x + y`           | `num_add`         |
+| `x - y`           | `num_sub`         |
+| `x * y`           | `num_mul`         |
+| `x / y`           | `num_div`         |
+| `x % y`           | `num_mod`         |
+| `x ^ y`           | `num_pow`         |
+| `num.abs`         | `num_abs`         |
+| `num.sign`        | `num_sign`        |
+| `num.max`         | `num_max`         |
+| `num.min`         | `num_min`         |
+| `num.clamp`       | `num_clamp`       |
+| `num.floor`       | `num_floor`       |
+| `num.ceil`        | `num_ceil`        |
+| `num.trunc`       | `num_trunc`       |
+| `num.nan`         | `num_nan`         |
+| `num.inf`         | `num_inf`         |
+| `num.isnan`       | `num_isnan`       |
+| `num.isfinite`    | `num_isfinite`    |
+| `num.e`           | `num_e`           |
+| `num.pi`          | `num_pi`          |
+| `num.tau`         | `num_tau`         |
+| `num.sin`         | `num_sin`         |
+| `num.cos`         | `num_cos`         |
+| `num.tan`         | `num_tan`         |
+| `num.asin`        | `num_asin`        |
+| `num.acos`        | `num_acos`        |
+| `num.atan`        | `num_atan`        |
+| `num.atan2`       | `num_atan2`       |
+| `num.log`         | `num_log`         |
+| `num.log2`        | `num_log2`        |
+| `num.log10`       | `num_log10`       |
+| `num.exp`         | `num_exp`         |
+| `num.lerp`        | `num_lerp`        |
+| `num.hex`         | `num_hex`         |
+| `num.oct`         | `num_oct`         |
+| `num.bin`         | `num_bin`         |
+| `int.new`         | `int_new`         |
+| `int.not`         | `int_not`         |
+| `int.and`         | `int_and`         |
+| `int.or`          | `int_or`          |
+| `int.xor`         | `int_xor`         |
+| `int.shl`         | `int_shl`         |
+| `int.shr`         | `int_shr`         |
+| `int.sar`         | `int_sar`         |
+| `int.add`         | `int_add`         |
+| `int.sub`         | `int_sub`         |
+| `int.mul`         | `int_mul`         |
+| `int.div`         | `int_div`         |
+| `int.mod`         | `int_mod`         |
+| `int.clz`         | `int_clz`         |
+| `int.pop`         | `int_pop`         |
+| `int.bswap`       | `int_bswap`       |
+| `rand.seed`       | `rand_seed`       |
+| `rand.seedauto`   | `rand_seedauto`   |
+| `rand.int`        | `rand_int`        |
+| `rand.num`        | `rand_num`        |
+| `rand.getstate`   | `rand_getstate`   |
+| `rand.setstate`   | `rand_setstate`   |
+| `rand.pick`       | `rand_pick`       |
+| `rand.shuffle`    | `rand_shuffle`    |
+| `str.new`         | `str_new`         |
+| `x ~ y`           | `str_cat`         |
+| `x[y:z]`          | `str_slice`       |
+| `x[y:z] = w`      | `str_splice`      |
+| `str.split`       | `str_split`       |
+| `str.replace`     | `str_replace`     |
+| `str.begins`      | `str_begins`      |
+| `str.ends`        | `str_ends`        |
+| `str.pad`         | `str_pad`         |
+| `str.find`        | `str_find`        |
+| `str.rfind`       | `str_rfind`       |
+| `str.lower`       | `str_lower`       |
+| `str.upper`       | `str_upper`       |
+| `str.trim`        | `str_trim`        |
+| `str.rev`         | `str_rev`         |
+| `str.list`        | `str_list`        |
+| `str.byte`        | `str_byte`        |
+| `str.hash`        | `str_hash`        |
+| `utf8.valid`      | `utf8_valid`      |
+| `utf8.list`       | `utf8_list`       |
+| `utf8.str`        | `utf8_str`        |
+| `struct.size`     | `struct_size`     |
+| `struct.str`      | `struct_str`      |
+| `struct.list`     | `struct_list`     |
+| `struct.isLE`     | `struct_isLE`     |
+| `list.new`        | `list_new`        |
+| `x ~ y`           | `list_cat`        |
+| `x[y:z]`          | `list_slice`      |
+| `x[y:z] = w`      | `list_splice`     |
+| `list.shift`      | `list_shift`      |
+| `list.pop`        | `list_pop`        |
+| `list.push`       | `list_push`       |
+| `list.unshift`    | `list_unshift`    |
+| `list.append`     | `list_append`     |
+| `list.prepend`    | `list_prepend`    |
+| `list.find`       | `list_find`       |
+| `list.rfind`      | `list_rfind`      |
+| `list.join`       | `list_join`       |
+| `list.rev`        | `list_rev`        |
+| `list.str`        | `list_str`        |
+| `list.sort`       | `list_sort`       |
+| `list.rsort`      | `list_rsort`      |
+| `pickle.json`     | `pickle_json`     |
+| `pickle.bin`      | `pickle_bin`      |
+| `pickle.val`      | `pickle_val`      |
+| `pickle.valid`    | `pickle_valid`    |
+| `pickle.sibling`  | `pickle_sibling`  |
+| `pickle.circular` | `pickle_circular` |
+| `pickle.copy`     | `pickle_copy`     |
+| `gc.getlevel`     | `gc_getlevel`     |
+| `gc.setlevel`     | `gc_setlevel`     |
+| `gc.run`          | `gc_run`          |
+
+Note: the following commands are not available at run-time because they only work at compile-time:
+
+* `pick` - this is compiled into an equivalent `if` statement
+* `embed` - this loads files strictly at compile-time as strings
+* `include` - this loads files strictly at compile-time as code
+
+Misc/Helper Functions
+=====================
+
+```
+static inline sink_val sink_bool(bool f){ return f ? (sink_val){ .f = 1 } : SINK_NIL; }
+export declare function bool(f: boolean): val;
+
+static inline bool sink_istrue(sink_val v){ return v.u != SINK_NIL.u; }
+export declare function istrue(v: val): v is valtrue;
+
+static inline bool sink_isfalse(sink_val v){ return v.u == SINK_NIL.u; }
+export declare function isfalse(v: val): v is null;
+
+static inline bool sink_isnil(sink_val v){ return v.u == SINK_NIL.u; }
+export declare function isnil(v: val): v is null;
+
+static inline bool sink_isasync(sink_val v){ return v.u == SINK_ASYNC.u; }
+export declare function isasync(v: val | Promise<val>): v is Promise<val>;
+
+static inline sink_type sink_typeof(sink_val v)
+export declare function sink_typeof(v: val): type;
+
+static inline double sink_castnum(sink_val v){ return v.f; }
+sink_str  sink_caststr(sink_ctx ctx, sink_val str);
+sink_list sink_castlist(sink_ctx ctx, sink_val ls);
+
+sink_val sink_abortstr(sink_ctx ctx, const char *fmt, ...); // always returns SINK_NIL
+export declare function abortstr(ctx: ctx, str: string): val;
+
+static inline sink_val sink_num(double v){ return (sink_val){ .f = v }; }
+export declare function num(v: number): val;
+
+sink_val sink_str_newcstr(sink_ctx ctx, const char *str);
+sink_val sink_str_newcstrgive(sink_ctx ctx, char *str);
+sink_val sink_str_newblob(sink_ctx ctx, int size, const uint8_t *bytes);
+sink_val sink_str_newblobgive(sink_ctx ctx, int size, uint8_t *bytes);
+static inline sink_val sink_str_newempty(sink_ctx ctx){ return sink_str_newblobgive(ctx, 0, NULL); }
+sink_val sink_str_newformat(sink_ctx ctx, const char *fmt, ...);
+
+void     sink_str_hashplain(int size, const uint8_t *bytes, uint32_t seed, uint32_t *out);
+export declare function str_hashplain(str: string, seed: number): [number, number, number, number];
+
+void     sink_list_setuser(sink_ctx ctx, sink_val ls, sink_user usertype, void *user);
+export declare function list_setuser(ctx: ctx, ls: val, usertype: user, user: any): void;
+
+bool     sink_list_hasuser(sink_ctx ctx, sink_val ls, sink_user usertype);
+export declare function list_hasuser(ctx: ctx, ls: val, usertype: user): boolean;
+
+void *   sink_list_getuser(sink_ctx ctx, sink_val ls);
+export declare function list_getuser(ctx: ctx, ls: val): any;
+
+sink_val sink_list_newblob(sink_ctx ctx, int size, const sink_val *vals);
+sink_val sink_list_newblobgive(sink_ctx ctx, int size, int count, sink_val *vals);
+static inline sink_val sink_list_newempty(sink_ctx ctx){ return sink_list_newblob(ctx, 0, NULL); }
+
+sink_val sink_list_joinplain(sink_ctx ctx, int size, sink_val *vals, int sepz, const uint8_t *sep);
+export declare function list_joinplain(vals: list | val[], sep: string): val;
+
+bool     sink_pickle_binstr(sink_ctx ctx, sink_val a, sink_str_st *out);
+export declare function pickle_binstr(a: val): string;
+
+void     sink_pickle_binstrfree(sink_str_st str);
+
+bool     sink_pickle_valstr(sink_ctx ctx, sink_str_st str, sink_val *out);
+export declare function pickle_valstr(s: str): val | false;
+
+void          sink_gc_pin(sink_ctx ctx, sink_val v);   // prevent a value from being GC'ed
+void          sink_gc_unpin(sink_ctx ctx, sink_val v); // remove a previous pin
+
+export declare function isPromise<T>(p: any): p is Promise<T>;
+export declare function checkPromise<T, U>(v: T | Promise<T>, func: (v2: T) => U | Promise<U>): U | Promise<U>;
+
+export declare const NAN: number;
+static const sink_val SINK_NAN      = { .u = UINT64_C(0x7FF8000000000000) };
+
+export declare const NIL: null;
+static const sink_val SINK_NIL      = { .u = UINT64_C(0x7FF0000100000000) };
+
+static const sink_val SINK_ASYNC    = { .u = UINT64_C(0x7FF0000200000000) };
+
+export declare function user_new(ctx: ctx, usertype: user, user: any): val;
+static inline sink_val sink_user_new(sink_ctx ctx, sink_user usertype, void *user){
+
+export declare function isuser(ctx: ctx, v: val, usertype: user): [boolean, any];
+static inline bool sink_isuser(sink_ctx ctx, sink_val v, sink_user usertype, void **user)
+
+export declare let seedauto_src: () => number;
+extern sink_seedauto_src_f sink_seedauto_src;
+
+extern sink_malloc_f  sink_malloc;
+extern sink_realloc_f sink_realloc;
+extern sink_free_f    sink_free;
+
+export declare function arg_bool(args: val[], index: number): boolean;
+bool sink_arg_bool(int size, sink_val *args, int index);
+
+export declare function arg_num(ctx: ctx, args: val[], index: number): number;
+bool sink_arg_num(sink_ctx ctx, int size, sink_val *args, int index, double *num);
+
+export declare function arg_str(ctx: ctx, args: val[], index: number): string;
+bool sink_arg_str(sink_ctx ctx, int size, sink_val *args, int index, sink_str *str);
+
+export declare function arg_list(ctx: ctx, args: val[], index: number): list;
+bool sink_arg_list(sink_ctx ctx, int size, sink_val *args, int index, sink_list *ls);
+
+export declare function arg_user(ctx: ctx, args: val[], index: number, usertype: user): any;
+bool sink_arg_user(sink_ctx ctx, int size, sink_val *args, int index, sink_user usertype,
+  void **user);
+```
