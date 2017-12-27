@@ -633,7 +633,7 @@ static sink_val L_run(sink_ctx ctx, int size, sink_val *args, void *nuser){
 	HANDLE fd_err_R = NULL, fd_err_W = NULL;
 	PROCESS_INFORMATION pri;
 	STARTUPINFO si;
-	ZeroMemory(&pi, sizeof(PROCESS_INFORMATION));
+	ZeroMemory(&pri, sizeof(PROCESS_INFORMATION));
 	ZeroMemory(&si, sizeof(STARTUPINFO));
 	SECURITY_ATTRIBUTES sec;
 	sec.nLength = sizeof(SECURITY_ATTRIBUTES);
@@ -678,8 +678,7 @@ static sink_val L_run(sink_ctx ctx, int size, sink_val *args, void *nuser){
 	si.dwFlags |= STARTF_USESTDHANDLES;
 
 	printf("app \"%s\" cmd \"%s\"\n", rd.app, rd.cmd);
-	if (!CreateProcess(rd.app, rd.cmd, NULL, NULL, TRUE, 0, hasenvs ? rd.env : NULL, NULL,
-		&siStartInfo, &piProcInfo)){
+	if (!CreateProcess(rd.app, rd.cmd, NULL, NULL, TRUE, 0, rd.env, NULL, &si, &pri)){
 		win_abortstr(ctx, GetLastError(), "Failed to create process: %s");
 		goto cleanup;
 	}
