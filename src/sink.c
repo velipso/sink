@@ -15629,7 +15629,7 @@ static sink_str_st sinkhelp_tostr(context ctx, list_int li, sink_val v){
 			sink_str s = var_caststr(ctx, v);
 			int tot = 2;
 			for (int i = 0; i < s->size; i++){
-				if (s->bytes[i] == '\'' || s->bytes[i] == '\\')
+				if (s->bytes[i] == '\'')
 					tot++;
 				tot++;
 			}
@@ -15637,8 +15637,8 @@ static sink_str_st sinkhelp_tostr(context ctx, list_int li, sink_val v){
 			bytes[0] = '\'';
 			int p = 1;
 			for (int i = 0; i < s->size; i++){
-				if (s->bytes[i] == '\'' || s->bytes[i] == '\\')
-					bytes[p++] = '\\';
+				if (s->bytes[i] == '\'')
+					bytes[p++] = '\'';
 				bytes[p++] = s->bytes[i];
 			}
 			bytes[p++] = '\'';

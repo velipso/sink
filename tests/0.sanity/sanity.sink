@@ -228,3 +228,5 @@ say -10^-1
 
 1, 2, 3 | say
 1, 2, 3 | say 4
+
+say {1, 'two\three''four', 5}

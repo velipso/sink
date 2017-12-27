@@ -13317,7 +13317,7 @@ function sinkhelp_tostr(li: val[], v: val): str {
 		return numtostr(v);
 	}
 	else if (typeof v === 'string')
-		return '\'' + v.replace(/\//g, '\\\\').replace(/'/g, '\\\'') + '\'';
+		return '\'' + v.replace(/'/g, '\'\'') + '\'';
 	else{ // v is a list
 		if (li.indexOf(v) >= 0)
 			return '{circular}';
