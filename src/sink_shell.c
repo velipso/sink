@@ -847,7 +847,64 @@ static sink_val L_dir_list(sink_ctx ctx, int size, sink_val *args, void *nuser){
 
 	sink_val res = sink_list_newempty(ctx);
 
-	// TODO: windows version
+#if defined(SINK_WIN)
+
+	LARGE_INTEGER filesize;
+	DWORD dwError = 0;
+
+	// Check that the input path plus 3 is not longer than MAX_PATH.
+	// Three characters are for the "\*" plus NULL appended below.
+	size_t dirlen;
+	StringCchLength(dir->bytes, MAX_PATH, &dirlen);
+	if (dirlen > (MAX_PATH - 3))
+		return sink_abortstr(ctx, "Directory path is too long: %.*s", dir->size, dir->bytes);
+
+	// Prepare string for use with FindFile functions.  First, copy the
+	// string to a buffer, then append '\*' to the directory name.
+	TCHAR wdir[MAX_PATH];
+	StringCchCopy(wdir, MAX_PATH, dir->bytes);
+	StringCchCat(wdir, MAX_PATH, TEXT("\\*"));
+
+	// Find the first file in the directory.
+	WIN32_FIND_DATA ffd;
+	HANDLE find = FindFirstFile(wdir, &ffd);
+	if (find == INVALID_HANDLE_VALUE){
+		LPVOID msg;
+		FormatMessage(
+			FORMAT_MESSAGE_ALLOCATE_BUFFER |
+			FORMAT_MESSAGE_FROM_SYSTEM |
+			FORMAT_MESSAGE_IGNORE_INSERTS,
+			NULL, GetLastError(),
+			MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+			(LPTSTR)&msg, 0, NULL);
+		sink_abortstr(ctx, "Failed to list directory: %s", msg);
+		LocalFree(msg);
+		return SINK_NIL;
+	}
+
+	// List all the files in the directory with some info about them.
+	do {
+		sink_list_push(ctx, res, sink_str_newcstr(ctx, (const uint8_t *)ffd.cFileName));
+	} while (FindNextFile(find, &ffd) != 0);
+
+	DWORD err = GetLastError();
+	if (err != ERROR_NO_MORE_FILES){
+		LPVOID msg;
+		FormatMessage(
+			FORMAT_MESSAGE_ALLOCATE_BUFFER |
+			FORMAT_MESSAGE_FROM_SYSTEM |
+			FORMAT_MESSAGE_IGNORE_INSERTS,
+			NULL, err,
+			MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+			(LPTSTR)&msg, 0, NULL);
+		sink_abortstr(ctx, "Failed to list directory: %s", msg);
+		LocalFree(msg);
+		return SINK_NIL;
+	}
+
+	FindClose(find);
+
+#else
 
 	struct dirent *ep;
 	DIR *dp = opendir((const char *)dir->bytes);
@@ -863,6 +920,8 @@ static sink_val L_dir_list(sink_ctx ctx, int size, sink_val *args, void *nuser){
 		sink_list_push(ctx, res, sink_str_newblob(ctx, ep->d_namlen, (const uint8_t *)ep->d_name));
 	}
 	closedir(dp);
+
+#endif
 
 	sink_list_sort(ctx, res);
 	return res;
@@ -887,7 +946,7 @@ static sink_val L_file_exists(sink_ctx ctx, int size, sink_val *args, void *nuse
 #if defined(SINK_WIN)
 	// TODO: test this with network paths that are *just* \\host\computer
 	// I think `file.exists` should return true
-	DWORD a = GetFileAttributes(file->bytes);
+	DWORD a = GetFileAttributes((const char *)file->bytes);
 	if (a == INVALID_FILE_ATTRIBUTES)
 		return sink_bool(GetLastError() == ERROR_BAD_NETPATH);
 	return sink_bool(true);
