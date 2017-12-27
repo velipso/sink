@@ -8,31 +8,37 @@
 
 include 'shell'
 
+# shitty windows detection
+# TODO: fix
+var windows = nil
+if which 'node.exe'
+	windows = 1
+end
+
 # TODO: use `path.join` once that works
-var path_list = file.script | str.split '/'
+var sep = pick windows, '\', '/'
+var path_list = file.script | str.split sep
 list.pop path_list
-var tests_dir = path_list | list.join '/'
+var tests_dir = path_list | list.join sep
 list.pop path_list
-var sink_dir = path_list | list.join '/'
+var sink_dir = path_list | list.join sep
 list.push path_list, 'tgt'
-var tgt_dir = path_list | list.join '/'
+var tgt_dir = path_list | list.join sep
 list.push path_list, 'bin.sink'
-var bin_sink = path_list | list.join '/'
+var bin_sink = path_list | list.join sep
 list.pop path_list
 list.push path_list, 'sink'
-var sink_posix = path_list | list.join '/'
+var sink_posix = path_list | list.join sep
 list.pop path_list
 list.push path_list, 'sink.exe'
-var sink_win = path_list | list.join '/'
+var sink_win = path_list | list.join sep
 list.pop path_list
 list.push path_list, 'driver.js'
-var sink_js = path_list | list.join '/'
+var sink_js = path_list | list.join sep
 
 # search for sink executables to test
 var sink_exes = {}
-var windows = nil
 if file.exists sink_win
-	windows = 1
 	say (str.pad 'Testing Windows:', 20), sink_win
 	list.push sink_exes, sink_win
 elseif file.exists sink_posix
