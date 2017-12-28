@@ -564,7 +564,7 @@ var __extends = (this && this.__extends) || (function () {
             op_numdbl(b, tgt, num);
     }
     function op_str(b, tgt, index) {
-        b.push(op_enum.STR, tgt.frame, tgt.index, index % 256, (index >> 8) % 256, (index >> 16) % 256, (index >> 24) % 256);
+        b.push(op_enum.STR, tgt.frame, tgt.index, index % 256, Math.floor(index / 256) % 256, Math.floor(index / 65536) % 256, Math.floor(index / 16777216) % 256);
     }
     function op_list(b, tgt, hint) {
         if (hint > 255)
@@ -608,13 +608,13 @@ var __extends = (this && this.__extends) || (function () {
         b.push(op_enum.SPLICE, src1.frame, src1.index, src2.frame, src2.index, src3.frame, src3.index, src4.frame, src4.index);
     }
     function op_jump(b, index, hint) {
-        b.push(op_enum.JUMP, index % 256, (index >> 8) % 256, (index >> 16) % 256, (index >> 24) % 256);
+        b.push(op_enum.JUMP, index % 256, Math.floor(index / 256) % 256, Math.floor(index / 65536) % 256, Math.floor(index / 16777216) % 256);
     }
     function op_jumptrue(b, src, index, hint) {
-        b.push(op_enum.JUMPTRUE, src.frame, src.index, index % 256, (index >> 8) % 256, (index >> 16) % 256, (index >> 24) % 256);
+        b.push(op_enum.JUMPTRUE, src.frame, src.index, index % 256, Math.floor(index / 256) % 256, Math.floor(index / 65536) % 256, Math.floor(index / 16777216) % 256);
     }
     function op_jumpfalse(b, src, index, hint) {
-        b.push(op_enum.JUMPFALSE, src.frame, src.index, index % 256, (index >> 8) % 256, (index >> 16) % 256, (index >> 24) % 256);
+        b.push(op_enum.JUMPFALSE, src.frame, src.index, index % 256, Math.floor(index / 256) % 256, Math.floor(index / 65536) % 256, Math.floor(index / 16777216) % 256);
     }
     function op_cmdhead(b, level, restpos) {
         b.push(op_enum.CMDHEAD, level, restpos);
@@ -623,16 +623,16 @@ var __extends = (this && this.__extends) || (function () {
         b.push(op_enum.CMDTAIL);
     }
     function op_call(b, ret, index, argcount, hint) {
-        b.push(op_enum.CALL, ret.frame, ret.index, index % 256, (index >> 8) % 256, (index >> 16) % 256, (index >> 24) % 256, argcount);
+        b.push(op_enum.CALL, ret.frame, ret.index, index % 256, Math.floor(index / 256) % 256, Math.floor(index / 65536) % 256, Math.floor(index / 16777216) % 256, argcount);
     }
     function op_native(b, ret, index, argcount) {
-        b.push(op_enum.NATIVE, ret.frame, ret.index, index % 256, (index >> 8) % 256, (index >> 16) % 256, (index >> 24) % 256, argcount);
+        b.push(op_enum.NATIVE, ret.frame, ret.index, index % 256, Math.floor(index / 256) % 256, Math.floor(index / 65536) % 256, Math.floor(index / 16777216) % 256, argcount);
     }
     function op_return(b, src) {
         b.push(op_enum.RETURN, src.frame, src.index);
     }
     function op_returntail(b, index, argcount, hint) {
-        b.push(op_enum.RETURNTAIL, index % 256, (index >> 8) % 256, (index >> 16) % 256, (index >> 24) % 256, argcount);
+        b.push(op_enum.RETURNTAIL, index % 256, Math.floor(index / 256) % 256, Math.floor(index / 65536) % 256, Math.floor(index / 16777216) % 256, argcount);
     }
     function op_parama(b, opcode, tgt, argcount) {
         b.push(opcode, tgt.frame, tgt.index, argcount);
@@ -4173,7 +4173,7 @@ var __extends = (this && this.__extends) || (function () {
             C = ops[pc++];
             D = ops[pc++];
             jumploc = A + (B << 8) + (C << 16) + ((D << 23) * 2);
-            if (jumploc < 0) {
+            if (jumploc < 0 || jumploc >= 0x80000000) {
                 goto_fail = true;
                 return;
             }

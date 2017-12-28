@@ -575,7 +575,10 @@ function op_num(b: number[], tgt: varloc_st, num: number): void {
 
 function op_str(b: number[], tgt: varloc_st, index: number): void {
 	b.push(op_enum.STR, tgt.frame, tgt.index,
-		index % 256, (index >> 8) % 256, (index >> 16) % 256, (index >> 24) % 256);
+		index % 256,
+		Math.floor(index /      256) % 256,
+		Math.floor(index /    65536) % 256,
+		Math.floor(index / 16777216) % 256);
 }
 
 function op_list(b: number[], tgt: varloc_st, hint: number): void {
@@ -636,17 +639,27 @@ function op_splice(b: number[], src1: varloc_st, src2: varloc_st, src3: varloc_s
 }
 
 function op_jump(b: number[], index: number, hint: string): void {
-	b.push(op_enum.JUMP, index % 256, (index >> 8) % 256, (index >> 16) % 256, (index >> 24) % 256);
+	b.push(op_enum.JUMP,
+		index % 256,
+		Math.floor(index /      256) % 256,
+		Math.floor(index /    65536) % 256,
+		Math.floor(index / 16777216) % 256);
 }
 
 function op_jumptrue(b: number[], src: varloc_st, index: number, hint: string): void {
 	b.push(op_enum.JUMPTRUE, src.frame, src.index,
-		index % 256, (index >> 8) % 256, (index >> 16) % 256, (index >> 24) % 256);
+		index % 256,
+		Math.floor(index /      256) % 256,
+		Math.floor(index /    65536) % 256,
+		Math.floor(index / 16777216) % 256);
 }
 
 function op_jumpfalse(b: number[], src: varloc_st, index: number, hint: string): void {
 	b.push(op_enum.JUMPFALSE, src.frame, src.index,
-		index % 256, (index >> 8) % 256, (index >> 16) % 256, (index >> 24) % 256);
+		index % 256,
+		Math.floor(index /      256) % 256,
+		Math.floor(index /    65536) % 256,
+		Math.floor(index / 16777216) % 256);
 }
 
 function op_cmdhead(b: number[], level: number, restpos: number): void {
@@ -659,12 +672,20 @@ function op_cmdtail(b: number[]): void {
 
 function op_call(b: number[], ret: varloc_st, index: number, argcount: number, hint: string): void {
 	b.push(op_enum.CALL, ret.frame, ret.index,
-		index % 256, (index >> 8) % 256, (index >> 16) % 256, (index >> 24) % 256, argcount);
+		index % 256,
+		Math.floor(index /      256) % 256,
+		Math.floor(index /    65536) % 256,
+		Math.floor(index / 16777216) % 256,
+		argcount);
 }
 
 function op_native(b: number[], ret: varloc_st, index: number, argcount: number): void {
 	b.push(op_enum.NATIVE, ret.frame, ret.index,
-		index % 256, (index >> 8) % 256, (index >> 16) % 256, (index >> 24) % 256, argcount);
+		index % 256,
+		Math.floor(index /      256) % 256,
+		Math.floor(index /    65536) % 256,
+		Math.floor(index / 16777216) % 256,
+		argcount);
 }
 
 function op_return(b: number[], src: varloc_st): void {
@@ -673,7 +694,11 @@ function op_return(b: number[], src: varloc_st): void {
 
 function op_returntail(b: number[], index: number, argcount: number, hint: string): void {
 	b.push(op_enum.RETURNTAIL,
-		index % 256, (index >> 8) % 256, (index >> 16) % 256, (index >> 24) % 256, argcount);
+		index % 256,
+		Math.floor(index /      256) % 256,
+		Math.floor(index /    65536) % 256,
+		Math.floor(index / 16777216) % 256,
+		argcount);
 }
 
 function op_parama(b: number[], opcode: op_enum, tgt: varloc_st, argcount: number): void {
@@ -5002,7 +5027,7 @@ function program_validate(prg: program_st): boolean {
 		C = ops[pc++];
 		D = ops[pc++];
 		jumploc = A + (B << 8) + (C << 16) + ((D << 23) * 2);
-		if (jumploc < 0){
+		if (jumploc < 0 || jumploc >= 0x80000000){
 			goto_fail = true;
 			return;
 		}

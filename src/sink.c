@@ -6296,7 +6296,7 @@ static bool program_validate(program prg){
 			C = ops->bytes[pc++];                                      \
 			D = ops->bytes[pc++];                                      \
 			jumploc = A + (B << 8) + (C << 16) + ((D << 23) * 2);      \
-			if (jumploc < 0)                                           \
+			if (jumploc >= 0x80000000)                                 \
 				goto fail;                                             \
 			if (jumploc < ops->size)                                   \
 				op_need[jumploc] = L;                                  \
@@ -13080,7 +13080,7 @@ static sink_run context_run(context ctx){
 		return SINK_RUN_TIMEOUT;
 	}
 
-	int A, B, C, D, E, F, G, H, I, J;
+	int32_t A, B, C, D, E, F, G, H, I, J;
 	sink_val X, Y, Z, W;
 	sink_list ls;
 	sink_str str;
