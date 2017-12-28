@@ -149,7 +149,7 @@ cnv.focus();
 var sk_scr = sink.scr_new({
 	f_fstype: function(){ return sink.fstype.NONE; },
 	f_fsread: function(){ return false },
-}, '/', true);
+}, '/', true, true);
 
 sink_shell.scr(sk_scr);
 
