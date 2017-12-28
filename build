@@ -55,7 +55,7 @@ case "$1" in
 		;;
 	"dist")
 		echo Publishing builds to ./dist
-		rm -rf "$DIST_DIR"
+		find dist -type f -maxdepth 1 -delete
 		mkdir -p "$DIST_DIR"/windows
 		mkdir -p "$DIST_DIR"/mac
 		mkdir -p "$DIST_DIR"/posix
