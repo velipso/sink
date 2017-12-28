@@ -21,8 +21,8 @@ embeddable, with support for a REPL as used in debug consoles.
 
 ### Sink Binaries
 
-* [Mac OSX](https://github.com/voidqk/sink/blob/master/dist/mac/sink)
-* [Windows](https://github.com/voidqk/sink/blob/master/dist/windows/sink.exe)
+* [Mac OSX](https://github.com/voidqk/sink/raw/master/dist/mac/sink)
+* [Windows](https://github.com/voidqk/sink/raw/master/dist/windows/sink.exe)
 
 ### Details
 
