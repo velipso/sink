@@ -15607,7 +15607,12 @@ static sink_str_st sinkhelp_tostr(context ctx, list_int li, sink_val v){
 		} break;
 
 		case SINK_TYPE_NUM: {
-			if (isinf(v.f)){
+			if (isnan(v.f)){
+				uint8_t *bytes = mem_alloc(sizeof(uint8_t) * 4);
+				bytes[0] = 'n'; bytes[1] = 'a'; bytes[2] = 'n'; bytes[3] = 0;
+				return (sink_str_st){ .bytes = bytes, .size = 3 };
+			}
+			else if (isinf(v.f)){
 				if (v.f < 0){
 					uint8_t *bytes = mem_alloc(sizeof(uint8_t) * 5);
 					bytes[0] = '-'; bytes[1] = 'i'; bytes[2] = 'n'; bytes[3] = 'f'; bytes[4] = 0;
