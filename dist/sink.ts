@@ -4933,6 +4933,8 @@ function program_addfile(prg: program_st, str: strnil): number {
 		return -1;
 	// get the basename
 	let i = str.lastIndexOf('/');
+	if (!prg.posix)
+		i = Math.max(i, str.lastIndexOf('\\'));
 	if (i >= 0)
 		str = str.substr(i + 1);
 	return program_adddebugstr(prg, str);

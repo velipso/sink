@@ -4115,6 +4115,8 @@ var __extends = (this && this.__extends) || (function () {
         if (str === null)
             return -1;
         var i = str.lastIndexOf('/');
+        if (!prg.posix)
+            i = Math.max(i, str.lastIndexOf('\\'));
         if (i >= 0)
             str = str.substr(i + 1);
         return program_adddebugstr(prg, str);
