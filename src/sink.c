@@ -2933,6 +2933,7 @@ static inline expr expr_cat(filepos_st flp, expr left, expr right){
 	// check for static concat
 	if (left->type == EXPR_STR && right->type == EXPR_STR){
 		list_byte_append(left->u.str, right->u.str->size, right->u.str->bytes);
+		list_byte_null(left->u.str);
 		expr_free(right);
 		return left;
 	}
@@ -7182,6 +7183,7 @@ static bool embed_begin(const char *file, efu_st *efu){
 static void embed_end(bool success, const char *file, efu_st *efu){
 	if (success){
 		// convert the data into a string expression, then load it
+		list_byte_null(efu->pgen.scr->capture_write);
 		expr ex = expr_str(efu->flp, efu->pgen.scr->capture_write);
 		efu->pe = program_eval(efu->pgen, efu->mode, efu->intoVlc, ex);
 		expr_free(ex);
