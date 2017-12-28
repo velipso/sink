@@ -527,6 +527,66 @@ static inline sink_val win_abortstr(sink_ctx ctx, DWORD err, const char *fmt){
 	LocalFree(msg);
 	return SINK_NIL;
 }
+
+typedef struct win_rope_struct win_rope_st, *win_rope;
+struct win_rope_struct {
+	uint8_t *data;
+	int size;
+	win_rope next;
+};
+
+typedef struct {
+	win_rope *root;
+	HANDLE fd;
+} win_readrope_st, *win_readrope;
+
+DWORD win_readrope_thread(win_readrope rr){
+	win_rope *here = rr->root;
+	while (true){
+		DWORD bytes = 0;
+		uint8_t *data = malloc(sizeof(uint8_t) * 1000);
+		if (data == NULL)
+			break;
+		if (!ReadFile(rr->fd, data, 1000, &bytes, NULL) || bytes == 0){
+			free(data);
+			break;
+		}
+		*here = malloc(sizeof(win_rope_st));
+		if (*here == NULL){
+			free(data);
+			break;
+		}
+		(*here)->data = data;
+		(*here)->size = bytes;
+		(*here)->next = NULL;
+		here = &(*here)->next;
+	}
+	return 0;
+}
+
+sink_val win_ropetostr(sink_ctx ctx, win_rope *here){
+	if (here == NULL)
+		return sink_str_newempty(ctx);
+	int tot = 0;
+	win_rope totn = *here;
+	while (totn){
+		tot += totn->size;
+		totn = totn->next;
+	}
+	uint8_t *buf = sink_malloc_safe(sizeof(uint8_t) * (tot + 1)); // make room for NULL
+	int i = 0;
+	win_rope copyn = *here;
+	while (copyn){
+		memcpy(&buf[i], copyn->data, sizeof(uint8_t) * copyn->size);
+		i += copyn->size;
+		win_rope delme = copyn;
+		copyn = copyn->next;
+		free(delme->data);
+		free(delme);
+	}
+	buf[i] = 0;
+	return sink_str_newblobgive(ctx, tot, buf);
+}
 #endif
 
 static sink_val L_run(sink_ctx ctx, int size, sink_val *args, void *nuser){
@@ -682,7 +742,25 @@ static sink_val L_run(sink_ctx ctx, int size, sink_val *args, void *nuser){
 		goto cleanup;
 	}
 
+	win_rope ropeout = NULL;
+	win_rope ropeerr = NULL;
+	win_readrope_st ropeout_read = { .root = &ropeout, .fd = fd_out_R };
+	win_readrope_st ropeerr_read = { .root = &ropeerr, .fd = fd_err_R };
+	HANDLE rope_thr[2] = { NULL, NULL };
+
+	if (capture){
+		CloseHandle(fd_out_W);
+		fd_out_W = NULL;
+		CloseHandle(fd_err_W);
+		fd_err_W = NULL;
+
+		// spawn the reading threads
+		rope_thr[0] = CreateThread(NULL, 0, win_readrope_thread, &ropeout_read, 0, NULL);
+		rope_thr[1] = CreateThread(NULL, 0, win_readrope_thread, &ropeerr_read, 0, NULL);
+	}
+
 	if (writein){
+		// TODO: test if this will work with a large input, it might fill the buffer and block
 		CloseHandle(fd_in_R);
 		fd_in_R = NULL;
 		WriteFile(fd_in_W, writein, writein_size, NULL, NULL);
@@ -690,35 +768,18 @@ static sink_val L_run(sink_ctx ctx, int size, sink_val *args, void *nuser){
 		fd_in_W = NULL;
 	}
 
-	// TODO: this is wrong because (I suspect) the internal buffers (stdout, stderr) can become
-	// filled, which will cause the child to wait until the buffers have room before printing more
-	// but since we don't clear the buffers until *after* the process exists, we're stuck
-
 	WaitForSingleObject(pri.hProcess, INFINITE);
 	DWORD exitcode = 0;
 	GetExitCodeProcess(pri.hProcess, &exitcode);
 	if (capture){
-		CloseHandle(fd_out_W);
-		fd_out_W = NULL;
-		CloseHandle(fd_err_W);
-		fd_err_W = NULL;
-		sink_val capout = sink_list_newempty(ctx);
-		sink_val caperr = sink_list_newempty(ctx);
-		char buf[2000];
-		DWORD bytes;
-		while (true){
-			if (!ReadFile(fd_out_R, buf, sizeof(buf), &bytes, NULL) || bytes == 0)
-				break;
-			sink_list_push(ctx, capout, sink_str_newblob(ctx, bytes, (const uint8_t *)buf));
-		}
-		while (true){
-			if (!ReadFile(fd_err_R, buf, sizeof(buf), &bytes, NULL) || bytes == 0)
-				break;
-			sink_list_push(ctx, caperr, sink_str_newblob(ctx, bytes, (const uint8_t *)buf));
-		}
-		capout = sink_list_join(ctx, capout, sink_str_newempty(ctx));
-		caperr = sink_list_join(ctx, caperr, sink_str_newempty(ctx));
-		sink_val rv[3] = { sink_num(exitcode), capout, caperr };
+		WaitForMultipleObjects(2, rope_thr, TRUE, INFINITE);
+		CloseHandle(rope_thr[0]);
+		CloseHandle(rope_thr[1]);
+		sink_val rv[3] = {
+			sink_num(exitcode),
+			win_ropetostr(ctx, ropeout),
+			win_ropetostr(ctx, ropeerr)
+		};
 		res = sink_list_newblob(ctx, 3, rv);
 	}
 	else
@@ -847,6 +908,8 @@ cleanup:
 	pfds[pfds_size++] = (struct pollfd){ .fd = fd_exe[R], .events = POLLIN, .revents = 0 };
 	close(fd_exe[W]);
 	if (writein){
+		// TODO: test this with large inputs... not sure if this will work because it might flood
+		// any internal buffers
 		close(fd_in[R]);
 		write(fd_in[W], writein, writein_size);
 		close(fd_in[W]);
