@@ -1,4 +1,4 @@
-// (c) Copyright 2016-2017, Sean Connelly (@voidqk), http://syntheti.cc
+// (c) Copyright 2016-2018, Sean Connelly (@voidqk), http://sean.cm
 // MIT License
 // Project Home: https://github.com/voidqk/sink
 
@@ -45,7 +45,8 @@ CodeMirror.defineMode('sink', function(config, parserConfig) {
       'valid', 'list', 'str'
     ],
     'struct': [
-      'size', 'str', 'list', 'isLE'
+      'size', 'str', 'list', 'isLE', 'U8', 'U16', 'UL16', 'UB16', 'U32', 'UL32', 'UB32', 'S8',
+      'S16', 'SL16', 'SB16', 'S32', 'SL32', 'SB32', 'F32', 'FL32', 'FB32', 'F64', 'FL64', 'FB64'
     ],
     'list': [
       'new', 'shift', 'pop', 'push', 'unshift', 'append', 'prepend', 'find', 'rfind', 'join',
@@ -55,7 +56,7 @@ CodeMirror.defineMode('sink', function(config, parserConfig) {
       'json', 'bin', 'val', 'valid', 'sibling', 'circular', 'copy'
     ],
     'gc': [
-      'getlevel', 'setlevel', 'run'
+      'getlevel', 'setlevel', 'run', 'NONE', 'DEFAULT', 'LOWMEM'
     ]
   };
 
@@ -150,10 +151,12 @@ CodeMirror.defineMode('sink', function(config, parserConfig) {
             else if (ch == '\''){
               while (!stream.eol()){
                 ch = stream.next();
-                if (ch == '\\')
-                  stream.next();
-                else if (ch == '\'')
-                  return 'string';
+                if (ch == '\''){
+                  if (stream.peek() == '\'')
+                    stream.next();
+                  else
+                    return 'string';
+                }
               }
               return 'error';
             }
