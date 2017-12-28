@@ -564,18 +564,18 @@ DWORD win_readrope_thread(win_readrope rr){
 	return 0;
 }
 
-sink_val win_ropetostr(sink_ctx ctx, win_rope *here){
+sink_val win_ropetostr(sink_ctx ctx, win_rope here){
 	if (here == NULL)
 		return sink_str_newempty(ctx);
 	int tot = 0;
-	win_rope totn = *here;
+	win_rope totn = here;
 	while (totn){
 		tot += totn->size;
 		totn = totn->next;
 	}
 	uint8_t *buf = sink_malloc_safe(sizeof(uint8_t) * (tot + 1)); // make room for NULL
 	int i = 0;
-	win_rope copyn = *here;
+	win_rope copyn = here;
 	while (copyn){
 		memcpy(&buf[i], copyn->data, sizeof(uint8_t) * copyn->size);
 		i += copyn->size;
@@ -755,8 +755,10 @@ static sink_val L_run(sink_ctx ctx, int size, sink_val *args, void *nuser){
 		fd_err_W = NULL;
 
 		// spawn the reading threads
-		rope_thr[0] = CreateThread(NULL, 0, win_readrope_thread, &ropeout_read, 0, NULL);
-		rope_thr[1] = CreateThread(NULL, 0, win_readrope_thread, &ropeerr_read, 0, NULL);
+		rope_thr[0] = CreateThread(NULL, 0,
+			(LPTHREAD_START_ROUTINE)win_readrope_thread, &ropeout_read, 0, NULL);
+		rope_thr[1] = CreateThread(NULL, 0,
+			(LPTHREAD_START_ROUTINE)win_readrope_thread, &ropeerr_read, 0, NULL);
 	}
 
 	if (writein){
