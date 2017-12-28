@@ -275,6 +275,9 @@ static inline list_byte list_byte_new(){
 	b->size = 0;
 	b->count = list_byte_grow;
 	b->bytes = mem_alloc(sizeof(uint8_t) * b->count);
+#if defined(SINK_DEBUG) || defined(SINK_MEMTEST)
+	memset(b->bytes, 0x55, sizeof(uint8_t) * b->count);
+#endif
 	return b;
 }
 
@@ -283,6 +286,9 @@ static inline list_byte list_byte_newcopy(list_byte b){
 	b2->size = b->size;
 	b2->count = b->size + 1; // make room for NULL if required later
 	b2->bytes = mem_alloc(sizeof(uint8_t) * b2->count);
+#if defined(SINK_DEBUG) || defined(SINK_MEMTEST)
+	memset(b2->bytes, 0x55, sizeof(uint8_t) * b2->count);
+#endif
 	if (b->size > 0)
 		memcpy(b2->bytes, b->bytes, sizeof(uint8_t) * b->size);
 	return b2;
