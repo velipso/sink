@@ -400,16 +400,15 @@ static void RD_quote(const char *str, char *into){
 }
 
 static inline void RD_make(rundata rd, char *abs_cmd){
+	rd->app = abs_cmd;
 	int qs = RD_quote_size(abs_cmd);
-	rd->app = sink_malloc_safe(sizeof(char) * (qs + 1));
-	RD_quote(abs_cmd, rd->app);
-	rd->cmd = format("%s", rd->app);
+	rd->cmd = sink_malloc_safe(sizeof(char) * (qs + 1));
+	RD_quote(abs_cmd, rd->cmd);
 	rd->cmd_max = qs + 1;
 	rd->cmd_size = qs;
 	rd->env_max = 0;
 	rd->env_size = 0;
 	rd->env = NULL;
-	sink_free(abs_cmd); // don't need it anymore
 }
 
 static inline void RD_add_arg(rundata rd, sink_str str){
