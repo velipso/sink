@@ -56,7 +56,9 @@ case "$1" in
 	"dist")
 		echo Publishing builds to ./dist
 		rm -rf "$DIST_DIR"
-		mkdir -p "$DIST_DIR"
+		mkdir -p "$DIST_DIR"/windows
+		mkdir -p "$DIST_DIR"/mac
+		mkdir -p "$DIST_DIR"/posix
 		cp "$LIB_DIR/require.js" "$DIST_DIR"
 		cp "$SRC_DIR/cmd.ts" "$DIST_DIR"
 		cp "$SRC_DIR/repl.html" "$DIST_DIR"
@@ -69,6 +71,7 @@ case "$1" in
 		cp "$TGT_DIR/sink.js" "$DIST_DIR"
 		cp "$TGT_DIR/sink_shell.d.ts" "$DIST_DIR"
 		cp "$TGT_DIR/sink_shell.js" "$DIST_DIR"
+		echo 'You must copy the correct executables yourself, from tgt/ to dist/<platform>'
 		;;
 	*)
 		echo './build <command> [debug]'
