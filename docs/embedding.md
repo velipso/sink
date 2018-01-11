@@ -616,7 +616,7 @@ virtual machine.
 | [`ctx_asyncresult`](#ctx_asyncresult)   | Provide a result to an asynchronous operation         |
 | [`ctx_settimeout`](#ctx_settimeout)     | Set a timeout so the machine pauses itself            |
 | [`ctx_gettimeout`](#ctx_gettimeout)     | Get the current timeout value                         |
-| [`ctx_ticktimeout`](#ctx_ticktimeout)   | Decrease the current timeout by an amount             |
+| [`ctx_ticktimeout`](#ctx_ticktimeout)   | Decrease the current tick counter by an amount        |
 | [`ctx_forcetimeout`](#ctx_forcetimeout) | Force a timeout to occur immediately                  |
 | [`ctx_run`](#ctx_run)                   | Run the virtual machine                               |
 | [`ctx_free`](#ctx_free)                 | Free a Context object                                 |
@@ -1131,7 +1131,7 @@ The Context object.
 ctx_ticktimeout
 ---------------
 
-Decrease the current timeout value by `amount`.
+Decrease the current tick counter by `amount`.
 
 ```c
 void sink_ctx_ticktimeout(sink_ctx ctx, int amount);
@@ -1153,7 +1153,7 @@ The Context object.
 
 ### `amount`
 
-The amount of ticks to decrease the timer.  This value should be positive.
+The amount of ticks to decrease the tick counter.  This value should be positive.
 
 ctx_forcetimeout
 ----------------
