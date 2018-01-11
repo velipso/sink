@@ -1407,108 +1407,111 @@ Misc/Helper Functions
 =====================
 
 ```
-static inline sink_val sink_bool(bool f){ return f ? (sink_val){ .f = 1 } : SINK_NIL; }
-export declare function bool(f: boolean): val;
+sink_val sink_bool(bool f)
+function sink.bool(f: boolean): sink.val;
 
-static inline bool sink_istrue(sink_val v){ return v.u != SINK_NIL.u; }
-export declare function istrue(v: val): v is valtrue;
+bool sink_istrue(sink_val v);
+function sink.istrue(v: sink.val): boolean;
 
-static inline bool sink_isfalse(sink_val v){ return v.u == SINK_NIL.u; }
-export declare function isfalse(v: val): v is null;
+bool sink_isfalse(sink_val v);
+function sink.isfalse(v: sink.val): boolean;
 
-static inline bool sink_isnil(sink_val v){ return v.u == SINK_NIL.u; }
-export declare function isnil(v: val): v is null;
+bool sink_isnil(sink_val v);
+function sink.isnil(v: sink.val): boolean;
 
-static inline bool sink_isasync(sink_val v){ return v.u == SINK_ASYNC.u; }
-export declare function isasync(v: val | Promise<val>): v is Promise<val>;
+bool sink_isasync(sink_val v);
+function sink.isasync(v: sink.val | Promise<sink.val>): boolean;
 
-static inline sink_type sink_typeof(sink_val v)
-export declare function sink_typeof(v: val): type;
+sink_type sink_typeof(sink_val v);
+function sink.sink_typeof(v: sink.val): sink.type;
 
-static inline double sink_castnum(sink_val v){ return v.f; }
-sink_str  sink_caststr(sink_ctx ctx, sink_val str);
+double sink_castnum(sink_val v);
+
+sink_str sink_caststr(sink_ctx ctx, sink_val str);
+
 sink_list sink_castlist(sink_ctx ctx, sink_val ls);
 
-sink_val sink_abortstr(sink_ctx ctx, const char *fmt, ...); // always returns SINK_NIL
-export declare function abortstr(ctx: ctx, str: string): val;
+// always returns NIL
+sink_val sink_abortstr(sink_ctx ctx, const char *fmt, ...);
+function sink.abortstr(ctx: sink.ctx, str: string): sink.val;
 
-static inline sink_val sink_num(double v){ return (sink_val){ .f = v }; }
-export declare function num(v: number): val;
+sink_val sink_num(double v);
+function sink.num(v: number): sink.val;
 
 sink_val sink_str_newcstr(sink_ctx ctx, const char *str);
 sink_val sink_str_newcstrgive(sink_ctx ctx, char *str);
 sink_val sink_str_newblob(sink_ctx ctx, int size, const uint8_t *bytes);
 sink_val sink_str_newblobgive(sink_ctx ctx, int size, uint8_t *bytes);
-static inline sink_val sink_str_newempty(sink_ctx ctx){ return sink_str_newblobgive(ctx, 0, NULL); }
+sink_val sink_str_newempty(sink_ctx ctx);
 sink_val sink_str_newformat(sink_ctx ctx, const char *fmt, ...);
 
-void     sink_str_hashplain(int size, const uint8_t *bytes, uint32_t seed, uint32_t *out);
-export declare function str_hashplain(str: string, seed: number): [number, number, number, number];
+void sink_str_hashplain(int size, const uint8_t *bytes, uint32_t seed, uint32_t *out);
+function sink.str_hashplain(str: string, seed: number): [number, number, number, number];
 
-void     sink_list_setuser(sink_ctx ctx, sink_val ls, sink_user usertype, void *user);
-export declare function list_setuser(ctx: ctx, ls: val, usertype: user, user: any): void;
+void sink_list_setuser(sink_ctx ctx, sink_val ls, sink_user usertype, void *user);
+function sink.list_setuser(ctx: sink.ctx, ls: sink.val, usertype: sink.user, user: any): void;
 
-bool     sink_list_hasuser(sink_ctx ctx, sink_val ls, sink_user usertype);
-export declare function list_hasuser(ctx: ctx, ls: val, usertype: user): boolean;
+bool sink_list_hasuser(sink_ctx ctx, sink_val ls, sink_user usertype);
+function sink.list_hasuser(ctx: sink.ctx, ls: sink.val, usertype: sink.user): boolean;
 
-void *   sink_list_getuser(sink_ctx ctx, sink_val ls);
-export declare function list_getuser(ctx: ctx, ls: val): any;
+void *sink_list_getuser(sink_ctx ctx, sink_val ls);
+function sink.list_getuser(ctx: sink.ctx, ls: sink.val): any;
 
 sink_val sink_list_newblob(sink_ctx ctx, int size, const sink_val *vals);
 sink_val sink_list_newblobgive(sink_ctx ctx, int size, int count, sink_val *vals);
-static inline sink_val sink_list_newempty(sink_ctx ctx){ return sink_list_newblob(ctx, 0, NULL); }
+sink_val sink_list_newempty(sink_ctx ctx);
 
 sink_val sink_list_joinplain(sink_ctx ctx, int size, sink_val *vals, int sepz, const uint8_t *sep);
-export declare function list_joinplain(vals: list | val[], sep: string): val;
+function sink.list_joinplain(vals: list | val[], sep: string): val;
 
-bool     sink_pickle_binstr(sink_ctx ctx, sink_val a, sink_str_st *out);
-export declare function pickle_binstr(a: val): string;
+bool sink_pickle_binstr(sink_ctx ctx, sink_val a, sink_str_st *out);
+function sink.pickle_binstr(a: val): string;
 
-void     sink_pickle_binstrfree(sink_str_st str);
+void sink_pickle_binstrfree(sink_str_st str);
 
-bool     sink_pickle_valstr(sink_ctx ctx, sink_str_st str, sink_val *out);
-export declare function pickle_valstr(s: str): val | false;
+bool sink_pickle_valstr(sink_ctx ctx, sink_str_st str, sink_val *out);
+function sink.pickle_valstr(s: sink.str): sink.val | false;
 
-void          sink_gc_pin(sink_ctx ctx, sink_val v);   // prevent a value from being GC'ed
-void          sink_gc_unpin(sink_ctx ctx, sink_val v); // remove a previous pin
+void sink_gc_pin(sink_ctx ctx, sink_val v);
+void sink_gc_unpin(sink_ctx ctx, sink_val v);
 
-export declare function isPromise<T>(p: any): p is Promise<T>;
-export declare function checkPromise<T, U>(v: T | Promise<T>, func: (v2: T) => U | Promise<U>): U | Promise<U>;
+function sink.isPromise<T>(p: any): p is Promise<T>;
+function sink.checkPromise<T, U>(v: T | Promise<T>, func: (v2: T) => U | Promise<U>): U | Promise<U>;
 
-export declare const NAN: number;
-static const sink_val SINK_NAN      = { .u = UINT64_C(0x7FF8000000000000) };
+const sink_val SINK_NAN;
+const sink.NAN: number;
 
-export declare const NIL: null;
-static const sink_val SINK_NIL      = { .u = UINT64_C(0x7FF0000100000000) };
+const sink_val SINK_NIL;
+const sink.NIL: null;
 
-static const sink_val SINK_ASYNC    = { .u = UINT64_C(0x7FF0000200000000) };
+const sink_val SINK_ASYNC;
 
-export declare function user_new(ctx: ctx, usertype: user, user: any): val;
-static inline sink_val sink_user_new(sink_ctx ctx, sink_user usertype, void *user){
+sink_val sink_user_new(sink_ctx ctx, sink_user usertype, void *user);
+function sink.user_new(ctx: sink.ctx, usertype: sink.user, user: any): sink.val;
 
-export declare function isuser(ctx: ctx, v: val, usertype: user): [boolean, any];
-static inline bool sink_isuser(sink_ctx ctx, sink_val v, sink_user usertype, void **user)
+bool sink_isuser(sink_ctx ctx, sink_val v, sink_user usertype, void **user);
+function sink.isuser(ctx: sink.ctx, v: sink.val, usertype: sink.user): [boolean, any];
 
-export declare let seedauto_src: () => number;
-extern sink_seedauto_src_f sink_seedauto_src;
+sink_seedauto_src_f sink_seedauto_src;
+let seedauto_src: () => number;
 
-extern sink_malloc_f  sink_malloc;
-extern sink_realloc_f sink_realloc;
-extern sink_free_f    sink_free;
+sink_malloc_f  sink_malloc;
+sink_realloc_f sink_realloc;
+sink_free_f    sink_free;
 
-export declare function arg_bool(args: val[], index: number): boolean;
 bool sink_arg_bool(int size, sink_val *args, int index);
+function sink.arg_bool(args: sink.val[], index: number): boolean;
 
-export declare function arg_num(ctx: ctx, args: val[], index: number): number;
 bool sink_arg_num(sink_ctx ctx, int size, sink_val *args, int index, double *num);
+function sink.arg_num(ctx: ctx, args: sink.val[], index: number): number;
 
-export declare function arg_str(ctx: ctx, args: val[], index: number): string;
 bool sink_arg_str(sink_ctx ctx, int size, sink_val *args, int index, sink_str *str);
+function sink.arg_str(ctx: ctx, args: sink.val[], index: number): string;
 
-export declare function arg_list(ctx: ctx, args: val[], index: number): list;
 bool sink_arg_list(sink_ctx ctx, int size, sink_val *args, int index, sink_list *ls);
+function sink.arg_list(ctx: ctx, args: sink.val[], index: number): sink.list;
 
-export declare function arg_user(ctx: ctx, args: val[], index: number, usertype: user): any;
 bool sink_arg_user(sink_ctx ctx, int size, sink_val *args, int index, sink_user usertype,
   void **user);
+function sink.arg_user(ctx: ctx, args: sink.val[], index: number, usertype: sink.user): any;
 ```
