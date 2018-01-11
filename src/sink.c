@@ -13643,9 +13643,17 @@ static sink_run context_run(context ctx){
 					E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
 					p[D] = var_get(ctx, E, F);
 				}
-				var_set(ctx, A, B, opi_ask(ctx, C, p));
+				X = opi_ask(ctx, C, p);
 				if (ctx->failed)
 					return SINK_RUN_FAIL;
+				if (sink_isasync(X)){
+					ctx->async_frame = A;
+					ctx->async_index = B;
+					ctx->timeout_left = ctx->timeout;
+					ctx->async = true;
+					return SINK_RUN_ASYNC;
+				}
+				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_EXIT           : { // [TGT], ARGCOUNT, [ARGS]...

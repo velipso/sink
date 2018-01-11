@@ -663,11 +663,13 @@ The Script object to execute in the Context.
 The input/output functions for the machine.
 
 The `f_say`, `f_warn`, and `f_ask` functions are called when the associated `say`, `warn`, and `ask`
-commands are executed in the script.  The C versions must be synchronous, but the TypeScript
-versions can return a Promise if needed.
+commands are executed in the script.
 
-The `f_ask` function should also return the value that the end-user input.  Return `NIL` for any
-cancelled or end-of-file situation, and a string for any binary input.
+The C versions of `f_say` and `f_warn` must be synchronous, but `f_ask` can return `SINK_ASYNC` to
+indicate an asynchronous result (which should be provided eventually via
+[`ctx_asyncresult`](#ctx_asyncresult)).
+
+The TypeScript versions can return a Promise from any `f_say`, `f_warn`, or `f_ask`, if needed.
 
 The `user` field is mapped to `iouser`, and can be used for anything.
 
@@ -1273,7 +1275,7 @@ Note: the following commands are not available at run-time because they only wor
 | `&x`              | `size`            |
 | `say`             | `say`             |
 | `warn`            | `warn`            |
-| `ask`             | `ask`             |
+| `ask`             | `ask` (see note*) |
 | `exit`            | `exit`            |
 | `abort`           | `abort`           |
 | `isnum`           | `isnum`           |
@@ -1396,6 +1398,10 @@ Note: the following commands are not available at run-time because they only wor
 | `gc.getlevel`     | `gc_getlevel`     |
 | `gc.setlevel`     | `gc_setlevel`     |
 | `gc.run`          | `gc_run`          |
+
+\*Note: the C function `sink_ask` can possibly return `SINK_ASYNC` if the host's [`f_ask`](#ctx_new)
+function is asynchronous.  Be sure to check for the value via [`sink_isasync`](#isasync) before
+continuing, unless you're certain `f_ask` is synchronous.
 
 Misc/Helper Functions
 =====================

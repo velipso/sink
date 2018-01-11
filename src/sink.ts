@@ -9330,7 +9330,7 @@ export function warn(ctx: ctx, vals: val[]): void | Promise<void> {
 	}
 }
 
-export function ask(ctx: ctx, vals: val[]): val {
+export function ask(ctx: ctx, vals: val[]): val | Promise<val> {
 	if (ctx.io.f_ask){
 		return ctx.io.f_ask(
 			ctx,
