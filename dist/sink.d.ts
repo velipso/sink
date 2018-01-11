@@ -119,7 +119,7 @@ export declare function size(ctx: ctx, a: val): number;
 export declare function tonum(ctx: ctx, a: val): val;
 export declare function say(ctx: ctx, vals: val[]): void | Promise<void>;
 export declare function warn(ctx: ctx, vals: val[]): void | Promise<void>;
-export declare function ask(ctx: ctx, vals: val[]): val;
+export declare function ask(ctx: ctx, vals: val[]): val | Promise<val>;
 export declare function stacktrace(ctx: ctx): val;
 export declare function str_cat(ctx: ctx, vals: val[]): val;
 export declare function str_slice(ctx: ctx, a: val, b: val, c: val): val;
