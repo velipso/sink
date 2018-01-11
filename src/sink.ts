@@ -13259,7 +13259,7 @@ export function ctx_gettimeout(ctx: ctx): number {
 	return (ctx as context_st).timeout;
 }
 
-export function ctx_ticktimeout(ctx: ctx, amount: number): void {
+export function ctx_consumeticks(ctx: ctx, amount: number): void {
 	let ctx2 = ctx as context_st;
 	if (amount > ctx2.timeout_left)
 		amount = ctx2.timeout_left;

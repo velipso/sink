@@ -15514,7 +15514,7 @@ int sink_ctx_gettimeout(sink_ctx ctx){
 	return ((context)ctx)->timeout;
 }
 
-void sink_ctx_ticktimeout(sink_ctx ctx, int amount){
+void sink_ctx_consumeticks(sink_ctx ctx, int amount){
 	context ctx2 = ctx;
 	if (amount > ctx2->timeout_left)
 		amount = ctx2->timeout_left;

@@ -616,7 +616,7 @@ virtual machine.
 | [`ctx_asyncresult`](#ctx_asyncresult)   | Provide a result to an asynchronous operation         |
 | [`ctx_settimeout`](#ctx_settimeout)     | Set a timeout so the machine pauses itself            |
 | [`ctx_gettimeout`](#ctx_gettimeout)     | Get the current timeout value                         |
-| [`ctx_ticktimeout`](#ctx_ticktimeout)   | Decrease the current tick counter by an amount        |
+| [`ctx_consumeticks`](#ctx_consumeticks) | Decrease the current tick counter by an amount        |
 | [`ctx_forcetimeout`](#ctx_forcetimeout) | Force a timeout to occur immediately                  |
 | [`ctx_run`](#ctx_run)                   | Run the virtual machine                               |
 | [`ctx_free`](#ctx_free)                 | Free a Context object                                 |
@@ -1094,7 +1094,7 @@ function sink.ctx_settimeout(ctx: sink.ctx, timeout: number): void;
 
 For example, if the timeout is 1000, then the VM will run 1000 ticks before timing out.  Each
 machine instruction counts as 1 tick, and a garbage collection cycle counts as 100 ticks.  Native
-functions can consume ticks via [`ctx_ticktimeout`](#ctx_ticktimeout), or empty the available ticks
+functions can consume ticks via [`ctx_consumeticks`](#ctx_consumeticks), or empty the available ticks
 to 0 via [`ctx_forcetimeout`](#ctx_forcetimeout).
 
 When there are no ticks left, `ctx_run` returns `TIMEOUT` and resets the available ticks to
@@ -1128,24 +1128,24 @@ The return value will be `0` if timing out is disabled.
 
 The Context object.
 
-ctx_ticktimeout
+ctx_consumeticks
 ---------------
 
 Decrease the current tick counter by `amount`.
 
 ```c
-void sink_ctx_ticktimeout(sink_ctx ctx, int amount);
+void sink_ctx_consumeticks(sink_ctx ctx, int amount);
 ```
 
 ```typescript
-function sink.ctx_ticktimeout(ctx: sink.ctx, amount: number): void
+function sink.ctx_consumeticks(ctx: sink.ctx, amount: number): void
 ```
 
 Use this function to inform the virtual machine that an operation has taken a long time, so the
 value used to track when a timeout happens reflects this delay.
 
 For example, if a native command takes a long time, it could inform the machine to decrease the
-internal timer by 50 ticks via `sink.ctx_ticktimeout(ctx, 50)`.
+internal timer by 50 ticks via `sink.ctx_consumeticks(ctx, 50)`.
 
 ### `ctx`
 

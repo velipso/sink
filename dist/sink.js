@@ -11627,7 +11627,7 @@ var __extends = (this && this.__extends) || (function () {
         return ctx.timeout;
     }
     exports.ctx_gettimeout = ctx_gettimeout;
-    function ctx_ticktimeout(ctx, amount) {
+    function ctx_consumeticks(ctx, amount) {
         var ctx2 = ctx;
         if (amount > ctx2.timeout_left)
             amount = ctx2.timeout_left;
@@ -11637,7 +11637,7 @@ var __extends = (this && this.__extends) || (function () {
         if (ctx2.timeout_left > ctx2.timeout)
             ctx2.timeout_left = ctx2.timeout;
     }
-    exports.ctx_ticktimeout = ctx_ticktimeout;
+    exports.ctx_consumeticks = ctx_consumeticks;
     function ctx_forcetimeout(ctx) {
         ctx.timeout_left = 0;
     }
