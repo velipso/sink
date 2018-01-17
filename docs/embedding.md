@@ -1284,7 +1284,6 @@ Note: the following commands are not available at run-time because they only wor
 | `range`           | `range`           |
 | `order`           | `order`           |
 | `stacktrace`      | `stacktrace`      |
-| `nil`             | `nil`             |
 | `-x`              | `num_neg`         |
 | `x + y`           | `num_add`         |
 | `x - y`           | `num_sub`         |
@@ -1406,18 +1405,73 @@ continuing, unless you're certain `f_ask` is synchronous.
 Misc/Helper Functions
 =====================
 
+| Function/Value                          | Description                                           |
+|-----------------------------------------|-------------------------------------------------------|
+| [`NIL`](#NIL)                           | The literal `nil` value                               |
+| [`SINK_ASYNC`](#SINK_ASYNC)             | Special value to indicate an asynchronous result (C only) |
+| [`isPromise`](#isPromise)               | Check if a value is a Promise (TypeScript/JavaScript only) |
+| [`checkPromise`](#checkPromise)         | Check if a value is a Promise and do something (TypeScript/JavaScript only) |
+| [`bool`](#bool)                         | Convert a boolean to a sink value                     |
+| [`isnil`](#isnil)                       | Test if a sink value is `nil`                         |
+| [`isfalse`](#isfalse)                   | Test if a sink value is false (`nil`)                 |
+| [`istrue`](#istrue)                     | Test if a sink value is true (non-`nil`)              |
+| [`isasync`](#isasync)                   | Test if a sink value is `SINK_ASYNC` (C only)         |
+| [`typeof`](#typeof)                     | Get the type of a sink value                          |
+| [`castnum`](#castnum)                   | Reinterpret a sink value as a number (C only)         |
+| [`num`](#num)                           | Convert a number to a sink value (C only)             |
+| [`caststr`](#caststr)                   | Reinterpret a sink value as a string (C only)         |
+| [`str_newcstr`](#str_newcstr)           | Create sink string by copying a C string (C only)     |
+| [`str_newcstrgive`](#str_newcstrgive)   | Create sink string from a C string, giving memory ownership to sink (C only) |
+| [`str_newblob`](#str_newblob)           | Create sink string by copying a blob of data (C only) |
+| [`str_newblobgive`](#str_newblobgive)   | Create sink string from a blob of data, giving memory ownership to sink (C only) |
+| [`str_newempty`](#str_newempty)         | Create an empty string (C only)                       |
+| [`str_newformat`](#str_newformat)       | Create a string from a `printf`-formatted expression (C only) |
+| [`str_hashplain`](#str_hashplain)       | Hash a string directly                                |
+| [`castlist`](#castlist)                 | Reinterpret a sink value as a list (C only)           |
+| [`list_newblob`](#list_newblob)         | Create sink list by copying a list of values (C only) |
+| [`list_newblobgive`](#list_newblobgive) | Create sink list from a list of values, giving memory ownership to sink (C only) |
+| [`list_newempty`](#list_newempty)       | Create an empty list (C only)                         |
+| [`list_setuser`](#list_setuser)         | Set the user-defined data associated with a list      |
+| [`list_hasuser`](#list_hasuser)         | Check if a list has a certain type of user-defined data |
+| [`list_getuser`](#list_getuser)         | Get the user-defined data associated with a list      |
+| [`list_joinplain`](#list_joinplain)     | Join a list directly                                  |
+| [`user_new`](#user_new)                 | Create a list with user-defined data attached to it   |
+| [`pickle_binstr`](#pickle_binstr)       | Pickle a sink value into binary data for marshalling  |
+| [`pickle_binstrfree`](#pickle_binstrfree)| Free the results of `pickle_binstr` (C only)         |
+| [`pickle_valstr`](#pickle_valstr)       | Convert a marshalled string into a sink value         |
+| [`gc_pin`](#gc_pin)                     | Pin a value to prevent it from being garbage-collected (C only) |
+| [`gc_unpin`](#gc_unpin)                 | Unpin a previously pinned value, allowing it to be garbage-collected (C only) |
+| [`abortstr`](#abortstr)                 | Abort with a formatted string (C only)                |
+| [`arg_bool`](#arg_bool)                 | Convert a native argument to a boolean                |
+| [`arg_num`](#arg_num)                   | Convert a native argument to a number, if possible    |
+| [`arg_str`](#arg_str)                   | Convert a native argument to a string, if possible    |
+| [`arg_list`](#arg_list)                 | Convert a native argument to a list, if possible      |
+| [`arg_user`](#arg_user)                 | Convert a native argument to a user-defined value, if possible |
+| [`seedauto_src`](#seedauto_src)         | The function that provides the source random data for `rand.seedauto` |
+| [`malloc`](#malloc)                     | The function that provides all memory allocation (C only) |
+| [`realloc`](#realloc)                   | The function that provides all memory reallocation (C only) |
+| [`free`](#free)                         | The function that provides all memory freeing (C only)|
+
 ```
+const sink_val SINK_NIL;
+const sink.NIL: null;
+
+const sink_val SINK_ASYNC;
+
+function sink.isPromise<T>(p: any): p is Promise<T>;
+function sink.checkPromise<T, U>(v: T | Promise<T>, func: (v2: T) => U | Promise<U>): U | Promise<U>;
+
 sink_val sink_bool(bool f)
 function sink.bool(f: boolean): sink.val;
 
-bool sink_istrue(sink_val v);
-function sink.istrue(v: sink.val): boolean;
+bool sink_isnil(sink_val v);
+function sink.isnil(v: sink.val): boolean;
 
 bool sink_isfalse(sink_val v);
 function sink.isfalse(v: sink.val): boolean;
 
-bool sink_isnil(sink_val v);
-function sink.isnil(v: sink.val): boolean;
+bool sink_istrue(sink_val v);
+function sink.istrue(v: sink.val): boolean;
 
 bool sink_isasync(sink_val v);
 function sink.isasync(v: sink.val | Promise<sink.val>): boolean;
@@ -1426,18 +1480,9 @@ sink_type sink_typeof(sink_val v);
 function sink.sink_typeof(v: sink.val): sink.type;
 
 double sink_castnum(sink_val v);
+sink_val sink_num(double v);
 
 sink_str sink_caststr(sink_ctx ctx, sink_val str);
-
-sink_list sink_castlist(sink_ctx ctx, sink_val ls);
-
-// always returns NIL
-sink_val sink_abortstr(sink_ctx ctx, const char *fmt, ...);
-function sink.abortstr(ctx: sink.ctx, str: string): sink.val;
-
-sink_val sink_num(double v);
-function sink.num(v: number): sink.val;
-
 sink_val sink_str_newcstr(sink_ctx ctx, const char *str);
 sink_val sink_str_newcstrgive(sink_ctx ctx, char *str);
 sink_val sink_str_newblob(sink_ctx ctx, int size, const uint8_t *bytes);
@@ -1448,6 +1493,11 @@ sink_val sink_str_newformat(sink_ctx ctx, const char *fmt, ...);
 void sink_str_hashplain(int size, const uint8_t *bytes, uint32_t seed, uint32_t *out);
 function sink.str_hashplain(str: string, seed: number): [number, number, number, number];
 
+sink_list sink_castlist(sink_ctx ctx, sink_val ls);
+sink_val sink_list_newblob(sink_ctx ctx, int size, const sink_val *vals);
+sink_val sink_list_newblobgive(sink_ctx ctx, int size, int count, sink_val *vals);
+sink_val sink_list_newempty(sink_ctx ctx);
+
 void sink_list_setuser(sink_ctx ctx, sink_val ls, sink_user usertype, void *user);
 function sink.list_setuser(ctx: sink.ctx, ls: sink.val, usertype: sink.user, user: any): void;
 
@@ -1457,12 +1507,11 @@ function sink.list_hasuser(ctx: sink.ctx, ls: sink.val, usertype: sink.user): bo
 void *sink_list_getuser(sink_ctx ctx, sink_val ls);
 function sink.list_getuser(ctx: sink.ctx, ls: sink.val): any;
 
-sink_val sink_list_newblob(sink_ctx ctx, int size, const sink_val *vals);
-sink_val sink_list_newblobgive(sink_ctx ctx, int size, int count, sink_val *vals);
-sink_val sink_list_newempty(sink_ctx ctx);
-
 sink_val sink_list_joinplain(sink_ctx ctx, int size, sink_val *vals, int sepz, const uint8_t *sep);
 function sink.list_joinplain(vals: list | val[], sep: string): val;
+
+sink_val sink_user_new(sink_ctx ctx, sink_user usertype, void *user);
+function sink.user_new(ctx: sink.ctx, usertype: sink.user, user: any): sink.val;
 
 bool sink_pickle_binstr(sink_ctx ctx, sink_val a, sink_str_st *out);
 function sink.pickle_binstr(a: val): string;
@@ -1475,29 +1524,9 @@ function sink.pickle_valstr(s: sink.str): sink.val | false;
 void sink_gc_pin(sink_ctx ctx, sink_val v);
 void sink_gc_unpin(sink_ctx ctx, sink_val v);
 
-function sink.isPromise<T>(p: any): p is Promise<T>;
-function sink.checkPromise<T, U>(v: T | Promise<T>, func: (v2: T) => U | Promise<U>): U | Promise<U>;
-
-const sink_val SINK_NAN;
-const sink.NAN: number;
-
-const sink_val SINK_NIL;
-const sink.NIL: null;
-
-const sink_val SINK_ASYNC;
-
-sink_val sink_user_new(sink_ctx ctx, sink_user usertype, void *user);
-function sink.user_new(ctx: sink.ctx, usertype: sink.user, user: any): sink.val;
-
-bool sink_isuser(sink_ctx ctx, sink_val v, sink_user usertype, void **user);
-function sink.isuser(ctx: sink.ctx, v: sink.val, usertype: sink.user): [boolean, any];
-
-sink_seedauto_src_f sink_seedauto_src;
-let seedauto_src: () => number;
-
-sink_malloc_f  sink_malloc;
-sink_realloc_f sink_realloc;
-sink_free_f    sink_free;
+// always returns NIL
+sink_val sink_abortstr(sink_ctx ctx, const char *fmt, ...);
+function sink.abortstr(ctx: sink.ctx, str: string): sink.val;
 
 bool sink_arg_bool(int size, sink_val *args, int index);
 function sink.arg_bool(args: sink.val[], index: number): boolean;
@@ -1514,4 +1543,11 @@ function sink.arg_list(ctx: ctx, args: sink.val[], index: number): sink.list;
 bool sink_arg_user(sink_ctx ctx, int size, sink_val *args, int index, sink_user usertype,
   void **user);
 function sink.arg_user(ctx: ctx, args: sink.val[], index: number, usertype: sink.user): any;
+
+sink_seedauto_src_f sink_seedauto_src;
+let seedauto_src: () => number;
+
+sink_malloc_f  sink_malloc;
+sink_realloc_f sink_realloc;
+sink_free_f    sink_free;
 ```

@@ -218,9 +218,6 @@ sink_val sink_range(sink_ctx ctx, double start, double stop, double step);
 int      sink_order(sink_ctx ctx, sink_val a, sink_val b);
 sink_val sink_stacktrace(sink_ctx ctx);
 
-// nil
-static inline sink_val sink_nil(){ return SINK_NIL; }
-
 // numbers
 static inline sink_val sink_num(double v){ return (sink_val){ .f = v }; }
 sink_val sink_num_neg(sink_ctx ctx, sink_val a);
@@ -397,17 +394,6 @@ static inline sink_val sink_user_new(sink_ctx ctx, sink_user usertype, void *use
 	sink_val ls = sink_list_newblob(ctx, 1, &hint);
 	sink_list_setuser(ctx, ls, usertype, user);
 	return ls;
-}
-
-static inline bool sink_isuser(sink_ctx ctx, sink_val v, sink_user usertype, void **user){
-	if (!sink_islist(v))
-		return false;
-	sink_list ls = sink_castlist(ctx, v);
-	if (ls->usertype != usertype)
-		return false;
-	if (user)
-		*user = ls->user;
-	return true;
 }
 
 #endif // SINK__H
