@@ -9155,10 +9155,23 @@ static inline native native_new(uint64_t hash, void *natuser, sink_native_f f_na
 }
 
 typedef struct {
+	void *asyncuser;
+	sink_onasync_f f_onasync;
+} onasync_st, *onasync;
+
+static inline onasync onasync_new(void *asyncuser, sink_onasync_f f_onasync){
+	onasync oa = mem_alloc(sizeof(onasync_st));
+	oa->asyncuser = asyncuser;
+	oa->f_onasync = f_onasync;
+	return oa;
+}
+
+typedef struct {
 	void *user;
 	sink_free_f f_freeuser;
 	cleanup cup;
 	list_ptr natives;
+	list_ptr onasyncs;
 
 	program prg; // not freed by context_free
 	list_ptr call_stk;
@@ -9408,6 +9421,7 @@ static inline void context_free(context ctx){
 		ctx->f_freeuser(ctx->user);
 	cleanup_free(ctx->cup);
 	list_ptr_free(ctx->natives);
+	list_ptr_free(ctx->onasyncs);
 	context_clearref(ctx);
 	context_sweep(ctx);
 	list_ptr_free(ctx->ccs_avail);
@@ -9436,6 +9450,7 @@ static inline context context_new(program prg, sink_io_st io){
 	ctx->f_freeuser = NULL;
 	ctx->cup = cleanup_new();
 	ctx->natives = list_ptr_new(mem_free_func);
+	ctx->onasyncs = list_ptr_new(mem_free_func);
 	ctx->call_stk = list_ptr_new(ccs_free);
 	ctx->lex_stk = list_ptr_new(lxs_freeAll);
 	list_ptr_push(ctx->lex_stk, lxs_new(0, NULL, NULL));
@@ -15498,8 +15513,20 @@ void sink_ctx_asyncresult(sink_ctx ctx, sink_val v){
 		assert(false);
 		return;
 	}
+	while (ctx2->onasyncs->size > 0){
+		ctx2->onasyncs->size--;
+		onasync oa = ctx2->onasyncs->ptrs[ctx2->onasyncs->size];
+		v = oa->f_onasync(ctx, v, oa->asyncuser);
+		mem_free(oa);
+		if (sink_isasync(v))
+			return;
+	}
 	var_set(ctx2, ctx2->async_frame, ctx2->async_index, v);
 	ctx2->async = false;
+}
+
+void sink_ctx_onasync(sink_ctx ctx, void *asyncuser, sink_onasync_f f_onasync){
+	list_ptr_push(((context)ctx)->onasyncs, onasync_new(asyncuser, f_onasync));
 }
 
 void sink_ctx_settimeout(sink_ctx ctx, int timeout){

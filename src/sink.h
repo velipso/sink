@@ -89,6 +89,7 @@ typedef sink_fstype (*sink_fstype_f)(const char *file, void *incuser);
 typedef bool (*sink_fsread_f)(sink_scr scr, const char *file, void *incuser);
 typedef size_t (*sink_dump_f)(const void *restrict ptr, size_t size, size_t nitems,
 	void *restrict dumpuser);
+typedef sink_val (*sink_onasync_f)(sink_ctx ctx, sink_val result, void *asyncuser);
 
 typedef struct {
 	sink_output_f f_say;
@@ -168,6 +169,7 @@ sink_user       sink_ctx_addusertype(sink_ctx ctx, const char *hint, sink_free_f
 sink_free_f     sink_ctx_getuserfree(sink_ctx ctx, sink_user usertype);
 const char *    sink_ctx_getuserhint(sink_ctx ctx, sink_user usertype);
 void            sink_ctx_asyncresult(sink_ctx ctx, sink_val v);
+void            sink_ctx_onasync(sink_ctx ctx, void *asyncuser, sink_onasync_f f_onasync);
 void            sink_ctx_settimeout(sink_ctx ctx, int timeout);
 int             sink_ctx_gettimeout(sink_ctx ctx);
 void            sink_ctx_consumeticks(sink_ctx ctx, int amount);

@@ -607,19 +607,20 @@ virtual machine.
 | [`ctx_geterr`](#ctx_geterr)             | Get any error message associated with the run-time    |
 | [`ctx_native`](#ctx_native)             | Add a native command using a string                   |
 | [`ctx_nativehash`](#ctx_nativehash)     | Add a native command using a 64-bit hash              |
-| [`ctx_cleanup`](#ctx_cleanup)           | Add user-defined objects to be freed when Context is freed |
+| [`ctx_cleanup`](#ctx_cleanup)           | Add user-defined objects to be freed when Context is freed (C only) |
 | [`ctx_setuser`](#ctx_setuser)           | Set a user-defined value associated with the Context  |
 | [`ctx_getuser`](#ctx_getuser)           | Get a previously set user-defined value               |
 | [`ctx_addusertype`](#ctx_addusertype)   | Add a new usertype, for use with list's user data     |
-| [`ctx_getuserfree`](#ctx_getuserfree)   | Get a usertype's free function                        |
+| [`ctx_getuserfree`](#ctx_getuserfree)   | Get a usertype's free function (C only)               |
 | [`ctx_getuserhint`](#ctx_getuserhint)   | Get a usertype's hint string                          |
-| [`ctx_asyncresult`](#ctx_asyncresult)   | Provide a result to an asynchronous operation         |
+| [`ctx_asyncresult`](#ctx_asyncresult)   | Provide a result to an asynchronous operation (C only)|
+| [`ctx_onasync`](#ctx_onasync)           | Capture the next asynchronous result before resuming machine (C only) |
 | [`ctx_settimeout`](#ctx_settimeout)     | Set a timeout so the machine pauses itself            |
 | [`ctx_gettimeout`](#ctx_gettimeout)     | Get the current timeout value                         |
 | [`ctx_consumeticks`](#ctx_consumeticks) | Decrease the current tick counter by an amount        |
 | [`ctx_forcetimeout`](#ctx_forcetimeout) | Force a timeout to occur immediately                  |
 | [`ctx_run`](#ctx_run)                   | Run the virtual machine                               |
-| [`ctx_free`](#ctx_free)                 | Free a Context object                                 |
+| [`ctx_free`](#ctx_free)                 | Free a Context object (C only)                        |
 
 ctx_new
 -------
@@ -1077,6 +1078,74 @@ The Context object.
 ### `v`
 
 The value that is the result of the asynchornous operation.
+
+ctx_onasync
+-----------
+
+Capture the next asynchronous result (C only).
+
+```c
+typedef sink_val (*sink_onasync_f)(sink_ctx ctx, sink_val result, void *asyncuser);
+
+void sink_ctx_onasync(sink_ctx ctx, void *asyncuser, sink_onasync_f f_onasync);
+```
+
+Capturing asynchronous results makes it possible for native functions to correctly deal with
+other native asynchronous functions.
+
+For example, suppose you're writing a native function that prompts the user for input:
+
+```c
+sink_val mynative(sink_ctx ctx, int size, sink_val *args, void *nuser){
+  sink_val v = sink_ask(ctx, size, args);
+  // ...?
+}
+```
+
+The problem is that `sink_ask` *could* be asynchronous.  So how can you write the rest of the
+function?  You must use `sink_ctx_onasync`:
+
+```c
+sink_val mynative_afterask(sink_ctx ctx, sink_val result, void *nuser){
+  // TODO: process `v` appropriately
+  return v;
+}
+
+sink_val mynative(sink_ctx ctx, int size, sink_val *args, void *nuser){
+  sink_val v = sink_ask(ctx, size, args);
+  if (sink_isasync(v)){
+    // tell sink that the next asynchronous result should be sent
+    // to mynative_afterask
+    sink_ctx_onasync(ctx, nuser, mynative_afterask);
+    return SINK_ASYNC;
+  }
+  else{
+    // sink_ask was synchronous, so call mynative_afterask directly
+    return mynative_afterask(ctx, v, nuser);
+  }
+}
+```
+
+When `sink_ask` finally provides a result via [`sink_ctx_asyncresult`](#ctx_asyncresult), instead
+of resuming the virtual machine, the result will be passed to `mynative_afterask`.  The return value
+of `mynative_afterask` will then be passed instead.
+
+Note that `sink_ctx_onasync` will *stack* handlers correctly, and unwind the stack until a final
+result is available to resume the machine.
+
+### `ctx`
+
+The Context object.
+
+### `asyncuser`
+
+User-defined value passed into `f_onasync`.
+
+### `f_onasync`
+
+The function called when [`sink_ctx_asyncresult`](#ctx_asyncresult) is provided with the next
+asynchronous result.  This function should return *it's* result, which can possibly be `SINK_ASYNC`
+to flag the need for further asynchronous results.
 
 ctx_settimeout
 --------------
