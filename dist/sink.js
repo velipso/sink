@@ -74,7 +74,7 @@ var __extends = (this && this.__extends) || (function () {
         ctx_status[ctx_status["PASSED"] = 2] = "PASSED";
         ctx_status[ctx_status["FAILED"] = 3] = "FAILED";
     })(ctx_status = exports.ctx_status || (exports.ctx_status = {}));
-    exports.NAN = Number.NaN;
+    var NAN = Number.NaN;
     exports.NIL = null;
     function isPromise(p) {
         return typeof p === 'object' && p !== null && typeof p.then === 'function';
@@ -117,11 +117,7 @@ var __extends = (this && this.__extends) || (function () {
             return type.NUM;
     }
     exports.sink_typeof = sink_typeof;
-    function nil() { return exports.NIL; }
-    exports.nil = nil;
-    function num(v) { return v; }
-    exports.num = num;
-    function num_nan() { return exports.NAN; }
+    function num_nan() { return NAN; }
     exports.num_nan = num_nan;
     function num_inf() { return Infinity; }
     exports.num_inf = num_inf;
@@ -144,14 +140,6 @@ var __extends = (this && this.__extends) || (function () {
         return ls;
     }
     exports.user_new = user_new;
-    function isuser(ctx, v, usertype) {
-        if (!islist(v))
-            return [false, null];
-        if (v.usertype !== usertype)
-            return [false, null];
-        return [true, v.user];
-    }
-    exports.isuser = isuser;
     function wrap_clock() { return (new Date()).getTime(); }
     exports.seedauto_src = wrap_clock;
     var list_u64 = (function (_super) {
@@ -7577,11 +7565,11 @@ var __extends = (this && this.__extends) || (function () {
                     if (isHex(ch)) {
                         npi.val = toHex(ch);
                         if (npi.val >= npi.base)
-                            return num(0);
+                            return 0;
                         state = tonum_enum.BODY;
                     }
                     else if (ch !== '_')
-                        return num(0);
+                        return 0;
                     break;
                 case tonum_enum.BODY:
                     if (ch === '.')
@@ -7636,7 +7624,7 @@ var __extends = (this && this.__extends) || (function () {
     }
     var unop_num_abs = Math.abs;
     function unop_num_sign(a) {
-        return isNaN(a) ? exports.NAN : (a < 0 ? -1 : (a > 0 ? 1 : 0));
+        return isNaN(a) ? NAN : (a < 0 ? -1 : (a > 0 ? 1 : 0));
     }
     var unop_num_floor = Math.floor;
     var unop_num_ceil = Math.ceil;
@@ -7676,19 +7664,19 @@ var __extends = (this && this.__extends) || (function () {
     var binop_num_pow = Math.pow;
     var binop_num_atan2 = Math.atan2;
     function binop_num_hex(a, b) {
-        return isNaN(a) ? exports.NAN :
+        return isNaN(a) ? NAN :
             opi_num_base(a, isnil(b) ? 0 : b, 16);
     }
     function binop_num_oct(a, b) {
-        return isNaN(a) ? exports.NAN :
+        return isNaN(a) ? NAN :
             opi_num_base(a, isnil(b) ? 0 : b, 8);
     }
     function binop_num_bin(a, b) {
-        return isNaN(a) ? exports.NAN :
+        return isNaN(a) ? NAN :
             opi_num_base(a, isnil(b) ? 0 : b, 2);
     }
     function triop_num_clamp(a, b, c) {
-        return isNaN(a) || isNaN(b) || isNaN(c) ? exports.NAN :
+        return isNaN(a) || isNaN(b) || isNaN(c) ? NAN :
             (a < b ? b :
                 (a > c ? c : a));
     }
@@ -8592,28 +8580,28 @@ var __extends = (this && this.__extends) || (function () {
             body.push(0xF7);
         else if (typeof a === 'number') {
             if (Math.floor(a) === a && a >= -4294967296 && a < 4294967296) {
-                var num_1 = a;
-                if (num_1 < 0) {
-                    if (num_1 >= -256) {
-                        num_1 += 256;
-                        body.push(0xF1, num_1 & 0xFF);
+                var num = a;
+                if (num < 0) {
+                    if (num >= -256) {
+                        num += 256;
+                        body.push(0xF1, num & 0xFF);
                     }
-                    else if (num_1 >= -65536) {
-                        num_1 += 65536;
-                        body.push(0xF3, num_1 & 0xFF, num_1 >>> 8);
+                    else if (num >= -65536) {
+                        num += 65536;
+                        body.push(0xF3, num & 0xFF, num >>> 8);
                     }
                     else {
-                        num_1 += 4294967296;
-                        body.push(0xF5, num_1 & 0xFF, (num_1 >>> 8) & 0xFF, (num_1 >>> 16) & 0xFF, (num_1 >>> 24) & 0xFF);
+                        num += 4294967296;
+                        body.push(0xF5, num & 0xFF, (num >>> 8) & 0xFF, (num >>> 16) & 0xFF, (num >>> 24) & 0xFF);
                     }
                 }
                 else {
-                    if (num_1 < 256)
-                        body.push(0xF0, num_1 & 0xFF);
-                    else if (num_1 < 65536)
-                        body.push(0xF2, num_1 & 0xFF, num_1 >>> 8);
+                    if (num < 256)
+                        body.push(0xF0, num & 0xFF);
+                    else if (num < 65536)
+                        body.push(0xF2, num & 0xFF, num >>> 8);
                     else {
-                        body.push(0xF4, num_1 & 0xFF, (num_1 >>> 8) & 0xFF, (num_1 >>> 16) & 0xFF, (num_1 >>> 24) & 0xFF);
+                        body.push(0xF4, num & 0xFF, (num >>> 8) & 0xFF, (num >>> 16) & 0xFF, (num >>> 24) & 0xFF);
                     }
                 }
             }

@@ -9064,11 +9064,11 @@ function unop_tonum(a: val): val {
 				if (isHex(ch)){
 					npi.val = toHex(ch);
 					if (npi.val >= npi.base)
-						return num(0);
+						return 0;
 					state = tonum_enum.BODY;
 				}
 				else if (ch !== '_')
-					return num(0);
+					return 0;
 				break;
 
 			case tonum_enum.BODY:

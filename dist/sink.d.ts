@@ -57,7 +57,6 @@ export declare enum ctx_status {
     PASSED = 2,
     FAILED = 3,
 }
-export declare const NAN: number;
 export declare const NIL: null;
 export declare function isPromise<T>(p: any): p is Promise<T>;
 export declare function checkPromise<T, U>(v: T | Promise<T>, func: (v2: T) => U | Promise<U>): U | Promise<U>;
@@ -70,8 +69,6 @@ export declare function isstr(v: val): v is str;
 export declare function islist(v: val): v is list;
 export declare function isnum(v: val): v is number;
 export declare function sink_typeof(v: val): type;
-export declare function nil(): val;
-export declare function num(v: number): val;
 export declare function num_nan(): val;
 export declare function num_inf(): val;
 export declare function num_isnan(v: val): boolean;
@@ -80,7 +77,6 @@ export declare function num_e(): number;
 export declare function num_pi(): number;
 export declare function num_tau(): number;
 export declare function user_new(ctx: ctx, usertype: user, user: any): val;
-export declare function isuser(ctx: ctx, v: val, usertype: user): [boolean, any];
 export declare let seedauto_src: () => number;
 export declare function scr_setuser(scr: scr, user: any): void;
 export declare function scr_getuser(scr: scr): any;

@@ -82,7 +82,7 @@ export enum ctx_status {
 	FAILED
 }
 
-export const NAN = Number.NaN;
+const NAN = Number.NaN;
 export const NIL = null;
 
 export function isPromise<T>(p: any): p is Promise<T> {
@@ -115,9 +115,6 @@ export function sink_typeof(v: val): type {
 	else                return type.NUM;
 }
 
-export function nil(): val { return NIL; }
-
-export function num(v: number): val { return v; }
 export function num_nan(): val { return NAN; }
 export function num_inf(): val { return Infinity; }
 export function num_isnan(v: val): boolean { return typeof v === 'number' && isNaN(v); }
@@ -133,14 +130,6 @@ export function user_new(ctx: ctx, usertype: user, user: any): val {
 	let ls = new list(hint);
 	list_setuser(ctx, ls, usertype, user);
 	return ls;
-}
-
-export function isuser(ctx: ctx, v: val, usertype: user): [boolean, any] {
-	if (!islist(v))
-		return [false, null];
-	if (v.usertype !== usertype)
-		return [false, null];
-	return [true, v.user];
 }
 
 function wrap_clock(): number { return (new Date()).getTime(); }
@@ -9075,11 +9064,11 @@ function unop_tonum(a: val): val {
 				if (isHex(ch)){
 					npi.val = toHex(ch);
 					if (npi.val >= npi.base)
-						return num(0);
+						return 0;
 					state = tonum_enum.BODY;
 				}
 				else if (ch !== '_')
-					return num(0);
+					return 0;
 				break;
 
 			case tonum_enum.BODY:
