@@ -1474,7 +1474,6 @@ bool sink_istrue(sink_val v);
 function sink.istrue(v: sink.val): boolean;
 
 bool sink_isasync(sink_val v);
-function sink.isasync(v: sink.val | Promise<sink.val>): boolean;
 
 sink_type sink_typeof(sink_val v);
 function sink.sink_typeof(v: sink.val): sink.type;

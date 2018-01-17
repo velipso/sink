@@ -64,7 +64,6 @@ export declare function bool(f: boolean): val;
 export declare function istrue(v: val): v is valtrue;
 export declare function isfalse(v: val): v is null;
 export declare function isnil(v: val): v is null;
-export declare function isasync(v: val | Promise<val>): v is Promise<val>;
 export declare function isstr(v: val): v is str;
 export declare function islist(v: val): v is list;
 export declare function isnum(v: val): v is number;

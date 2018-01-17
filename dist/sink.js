@@ -94,10 +94,6 @@ var __extends = (this && this.__extends) || (function () {
     exports.isfalse = isfalse;
     function isnil(v) { return v === exports.NIL; }
     exports.isnil = isnil;
-    function isasync(v) {
-        return isPromise(v);
-    }
-    exports.isasync = isasync;
     function isstr(v) { return typeof v === 'string'; }
     exports.isstr = isstr;
     function islist(v) {

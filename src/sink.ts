@@ -100,9 +100,6 @@ export function bool(f: boolean): val { return f ? 1 : NIL; }
 export function istrue(v: val): v is valtrue { return v !== NIL; }
 export function isfalse(v: val): v is null { return v === NIL; }
 export function isnil(v: val): v is null { return v === NIL; }
-export function isasync(v: val | Promise<val>): v is Promise<val> {
-	return isPromise<val>(v);
-}
 export function isstr(v: val): v is str { return typeof v === 'string'; }
 export function islist(v: val): v is list {
 	return typeof v === 'object' && v !== null;
