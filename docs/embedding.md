@@ -613,8 +613,6 @@ virtual machine.
 | [`ctx_addusertype`](#ctx_addusertype)   | Add a new usertype, for use with list's user data     |
 | [`ctx_getuserfree`](#ctx_getuserfree)   | Get a usertype's free function (C only)               |
 | [`ctx_getuserhint`](#ctx_getuserhint)   | Get a usertype's hint string                          |
-| [`ctx_asyncresult`](#ctx_asyncresult)   | Provide a result to an asynchronous operation (C only)|
-| [`ctx_onasync`](#ctx_onasync)           | Capture the next asynchronous result before resuming machine (C only) |
 | [`ctx_settimeout`](#ctx_settimeout)     | Set a timeout so the machine pauses itself            |
 | [`ctx_gettimeout`](#ctx_gettimeout)     | Get the current timeout value                         |
 | [`ctx_consumeticks`](#ctx_consumeticks) | Decrease the current tick counter by an amount        |
@@ -666,9 +664,8 @@ The input/output functions for the machine.
 The `f_say`, `f_warn`, and `f_ask` functions are called when the associated `say`, `warn`, and `ask`
 commands are executed in the script.
 
-The C versions of `f_say` and `f_warn` must be synchronous, but `f_ask` can return `SINK_ASYNC` to
-indicate an asynchronous result (which should be provided eventually via
-[`ctx_asyncresult`](#ctx_asyncresult)).
+The C versions of `f_say` and `f_warn` must be synchronous, but `f_ask` can return a promise to
+indicate an asynchronous result.
 
 The TypeScript versions can return a Promise from any `f_say`, `f_warn`, or `f_ask`, if needed.
 
@@ -766,7 +763,7 @@ This is wired to a host function via:
 ```c
 sink_val my_foo(sink_ctx ctx, int size, sink_val *args, void *natuser){
   // implementation here
-  // return SINK_ASYNC for an asynchronous result
+  // return a promise for an asynchronous result
 }
 
 ...
@@ -1055,102 +1052,6 @@ The Context object.
 
 The user type returned from `ctx_addusertype`.
 
-ctx_asyncresult
----------------
-
-Provide the result to an asynchronous operation (C only).
-
-```c
-void sink_ctx_asyncresult(sink_ctx ctx, sink_val v);
-```
-
-This will call any handlers provided by [`ctx_onasync`](#ctx_onasync), before finally setting the
-result of an asynchronous operation, allowing the virtual machine to be resumed with a follow-up
-call to [`ctx_run`](#ctx_run).
-
-If the virtual machine is ready to be resumed, it will change the contex's [status](#ctx_getstatus)
-from `SINK_WAITING` to `SINK_READY`.
-
-This function should be called after receiving a `SINK_RUN_ASYNC` result from `ctx_run`.
-
-A TypeScript version of this function doesn't exist because `ctx_run` will return a Promise instead.
-
-### `ctx`
-
-The Context object.
-
-### `v`
-
-The value that is the result of the asynchornous operation.
-
-ctx_onasync
------------
-
-Capture the next asynchronous result (C only).
-
-```c
-typedef sink_val (*sink_onasync_f)(sink_ctx ctx, sink_val result, void *asyncuser);
-
-void sink_ctx_onasync(sink_ctx ctx, void *asyncuser, sink_onasync_f f_onasync);
-```
-
-Capturing asynchronous results makes it possible for native functions to correctly deal with
-other native asynchronous functions.
-
-For example, suppose you're writing a native function that prompts the user for input:
-
-```c
-sink_val mynative(sink_ctx ctx, int size, sink_val *args, void *nuser){
-  sink_val v = sink_ask(ctx, size, args);
-  // ...?
-}
-```
-
-The problem is that `sink_ask` *could* be asynchronous.  So how can you write the rest of the
-function?  You must use `sink_ctx_onasync`:
-
-```c
-sink_val mynative_afterask(sink_ctx ctx, sink_val result, void *nuser){
-  // TODO: process `v` appropriately
-  return v;
-}
-
-sink_val mynative(sink_ctx ctx, int size, sink_val *args, void *nuser){
-  sink_val v = sink_ask(ctx, size, args);
-  if (sink_isasync(v)){
-    // tell sink that the next asynchronous result should be sent
-    // to mynative_afterask
-    sink_ctx_onasync(ctx, nuser, mynative_afterask);
-    return SINK_ASYNC;
-  }
-  else{
-    // sink_ask was synchronous, so call mynative_afterask directly
-    return mynative_afterask(ctx, v, nuser);
-  }
-}
-```
-
-When `sink_ask` finally provides a result via [`sink_ctx_asyncresult`](#ctx_asyncresult), instead
-of resuming the virtual machine, the result will be passed to `mynative_afterask`.  The return value
-of `mynative_afterask` will then be passed instead.
-
-Note that `sink_ctx_onasync` will *stack* handlers correctly, and unwind the stack until a final
-result is available to resume the machine.
-
-### `ctx`
-
-The Context object.
-
-### `asyncuser`
-
-User-defined value passed into `f_onasync`.
-
-### `f_onasync`
-
-The function called when [`sink_ctx_asyncresult`](#ctx_asyncresult) is provided with the next
-asynchronous result.  This function should return *it's* result, which can possibly be `SINK_ASYNC`
-to flag the need for further asynchronous results.
-
 ctx_settimeout
 --------------
 
@@ -1270,7 +1171,6 @@ sink_run sink_ctx_run(sink_ctx ctx);
 enum sink.run {
   PASS,
   FAIL,
-  ASYNC,
   TIMEOUT,
   REPLMORE
 }
@@ -1286,7 +1186,6 @@ It will return one of the following values:
 * `PASS` - Execution has finished and the script exited successfully.
 * `FAIL` - Execution has finished and the script exited in failure.  Use [`ctx_geterr`](#ctx_geterr)
   to get the run-time error message, if it exists.
-* `ASYNC` - The machine is waiting for an asynchronous operation to complete.
 * `TIMEOUT` - The machine's [timeout](#ctx_settimeout) has triggered.  Run `ctx_run` to resume.
 * `REPLMORE` - The machine has detected it has executed as much as it could before needing more
   source code entered from the REPL.  This only happens if the Script is in [REPL mode](#scr_new).
@@ -1294,11 +1193,6 @@ It will return one of the following values:
 Note that the TypeScript version will return a Promise for an asynchronous operation -- not
 `sink.run.ASYNC`.  The value `sink.run.ASYNC` is returned only if the `ctx_run` is called on a
 context that is waiting for a Promise to resolve.
-
-On the other hand, the C version will return `SINK_RUN_ASYNC` if a native function returns
-`SINK_ASYNC`.  It is up to the host to eventually call [`ctx_asyncresult`](#ctx_asyncresult) to
-move the [status](#ctx_getstatus) from `WAITING` to `READY`, and then call `ctx_run` again to resume
-execution with the result.
 
 ### `ctx`
 
@@ -1348,7 +1242,7 @@ Note: the following commands are not available at run-time because they only wor
 | `&x`              | `size`            |
 | `say`             | `say`             |
 | `warn`            | `warn`            |
-| `ask`             | `ask` (see note*) |
+| `ask`             | `ask`             |
 | `exit`            | `exit`            |
 | `abort`           | `abort`           |
 | `isnum`           | `isnum`           |
@@ -1471,24 +1365,18 @@ Note: the following commands are not available at run-time because they only wor
 | `gc.setlevel`     | `gc_setlevel`     |
 | `gc.run`          | `gc_run`          |
 
-\*Note: the C function `sink_ask` can possibly return `SINK_ASYNC` if the host's [`f_ask`](#ctx_new)
-function is asynchronous.  Be sure to check for the value via [`sink_isasync`](#isasync) before
-continuing, unless you're certain `f_ask` is synchronous.
-
 Misc/Helper Functions
 =====================
 
 | Function/Value                          | Description                                           |
 |-----------------------------------------|-------------------------------------------------------|
 | [`NIL`](#NIL)                           | The literal `nil` value                               |
-| [`SINK_ASYNC`](#SINK_ASYNC)             | Special value to indicate an asynchronous result (C only) |
 | [`isPromise`](#isPromise)               | Check if a value is a Promise (TypeScript/JavaScript only) |
 | [`checkPromise`](#checkPromise)         | Check if a value is a Promise and do something (TypeScript/JavaScript only) |
 | [`bool`](#bool)                         | Convert a boolean to a sink value                     |
 | [`isnil`](#isnil)                       | Test if a sink value is `nil`                         |
 | [`isfalse`](#isfalse)                   | Test if a sink value is false (`nil`)                 |
 | [`istrue`](#istrue)                     | Test if a sink value is true (non-`nil`)              |
-| [`isasync`](#isasync)                   | Test if a sink value is `SINK_ASYNC` (C only)         |
 | [`typeof`](#typeof)                     | Get the type of a sink value                          |
 | [`castnum`](#castnum)                   | Reinterpret a sink value as a number (C only)         |
 | [`num`](#num)                           | Convert a number to a sink value (C only)             |
@@ -1545,8 +1433,6 @@ function sink.isfalse(v: sink.val): boolean;
 
 bool sink_istrue(sink_val v);
 function sink.istrue(v: sink.val): boolean;
-
-bool sink_isasync(sink_val v);
 
 sink_type sink_typeof(sink_val v);
 function sink.sink_typeof(v: sink.val): sink.type;

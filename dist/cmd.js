@@ -112,7 +112,7 @@
                         if (!written)
                             printscrerr(scr);
                         if (sink.scr_level(scr) <= 0) {
-                            sink.checkPromise(sink.ctx_run(ctx), function (res) {
+                            sink.ctx_run(ctx, function (ctx, res) {
                                 switch (res) {
                                     case sink.run.PASS:
                                         resolve(true);
@@ -148,10 +148,12 @@
                 return false;
             }
             var ctx = newctx(scr, argv);
-            return sink.checkPromise(sink.ctx_run(ctx), function (res) {
-                if (res == sink.run.FAIL)
-                    printctxerr(ctx);
-                return res == sink.run.PASS;
+            return new Promise(function (resolve, reject) {
+                sink.ctx_run(ctx, function (ctx, res) {
+                    if (res == sink.run.FAIL)
+                        printctxerr(ctx);
+                    resolve(res == sink.run.PASS);
+                });
             });
         });
     }
@@ -162,10 +164,12 @@
                 return false;
             }
             var ctx = newctx(scr, argv);
-            return sink.checkPromise(sink.ctx_run(ctx), function (res) {
-                if (res == sink.run.FAIL)
-                    printctxerr(ctx);
-                return res == sink.run.PASS;
+            return new Promise(function (resolve, reject) {
+                sink.ctx_run(ctx, function (ctx, res) {
+                    if (res == sink.run.FAIL)
+                        printctxerr(ctx);
+                    resolve(res == sink.run.PASS);
+                });
             });
         });
     }

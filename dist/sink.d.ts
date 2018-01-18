@@ -27,12 +27,20 @@ export declare enum gc_level {
     DEFAULT = 1,
     LOWMEM = 2,
 }
+export declare enum run {
+    PASS = 0,
+    FAIL = 1,
+    ASYNC = 2,
+    TIMEOUT = 3,
+    REPLMORE = 4,
+}
 export declare type output_f = (ctx: ctx, str: str, iouser: any) => void | Promise<void>;
 export declare type input_f = (ctx: ctx, str: str, iouser: any) => val | Promise<val>;
 export declare type native_f = (ctx: ctx, args: val[], natuser: any) => val | Promise<val>;
 export declare type fstype_f = (file: string, incuser: any) => fstype | Promise<fstype>;
 export declare type fsread_f = (scr: scr, file: string, incuser: any) => boolean | Promise<boolean>;
 export declare type dump_f = (data: string, dumpuser: any) => void;
+export declare type rundone_f = (ctx: ctx, result: run) => void;
 export interface io_st {
     f_say?: output_f;
     f_warn?: output_f;
@@ -44,14 +52,7 @@ export interface inc_st {
     f_fsread: fsread_f;
     user?: any;
 }
-export declare enum run {
-    PASS = 0,
-    FAIL = 1,
-    ASYNC = 2,
-    TIMEOUT = 3,
-    REPLMORE = 4,
-}
-export declare enum ctx_status {
+export declare enum status {
     READY = 0,
     WAITING = 1,
     PASSED = 2,
@@ -158,7 +159,7 @@ export declare function scr_geterr(scr: scr): strnil;
 export declare function scr_level(scr: scr): number;
 export declare function scr_dump(scr: scr, debug: boolean, user: any, f_dump: dump_f): void;
 export declare function ctx_new(scr: scr, io: io_st): ctx;
-export declare function ctx_getstatus(ctx: ctx): ctx_status;
+export declare function ctx_getstatus(ctx: ctx): status;
 export declare function ctx_native(ctx: ctx, name: string, natuser: any, f_native: native_f): void;
 export declare function ctx_nativehash(ctx: ctx, hash: u64, natuser: any, f_native: native_f): void;
 export declare function ctx_setuser(ctx: ctx, user: any): void;
@@ -169,7 +170,7 @@ export declare function ctx_settimeout(ctx: ctx, timeout: number): void;
 export declare function ctx_gettimeout(ctx: ctx): number;
 export declare function ctx_consumeticks(ctx: ctx, amount: number): void;
 export declare function ctx_forcetimeout(ctx: ctx): void;
-export declare function ctx_run(ctx: ctx): run | Promise<run>;
+export declare function ctx_run(ctx: ctx, f_rundone: rundone_f): void;
 export declare function ctx_geterr(ctx: ctx): strnil;
 export declare function arg_bool(args: val[], index: number): boolean;
 export declare function arg_num(ctx: ctx, args: val[], index: number): number;

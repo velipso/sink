@@ -47,12 +47,21 @@ export enum gc_level {
 	LOWMEM
 }
 
+export enum run {
+	PASS,
+	FAIL,
+	ASYNC,
+	TIMEOUT,
+	REPLMORE
+}
+
 export type output_f = (ctx: ctx, str: str, iouser: any) => void | Promise<void>;
 export type input_f = (ctx: ctx, str: str, iouser: any) => val | Promise<val>;
 export type native_f = (ctx: ctx, args: val[], natuser: any) => val | Promise<val>;
 export type fstype_f = (file: string, incuser: any) => fstype | Promise<fstype>;
 export type fsread_f = (scr: scr, file: string, incuser: any) => boolean | Promise<boolean>;
 export type dump_f = (data: string, dumpuser: any) => void;
+export type rundone_f = (ctx: ctx, result: run) => void;
 
 export interface io_st {
 	f_say?: output_f;
@@ -65,14 +74,6 @@ export interface inc_st {
 	f_fstype: fstype_f;
 	f_fsread: fsread_f;
 	user?: any;
-}
-
-export enum run {
-	PASS,
-	FAIL,
-	ASYNC,
-	TIMEOUT,
-	REPLMORE
 }
 
 export enum status {
@@ -10732,14 +10733,20 @@ const txt_int_clz      = 'counting leading zeros';
 const txt_int_pop      = 'population count';
 const txt_int_bswap    = 'byte swaping';
 
-function context_run(ctx: context_st): run | Promise<run> {
-	if (ctx.passed) return run.PASS;
-	if (ctx.failed) return run.FAIL;
-	if (ctx.async ) return run.ASYNC;
+function context_run(ctx: context_st, f_rundone: rundone_f): void {
+	function RUNDONE(result: run): void {
+		if (result === run.PASS || result === run.FAIL)
+			context_reset(ctx);
+		f_rundone(ctx, result);
+	}
+
+	if (ctx.passed) return RUNDONE(run.PASS);
+	if (ctx.failed) return RUNDONE(run.FAIL);
+	if (ctx.async ) return;
 
 	if (ctx.timeout > 0 && ctx.timeout_left <= 0){
 		ctx.timeout_left = ctx.timeout;
-		return run.TIMEOUT;
+		return RUNDONE(run.TIMEOUT);
 	}
 
 	let A: number = 0, B: number = 0, C: number = 0, D: number = 0, E: number = 0;
@@ -10853,7 +10860,7 @@ function context_run(ctx: context_st): run | Promise<run> {
 				LOAD_ab();
 				X = var_get(ctx, A, B);
 				if (!isnum(X))
-					return opi_abort(ctx, 'Expecting number when incrementing');
+					return RUNDONE(opi_abort(ctx, 'Expecting number when incrementing'));
 				var_set(ctx, A, B, X + 1);
 			} break;
 
@@ -10950,14 +10957,14 @@ function context_run(ctx: context_st): run | Promise<run> {
 				LOAD_abcd();
 				var_set(ctx, A, B, size(ctx, var_get(ctx, C, D)));
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 			} break;
 
 			case op_enum.TONUM          : { // [TGT], [SRC]
 				LOAD_abcd();
 				var_set(ctx, A, B, tonum(ctx, var_get(ctx, C, D)));
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 			} break;
 
 			case op_enum.CAT            : { // [TGT], ARGCOUNT, [ARGS]...
@@ -10975,7 +10982,7 @@ function context_run(ctx: context_st): run | Promise<run> {
 				else{
 					var_set(ctx, A, B, str_cat(ctx, p));
 					if (ctx.failed)
-						return run.FAIL;
+						return RUNDONE(run.FAIL);
 				}
 			} break;
 
@@ -10987,7 +10994,7 @@ function context_run(ctx: context_st): run | Promise<run> {
 					(isnum(X) && isnum(Y)))
 					var_set(ctx, A, B, bool(X < Y));
 				else
-					return opi_abort(ctx, 'Expecting numbers or strings');
+					return RUNDONE(opi_abort(ctx, 'Expecting numbers or strings'));
 			} break;
 
 			case op_enum.LTE            : { // [TGT], [SRC1], [SRC2]
@@ -10998,7 +11005,7 @@ function context_run(ctx: context_st): run | Promise<run> {
 					(isnum(X) && isnum(Y)))
 					var_set(ctx, A, B, bool(X <= Y));
 				else
-					return opi_abort(ctx, 'Expecting numbers or strings');
+					return RUNDONE(opi_abort(ctx, 'Expecting numbers or strings'));
 			} break;
 
 			case op_enum.NEQ            : { // [TGT], [SRC1], [SRC2]
@@ -11019,10 +11026,10 @@ function context_run(ctx: context_st): run | Promise<run> {
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				if (!islist(X) && !isstr(X))
-					return opi_abort(ctx, 'Expecting list or string when indexing');
+					return RUNDONE(opi_abort(ctx, 'Expecting list or string when indexing'));
 				Y = var_get(ctx, E, F);
 				if (!isnum(Y))
-					return opi_abort(ctx, 'Expecting index to be number');
+					return RUNDONE(opi_abort(ctx, 'Expecting index to be number'));
 				I = Y;
 				if (islist(X)){
 					ls = X;
@@ -11054,17 +11061,17 @@ function context_run(ctx: context_st): run | Promise<run> {
 				else
 					var_set(ctx, A, B, str_slice(ctx, X, Y, Z));
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 			} break;
 
 			case op_enum.SETAT          : { // [SRC1], [SRC2], [SRC3]
 				LOAD_abcdef();
 				X = var_get(ctx, A, B);
 				if (!islist(X))
-					return opi_abort(ctx, 'Expecting list when setting index');
+					return RUNDONE(opi_abort(ctx, 'Expecting list when setting index'));
 				Y = var_get(ctx, C, D);
 				if (!isnum(Y))
-					return opi_abort(ctx, 'Expecting index to be number');
+					return RUNDONE(opi_abort(ctx, 'Expecting index to be number'));
 				ls = X;
 				A = Y;
 				if (A < 0)
@@ -11086,7 +11093,7 @@ function context_run(ctx: context_st): run | Promise<run> {
 				else if (isstr(X))
 					var_set(ctx, A, B, str_splice(ctx, X, Y, Z, W));
 				else
-					return opi_abort(ctx, 'Expecting list or string when splicing');
+					return RUNDONE(opi_abort(ctx, 'Expecting list or string when splicing'));
 			} break;
 
 			case op_enum.JUMP           : { // [[LOCATION]]
@@ -11094,7 +11101,7 @@ function context_run(ctx: context_st): run | Promise<run> {
 				A = A + (B << 8) + (C << 16) + ((D << 23) * 2);
 				if (ctx.prg.repl && A === 0xFFFFFFFF){
 					ctx.pc -= 5;
-					return run.REPLMORE;
+					return RUNDONE(run.REPLMORE);
 				}
 				ctx.pc = A;
 			} break;
@@ -11105,7 +11112,7 @@ function context_run(ctx: context_st): run | Promise<run> {
 				if (var_get(ctx, A, B) !== null){
 					if (ctx.prg.repl && C === 0xFFFFFFFF){
 						ctx.pc -= 7;
-						return run.REPLMORE;
+						return RUNDONE(run.REPLMORE);
 					}
 					ctx.pc = C;
 				}
@@ -11117,7 +11124,7 @@ function context_run(ctx: context_st): run | Promise<run> {
 				if (var_get(ctx, A, B) === null){
 					if (ctx.prg.repl && C === 0xFFFFFFFF){
 						ctx.pc -= 7;
-						return run.REPLMORE;
+						return RUNDONE(run.REPLMORE);
 					}
 					ctx.pc = C;
 				}
@@ -11139,7 +11146,7 @@ function context_run(ctx: context_st): run | Promise<run> {
 				C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
 				if (C === 0xFFFFFFFF){
 					ctx.pc -= 8;
-					return run.REPLMORE;
+					return RUNDONE(run.REPLMORE);
 				}
 				let p: val[] = [];
 				for (I = 0; I < G; I++){
@@ -11193,33 +11200,34 @@ function context_run(ctx: context_st): run | Promise<run> {
 				else
 					nat = ctx.natives[C];
 				if (nat === null || nat.f_native === null)
-					return opi_abort(ctx, 'Native call not implemented');
+					return RUNDONE(opi_abort(ctx, 'Native call not implemented'));
 				let nr: val | Promise<val> = null;
 				try {
 					nr = nat.f_native(ctx, p, nat.natuser);
 				}
 				catch (e){
-					return opi_abort(ctx, '' + e);
+					return RUNDONE(opi_abort(ctx, '' + e));
 				}
 				if (isPromise<val>(nr)){
 					ctx.async = true;
-					return nr.then(function(res: val){
+					nr.then(function(res: val){
 						ctx.async = false;
 						var_set(ctx, A, B, res);
-						return context_run(ctx);
+						context_run(ctx, f_rundone);
 					}, function(err){
 						ctx.async = false;
-						return opi_abort(ctx, '' + err);
+						RUNDONE(opi_abort(ctx, '' + err));
 					});
+					return;
 				}
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 				var_set(ctx, A, B, nr);
 			} break;
 
 			case op_enum.RETURN         : { // [SRC]
 				if (ctx.call_stk.length <= 0)
-					return opi_exit(ctx);
+					return RUNDONE(opi_exit(ctx));
 				LOAD_ab();
 				X = var_get(ctx, A, B);
 				let s = ctx.call_stk.pop() as ccs_st;
@@ -11237,7 +11245,7 @@ function context_run(ctx: context_st): run | Promise<run> {
 				A = A + (B << 8) + (C << 16) + ((D << 23) * 2);
 				if (A === 0xFFFFFFFF){
 					ctx.pc -= 6;
-					return run.REPLMORE;
+					return RUNDONE(run.REPLMORE);
 				}
 				let p: val[] = [];
 				for (I = 0; I < E; I++){
@@ -11272,24 +11280,24 @@ function context_run(ctx: context_st): run | Promise<run> {
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
 				if (!isnum(X))
-					return opi_abort(ctx, 'Expecting number for range');
+					return RUNDONE(opi_abort(ctx, 'Expecting number for range'));
 				if (isnum(Y)){
 					if (isnil(Z))
 						Z = 1;
 					if (!isnum(Z))
-						return opi_abort(ctx, 'Expecting number for range step');
+						return RUNDONE(opi_abort(ctx, 'Expecting number for range step'));
 					X = range(ctx, X, Y, Z);
 				}
 				else if (isnil(Y)){
 					if (!isnil(Z))
-						return opi_abort(ctx, 'Expecting number for range stop');
+						return RUNDONE(opi_abort(ctx, 'Expecting number for range stop'));
 					X = range(ctx, 0, X, 1);
 				}
 				else
-					return opi_abort(ctx, 'Expecting number for range stop');
+					return RUNDONE(opi_abort(ctx, 'Expecting number for range stop'));
 				var_set(ctx, A, B, X);
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 			} break;
 
 			case op_enum.ORDER          : { // [TGT], [SRC1], [SRC2]
@@ -11311,22 +11319,23 @@ function context_run(ctx: context_st): run | Promise<run> {
 					res = say(ctx, p);
 				}
 				catch (e){
-					return opi_abort(ctx, '' + e);
+					return RUNDONE(opi_abort(ctx, '' + e));
 				}
 				if (isPromise<undefined>(res)){
 					ctx.async = true;
-					return res.then(function(){
+					res.then(function(){
 						ctx.async = false;
 						var_set(ctx, A, B, NIL);
-						return context_run(ctx);
+						context_run(ctx, f_rundone);
 					}, function(err){
 						ctx.async = false;
-						return opi_abort(ctx, '' + err);
+						RUNDONE(opi_abort(ctx, '' + err));
 					});
+					return;
 				}
 				var_set(ctx, A, B, NIL);
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 			} break;
 
 			case op_enum.WARN           : { // [TGT], ARGCOUNT, [ARGS]...
@@ -11341,22 +11350,23 @@ function context_run(ctx: context_st): run | Promise<run> {
 					res = warn(ctx, p);
 				}
 				catch (e){
-					return opi_abort(ctx, '' + e);
+					return RUNDONE(opi_abort(ctx, '' + e));
 				}
 				if (isPromise<undefined>(res)){
 					ctx.async = true;
-					return res.then(function(){
+					res.then(function(){
 						ctx.async = false;
 						var_set(ctx, A, B, NIL);
-						return context_run(ctx);
+						context_run(ctx, f_rundone);
 					}, function(err){
 						ctx.async = false;
-						return opi_abort(ctx, '' + err);
+						RUNDONE(opi_abort(ctx, '' + err));
 					});
+					return;
 				}
 				var_set(ctx, A, B, NIL);
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 			} break;
 
 			case op_enum.ASK            : { // [TGT], ARGCOUNT, [ARGS]...
@@ -11371,22 +11381,23 @@ function context_run(ctx: context_st): run | Promise<run> {
 					res = ask(ctx, p);
 				}
 				catch (e){
-					return opi_abort(ctx, '' + e);
+					return RUNDONE(opi_abort(ctx, '' + e));
 				}
 				if (isPromise<val>(res)){
 					ctx.async = true;
-					return res.then(function(v: val){
+					res.then(function(v: val){
 						ctx.async = false;
 						var_set(ctx, A, B, v);
-						return context_run(ctx);
+						context_run(ctx, f_rundone);
 					}, function(err){
 						ctx.async = false;
-						return opi_abort(ctx, '' + err);
+						RUNDONE(opi_abort(ctx, '' + err));
 					});
+					return;
 				}
 				var_set(ctx, A, B, res);
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 			} break;
 
 			case op_enum.EXIT           : { // [TGT], ARGCOUNT, [ARGS]...
@@ -11402,22 +11413,23 @@ function context_run(ctx: context_st): run | Promise<run> {
 						res = say(ctx, p);
 					}
 					catch (e){
-						return opi_abort(ctx, '' + e);
+						return RUNDONE(opi_abort(ctx, '' + e));
 					}
 					if (isPromise<undefined>(res)){
 						ctx.async = true;
-						return res.then(function(){
+						res.then(function(){
 							ctx.async = false;
-							return opi_exit(ctx);
+							RUNDONE(opi_exit(ctx));
 						}, function(err){
 							ctx.async = false;
-							return opi_abort(ctx, '' + err);
+							RUNDONE(opi_abort(ctx, '' + err));
 						});
+						return;
 					}
 					if (ctx.failed)
-						return run.FAIL;
+						return RUNDONE(run.FAIL);
 				}
-				return opi_exit(ctx);
+				return RUNDONE(opi_exit(ctx));
 			}
 
 			case op_enum.ABORT          : { // [TGT], ARGCOUNT, [ARGS]...
@@ -11431,7 +11443,7 @@ function context_run(ctx: context_st): run | Promise<run> {
 					}
 					err = list_joinplain(p, ' ') as string;
 				}
-				return opi_abort(ctx, err);
+				return RUNDONE(opi_abort(ctx, err));
 			}
 
 			case op_enum.STACKTRACE     : { // [TGT]
@@ -11442,55 +11454,55 @@ function context_run(ctx: context_st): run | Promise<run> {
 			case op_enum.NUM_NEG        : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_neg, txt_num_neg)
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 			} break;
 
 			case op_enum.NUM_ADD        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_num_add, txt_num_add)
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 			} break;
 
 			case op_enum.NUM_SUB        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_num_sub, txt_num_sub)
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 			} break;
 
 			case op_enum.NUM_MUL        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_num_mul, txt_num_mul)
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 			} break;
 
 			case op_enum.NUM_DIV        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_num_div, txt_num_div)
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 			} break;
 
 			case op_enum.NUM_MOD        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_num_mod, txt_num_mod)
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 			} break;
 
 			case op_enum.NUM_POW        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_num_pow, txt_num_pow)
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 			} break;
 
 			case op_enum.NUM_ABS        : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_abs, txt_num_abs)
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 			} break;
 
 			case op_enum.NUM_SIGN       : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_sign, txt_num_sign)
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 			} break;
 
 			case op_enum.NUM_MAX        : { // [TGT], ARGCOUNT, [ARGS]...
@@ -11516,31 +11528,31 @@ function context_run(ctx: context_st): run | Promise<run> {
 			case op_enum.NUM_CLAMP      : { // [TGT], [SRC1], [SRC2], [SRC3]
 				INLINE_TRIOP(triop_num_clamp, txt_num_clamp)
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 			} break;
 
 			case op_enum.NUM_FLOOR      : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_floor, txt_num_floor)
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 			} break;
 
 			case op_enum.NUM_CEIL       : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_ceil, txt_num_ceil)
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 			} break;
 
 			case op_enum.NUM_ROUND      : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_round, txt_num_round)
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 			} break;
 
 			case op_enum.NUM_TRUNC      : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_trunc, txt_num_trunc)
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 			} break;
 
 			case op_enum.NUM_NAN        : { // [TGT]
@@ -11556,118 +11568,118 @@ function context_run(ctx: context_st): run | Promise<run> {
 			case op_enum.NUM_ISNAN      : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_isnan, txt_num_isnan)
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 			} break;
 
 			case op_enum.NUM_ISFINITE   : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_isfinite, txt_num_isfinite)
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 			} break;
 
 			case op_enum.NUM_SIN        : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_sin, txt_num_sin)
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 			} break;
 
 			case op_enum.NUM_COS        : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_cos, txt_num_cos)
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 			} break;
 
 			case op_enum.NUM_TAN        : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_tan, txt_num_tan)
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 			} break;
 
 			case op_enum.NUM_ASIN       : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_asin, txt_num_asin)
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 			} break;
 
 			case op_enum.NUM_ACOS       : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_acos, txt_num_acos)
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 			} break;
 
 			case op_enum.NUM_ATAN       : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_atan, txt_num_atan)
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 			} break;
 
 			case op_enum.NUM_ATAN2      : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_num_atan2, txt_num_atan)
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 			} break;
 
 			case op_enum.NUM_LOG        : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_log, txt_num_log)
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 			} break;
 
 			case op_enum.NUM_LOG2       : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_log2, txt_num_log)
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 			} break;
 
 			case op_enum.NUM_LOG10      : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_log10, txt_num_log)
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 			} break;
 
 			case op_enum.NUM_EXP        : { // [TGT], [SRC]
 				INLINE_UNOP(unop_num_exp, txt_num_pow)
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 			} break;
 
 			case op_enum.NUM_LERP       : { // [TGT], [SRC1], [SRC2], [SRC3]
 				INLINE_TRIOP(triop_num_lerp, txt_num_lerp)
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 			} break;
 
 			case op_enum.NUM_HEX        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP_T(binop_num_hex, txt_num_hex, LT_ALLOWNUM,
 					LT_ALLOWNUM | LT_ALLOWNIL)
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 			} break;
 
 			case op_enum.NUM_OCT        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP_T(binop_num_oct, txt_num_oct, LT_ALLOWNUM,
 					LT_ALLOWNUM | LT_ALLOWNIL)
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 			} break;
 
 			case op_enum.NUM_BIN        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP_T(binop_num_bin, txt_num_bin, LT_ALLOWNUM,
 					LT_ALLOWNUM | LT_ALLOWNIL)
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 			} break;
 
 			case op_enum.INT_NEW        : { // [TGT], [SRC]
 				INLINE_UNOP(unop_int_new, txt_int_new)
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 			} break;
 
 			case op_enum.INT_NOT        : { // [TGT], [SRC]
 				INLINE_UNOP(unop_int_not, txt_int_not)
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 			} break;
 
 			case op_enum.INT_AND        : { // [TGT], ARGCOUNT, [ARGS]...
@@ -11679,7 +11691,7 @@ function context_run(ctx: context_st): run | Promise<run> {
 				}
 				X = opi_combop(ctx, p, binop_int_and, txt_int_and);
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11692,7 +11704,7 @@ function context_run(ctx: context_st): run | Promise<run> {
 				}
 				X = opi_combop(ctx, p, binop_int_or, txt_int_or);
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11705,74 +11717,74 @@ function context_run(ctx: context_st): run | Promise<run> {
 				}
 				X = opi_combop(ctx, p, binop_int_xor, txt_int_xor);
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
 			case op_enum.INT_SHL        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_int_shl, txt_int_shl)
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 			} break;
 
 			case op_enum.INT_SHR        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_int_shr, txt_int_shr)
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 			} break;
 
 			case op_enum.INT_SAR        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_int_sar, txt_int_shr)
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 			} break;
 
 			case op_enum.INT_ADD        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_int_add, txt_num_add)
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 			} break;
 
 			case op_enum.INT_SUB        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_int_sub, txt_num_sub)
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 			} break;
 
 			case op_enum.INT_MUL        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_int_mul, txt_num_mul)
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 			} break;
 
 			case op_enum.INT_DIV        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_int_div, txt_num_div)
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 			} break;
 
 			case op_enum.INT_MOD        : { // [TGT], [SRC1], [SRC2]
 				INLINE_BINOP(binop_int_mod, txt_num_mod)
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 			} break;
 
 			case op_enum.INT_CLZ        : { // [TGT], [SRC]
 				INLINE_UNOP(unop_int_clz, txt_int_clz)
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 			} break;
 
 			case op_enum.INT_POP        : { // [TGT], [SRC]
 				INLINE_UNOP(unop_int_pop, txt_int_pop)
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 			} break;
 
 			case op_enum.INT_BSWAP      : { // [TGT], [SRC]
 				INLINE_UNOP(unop_int_bswap, txt_int_bswap)
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 			} break;
 
 			case op_enum.RAND_SEED      : { // [TGT], [SRC]
@@ -11781,7 +11793,7 @@ function context_run(ctx: context_st): run | Promise<run> {
 				if (isnil(X))
 					X = 0;
 				else if (!isnum(X))
-					return opi_abort(ctx, 'Expecting number');
+					return RUNDONE(opi_abort(ctx, 'Expecting number'));
 				rand_seed(ctx, X);
 				var_set(ctx, A, B, NIL);
 			} break;
@@ -11811,7 +11823,7 @@ function context_run(ctx: context_st): run | Promise<run> {
 				LOAD_abcd();
 				rand_setstate(ctx, var_get(ctx, C, D));
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 				var_set(ctx, A, B, NIL);
 			} break;
 
@@ -11819,7 +11831,7 @@ function context_run(ctx: context_st): run | Promise<run> {
 				LOAD_abcd();
 				X = rand_pick(ctx, var_get(ctx, C, D));
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11828,7 +11840,7 @@ function context_run(ctx: context_st): run | Promise<run> {
 				X = var_get(ctx, C, D);
 				rand_shuffle(ctx, X);
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11848,7 +11860,7 @@ function context_run(ctx: context_st): run | Promise<run> {
 				Y = var_get(ctx, E, F);
 				X = str_split(ctx, X, Y);
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11859,7 +11871,7 @@ function context_run(ctx: context_st): run | Promise<run> {
 				Z = var_get(ctx, G, H);
 				X = str_replace(ctx, X, Y, Z);
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11869,7 +11881,7 @@ function context_run(ctx: context_st): run | Promise<run> {
 				Y = var_get(ctx, E, F);
 				X = bool(str_begins(ctx, X, Y));
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11879,7 +11891,7 @@ function context_run(ctx: context_st): run | Promise<run> {
 				Y = var_get(ctx, E, F);
 				X = bool(str_ends(ctx, X, Y));
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11890,10 +11902,10 @@ function context_run(ctx: context_st): run | Promise<run> {
 				if (isnil(Y))
 					Y = 0;
 				else if (!isnum(Y))
-					return opi_abort(ctx, 'Expecting number');
+					return RUNDONE(opi_abort(ctx, 'Expecting number'));
 				X = str_pad(ctx, X, Y);
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11904,7 +11916,7 @@ function context_run(ctx: context_st): run | Promise<run> {
 				Z = var_get(ctx, G, H);
 				X = str_find(ctx, X, Y, Z);
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11915,7 +11927,7 @@ function context_run(ctx: context_st): run | Promise<run> {
 				Z = var_get(ctx, G, H);
 				X = str_rfind(ctx, X, Y, Z);
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11924,7 +11936,7 @@ function context_run(ctx: context_st): run | Promise<run> {
 				X = var_get(ctx, C, D);
 				X = str_lower(ctx, X);
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11933,7 +11945,7 @@ function context_run(ctx: context_st): run | Promise<run> {
 				X = var_get(ctx, C, D);
 				X = str_upper(ctx, X);
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11942,7 +11954,7 @@ function context_run(ctx: context_st): run | Promise<run> {
 				X = var_get(ctx, C, D);
 				X = str_trim(ctx, X);
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11951,7 +11963,7 @@ function context_run(ctx: context_st): run | Promise<run> {
 				X = var_get(ctx, C, D);
 				X = str_rev(ctx, X);
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11962,10 +11974,10 @@ function context_run(ctx: context_st): run | Promise<run> {
 				if (isnil(Y))
 					Y = 0;
 				else if (!isnum(Y))
-					return opi_abort(ctx, 'Expecting number');
+					return RUNDONE(opi_abort(ctx, 'Expecting number'));
 				X = str_rep(ctx, X, Y);
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11974,7 +11986,7 @@ function context_run(ctx: context_st): run | Promise<run> {
 				X = var_get(ctx, C, D);
 				X = str_list(ctx, X);
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11985,10 +11997,10 @@ function context_run(ctx: context_st): run | Promise<run> {
 				if (isnil(Y))
 					Y = 0;
 				else if (!isnum(Y))
-					return opi_abort(ctx, 'Expecting number');
+					return RUNDONE(opi_abort(ctx, 'Expecting number'));
 				X = str_byte(ctx, X, Y);
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -11999,10 +12011,10 @@ function context_run(ctx: context_st): run | Promise<run> {
 				if (isnil(Y))
 					Y = 0;
 				else if (!isnum(Y))
-					return opi_abort(ctx, 'Expecting number');
+					return RUNDONE(opi_abort(ctx, 'Expecting number'));
 				X = str_hash(ctx, X, Y);
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -12017,7 +12029,7 @@ function context_run(ctx: context_st): run | Promise<run> {
 				X = var_get(ctx, C, D);
 				X = utf8_list(ctx, X);
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -12026,7 +12038,7 @@ function context_run(ctx: context_st): run | Promise<run> {
 				X = var_get(ctx, C, D);
 				X = utf8_str(ctx, X);
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -12041,7 +12053,7 @@ function context_run(ctx: context_st): run | Promise<run> {
 				Y = var_get(ctx, E, F);
 				X = struct_str(ctx, X, Y);
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -12051,7 +12063,7 @@ function context_run(ctx: context_st): run | Promise<run> {
 				Y = var_get(ctx, E, F);
 				X = struct_list(ctx, X, Y);
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -12066,7 +12078,7 @@ function context_run(ctx: context_st): run | Promise<run> {
 				Y = var_get(ctx, E, F);
 				X = list_new(ctx, X, Y);
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -12075,7 +12087,7 @@ function context_run(ctx: context_st): run | Promise<run> {
 				X = var_get(ctx, C, D);
 				X = list_shift(ctx, X);
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -12084,7 +12096,7 @@ function context_run(ctx: context_st): run | Promise<run> {
 				X = var_get(ctx, C, D);
 				X = list_pop(ctx, X);
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -12094,7 +12106,7 @@ function context_run(ctx: context_st): run | Promise<run> {
 				Y = var_get(ctx, E, F);
 				X = list_push(ctx, X, Y);
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -12104,7 +12116,7 @@ function context_run(ctx: context_st): run | Promise<run> {
 				Y = var_get(ctx, E, F);
 				X = list_unshift(ctx, X, Y);
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -12114,7 +12126,7 @@ function context_run(ctx: context_st): run | Promise<run> {
 				Y = var_get(ctx, E, F);
 				X = list_append(ctx, X, Y);
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -12124,7 +12136,7 @@ function context_run(ctx: context_st): run | Promise<run> {
 				Y = var_get(ctx, E, F);
 				X = list_prepend(ctx, X, Y);
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -12135,7 +12147,7 @@ function context_run(ctx: context_st): run | Promise<run> {
 				Z = var_get(ctx, G, H);
 				X = list_find(ctx, X, Y, Z);
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -12146,7 +12158,7 @@ function context_run(ctx: context_st): run | Promise<run> {
 				Z = var_get(ctx, G, H);
 				X = list_rfind(ctx, X, Y, Z);
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -12156,7 +12168,7 @@ function context_run(ctx: context_st): run | Promise<run> {
 				Y = var_get(ctx, E, F);
 				X = list_join(ctx, X, Y);
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -12165,7 +12177,7 @@ function context_run(ctx: context_st): run | Promise<run> {
 				X = var_get(ctx, C, D);
 				X = list_rev(ctx, X);
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -12174,7 +12186,7 @@ function context_run(ctx: context_st): run | Promise<run> {
 				X = var_get(ctx, C, D);
 				X = list_str(ctx, X);
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -12183,7 +12195,7 @@ function context_run(ctx: context_st): run | Promise<run> {
 				X = var_get(ctx, C, D);
 				list_sort(ctx, X);
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -12192,7 +12204,7 @@ function context_run(ctx: context_st): run | Promise<run> {
 				X = var_get(ctx, C, D);
 				list_rsort(ctx, X);
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -12201,7 +12213,7 @@ function context_run(ctx: context_st): run | Promise<run> {
 				X = var_get(ctx, C, D);
 				X = pickle_json(ctx, X);
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -12210,7 +12222,7 @@ function context_run(ctx: context_st): run | Promise<run> {
 				X = var_get(ctx, C, D);
 				X = pickle_bin(ctx, X);
 				if (ctx.failed) // can fail in C impl because of type.ASYNC
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -12219,7 +12231,7 @@ function context_run(ctx: context_st): run | Promise<run> {
 				X = var_get(ctx, C, D);
 				X = pickle_val(ctx, X);
 				if (ctx.failed)
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -12247,7 +12259,7 @@ function context_run(ctx: context_st): run | Promise<run> {
 				X = var_get(ctx, C, D);
 				X = pickle_copy(ctx, X);
 				if (ctx.failed) // can fail in C impl because of type.ASYNC
-					return run.FAIL;
+					return RUNDONE(run.FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -12261,7 +12273,7 @@ function context_run(ctx: context_st): run | Promise<run> {
 				X = var_get(ctx, C, D);
 				if (!isnum(X) ||
 					(X !== gc_level.NONE && X !== gc_level.DEFAULT && X !== gc_level.LOWMEM))
-					return opi_abort(ctx, 'Expecting one of gc.NONE, gc.DEFAULT, or gc.LOWMEM');
+					return RUNDONE(opi_abort(ctx, 'Expecting one of gc.NONE, gc.DEFAULT, or gc.LOWMEM'));
 				ctx.gc_level = X;
 				var_set(ctx, A, B, NIL);
 			} break;
@@ -12277,14 +12289,14 @@ function context_run(ctx: context_st): run | Promise<run> {
 			ctx.timeout_left--;
 			if (ctx.timeout_left <= 0){
 				ctx.timeout_left = ctx.timeout;
-				return run.TIMEOUT;
+				return RUNDONE(run.TIMEOUT);
 			}
 		}
 	}
 
 	if (ctx.prg.repl)
-		return run.REPLMORE;
-	return opi_exit(ctx);
+		return RUNDONE(run.REPLMORE);
+	return RUNDONE(opi_exit(ctx));
 }
 
 //
@@ -13260,14 +13272,11 @@ export function ctx_forcetimeout(ctx: ctx): void {
 	(ctx as context_st).timeout_left = 0;
 }
 
-export function ctx_run(ctx: ctx): run | Promise<run> {
+export function ctx_run(ctx: ctx, f_rundone: rundone_f): void {
 	let ctx2 = ctx as context_st;
 	if (ctx2.prg.repl && ctx2.err)
 		ctx2.err = null;
-	let r = context_run(ctx2);
-	if (r === run.PASS || r === run.FAIL)
-		context_reset(ctx2);
-	return r;
+	context_run(ctx2, f_rundone);
 }
 
 export function ctx_geterr(ctx: ctx): strnil {

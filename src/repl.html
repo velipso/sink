@@ -196,19 +196,16 @@ function readLine(){
 					});
 				}
 				if (sink.scr_level(sk_scr) <= 0){
-					checkPromise(
-						sink.ctx_run(sk_ctx),
-						function(res){
-							if (res === sink.run.PASS)
-								return;
-							else if (res === sink.run.FAIL){
-								sink.ctx_geterr(sk_ctx).split('\n').forEach(function(err){
-									lines.push('#f00', err);
-								});
-							}
-							readLine();
+					sink.ctx_run(sk_ctx, function(ctx, res){
+						if (res === sink.run.PASS)
+							return;
+						else if (res === sink.run.FAIL){
+							sink.ctx_geterr(sk_ctx).split('\n').forEach(function(err){
+								lines.push('#f00', err);
+							});
 						}
-					);
+						readLine();
+					});
 				}
 				else
 					readLine();

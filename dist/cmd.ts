@@ -121,31 +121,28 @@ function main_repl(scr: sink.scr, argv: string[]): Promise<boolean> {
 						if (!written)
 							printscrerr(scr);
 						if (sink.scr_level(scr) <= 0){
-							sink.checkPromise<sink.run, void>(
-								sink.ctx_run(ctx),
-								function(res: sink.run): void {
-									switch (res){
-										case sink.run.PASS:
-											resolve(true);
-											return;
-										case sink.run.FAIL:
-											printctxerr(ctx);
-											break;
-										case sink.run.ASYNC:
-											console.error('REPL invoked async function');
-											resolve(false);
-											return;
-										case sink.run.TIMEOUT:
-											console.error('REPL returned timeout (impossible)');
-											resolve(false);
-											return;
-										case sink.run.REPLMORE:
-											// do nothing
-											break;
-									}
-									nextLine();
+							sink.ctx_run(ctx, function(ctx: sink.ctx, res: sink.run): void {
+								switch (res){
+									case sink.run.PASS:
+										resolve(true);
+										return;
+									case sink.run.FAIL:
+										printctxerr(ctx);
+										break;
+									case sink.run.ASYNC:
+										console.error('REPL invoked async function');
+										resolve(false);
+										return;
+									case sink.run.TIMEOUT:
+										console.error('REPL returned timeout (impossible)');
+										resolve(false);
+										return;
+									case sink.run.REPLMORE:
+										// do nothing
+										break;
 								}
-							);
+								nextLine();
+							});
 						}
 						else
 							nextLine();
@@ -165,14 +162,13 @@ function main_run(scr: sink.scr, file: string, argv: string[]): boolean | Promis
 				return false;
 			}
 			let ctx = newctx(scr, argv);
-			return sink.checkPromise<sink.run, boolean>(
-				sink.ctx_run(ctx),
-				function(res: sink.run): boolean {
+			return new Promise<boolean>(function(resolve, reject): void {
+				sink.ctx_run(ctx, function(ctx: sink.ctx, res: sink.run): void {
 					if (res == sink.run.FAIL)
 						printctxerr(ctx);
-					return res == sink.run.PASS;
-				}
-			);
+					resolve(res == sink.run.PASS);
+				});
+			});
 		}
 	);
 }
@@ -186,14 +182,13 @@ function main_eval(scr: sink.scr, ev: string, argv: string[]): boolean | Promise
 				return false;
 			}
 			let ctx = newctx(scr, argv);
-			return sink.checkPromise<sink.run, boolean>(
-				sink.ctx_run(ctx),
-				function(res: sink.run): boolean {
+			return new Promise<boolean>(function(resolve, reject): void {
+				sink.ctx_run(ctx, function(ctx: sink.ctx, res: sink.run): void {
 					if (res == sink.run.FAIL)
 						printctxerr(ctx);
-					return res == sink.run.PASS;
-				}
-			);
+					resolve(res == sink.run.PASS);
+				});
+			});
 		}
 	);
 }

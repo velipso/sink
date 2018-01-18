@@ -67,13 +67,13 @@ var __extends = (this && this.__extends) || (function () {
         run[run["TIMEOUT"] = 3] = "TIMEOUT";
         run[run["REPLMORE"] = 4] = "REPLMORE";
     })(run = exports.run || (exports.run = {}));
-    var ctx_status;
-    (function (ctx_status) {
-        ctx_status[ctx_status["READY"] = 0] = "READY";
-        ctx_status[ctx_status["WAITING"] = 1] = "WAITING";
-        ctx_status[ctx_status["PASSED"] = 2] = "PASSED";
-        ctx_status[ctx_status["FAILED"] = 3] = "FAILED";
-    })(ctx_status = exports.ctx_status || (exports.ctx_status = {}));
+    var status;
+    (function (status) {
+        status[status["READY"] = 0] = "READY";
+        status[status["WAITING"] = 1] = "WAITING";
+        status[status["PASSED"] = 2] = "PASSED";
+        status[status["FAILED"] = 3] = "FAILED";
+    })(status = exports.status || (exports.status = {}));
     var NAN = Number.NaN;
     exports.NIL = null;
     function isPromise(p) {
@@ -9128,16 +9128,21 @@ var __extends = (this && this.__extends) || (function () {
     var txt_int_clz = 'counting leading zeros';
     var txt_int_pop = 'population count';
     var txt_int_bswap = 'byte swaping';
-    function context_run(ctx) {
+    function context_run(ctx, f_rundone) {
+        function RUNDONE(result) {
+            if (result === run.PASS || result === run.FAIL)
+                context_reset(ctx);
+            f_rundone(ctx, result);
+        }
         if (ctx.passed)
-            return run.PASS;
+            return RUNDONE(run.PASS);
         if (ctx.failed)
-            return run.FAIL;
+            return RUNDONE(run.FAIL);
         if (ctx.async)
-            return run.ASYNC;
+            return;
         if (ctx.timeout > 0 && ctx.timeout_left <= 0) {
             ctx.timeout_left = ctx.timeout;
-            return run.TIMEOUT;
+            return RUNDONE(run.TIMEOUT);
         }
         var A = 0, B = 0, C = 0, D = 0, E = 0;
         var F = 0, G = 0, H = 0, I = 0, J = 0;
@@ -9260,7 +9265,7 @@ var __extends = (this && this.__extends) || (function () {
                         LOAD_ab();
                         X = var_get(ctx, A, B);
                         if (!isnum(X))
-                            return opi_abort(ctx, 'Expecting number when incrementing');
+                            return RUNDONE(opi_abort(ctx, 'Expecting number when incrementing'));
                         var_set(ctx, A, B, X + 1);
                     }
                     break;
@@ -9372,7 +9377,7 @@ var __extends = (this && this.__extends) || (function () {
                         LOAD_abcd();
                         var_set(ctx, A, B, size(ctx, var_get(ctx, C, D)));
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                     }
                     break;
                 case op_enum.TONUM:
@@ -9380,7 +9385,7 @@ var __extends = (this && this.__extends) || (function () {
                         LOAD_abcd();
                         var_set(ctx, A, B, tonum(ctx, var_get(ctx, C, D)));
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                     }
                     break;
                 case op_enum.CAT:
@@ -9400,7 +9405,7 @@ var __extends = (this && this.__extends) || (function () {
                         else {
                             var_set(ctx, A, B, str_cat(ctx, p));
                             if (ctx.failed)
-                                return run.FAIL;
+                                return RUNDONE(run.FAIL);
                         }
                     }
                     break;
@@ -9413,7 +9418,7 @@ var __extends = (this && this.__extends) || (function () {
                             (isnum(X) && isnum(Y)))
                             var_set(ctx, A, B, bool(X < Y));
                         else
-                            return opi_abort(ctx, 'Expecting numbers or strings');
+                            return RUNDONE(opi_abort(ctx, 'Expecting numbers or strings'));
                     }
                     break;
                 case op_enum.LTE:
@@ -9425,7 +9430,7 @@ var __extends = (this && this.__extends) || (function () {
                             (isnum(X) && isnum(Y)))
                             var_set(ctx, A, B, bool(X <= Y));
                         else
-                            return opi_abort(ctx, 'Expecting numbers or strings');
+                            return RUNDONE(opi_abort(ctx, 'Expecting numbers or strings'));
                     }
                     break;
                 case op_enum.NEQ:
@@ -9449,10 +9454,10 @@ var __extends = (this && this.__extends) || (function () {
                         LOAD_abcdef();
                         X = var_get(ctx, C, D);
                         if (!islist(X) && !isstr(X))
-                            return opi_abort(ctx, 'Expecting list or string when indexing');
+                            return RUNDONE(opi_abort(ctx, 'Expecting list or string when indexing'));
                         Y = var_get(ctx, E, F);
                         if (!isnum(Y))
-                            return opi_abort(ctx, 'Expecting index to be number');
+                            return RUNDONE(opi_abort(ctx, 'Expecting index to be number'));
                         I = Y;
                         if (islist(X)) {
                             ls = X;
@@ -9485,7 +9490,7 @@ var __extends = (this && this.__extends) || (function () {
                         else
                             var_set(ctx, A, B, str_slice(ctx, X, Y, Z));
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                     }
                     break;
                 case op_enum.SETAT:
@@ -9493,10 +9498,10 @@ var __extends = (this && this.__extends) || (function () {
                         LOAD_abcdef();
                         X = var_get(ctx, A, B);
                         if (!islist(X))
-                            return opi_abort(ctx, 'Expecting list when setting index');
+                            return RUNDONE(opi_abort(ctx, 'Expecting list when setting index'));
                         Y = var_get(ctx, C, D);
                         if (!isnum(Y))
-                            return opi_abort(ctx, 'Expecting index to be number');
+                            return RUNDONE(opi_abort(ctx, 'Expecting index to be number'));
                         ls = X;
                         A = Y;
                         if (A < 0)
@@ -9519,7 +9524,7 @@ var __extends = (this && this.__extends) || (function () {
                         else if (isstr(X))
                             var_set(ctx, A, B, str_splice(ctx, X, Y, Z, W));
                         else
-                            return opi_abort(ctx, 'Expecting list or string when splicing');
+                            return RUNDONE(opi_abort(ctx, 'Expecting list or string when splicing'));
                     }
                     break;
                 case op_enum.JUMP:
@@ -9528,7 +9533,7 @@ var __extends = (this && this.__extends) || (function () {
                         A = A + (B << 8) + (C << 16) + ((D << 23) * 2);
                         if (ctx.prg.repl && A === 0xFFFFFFFF) {
                             ctx.pc -= 5;
-                            return run.REPLMORE;
+                            return RUNDONE(run.REPLMORE);
                         }
                         ctx.pc = A;
                     }
@@ -9540,7 +9545,7 @@ var __extends = (this && this.__extends) || (function () {
                         if (var_get(ctx, A, B) !== null) {
                             if (ctx.prg.repl && C === 0xFFFFFFFF) {
                                 ctx.pc -= 7;
-                                return run.REPLMORE;
+                                return RUNDONE(run.REPLMORE);
                             }
                             ctx.pc = C;
                         }
@@ -9553,7 +9558,7 @@ var __extends = (this && this.__extends) || (function () {
                         if (var_get(ctx, A, B) === null) {
                             if (ctx.prg.repl && C === 0xFFFFFFFF) {
                                 ctx.pc -= 7;
-                                return run.REPLMORE;
+                                return RUNDONE(run.REPLMORE);
                             }
                             ctx.pc = C;
                         }
@@ -9577,7 +9582,7 @@ var __extends = (this && this.__extends) || (function () {
                         C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
                         if (C === 0xFFFFFFFF) {
                             ctx.pc -= 8;
-                            return run.REPLMORE;
+                            return RUNDONE(run.REPLMORE);
                         }
                         var p = [];
                         for (I = 0; I < G; I++) {
@@ -9632,34 +9637,35 @@ var __extends = (this && this.__extends) || (function () {
                         else
                             nat = ctx.natives[C];
                         if (nat === null || nat.f_native === null)
-                            return opi_abort(ctx, 'Native call not implemented');
+                            return RUNDONE(opi_abort(ctx, 'Native call not implemented'));
                         var nr = null;
                         try {
                             nr = nat.f_native(ctx, p, nat.natuser);
                         }
                         catch (e) {
-                            return opi_abort(ctx, '' + e);
+                            return RUNDONE(opi_abort(ctx, '' + e));
                         }
                         if (isPromise(nr)) {
                             ctx.async = true;
-                            return nr.then(function (res) {
+                            nr.then(function (res) {
                                 ctx.async = false;
                                 var_set(ctx, A, B, res);
-                                return context_run(ctx);
+                                context_run(ctx, f_rundone);
                             }, function (err) {
                                 ctx.async = false;
-                                return opi_abort(ctx, '' + err);
+                                RUNDONE(opi_abort(ctx, '' + err));
                             });
+                            return;
                         }
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                         var_set(ctx, A, B, nr);
                     }
                     break;
                 case op_enum.RETURN:
                     {
                         if (ctx.call_stk.length <= 0)
-                            return opi_exit(ctx);
+                            return RUNDONE(opi_exit(ctx));
                         LOAD_ab();
                         X = var_get(ctx, A, B);
                         var s = ctx.call_stk.pop();
@@ -9678,7 +9684,7 @@ var __extends = (this && this.__extends) || (function () {
                         A = A + (B << 8) + (C << 16) + ((D << 23) * 2);
                         if (A === 0xFFFFFFFF) {
                             ctx.pc -= 6;
-                            return run.REPLMORE;
+                            return RUNDONE(run.REPLMORE);
                         }
                         var p = [];
                         for (I = 0; I < E; I++) {
@@ -9715,24 +9721,24 @@ var __extends = (this && this.__extends) || (function () {
                         Y = var_get(ctx, E, F);
                         Z = var_get(ctx, G, H);
                         if (!isnum(X))
-                            return opi_abort(ctx, 'Expecting number for range');
+                            return RUNDONE(opi_abort(ctx, 'Expecting number for range'));
                         if (isnum(Y)) {
                             if (isnil(Z))
                                 Z = 1;
                             if (!isnum(Z))
-                                return opi_abort(ctx, 'Expecting number for range step');
+                                return RUNDONE(opi_abort(ctx, 'Expecting number for range step'));
                             X = range(ctx, X, Y, Z);
                         }
                         else if (isnil(Y)) {
                             if (!isnil(Z))
-                                return opi_abort(ctx, 'Expecting number for range stop');
+                                return RUNDONE(opi_abort(ctx, 'Expecting number for range stop'));
                             X = range(ctx, 0, X, 1);
                         }
                         else
-                            return opi_abort(ctx, 'Expecting number for range stop');
+                            return RUNDONE(opi_abort(ctx, 'Expecting number for range stop'));
                         var_set(ctx, A, B, X);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                     }
                     break;
                 case op_enum.ORDER:
@@ -9757,22 +9763,23 @@ var __extends = (this && this.__extends) || (function () {
                             res = say(ctx, p);
                         }
                         catch (e) {
-                            return opi_abort(ctx, '' + e);
+                            return RUNDONE(opi_abort(ctx, '' + e));
                         }
                         if (isPromise(res)) {
                             ctx.async = true;
-                            return res.then(function () {
+                            res.then(function () {
                                 ctx.async = false;
                                 var_set(ctx, A, B, exports.NIL);
-                                return context_run(ctx);
+                                context_run(ctx, f_rundone);
                             }, function (err) {
                                 ctx.async = false;
-                                return opi_abort(ctx, '' + err);
+                                RUNDONE(opi_abort(ctx, '' + err));
                             });
+                            return;
                         }
                         var_set(ctx, A, B, exports.NIL);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                     }
                     break;
                 case op_enum.WARN:
@@ -9789,22 +9796,23 @@ var __extends = (this && this.__extends) || (function () {
                             res = warn(ctx, p);
                         }
                         catch (e) {
-                            return opi_abort(ctx, '' + e);
+                            return RUNDONE(opi_abort(ctx, '' + e));
                         }
                         if (isPromise(res)) {
                             ctx.async = true;
-                            return res.then(function () {
+                            res.then(function () {
                                 ctx.async = false;
                                 var_set(ctx, A, B, exports.NIL);
-                                return context_run(ctx);
+                                context_run(ctx, f_rundone);
                             }, function (err) {
                                 ctx.async = false;
-                                return opi_abort(ctx, '' + err);
+                                RUNDONE(opi_abort(ctx, '' + err));
                             });
+                            return;
                         }
                         var_set(ctx, A, B, exports.NIL);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                     }
                     break;
                 case op_enum.ASK:
@@ -9821,22 +9829,23 @@ var __extends = (this && this.__extends) || (function () {
                             res = ask(ctx, p);
                         }
                         catch (e) {
-                            return opi_abort(ctx, '' + e);
+                            return RUNDONE(opi_abort(ctx, '' + e));
                         }
                         if (isPromise(res)) {
                             ctx.async = true;
-                            return res.then(function (v) {
+                            res.then(function (v) {
                                 ctx.async = false;
                                 var_set(ctx, A, B, v);
-                                return context_run(ctx);
+                                context_run(ctx, f_rundone);
                             }, function (err) {
                                 ctx.async = false;
-                                return opi_abort(ctx, '' + err);
+                                RUNDONE(opi_abort(ctx, '' + err));
                             });
+                            return;
                         }
                         var_set(ctx, A, B, res);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                     }
                     break;
                 case op_enum.EXIT: {
@@ -9853,22 +9862,23 @@ var __extends = (this && this.__extends) || (function () {
                             res = say(ctx, p);
                         }
                         catch (e) {
-                            return opi_abort(ctx, '' + e);
+                            return RUNDONE(opi_abort(ctx, '' + e));
                         }
                         if (isPromise(res)) {
                             ctx.async = true;
-                            return res.then(function () {
+                            res.then(function () {
                                 ctx.async = false;
-                                return opi_exit(ctx);
+                                RUNDONE(opi_exit(ctx));
                             }, function (err) {
                                 ctx.async = false;
-                                return opi_abort(ctx, '' + err);
+                                RUNDONE(opi_abort(ctx, '' + err));
                             });
+                            return;
                         }
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                     }
-                    return opi_exit(ctx);
+                    return RUNDONE(opi_exit(ctx));
                 }
                 case op_enum.ABORT: {
                     LOAD_abc();
@@ -9882,7 +9892,7 @@ var __extends = (this && this.__extends) || (function () {
                         }
                         err = list_joinplain(p, ' ');
                     }
-                    return opi_abort(ctx, err);
+                    return RUNDONE(opi_abort(ctx, err));
                 }
                 case op_enum.STACKTRACE:
                     {
@@ -9894,63 +9904,63 @@ var __extends = (this && this.__extends) || (function () {
                     {
                         INLINE_UNOP(unop_num_neg, txt_num_neg);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                     }
                     break;
                 case op_enum.NUM_ADD:
                     {
                         INLINE_BINOP(binop_num_add, txt_num_add);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                     }
                     break;
                 case op_enum.NUM_SUB:
                     {
                         INLINE_BINOP(binop_num_sub, txt_num_sub);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                     }
                     break;
                 case op_enum.NUM_MUL:
                     {
                         INLINE_BINOP(binop_num_mul, txt_num_mul);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                     }
                     break;
                 case op_enum.NUM_DIV:
                     {
                         INLINE_BINOP(binop_num_div, txt_num_div);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                     }
                     break;
                 case op_enum.NUM_MOD:
                     {
                         INLINE_BINOP(binop_num_mod, txt_num_mod);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                     }
                     break;
                 case op_enum.NUM_POW:
                     {
                         INLINE_BINOP(binop_num_pow, txt_num_pow);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                     }
                     break;
                 case op_enum.NUM_ABS:
                     {
                         INLINE_UNOP(unop_num_abs, txt_num_abs);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                     }
                     break;
                 case op_enum.NUM_SIGN:
                     {
                         INLINE_UNOP(unop_num_sign, txt_num_sign);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                     }
                     break;
                 case op_enum.NUM_MAX:
@@ -9981,35 +9991,35 @@ var __extends = (this && this.__extends) || (function () {
                     {
                         INLINE_TRIOP(triop_num_clamp, txt_num_clamp);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                     }
                     break;
                 case op_enum.NUM_FLOOR:
                     {
                         INLINE_UNOP(unop_num_floor, txt_num_floor);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                     }
                     break;
                 case op_enum.NUM_CEIL:
                     {
                         INLINE_UNOP(unop_num_ceil, txt_num_ceil);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                     }
                     break;
                 case op_enum.NUM_ROUND:
                     {
                         INLINE_UNOP(unop_num_round, txt_num_round);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                     }
                     break;
                 case op_enum.NUM_TRUNC:
                     {
                         INLINE_UNOP(unop_num_trunc, txt_num_trunc);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                     }
                     break;
                 case op_enum.NUM_NAN:
@@ -10028,133 +10038,133 @@ var __extends = (this && this.__extends) || (function () {
                     {
                         INLINE_UNOP(unop_num_isnan, txt_num_isnan);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                     }
                     break;
                 case op_enum.NUM_ISFINITE:
                     {
                         INLINE_UNOP(unop_num_isfinite, txt_num_isfinite);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                     }
                     break;
                 case op_enum.NUM_SIN:
                     {
                         INLINE_UNOP(unop_num_sin, txt_num_sin);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                     }
                     break;
                 case op_enum.NUM_COS:
                     {
                         INLINE_UNOP(unop_num_cos, txt_num_cos);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                     }
                     break;
                 case op_enum.NUM_TAN:
                     {
                         INLINE_UNOP(unop_num_tan, txt_num_tan);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                     }
                     break;
                 case op_enum.NUM_ASIN:
                     {
                         INLINE_UNOP(unop_num_asin, txt_num_asin);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                     }
                     break;
                 case op_enum.NUM_ACOS:
                     {
                         INLINE_UNOP(unop_num_acos, txt_num_acos);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                     }
                     break;
                 case op_enum.NUM_ATAN:
                     {
                         INLINE_UNOP(unop_num_atan, txt_num_atan);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                     }
                     break;
                 case op_enum.NUM_ATAN2:
                     {
                         INLINE_BINOP(binop_num_atan2, txt_num_atan);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                     }
                     break;
                 case op_enum.NUM_LOG:
                     {
                         INLINE_UNOP(unop_num_log, txt_num_log);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                     }
                     break;
                 case op_enum.NUM_LOG2:
                     {
                         INLINE_UNOP(unop_num_log2, txt_num_log);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                     }
                     break;
                 case op_enum.NUM_LOG10:
                     {
                         INLINE_UNOP(unop_num_log10, txt_num_log);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                     }
                     break;
                 case op_enum.NUM_EXP:
                     {
                         INLINE_UNOP(unop_num_exp, txt_num_pow);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                     }
                     break;
                 case op_enum.NUM_LERP:
                     {
                         INLINE_TRIOP(triop_num_lerp, txt_num_lerp);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                     }
                     break;
                 case op_enum.NUM_HEX:
                     {
                         INLINE_BINOP_T(binop_num_hex, txt_num_hex, LT_ALLOWNUM, LT_ALLOWNUM | LT_ALLOWNIL);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                     }
                     break;
                 case op_enum.NUM_OCT:
                     {
                         INLINE_BINOP_T(binop_num_oct, txt_num_oct, LT_ALLOWNUM, LT_ALLOWNUM | LT_ALLOWNIL);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                     }
                     break;
                 case op_enum.NUM_BIN:
                     {
                         INLINE_BINOP_T(binop_num_bin, txt_num_bin, LT_ALLOWNUM, LT_ALLOWNUM | LT_ALLOWNIL);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                     }
                     break;
                 case op_enum.INT_NEW:
                     {
                         INLINE_UNOP(unop_int_new, txt_int_new);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                     }
                     break;
                 case op_enum.INT_NOT:
                     {
                         INLINE_UNOP(unop_int_not, txt_int_not);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                     }
                     break;
                 case op_enum.INT_AND:
@@ -10168,7 +10178,7 @@ var __extends = (this && this.__extends) || (function () {
                         }
                         X = opi_combop(ctx, p, binop_int_and, txt_int_and);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                         var_set(ctx, A, B, X);
                     }
                     break;
@@ -10183,7 +10193,7 @@ var __extends = (this && this.__extends) || (function () {
                         }
                         X = opi_combop(ctx, p, binop_int_or, txt_int_or);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                         var_set(ctx, A, B, X);
                     }
                     break;
@@ -10198,7 +10208,7 @@ var __extends = (this && this.__extends) || (function () {
                         }
                         X = opi_combop(ctx, p, binop_int_xor, txt_int_xor);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                         var_set(ctx, A, B, X);
                     }
                     break;
@@ -10206,77 +10216,77 @@ var __extends = (this && this.__extends) || (function () {
                     {
                         INLINE_BINOP(binop_int_shl, txt_int_shl);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                     }
                     break;
                 case op_enum.INT_SHR:
                     {
                         INLINE_BINOP(binop_int_shr, txt_int_shr);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                     }
                     break;
                 case op_enum.INT_SAR:
                     {
                         INLINE_BINOP(binop_int_sar, txt_int_shr);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                     }
                     break;
                 case op_enum.INT_ADD:
                     {
                         INLINE_BINOP(binop_int_add, txt_num_add);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                     }
                     break;
                 case op_enum.INT_SUB:
                     {
                         INLINE_BINOP(binop_int_sub, txt_num_sub);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                     }
                     break;
                 case op_enum.INT_MUL:
                     {
                         INLINE_BINOP(binop_int_mul, txt_num_mul);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                     }
                     break;
                 case op_enum.INT_DIV:
                     {
                         INLINE_BINOP(binop_int_div, txt_num_div);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                     }
                     break;
                 case op_enum.INT_MOD:
                     {
                         INLINE_BINOP(binop_int_mod, txt_num_mod);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                     }
                     break;
                 case op_enum.INT_CLZ:
                     {
                         INLINE_UNOP(unop_int_clz, txt_int_clz);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                     }
                     break;
                 case op_enum.INT_POP:
                     {
                         INLINE_UNOP(unop_int_pop, txt_int_pop);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                     }
                     break;
                 case op_enum.INT_BSWAP:
                     {
                         INLINE_UNOP(unop_int_bswap, txt_int_bswap);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                     }
                     break;
                 case op_enum.RAND_SEED:
@@ -10286,7 +10296,7 @@ var __extends = (this && this.__extends) || (function () {
                         if (isnil(X))
                             X = 0;
                         else if (!isnum(X))
-                            return opi_abort(ctx, 'Expecting number');
+                            return RUNDONE(opi_abort(ctx, 'Expecting number'));
                         rand_seed(ctx, X);
                         var_set(ctx, A, B, exports.NIL);
                     }
@@ -10321,7 +10331,7 @@ var __extends = (this && this.__extends) || (function () {
                         LOAD_abcd();
                         rand_setstate(ctx, var_get(ctx, C, D));
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                         var_set(ctx, A, B, exports.NIL);
                     }
                     break;
@@ -10330,7 +10340,7 @@ var __extends = (this && this.__extends) || (function () {
                         LOAD_abcd();
                         X = rand_pick(ctx, var_get(ctx, C, D));
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                         var_set(ctx, A, B, X);
                     }
                     break;
@@ -10340,7 +10350,7 @@ var __extends = (this && this.__extends) || (function () {
                         X = var_get(ctx, C, D);
                         rand_shuffle(ctx, X);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                         var_set(ctx, A, B, X);
                     }
                     break;
@@ -10363,7 +10373,7 @@ var __extends = (this && this.__extends) || (function () {
                         Y = var_get(ctx, E, F);
                         X = str_split(ctx, X, Y);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                         var_set(ctx, A, B, X);
                     }
                     break;
@@ -10375,7 +10385,7 @@ var __extends = (this && this.__extends) || (function () {
                         Z = var_get(ctx, G, H);
                         X = str_replace(ctx, X, Y, Z);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                         var_set(ctx, A, B, X);
                     }
                     break;
@@ -10386,7 +10396,7 @@ var __extends = (this && this.__extends) || (function () {
                         Y = var_get(ctx, E, F);
                         X = bool(str_begins(ctx, X, Y));
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                         var_set(ctx, A, B, X);
                     }
                     break;
@@ -10397,7 +10407,7 @@ var __extends = (this && this.__extends) || (function () {
                         Y = var_get(ctx, E, F);
                         X = bool(str_ends(ctx, X, Y));
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                         var_set(ctx, A, B, X);
                     }
                     break;
@@ -10409,10 +10419,10 @@ var __extends = (this && this.__extends) || (function () {
                         if (isnil(Y))
                             Y = 0;
                         else if (!isnum(Y))
-                            return opi_abort(ctx, 'Expecting number');
+                            return RUNDONE(opi_abort(ctx, 'Expecting number'));
                         X = str_pad(ctx, X, Y);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                         var_set(ctx, A, B, X);
                     }
                     break;
@@ -10424,7 +10434,7 @@ var __extends = (this && this.__extends) || (function () {
                         Z = var_get(ctx, G, H);
                         X = str_find(ctx, X, Y, Z);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                         var_set(ctx, A, B, X);
                     }
                     break;
@@ -10436,7 +10446,7 @@ var __extends = (this && this.__extends) || (function () {
                         Z = var_get(ctx, G, H);
                         X = str_rfind(ctx, X, Y, Z);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                         var_set(ctx, A, B, X);
                     }
                     break;
@@ -10446,7 +10456,7 @@ var __extends = (this && this.__extends) || (function () {
                         X = var_get(ctx, C, D);
                         X = str_lower(ctx, X);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                         var_set(ctx, A, B, X);
                     }
                     break;
@@ -10456,7 +10466,7 @@ var __extends = (this && this.__extends) || (function () {
                         X = var_get(ctx, C, D);
                         X = str_upper(ctx, X);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                         var_set(ctx, A, B, X);
                     }
                     break;
@@ -10466,7 +10476,7 @@ var __extends = (this && this.__extends) || (function () {
                         X = var_get(ctx, C, D);
                         X = str_trim(ctx, X);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                         var_set(ctx, A, B, X);
                     }
                     break;
@@ -10476,7 +10486,7 @@ var __extends = (this && this.__extends) || (function () {
                         X = var_get(ctx, C, D);
                         X = str_rev(ctx, X);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                         var_set(ctx, A, B, X);
                     }
                     break;
@@ -10488,10 +10498,10 @@ var __extends = (this && this.__extends) || (function () {
                         if (isnil(Y))
                             Y = 0;
                         else if (!isnum(Y))
-                            return opi_abort(ctx, 'Expecting number');
+                            return RUNDONE(opi_abort(ctx, 'Expecting number'));
                         X = str_rep(ctx, X, Y);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                         var_set(ctx, A, B, X);
                     }
                     break;
@@ -10501,7 +10511,7 @@ var __extends = (this && this.__extends) || (function () {
                         X = var_get(ctx, C, D);
                         X = str_list(ctx, X);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                         var_set(ctx, A, B, X);
                     }
                     break;
@@ -10513,10 +10523,10 @@ var __extends = (this && this.__extends) || (function () {
                         if (isnil(Y))
                             Y = 0;
                         else if (!isnum(Y))
-                            return opi_abort(ctx, 'Expecting number');
+                            return RUNDONE(opi_abort(ctx, 'Expecting number'));
                         X = str_byte(ctx, X, Y);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                         var_set(ctx, A, B, X);
                     }
                     break;
@@ -10528,10 +10538,10 @@ var __extends = (this && this.__extends) || (function () {
                         if (isnil(Y))
                             Y = 0;
                         else if (!isnum(Y))
-                            return opi_abort(ctx, 'Expecting number');
+                            return RUNDONE(opi_abort(ctx, 'Expecting number'));
                         X = str_hash(ctx, X, Y);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                         var_set(ctx, A, B, X);
                     }
                     break;
@@ -10548,7 +10558,7 @@ var __extends = (this && this.__extends) || (function () {
                         X = var_get(ctx, C, D);
                         X = utf8_list(ctx, X);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                         var_set(ctx, A, B, X);
                     }
                     break;
@@ -10558,7 +10568,7 @@ var __extends = (this && this.__extends) || (function () {
                         X = var_get(ctx, C, D);
                         X = utf8_str(ctx, X);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                         var_set(ctx, A, B, X);
                     }
                     break;
@@ -10575,7 +10585,7 @@ var __extends = (this && this.__extends) || (function () {
                         Y = var_get(ctx, E, F);
                         X = struct_str(ctx, X, Y);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                         var_set(ctx, A, B, X);
                     }
                     break;
@@ -10586,7 +10596,7 @@ var __extends = (this && this.__extends) || (function () {
                         Y = var_get(ctx, E, F);
                         X = struct_list(ctx, X, Y);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                         var_set(ctx, A, B, X);
                     }
                     break;
@@ -10603,7 +10613,7 @@ var __extends = (this && this.__extends) || (function () {
                         Y = var_get(ctx, E, F);
                         X = list_new(ctx, X, Y);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                         var_set(ctx, A, B, X);
                     }
                     break;
@@ -10613,7 +10623,7 @@ var __extends = (this && this.__extends) || (function () {
                         X = var_get(ctx, C, D);
                         X = list_shift(ctx, X);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                         var_set(ctx, A, B, X);
                     }
                     break;
@@ -10623,7 +10633,7 @@ var __extends = (this && this.__extends) || (function () {
                         X = var_get(ctx, C, D);
                         X = list_pop(ctx, X);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                         var_set(ctx, A, B, X);
                     }
                     break;
@@ -10634,7 +10644,7 @@ var __extends = (this && this.__extends) || (function () {
                         Y = var_get(ctx, E, F);
                         X = list_push(ctx, X, Y);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                         var_set(ctx, A, B, X);
                     }
                     break;
@@ -10645,7 +10655,7 @@ var __extends = (this && this.__extends) || (function () {
                         Y = var_get(ctx, E, F);
                         X = list_unshift(ctx, X, Y);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                         var_set(ctx, A, B, X);
                     }
                     break;
@@ -10656,7 +10666,7 @@ var __extends = (this && this.__extends) || (function () {
                         Y = var_get(ctx, E, F);
                         X = list_append(ctx, X, Y);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                         var_set(ctx, A, B, X);
                     }
                     break;
@@ -10667,7 +10677,7 @@ var __extends = (this && this.__extends) || (function () {
                         Y = var_get(ctx, E, F);
                         X = list_prepend(ctx, X, Y);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                         var_set(ctx, A, B, X);
                     }
                     break;
@@ -10679,7 +10689,7 @@ var __extends = (this && this.__extends) || (function () {
                         Z = var_get(ctx, G, H);
                         X = list_find(ctx, X, Y, Z);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                         var_set(ctx, A, B, X);
                     }
                     break;
@@ -10691,7 +10701,7 @@ var __extends = (this && this.__extends) || (function () {
                         Z = var_get(ctx, G, H);
                         X = list_rfind(ctx, X, Y, Z);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                         var_set(ctx, A, B, X);
                     }
                     break;
@@ -10702,7 +10712,7 @@ var __extends = (this && this.__extends) || (function () {
                         Y = var_get(ctx, E, F);
                         X = list_join(ctx, X, Y);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                         var_set(ctx, A, B, X);
                     }
                     break;
@@ -10712,7 +10722,7 @@ var __extends = (this && this.__extends) || (function () {
                         X = var_get(ctx, C, D);
                         X = list_rev(ctx, X);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                         var_set(ctx, A, B, X);
                     }
                     break;
@@ -10722,7 +10732,7 @@ var __extends = (this && this.__extends) || (function () {
                         X = var_get(ctx, C, D);
                         X = list_str(ctx, X);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                         var_set(ctx, A, B, X);
                     }
                     break;
@@ -10732,7 +10742,7 @@ var __extends = (this && this.__extends) || (function () {
                         X = var_get(ctx, C, D);
                         list_sort(ctx, X);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                         var_set(ctx, A, B, X);
                     }
                     break;
@@ -10742,7 +10752,7 @@ var __extends = (this && this.__extends) || (function () {
                         X = var_get(ctx, C, D);
                         list_rsort(ctx, X);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                         var_set(ctx, A, B, X);
                     }
                     break;
@@ -10752,7 +10762,7 @@ var __extends = (this && this.__extends) || (function () {
                         X = var_get(ctx, C, D);
                         X = pickle_json(ctx, X);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                         var_set(ctx, A, B, X);
                     }
                     break;
@@ -10762,7 +10772,7 @@ var __extends = (this && this.__extends) || (function () {
                         X = var_get(ctx, C, D);
                         X = pickle_bin(ctx, X);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                         var_set(ctx, A, B, X);
                     }
                     break;
@@ -10772,7 +10782,7 @@ var __extends = (this && this.__extends) || (function () {
                         X = var_get(ctx, C, D);
                         X = pickle_val(ctx, X);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                         var_set(ctx, A, B, X);
                     }
                     break;
@@ -10804,7 +10814,7 @@ var __extends = (this && this.__extends) || (function () {
                         X = var_get(ctx, C, D);
                         X = pickle_copy(ctx, X);
                         if (ctx.failed)
-                            return run.FAIL;
+                            return RUNDONE(run.FAIL);
                         var_set(ctx, A, B, X);
                     }
                     break;
@@ -10820,7 +10830,7 @@ var __extends = (this && this.__extends) || (function () {
                         X = var_get(ctx, C, D);
                         if (!isnum(X) ||
                             (X !== gc_level.NONE && X !== gc_level.DEFAULT && X !== gc_level.LOWMEM))
-                            return opi_abort(ctx, 'Expecting one of gc.NONE, gc.DEFAULT, or gc.LOWMEM');
+                            return RUNDONE(opi_abort(ctx, 'Expecting one of gc.NONE, gc.DEFAULT, or gc.LOWMEM'));
                         ctx.gc_level = X;
                         var_set(ctx, A, B, exports.NIL);
                     }
@@ -10837,13 +10847,13 @@ var __extends = (this && this.__extends) || (function () {
                 ctx.timeout_left--;
                 if (ctx.timeout_left <= 0) {
                     ctx.timeout_left = ctx.timeout;
-                    return run.TIMEOUT;
+                    return RUNDONE(run.TIMEOUT);
                 }
             }
         }
         if (ctx.prg.repl)
-            return run.REPLMORE;
-        return opi_exit(ctx);
+            return RUNDONE(run.REPLMORE);
+        return RUNDONE(opi_exit(ctx));
     }
     function flpn_new(fullfile, basefile, next) {
         return {
@@ -11568,12 +11578,12 @@ var __extends = (this && this.__extends) || (function () {
     function ctx_getstatus(ctx) {
         var ctx2 = ctx;
         if (ctx2.passed)
-            return ctx_status.PASSED;
+            return status.PASSED;
         else if (ctx2.failed)
-            return ctx_status.FAILED;
+            return status.FAILED;
         else if (ctx2.async)
-            return ctx_status.WAITING;
-        return ctx_status.READY;
+            return status.WAITING;
+        return status.READY;
     }
     exports.ctx_getstatus = ctx_getstatus;
     function ctx_native(ctx, name, natuser, f_native) {
@@ -11626,14 +11636,11 @@ var __extends = (this && this.__extends) || (function () {
         ctx.timeout_left = 0;
     }
     exports.ctx_forcetimeout = ctx_forcetimeout;
-    function ctx_run(ctx) {
+    function ctx_run(ctx, f_rundone) {
         var ctx2 = ctx;
         if (ctx2.prg.repl && ctx2.err)
             ctx2.err = null;
-        var r = context_run(ctx2);
-        if (r === run.PASS || r === run.FAIL)
-            context_reset(ctx2);
-        return r;
+        context_run(ctx2, f_rundone);
     }
     exports.ctx_run = ctx_run;
     function ctx_geterr(ctx) {
