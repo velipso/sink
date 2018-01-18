@@ -190,6 +190,10 @@ static inline void printctxerr(sink_ctx ctx){
 	fprintf(stderr, "%s\n", err);
 }
 
+static void run_setresult(sink_ctx ctx, sink_run result, sink_run *output){
+	*output = result;
+}
+
 static int main_repl(sink_scr scr, int argc, char **argv, const char *sink_exe){
 	int res = 0;
 	sink_ctx ctx = newctx(scr, argc, argv, sink_exe, NULL);
@@ -226,17 +230,15 @@ static int main_repl(sink_scr scr, int argc, char **argv, const char *sink_exe){
 			if (!sink_scr_write(scr, bufsize, (uint8_t *)buf))
 				printscrerr(scr);
 			if (sink_scr_level(scr) <= 0){
-				switch (sink_ctx_run(ctx)){
+				sink_run res;
+				sink_ctx_run(ctx, &res, (sink_rundone_f)run_setresult);
+				switch (res){
 					case SINK_RUN_PASS:
 						done = true;
 						res = 0;
 						break;
 					case SINK_RUN_FAIL:
 						printctxerr(ctx);
-						break;
-					case SINK_RUN_ASYNC:
-						fprintf(stderr, "TODO: REPL invoked async function\n");
-						done = true;
 						break;
 					case SINK_RUN_TIMEOUT:
 						fprintf(stderr, "REPL returned timeout (impossible)\n");
@@ -265,7 +267,8 @@ int main_run(sink_scr scr, const char *file, int argc, char **argv, const char *
 		return 1;
 	}
 	sink_ctx ctx = newctx(scr, argc, argv, sink_exe, sink_scr_getfile(scr));
-	sink_run res = sink_ctx_run(ctx);
+	sink_run res;
+	sink_ctx_run(ctx, &res, (sink_rundone_f)run_setresult);
 	if (res == SINK_RUN_FAIL)
 		printctxerr(ctx);
 	sink_ctx_free(ctx);
@@ -280,7 +283,8 @@ int main_eval(sink_scr scr, const char *eval, int argc, char **argv, const char 
 		return 1;
 	}
 	sink_ctx ctx = newctx(scr, argc, argv, sink_exe, NULL);
-	sink_run res = sink_ctx_run(ctx);
+	sink_run res;
+	sink_ctx_run(ctx, &res, (sink_rundone_f)run_setresult);
 	if (res == SINK_RUN_FAIL)
 		printctxerr(ctx);
 	sink_ctx_free(ctx);

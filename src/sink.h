@@ -43,7 +43,7 @@ typedef enum {
 	SINK_TYPE_NUM,
 	SINK_TYPE_STR,
 	SINK_TYPE_LIST,
-	SINK_TYPE_ASYNC // not used within sink; used for native functions to signal async results
+	SINK_TYPE_PROMISE // not used within sink; used for native functions to signal async results
 } sink_type;
 
 typedef union {
@@ -82,6 +82,13 @@ typedef enum {
 	SINK_GC_LOWMEM
 } sink_gc_level;
 
+typedef enum {
+	SINK_RUN_PASS,
+	SINK_RUN_FAIL,
+	SINK_RUN_TIMEOUT,
+	SINK_RUN_REPLMORE
+} sink_run;
+
 typedef void (*sink_output_f)(sink_ctx ctx, sink_str str, void *iouser);
 typedef sink_val (*sink_input_f)(sink_ctx ctx, sink_str str, void *iouser);
 typedef sink_val (*sink_native_f)(sink_ctx ctx, int size, sink_val *args, void *natuser);
@@ -89,7 +96,9 @@ typedef sink_fstype (*sink_fstype_f)(const char *file, void *incuser);
 typedef bool (*sink_fsread_f)(sink_scr scr, const char *file, void *incuser);
 typedef size_t (*sink_dump_f)(const void *restrict ptr, size_t size, size_t nitems,
 	void *restrict dumpuser);
-typedef sink_val (*sink_onasync_f)(sink_ctx ctx, sink_val result, void *asyncuser);
+typedef sink_val (*sink_then_f)(sink_ctx ctx, sink_val result, void *thenuser);
+typedef void (*sink_cancel_f)(void *thenuser);
+typedef void (*sink_rundone_f)(sink_ctx ctx, sink_run result, void *rduser);
 
 typedef struct {
 	sink_output_f f_say;
@@ -105,38 +114,36 @@ typedef struct {
 } sink_inc_st;
 
 typedef enum {
-	SINK_RUN_PASS,
-	SINK_RUN_FAIL,
-	SINK_RUN_ASYNC,
-	SINK_RUN_TIMEOUT,
-	SINK_RUN_REPLMORE
-} sink_run;
+	SINK_READY,
+	SINK_WAITING, // waiting for an async result
+	SINK_PASSED,
+	SINK_FAILED
+} sink_status;
 
-typedef enum {
-	SINK_CTX_READY,
-	SINK_CTX_WAITING, // waiting for an async result
-	SINK_CTX_PASSED,
-	SINK_CTX_FAILED
-} sink_ctx_status;
+typedef struct {
+	sink_then_f f_then;
+	sink_cancel_f f_cancel;
+	void *user; // passed as thenuser to functions
+} sink_then_st;
 
 // Values are jammed into sNaNs, like so:
 //
 // NaN (64 bit):
 //  01111111 1111Q000 00000000 TTTTTTTT  0FFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF
 //
-// NAN  :  Q = 1, T = 0, F = 0
-// NIL  :  Q = 0, T = 1, F = 0
-// ASYNC:  Q = 0, T = 2, F = 0
-// STR  :  Q = 0, T = 3, F = table index (31 bits)
-// LIST :  Q = 0, T = 4, F = table index (31 bits)
+// NAN    :  Q = 1, T = 0, F = 0
+// NIL    :  Q = 0, T = 1, F = 0
+// STR    :  Q = 0, T = 2, F = table index (31 bits)
+// LIST   :  Q = 0, T = 3, F = table index (31 bits)
+// PROMISE:  Q = 0, T = 4, F = 0
 
-static const sink_val SINK_NAN      = { .u = UINT64_C(0x7FF8000000000000) };
-static const sink_val SINK_NIL      = { .u = UINT64_C(0x7FF0000100000000) };
-static const sink_val SINK_ASYNC    = { .u = UINT64_C(0x7FF0000200000000) };
-static const uint64_t SINK_TAG_STR  =        UINT64_C(0x7FF0000300000000);
-static const uint64_t SINK_TAG_LIST =        UINT64_C(0x7FF0000400000000);
-static const uint64_t SINK_TAG_MASK =        UINT64_C(0xFFFFFFFF80000000);
-static const uint64_t SINK_NAN_MASK =        UINT64_C(0x7FF8000000000000);
+static const sink_val SINK_NAN         = { .u = UINT64_C(0x7FF8000000000000) };
+static const sink_val SINK_NIL         = { .u = UINT64_C(0x7FF0000100000000) };
+static const uint64_t SINK_TAG_STR     =        UINT64_C(0x7FF0000200000000)  ;
+static const uint64_t SINK_TAG_LIST    =        UINT64_C(0x7FF0000300000000)  ;
+static const uint64_t SINK_TAG_PROMISE =        UINT64_C(0x7FF0000400000000)  ;
+static const uint64_t SINK_TAG_MASK    =        UINT64_C(0xFFFFFFFF80000000)  ;
+static const uint64_t SINK_NAN_MASK    =        UINT64_C(0x7FF8000000000000)  ;
 
 sink_scr    sink_scr_new(sink_inc_st inc, const char *curdir, bool posix, bool repl);
 void        sink_scr_addpath(sink_scr scr, const char *path);
@@ -155,44 +162,45 @@ void        sink_scr_dump(sink_scr scr, bool debug, void *user, sink_dump_f f_du
 void        sink_scr_free(sink_scr scr);
 
 // context
-sink_ctx        sink_ctx_new(sink_scr scr, sink_io_st io);
-sink_ctx_status sink_ctx_getstatus(sink_ctx ctx);
-const char *    sink_ctx_geterr(sink_ctx ctx);
-void            sink_ctx_native(sink_ctx ctx, const char *name, void *natuser,
-	sink_native_f f_native);
-void            sink_ctx_nativehash(sink_ctx ctx, uint64_t hash, void *natuser,
-	sink_native_f f_native);
-void            sink_ctx_cleanup(sink_ctx ctx, void *cuser, sink_free_f f_free);
-void            sink_ctx_setuser(sink_ctx ctx, void *user, sink_free_f f_free);
-void *          sink_ctx_getuser(sink_ctx ctx);
-sink_user       sink_ctx_addusertype(sink_ctx ctx, const char *hint, sink_free_f f_free);
-sink_free_f     sink_ctx_getuserfree(sink_ctx ctx, sink_user usertype);
-const char *    sink_ctx_getuserhint(sink_ctx ctx, sink_user usertype);
-void            sink_ctx_asyncresult(sink_ctx ctx, sink_val v);
-void            sink_ctx_onasync(sink_ctx ctx, void *asyncuser, sink_onasync_f f_onasync);
-void            sink_ctx_settimeout(sink_ctx ctx, int timeout);
-int             sink_ctx_gettimeout(sink_ctx ctx);
-void            sink_ctx_consumeticks(sink_ctx ctx, int amount);
-void            sink_ctx_forcetimeout(sink_ctx ctx);
-sink_run        sink_ctx_run(sink_ctx ctx);
-void            sink_ctx_free(sink_ctx ctx);
+sink_ctx    sink_ctx_new(sink_scr scr, sink_io_st io);
+sink_status sink_ctx_getstatus(sink_ctx ctx);
+const char *sink_ctx_geterr(sink_ctx ctx);
+void        sink_ctx_native(sink_ctx ctx, const char *name, void *natuser, sink_native_f f_native);
+void        sink_ctx_nativehash(sink_ctx ctx, uint64_t hash, void *natuser, sink_native_f f_native);
+void        sink_ctx_cleanup(sink_ctx ctx, void *cuser, sink_free_f f_free);
+void        sink_ctx_setuser(sink_ctx ctx, void *user, sink_free_f f_free);
+void *      sink_ctx_getuser(sink_ctx ctx);
+sink_user   sink_ctx_addusertype(sink_ctx ctx, const char *hint, sink_free_f f_free);
+sink_free_f sink_ctx_getuserfree(sink_ctx ctx, sink_user usertype);
+const char *sink_ctx_getuserhint(sink_ctx ctx, sink_user usertype);
+void        sink_ctx_settimeout(sink_ctx ctx, int timeout);
+int         sink_ctx_gettimeout(sink_ctx ctx);
+void        sink_ctx_consumeticks(sink_ctx ctx, int amount);
+void        sink_ctx_forcetimeout(sink_ctx ctx);
+void        sink_ctx_run(sink_ctx ctx, void *rduser, sink_rundone_f f_rundone);
+void        sink_ctx_free(sink_ctx ctx);
+
+// promises
+sink_val sink_promise_new(sink_ctx ctx, sink_then_st then);
+sink_val sink_promise_then(sink_ctx ctx, sink_val promise, sink_then_st then);
+void     sink_promise_resolve(sink_ctx ctx, sink_val promise, sink_val result);
 
 // value
 static inline sink_val sink_bool(bool f){ return f ? (sink_val){ .f = 1 } : SINK_NIL; }
 static inline bool sink_istrue(sink_val v){ return v.u != SINK_NIL.u; }
 static inline bool sink_isfalse(sink_val v){ return v.u == SINK_NIL.u; }
 static inline bool sink_isnil(sink_val v){ return v.u == SINK_NIL.u; }
-static inline bool sink_isasync(sink_val v){ return v.u == SINK_ASYNC.u; }
 static inline bool sink_isstr(sink_val v){ return (v.u & SINK_TAG_MASK) == SINK_TAG_STR; }
 static inline bool sink_islist(sink_val v){ return (v.u & SINK_TAG_MASK) == SINK_TAG_LIST; }
+static inline bool sink_ispromise(sink_val v){ return (v.u & SINK_TAG_MASK) == SINK_TAG_PROMISE; }
 static inline bool sink_isnum(sink_val v){
-	return !sink_isnil(v) && !sink_isasync(v) && !sink_isstr(v) && !sink_islist(v); }
+	return !sink_isnil(v) && !sink_ispromise(v) && !sink_isstr(v) && !sink_islist(v); }
 static inline sink_type sink_typeof(sink_val v){
-	if      (sink_isnil  (v)) return SINK_TYPE_NIL;
-	else if (sink_isasync(v)) return SINK_TYPE_ASYNC;
-	else if (sink_isstr  (v)) return SINK_TYPE_STR;
-	else if (sink_islist (v)) return SINK_TYPE_LIST;
-	else                      return SINK_TYPE_NUM;
+	if      (sink_isnil    (v)) return SINK_TYPE_NIL;
+	else if (sink_isstr    (v)) return SINK_TYPE_STR;
+	else if (sink_islist   (v)) return SINK_TYPE_LIST;
+	else if (sink_ispromise(v)) return SINK_TYPE_PROMISE;
+	else                        return SINK_TYPE_NUM;
 }
 static inline double sink_castnum(sink_val v){ return v.f; }
 sink_str  sink_caststr(sink_ctx ctx, sink_val str);

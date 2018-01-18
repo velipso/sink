@@ -616,6 +616,13 @@ static inline bool list_ptr_has(list_ptr ls, void *p){
 	return false;
 }
 
+static inline void list_ptr_remove(list_ptr ls, int index){
+	// does not free the pointer!
+	if (index < ls->size - 1)
+		memmove(&ls->ptrs[index], &ls->ptrs[index + 1], sizeof(void *) * (ls->size - index));
+	ls->size--;
+}
+
 static void list_ptr_free(list_ptr ls){
 	if (ls->f_free){
 		while (ls->size > 0)
@@ -9155,23 +9162,11 @@ static inline native native_new(uint64_t hash, void *natuser, sink_native_f f_na
 }
 
 typedef struct {
-	void *asyncuser;
-	sink_onasync_f f_onasync;
-} onasync_st, *onasync;
-
-static inline onasync onasync_new(void *asyncuser, sink_onasync_f f_onasync){
-	onasync oa = mem_alloc(sizeof(onasync_st));
-	oa->asyncuser = asyncuser;
-	oa->f_onasync = f_onasync;
-	return oa;
-}
-
-typedef struct {
 	void *user;
 	sink_free_f f_freeuser;
 	cleanup cup;
 	list_ptr natives;
-	list_ptr onasyncs;
+	list_ptr promises;
 
 	program prg; // not freed by context_free
 	list_ptr call_stk;
@@ -9204,8 +9199,7 @@ typedef struct {
 	uint64_t str_prealloc_lastmask;
 	int timeout;
 	int timeout_left;
-	int async_frame;
-	int async_index;
+	int next_promise_id;
 	int gc_left;
 	sink_gc_level gc_level;
 
@@ -9217,6 +9211,49 @@ typedef struct {
 	bool failed;
 	bool async;
 } context_st, *context;
+
+typedef struct {
+	sink_then_st then;
+	int id;
+	bool canceled;
+	struct {
+		int frame;
+		int index;
+		bool paused;
+	} final;
+} promise_st, *promise;
+
+static inline promise promise_new(context ctx, sink_then_st then){
+	promise p = mem_alloc(sizeof(promise_st));
+	p->canceled = false;
+	p->then = then;
+	p->id = ctx->next_promise_id;
+	p->final.paused = false;
+	ctx->next_promise_id = (ctx->next_promise_id + 1) & 0x7FFFFFFF;
+	list_ptr_push(ctx->promises, p);
+	return p;
+}
+
+static inline void promise_cancel(promise p){
+	if (p->canceled)
+		return;
+	p->canceled = true;
+	if (p->then.f_cancel)
+		p->then.f_cancel(p->then.user);
+}
+
+static inline sink_val promise_toval(promise p){
+	return (sink_val){ .u = SINK_TAG_PROMISE | p->id };
+}
+
+static inline int promise_find(context ctx, int id){
+	for (int i = 0; i < ctx->promises->size; i++){
+		promise p = ctx->promises->ptrs[i];
+		if (p->id == id)
+			return i;
+	}
+	return -1;
+}
 
 static inline lxs lxs_get(context ctx, int argcount, sink_val *args, lxs next){
 	if (ctx->lxs_avail->size > 0){
@@ -9421,7 +9458,10 @@ static inline void context_free(context ctx){
 		ctx->f_freeuser(ctx->user);
 	cleanup_free(ctx->cup);
 	list_ptr_free(ctx->natives);
-	list_ptr_free(ctx->onasyncs);
+	// cancel any pending promises
+	for (int i = 0; i < ctx->promises->size; i++)
+		promise_cancel(ctx->promises->ptrs[i]);
+	list_ptr_free(ctx->promises);
 	context_clearref(ctx);
 	context_sweep(ctx);
 	list_ptr_free(ctx->ccs_avail);
@@ -9450,7 +9490,7 @@ static inline context context_new(program prg, sink_io_st io){
 	ctx->f_freeuser = NULL;
 	ctx->cup = cleanup_new();
 	ctx->natives = list_ptr_new(mem_free_func);
-	ctx->onasyncs = list_ptr_new(mem_free_func);
+	ctx->promises = list_ptr_new(mem_free_func);
 	ctx->call_stk = list_ptr_new(ccs_free);
 	ctx->lex_stk = list_ptr_new(lxs_freeAll);
 	list_ptr_push(ctx->lex_stk, lxs_new(0, NULL, NULL));
@@ -9586,11 +9626,11 @@ static const int LT_ALLOWSTR = 4;
 
 static inline bool oper_typemask(sink_val a, int mask){
 	switch (sink_typeof(a)){
-		case SINK_TYPE_NIL  : return (mask & LT_ALLOWNIL) != 0;
-		case SINK_TYPE_NUM  : return (mask & LT_ALLOWNUM) != 0;
-		case SINK_TYPE_STR  : return (mask & LT_ALLOWSTR) != 0;
-		case SINK_TYPE_LIST : return false;
-		case SINK_TYPE_ASYNC: return false;
+		case SINK_TYPE_NIL    : return (mask & LT_ALLOWNIL) != 0;
+		case SINK_TYPE_NUM    : return (mask & LT_ALLOWNUM) != 0;
+		case SINK_TYPE_STR    : return (mask & LT_ALLOWSTR) != 0;
+		case SINK_TYPE_LIST   : return false;
+		case SINK_TYPE_PROMISE: return false;
 	}
 }
 
@@ -11795,7 +11835,7 @@ static inline int sortboth(context ctx, list_int li, sink_val a, sink_val b){
 	sink_type atype = sink_typeof(a);
 	sink_type btype = sink_typeof(b);
 
-	if (atype == SINK_TYPE_ASYNC || btype == SINK_TYPE_ASYNC){
+	if (atype == SINK_TYPE_PROMISE || btype == SINK_TYPE_PROMISE){
 		opi_abortcstr(ctx, "Invalid value inside list during sort");
 		return -1;
 	}
@@ -12319,8 +12359,8 @@ static bool pk_tojson(context ctx, sink_val a, list_int li, sink_str s){
 			s->bytes = bytes;
 			return true;
 		} break;
-		case SINK_TYPE_ASYNC:
-			opi_abortcstr(ctx, "Cannot pickle invalid value (SINK_ASYNC)");
+		case SINK_TYPE_PROMISE:
+			opi_abortcstr(ctx, "Cannot pickle invalid value (promise)");
 			return false;
 	}
 }
@@ -12445,8 +12485,8 @@ static void pk_tobin(context ctx, sink_val a, list_int li, uint32_t *str_table_s
 				pk_tobin_vint(body, idxat);
 			}
 		} break;
-		case SINK_TYPE_ASYNC:
-			opi_abortcstr(ctx, "Cannot pickle invalid value (SINK_ASYNC)");
+		case SINK_TYPE_PROMISE:
+			opi_abortcstr(ctx, "Cannot pickle invalid value (promise)");
 			break;
 	}
 }
@@ -13023,8 +13063,8 @@ static sink_val pk_copy(context ctx, sink_val a, list_int li_src, list_int li_tg
 			// otherwise, use the last generated list
 			return (sink_val){ .u = SINK_TAG_LIST | li_tgt->vals[idxat] };
 		} break;
-		case SINK_TYPE_ASYNC:
-			opi_abortcstr(ctx, "Cannot pickle invalid value (SINK_ASYNC)");
+		case SINK_TYPE_PROMISE:
+			opi_abortcstr(ctx, "Cannot pickle invalid value (promise)");
 			return SINK_NIL;
 	}
 }
@@ -13085,14 +13125,23 @@ static const char *txt_int_clz      = "counting leading zeros";
 static const char *txt_int_pop      = "population count";
 static const char *txt_int_bswap    = "byte swaping";
 
-static sink_run context_run(context ctx){
-	if (ctx->passed) return SINK_RUN_PASS;
-	if (ctx->failed) return SINK_RUN_FAIL;
-	if (ctx->async ) return SINK_RUN_ASYNC;
+static inline void rundone(context ctx, void *rduser, sink_rundone_f f_rundone, sink_run result){
+	if (result == SINK_RUN_PASS || result == SINK_RUN_FAIL)
+		context_reset(ctx);
+	if (f_rundone)
+		f_rundone(ctx, result, rduser);
+}
+
+static void context_run(context ctx, void *rduser, sink_rundone_f f_rundone){
+	#define RUNDONE(result) do{ rundone(ctx, rduser, f_rundone, result); return; }while(false)
+
+	if (ctx->passed) RUNDONE(SINK_RUN_PASS);
+	if (ctx->failed) RUNDONE(SINK_RUN_FAIL);
+	if (ctx->async ) return;
 
 	if (ctx->timeout > 0 && ctx->timeout_left <= 0){
 		ctx->timeout_left = ctx->timeout;
-		return SINK_RUN_TIMEOUT;
+		RUNDONE(SINK_RUN_TIMEOUT);
 	}
 
 	int32_t A, B, C, D, E, F, G, H, I, J;
@@ -13143,14 +13192,14 @@ static sink_run context_run(context ctx){
 		LOAD_abcd();                                                                       \
 		var_set(ctx, A, B, opi_unop(ctx, var_get(ctx, C, D), func, erop));                 \
 		if (ctx->failed)                                                                   \
-			return SINK_RUN_FAIL;
+			RUNDONE(SINK_RUN_FAIL);
 
 	#define INLINE_BINOP_T(func, erop, t1, t2)                                             \
 		LOAD_abcdef();                                                                     \
 		var_set(ctx, A, B,                                                                 \
 			opi_binop(ctx, var_get(ctx, C, D), var_get(ctx, E, F), func, erop, t1, t2));   \
 		if (ctx->failed)                                                                   \
-			return SINK_RUN_FAIL;
+			RUNDONE(SINK_RUN_FAIL);
 
 	#define INLINE_BINOP(func, erop) INLINE_BINOP_T(func, erop, LT_ALLOWNUM, LT_ALLOWNUM)
 
@@ -13160,7 +13209,7 @@ static sink_run context_run(context ctx){
 			opi_triop(ctx, var_get(ctx, C, D), var_get(ctx, E, F), var_get(ctx, G, H),     \
 				func, erop));                                                              \
 		if (ctx->failed)                                                                   \
-			return SINK_RUN_FAIL;
+			RUNDONE(SINK_RUN_FAIL);
 
 	while (ctx->pc < ops->size){
 		ctx->lastpc = ctx->pc;
@@ -13178,7 +13227,7 @@ static sink_run context_run(context ctx){
 				LOAD_ab();
 				X = var_get(ctx, A, B);
 				if (!sink_isnum(X))
-					return opi_abortcstr(ctx, "Expecting number when incrementing");
+					RUNDONE(opi_abortcstr(ctx, "Expecting number when incrementing"));
 				var_set(ctx, A, B, sink_num(X.f + 1));
 			} break;
 
@@ -13287,14 +13336,14 @@ static sink_run context_run(context ctx){
 				LOAD_abcd();
 				var_set(ctx, A, B, sink_num(opi_size(ctx, var_get(ctx, C, D))));
 				if (ctx->failed)
-					return SINK_RUN_FAIL;
+					RUNDONE(SINK_RUN_FAIL);
 			} break;
 
 			case OP_TONUM          : { // [TGT], [SRC]
 				LOAD_abcd();
 				var_set(ctx, A, B, opi_tonum(ctx, var_get(ctx, C, D)));
 				if (ctx->failed)
-					return SINK_RUN_FAIL;
+					RUNDONE(SINK_RUN_FAIL);
 			} break;
 
 			case OP_CAT            : { // [TGT], ARGCOUNT, [ARGS]...
@@ -13311,7 +13360,7 @@ static sink_run context_run(context ctx){
 				else{
 					var_set(ctx, A, B, opi_str_cat(ctx, C, p));
 					if (ctx->failed)
-						return SINK_RUN_FAIL;
+						RUNDONE(SINK_RUN_FAIL);
 				}
 			} break;
 
@@ -13330,7 +13379,7 @@ static sink_run context_run(context ctx){
 				else if (sink_isnum(X) && sink_isnum(Y))
 					var_set(ctx, A, B, sink_bool(X.f < Y.f));
 				else
-					return opi_abortcstr(ctx, "Expecting numbers or strings");
+					RUNDONE(opi_abortcstr(ctx, "Expecting numbers or strings"));
 			} break;
 
 			case OP_LTE            : { // [TGT], [SRC1], [SRC2]
@@ -13348,7 +13397,7 @@ static sink_run context_run(context ctx){
 				else if (sink_isnum(X) && sink_isnum(Y))
 					var_set(ctx, A, B, sink_bool(X.f <= Y.f));
 				else
-					return opi_abortcstr(ctx, "Expecting numbers or strings");
+					RUNDONE(opi_abortcstr(ctx, "Expecting numbers or strings"));
 			} break;
 
 			case OP_NEQ            : { // [TGT], [SRC1], [SRC2]
@@ -13369,10 +13418,10 @@ static sink_run context_run(context ctx){
 				LOAD_abcdef();
 				X = var_get(ctx, C, D);
 				if (!sink_islist(X) && !sink_isstr(X))
-					return opi_abortcstr(ctx, "Expecting list or string when indexing");
+					RUNDONE(opi_abortcstr(ctx, "Expecting list or string when indexing"));
 				Y = var_get(ctx, E, F);
 				if (!sink_isnum(Y))
-					return opi_abortcstr(ctx, "Expecting index to be number");
+					RUNDONE(opi_abortcstr(ctx, "Expecting index to be number"));
 				I = Y.f;
 				if (sink_islist(X)){
 					ls = var_castlist(ctx, X);
@@ -13404,17 +13453,17 @@ static sink_run context_run(context ctx){
 				else
 					var_set(ctx, A, B, opi_str_slice(ctx, X, Y, Z));
 				if (ctx->failed)
-					return SINK_RUN_FAIL;
+					RUNDONE(SINK_RUN_FAIL);
 			} break;
 
 			case OP_SETAT          : { // [SRC1], [SRC2], [SRC3]
 				LOAD_abcdef();
 				X = var_get(ctx, A, B);
 				if (!sink_islist(X))
-					return opi_abortcstr(ctx, "Expecting list when setting index");
+					RUNDONE(opi_abortcstr(ctx, "Expecting list when setting index"));
 				Y = var_get(ctx, C, D);
 				if (!sink_isnum(Y))
-					return opi_abortcstr(ctx, "Expecting index to be number");
+					RUNDONE(opi_abortcstr(ctx, "Expecting index to be number"));
 				ls = var_castlist(ctx, X);
 				A = (int)Y.f;
 				if (A < 0)
@@ -13435,7 +13484,7 @@ static sink_run context_run(context ctx){
 				else if (sink_isstr(X))
 					var_set(ctx, A, B, opi_str_splice(ctx, X, Y, Z, W));
 				else
-					return opi_abortcstr(ctx, "Expecting list or string when splicing");
+					RUNDONE(opi_abortcstr(ctx, "Expecting list or string when splicing"));
 			} break;
 
 			case OP_JUMP           : { // [[LOCATION]]
@@ -13443,7 +13492,7 @@ static sink_run context_run(context ctx){
 				A = A + (B << 8) + (C << 16) + ((D << 23) * 2);
 				if (ctx->prg->repl && A == -1){
 					ctx->pc -= 5;
-					return SINK_RUN_REPLMORE;
+					RUNDONE(SINK_RUN_REPLMORE);
 				}
 				ctx->pc = A;
 			} break;
@@ -13454,7 +13503,7 @@ static sink_run context_run(context ctx){
 				if (!sink_isnil(var_get(ctx, A, B))){
 					if (ctx->prg->repl && C == -1){
 						ctx->pc -= 7;
-						return SINK_RUN_REPLMORE;
+						RUNDONE(SINK_RUN_REPLMORE);
 					}
 					ctx->pc = C;
 				}
@@ -13466,7 +13515,7 @@ static sink_run context_run(context ctx){
 				if (sink_isnil(var_get(ctx, A, B))){
 					if (ctx->prg->repl && C == -1){
 						ctx->pc -= 7;
-						return SINK_RUN_REPLMORE;
+						RUNDONE(SINK_RUN_REPLMORE);
 					}
 					ctx->pc = C;
 				}
@@ -13488,7 +13537,7 @@ static sink_run context_run(context ctx){
 				C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
 				if (C == -1){
 					ctx->pc -= 8;
-					return SINK_RUN_REPLMORE;
+					RUNDONE(SINK_RUN_REPLMORE);
 				}
 				for (I = 0; I < G; I++){
 					E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
@@ -13537,23 +13586,28 @@ static sink_run context_run(context ctx){
 				else
 					nat = ctx->natives->ptrs[C];
 				if (nat == NULL || nat->f_native == NULL)
-					return opi_abortcstr(ctx, "Native call not implemented");
+					RUNDONE(opi_abortcstr(ctx, "Native call not implemented"));
 				X = nat->f_native(ctx, G, p, nat->natuser);
 				if (ctx->failed)
-					return SINK_RUN_FAIL;
-				if (sink_isasync(X)){
-					ctx->async_frame = A;
-					ctx->async_index = B;
+					RUNDONE(SINK_RUN_FAIL);
+				if (sink_ispromise(X)){
+					int pi = promise_find(ctx, var_index(X));
+					if (pi < 0)
+						RUNDONE(opi_abortcstr(ctx, "Invalid promise"));
+					promise pr = ctx->promises->ptrs[pi];
+					pr->final.paused = true;
+					pr->final.frame = A;
+					pr->final.index = B;
 					ctx->timeout_left = ctx->timeout;
 					ctx->async = true;
-					return SINK_RUN_ASYNC;
+					return;
 				}
 				var_set(ctx, A, B, X);
 			} break;
 
 			case OP_RETURN         : { // [SRC]
 				if (ctx->call_stk->size <= 0)
-					return opi_exit(ctx);
+					RUNDONE(opi_exit(ctx));
 				LOAD_ab();
 				X = var_get(ctx, A, B);
 				ccs s = list_ptr_pop(ctx->call_stk);
@@ -13571,7 +13625,7 @@ static sink_run context_run(context ctx){
 				A = A + (B << 8) + (C << 16) + ((D << 23) * 2);
 				if (A == -1){
 					ctx->pc -= 6;
-					return SINK_RUN_REPLMORE;
+					RUNDONE(SINK_RUN_REPLMORE);
 				}
 				for (I = 0; I < E; I++){
 					G = ops->bytes[ctx->pc++]; H = ops->bytes[ctx->pc++];
@@ -13601,24 +13655,24 @@ static sink_run context_run(context ctx){
 				Y = var_get(ctx, E, F);
 				Z = var_get(ctx, G, H);
 				if (!sink_isnum(X))
-					return opi_abortcstr(ctx, "Expecting number for range");
+					RUNDONE(opi_abortcstr(ctx, "Expecting number for range"));
 				if (sink_isnum(Y)){
 					if (sink_isnil(Z))
 						Z = sink_num(1);
 					if (!sink_isnum(Z))
-						return opi_abortcstr(ctx, "Expecting number for range step");
+						RUNDONE(opi_abortcstr(ctx, "Expecting number for range step"));
 					X = opi_range(ctx, X.f, Y.f, Z.f);
 				}
 				else if (sink_isnil(Y)){
 					if (!sink_isnil(Z))
-						return opi_abortcstr(ctx, "Expecting number for range stop");
+						RUNDONE(opi_abortcstr(ctx, "Expecting number for range stop"));
 					X = opi_range(ctx, 0, X.f, 1);
 				}
 				else
-					return opi_abortcstr(ctx, "Expecting number for range stop");
+					RUNDONE(opi_abortcstr(ctx, "Expecting number for range stop"));
 				var_set(ctx, A, B, X);
 				if (ctx->failed)
-					return SINK_RUN_FAIL;
+					RUNDONE(SINK_RUN_FAIL);
 			} break;
 
 			case OP_ORDER          : { // [TGT], [SRC1], [SRC2]
@@ -13637,7 +13691,7 @@ static sink_run context_run(context ctx){
 				opi_say(ctx, C, p);
 				var_set(ctx, A, B, SINK_NIL);
 				if (ctx->failed)
-					return SINK_RUN_FAIL;
+					RUNDONE(SINK_RUN_FAIL);
 			} break;
 
 			case OP_WARN           : { // [TGT], ARGCOUNT, [ARGS]...
@@ -13649,7 +13703,7 @@ static sink_run context_run(context ctx){
 				opi_warn(ctx, C, p);
 				var_set(ctx, A, B, SINK_NIL);
 				if (ctx->failed)
-					return SINK_RUN_FAIL;
+					RUNDONE(SINK_RUN_FAIL);
 			} break;
 
 			case OP_ASK            : { // [TGT], ARGCOUNT, [ARGS]...
@@ -13660,13 +13714,18 @@ static sink_run context_run(context ctx){
 				}
 				X = opi_ask(ctx, C, p);
 				if (ctx->failed)
-					return SINK_RUN_FAIL;
-				if (sink_isasync(X)){
-					ctx->async_frame = A;
-					ctx->async_index = B;
+					RUNDONE(SINK_RUN_FAIL);
+				if (sink_ispromise(X)){
+					int pi = promise_find(ctx, var_index(X));
+					if (pi < 0)
+						RUNDONE(opi_abortcstr(ctx, "Invalid promise"));
+					promise pr = ctx->promises->ptrs[pi];
+					pr->final.paused = true;
+					pr->final.frame = A;
+					pr->final.index = B;
 					ctx->timeout_left = ctx->timeout;
 					ctx->async = true;
-					return SINK_RUN_ASYNC;
+					return;
 				}
 				var_set(ctx, A, B, X);
 			} break;
@@ -13680,9 +13739,9 @@ static sink_run context_run(context ctx){
 					}
 					opi_say(ctx, C, p);
 					if (ctx->failed)
-						return SINK_RUN_FAIL;
+						RUNDONE(SINK_RUN_FAIL);
 				}
-				return opi_exit(ctx);
+				RUNDONE(opi_exit(ctx));
 			} break;
 
 			case OP_ABORT          : { // [TGT], ARGCOUNT, [ARGS]...
@@ -13694,7 +13753,7 @@ static sink_run context_run(context ctx){
 				char *err = NULL;
 				if (C > 0)
 					err = (char *)opi_list_joinplain(ctx, C, p, 1, (const uint8_t *)" ", &A);
-				return opi_abort(ctx, err);
+				RUNDONE(opi_abort(ctx, err));
 			} break;
 
 			case OP_STACKTRACE     : { // [TGT]
@@ -13873,7 +13932,7 @@ static sink_run context_run(context ctx){
 				}
 				X = opi_combop(ctx, C, p, binop_int_and, txt_int_and);
 				if (ctx->failed)
-					return SINK_RUN_FAIL;
+					RUNDONE(SINK_RUN_FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -13885,7 +13944,7 @@ static sink_run context_run(context ctx){
 				}
 				X = opi_combop(ctx, C, p, binop_int_or, txt_int_or);
 				if (ctx->failed)
-					return SINK_RUN_FAIL;
+					RUNDONE(SINK_RUN_FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -13897,7 +13956,7 @@ static sink_run context_run(context ctx){
 				}
 				X = opi_combop(ctx, C, p, binop_int_xor, txt_int_xor);
 				if (ctx->failed)
-					return SINK_RUN_FAIL;
+					RUNDONE(SINK_RUN_FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -13951,7 +14010,7 @@ static sink_run context_run(context ctx){
 				if (sink_isnil(X))
 					X.f = 0;
 				else if (!sink_isnum(X))
-					return opi_abortcstr(ctx, "Expecting number");
+					RUNDONE(opi_abortcstr(ctx, "Expecting number"));
 				opi_rand_seed(ctx, X.f);
 				var_set(ctx, A, B, SINK_NIL);
 			} break;
@@ -13981,7 +14040,7 @@ static sink_run context_run(context ctx){
 				LOAD_abcd();
 				opi_rand_setstate(ctx, var_get(ctx, C, D));
 				if (ctx->failed)
-					return SINK_RUN_FAIL;
+					RUNDONE(SINK_RUN_FAIL);
 				var_set(ctx, A, B, SINK_NIL);
 			} break;
 
@@ -13989,7 +14048,7 @@ static sink_run context_run(context ctx){
 				LOAD_abcd();
 				X = opi_rand_pick(ctx, var_get(ctx, C, D));
 				if (ctx->failed)
-					return SINK_RUN_FAIL;
+					RUNDONE(SINK_RUN_FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -13998,7 +14057,7 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				opi_rand_shuffle(ctx, X);
 				if (ctx->failed)
-					return SINK_RUN_FAIL;
+					RUNDONE(SINK_RUN_FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -14017,7 +14076,7 @@ static sink_run context_run(context ctx){
 				Y = var_get(ctx, E, F);
 				X = opi_str_split(ctx, X, Y);
 				if (ctx->failed)
-					return SINK_RUN_FAIL;
+					RUNDONE(SINK_RUN_FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -14028,7 +14087,7 @@ static sink_run context_run(context ctx){
 				Z = var_get(ctx, G, H);
 				X = opi_str_replace(ctx, X, Y, Z);
 				if (ctx->failed)
-					return SINK_RUN_FAIL;
+					RUNDONE(SINK_RUN_FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -14038,7 +14097,7 @@ static sink_run context_run(context ctx){
 				Y = var_get(ctx, E, F);
 				X = sink_bool(opi_str_begins(ctx, X, Y));
 				if (ctx->failed)
-					return SINK_RUN_FAIL;
+					RUNDONE(SINK_RUN_FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -14048,7 +14107,7 @@ static sink_run context_run(context ctx){
 				Y = var_get(ctx, E, F);
 				X = sink_bool(opi_str_ends(ctx, X, Y));
 				if (ctx->failed)
-					return SINK_RUN_FAIL;
+					RUNDONE(SINK_RUN_FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -14059,10 +14118,10 @@ static sink_run context_run(context ctx){
 				if (sink_isnil(Y))
 					Y.f = 0;
 				else if (!sink_isnum(Y))
-					return opi_abortcstr(ctx, "Expecting number");
+					RUNDONE(opi_abortcstr(ctx, "Expecting number"));
 				X = opi_str_pad(ctx, X, Y.f);
 				if (ctx->failed)
-					return SINK_RUN_FAIL;
+					RUNDONE(SINK_RUN_FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -14073,7 +14132,7 @@ static sink_run context_run(context ctx){
 				Z = var_get(ctx, G, H);
 				X = opi_str_find(ctx, X, Y, Z);
 				if (ctx->failed)
-					return SINK_RUN_FAIL;
+					RUNDONE(SINK_RUN_FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -14084,7 +14143,7 @@ static sink_run context_run(context ctx){
 				Z = var_get(ctx, G, H);
 				X = opi_str_rfind(ctx, X, Y, Z);
 				if (ctx->failed)
-					return SINK_RUN_FAIL;
+					RUNDONE(SINK_RUN_FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -14093,7 +14152,7 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				X = opi_str_lower(ctx, X);
 				if (ctx->failed)
-					return SINK_RUN_FAIL;
+					RUNDONE(SINK_RUN_FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -14102,7 +14161,7 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				X = opi_str_upper(ctx, X);
 				if (ctx->failed)
-					return SINK_RUN_FAIL;
+					RUNDONE(SINK_RUN_FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -14111,7 +14170,7 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				X = opi_str_trim(ctx, X);
 				if (ctx->failed)
-					return SINK_RUN_FAIL;
+					RUNDONE(SINK_RUN_FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -14120,7 +14179,7 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				X = opi_str_rev(ctx, X);
 				if (ctx->failed)
-					return SINK_RUN_FAIL;
+					RUNDONE(SINK_RUN_FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -14131,10 +14190,10 @@ static sink_run context_run(context ctx){
 				if (sink_isnil(Y))
 					Y.f = 0;
 				else if (!sink_isnum(Y))
-					return opi_abortcstr(ctx, "Expecting number");
+					RUNDONE(opi_abortcstr(ctx, "Expecting number"));
 				X = opi_str_rep(ctx, X, Y.f);
 				if (ctx->failed)
-					return SINK_RUN_FAIL;
+					RUNDONE(SINK_RUN_FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -14143,7 +14202,7 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				X = opi_str_list(ctx, X);
 				if (ctx->failed)
-					return SINK_RUN_FAIL;
+					RUNDONE(SINK_RUN_FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -14154,10 +14213,10 @@ static sink_run context_run(context ctx){
 				if (sink_isnil(Y))
 					Y.f = 0;
 				else if (!sink_isnum(Y))
-					return opi_abortcstr(ctx, "Expecting number");
+					RUNDONE(opi_abortcstr(ctx, "Expecting number"));
 				X = opi_str_byte(ctx, X, Y.f);
 				if (ctx->failed)
-					return SINK_RUN_FAIL;
+					RUNDONE(SINK_RUN_FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -14168,10 +14227,10 @@ static sink_run context_run(context ctx){
 				if (sink_isnil(Y))
 					Y.f = 0;
 				else if (!sink_isnum(Y))
-					return opi_abortcstr(ctx, "Expecting number");
+					RUNDONE(opi_abortcstr(ctx, "Expecting number"));
 				X = opi_str_hash(ctx, X, Y.f);
 				if (ctx->failed)
-					return SINK_RUN_FAIL;
+					RUNDONE(SINK_RUN_FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -14186,7 +14245,7 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				X = opi_utf8_list(ctx, X);
 				if (ctx->failed)
-					return SINK_RUN_FAIL;
+					RUNDONE(SINK_RUN_FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -14195,7 +14254,7 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				X = opi_utf8_str(ctx, X);
 				if (ctx->failed)
-					return SINK_RUN_FAIL;
+					RUNDONE(SINK_RUN_FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -14210,7 +14269,7 @@ static sink_run context_run(context ctx){
 				Y = var_get(ctx, E, F);
 				X = opi_struct_str(ctx, X, Y);
 				if (ctx->failed)
-					return SINK_RUN_FAIL;
+					RUNDONE(SINK_RUN_FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -14220,7 +14279,7 @@ static sink_run context_run(context ctx){
 				Y = var_get(ctx, E, F);
 				X = opi_struct_list(ctx, X, Y);
 				if (ctx->failed)
-					return SINK_RUN_FAIL;
+					RUNDONE(SINK_RUN_FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -14235,7 +14294,7 @@ static sink_run context_run(context ctx){
 				Y = var_get(ctx, E, F);
 				X = opi_list_new(ctx, X, Y);
 				if (ctx->failed)
-					return SINK_RUN_FAIL;
+					RUNDONE(SINK_RUN_FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -14244,7 +14303,7 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				X = opi_list_shift(ctx, X);
 				if (ctx->failed)
-					return SINK_RUN_FAIL;
+					RUNDONE(SINK_RUN_FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -14253,7 +14312,7 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				X = opi_list_pop(ctx, X);
 				if (ctx->failed)
-					return SINK_RUN_FAIL;
+					RUNDONE(SINK_RUN_FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -14263,7 +14322,7 @@ static sink_run context_run(context ctx){
 				Y = var_get(ctx, E, F);
 				X = opi_list_push(ctx, X, Y);
 				if (ctx->failed)
-					return SINK_RUN_FAIL;
+					RUNDONE(SINK_RUN_FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -14273,7 +14332,7 @@ static sink_run context_run(context ctx){
 				Y = var_get(ctx, E, F);
 				X = opi_list_unshift(ctx, X, Y);
 				if (ctx->failed)
-					return SINK_RUN_FAIL;
+					RUNDONE(SINK_RUN_FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -14283,7 +14342,7 @@ static sink_run context_run(context ctx){
 				Y = var_get(ctx, E, F);
 				X = opi_list_append(ctx, X, Y);
 				if (ctx->failed)
-					return SINK_RUN_FAIL;
+					RUNDONE(SINK_RUN_FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -14293,7 +14352,7 @@ static sink_run context_run(context ctx){
 				Y = var_get(ctx, E, F);
 				X = opi_list_prepend(ctx, X, Y);
 				if (ctx->failed)
-					return SINK_RUN_FAIL;
+					RUNDONE(SINK_RUN_FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -14304,7 +14363,7 @@ static sink_run context_run(context ctx){
 				Z = var_get(ctx, G, H);
 				X = opi_list_find(ctx, X, Y, Z);
 				if (ctx->failed)
-					return SINK_RUN_FAIL;
+					RUNDONE(SINK_RUN_FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -14315,7 +14374,7 @@ static sink_run context_run(context ctx){
 				Z = var_get(ctx, G, H);
 				X = opi_list_rfind(ctx, X, Y, Z);
 				if (ctx->failed)
-					return SINK_RUN_FAIL;
+					RUNDONE(SINK_RUN_FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -14325,7 +14384,7 @@ static sink_run context_run(context ctx){
 				Y = var_get(ctx, E, F);
 				X = opi_list_join(ctx, X, Y);
 				if (ctx->failed)
-					return SINK_RUN_FAIL;
+					RUNDONE(SINK_RUN_FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -14334,7 +14393,7 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				X = opi_list_rev(ctx, X);
 				if (ctx->failed)
-					return SINK_RUN_FAIL;
+					RUNDONE(SINK_RUN_FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -14343,7 +14402,7 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				X = opi_list_str(ctx, X);
 				if (ctx->failed)
-					return SINK_RUN_FAIL;
+					RUNDONE(SINK_RUN_FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -14352,7 +14411,7 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				opi_list_sort(ctx, X);
 				if (ctx->failed)
-					return SINK_RUN_FAIL;
+					RUNDONE(SINK_RUN_FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -14361,7 +14420,7 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				opi_list_rsort(ctx, X);
 				if (ctx->failed)
-					return SINK_RUN_FAIL;
+					RUNDONE(SINK_RUN_FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -14370,7 +14429,7 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				X = opi_pickle_json(ctx, X);
 				if (ctx->failed)
-					return SINK_RUN_FAIL;
+					RUNDONE(SINK_RUN_FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -14378,8 +14437,8 @@ static sink_run context_run(context ctx){
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				X = opi_pickle_bin(ctx, X);
-				if (ctx->failed) // can fail in C impl because of SINK_TYPE_ASYNC
-					return SINK_RUN_FAIL;
+				if (ctx->failed) // can fail in C impl because of SINK_TYPE_PROMISE
+					RUNDONE(SINK_RUN_FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -14388,7 +14447,7 @@ static sink_run context_run(context ctx){
 				X = var_get(ctx, C, D);
 				X = opi_pickle_val(ctx, X);
 				if (ctx->failed)
-					return SINK_RUN_FAIL;
+					RUNDONE(SINK_RUN_FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -14415,8 +14474,8 @@ static sink_run context_run(context ctx){
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				X = opi_pickle_copy(ctx, X);
-				if (ctx->failed) // can fail in C impl because of SINK_TYPE_ASYNC
-					return SINK_RUN_FAIL;
+				if (ctx->failed) // can fail in C impl because of SINK_TYPE_PROMISE
+					RUNDONE(SINK_RUN_FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -14428,11 +14487,15 @@ static sink_run context_run(context ctx){
 			case OP_GC_SETLEVEL    : { // [TGT], [SRC]
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
-				if (!sink_isnum(X))
-					return opi_abortcstr(ctx, "Expecting one of gc.NONE, gc.DEFAULT, or gc.LOWMEM");
+				if (!sink_isnum(X)){
+					RUNDONE(
+						opi_abortcstr(ctx, "Expecting one of gc.NONE, gc.DEFAULT, or gc.LOWMEM"));
+				}
 				J = (int)X.f;
-				if (J != SINK_GC_NONE && J != SINK_GC_DEFAULT && J != SINK_GC_LOWMEM)
-					return opi_abortcstr(ctx, "Expecting one of gc.NONE, gc.DEFAULT, or gc.LOWMEM");
+				if (J != SINK_GC_NONE && J != SINK_GC_DEFAULT && J != SINK_GC_LOWMEM){
+					RUNDONE(
+						opi_abortcstr(ctx, "Expecting one of gc.NONE, gc.DEFAULT, or gc.LOWMEM"));
+				}
 				ctx->gc_level = J;
 				context_gcleft(ctx, false);
 				var_set(ctx, A, B, SINK_NIL);
@@ -14455,7 +14518,7 @@ static sink_run context_run(context ctx){
 			ctx->timeout_left--;
 			if (ctx->timeout_left <= 0){
 				ctx->timeout_left = ctx->timeout;
-				return SINK_RUN_TIMEOUT;
+				RUNDONE(SINK_RUN_TIMEOUT);
 			}
 		}
 	}
@@ -14474,8 +14537,9 @@ static sink_run context_run(context ctx){
 	#undef INLINE_TRIOP
 
 	if (ctx->prg->repl)
-		return SINK_RUN_REPLMORE;
-	return opi_exit(ctx);
+		RUNDONE(SINK_RUN_REPLMORE);
+	RUNDONE(opi_exit(ctx));
+	#undef RUNDONE
 }
 
 //
@@ -15457,15 +15521,15 @@ sink_ctx sink_ctx_new(sink_scr scr, sink_io_st io){
 	return context_new(((script)scr)->prg, io);
 }
 
-sink_ctx_status sink_ctx_getstatus(sink_ctx ctx){
+sink_status sink_ctx_getstatus(sink_ctx ctx){
 	context ctx2 = ctx;
 	if (ctx2->passed)
-		return SINK_CTX_PASSED;
+		return SINK_PASSED;
 	else if (ctx2->failed)
-		return SINK_CTX_FAILED;
+		return SINK_FAILED;
 	else if (ctx2->async)
-		return SINK_CTX_WAITING;
-	return SINK_CTX_READY;
+		return SINK_WAITING;
+	return SINK_READY;
 }
 
 void sink_ctx_native(sink_ctx ctx, const char *name, void *natuser, sink_native_f f_native){
@@ -15507,28 +15571,6 @@ const char *sink_ctx_getuserhint(sink_ctx ctx, sink_user usertype){
 	return ((context)ctx)->user_hint->ptrs[usertype];
 }
 
-void sink_ctx_asyncresult(sink_ctx ctx, sink_val v){
-	context ctx2 = ctx;
-	if (!ctx2->async){
-		assert(false);
-		return;
-	}
-	while (ctx2->onasyncs->size > 0){
-		ctx2->onasyncs->size--;
-		onasync oa = ctx2->onasyncs->ptrs[ctx2->onasyncs->size];
-		v = oa->f_onasync(ctx, v, oa->asyncuser);
-		mem_free(oa);
-		if (sink_isasync(v))
-			return;
-	}
-	var_set(ctx2, ctx2->async_frame, ctx2->async_index, v);
-	ctx2->async = false;
-}
-
-void sink_ctx_onasync(sink_ctx ctx, void *asyncuser, sink_onasync_f f_onasync){
-	list_ptr_push(((context)ctx)->onasyncs, onasync_new(asyncuser, f_onasync));
-}
-
 void sink_ctx_settimeout(sink_ctx ctx, int timeout){
 	context ctx2 = ctx;
 	if (timeout < 0)
@@ -15556,16 +15598,13 @@ void sink_ctx_forcetimeout(sink_ctx ctx){
 	((context)ctx)->timeout_left = 0;
 }
 
-sink_run sink_ctx_run(sink_ctx ctx){
+void sink_ctx_run(sink_ctx ctx, void *rduser, sink_rundone_f f_rundone){
 	context ctx2 = ctx;
 	if (ctx2->prg->repl && ctx2->err){
 		mem_free(ctx2->err);
 		ctx2->err = NULL;
 	}
-	sink_run r = context_run(ctx2);
-	if (r == SINK_RUN_PASS || r == SINK_RUN_FAIL)
-		context_reset(ctx2);
-	return r;
+	context_run(ctx2, rduser, f_rundone);
 }
 
 const char *sink_ctx_geterr(sink_ctx ctx){
@@ -15574,6 +15613,105 @@ const char *sink_ctx_geterr(sink_ctx ctx){
 
 void sink_ctx_free(sink_ctx ctx){
 	context_free(ctx);
+}
+
+sink_val sink_promise_new(sink_ctx ctx, sink_then_st then){
+	return promise_toval(promise_new(ctx, then));
+}
+
+typedef struct {
+	sink_then_st then;
+	promise p2;
+} promise_chain_st, *promise_chain;
+
+static inline promise_chain promise_chain_new(promise p2, sink_then_st then){
+	promise_chain pch = mem_alloc(sizeof(promise_chain_st));
+	pch->p2 = p2;
+	pch->then = then;
+	return pch;
+}
+
+static sink_val promise_chain_then(sink_ctx ctx, sink_val result, promise_chain pch){
+	if (pch->then.f_then)
+		result = pch->then.f_then(ctx, result, pch->then.user);
+	sink_val p2v = promise_toval(pch->p2);
+	mem_free(pch);
+	sink_promise_resolve(ctx, p2v, result);
+	return result;
+}
+
+static void promise_chain_cancel(promise_chain pch){
+	if (pch->then.f_cancel)
+		pch->then.f_cancel(pch->then.user);
+	promise_cancel(pch->p2);
+	mem_free(pch);
+}
+
+sink_val sink_promise_then(sink_ctx ctx, sink_val prm, sink_then_st then){
+	context ctx2 = ctx;
+	if (sink_ispromise(prm)){
+		// the resolved result of p1 should be piped to the f_then of p2
+		// we also need to move the final actions over to p2, since it's the last one in line
+		int i = promise_find(ctx2, var_index(prm));
+		if (i < 0){
+			opi_abortcstr(ctx2, "Invalid promise");
+			return SINK_NIL;
+		}
+		promise p1 = ctx2->promises->ptrs[i];
+		promise p2 = promise_new(ctx2, then);
+		p2->final = p1->final;
+		p1->final.paused = false;
+		promise_chain pch = promise_chain_new(p2, p1->then);
+		p1->then = (sink_then_st){
+			.user = pch,
+			.f_then = (sink_then_f)promise_chain_then,
+			.f_cancel = (sink_cancel_f)promise_chain_cancel
+		};
+		return promise_toval(p2);
+	}
+	else{
+		// the promise isn't actually a promise... so just treat it as fully resolved as-is
+		if (then.f_then)
+			prm = then.f_then(ctx, prm, then.user);
+		return prm;
+	}
+}
+
+void sink_promise_resolve(sink_ctx ctx, sink_val prm, sink_val result){
+	context ctx2 = ctx;
+	if (!sink_ispromise(prm)){
+		opi_abortcstr(ctx, "Cannot resolve a non-promise");
+		return;
+	}
+	if (sink_ispromise(result)){
+		opi_abortcstr(ctx, "Cannot resolve a promise with a promise");
+		return;
+	}
+	int i = promise_find(ctx, var_index(prm));
+	if (i < 0){
+		opi_abortcstr(ctx, "Invalid promise");
+		return;
+	}
+	promise p = ctx2->promises->ptrs[i];
+	list_ptr_remove(ctx2->promises, i);
+	if (p->then.f_then){
+		result = p->then.f_then(ctx, result, p->then.user);
+		if (sink_ispromise(result) && p->final.paused){
+			int i2 = promise_find(ctx2, var_index(result));
+			if (i2 < 0){
+				opi_abortcstr(ctx2, "Invalid promise");
+				return;
+			}
+			promise p2 = ctx2->promises->ptrs[i2];
+			p2->final = p->final;
+			p->final.paused = false;
+		}
+	}
+	if (p->final.paused){
+		var_set(ctx2, p->final.frame, p->final.index, result);
+		ctx2->async = false;
+	}
+	mem_free(p);
 }
 
 sink_str sink_caststr(sink_ctx ctx, sink_val str){
@@ -15733,8 +15871,8 @@ static sink_str_st sinkhelp_tostr(context ctx, list_int li, sink_val v){
 			return (sink_str_st){ .bytes = bytes, .size = tot };
 		} break;
 
-		case SINK_TYPE_ASYNC: {
-			opi_abortcstr(ctx, "Cannot convert invalid value (SINK_ASYNC) to string");
+		case SINK_TYPE_PROMISE: {
+			opi_abortcstr(ctx, "Cannot convert invalid value (promise) to string");
 			return (sink_str_st){ .bytes = NULL, .size = 0 };
 		} break;
 	}

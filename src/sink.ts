@@ -75,7 +75,7 @@ export enum run {
 	REPLMORE
 }
 
-export enum ctx_status {
+export enum status {
 	READY,
 	WAITING,
 	PASSED,
@@ -13197,15 +13197,15 @@ export function ctx_new(scr: scr, io: io_st): ctx {
 	return context_new((scr as script_st).prg, io);
 }
 
-export function ctx_getstatus(ctx: ctx): ctx_status {
+export function ctx_getstatus(ctx: ctx): status {
 	let ctx2 = ctx as context_st;
 	if (ctx2.passed)
-		return ctx_status.PASSED;
+		return status.PASSED;
 	else if (ctx2.failed)
-		return ctx_status.FAILED;
+		return status.FAILED;
 	else if (ctx2.async)
-		return ctx_status.WAITING;
-	return ctx_status.READY;
+		return status.WAITING;
+	return status.READY;
 }
 
 export function ctx_native(ctx: ctx, name: string, natuser: any,

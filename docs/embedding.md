@@ -681,24 +681,24 @@ Get the status of the Context's virtual machine.
 
 ```c
 typedef enum {
-  SINK_CTX_READY,
-  SINK_CTX_WAITING,
-  SINK_CTX_PASSED,
-  SINK_CTX_FAILED
-} sink_ctx_status;
+  SINK_READY,
+  SINK_WAITING,
+  SINK_PASSED,
+  SINK_FAILED
+} sink_status;
 
-sink_ctx_status sink_ctx_getstatus(sink_ctx ctx);
+sink_status sink_ctx_getstatus(sink_ctx ctx);
 ```
 
 ```typescript
-enum sink.ctx_status {
+enum sink.status {
   READY,
   WAITING,
   PASSED,
   FAILED
 }
 
-function sink.ctx_getstatus(ctx: sink.ctx): sink.ctx_status;
+function sink.ctx_getstatus(ctx: sink.ctx): sink.status;
 ```
 
 Returns one of the following values:
@@ -1064,8 +1064,12 @@ Provide the result to an asynchronous operation (C only).
 void sink_ctx_asyncresult(sink_ctx ctx, sink_val v);
 ```
 
-This will allow the virtual machine to be resumed with a follow-up call to [`ctx_run`](#ctx_run),
-and will change the contex's [status](#ctx_getstatus) from `SINK_CTX_WAITING` to `SINK_CTX_READY`.
+This will call any handlers provided by [`ctx_onasync`](#ctx_onasync), before finally setting the
+result of an asynchronous operation, allowing the virtual machine to be resumed with a follow-up
+call to [`ctx_run`](#ctx_run).
+
+If the virtual machine is ready to be resumed, it will change the contex's [status](#ctx_getstatus)
+from `SINK_WAITING` to `SINK_READY`.
 
 This function should be called after receiving a `SINK_RUN_ASYNC` result from `ctx_run`.
 
