@@ -190,84 +190,107 @@ static inline void printctxerr(sink_ctx ctx){
 	fprintf(stderr, "%s\n", err);
 }
 
-static void run_setresult(sink_ctx ctx, sink_run result, sink_run *output){
-	*output = result;
-}
+typedef struct {
+	sink_scr scr;
+	int line;
+	int size;
+	int count;
+	char *buf;
+	int res;
+} replinfo_st, *replinfo;
 
-static int main_repl(sink_scr scr, int argc, char **argv, const char *sink_exe){
-	int res = 0;
-	sink_ctx ctx = newctx(scr, argc, argv, sink_exe, NULL);
-	int line = 1;
-	int bufsize = 0;
-	int bufcount = 200;
-	char *buf = malloc(sizeof(char) * bufcount);
-	if (buf == NULL){
-		sink_ctx_free(ctx);
-		sink_scr_free(scr);
-		fprintf(stderr, "Out of memory!\n");
-		return 1;
+static void main_repl_nextline(sink_ctx ctx, sink_run status, replinfo ri){
+	if (done)
+		return;
+
+	switch (status){
+		case SINK_RUN_PASS:
+			done = true;
+			ri->res = 0;
+			return;
+		case SINK_RUN_FAIL:
+			printctxerr(ctx);
+			break;
+		case SINK_RUN_TIMEOUT:
+			fprintf(stderr, "REPL returned timeout (impossible)\n");
+			done = true;
+			return;
+		case SINK_RUN_REPLMORE:
+			// do nothing
+			break;
 	}
-	catchint();
-	printline(line, sink_scr_level(scr));
+
+	printline(ri->line++, sink_scr_level(ri->scr));
+	ri->size = 0;
 	while (!done){
 		int ch = getchar();
 		if (ch == EOF){
 			ch = '\n';
 			done = true;
 		}
-		if (bufsize >= bufcount - 1){ // make sure there is always room for two chars
-			bufcount += 200;
-			buf = realloc(buf, sizeof(char) * bufcount);
-			if (buf == NULL){
-				sink_ctx_free(ctx);
-				sink_scr_free(scr);
+		if (ri->size >= ri->count - 1){ // make sure there is always room for two chars
+			ri->count += 200;
+			ri->buf = realloc(ri->buf, sizeof(char) * ri->count);
+			if (ri->buf == NULL){
 				fprintf(stderr, "Out of memory!\n");
-				return 1;
+				ri->res = 1;
+				done = true;
+				return;
 			}
 		}
-		buf[bufsize++] = ch;
+		ri->buf[ri->size++] = ch;
 		if (ch == '\n'){
-			if (!sink_scr_write(scr, bufsize, (uint8_t *)buf))
-				printscrerr(scr);
-			if (sink_scr_level(scr) <= 0){
-				sink_run res;
-				sink_ctx_run(ctx, &res, (sink_rundone_f)run_setresult);
-				switch (res){
-					case SINK_RUN_PASS:
-						done = true;
-						res = 0;
-						break;
-					case SINK_RUN_FAIL:
-						printctxerr(ctx);
-						break;
-					case SINK_RUN_TIMEOUT:
-						fprintf(stderr, "REPL returned timeout (impossible)\n");
-						done = true;
-						break;
-					case SINK_RUN_REPLMORE:
-						// do nothing
-						break;
-				}
+			if (!sink_scr_write(ri->scr, ri->size, (uint8_t *)ri->buf))
+				printscrerr(ri->scr);
+			if (sink_scr_level(ri->scr) <= 0){
+				if (done) // if done, run one last time
+					sink_ctx_run(ctx, ri, (sink_rundone_f)main_repl_nextline);
+				return;
 			}
-			if (!done)
-				printline(++line, sink_scr_level(scr));
-			bufsize = 0;
+			else{
+				if (done)
+					return;
+				printline(ri->line++, sink_scr_level(ri->scr));
+				ri->size = 0;
+			}
 		}
 	}
-	free(buf);
-	sink_ctx_free(ctx);
-	sink_scr_free(scr);
-	return res;
 }
 
-int main_run(sink_scr scr, const char *file, int argc, char **argv, const char *sink_exe){
+static int main_repl(sink_scr scr, int argc, char **argv, const char *sink_exe){
+	catchint();
+	sink_ctx ctx = newctx(scr, argc, argv, sink_exe, NULL);
+
+	replinfo_st ri = (replinfo_st){
+		.scr = scr,
+		.line = 1,
+		.size = 0,
+		.count = 0,
+		.buf = NULL,
+		.res = 0
+	};
+
+	while (!done)
+		sink_ctx_run(ctx, &ri, (sink_rundone_f)main_repl_nextline);
+
+	free(ri.buf);
+	sink_ctx_free(ctx);
+	sink_scr_free(scr);
+	return ri.res;
+}
+
+static void run_setresult(sink_ctx ctx, sink_run result, sink_run *output){
+	*output = result;
+}
+
+static int main_run(sink_scr scr, const char *file, int argc, char **argv, const char *sink_exe){
 	if (!sink_scr_loadfile(scr, file)){
 		printscrerr(scr);
 		sink_scr_free(scr);
 		return 1;
 	}
 	sink_ctx ctx = newctx(scr, argc, argv, sink_exe, sink_scr_getfile(scr));
-	sink_run res;
+	sink_run res = SINK_RUN_FAIL;
 	sink_ctx_run(ctx, &res, (sink_rundone_f)run_setresult);
 	if (res == SINK_RUN_FAIL)
 		printctxerr(ctx);
@@ -276,14 +299,14 @@ int main_run(sink_scr scr, const char *file, int argc, char **argv, const char *
 	return res == SINK_RUN_PASS ? 0 : 1;
 }
 
-int main_eval(sink_scr scr, const char *eval, int argc, char **argv, const char *sink_exe){
+static int main_eval(sink_scr scr, const char *eval, int argc, char **argv, const char *sink_exe){
 	if (!sink_scr_write(scr, strlen(eval), (const uint8_t *)eval)){
 		printscrerr(scr);
 		sink_scr_free(scr);
 		return 1;
 	}
 	sink_ctx ctx = newctx(scr, argc, argv, sink_exe, NULL);
-	sink_run res;
+	sink_run res = SINK_RUN_FAIL;
 	sink_ctx_run(ctx, &res, (sink_rundone_f)run_setresult);
 	if (res == SINK_RUN_FAIL)
 		printctxerr(ctx);
@@ -292,7 +315,7 @@ int main_eval(sink_scr scr, const char *eval, int argc, char **argv, const char 
 	return res == SINK_RUN_PASS ? 0 : 1;
 }
 
-int main_compile_file(sink_scr scr, const char *file, bool debug){
+static int main_compile_file(sink_scr scr, const char *file, bool debug){
 	if (!sink_scr_loadfile(scr, file)){
 		printscrerr(scr);
 		sink_scr_free(scr);
@@ -306,7 +329,7 @@ int main_compile_file(sink_scr scr, const char *file, bool debug){
 	return 0;
 }
 
-int main_compile_eval(sink_scr scr, const char *eval, bool debug){
+static int main_compile_eval(sink_scr scr, const char *eval, bool debug){
 	if (!sink_scr_write(scr, strlen(eval), (const uint8_t *)eval)){
 		printscrerr(scr);
 		sink_scr_free(scr);
@@ -320,14 +343,14 @@ int main_compile_eval(sink_scr scr, const char *eval, bool debug){
 	return 0;
 }
 
-void print_version(){
+static void print_version(){
 	printf(
 		"Sink v1.0\n"
 		"Copyright (c) 2016-2018 Sean Connelly (@voidqk), MIT License\n"
 		"https://github.com/voidqk/sink  http://sean.cm\n");
 }
 
-void print_help(){
+static void print_help(){
 	print_version();
 	printf(
 		"\nUsage:\n"
