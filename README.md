@@ -17,7 +17,7 @@ embeddable, with support for a REPL as used in debug consoles.
 
 ### Sink for Embedding
 
-* [Guide to Embedding](https://github.com/voidqk/sink/blob/master/docs/embedding.md)
+* [Guide to Embedding](https://github.com/voidqk/sink/blob/master/docs/embedding.md) (work-in-progress)
 
 ### Sink Binaries
 
