@@ -42,8 +42,7 @@ typedef enum {
 	SINK_TYPE_NIL,
 	SINK_TYPE_NUM,
 	SINK_TYPE_STR,
-	SINK_TYPE_LIST,
-	SINK_TYPE_PROMISE // not used within sink; used for native functions to signal async results
+	SINK_TYPE_LIST
 } sink_type;
 
 typedef union {
@@ -67,6 +66,7 @@ typedef struct {
 	int size;
 } sink_str_st, *sink_str;
 
+typedef void *sink_wait;
 typedef void *sink_scr;
 typedef void *sink_ctx;
 
@@ -85,20 +85,27 @@ typedef enum {
 typedef enum {
 	SINK_RUN_PASS,
 	SINK_RUN_FAIL,
+	SINK_RUN_ASYNC,
 	SINK_RUN_TIMEOUT,
 	SINK_RUN_REPLMORE
 } sink_run;
 
-typedef void (*sink_output_f)(sink_ctx ctx, sink_str str, void *iouser);
-typedef sink_val (*sink_input_f)(sink_ctx ctx, sink_str str, void *iouser);
-typedef sink_val (*sink_native_f)(sink_ctx ctx, int size, sink_val *args, void *natuser);
-typedef sink_fstype (*sink_fstype_f)(const char *file, void *incuser);
+typedef enum {
+	SINK_READY,
+	SINK_WAITING, // waiting for an async result
+	SINK_PASSED,
+	SINK_FAILED
+} sink_status;
+
 typedef bool (*sink_fsread_f)(sink_scr scr, const char *file, void *incuser);
+typedef sink_fstype (*sink_fstype_f)(const char *file, void *incuser);
+typedef sink_wait (*sink_output_f)(sink_ctx ctx, sink_str str, void *iouser);
+typedef sink_wait (*sink_input_f)(sink_ctx ctx, sink_str str, void *iouser);
+typedef sink_wait (*sink_native_f)(sink_ctx ctx, int size, sink_val *args, void *natuser);
 typedef size_t (*sink_dump_f)(const void *restrict ptr, size_t size, size_t nitems,
 	void *restrict dumpuser);
-typedef sink_val (*sink_then_f)(sink_ctx ctx, sink_val result, void *thenuser);
+typedef void (*sink_then_f)(sink_ctx ctx, sink_val result, void *thenuser);
 typedef void (*sink_cancel_f)(void *thenuser);
-typedef void (*sink_rundone_f)(sink_ctx ctx, sink_run result, void *rduser);
 
 typedef struct {
 	sink_output_f f_say;
@@ -112,13 +119,6 @@ typedef struct {
 	sink_fsread_f f_fsread;
 	void *user; // passed as incuser to functions
 } sink_inc_st;
-
-typedef enum {
-	SINK_READY,
-	SINK_WAITING, // waiting for an async result
-	SINK_PASSED,
-	SINK_FAILED
-} sink_status;
 
 typedef struct {
 	sink_then_f f_then;
@@ -135,13 +135,11 @@ typedef struct {
 // NIL    :  Q = 0, T = 1, F = 0
 // STR    :  Q = 0, T = 2, F = table index (31 bits)
 // LIST   :  Q = 0, T = 3, F = table index (31 bits)
-// PROMISE:  Q = 0, T = 4, F = 0
 
 static const sink_val SINK_NAN         = { .u = UINT64_C(0x7FF8000000000000) };
 static const sink_val SINK_NIL         = { .u = UINT64_C(0x7FF0000100000000) };
 static const uint64_t SINK_TAG_STR     =        UINT64_C(0x7FF0000200000000)  ;
 static const uint64_t SINK_TAG_LIST    =        UINT64_C(0x7FF0000300000000)  ;
-static const uint64_t SINK_TAG_PROMISE =        UINT64_C(0x7FF0000400000000)  ;
 static const uint64_t SINK_TAG_MASK    =        UINT64_C(0xFFFFFFFF80000000)  ;
 static const uint64_t SINK_NAN_MASK    =        UINT64_C(0x7FF8000000000000)  ;
 
@@ -177,13 +175,18 @@ void        sink_ctx_settimeout(sink_ctx ctx, int timeout);
 int         sink_ctx_gettimeout(sink_ctx ctx);
 void        sink_ctx_consumeticks(sink_ctx ctx, int amount);
 void        sink_ctx_forcetimeout(sink_ctx ctx);
-void        sink_ctx_run(sink_ctx ctx, void *rduser, sink_rundone_f f_rundone);
+sink_wait   sink_ctx_run(sink_ctx ctx);
 void        sink_ctx_free(sink_ctx ctx);
 
-// promises
-sink_val sink_promise_new(sink_ctx ctx, sink_then_st then);
-sink_val sink_promise_then(sink_ctx ctx, sink_val promise, sink_then_st then);
-void     sink_promise_resolve(sink_ctx ctx, sink_val promise, sink_val result);
+// wait objects
+sink_wait sink_wait_new(sink_ctx ctx);
+void      sink_then(sink_wait w, sink_then_st then);
+void      sink_finish(sink_wait w, sink_val result);
+static inline sink_wait sink_done(sink_ctx ctx, sink_val result){
+	sink_wait w = sink_wait_new(ctx);
+	sink_finish(w, result);
+	return w;
+}
 
 // value
 static inline sink_val sink_bool(bool f){ return f ? (sink_val){ .f = 1 } : SINK_NIL; }
@@ -192,14 +195,12 @@ static inline bool sink_isfalse(sink_val v){ return v.u == SINK_NIL.u; }
 static inline bool sink_isnil(sink_val v){ return v.u == SINK_NIL.u; }
 static inline bool sink_isstr(sink_val v){ return (v.u & SINK_TAG_MASK) == SINK_TAG_STR; }
 static inline bool sink_islist(sink_val v){ return (v.u & SINK_TAG_MASK) == SINK_TAG_LIST; }
-static inline bool sink_ispromise(sink_val v){ return (v.u & SINK_TAG_MASK) == SINK_TAG_PROMISE; }
 static inline bool sink_isnum(sink_val v){
-	return !sink_isnil(v) && !sink_ispromise(v) && !sink_isstr(v) && !sink_islist(v); }
+	return !sink_isnil(v) && !sink_isstr(v) && !sink_islist(v); }
 static inline sink_type sink_typeof(sink_val v){
 	if      (sink_isnil    (v)) return SINK_TYPE_NIL;
 	else if (sink_isstr    (v)) return SINK_TYPE_STR;
 	else if (sink_islist   (v)) return SINK_TYPE_LIST;
-	else if (sink_ispromise(v)) return SINK_TYPE_PROMISE;
 	else                        return SINK_TYPE_NUM;
 }
 static inline double sink_castnum(sink_val v){ return v.f; }
@@ -215,18 +216,18 @@ bool sink_arg_user(sink_ctx ctx, int size, sink_val *args, int index, sink_user 
 	void **user);
 
 // globals
-sink_val sink_tonum(sink_ctx ctx, sink_val v);
-sink_val sink_tostr(sink_ctx ctx, sink_val v);
-int      sink_size(sink_ctx ctx, sink_val v);
-void     sink_say(sink_ctx ctx, int size, sink_val *vals);
-void     sink_warn(sink_ctx ctx, int size, sink_val *vals);
-sink_val sink_ask(sink_ctx ctx, int size, sink_val *vals);
-void     sink_exit(sink_ctx ctx, int size, sink_val *vals);
-void     sink_abort(sink_ctx ctx, int size, sink_val *vals);
-sink_val sink_abortstr(sink_ctx ctx, const char *fmt, ...); // always returns SINK_NIL
-sink_val sink_range(sink_ctx ctx, double start, double stop, double step);
-int      sink_order(sink_ctx ctx, sink_val a, sink_val b);
-sink_val sink_stacktrace(sink_ctx ctx);
+sink_val  sink_tonum(sink_ctx ctx, sink_val v);
+sink_val  sink_tostr(sink_ctx ctx, sink_val v);
+int       sink_size(sink_ctx ctx, sink_val v);
+sink_wait sink_say(sink_ctx ctx, int size, sink_val *vals);
+sink_wait sink_warn(sink_ctx ctx, int size, sink_val *vals);
+sink_wait sink_ask(sink_ctx ctx, int size, sink_val *vals);
+sink_wait sink_exit(sink_ctx ctx, int size, sink_val *vals);
+void      sink_abort(sink_ctx ctx, int size, sink_val *vals);
+sink_wait sink_abortstr(sink_ctx ctx, const char *fmt, ...); // always returns NULL
+sink_val  sink_range(sink_ctx ctx, double start, double stop, double step);
+int       sink_order(sink_ctx ctx, sink_val a, sink_val b);
+sink_val  sink_stacktrace(sink_ctx ctx);
 
 // numbers
 static inline sink_val sink_num(double v){ return (sink_val){ .f = v }; }
@@ -370,23 +371,6 @@ int      sink_pickle_valid(sink_ctx ctx, sink_val a); // 0 for invalid, 1 for JS
 bool     sink_pickle_sibling(sink_ctx ctx, sink_val a);
 bool     sink_pickle_circular(sink_ctx ctx, sink_val a);
 sink_val sink_pickle_copy(sink_ctx ctx, sink_val a);
-// the following pickle functions can be used to marshal sink values between sink contexts, ex:
-//   sink_str_st str;
-//   // convert value into independant serialized buffer that exists without a sink context
-//   if (!sink_pickle_binstr(ctx1, v1, &str)){
-//     failed to pickle value; should never happen under normal use
-//     abort();
-//   }
-//   // ...
-//   // use str.size/str.bytes however you want, save to file, load from file, send across net, etc
-//   // ...
-//   // deserialize buffer into a value that can be passed around inside a different context
-//   sink_val v2;
-//   if (!sink_pickle_valstr(ctx2, str, &v2)){
-//     failed to unpickle value; the buffer was corrupted..?
-//   }
-//   // don't forget to free the serialized buffer produced by sink_pickle_binstr once done
-//   sink_pickle_binstrfree(str);
 bool     sink_pickle_binstr(sink_ctx ctx, sink_val a, sink_str_st *out);
 void     sink_pickle_binstrfree(sink_str_st str);
 bool     sink_pickle_valstr(sink_ctx ctx, sink_str_st str, sink_val *out);

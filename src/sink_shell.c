@@ -67,7 +67,7 @@ static char *format(const char *fmt, ...){
 	return buf;
 }
 
-static sink_val L_version(sink_ctx ctx, int size, sink_val *args, void *nuser){
+static sink_wait L_version(sink_ctx ctx, int size, sink_val *args, void *nuser){
 	int reqmaj = 0, reqmin = 0, reqpat = 0;
 	if (size >= 1){
 		if (!sink_isnum(args[0]))
@@ -97,20 +97,20 @@ static sink_val L_version(sink_ctx ctx, int size, sink_val *args, void *nuser){
 	}
 
 	sink_val ls[3] = { sink_num(VERSION_MAJ), sink_num(VERSION_MIN), sink_num(VERSION_PAT) };
-	return sink_list_newblob(ctx, 3, ls);
+	return sink_done(ctx, sink_list_newblob(ctx, 3, ls));
 
 	fail:
 	return sink_abortstr(ctx, "Script requires version %d.%d.%d, but sink is version %d.%d.%d",
 		reqmaj, reqmin, reqpat, VERSION_MAJ, VERSION_MIN, VERSION_PAT);
 }
 
-static sink_val L_args(sink_ctx ctx, int size, sink_val *args, uargs a){
+static sink_wait L_args(sink_ctx ctx, int size, sink_val *args, uargs a){
 	sink_val ar = sink_list_newblob(ctx, 0, NULL);
 	for (int i = 0; i < a->size; i++){
 		sink_val s = sink_str_newcstr(ctx, a->args[i]);
 		sink_list_push(ctx, ar, s);
 	}
-	return ar;
+	return sink_done(ctx, ar);
 }
 
 static inline bool issep(char ch){
@@ -291,16 +291,16 @@ static char *Li_which(const char *cmd){
 	return NULL;
 }
 
-static sink_val L_which(sink_ctx ctx, int size, sink_val *args, void *nuser){
+static sink_wait L_which(sink_ctx ctx, int size, sink_val *args, void *nuser){
 	sink_str str;
 	if (!sink_arg_str(ctx, size, args, 0, &str))
-		return SINK_NIL;
+		return NULL;
 	if (str->bytes == NULL) // empty string
-		return SINK_NIL;
+		return NULL;
 	char *res = Li_which((const char *)str->bytes);
 	if (res == NULL)
-		return SINK_NIL;
-	return sink_str_newblobgive(ctx, strlen(res), (uint8_t *)res);
+		return NULL;
+	return sink_done(ctx, sink_str_newblobgive(ctx, strlen(res), (uint8_t *)res));
 }
 
 // rundata (RD) implementation
@@ -588,10 +588,10 @@ sink_val win_ropetostr(sink_ctx ctx, win_rope here){
 }
 #endif
 
-static sink_val L_run(sink_ctx ctx, int size, sink_val *args, void *nuser){
+static sink_wait L_run(sink_ctx ctx, int size, sink_val *args, void *nuser){
 	sink_str file;
 	if (!sink_arg_str(ctx, size, args, 0, &file))
-		return SINK_NIL;
+		return NULL;
 	if (file->bytes == NULL)
 		return sink_abortstr(ctx, "Invalid command");
 	char *abs_cmd = Li_which((const char *)file->bytes);
@@ -615,7 +615,7 @@ static sink_val L_run(sink_ctx ctx, int size, sink_val *args, void *nuser){
 		sink_list args_ls;
 		if (!sink_arg_list(ctx, size, args, 1, &args_ls)){
 			RD_destroy(&rd);
-			return SINK_NIL;
+			return NULL;
 		}
 		for (int i = 0; i < args_ls->size; i++){
 			if (!sink_isstr(args_ls->vals[i]) && !sink_isnum(args_ls->vals[i])){
@@ -638,7 +638,7 @@ static sink_val L_run(sink_ctx ctx, int size, sink_val *args, void *nuser){
 		sink_list env_ls;
 		if (!sink_arg_list(ctx, size, args, 2, &env_ls)){
 			RD_destroy(&rd);
-			return SINK_NIL;
+			return NULL;
 		}
 		for (int i = 0; i < env_ls->size; i++){
 			if (!sink_islist(env_ls->vals[i])){
@@ -666,7 +666,7 @@ static sink_val L_run(sink_ctx ctx, int size, sink_val *args, void *nuser){
 	if (size >= 4 && !sink_isnil(args[3])){
 		sink_str inp_s;
 		if (!sink_arg_str(ctx, size, args, 3, &inp_s))
-			return SINK_NIL;
+			return NULL;
 		if (inp_s->bytes == NULL)
 			writein = (const uint8_t *)emptystr;
 		else{
@@ -796,7 +796,7 @@ cleanup:
 	if (pri.hProcess) CloseHandle(pri.hProcess);
 	if (pri.hThread ) CloseHandle(pri.hThread );
 	RD_destroy(&rd);
-	return res;
+	return sink_done(ctx, res);
 
 #else
 
@@ -1041,25 +1041,25 @@ cleanup:
 		else
 			caperr_s = sink_str_newempty(ctx);
 		sink_val res[3] = { xstatus, capout_s, caperr_s };
-		return sink_list_newblob(ctx, 3, res);
+		return sink_done(ctx, sink_list_newblob(ctx, 3, res));
 	}
-	return xstatus;
+	return sink_done(ctx, xstatus);
 #endif
 }
 
-static sink_val L_dir_work(sink_ctx ctx, int size, sink_val *args, void *nuser){
+static sink_wait L_dir_work(sink_ctx ctx, int size, sink_val *args, void *nuser){
 	char *cwd = getcwd(NULL, 0);
 	if (cwd == NULL)
 		return sink_abortstr(ctx, "Failed to get current directory");
 	sink_val a = sink_str_newcstr(ctx, cwd);
 	free(cwd);
-	return a;
+	return sink_done(ctx, a);
 }
 
-static sink_val L_dir_list(sink_ctx ctx, int size, sink_val *args, void *nuser){
+static sink_wait L_dir_list(sink_ctx ctx, int size, sink_val *args, void *nuser){
 	sink_str dir;
 	if (!sink_arg_str(ctx, size, args, 0, &dir))
-		return SINK_NIL;
+		return NULL;
 
 	sink_val res = sink_list_newempty(ctx);
 
@@ -1121,7 +1121,7 @@ static sink_val L_dir_list(sink_ctx ctx, int size, sink_val *args, void *nuser){
 #endif
 
 	sink_list_sort(ctx, res);
-	return res;
+	return sink_done(ctx, res);
 }
 
 #if defined(SINK_WIN)
@@ -1141,38 +1141,38 @@ static inline FILE *fopen_i(const char *file, const char *mode){
 #	define fopen_i(a, b) fopen(a, b)
 #endif
 
-static sink_val L_file_canread(sink_ctx ctx, int size, sink_val *args, void *nuser){
+static sink_wait L_file_canread(sink_ctx ctx, int size, sink_val *args, void *nuser){
 	sink_str file;
 	if (!sink_arg_str(ctx, size, args, 0, &file))
-		return SINK_NIL;
+		return NULL;
 	FILE *fp = fopen_i((const char *)file->bytes, "rb");
 	if (fp){
 		fclose(fp);
-		return sink_bool(true);
+		return sink_done(ctx, sink_bool(true));
 	}
-	return SINK_NIL;
+	return NULL;
 }
 
-static sink_val L_file_exists(sink_ctx ctx, int size, sink_val *args, void *nuser){
+static sink_wait L_file_exists(sink_ctx ctx, int size, sink_val *args, void *nuser){
 	sink_str file;
 	if (!sink_arg_str(ctx, size, args, 0, &file))
-		return SINK_NIL;
+		return NULL;
 #if defined(SINK_WIN)
 	// TODO: test this with network paths that are *just* \\host\computer
 	// I think `file.exists` should return true
 	DWORD a = GetFileAttributes((const char *)file->bytes);
 	if (a == INVALID_FILE_ATTRIBUTES)
-		return sink_bool(GetLastError() == ERROR_BAD_NETPATH);
-	return sink_bool(true);
+		return sink_done(ctx, sink_bool(GetLastError() == ERROR_BAD_NETPATH));
+	return sink_done(ctx, sink_bool(true));
 #else
-	return sink_bool(access((const char *)file->bytes, F_OK) != -1);
+	return sink_done(ctx, sink_bool(access((const char *)file->bytes, F_OK) != -1));
 #endif
 }
 
-static sink_val L_file_read(sink_ctx ctx, int size, sink_val *args, void *nuser){
+static sink_wait L_file_read(sink_ctx ctx, int size, sink_val *args, void *nuser){
 	sink_str file;
 	if (!sink_arg_str(ctx, size, args, 0, &file))
-		return SINK_NIL;
+		return NULL;
 	FILE *fp = fopen_i((const char *)file->bytes, "rb");
 	if (fp == NULL)
 		return sink_abortstr(ctx, "Could not read file: %.*s", file->size, file->bytes);
@@ -1183,23 +1183,23 @@ static sink_val L_file_read(sink_ctx ctx, int size, sink_val *args, void *nuser)
 	fread(buf, sz, 1, fp);
 	fclose(fp);
 	buf[sz] = 0;
-	return sink_str_newblobgive(ctx, sz, buf);
+	return sink_done(ctx, sink_str_newblobgive(ctx, sz, buf));
 }
 
-static sink_val L_file_sink(sink_ctx ctx, int size, sink_val *args, const char *sink_exe){
-	return sink_str_newcstr(ctx, sink_exe);
+static sink_wait L_file_sink(sink_ctx ctx, int size, sink_val *args, const char *sink_exe){
+	return sink_done(ctx, sink_str_newcstr(ctx, sink_exe));
 }
 
-static sink_val L_file_script(sink_ctx ctx, int size, sink_val *args, const char *script){
+static sink_wait L_file_script(sink_ctx ctx, int size, sink_val *args, const char *script){
 	if (script == NULL)
-		return SINK_NIL;
-	return sink_str_newcstr(ctx, script);
+		return NULL;
+	return sink_done(ctx, sink_str_newcstr(ctx, script));
 }
 
-static sink_val L_file_write(sink_ctx ctx, int size, sink_val *args, void *nuser){
+static sink_wait L_file_write(sink_ctx ctx, int size, sink_val *args, void *nuser){
 	sink_str file;
 	if (!sink_arg_str(ctx, size, args, 0, &file))
-		return SINK_NIL;
+		return NULL;
 	FILE *fp = fopen_i((const char *)file->bytes, "wb");
 	if (fp == NULL)
 		return sink_abortstr(ctx, "Could not write to file: %.*s", file->size, file->bytes);
@@ -1213,15 +1213,15 @@ static sink_val L_file_write(sink_ctx ctx, int size, sink_val *args, void *nuser
 			fwrite(data->bytes, data->size, 1, fp);
 	}
 	fclose(fp);
-	return SINK_NIL;
+	return NULL;
 }
 
-static sink_val L_path_joinp(sink_ctx ctx, int size, sink_val *args, void *nuser){
+static sink_wait L_path_joinp(sink_ctx ctx, int size, sink_val *args, void *nuser){
 	sink_str start;
 	if (!sink_arg_str(ctx, size, args, 0, &start))
-		return SINK_NIL;
+		return NULL;
 	if (size == 1)
-		return args[0];
+		return sink_done(ctx, args[0]);
 	for (int i = 1; i < size; i++){
 		if (!sink_isstr(args[i]))
 			return sink_abortstr(ctx, "Expecting string for argument %d", i + 1);
@@ -1234,12 +1234,12 @@ static sink_val L_path_joinp(sink_ctx ctx, int size, sink_val *args, void *nuser
 
 	// TODO: this
 
-	return SINK_NIL;
+	return NULL;
 }
 
-static sink_val L_path_joinw(sink_ctx ctx, int size, sink_val *args, void *nuser){
+static sink_wait L_path_joinw(sink_ctx ctx, int size, sink_val *args, void *nuser){
 	// TODO: this
-	return SINK_NIL;
+	return NULL;
 }
 
 void sink_shell_scr(sink_scr scr){

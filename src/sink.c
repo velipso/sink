@@ -608,12 +608,16 @@ static inline void *list_ptr_shift(list_ptr ls){
 	return ret;
 }
 
-static inline bool list_ptr_has(list_ptr ls, void *p){
+static inline int list_ptr_find(list_ptr ls, void *p){
 	for (int i = 0; i < ls->size; i++){
 		if (ls->ptrs[i] == p)
-			return true;
+			return i;
 	}
-	return false;
+	return -1;
+}
+
+static inline bool list_ptr_has(list_ptr ls, void *p){
+	return list_ptr_find(ls, p) >= 0;
 }
 
 static inline void list_ptr_remove(list_ptr ls, int index){
@@ -9161,12 +9165,43 @@ static inline native native_new(uint64_t hash, void *natuser, sink_native_f f_na
 	return nat;
 }
 
+typedef struct context_struct context_st, *context;
+
 typedef struct {
+	context ctx;
+	sink_val result;
+	sink_then_st then;
+	bool has_then;
+	bool has_result;
+} wait_st, *waitt; // `waitt` has an extra `t` because `wait` is taken by Darwin >:-(
+
+static inline waitt wait_new(){
+	return mem_alloc(sizeof(wait_st));
+}
+
+static inline void wait_make(waitt w, context ctx){
+	w->has_then = w->has_result = false;
+	w->ctx = ctx;
+}
+
+static inline void wait_cancel(waitt w){
+	if (!w->has_then)
+		return;
+	if (w->then.f_cancel)
+		w->then.f_cancel(w->then.user);
+}
+
+static void wait_cancelfree(waitt w){
+	wait_cancel(w);
+	mem_free(w);
+}
+
+struct context_struct {
 	void *user;
 	sink_free_f f_freeuser;
 	cleanup cup;
 	list_ptr natives;
-	list_ptr promises;
+	list_ptr wait_pending; // wait values that are still waiting to fully resolve
 
 	program prg; // not freed by context_free
 	list_ptr call_stk;
@@ -9175,6 +9210,7 @@ typedef struct {
 	list_ptr user_hint;
 	list_ptr ccs_avail;
 	list_ptr lxs_avail;
+	list_ptr wait_avail;
 
 	sink_io_st io;
 
@@ -9197,9 +9233,10 @@ typedef struct {
 	int str_prealloc_size;
 	int str_prealloc_memset;
 	uint64_t str_prealloc_lastmask;
+	int async_frame;
+	int async_index;
 	int timeout;
 	int timeout_left;
-	int next_promise_id;
 	int gc_left;
 	sink_gc_level gc_level;
 
@@ -9210,50 +9247,7 @@ typedef struct {
 	bool passed;
 	bool failed;
 	bool async;
-} context_st, *context;
-
-typedef struct {
-	sink_then_st then;
-	int id;
-	bool canceled;
-	struct {
-		int frame;
-		int index;
-		bool paused;
-	} final;
-} promise_st, *promise;
-
-static inline promise promise_new(context ctx, sink_then_st then){
-	promise p = mem_alloc(sizeof(promise_st));
-	p->canceled = false;
-	p->then = then;
-	p->id = ctx->next_promise_id;
-	p->final.paused = false;
-	ctx->next_promise_id = (ctx->next_promise_id + 1) & 0x7FFFFFFF;
-	list_ptr_push(ctx->promises, p);
-	return p;
-}
-
-static inline void promise_cancel(promise p){
-	if (p->canceled)
-		return;
-	p->canceled = true;
-	if (p->then.f_cancel)
-		p->then.f_cancel(p->then.user);
-}
-
-static inline sink_val promise_toval(promise p){
-	return (sink_val){ .u = SINK_TAG_PROMISE | p->id };
-}
-
-static inline int promise_find(context ctx, int id){
-	for (int i = 0; i < ctx->promises->size; i++){
-		promise p = ctx->promises->ptrs[i];
-		if (p->id == id)
-			return i;
-	}
-	return -1;
-}
+};
 
 static inline lxs lxs_get(context ctx, int argcount, sink_val *args, lxs next){
 	if (ctx->lxs_avail->size > 0){
@@ -9286,6 +9280,29 @@ static inline ccs ccs_get(context ctx, int pc, int frame, int index, int lex_ind
 
 static inline void ccs_release(context ctx, ccs c){
 	list_ptr_push(ctx->ccs_avail, c);
+}
+
+static inline waitt wait_get(context ctx){
+	waitt w;
+	if (ctx->wait_avail->size > 0)
+		w = ctx->wait_avail->ptrs[--ctx->wait_avail->size];
+	else
+		w = wait_new();
+	list_ptr_push(ctx->wait_pending, w);
+	return w;
+}
+
+static inline void wait_release(context ctx, waitt w){
+	list_ptr_remove(ctx->wait_pending, list_ptr_find(ctx->wait_pending, w));
+	list_ptr_push(ctx->wait_avail, w);
+}
+
+static inline void context_gcunpin(context ctx, sink_val v);
+static inline void wait_fire(waitt w){
+	if (w->then.f_then)
+		w->then.f_then(w->ctx, w->result, w->then.user);
+	context_gcunpin(w->ctx, w->result); // don't forget to unpin result
+	wait_release(w->ctx, w);
 }
 
 static inline void context_cleanup(context ctx, void *cuser, sink_free_f f_free){
@@ -9458,12 +9475,10 @@ static inline void context_free(context ctx){
 		ctx->f_freeuser(ctx->user);
 	cleanup_free(ctx->cup);
 	list_ptr_free(ctx->natives);
-	// cancel any pending promises
-	for (int i = 0; i < ctx->promises->size; i++)
-		promise_cancel(ctx->promises->ptrs[i]);
-	list_ptr_free(ctx->promises);
+	list_ptr_free(ctx->wait_pending);
 	context_clearref(ctx);
 	context_sweep(ctx);
+	list_ptr_free(ctx->wait_avail);
 	list_ptr_free(ctx->ccs_avail);
 	list_ptr_free(ctx->lxs_avail);
 	list_ptr_free(ctx->call_stk);
@@ -9490,12 +9505,13 @@ static inline context context_new(program prg, sink_io_st io){
 	ctx->f_freeuser = NULL;
 	ctx->cup = cleanup_new();
 	ctx->natives = list_ptr_new(mem_free_func);
-	ctx->promises = list_ptr_new(mem_free_func);
+	ctx->wait_pending = list_ptr_new(wait_cancelfree);
 	ctx->call_stk = list_ptr_new(ccs_free);
 	ctx->lex_stk = list_ptr_new(lxs_freeAll);
 	list_ptr_push(ctx->lex_stk, lxs_new(0, NULL, NULL));
 	ctx->ccs_avail = list_ptr_new(ccs_free);
 	ctx->lxs_avail = list_ptr_new(lxs_free);
+	ctx->wait_avail = list_ptr_new(mem_free_func);
 	ctx->prg = prg;
 	ctx->f_finalize = list_ptr_new(NULL);
 	ctx->user_hint = list_ptr_new(NULL);
@@ -9630,7 +9646,6 @@ static inline bool oper_typemask(sink_val a, int mask){
 		case SINK_TYPE_NUM    : return (mask & LT_ALLOWNUM) != 0;
 		case SINK_TYPE_STR    : return (mask & LT_ALLOWSTR) != 0;
 		case SINK_TYPE_LIST   : return false;
-		case SINK_TYPE_PROMISE: return false;
 	}
 }
 
@@ -11193,27 +11208,29 @@ static inline sink_val opi_tonum(context ctx, sink_val a){
 	return oper_un(ctx, a, unop_tonum);
 }
 
-static inline void opi_say(context ctx, int size, sink_val *vals){
+static inline sink_wait opi_say(context ctx, int size, sink_val *vals){
 	if (ctx->io.f_say){
-		ctx->io.f_say(
+		return ctx->io.f_say(
 			ctx,
 			var_caststr(ctx, sink_list_joinplain(ctx, size, vals, 1, (const uint8_t *)" ")),
 			ctx->io.user
 		);
 	}
+	return sink_done(ctx, SINK_NIL);
 }
 
-static inline void opi_warn(context ctx, int size, sink_val *vals){
+static inline sink_wait opi_warn(context ctx, int size, sink_val *vals){
 	if (ctx->io.f_warn){
-		ctx->io.f_warn(
+		return ctx->io.f_warn(
 			ctx,
 			var_caststr(ctx, sink_list_joinplain(ctx, size, vals, 1, (const uint8_t *)" ")),
 			ctx->io.user
 		);
 	}
+	return sink_done(ctx, SINK_NIL);
 }
 
-static inline sink_val opi_ask(context ctx, int size, sink_val *vals){
+static inline sink_wait opi_ask(context ctx, int size, sink_val *vals){
 	if (ctx->io.f_ask){
 		return ctx->io.f_ask(
 			ctx,
@@ -11221,7 +11238,7 @@ static inline sink_val opi_ask(context ctx, int size, sink_val *vals){
 			ctx->io.user
 		);
 	}
-	return SINK_NIL;
+	return sink_done(ctx, SINK_NIL);
 }
 
 static inline sink_run opi_exit(context ctx){
@@ -11835,11 +11852,6 @@ static inline int sortboth(context ctx, list_int li, sink_val a, sink_val b){
 	sink_type atype = sink_typeof(a);
 	sink_type btype = sink_typeof(b);
 
-	if (atype == SINK_TYPE_PROMISE || btype == SINK_TYPE_PROMISE){
-		opi_abortcstr(ctx, "Invalid value inside list during sort");
-		return -1;
-	}
-
 	if (a.u == b.u)
 		return 0;
 
@@ -12359,9 +12371,6 @@ static bool pk_tojson(context ctx, sink_val a, list_int li, sink_str s){
 			s->bytes = bytes;
 			return true;
 		} break;
-		case SINK_TYPE_PROMISE:
-			opi_abortcstr(ctx, "Cannot pickle invalid value (promise)");
-			return false;
 	}
 }
 
@@ -12485,9 +12494,6 @@ static void pk_tobin(context ctx, sink_val a, list_int li, uint32_t *str_table_s
 				pk_tobin_vint(body, idxat);
 			}
 		} break;
-		case SINK_TYPE_PROMISE:
-			opi_abortcstr(ctx, "Cannot pickle invalid value (promise)");
-			break;
 	}
 }
 
@@ -13063,9 +13069,6 @@ static sink_val pk_copy(context ctx, sink_val a, list_int li_src, list_int li_tg
 			// otherwise, use the last generated list
 			return (sink_val){ .u = SINK_TAG_LIST | li_tgt->vals[idxat] };
 		} break;
-		case SINK_TYPE_PROMISE:
-			opi_abortcstr(ctx, "Cannot pickle invalid value (promise)");
-			return SINK_NIL;
 	}
 }
 
@@ -13125,19 +13128,59 @@ static const char *txt_int_clz      = "counting leading zeros";
 static const char *txt_int_pop      = "population count";
 static const char *txt_int_bswap    = "byte swaping";
 
-static inline void rundone(context ctx, void *rduser, sink_rundone_f f_rundone, sink_run result){
-	if (result == SINK_RUN_PASS || result == SINK_RUN_FAIL)
-		context_reset(ctx);
-	if (f_rundone)
-		f_rundone(ctx, result, rduser);
+static void context_run_w(context ctx, waitt wrun);
+static inline sink_wait context_run(context ctx){
+	waitt wrun = wait_get(ctx);
+	wait_make(wrun, ctx);
+	context_run_w(ctx, wrun);
+	return wrun;
 }
 
-static void context_run(context ctx, void *rduser, sink_rundone_f f_rundone){
-	#define RUNDONE(result) do{ rundone(ctx, rduser, f_rundone, result); return; }while(false)
+static void context_run_then(context ctx, sink_val result, waitt wrun){
+	var_set(ctx, ctx->async_frame, ctx->async_index, result);
+	ctx->async = false;
+	context_run_w(ctx, wrun); // resume execution with result
+}
 
-	if (ctx->passed) RUNDONE(SINK_RUN_PASS);
-	if (ctx->failed) RUNDONE(SINK_RUN_FAIL);
-	if (ctx->async ) return;
+static void context_run_w(context ctx, waitt wrun){
+	#define RUNDONE(res) do{                                      \
+			wrun->has_result = true;                              \
+			wrun->result = sink_num(res);                         \
+			if (res == SINK_RUN_PASS || res == SINK_RUN_FAIL)     \
+				context_reset(ctx);                               \
+			return;                                               \
+		}while(false)
+
+	#define GOTWAIT(gw) do{                                                            \
+			waitt w = gw;                                                              \
+			if (ctx->failed)                                                           \
+				RUNDONE(SINK_RUN_FAIL);                                                \
+			if (w == NULL){                                                            \
+				/* quick way to return nil */                                          \
+				var_set(ctx, A, B, SINK_NIL);                                          \
+			}                                                                          \
+			else if (w->has_result){                                                   \
+				/* don't have to actually wait for result, so just roll with it */     \
+				var_set(ctx, A, B, w->result);                                         \
+				wait_release(ctx, w);                                                  \
+			}                                                                          \
+			else{                                                                      \
+				ctx->async = true;                                                     \
+				ctx->timeout_left = ctx->timeout;                                      \
+				ctx->async_frame = A;                                                  \
+				ctx->async_index = B;                                                  \
+				sink_then(w, (sink_then_st){                                           \
+					.f_then = (sink_then_f)context_run_then,                           \
+					.f_cancel = NULL,                                                  \
+					.user = wrun                                                       \
+				});                                                                    \
+				return;                                                                \
+			}                                                                          \
+		}while(false)
+
+	if (ctx->passed) RUNDONE(SINK_RUN_PASS );
+	if (ctx->failed) RUNDONE(SINK_RUN_FAIL );
+	if (ctx->async ) RUNDONE(SINK_RUN_ASYNC);
 
 	if (ctx->timeout > 0 && ctx->timeout_left <= 0){
 		ctx->timeout_left = ctx->timeout;
@@ -13587,22 +13630,7 @@ static void context_run(context ctx, void *rduser, sink_rundone_f f_rundone){
 					nat = ctx->natives->ptrs[C];
 				if (nat == NULL || nat->f_native == NULL)
 					RUNDONE(opi_abortcstr(ctx, "Native call not implemented"));
-				X = nat->f_native(ctx, G, p, nat->natuser);
-				if (ctx->failed)
-					RUNDONE(SINK_RUN_FAIL);
-				if (sink_ispromise(X)){
-					int pi = promise_find(ctx, var_index(X));
-					if (pi < 0)
-						RUNDONE(opi_abortcstr(ctx, "Invalid promise"));
-					promise pr = ctx->promises->ptrs[pi];
-					pr->final.paused = true;
-					pr->final.frame = A;
-					pr->final.index = B;
-					ctx->timeout_left = ctx->timeout;
-					ctx->async = true;
-					return;
-				}
-				var_set(ctx, A, B, X);
+				GOTWAIT(nat->f_native(ctx, G, p, nat->natuser));
 			} break;
 
 			case OP_RETURN         : { // [SRC]
@@ -13688,10 +13716,7 @@ static void context_run(context ctx, void *rduser, sink_rundone_f f_rundone){
 					E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
 					p[D] = var_get(ctx, E, F);
 				}
-				opi_say(ctx, C, p);
-				var_set(ctx, A, B, SINK_NIL);
-				if (ctx->failed)
-					RUNDONE(SINK_RUN_FAIL);
+				GOTWAIT(opi_say(ctx, C, p));
 			} break;
 
 			case OP_WARN           : { // [TGT], ARGCOUNT, [ARGS]...
@@ -13700,10 +13725,7 @@ static void context_run(context ctx, void *rduser, sink_rundone_f f_rundone){
 					E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
 					p[D] = var_get(ctx, E, F);
 				}
-				opi_warn(ctx, C, p);
-				var_set(ctx, A, B, SINK_NIL);
-				if (ctx->failed)
-					RUNDONE(SINK_RUN_FAIL);
+				GOTWAIT(opi_warn(ctx, C, p));
 			} break;
 
 			case OP_ASK            : { // [TGT], ARGCOUNT, [ARGS]...
@@ -13712,22 +13734,7 @@ static void context_run(context ctx, void *rduser, sink_rundone_f f_rundone){
 					E = ops->bytes[ctx->pc++]; F = ops->bytes[ctx->pc++];
 					p[D] = var_get(ctx, E, F);
 				}
-				X = opi_ask(ctx, C, p);
-				if (ctx->failed)
-					RUNDONE(SINK_RUN_FAIL);
-				if (sink_ispromise(X)){
-					int pi = promise_find(ctx, var_index(X));
-					if (pi < 0)
-						RUNDONE(opi_abortcstr(ctx, "Invalid promise"));
-					promise pr = ctx->promises->ptrs[pi];
-					pr->final.paused = true;
-					pr->final.frame = A;
-					pr->final.index = B;
-					ctx->timeout_left = ctx->timeout;
-					ctx->async = true;
-					return;
-				}
-				var_set(ctx, A, B, X);
+				GOTWAIT(opi_ask(ctx, C, p));
 			} break;
 
 			case OP_EXIT           : { // [TGT], ARGCOUNT, [ARGS]...
@@ -14437,8 +14444,6 @@ static void context_run(context ctx, void *rduser, sink_rundone_f f_rundone){
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				X = opi_pickle_bin(ctx, X);
-				if (ctx->failed) // can fail in C impl because of SINK_TYPE_PROMISE
-					RUNDONE(SINK_RUN_FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -14474,8 +14479,6 @@ static void context_run(context ctx, void *rduser, sink_rundone_f f_rundone){
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				X = opi_pickle_copy(ctx, X);
-				if (ctx->failed) // can fail in C impl because of SINK_TYPE_PROMISE
-					RUNDONE(SINK_RUN_FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -15598,13 +15601,13 @@ void sink_ctx_forcetimeout(sink_ctx ctx){
 	((context)ctx)->timeout_left = 0;
 }
 
-void sink_ctx_run(sink_ctx ctx, void *rduser, sink_rundone_f f_rundone){
+sink_wait sink_ctx_run(sink_ctx ctx){
 	context ctx2 = ctx;
 	if (ctx2->prg->repl && ctx2->err){
 		mem_free(ctx2->err);
 		ctx2->err = NULL;
 	}
-	context_run(ctx2, rduser, f_rundone);
+	return context_run(ctx2);
 }
 
 const char *sink_ctx_geterr(sink_ctx ctx){
@@ -15615,104 +15618,38 @@ void sink_ctx_free(sink_ctx ctx){
 	context_free(ctx);
 }
 
-sink_val sink_promise_new(sink_ctx ctx, sink_then_st then){
-	return promise_toval(promise_new(ctx, then));
+//
+// wait API
+//
+
+sink_wait sink_wait_new(sink_ctx ctx){
+	waitt w = wait_get(ctx);
+	wait_make(w, ctx);
+	return w;
 }
 
-typedef struct {
-	sink_then_st then;
-	promise p2;
-} promise_chain_st, *promise_chain;
-
-static inline promise_chain promise_chain_new(promise p2, sink_then_st then){
-	promise_chain pch = mem_alloc(sizeof(promise_chain_st));
-	pch->p2 = p2;
-	pch->then = then;
-	return pch;
+void sink_then(sink_wait w, sink_then_st then){
+	waitt w2 = w;
+	assert(!w2->has_then);
+	w2->has_then = true;
+	w2->then = then;
+	if (w2->has_result)
+		wait_fire(w2);
 }
 
-static sink_val promise_chain_then(sink_ctx ctx, sink_val result, promise_chain pch){
-	if (pch->then.f_then)
-		result = pch->then.f_then(ctx, result, pch->then.user);
-	sink_val p2v = promise_toval(pch->p2);
-	mem_free(pch);
-	sink_promise_resolve(ctx, p2v, result);
-	return result;
+void sink_finish(sink_wait w, sink_val result){
+	waitt w2 = w;
+	assert(!w2->has_result);
+	w2->has_result = true;
+	w2->result = result;
+	context_gcpin(w2->ctx, result); // pin the result so it won't be collected
+	if (w2->has_then)
+		wait_fire(w2);
 }
 
-static void promise_chain_cancel(promise_chain pch){
-	if (pch->then.f_cancel)
-		pch->then.f_cancel(pch->then.user);
-	promise_cancel(pch->p2);
-	mem_free(pch);
-}
-
-sink_val sink_promise_then(sink_ctx ctx, sink_val prm, sink_then_st then){
-	context ctx2 = ctx;
-	if (sink_ispromise(prm)){
-		// the resolved result of p1 should be piped to the f_then of p2
-		// we also need to move the final actions over to p2, since it's the last one in line
-		int i = promise_find(ctx2, var_index(prm));
-		if (i < 0){
-			opi_abortcstr(ctx2, "Invalid promise");
-			return SINK_NIL;
-		}
-		promise p1 = ctx2->promises->ptrs[i];
-		promise p2 = promise_new(ctx2, then);
-		p2->final = p1->final;
-		p1->final.paused = false;
-		promise_chain pch = promise_chain_new(p2, p1->then);
-		p1->then = (sink_then_st){
-			.user = pch,
-			.f_then = (sink_then_f)promise_chain_then,
-			.f_cancel = (sink_cancel_f)promise_chain_cancel
-		};
-		return promise_toval(p2);
-	}
-	else{
-		// the promise isn't actually a promise... so just treat it as fully resolved as-is
-		if (then.f_then)
-			prm = then.f_then(ctx, prm, then.user);
-		return prm;
-	}
-}
-
-void sink_promise_resolve(sink_ctx ctx, sink_val prm, sink_val result){
-	context ctx2 = ctx;
-	if (!sink_ispromise(prm)){
-		opi_abortcstr(ctx, "Cannot resolve a non-promise");
-		return;
-	}
-	if (sink_ispromise(result)){
-		opi_abortcstr(ctx, "Cannot resolve a promise with a promise");
-		return;
-	}
-	int i = promise_find(ctx, var_index(prm));
-	if (i < 0){
-		opi_abortcstr(ctx, "Invalid promise");
-		return;
-	}
-	promise p = ctx2->promises->ptrs[i];
-	list_ptr_remove(ctx2->promises, i);
-	if (p->then.f_then){
-		result = p->then.f_then(ctx, result, p->then.user);
-		if (sink_ispromise(result) && p->final.paused){
-			int i2 = promise_find(ctx2, var_index(result));
-			if (i2 < 0){
-				opi_abortcstr(ctx2, "Invalid promise");
-				return;
-			}
-			promise p2 = ctx2->promises->ptrs[i2];
-			p2->final = p->final;
-			p->final.paused = false;
-		}
-	}
-	if (p->final.paused){
-		var_set(ctx2, p->final.frame, p->final.index, result);
-		ctx2->async = false;
-	}
-	mem_free(p);
-}
+//
+// cast/arg API
+//
 
 sink_str sink_caststr(sink_ctx ctx, sink_val str){
 	return var_caststr(ctx, str);
@@ -15774,6 +15711,10 @@ bool sink_arg_user(sink_ctx ctx, int size, sink_val *args, int index, sink_user 
 	*user = sink_list_getuser(ctx, args[index]);
 	return true;
 }
+
+//
+// sink commands API
+//
 
 sink_val sink_tonum(sink_ctx ctx, sink_val v){
 	return opi_tonum(ctx, v);
@@ -15870,11 +15811,6 @@ static sink_str_st sinkhelp_tostr(context ctx, list_int li, sink_val v){
 			bytes[tot] = 0;
 			return (sink_str_st){ .bytes = bytes, .size = tot };
 		} break;
-
-		case SINK_TYPE_PROMISE: {
-			opi_abortcstr(ctx, "Cannot convert invalid value (promise) to string");
-			return (sink_str_st){ .bytes = NULL, .size = 0 };
-		} break;
 	}
 }
 
@@ -15894,22 +15830,26 @@ int sink_size(sink_ctx ctx, sink_val v){
 	return opi_size(ctx, v);
 }
 
-void sink_say(sink_ctx ctx, int size, sink_val *vals){
-	opi_say(ctx, size, vals);
+sink_wait sink_say(sink_ctx ctx, int size, sink_val *vals){
+	return opi_say(ctx, size, vals);
 }
 
-void sink_warn(sink_ctx ctx, int size, sink_val *vals){
-	opi_warn(ctx, size, vals);
+sink_wait sink_warn(sink_ctx ctx, int size, sink_val *vals){
+	return opi_warn(ctx, size, vals);
 }
 
-sink_val sink_ask(sink_ctx ctx, int size, sink_val *vals){
+sink_wait sink_ask(sink_ctx ctx, int size, sink_val *vals){
 	return opi_ask(ctx, size, vals);
 }
 
-void sink_exit(sink_ctx ctx, int size, sink_val *vals){
+sink_wait sink_exit(sink_ctx ctx, int size, sink_val *vals){
+	sink_wait w;
 	if (size > 0)
-		sink_say(ctx, size, vals);
+		w = sink_say(ctx, size, vals);
+	else
+		w = sink_done(ctx, SINK_NIL);
 	opi_exit(ctx);
+	return w;
 }
 
 void sink_abort(sink_ctx ctx, int size, sink_val *vals){
@@ -16753,7 +16693,7 @@ void sink_gc_run(sink_ctx ctx){
 	context_gc((context)ctx);
 }
 
-sink_val sink_abortstr(sink_ctx ctx, const char *fmt, ...){
+sink_wait sink_abortstr(sink_ctx ctx, const char *fmt, ...){
 	va_list args, args2;
 	va_start(args, fmt);
 	va_copy(args2, args);
@@ -16763,5 +16703,5 @@ sink_val sink_abortstr(sink_ctx ctx, const char *fmt, ...){
 	va_end(args);
 	va_end(args2);
 	opi_abort(ctx, buf);
-	return SINK_NIL;
+	return NULL;
 }

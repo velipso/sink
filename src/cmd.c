@@ -48,25 +48,27 @@ static inline void freeenv_i(const char *ptr){
 #	define freeenv_i(s)
 #endif
 
-static void io_say(sink_ctx ctx, sink_str str, void *iouser){
+static sink_wait io_say(sink_ctx ctx, sink_str str, void *iouser){
 	printf("%.*s\n", str->size, str->bytes);
+	return NULL;
 }
 
-static void io_warn(sink_ctx ctx, sink_str str, void *iouser){
+static sink_wait io_warn(sink_ctx ctx, sink_str str, void *iouser){
 	fprintf(stderr, "%.*s\n", str->size, str->bytes);
+	return NULL;
 }
 
-static sink_val io_ask(sink_ctx ctx, sink_str str, void *iouser){
+static sink_wait io_ask(sink_ctx ctx, sink_str str, void *iouser){
 	printf("%.*s", str->size, str->bytes);
 	char buf[1000];
 	if (fgets(buf, sizeof(buf), stdin) == NULL)
-		return SINK_NIL;
+		return NULL;
 	int sz = strlen(buf);
 	if (sz <= 0)
-		return sink_str_newcstr(ctx, "");
+		return sink_done(ctx, sink_str_newcstr(ctx, ""));
 	if (buf[sz - 1] == '\n')
 		buf[--sz] = 0; // TODO: do I need to check for \r as well..? test on windows
-	return sink_str_newblob(ctx, sz, (const uint8_t *)buf);
+	return sink_done(ctx, sink_str_newblob(ctx, sz, (const uint8_t *)buf));
 }
 
 static sink_io_st io = (sink_io_st){
@@ -199,10 +201,11 @@ typedef struct {
 	int res;
 } replinfo_st, *replinfo;
 
-static void main_repl_nextline(sink_ctx ctx, sink_run status, replinfo ri){
+static void main_repl_nextline(sink_ctx ctx, sink_val statusv, replinfo ri){
 	if (done)
 		return;
 
+	sink_run status = (int)statusv.f;
 	switch (status){
 		case SINK_RUN_PASS:
 			done = true;
@@ -211,6 +214,10 @@ static void main_repl_nextline(sink_ctx ctx, sink_run status, replinfo ri){
 		case SINK_RUN_FAIL:
 			printctxerr(ctx);
 			break;
+		case SINK_RUN_ASYNC:
+			fprintf(stderr, "REPL returned async (impossible)\n");
+			done = true;
+			return;
 		case SINK_RUN_TIMEOUT:
 			fprintf(stderr, "REPL returned timeout (impossible)\n");
 			done = true;
@@ -243,8 +250,16 @@ static void main_repl_nextline(sink_ctx ctx, sink_run status, replinfo ri){
 			if (!sink_scr_write(ri->scr, ri->size, (uint8_t *)ri->buf))
 				printscrerr(ri->scr);
 			if (sink_scr_level(ri->scr) <= 0){
-				if (done) // if done, run one last time
-					sink_ctx_run(ctx, ri, (sink_rundone_f)main_repl_nextline);
+				if (done){ // if done, run one last time
+					sink_then(
+						sink_ctx_run(ctx),
+						(sink_then_st){
+							.f_then = (sink_then_f)main_repl_nextline,
+							.f_cancel = NULL,
+							.user = ri
+						}
+					);
+				}
 				return;
 			}
 			else{
@@ -270,8 +285,16 @@ static int main_repl(sink_scr scr, int argc, char **argv, const char *sink_exe){
 		.res = 0
 	};
 
-	while (!done)
-		sink_ctx_run(ctx, &ri, (sink_rundone_f)main_repl_nextline);
+	while (!done){
+		sink_then(
+			sink_ctx_run(ctx),
+			(sink_then_st){
+				.f_then = (sink_then_f)main_repl_nextline,
+				.f_cancel = NULL,
+				.user = &ri
+			}
+		);
+	}
 
 	free(ri.buf);
 	sink_ctx_free(ctx);
@@ -279,8 +302,8 @@ static int main_repl(sink_scr scr, int argc, char **argv, const char *sink_exe){
 	return ri.res;
 }
 
-static void run_setresult(sink_ctx ctx, sink_run result, sink_run *output){
-	*output = result;
+static void run_setresult(sink_ctx ctx, sink_val result, sink_run *output){
+	*output = result.f;
 }
 
 static int main_run(sink_scr scr, const char *file, int argc, char **argv, const char *sink_exe){
@@ -291,7 +314,14 @@ static int main_run(sink_scr scr, const char *file, int argc, char **argv, const
 	}
 	sink_ctx ctx = newctx(scr, argc, argv, sink_exe, sink_scr_getfile(scr));
 	sink_run res = SINK_RUN_FAIL;
-	sink_ctx_run(ctx, &res, (sink_rundone_f)run_setresult);
+	sink_then(
+		sink_ctx_run(ctx),
+		(sink_then_st){
+			.f_then = (sink_then_f)run_setresult,
+			.f_cancel = NULL,
+			.user = &res
+		}
+	);
 	if (res == SINK_RUN_FAIL)
 		printctxerr(ctx);
 	sink_ctx_free(ctx);
@@ -307,7 +337,14 @@ static int main_eval(sink_scr scr, const char *eval, int argc, char **argv, cons
 	}
 	sink_ctx ctx = newctx(scr, argc, argv, sink_exe, NULL);
 	sink_run res = SINK_RUN_FAIL;
-	sink_ctx_run(ctx, &res, (sink_rundone_f)run_setresult);
+	sink_then(
+		sink_ctx_run(ctx),
+		(sink_then_st){
+			.f_then = (sink_then_f)run_setresult,
+			.f_cancel = NULL,
+			.user = &res
+		}
+	);
 	if (res == SINK_RUN_FAIL)
 		printctxerr(ctx);
 	sink_ctx_free(ctx);

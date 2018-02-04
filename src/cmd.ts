@@ -141,6 +141,9 @@ async function main_repl(scr: sink.scr, argv: string[]): Promise<boolean> {
 				case sink.run.FAIL:
 					printctxerr(ctx);
 					break;
+				case sink.run.ASYNC:
+					console.error('REPL returned async (impossible)');
+					return false;
 				case sink.run.TIMEOUT:
 					console.error('REPL returned timeout (impossible)');
 					return false;

@@ -50,15 +50,23 @@ export enum gc_level {
 export enum run {
 	PASS,
 	FAIL,
+	ASYNC,
 	TIMEOUT,
 	REPLMORE
 }
 
+export enum status {
+	READY,
+	WAITING,
+	PASSED,
+	FAILED
+}
+
+export type fsread_f = (scr: scr, file: string, incuser: any) => Promise<boolean>;
+export type fstype_f = (file: string, incuser: any) => Promise<fstype>;
 export type output_f = (ctx: ctx, str: str, iouser: any) => Promise<void>;
 export type input_f = (ctx: ctx, str: str, iouser: any) => Promise<val>;
 export type native_f = (ctx: ctx, args: val[], natuser: any) => Promise<val>;
-export type fstype_f = (file: string, incuser: any) => Promise<fstype>;
-export type fsread_f = (scr: scr, file: string, incuser: any) => Promise<boolean>;
 export type dump_f = (data: string, dumpuser: any) => void;
 
 export interface io_st {
@@ -74,19 +82,8 @@ export interface inc_st {
 	user?: any;
 }
 
-export enum status {
-	READY,
-	WAITING,
-	PASSED,
-	FAILED
-}
-
 const NAN = Number.NaN;
 export const NIL = null;
-
-export function isPromise<T>(p: any): p is Promise<T> {
-	return typeof p === 'object' && p !== null && typeof (<Promise<T>>p).then === 'function';
-}
 
 export function bool(f: boolean): val { return f ? 1 : NIL; }
 export function istrue(v: val): v is valtrue { return v !== NIL; }
@@ -7606,6 +7603,7 @@ interface context_st {
 	err: strnil;
 	passed: boolean;
 	failed: boolean;
+	async: boolean;
 
 	gc_level: gc_level;
 }
@@ -7691,6 +7689,7 @@ function context_new(prg: program_st, io: io_st): context_st {
 		err: null,
 		passed: false,
 		failed: false,
+		async: false,
 		gc_level: gc_level.DEFAULT
 	};
 	// if not a REPL, then natives can be built now
@@ -10412,8 +10411,9 @@ async function context_run(ctx: context_st): Promise<run> {
 		return result;
 	}
 
-	if (ctx.passed) return RUNDONE(run.PASS);
-	if (ctx.failed) return RUNDONE(run.FAIL);
+	if (ctx.passed) return RUNDONE(run.PASS );
+	if (ctx.failed) return RUNDONE(run.FAIL );
+	if (ctx.async ) return RUNDONE(run.ASYNC);
 
 	if (ctx.timeout > 0 && ctx.timeout_left <= 0){
 		ctx.timeout_left = ctx.timeout;
@@ -10872,7 +10872,9 @@ async function context_run(ctx: context_st): Promise<run> {
 					nat = ctx.natives[C];
 				if (nat === null || nat.f_native === null)
 					return RUNDONE(opi_abort(ctx, 'Native call not implemented'));
+				ctx.async = true;
 				let res = await nat.f_native(ctx, p, nat.natuser);
+				ctx.async = false;
 				if (ctx.failed)
 					return RUNDONE(run.FAIL);
 				var_set(ctx, A, B, res);
@@ -10967,7 +10969,9 @@ async function context_run(ctx: context_st): Promise<run> {
 					E = ops[ctx.pc++]; F = ops[ctx.pc++];
 					p.push(var_get(ctx, E, F));
 				}
+				ctx.async = true;
 				await say(ctx, p);
+				ctx.async = false;
 				var_set(ctx, A, B, NIL);
 				if (ctx.failed)
 					return RUNDONE(run.FAIL);
@@ -10980,7 +10984,9 @@ async function context_run(ctx: context_st): Promise<run> {
 					E = ops[ctx.pc++]; F = ops[ctx.pc++];
 					p.push(var_get(ctx, E, F));
 				}
+				ctx.async = true;
 				await warn(ctx, p);
+				ctx.async = false;
 				var_set(ctx, A, B, NIL);
 				if (ctx.failed)
 					return RUNDONE(run.FAIL);
@@ -10993,7 +10999,9 @@ async function context_run(ctx: context_st): Promise<run> {
 					E = ops[ctx.pc++]; F = ops[ctx.pc++];
 					p.push(var_get(ctx, E, F));
 				}
+				ctx.async = true;
 				let res = await ask(ctx, p);
+				ctx.async = false;
 				if (ctx.failed){
 					var_set(ctx, A, B, NIL);
 					return RUNDONE(run.FAIL);
@@ -11010,7 +11018,9 @@ async function context_run(ctx: context_st): Promise<run> {
 						E = ops[ctx.pc++]; F = ops[ctx.pc++];
 						p.push(var_get(ctx, E, F));
 					}
+					ctx.async = true;
 					await say(ctx, p);
+					ctx.async = false;
 					if (ctx.failed)
 						return RUNDONE(run.FAIL);
 				}
@@ -12733,6 +12743,8 @@ export function ctx_getstatus(ctx: ctx): status {
 		return status.PASSED;
 	else if (ctx2.failed)
 		return status.FAILED;
+	else if (ctx2.async)
+		return status.WAITING;
 	return status.READY;
 }
 
