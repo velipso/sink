@@ -178,15 +178,11 @@ void        sink_ctx_forcetimeout(sink_ctx ctx);
 sink_wait   sink_ctx_run(sink_ctx ctx);
 void        sink_ctx_free(sink_ctx ctx);
 
-// wait objects
-sink_wait sink_wait_new(sink_ctx ctx);
-void      sink_then(sink_wait w, sink_then_st then);
-void      sink_finish(sink_wait w, sink_val result);
-static inline sink_wait sink_done(sink_ctx ctx, sink_val result){
-	sink_wait w = sink_wait_new(ctx);
-	sink_finish(w, result);
-	return w;
-}
+// wait
+sink_wait sink_waiter(sink_ctx ctx);                 // create wait object
+sink_wait sink_done(sink_ctx ctx, sink_val result);  // create wait object that already has a result
+void      sink_then(sink_wait w, sink_then_st then); // attach the handler
+void      sink_result(sink_wait w, sink_val result); // provide the result
 
 // value
 static inline sink_val sink_bool(bool f){ return f ? (sink_val){ .f = 1 } : SINK_NIL; }
