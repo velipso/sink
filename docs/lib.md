@@ -24,11 +24,11 @@ Globals
 
 | Function          | Description                                                                 |
 |-------------------|-----------------------------------------------------------------------------|
-| `say a, ...`      | Output arguments to stdout (returns nil)                                    |
-| `warn a, ...`     | Output arguments to stderr (returns nil)                                    |
-| `ask a, ...`      | Prompt the user for input from stdin; returns the inputted string           |
+| `say a, ...`      | Output arguments to stdout                                                  |
+| `warn a, ...`     | Output arguments to stderr                                                  |
+| `ask a, ...`      | Prompt the user for input from stdin                                        |
 | `exit a, ...`     | Output arguments to stdout and terminate execution in success               |
-| `abort a, ...`    | Output arguments to stderr and terminate execution in failure               |
+| `abort a, ...`    | Terminate execution in failure using arguments as the error message         |
 | `isnum a`         | Returns true if `a` is a number; otherwise false                            |
 | `isstr a`         | Returns true if `a` is a string; otherwise false                            |
 | `islist a`        | Returns true if `a` is a list; otherwise false                              |

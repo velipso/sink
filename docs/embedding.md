@@ -142,8 +142,8 @@ enum sink.fstype {
   DIR
 }
 
-type sink.fstype_f = (file: string, incuser: any) => sink.fstype | Promise<sink.fstype>;
-type sink.fsread_f = (scr: sink.scr, file: string, incuser: any) => boolean | Promise<boolean>;
+type sink.fstype_f = (file: string, incuser: any) => Promise<sink.fstype>;
+type sink.fsread_f = (scr: sink.scr, file: string, incuser: any) => Promise<boolean>;
 
 interface sink.inc_st {
   f_fstype: sink.fstype_f;
@@ -162,8 +162,7 @@ using [`scr_write`](#scr_write).  It should return `true` if the file was read s
 
 See [cmd.c](https://github.com/voidqk/sink/blob/master/src/cmd.c) or
 [cmd.ts](https://github.com/voidqk/sink/blob/master/src/cmd.ts) for example implementations of these
-functions.  Note that the TypeScript/JavaScript version must deal with Promises correctly, and can
-return a Promise if the operations are asynchronous.
+functions.  Note that the TypeScript/JavaScript version must return a Promise.
 
 The `user` field is passed through to the `incuser` argument in the functions, at your discretion.
 
@@ -440,7 +439,7 @@ bool sink_scr_loadfile(sink_scr scr, const char *file);
 ```
 
 ```typescript
-function sink.scr_loadfile(scr: sink.scr, file: string): boolean | Promise<boolean>;
+function sink.scr_loadfile(scr: sink.scr, file: string): Promise<boolean>;
 ```
 
 A script can be loaded directly via [`scr_write`](#scr_write), but the compiler won't have any
@@ -450,7 +449,7 @@ include system, so that any errors are correctly identified as coming from the s
 This will query for the file using [`f_fstype`](#inc), and load the file using [`f_fsread`](#inc),
 which should call `scr_write`.
 
-Note that the TypeScript/JavaScript version must deal with the possibility of receiving a Promise.
+Note that the TypeScript/JavaScript version returns a Promise.
 
 ### `scr`
 
@@ -472,7 +471,7 @@ bool sink_scr_write(sink_scr scr, int size, const uint8_t *bytes);
 ```
 
 ```typescript
-function sink.scr_write(scr: sink.scr, bytes: string): boolean | Promise<boolean>;
+function sink.scr_write(scr: sink.scr, bytes: string): Promise<boolean>;
 ```
 
 Loading source code into the Script object is done with `scr_write`.  The function can be called
@@ -480,7 +479,7 @@ directly after creating a Script object, or it can be called indirectly through
 [`scr_loadfile`](#scr_loadfile) -- which will eventually call [`f_fsread`](#inc) which should call
 `scr_write` to write the data.
 
-Note that the TypeScript/JavaScript version must deal with the possibility of receiving a Promise.
+Note that the TypeScript/JavaScript version returns a Promise.
 
 ### `scr`
 
@@ -619,6 +618,10 @@ virtual machine.
 | [`ctx_forcetimeout`](#ctx_forcetimeout) | Force a timeout to occur immediately                  |
 | [`ctx_run`](#ctx_run)                   | Run the virtual machine                               |
 | [`ctx_free`](#ctx_free)                 | Free a Context object (C only)                        |
+| [`waiter`](#waiter)                     | Create a wait object (C only)                         |
+| [`done`](#done)                         | Create a wait object that already has a result (C only) |
+| [`then`](#then)                         | Attach a handler to a wait object (C only)            |
+| [`result`](#result)                     | Provide a result for a wait object (C only)           |
 
 ctx_new
 -------
@@ -626,8 +629,8 @@ ctx_new
 Create a new Context object.
 
 ```c
-typedef void (*sink_output_f)(sink_ctx ctx, sink_str str, void *iouser);
-typedef sink_val (*sink_input_f)(sink_ctx ctx, sink_str str, void *iouser);
+typedef sink_wait (*sink_output_f)(sink_ctx ctx, sink_str str, void *iouser);
+typedef sink_wait (*sink_input_f)(sink_ctx ctx, sink_str str, void *iouser);
 
 typedef struct {
   sink_output_f f_say;
@@ -640,8 +643,8 @@ sink_ctx sink_ctx_new(sink_scr scr, sink_io_st io);
 ```
 
 ```typescript
-type sink.output_f = (ctx: sink.ctx, str: sink.str, iouser: any) => void | Promise<void>;
-type sink.input_f = (ctx: sink.ctx, str: sink.str, iouser: any) => sink.val | Promise<sink.val>;
+type sink.output_f = (ctx: sink.ctx, str: sink.str, iouser: any) => Promise<void>;
+type sink.input_f = (ctx: sink.ctx, str: sink.str, iouser: any) => Promise<sink.val>;
 
 interface sink.io_st {
     f_say?: sink.output_f;
@@ -664,10 +667,9 @@ The input/output functions for the machine.
 The `f_say`, `f_warn`, and `f_ask` functions are called when the associated `say`, `warn`, and `ask`
 commands are executed in the script.
 
-The C versions of `f_say` and `f_warn` must be synchronous, but `f_ask` can return a promise to
-indicate an asynchronous result.
+The C versions use the [`sink_wait`](#waiter) system to deal with asynchronous operations.
 
-The TypeScript versions can return a Promise from any `f_say`, `f_warn`, or `f_ask`, if needed.
+The TypeScript versions must return a Promise.
 
 The `user` field is mapped to `iouser`, and can be used for anything.
 
@@ -736,14 +738,13 @@ ctx_native
 Add a native command implementation to the virtual machine using a string identifier.
 
 ```c
-typedef sink_val (*sink_native_f)(sink_ctx ctx, int size, sink_val *args, void *natuser);
+typedef sink_wait (*sink_native_f)(sink_ctx ctx, int size, sink_val *args, void *natuser);
 
 void sink_ctx_native(sink_ctx ctx, const char *name, void *natuser, sink_native_f f_native);
 ```
 
 ```typescript
-type sink.native_f = (ctx: sink.ctx, args: sink.val[], natuser: any) =>
-  sink.val | Promise<sink.val>;
+type sink.native_f = (ctx: sink.ctx, args: sink.val[], natuser: any) => Promise<sink.val>;
 
 function sink.ctx_native(ctx: sink.ctx, name: string, natuser: any, f_native: sink.native_f): void;
 ```
@@ -761,9 +762,8 @@ declare foo 'company.product.foo'
 This is wired to a host function via:
 
 ```c
-sink_val my_foo(sink_ctx ctx, int size, sink_val *args, void *natuser){
+sink_wait my_foo(sink_ctx ctx, int size, sink_val *args, void *natuser){
   // implementation here
-  // return a promise for an asynchronous result
 }
 
 ...
@@ -772,9 +772,8 @@ sink_ctx_native(ctx, "company.product.foo", NULL, my_foo);
 ```
 
 ```typescript
-function my_foo(ctx: sink.ctx, args: sink.val[], natuser: any): sink.val | Promise<sink.val> {
+function my_foo(ctx: sink.ctx, args: sink.val[], natuser: any): Promise<sink.val> {
   // implementation here
-  // return a Promise<sink.val> for an asynchronous result
 }
 
 ...
@@ -806,15 +805,14 @@ ctx_nativehash
 Add a native command implementation to the virtual machine using a specific hash value.
 
 ```c
-typedef sink_val (*sink_native_f)(sink_ctx ctx, int size, sink_val *args, void *natuser);
+typedef sink_wait (*sink_native_f)(sink_ctx ctx, int size, sink_val *args, void *natuser);
 
 void sink_ctx_nativehash(sink_ctx ctx, uint64_t hash, void *natuser, sink_native_f f_native);
 ```
 
 ```typescript
 type sink.u64 = [number, number];
-type sink.native_f = (ctx: sink.ctx, args: sink.val[], natuser: any) =>
-  sink.val | Promise<sink.val>;
+type sink.native_f = (ctx: sink.ctx, args: sink.val[], natuser: any) => Promise<sink.val>;
 
 function sink.ctx_nativehash(ctx: sink.ctx, hash: sink.u64, natuser: any,
   f_native: sink.native_f): void;
@@ -1164,18 +1162,19 @@ typedef enum {
   SINK_RUN_REPLMORE
 } sink_run;
 
-sink_run sink_ctx_run(sink_ctx ctx);
+sink_wait sink_ctx_run(sink_ctx ctx);
 ```
 
 ```typescript
 enum sink.run {
   PASS,
   FAIL,
+  ASYNC,
   TIMEOUT,
   REPLMORE
 }
 
-function sink.ctx_run(ctx: sink.ctx): sink.run | Promise<sink.run>;
+function sink.ctx_run(ctx: sink.ctx): Promise<sink.run>;
 ```
 
 This function will execute the bytecode and dispatch [I/O](#ctx_new) and [native](#ctx_native)
@@ -1186,13 +1185,15 @@ It will return one of the following values:
 * `PASS` - Execution has finished and the script exited successfully.
 * `FAIL` - Execution has finished and the script exited in failure.  Use [`ctx_geterr`](#ctx_geterr)
   to get the run-time error message, if it exists.
+* `ASYNC` - Machine is waiting for an asynchronous result to continue.
 * `TIMEOUT` - The machine's [timeout](#ctx_settimeout) has triggered.  Run `ctx_run` to resume.
 * `REPLMORE` - The machine has detected it has executed as much as it could before needing more
   source code entered from the REPL.  This only happens if the Script is in [REPL mode](#scr_new).
 
-Note that the TypeScript version will return a Promise for an asynchronous operation -- not
-`sink.run.ASYNC`.  The value `sink.run.ASYNC` is returned only if the `ctx_run` is called on a
-context that is waiting for a Promise to resolve.
+The C version will return a [`sink_wait`](#waiter) object, that will resolve to a number that
+corresponds to the `sink_run` result.
+
+The TypeScript version will return a Promise.
 
 ### `ctx`
 
@@ -1214,6 +1215,26 @@ freeing the Context object itself.
 ### `ctx`
 
 The Context object.
+
+waiter
+------
+
+TODO
+
+done
+----
+
+TODO
+
+then
+----
+
+TODO
+
+result
+------
+
+TODO
 
 Sink Commands API
 =================
@@ -1371,8 +1392,6 @@ Misc/Helper Functions
 | Function/Value                          | Description                                           |
 |-----------------------------------------|-------------------------------------------------------|
 | [`NIL`](#NIL)                           | The literal `nil` value                               |
-| [`isPromise`](#isPromise)               | Check if a value is a Promise (TypeScript/JavaScript only) |
-| [`checkPromise`](#checkPromise)         | Check if a value is a Promise and do something (TypeScript/JavaScript only) |
 | [`bool`](#bool)                         | Convert a boolean to a sink value                     |
 | [`isnil`](#isnil)                       | Test if a sink value is `nil`                         |
 | [`isfalse`](#isfalse)                   | Test if a sink value is false (`nil`)                 |
@@ -1416,11 +1435,6 @@ Misc/Helper Functions
 ```
 const sink_val SINK_NIL;
 const sink.NIL: null;
-
-const sink_val SINK_ASYNC;
-
-function sink.isPromise<T>(p: any): p is Promise<T>;
-function sink.checkPromise<T, U>(v: T | Promise<T>, func: (v2: T) => U | Promise<U>): U | Promise<U>;
 
 sink_val sink_bool(bool f)
 function sink.bool(f: boolean): sink.val;

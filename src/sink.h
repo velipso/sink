@@ -218,7 +218,7 @@ int       sink_size(sink_ctx ctx, sink_val v);
 sink_wait sink_say(sink_ctx ctx, int size, sink_val *vals);
 sink_wait sink_warn(sink_ctx ctx, int size, sink_val *vals);
 sink_wait sink_ask(sink_ctx ctx, int size, sink_val *vals);
-sink_wait sink_exit(sink_ctx ctx, int size, sink_val *vals);
+void      sink_exit(sink_ctx ctx);
 void      sink_abort(sink_ctx ctx, int size, sink_val *vals);
 sink_wait sink_abortstr(sink_ctx ctx, const char *fmt, ...); // always returns NULL
 sink_val  sink_range(sink_ctx ctx, double start, double stop, double step);

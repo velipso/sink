@@ -13143,41 +13143,42 @@ static void context_run_then(context ctx, sink_val result, waitt wrun){
 }
 
 static void context_run_w(context ctx, waitt wrun){
-	#define RUNDONE(res) do{                                   \
-			if (res == SINK_RUN_PASS || res == SINK_RUN_FAIL)  \
-				context_reset(ctx);                            \
-			wrun->has_result = true;                           \
-			wrun->result = sink_num(res);                      \
-			if (wrun->has_then)                                \
-				wait_fire(wrun);                               \
-			return;                                            \
+	#define RUNDONE(res) do{                                                               \
+			sink_run result = res;                                                         \
+			if (result == SINK_RUN_PASS || result == SINK_RUN_FAIL)                        \
+				context_reset(ctx);                                                        \
+			wrun->has_result = true;                                                       \
+			wrun->result = sink_num(result);                                               \
+			if (wrun->has_then)                                                            \
+				wait_fire(wrun);                                                           \
+			return;                                                                        \
 		}while(false)
 
-	#define GOTWAIT(gw) do{                                                         \
-			waitt w = gw;                                                           \
-			if (ctx->failed)                                                        \
-				RUNDONE(SINK_RUN_FAIL);                                             \
-			if (w == NULL){                                                         \
-				/* quick way to return nil */                                       \
-				var_set(ctx, A, B, SINK_NIL);                                       \
-			}                                                                       \
-			else if (w->has_result){                                                \
-				/* don't have to actually wait for result, so just roll with it */  \
-				var_set(ctx, A, B, w->result);                                      \
-				wait_release(ctx, w);                                               \
-			}                                                                       \
-			else{                                                                   \
-				ctx->async = true;                                                  \
-				ctx->async_frame = A;                                               \
-				ctx->async_index = B;                                               \
-				ctx->timeout_left = ctx->timeout;                                   \
-				sink_then(w, (sink_then_st){                                        \
-					.f_then = (sink_then_f)context_run_then,                        \
-					.f_cancel = NULL,                                               \
-					.user = wrun                                                    \
-				});                                                                 \
-				return;                                                             \
-			}                                                                       \
+	#define GOTWAIT(gw) do{                                                                \
+			waitt w = gw;                                                                  \
+			if (ctx->failed)                                                               \
+				RUNDONE(SINK_RUN_FAIL);                                                    \
+			if (w == NULL){                                                                \
+				/* quick way to return nil */                                              \
+				var_set(ctx, A, B, SINK_NIL);                                              \
+			}                                                                              \
+			else if (w->has_result){                                                       \
+				/* don't have to actually wait for result, so just roll with it */         \
+				var_set(ctx, A, B, w->result);                                             \
+				wait_release(ctx, w);                                                      \
+			}                                                                              \
+			else{                                                                          \
+				ctx->async = true;                                                         \
+				ctx->async_frame = A;                                                      \
+				ctx->async_index = B;                                                      \
+				ctx->timeout_left = ctx->timeout;                                          \
+				sink_then(w, (sink_then_st){                                               \
+					.f_then = (sink_then_f)context_run_then,                               \
+					.f_cancel = NULL,                                                      \
+					.user = wrun                                                           \
+				});                                                                        \
+				return;                                                                    \
+			}                                                                              \
 		}while(false)
 
 	if (ctx->passed) RUNDONE(SINK_RUN_PASS );
@@ -15853,14 +15854,8 @@ sink_wait sink_ask(sink_ctx ctx, int size, sink_val *vals){
 	return opi_ask(ctx, size, vals);
 }
 
-sink_wait sink_exit(sink_ctx ctx, int size, sink_val *vals){
-	sink_wait w;
-	if (size > 0)
-		w = sink_say(ctx, size, vals);
-	else
-		w = sink_done(ctx, SINK_NIL);
+void sink_exit(sink_ctx ctx){
 	opi_exit(ctx);
-	return w;
 }
 
 void sink_abort(sink_ctx ctx, int size, sink_val *vals){
