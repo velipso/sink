@@ -21,13 +21,14 @@ Both implementations:
 * Tail call optimization supported
 * REPL supported
 * All I/O is governed by the host
+* Designed for asynchronous use, with ability to pause execution at any time
 
 C99 implementation:
 
 * Values are stored via [NaN-boxing](http://sean.cm/a/nan-boxing)
 * Simple stop-the-world mark sweep garbage collector
 * Easy to build, just two files: `sink.h` and `sink.c`
-* Asynchronous commands via special value `SINK_ASYNC`
+* Asynchronous commands via simplified Promise-like objects `sink_wait`
 
 TypeScript implementation:
 
