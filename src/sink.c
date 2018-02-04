@@ -7154,27 +7154,27 @@ static inline bool program_evalCallArgcount(pgen_st pgen, expr params, int *argc
 	// `p` is an array of 255 varloc_st's, which get filled with `argcount` arguments
 	// returns false on error, with error inside of `pe`
 	*argcount = 0;
-	if (params){
-		if (params->type == EXPR_GROUP){
-			*argcount = params->u.group->size;
-			if (*argcount > 254)
-				*argcount = 254;
-			for (int i = 0; i < params->u.group->size; i++){
-				*pe = program_eval(pgen, i < *argcount ? PEM_CREATE : PEM_EMPTY, VARLOC_NULL,
-					params->u.group->ptrs[i]);
-				if (!pe->ok)
-					return false;
-				if (i < *argcount)
-					p[i] = pe->u.vlc;
-			}
-		}
-		else{
-			*argcount = 1;
-			*pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, params);
+	if (params == NULL)
+		return true;
+	if (params->type == EXPR_GROUP){
+		*argcount = params->u.group->size;
+		if (*argcount > 254)
+			*argcount = 254;
+		for (int i = 0; i < params->u.group->size; i++){
+			*pe = program_eval(pgen, i < *argcount ? PEM_CREATE : PEM_EMPTY, VARLOC_NULL,
+				params->u.group->ptrs[i]);
 			if (!pe->ok)
 				return false;
-			p[0] = pe->u.vlc;
+			if (i < *argcount)
+				p[i] = pe->u.vlc;
 		}
+	}
+	else{
+		*argcount = 1;
+		*pe = program_eval(pgen, PEM_CREATE, VARLOC_NULL, params);
+		if (!pe->ok)
+			return false;
+		p[0] = pe->u.vlc;
 	}
 	return true;
 }
@@ -7833,7 +7833,7 @@ static per_st program_eval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, expr 
 			return program_eval(pgen, mode, intoVlc, ex->u.ex);
 
 		case EXPR_GROUP:
-			for (int i = 0; i < ex->u.group->size; i++){
+			for (int i = 0; true; i++){
 				if (i == ex->u.group->size - 1)
 					return program_eval(pgen, mode, intoVlc, ex->u.group->ptrs[i]);
 				per_st pe = program_eval(pgen, PEM_EMPTY, VARLOC_NULL, ex->u.group->ptrs[i]);

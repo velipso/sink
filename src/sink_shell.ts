@@ -21,7 +21,7 @@ function L_pwd__n(): sink.val {
 	return process.cwd();
 }
 
-function L_version(ctx: sink.ctx, args: sink.val[]): sink.val {
+async function L_version(ctx: sink.ctx, args: sink.val[]): Promise<sink.val> {
 	let reqmaj = 0, reqmin = 0, reqpat = 0;
 	if (args.length >= 1){
 		if (!sink.isnum(args[0]))
@@ -56,7 +56,7 @@ function L_version(ctx: sink.ctx, args: sink.val[]): sink.val {
 		'version ' + VERSION_MAJ + '.' + VERSION_MIN + '.' + VERSION_PAT);
 }
 
-function L_args(ctx: sink.ctx, args: sink.val[], pargs: string[]): sink.val {
+async function L_args(ctx: sink.ctx, args: sink.val[], pargs: string[]): Promise<sink.val> {
 	let v = new sink.list();
 	for (let i = 0; i < pargs.length; i++)
 		v.push(pargs[i]);

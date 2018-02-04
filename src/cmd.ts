@@ -8,20 +8,20 @@ import fs = require('fs');
 import path = require('path');
 import readline = require('readline');
 
-function io_say(ctx: sink.ctx, str: sink.str, iouser: any): void {
+async function io_say(ctx: sink.ctx, str: sink.str, iouser: any): Promise<void> {
 	console.log(str);
 }
 
-function io_warn(ctx: sink.ctx, str: sink.str, iouser: any): void {
+async function io_warn(ctx: sink.ctx, str: sink.str, iouser: any): Promise<void> {
 	console.error(str);
 }
 
-function io_ask(ctx: sink.ctx, str: sink.str, iouser: any): Promise<sink.val> {
+async function io_ask(ctx: sink.ctx, str: sink.str, iouser: any): Promise<sink.val> {
 	var rl = readline.createInterface({
 		input: process.stdin,
 		output: process.stdout
 	});
-	return new Promise(function(resolve, reject){
+	return new Promise<sink.val>(function(resolve, reject){
 		rl.question(str, function(ans){
 			rl.close();
 			resolve(ans);
@@ -35,40 +35,51 @@ let io: sink.io_st = {
 	f_ask: io_ask
 };
 
-function fstype(file: string): Promise<sink.fstype> {
-	return new Promise(function(resolve, reject){
-		fs.stat(file, function(err, st){
+async function nodeStat(file: string): Promise<fs.Stats | null> {
+	return new Promise<fs.Stats | null>(function(resolve, reject){
+		fs.stat(file, function(err, st: fs.Stats){
 			if (err){
 				if (err.code == 'ENOENT')
-					return resolve(sink.fstype.NONE);
-				return reject(err);
+					resolve(null);
+				else
+					reject(err);
 			}
-			if (st.isFile())
-				return resolve(sink.fstype.FILE);
-			else if (st.isDirectory())
-				return resolve(sink.fstype.DIR);
-			resolve(sink.fstype.NONE);
+			else
+				resolve(st);
 		});
 	});
 }
 
-function fsread(scr: sink.scr, file: string): Promise<boolean> {
-	return new Promise(function(resolve, reject){
+async function fstype(file: string): Promise<sink.fstype> {
+	let st = await nodeStat(file);
+	if (st !== null){
+		if (st.isFile())
+			return sink.fstype.FILE;
+		else if (st.isDirectory())
+			return sink.fstype.DIR;
+	}
+	return sink.fstype.NONE;
+}
+
+async function nodeRead(file: string): Promise<string | null> {
+	return new Promise<string | null>(function(resolve, reject){
 		fs.readFile(file, 'binary', function(err, data){
 			if (err){
 				console.error(err);
-				resolve(false); // `false` indicates there was an error reading file
+				resolve(null);
 			}
-			else{
-				sink.checkPromise<boolean, void>(
-					sink.scr_write(scr, data),
-					function(err: boolean): void {
-						resolve(true); // `true` indicates that the file was read
-					}
-				);
-			}
+			else
+				resolve(data);
 		});
 	});
+}
+
+async function fsread(scr: sink.scr, file: string): Promise<boolean> {
+	let data = await nodeRead(file);
+	if (data === null)
+		return false; // `false` indicates the file couldn't be read
+	await sink.scr_write(scr, data);
+	return true; // `true` indicates the file was read
 }
 
 let inc: sink.inc_st = {
@@ -93,104 +104,76 @@ function printctxerr(ctx: sink.ctx): void {
 	console.error(err);
 }
 
-function main_repl(scr: sink.scr, argv: string[]): Promise<boolean> {
-	return new Promise(function(resolve){
-		let ctx = newctx(scr, argv);
-		let line = 1;
-		nextLine();
-		function nextLine(){
-			var rl = readline.createInterface({
-				input: process.stdin,
-				output: process.stdout
-			});
-			let levels = sink.scr_level(scr);
-			var p = ': ';
-			if (levels > 0)
-				p = (new Array(levels + 1)).join('..') + '. ';
-			if (line < 10)
-				p = ' ' + line + p;
-			else
-				p = line + p;
-			rl.question(p, function(ans){
-				line++;
-				rl.close();
-				let buf = ans + '\n';
-				sink.checkPromise<boolean, void>(
-					sink.scr_write(scr, buf),
-					function(written: boolean){
-						if (!written)
-							printscrerr(scr);
-						if (sink.scr_level(scr) <= 0){
-							sink.ctx_run(ctx, function(ctx: sink.ctx, res: sink.run): void {
-								switch (res){
-									case sink.run.PASS:
-										resolve(true);
-										return;
-									case sink.run.FAIL:
-										printctxerr(ctx);
-										break;
-									case sink.run.ASYNC:
-										console.error('REPL invoked async function');
-										resolve(false);
-										return;
-									case sink.run.TIMEOUT:
-										console.error('REPL returned timeout (impossible)');
-										resolve(false);
-										return;
-									case sink.run.REPLMORE:
-										// do nothing
-										break;
-								}
-								nextLine();
-							});
-						}
-						else
-							nextLine();
-					}
-				);
-			});
-		}
+async function readPrompt(p: string): Promise<string> {
+	var rl = readline.createInterface({
+		input: process.stdin,
+		output: process.stdout
+	});
+	return new Promise<string>(function(resolve){
+		rl.question(p, function(ans){
+			rl.close();
+			resolve(ans);
+		});
 	});
 }
 
-function main_run(scr: sink.scr, file: string, argv: string[]): boolean | Promise<boolean> {
-	return sink.checkPromise<boolean, boolean>(
-		sink.scr_loadfile(scr, file),
-		function(loaded: boolean): boolean | Promise<boolean> {
-			if (!loaded){
-				printscrerr(scr);
-				return false;
+async function main_repl(scr: sink.scr, argv: string[]): Promise<boolean> {
+	let ctx = newctx(scr, argv);
+	let line = 1;
+	while (true){
+		let levels = sink.scr_level(scr);
+		var p = ': ';
+		if (levels > 0)
+			p = (new Array(levels + 1)).join('..') + '. ';
+		if (line < 10)
+			p = ' ' + line + p;
+		else
+			p = line + p;
+		let ans = await readPrompt(p);
+		line++;
+		let buf = ans + '\n';
+		if (!await sink.scr_write(scr, buf))
+			printscrerr(scr);
+		if (sink.scr_level(scr) <= 0){
+			switch (await sink.ctx_run(ctx)){
+				case sink.run.PASS:
+					return true;
+				case sink.run.FAIL:
+					printctxerr(ctx);
+					break;
+				case sink.run.TIMEOUT:
+					console.error('REPL returned timeout (impossible)');
+					return false;
+				case sink.run.REPLMORE:
+					// do nothing
+					break;
 			}
-			let ctx = newctx(scr, argv);
-			return new Promise<boolean>(function(resolve, reject): void {
-				sink.ctx_run(ctx, function(ctx: sink.ctx, res: sink.run): void {
-					if (res == sink.run.FAIL)
-						printctxerr(ctx);
-					resolve(res == sink.run.PASS);
-				});
-			});
 		}
-	);
+	}
 }
 
-function main_eval(scr: sink.scr, ev: string, argv: string[]): boolean | Promise<boolean> {
-	return sink.checkPromise<boolean, boolean>(
-		sink.scr_write(scr, ev),
-		function(written: boolean): boolean | Promise<boolean> {
-			if (!written){
-				printscrerr(scr);
-				return false;
-			}
-			let ctx = newctx(scr, argv);
-			return new Promise<boolean>(function(resolve, reject): void {
-				sink.ctx_run(ctx, function(ctx: sink.ctx, res: sink.run): void {
-					if (res == sink.run.FAIL)
-						printctxerr(ctx);
-					resolve(res == sink.run.PASS);
-				});
-			});
-		}
-	);
+async function main_run(scr: sink.scr, file: string, argv: string[]): Promise<boolean> {
+	if (!await sink.scr_loadfile(scr, file)){
+		printscrerr(scr);
+		return false;
+	}
+	let ctx = newctx(scr, argv);
+	let res = await sink.ctx_run(ctx);
+	if (res == sink.run.FAIL)
+		printctxerr(ctx);
+	return res == sink.run.PASS;
+}
+
+async function main_eval(scr: sink.scr, ev: string, argv: string[]): Promise<boolean> {
+	if (!await sink.scr_write(scr, ev)){
+		printscrerr(scr);
+		return false;
+	}
+	let ctx = newctx(scr, argv);
+	let res = await sink.ctx_run(ctx);
+	if (res == sink.run.FAIL)
+		printctxerr(ctx);
+	return res == sink.run.PASS;
 }
 
 function perform_dump(scr: sink.scr, debug: boolean): void {
@@ -203,33 +186,22 @@ function perform_dump(scr: sink.scr, debug: boolean): void {
 	process.stdout.write(dump_data, 'binary');
 }
 
-function main_compile_file(scr: sink.scr, file: string,
-	debug: boolean): boolean | Promise<boolean> {
-	return sink.checkPromise<boolean, boolean>(
-		sink.scr_loadfile(scr, file),
-		function(loaded: boolean): boolean {
-			if (!loaded){
-				printscrerr(scr);
-				return false;
-			}
-			perform_dump(scr, debug);
-			return true;
-		}
-	);
+async function main_compile_file(scr: sink.scr, file: string, debug: boolean): Promise<boolean> {
+	if (!await sink.scr_loadfile(scr, file)){
+		printscrerr(scr);
+		return false;
+	}
+	perform_dump(scr, debug);
+	return true;
 }
 
-function main_compile_eval(scr: sink.scr, ev: string, debug: boolean): boolean | Promise<boolean> {
-	return sink.checkPromise<boolean, boolean>(
-		sink.scr_write(scr, ev),
-		function(written: boolean): boolean {
-			if (!written){
-				printscrerr(scr);
-				return false;
-			}
-			perform_dump(scr, debug);
-			return true;
-		}
-	);
+async function main_compile_eval(scr: sink.scr, ev: string, debug: boolean): Promise<boolean> {
+	if (!await sink.scr_write(scr, ev)){
+		printscrerr(scr);
+		return false;
+	}
+	perform_dump(scr, debug);
+	return true;
 }
 
 function print_version(): void {
@@ -269,7 +241,7 @@ function print_help(): void {
 		'  still compile the file for use in the host environment.');
 }
 
-export function main(): boolean | Promise<boolean> {
+export async function main(): Promise<boolean> {
 	let argv = process.argv.splice(1);
 	let argc = argv.length;
 	let compile = false;
