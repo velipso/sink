@@ -34,13 +34,18 @@ export declare enum run {
     TIMEOUT = 3,
     REPLMORE = 4,
 }
-export declare type output_f = (ctx: ctx, str: str, iouser: any) => void | Promise<void>;
-export declare type input_f = (ctx: ctx, str: str, iouser: any) => val | Promise<val>;
-export declare type native_f = (ctx: ctx, args: val[], natuser: any) => val | Promise<val>;
-export declare type fstype_f = (file: string, incuser: any) => fstype | Promise<fstype>;
-export declare type fsread_f = (scr: scr, file: string, incuser: any) => boolean | Promise<boolean>;
+export declare enum status {
+    READY = 0,
+    WAITING = 1,
+    PASSED = 2,
+    FAILED = 3,
+}
+export declare type fsread_f = (scr: scr, file: string, incuser: any) => Promise<boolean>;
+export declare type fstype_f = (file: string, incuser: any) => Promise<fstype>;
+export declare type output_f = (ctx: ctx, str: str, iouser: any) => Promise<void>;
+export declare type input_f = (ctx: ctx, str: str, iouser: any) => Promise<val>;
+export declare type native_f = (ctx: ctx, args: val[], natuser: any) => Promise<val>;
 export declare type dump_f = (data: string, dumpuser: any) => void;
-export declare type rundone_f = (ctx: ctx, result: run) => void;
 export interface io_st {
     f_say?: output_f;
     f_warn?: output_f;
@@ -52,15 +57,7 @@ export interface inc_st {
     f_fsread: fsread_f;
     user?: any;
 }
-export declare enum status {
-    READY = 0,
-    WAITING = 1,
-    PASSED = 2,
-    FAILED = 3,
-}
 export declare const NIL: null;
-export declare function isPromise<T>(p: any): p is Promise<T>;
-export declare function checkPromise<T, U>(v: T | Promise<T>, func: (v2: T) => U | Promise<U>): U | Promise<U>;
 export declare function bool(f: boolean): val;
 export declare function istrue(v: val): v is valtrue;
 export declare function isfalse(v: val): v is null;
@@ -113,9 +110,9 @@ export declare function struct_list(ctx: ctx, a: val, b: val): val;
 export declare function struct_isLE(): boolean;
 export declare function size(ctx: ctx, a: val): number;
 export declare function tonum(ctx: ctx, a: val): val;
-export declare function say(ctx: ctx, vals: val[]): void | Promise<void>;
-export declare function warn(ctx: ctx, vals: val[]): void | Promise<void>;
-export declare function ask(ctx: ctx, vals: val[]): val | Promise<val>;
+export declare function say(ctx: ctx, vals: val[]): Promise<void>;
+export declare function warn(ctx: ctx, vals: val[]): Promise<void>;
+export declare function ask(ctx: ctx, vals: val[]): Promise<val>;
 export declare function stacktrace(ctx: ctx): val;
 export declare function str_cat(ctx: ctx, vals: val[]): val;
 export declare function str_slice(ctx: ctx, a: val, b: val, c: val): val;
@@ -151,10 +148,10 @@ export declare function scr_new(inc: inc_st, curdir: strnil, posix: boolean, rep
 export declare function scr_addpath(scr: scr, path: string): void;
 export declare function scr_incbody(scr: scr, name: string, body: string): void;
 export declare function scr_incfile(scr: scr, name: string, file: string): void;
-export declare function scr_loadfile(scr: scr, file: string): boolean | Promise<boolean>;
+export declare function scr_loadfile(scr: scr, file: string): Promise<boolean>;
 export declare function scr_getfile(scr: scr): strnil;
 export declare function scr_getcwd(scr: scr): strnil;
-export declare function scr_write(scr: scr, bytes: string): boolean | Promise<boolean>;
+export declare function scr_write(scr: scr, bytes: string): Promise<boolean>;
 export declare function scr_geterr(scr: scr): strnil;
 export declare function scr_level(scr: scr): number;
 export declare function scr_dump(scr: scr, debug: boolean, user: any, f_dump: dump_f): void;
@@ -170,7 +167,7 @@ export declare function ctx_settimeout(ctx: ctx, timeout: number): void;
 export declare function ctx_gettimeout(ctx: ctx): number;
 export declare function ctx_consumeticks(ctx: ctx, amount: number): void;
 export declare function ctx_forcetimeout(ctx: ctx): void;
-export declare function ctx_run(ctx: ctx, f_rundone: rundone_f): void;
+export declare function ctx_run(ctx: ctx): Promise<run>;
 export declare function ctx_geterr(ctx: ctx): strnil;
 export declare function arg_bool(args: val[], index: number): boolean;
 export declare function arg_num(ctx: ctx, args: val[], index: number): number;
@@ -178,7 +175,7 @@ export declare function arg_str(ctx: ctx, args: val[], index: number): string;
 export declare function arg_list(ctx: ctx, args: val[], index: number): list;
 export declare function arg_user(ctx: ctx, args: val[], index: number, usertype: user): any;
 export declare function tostr(v: val): str;
-export declare function exit(ctx: ctx, vals: val[]): void | Promise<void>;
+export declare function exit(ctx: ctx, vals: val[]): Promise<void>;
 export declare function abort(ctx: ctx, vals: val[]): void;
 export declare function abortstr(ctx: ctx, str: string): val;
 export declare function num_neg(ctx: ctx, a: val): val;

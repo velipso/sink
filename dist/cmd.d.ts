@@ -1,1 +1,1 @@
-export declare function main(): boolean | Promise<boolean>;
+export declare function main(): Promise<boolean>;

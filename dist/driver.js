@@ -3,9 +3,7 @@
 // MIT License
 // Project Home: https://github.com/voidqk/sink
 
-var cmd = require('./cmd.js');
-var res = cmd.main();
-if (typeof res === 'boolean')
-	process.exit(res ? 0 : 1);
-else
-	res.then(function(res){ process.exit(res ? 0 : 1); });
+require('./cmd.js').main().then(
+	function(res){ process.exit(res ? 0 : 1); },
+	function(err){ console.error(err); process.exit(1); }
+);

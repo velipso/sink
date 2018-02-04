@@ -8,6 +8,41 @@ var __extends = (this && this.__extends) || (function () {
         d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
     };
 })();
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+var __generator = (this && this.__generator) || function (thisArg, body) {
+    var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g;
+    return g = { next: verb(0), "throw": verb(1), "return": verb(2) }, typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
+    function verb(n) { return function (v) { return step([n, v]); }; }
+    function step(op) {
+        if (f) throw new TypeError("Generator is already executing.");
+        while (_) try {
+            if (f = 1, y && (t = y[op[0] & 2 ? "return" : op[0] ? "throw" : "next"]) && !(t = t.call(y, op[1])).done) return t;
+            if (y = 0, t) op = [0, t.value];
+            switch (op[0]) {
+                case 0: case 1: t = op; break;
+                case 4: _.label++; return { value: op[1], done: false };
+                case 5: _.label++; y = op[1]; op = [0]; continue;
+                case 7: op = _.ops.pop(); _.trys.pop(); continue;
+                default:
+                    if (!(t = _.trys, t = t.length > 0 && t[t.length - 1]) && (op[0] === 6 || op[0] === 2)) { _ = 0; continue; }
+                    if (op[0] === 3 && (!t || (op[1] > t[0] && op[1] < t[3]))) { _.label = op[1]; break; }
+                    if (op[0] === 6 && _.label < t[1]) { _.label = t[1]; t = op; break; }
+                    if (t && _.label < t[2]) { _.label = t[2]; _.ops.push(op); break; }
+                    if (t[2]) _.ops.pop();
+                    _.trys.pop(); continue;
+            }
+            op = body.call(thisArg, _);
+        } catch (e) { op = [6, e]; y = 0; } finally { f = t = 0; }
+        if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
+    }
+};
 (function (factory) {
     if (typeof module === "object" && typeof module.exports === "object") {
         var v = factory(require, exports);
@@ -76,16 +111,6 @@ var __extends = (this && this.__extends) || (function () {
     })(status = exports.status || (exports.status = {}));
     var NAN = Number.NaN;
     exports.NIL = null;
-    function isPromise(p) {
-        return typeof p === 'object' && p !== null && typeof p.then === 'function';
-    }
-    exports.isPromise = isPromise;
-    function checkPromise(v, func) {
-        if (isPromise(v))
-            return v.then(func);
-        return func(v);
-    }
-    exports.checkPromise = checkPromise;
     function bool(f) { return f ? 1 : exports.NIL; }
     exports.bool = bool;
     function istrue(v) { return v !== exports.NIL; }
@@ -4020,29 +4045,45 @@ var __extends = (this && this.__extends) || (function () {
         return ret.join(posix ? '/' : '\\');
     }
     function fileres_try(scr, postfix, file, f_begin, f_end, fuser) {
-        var inc = scr.inc;
-        return checkPromise(inc.f_fstype(file, inc.user), function (fst) {
-            switch (fst) {
-                case fstype.FILE:
-                    if (f_begin(file, fuser)) {
-                        return checkPromise(inc.f_fsread(scr, file, inc.user), function (readRes) {
-                            f_end(readRes, file, fuser);
-                            return true;
-                        });
-                    }
-                    return true;
-                case fstype.NONE:
-                    if (!postfix)
-                        return false;
-                    if (file.substr(-5) === '.sink')
-                        return false;
-                    return fileres_try(scr, false, file + '.sink', f_begin, f_end, fuser);
-                case fstype.DIR:
-                    if (!postfix)
-                        return false;
-                    return fileres_try(scr, false, pathjoin(file, 'index.sink', scr.posix), f_begin, f_end, fuser);
-            }
-            throw new Error('Bad file type');
+        return __awaiter(this, void 0, void 0, function () {
+            var inc, fst, _a, readRes;
+            return __generator(this, function (_b) {
+                switch (_b.label) {
+                    case 0:
+                        inc = scr.inc;
+                        return [4, inc.f_fstype(file, inc.user)];
+                    case 1:
+                        fst = _b.sent();
+                        _a = fst;
+                        switch (_a) {
+                            case fstype.FILE: return [3, 2];
+                            case fstype.NONE: return [3, 6];
+                            case fstype.DIR: return [3, 7];
+                        }
+                        return [3, 8];
+                    case 2:
+                        if (!f_begin(file, fuser)) return [3, 5];
+                        return [4, inc.f_fsread(scr, file, inc.user)];
+                    case 3:
+                        readRes = _b.sent();
+                        return [4, f_end(readRes, file, fuser)];
+                    case 4:
+                        _b.sent();
+                        _b.label = 5;
+                    case 5: return [2, true];
+                    case 6:
+                        if (!postfix)
+                            return [2, false];
+                        if (file.substr(-5) === '.sink')
+                            return [2, false];
+                        return [2, fileres_try(scr, false, file + '.sink', f_begin, f_end, fuser)];
+                    case 7:
+                        if (!postfix)
+                            return [2, false];
+                        return [2, fileres_try(scr, false, pathjoin(file, 'index.sink', scr.posix), f_begin, f_end, fuser)];
+                    case 8: throw new Error('Bad file type');
+                }
+            });
         });
     }
     function isabs(file, posix) {
@@ -4050,30 +4091,42 @@ var __extends = (this && this.__extends) || (function () {
             (!posix && (file.charAt(1) == ':' || (file.charAt(0) == '/' && file.charAt(1) == '/')));
     }
     function fileres_read(scr, postfix, file, cwd, f_begin, f_end, fuser) {
-        if (isabs(file, scr.posix))
-            return fileres_try(scr, postfix, file, f_begin, f_end, fuser);
-        if (cwd === null)
-            cwd = scr.curdir;
-        var paths = scr.paths;
-        return nextPath(0);
-        function nextPath(i) {
-            if (i >= paths.length)
-                return false;
-            var path = paths[i];
-            var join;
-            if (isabs(path, scr.posix))
-                join = pathjoin(path, file, scr.posix);
-            else {
-                if (cwd === null)
-                    return nextPath(i + 1);
-                join = pathjoin(pathjoin(cwd, path, scr.posix), file, scr.posix);
-            }
-            return checkPromise(fileres_try(scr, postfix, join, f_begin, f_end, fuser), function (found) {
-                if (found)
-                    return true;
-                return nextPath(i + 1);
+        return __awaiter(this, void 0, void 0, function () {
+            var paths, i, path, join, found;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        if (isabs(file, scr.posix))
+                            return [2, fileres_try(scr, postfix, file, f_begin, f_end, fuser)];
+                        if (cwd === null)
+                            cwd = scr.curdir;
+                        paths = scr.paths;
+                        i = 0;
+                        _a.label = 1;
+                    case 1:
+                        if (!(i < paths.length)) return [3, 4];
+                        path = paths[i];
+                        join = void 0;
+                        if (isabs(path, scr.posix))
+                            join = pathjoin(path, file, scr.posix);
+                        else {
+                            if (cwd === null)
+                                return [3, 3];
+                            join = pathjoin(pathjoin(cwd, path, scr.posix), file, scr.posix);
+                        }
+                        return [4, fileres_try(scr, postfix, join, f_begin, f_end, fuser)];
+                    case 2:
+                        found = _a.sent();
+                        if (found)
+                            return [2, true];
+                        _a.label = 3;
+                    case 3:
+                        i++;
+                        return [3, 1];
+                    case 4: return [2, false];
+                }
             });
-        }
+        });
     }
     function program_new(posix, repl) {
         return {
@@ -4442,125 +4495,128 @@ var __extends = (this && this.__extends) || (function () {
         return lvp_error(ex.flp, 'Invalid assignment');
     }
     function lval_prepare(pgen, ex) {
-        function handleListGroup(flp, exg) {
-            var body = [];
-            var rest = null;
-            function handleNext(i) {
-                if (i >= exg.group.length)
-                    return lvp_ok(lvr_list(flp, body, rest));
-                var gex = exg.group[i];
-                if (i === exg.group.length - 1 && gex.type === expr_enum.PREFIX &&
-                    gex.k === ks_enum.PERIOD3) {
-                    return checkPromise(lval_prepare(pgen, gex.ex), function (lp) {
-                        if (!lp.ok)
-                            return lp;
-                        rest = lp.lv;
-                        return handleNext(i + 1);
-                    });
-                }
-                else {
-                    return checkPromise(lval_prepare(pgen, gex), function (lp) {
-                        if (!lp.ok)
-                            return lp;
-                        body.push(lp.lv);
-                        return handleNext(i + 1);
-                    });
-                }
-            }
-            return handleNext(0);
-        }
-        function handleListRest(flp, exr) {
-            return checkPromise(lval_prepare(pgen, exr), function (lp) {
-                if (!lp.ok)
-                    return lp;
-                return lvp_ok(lvr_list(flp, [], lp.lv));
-            });
-        }
-        function handleListBody(flp, exb) {
-            return checkPromise(lval_prepare(pgen, exb), function (lp) {
-                if (!lp.ok)
-                    return lp;
-                return lvp_ok(lvr_list(flp, [lp.lv], null));
-            });
-        }
-        if (ex.type === expr_enum.NAMES) {
-            var sl = symtbl_lookup(pgen.sym, ex.names);
-            if (!sl.ok)
-                return lvp_error(ex.flp, sl.msg);
-            if (sl.nsn.type !== nsname_enumt.VAR)
-                return lvp_error(ex.flp, 'Invalid assignment');
-            return lvp_ok(lvr_var(ex.flp, varloc_new(sl.nsn.fr.level, sl.nsn.index)));
-        }
-        else if (ex.type === expr_enum.INDEX) {
-            return checkPromise(program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.obj), function handleIndex(pe) {
-                if (!pe.ok)
-                    return lvp_error(pe.flp, pe.msg);
-                var obj = pe.vlc;
-                if (ex.type !== expr_enum.INDEX)
-                    throw new Error('Expression type must be index');
-                return checkPromise(program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.key), function (pe) {
-                    if (!pe.ok)
-                        return lvp_error(pe.flp, pe.msg);
-                    return lvp_ok(lvr_index(ex.flp, obj, pe.vlc));
-                });
-            });
-        }
-        else if (ex.type === expr_enum.SLICE) {
-            if (ex.obj.type === expr_enum.INDEX) {
-                return checkPromise(program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.obj.obj), function (pe) {
-                    if (!pe.ok)
-                        return lvp_error(pe.flp, pe.msg);
-                    var obj = pe.vlc;
-                    if (ex.type !== expr_enum.SLICE || ex.obj.type !== expr_enum.INDEX)
-                        throw new Error('Expression type must be a slice index');
-                    return checkPromise(program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.obj.key), function (pe) {
+        return __awaiter(this, void 0, void 0, function () {
+            var sl, pe, obj, pe, obj, key, sr, pe, obj, sr, body, rest, i, gex, lp, lp, lp, lp;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        if (!(ex.type === expr_enum.NAMES)) return [3, 1];
+                        sl = symtbl_lookup(pgen.sym, ex.names);
+                        if (!sl.ok)
+                            return [2, lvp_error(ex.flp, sl.msg)];
+                        if (sl.nsn.type !== nsname_enumt.VAR)
+                            return [2, lvp_error(ex.flp, 'Invalid assignment')];
+                        return [2, lvp_ok(lvr_var(ex.flp, varloc_new(sl.nsn.fr.level, sl.nsn.index)))];
+                    case 1:
+                        if (!(ex.type === expr_enum.INDEX)) return [3, 4];
+                        return [4, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.obj)];
+                    case 2:
+                        pe = _a.sent();
                         if (!pe.ok)
-                            return lvp_error(pe.flp, pe.msg);
-                        var key = pe.vlc;
-                        function fixex(ex) {
-                            if (ex.type !== expr_enum.SLICE)
-                                throw new Error('Expression type must be slice');
-                            return ex;
-                        }
-                        return checkPromise(program_slice(pgen, fixex(ex)), function (sr) {
-                            if (!sr.ok)
-                                return lvp_error(sr.flp, sr.msg);
-                            return lvp_ok(lvr_sliceindex(ex.flp, obj, key, sr.start, sr.len));
-                        });
-                    });
-                });
-            }
-            else {
-                return checkPromise(program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.obj), function (pe) {
-                    if (!pe.ok)
-                        return lvp_error(pe.flp, pe.msg);
-                    var obj = pe.vlc;
-                    function fixex(ex) {
+                            return [2, lvp_error(pe.flp, pe.msg)];
+                        obj = pe.vlc;
+                        if (ex.type !== expr_enum.INDEX)
+                            throw new Error('Expression type must be index');
+                        return [4, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.key)];
+                    case 3:
+                        pe = _a.sent();
+                        if (!pe.ok)
+                            return [2, lvp_error(pe.flp, pe.msg)];
+                        return [2, lvp_ok(lvr_index(ex.flp, obj, pe.vlc))];
+                    case 4:
+                        if (!(ex.type === expr_enum.SLICE)) return [3, 12];
+                        if (!(ex.obj.type === expr_enum.INDEX)) return [3, 8];
+                        return [4, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.obj.obj)];
+                    case 5:
+                        pe = _a.sent();
+                        if (!pe.ok)
+                            return [2, lvp_error(pe.flp, pe.msg)];
+                        obj = pe.vlc;
+                        if (ex.type !== expr_enum.SLICE || ex.obj.type !== expr_enum.INDEX)
+                            throw new Error('Expression type must be a slice index');
+                        return [4, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.obj.key)];
+                    case 6:
+                        pe = _a.sent();
+                        if (!pe.ok)
+                            return [2, lvp_error(pe.flp, pe.msg)];
+                        key = pe.vlc;
                         if (ex.type !== expr_enum.SLICE)
                             throw new Error('Expression type must be slice');
-                        return ex;
-                    }
-                    return checkPromise(program_slice(pgen, fixex(ex)), function (sr) {
+                        return [4, program_slice(pgen, ex)];
+                    case 7:
+                        sr = _a.sent();
                         if (!sr.ok)
-                            return lvp_error(sr.flp, sr.msg);
-                        return lvp_ok(lvr_slice(ex.flp, obj, sr.start, sr.len));
-                    });
-                });
-            }
-        }
-        else if (ex.type === expr_enum.LIST) {
-            if (ex.ex === null)
-                return lvp_error(ex.flp, 'Invalid assignment');
-            else if (ex.ex.type === expr_enum.GROUP)
-                return handleListGroup(ex.flp, ex.ex);
-            else {
-                if (ex.ex.type === expr_enum.PREFIX && ex.ex.k === ks_enum.PERIOD3)
-                    return handleListRest(ex.flp, ex.ex.ex);
-                else
-                    return handleListBody(ex.flp, ex.ex);
-            }
-        }
-        return lvp_error(ex.flp, 'Invalid assignment');
+                            return [2, lvp_error(sr.flp, sr.msg)];
+                        return [2, lvp_ok(lvr_sliceindex(ex.flp, obj, key, sr.start, sr.len))];
+                    case 8: return [4, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.obj)];
+                    case 9:
+                        pe = _a.sent();
+                        if (!pe.ok)
+                            return [2, lvp_error(pe.flp, pe.msg)];
+                        obj = pe.vlc;
+                        if (ex.type !== expr_enum.SLICE)
+                            throw new Error('Expression type must be slice');
+                        return [4, program_slice(pgen, ex)];
+                    case 10:
+                        sr = _a.sent();
+                        if (!sr.ok)
+                            return [2, lvp_error(sr.flp, sr.msg)];
+                        return [2, lvp_ok(lvr_slice(ex.flp, obj, sr.start, sr.len))];
+                    case 11: return [3, 25];
+                    case 12:
+                        if (!(ex.type === expr_enum.LIST)) return [3, 25];
+                        body = [];
+                        rest = null;
+                        if (!(ex.ex === null)) return [3, 13];
+                        return [2, lvp_error(ex.flp, 'Invalid assignment')];
+                    case 13:
+                        if (!(ex.ex.type === expr_enum.GROUP)) return [3, 20];
+                        i = 0;
+                        _a.label = 14;
+                    case 14:
+                        if (!(i < ex.ex.group.length)) return [3, 19];
+                        gex = ex.ex.group[i];
+                        if (!(i === ex.ex.group.length - 1 && gex.type === expr_enum.PREFIX &&
+                            gex.k === ks_enum.PERIOD3)) return [3, 16];
+                        return [4, lval_prepare(pgen, gex.ex)];
+                    case 15:
+                        lp = _a.sent();
+                        if (!lp.ok)
+                            return [2, lp];
+                        rest = lp.lv;
+                        return [3, 18];
+                    case 16: return [4, lval_prepare(pgen, gex)];
+                    case 17:
+                        lp = _a.sent();
+                        if (!lp.ok)
+                            return [2, lp];
+                        body.push(lp.lv);
+                        _a.label = 18;
+                    case 18:
+                        i++;
+                        return [3, 14];
+                    case 19: return [3, 24];
+                    case 20:
+                        if (!(ex.ex.type === expr_enum.PREFIX && ex.ex.k === ks_enum.PERIOD3)) return [3, 22];
+                        return [4, lval_prepare(pgen, ex.ex.ex)];
+                    case 21:
+                        lp = _a.sent();
+                        if (!lp.ok)
+                            return [2, lp];
+                        rest = lp.lv;
+                        return [2, lvp_ok(lvr_list(ex.flp, [], lp.lv))];
+                    case 22: return [4, lval_prepare(pgen, ex.ex)];
+                    case 23:
+                        lp = _a.sent();
+                        if (!lp.ok)
+                            return [2, lp];
+                        body.push(lp.lv);
+                        _a.label = 24;
+                    case 24: return [2, lvp_ok(lvr_list(ex.flp, body, rest))];
+                    case 25: return [2, lvp_error(ex.flp, 'Invalid assignment')];
+                }
+            });
+        });
     }
     function lval_clearTemps(lv, sym) {
         if (lv.type !== lvr_enum.VAR && !varloc_isnull(lv.vlc)) {
@@ -4726,37 +4782,44 @@ var __extends = (this && this.__extends) || (function () {
         return per_ok(intoVlc);
     }
     function program_slice(pgen, ex) {
-        if (ex.start === null) {
-            var ts = symtbl_addTemp(pgen.sym);
-            if (!ts.ok)
-                return psr_error(ex.flp, ts.msg);
-            op_numint(pgen.prg.ops, ts.vlc, 0);
-            return gotStart(ts.vlc);
-        }
-        else {
-            return checkPromise(program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.start), function (pe) {
-                if (!pe.ok)
-                    return psr_error(pe.flp, pe.msg);
-                return gotStart(pe.vlc);
+        return __awaiter(this, void 0, void 0, function () {
+            var start, ts, pe, len, ts, pe;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        if (!(ex.start === null)) return [3, 1];
+                        ts = symtbl_addTemp(pgen.sym);
+                        if (!ts.ok)
+                            return [2, psr_error(ex.flp, ts.msg)];
+                        op_numint(pgen.prg.ops, ts.vlc, 0);
+                        start = ts.vlc;
+                        return [3, 3];
+                    case 1: return [4, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.start)];
+                    case 2:
+                        pe = _a.sent();
+                        if (!pe.ok)
+                            return [2, psr_error(pe.flp, pe.msg)];
+                        start = pe.vlc;
+                        _a.label = 3;
+                    case 3:
+                        if (!(ex.len === null)) return [3, 4];
+                        ts = symtbl_addTemp(pgen.sym);
+                        if (!ts.ok)
+                            return [2, psr_error(ex.flp, ts.msg)];
+                        len = ts.vlc;
+                        op_nil(pgen.prg.ops, len);
+                        return [3, 6];
+                    case 4: return [4, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.len)];
+                    case 5:
+                        pe = _a.sent();
+                        if (!pe.ok)
+                            return [2, psr_error(pe.flp, pe.msg)];
+                        len = pe.vlc;
+                        _a.label = 6;
+                    case 6: return [2, psr_ok(start, len)];
+                }
             });
-        }
-        function gotStart(start) {
-            if (ex.len === null) {
-                var ts = symtbl_addTemp(pgen.sym);
-                if (!ts.ok)
-                    return psr_error(ex.flp, ts.msg);
-                var len = ts.vlc;
-                op_nil(pgen.prg.ops, len);
-                return psr_ok(start, len);
-            }
-            else {
-                return checkPromise(program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.len), function (pe) {
-                    if (!pe.ok)
-                        return psr_error(pe.flp, pe.msg);
-                    return psr_ok(start, pe.vlc);
-                });
-            }
-        }
+        });
     }
     function program_lvalGetIndex(pgen, lv) {
         if (!varloc_isnull(lv.indexvlc))
@@ -4820,58 +4883,78 @@ var __extends = (this && this.__extends) || (function () {
         return per_ok(intoVlc);
     }
     function program_evalCallArgcount(pgen, params, argcount, pe, p) {
-        argcount[0] = 0;
-        if (params === null)
-            return true;
-        function handleGroup(group) {
-            function handleNext(i) {
-                if (i >= group.length)
-                    return true;
-                return checkPromise(program_eval(pgen, i < argcount[0] ? pem_enum.CREATE : pem_enum.EMPTY, VARLOC_NULL, group[i]), function (pe0) {
-                    pe[0] = pe0;
-                    if (!pe0.ok)
-                        return false;
-                    if (i < argcount[0])
-                        p[i] = pe0.vlc;
-                    return handleNext(i + 1);
-                });
-            }
-            return handleNext(0);
-        }
-        if (params.type === expr_enum.GROUP) {
-            argcount[0] = params.group.length;
-            if (argcount[0] > 254)
-                argcount[0] = 254;
-            return handleGroup(params.group);
-        }
-        else {
-            argcount[0] = 1;
-            return checkPromise(program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, params), function (pe0) {
-                pe[0] = pe0;
-                if (!pe0.ok)
-                    return false;
-                p[0] = pe0.vlc;
-                return true;
+        return __awaiter(this, void 0, void 0, function () {
+            var i, pe0, pe0;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        argcount[0] = 0;
+                        if (params === null)
+                            return [2, true];
+                        if (!(params.type === expr_enum.GROUP)) return [3, 5];
+                        argcount[0] = params.group.length;
+                        if (argcount[0] > 254)
+                            argcount[0] = 254;
+                        i = 0;
+                        _a.label = 1;
+                    case 1:
+                        if (!(i < params.group.length)) return [3, 4];
+                        return [4, program_eval(pgen, i < argcount[0] ? pem_enum.CREATE : pem_enum.EMPTY, VARLOC_NULL, params.group[i])];
+                    case 2:
+                        pe0 = _a.sent();
+                        pe[0] = pe0;
+                        if (!pe0.ok)
+                            return [2, false];
+                        if (i < argcount[0])
+                            p[i] = pe0.vlc;
+                        _a.label = 3;
+                    case 3:
+                        i++;
+                        return [3, 1];
+                    case 4: return [3, 7];
+                    case 5:
+                        argcount[0] = 1;
+                        return [4, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, params)];
+                    case 6:
+                        pe0 = _a.sent();
+                        pe[0] = pe0;
+                        if (!pe0.ok)
+                            return [2, false];
+                        p[0] = pe0.vlc;
+                        _a.label = 7;
+                    case 7: return [2, true];
+                }
             });
-        }
+        });
     }
     function embed_begin(file, efu) {
         efu.pgen.scr.capture_write = '';
         return true;
     }
     function embed_end(success, file, efu) {
-        if (success) {
-            if (efu.pgen.scr.capture_write === null)
-                throw new Error('Bad embed capture');
-            var ex = expr_str(efu.flp, efu.pgen.scr.capture_write);
-            var pe = program_eval(efu.pgen, efu.mode, efu.intoVlc, ex);
-            if (isPromise(pe))
-                throw new Error('Embed cannot result in an asynchronous string');
-            efu.pe = pe;
-        }
-        else
-            efu.pe = per_error(efu.flp, 'Failed to read file for `embed`: ' + file);
-        efu.pgen.scr.capture_write = null;
+        return __awaiter(this, void 0, void 0, function () {
+            var ex, _a;
+            return __generator(this, function (_b) {
+                switch (_b.label) {
+                    case 0:
+                        if (!success) return [3, 2];
+                        if (efu.pgen.scr.capture_write === null)
+                            throw new Error('Bad embed capture');
+                        ex = expr_str(efu.flp, efu.pgen.scr.capture_write);
+                        _a = efu;
+                        return [4, program_eval(efu.pgen, efu.mode, efu.intoVlc, ex)];
+                    case 1:
+                        _a.pe = _b.sent();
+                        return [3, 3];
+                    case 2:
+                        efu.pe = per_error(efu.flp, 'Failed to read file for `embed`: ' + file);
+                        _b.label = 3;
+                    case 3:
+                        efu.pgen.scr.capture_write = null;
+                        return [2];
+                }
+            });
+        });
     }
     function pen_ok(value) {
         return { ok: true, value: value };
@@ -4880,180 +4963,195 @@ var __extends = (this && this.__extends) || (function () {
         return { ok: false, msg: msg };
     }
     function program_evalCall(pgen, mode, intoVlc, flp, nsn, params) {
-        var prg = pgen.prg;
-        var sym = pgen.sym;
-        if (nsn.type !== nsname_enumt.CMD_LOCAL && nsn.type !== nsname_enumt.CMD_NATIVE &&
-            nsn.type !== nsname_enumt.CMD_OPCODE)
-            return per_error(flp, 'Invalid call - not a command');
-        if (nsn.type === nsname_enumt.CMD_OPCODE && nsn.opcode === op_enum.PICK) {
-            if (params === null || params.type !== expr_enum.GROUP ||
-                params.group.length !== 3)
-                return per_error(flp, 'Using `pick` requires exactly three arguments');
-            return checkPromise(program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, params.group[0]), function (pe) {
-                if (!pe.ok)
-                    return pe;
-                if (mode === pem_enum.CREATE) {
-                    var ts = symtbl_addTemp(sym);
-                    if (!ts.ok)
-                        return per_error(flp, ts.msg);
-                    intoVlc = ts.vlc;
-                }
-                var pickfalse = label_new('^pickfalse');
-                var finish = label_new('^pickfinish');
-                label_jumpfalse(pickfalse, prg.ops, pe.vlc);
-                symtbl_clearTemp(sym, pe.vlc);
-                var pe2;
-                if (params === null || params.type !== expr_enum.GROUP)
-                    throw new Error('Bad params for pick');
-                if (mode === pem_enum.EMPTY)
-                    pe2 = program_eval(pgen, pem_enum.EMPTY, intoVlc, params.group[1]);
-                else
-                    pe2 = program_eval(pgen, pem_enum.INTO, intoVlc, params.group[1]);
-                return checkPromise(pe2, function (pe) {
-                    if (!pe.ok)
-                        return pe;
-                    label_jump(finish, prg.ops);
-                    label_declare(pickfalse, prg.ops);
-                    var pe2;
-                    if (params === null || params.type !== expr_enum.GROUP)
-                        throw new Error('Bad params for pick');
-                    if (mode === pem_enum.EMPTY)
-                        pe2 = program_eval(pgen, pem_enum.EMPTY, intoVlc, params.group[2]);
-                    else
-                        pe2 = program_eval(pgen, pem_enum.INTO, intoVlc, params.group[2]);
-                    return checkPromise(pe2, function (pe) {
-                        if (!pe.ok)
-                            return pe;
+        return __awaiter(this, void 0, void 0, function () {
+            var prg, sym, pe_7, ts, pickfalse, finish, file, cwd, efu, fstr, res, str, seed, ex, ex2, p_2, out, ex_1, p_3, ts, p, i, argcount, pe, oarg, index, found, ts, i;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        prg = pgen.prg;
+                        sym = pgen.sym;
+                        if (nsn.type !== nsname_enumt.CMD_LOCAL && nsn.type !== nsname_enumt.CMD_NATIVE &&
+                            nsn.type !== nsname_enumt.CMD_OPCODE)
+                            return [2, per_error(flp, 'Invalid call - not a command')];
+                        if (!(nsn.type === nsname_enumt.CMD_OPCODE && nsn.opcode === op_enum.PICK)) return [3, 10];
+                        if (params === null || params.type !== expr_enum.GROUP ||
+                            params.group.length !== 3)
+                            return [2, per_error(flp, 'Using `pick` requires exactly three arguments')];
+                        return [4, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, params.group[0])];
+                    case 1:
+                        pe_7 = _a.sent();
+                        if (!pe_7.ok)
+                            return [2, pe_7];
+                        if (mode === pem_enum.CREATE) {
+                            ts = symtbl_addTemp(sym);
+                            if (!ts.ok)
+                                return [2, per_error(flp, ts.msg)];
+                            intoVlc = ts.vlc;
+                        }
+                        pickfalse = label_new('^pickfalse');
+                        finish = label_new('^pickfinish');
+                        label_jumpfalse(pickfalse, prg.ops, pe_7.vlc);
+                        symtbl_clearTemp(sym, pe_7.vlc);
+                        if (params === null || params.type !== expr_enum.GROUP)
+                            throw new Error('Bad params for pick');
+                        if (!(mode === pem_enum.EMPTY)) return [3, 3];
+                        return [4, program_eval(pgen, pem_enum.EMPTY, intoVlc, params.group[1])];
+                    case 2:
+                        pe_7 = _a.sent();
+                        return [3, 5];
+                    case 3: return [4, program_eval(pgen, pem_enum.INTO, intoVlc, params.group[1])];
+                    case 4:
+                        pe_7 = _a.sent();
+                        _a.label = 5;
+                    case 5:
+                        if (!pe_7.ok)
+                            return [2, pe_7];
+                        label_jump(finish, prg.ops);
+                        label_declare(pickfalse, prg.ops);
+                        if (params === null || params.type !== expr_enum.GROUP)
+                            throw new Error('Bad params for pick');
+                        if (!(mode === pem_enum.EMPTY)) return [3, 7];
+                        return [4, program_eval(pgen, pem_enum.EMPTY, intoVlc, params.group[2])];
+                    case 6:
+                        pe_7 = _a.sent();
+                        return [3, 9];
+                    case 7: return [4, program_eval(pgen, pem_enum.INTO, intoVlc, params.group[2])];
+                    case 8:
+                        pe_7 = _a.sent();
+                        _a.label = 9;
+                    case 9:
+                        if (!pe_7.ok)
+                            return [2, pe_7];
                         label_declare(finish, prg.ops);
-                        return per_ok(intoVlc);
-                    });
-                });
+                        return [2, per_ok(intoVlc)];
+                    case 10:
+                        if (!(nsn.type === nsname_enumt.CMD_OPCODE && nsn.opcode === op_enum.EMBED)) return [3, 12];
+                        file = params;
+                        while (file !== null && file.type === expr_enum.PAREN)
+                            file = file.ex;
+                        if (file === null || file.type !== expr_enum.STR)
+                            return [2, per_error(flp, 'Expecting constant string for `embed`')];
+                        cwd = null;
+                        efu = {
+                            pgen: pgen,
+                            mode: mode,
+                            intoVlc: intoVlc,
+                            flp: flp,
+                            pe: per_ok(VARLOC_NULL)
+                        };
+                        if (pgen.from >= 0)
+                            cwd = pathjoin(script_getfile(pgen.scr, pgen.from), '..', pgen.scr.posix);
+                        fstr = file.str;
+                        return [4, fileres_read(pgen.scr, false, fstr, cwd, embed_begin, embed_end, efu)];
+                    case 11:
+                        res = _a.sent();
+                        if (!res)
+                            return [2, per_error(flp, 'Failed to embed: ' + fstr)];
+                        return [2, efu.pe];
+                    case 12:
+                        if (!(nsn.type === nsname_enumt.CMD_OPCODE && nsn.opcode === op_enum.STR_HASH &&
+                            params !== null)) return [3, 14];
+                        str = null;
+                        seed = 0;
+                        ex = params;
+                        if (ex.type === expr_enum.GROUP && ex.group.length === 2) {
+                            ex2 = ex.group[1];
+                            ex = ex.group[0];
+                            while (ex.type === expr_enum.PAREN)
+                                ex = ex.ex;
+                            if (ex.type === expr_enum.STR) {
+                                p_2 = program_exprToNum(pgen, ex2);
+                                if (p_2.ok) {
+                                    str = ex.str;
+                                    seed = p_2.value;
+                                }
+                            }
+                        }
+                        else {
+                            while (ex.type === expr_enum.PAREN)
+                                ex = ex.ex;
+                            if (ex.type === expr_enum.STR)
+                                str = ex.str;
+                        }
+                        if (!(str !== null)) return [3, 14];
+                        out = str_hashplain(str, seed);
+                        ex_1 = expr_list(flp, expr_group(flp, expr_group(flp, expr_group(flp, expr_num(flp, out[0]), expr_num(flp, out[1])), expr_num(flp, out[2])), expr_num(flp, out[3])));
+                        return [4, program_eval(pgen, mode, intoVlc, ex_1)];
+                    case 13:
+                        p_3 = _a.sent();
+                        return [2, p_3];
+                    case 14:
+                        if (mode === pem_enum.EMPTY || mode === pem_enum.CREATE) {
+                            ts = symtbl_addTemp(sym);
+                            if (!ts.ok)
+                                return [2, per_error(flp, ts.msg)];
+                            intoVlc = ts.vlc;
+                        }
+                        p = [];
+                        for (i = 0; i < 256; i++)
+                            p.push(VARLOC_NULL);
+                        argcount = [0];
+                        pe = [per_ok(VARLOC_NULL)];
+                        return [4, program_evalCallArgcount(pgen, params, argcount, pe, p)];
+                    case 15:
+                        if (!(_a.sent()))
+                            return [2, pe[0]];
+                        program_flp(prg, flp);
+                        oarg = true;
+                        if (nsn.type === nsname_enumt.CMD_LOCAL)
+                            label_call(nsn.lbl, prg.ops, intoVlc, argcount[0]);
+                        else if (nsn.type === nsname_enumt.CMD_NATIVE) {
+                            index = 0;
+                            found = false;
+                            for (; index < prg.keyTable.length; index++) {
+                                if (u64_equ(prg.keyTable[index], nsn.hash)) {
+                                    found = true;
+                                    break;
+                                }
+                            }
+                            if (!found) {
+                                if (prg.keyTable.length >= 0x7FFFFFFF)
+                                    return [2, per_error(flp, 'Too many native commands')];
+                                index = prg.keyTable.length;
+                                prg.keyTable.push(nsn.hash);
+                            }
+                            op_native(prg.ops, intoVlc, index, argcount[0]);
+                        }
+                        else {
+                            if (nsn.params < 0)
+                                op_parama(prg.ops, nsn.opcode, intoVlc, argcount[0]);
+                            else {
+                                oarg = false;
+                                if (nsn.params > argcount[0]) {
+                                    ts = symtbl_addTemp(sym);
+                                    if (!ts.ok)
+                                        return [2, per_error(flp, ts.msg)];
+                                    p[argcount[0] + 0] = p[argcount[0] + 1] = p[argcount[0] + 2] = ts.vlc;
+                                    op_nil(prg.ops, p[argcount[0]]);
+                                    argcount[0]++;
+                                }
+                                if (nsn.params === 0)
+                                    op_param0(prg.ops, nsn.opcode, intoVlc);
+                                else if (nsn.params === 1)
+                                    op_param1(prg.ops, nsn.opcode, intoVlc, p[0]);
+                                else if (nsn.params === 2)
+                                    op_param2(prg.ops, nsn.opcode, intoVlc, p[0], p[1]);
+                                else
+                                    op_param3(prg.ops, nsn.opcode, intoVlc, p[0], p[1], p[2]);
+                            }
+                        }
+                        for (i = 0; i < argcount[0]; i++) {
+                            if (oarg)
+                                op_arg(prg.ops, p[i]);
+                            symtbl_clearTemp(sym, p[i]);
+                        }
+                        if (mode === pem_enum.EMPTY) {
+                            symtbl_clearTemp(sym, intoVlc);
+                            return [2, per_ok(VARLOC_NULL)];
+                        }
+                        return [2, per_ok(intoVlc)];
+                }
             });
-        }
-        else if (nsn.type === nsname_enumt.CMD_OPCODE && nsn.opcode === op_enum.EMBED) {
-            var file = params;
-            while (file !== null && file.type === expr_enum.PAREN)
-                file = file.ex;
-            if (file === null || file.type !== expr_enum.STR)
-                return per_error(flp, 'Expecting constant string for `embed`');
-            var cwd = null;
-            var efu_1 = {
-                pgen: pgen,
-                mode: mode,
-                intoVlc: intoVlc,
-                flp: flp,
-                pe: per_ok(VARLOC_NULL)
-            };
-            if (pgen.from >= 0)
-                cwd = pathjoin(script_getfile(pgen.scr, pgen.from), '..', pgen.scr.posix);
-            var fstr_1 = file.str;
-            return checkPromise(fileres_read(pgen.scr, false, fstr_1, cwd, embed_begin, embed_end, efu_1), function (res) {
-                if (!res)
-                    return per_error(flp, 'Failed to embed: ' + fstr_1);
-                return efu_1.pe;
-            });
-        }
-        else if (nsn.type === nsname_enumt.CMD_OPCODE && nsn.opcode === op_enum.STR_HASH &&
-            params !== null) {
-            var str = null;
-            var seed = 0;
-            var ex = params;
-            if (ex.type === expr_enum.GROUP && ex.group.length === 2) {
-                var ex2 = ex.group[1];
-                ex = ex.group[0];
-                while (ex.type === expr_enum.PAREN)
-                    ex = ex.ex;
-                if (ex.type === expr_enum.STR) {
-                    var p_2 = program_exprToNum(pgen, ex2);
-                    if (p_2.ok) {
-                        str = ex.str;
-                        seed = p_2.value;
-                    }
-                }
-            }
-            else {
-                while (ex.type === expr_enum.PAREN)
-                    ex = ex.ex;
-                if (ex.type === expr_enum.STR)
-                    str = ex.str;
-            }
-            if (str !== null) {
-                var out = str_hashplain(str, seed);
-                var ex_1 = expr_list(flp, expr_group(flp, expr_group(flp, expr_group(flp, expr_num(flp, out[0]), expr_num(flp, out[1])), expr_num(flp, out[2])), expr_num(flp, out[3])));
-                var p_3 = program_eval(pgen, mode, intoVlc, ex_1);
-                if (isPromise(p_3))
-                    throw new Error('Expecting synchronous expression for compile-time hash');
-                return p_3;
-            }
-        }
-        if (mode === pem_enum.EMPTY || mode === pem_enum.CREATE) {
-            var ts = symtbl_addTemp(sym);
-            if (!ts.ok)
-                return per_error(flp, ts.msg);
-            intoVlc = ts.vlc;
-        }
-        var p = [];
-        for (var i = 0; i < 256; i++)
-            p.push(VARLOC_NULL);
-        var argcount = [0];
-        var pe = [per_ok(VARLOC_NULL)];
-        return checkPromise(program_evalCallArgcount(pgen, params, argcount, pe, p), function (evc) {
-            if (!evc)
-                return pe[0];
-            program_flp(prg, flp);
-            var oarg = true;
-            if (nsn.type === nsname_enumt.CMD_LOCAL)
-                label_call(nsn.lbl, prg.ops, intoVlc, argcount[0]);
-            else if (nsn.type === nsname_enumt.CMD_NATIVE) {
-                var index = 0;
-                var found = false;
-                for (; index < prg.keyTable.length; index++) {
-                    if (u64_equ(prg.keyTable[index], nsn.hash)) {
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found) {
-                    if (prg.keyTable.length >= 0x7FFFFFFF)
-                        return per_error(flp, 'Too many native commands');
-                    index = prg.keyTable.length;
-                    prg.keyTable.push(nsn.hash);
-                }
-                op_native(prg.ops, intoVlc, index, argcount[0]);
-            }
-            else {
-                if (nsn.params < 0)
-                    op_parama(prg.ops, nsn.opcode, intoVlc, argcount[0]);
-                else {
-                    oarg = false;
-                    if (nsn.params > argcount[0]) {
-                        var ts = symtbl_addTemp(sym);
-                        if (!ts.ok)
-                            return per_error(flp, ts.msg);
-                        p[argcount[0] + 0] = p[argcount[0] + 1] = p[argcount[0] + 2] = ts.vlc;
-                        op_nil(prg.ops, p[argcount[0]]);
-                        argcount[0]++;
-                    }
-                    if (nsn.params === 0)
-                        op_param0(prg.ops, nsn.opcode, intoVlc);
-                    else if (nsn.params === 1)
-                        op_param1(prg.ops, nsn.opcode, intoVlc, p[0]);
-                    else if (nsn.params === 2)
-                        op_param2(prg.ops, nsn.opcode, intoVlc, p[0], p[1]);
-                    else
-                        op_param3(prg.ops, nsn.opcode, intoVlc, p[0], p[1], p[2]);
-                }
-            }
-            for (var i = 0; i < argcount[0]; i++) {
-                if (oarg)
-                    op_arg(prg.ops, p[i]);
-                symtbl_clearTemp(sym, p[i]);
-            }
-            if (mode === pem_enum.EMPTY) {
-                symtbl_clearTemp(sym, intoVlc);
-                return per_ok(VARLOC_NULL);
-            }
-            return per_ok(intoVlc);
         });
     }
     function program_lvalCheckNil(pgen, lv, jumpFalse, inverted, skip) {
@@ -5272,461 +5370,506 @@ var __extends = (this && this.__extends) || (function () {
         return per_ok(VARLOC_NULL);
     }
     function program_eval(pgen, mode, intoVlc, ex) {
-        var prg = pgen.prg;
-        var sym = pgen.sym;
-        program_flp(prg, ex.flp);
-        function handleListGroup(group, ls) {
-            function handleNext(i) {
-                if (i >= group.length) {
-                    if (mode === pem_enum.INTO) {
-                        symtbl_clearTemp(sym, ls);
-                        op_move(prg.ops, intoVlc, ls);
-                    }
-                    return per_ok(intoVlc);
-                }
-                return checkPromise(program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, group[i]), function (pe) {
-                    if (!pe.ok)
-                        return pe;
-                    symtbl_clearTemp(sym, pe.vlc);
-                    op_param2(prg.ops, op_enum.LIST_PUSH, ls, ls, pe.vlc);
-                    return handleNext(i + 1);
-                });
-            }
-            return handleNext(0);
-        }
-        function handleGroup(group) {
-            function handleNext(i) {
-                if (i === group.length - 1)
-                    return program_eval(pgen, mode, intoVlc, group[i]);
-                return checkPromise(program_eval(pgen, pem_enum.EMPTY, VARLOC_NULL, group[i]), function (pe) {
-                    if (!pe.ok)
-                        return pe;
-                    return handleNext(i + 1);
-                });
-            }
-            return handleNext(0);
-        }
-        function handleCat(t, tmax, cat) {
-            var p = [];
-            function handleNextCat(ci) {
-                if (ci >= cat.length) {
-                    if (!varloc_isnull(t))
-                        symtbl_clearTemp(sym, t);
-                    if (mode === pem_enum.EMPTY) {
-                        symtbl_clearTemp(sym, intoVlc);
-                        return per_ok(VARLOC_NULL);
-                    }
-                    return per_ok(intoVlc);
-                }
-                var len = cat.length - ci;
-                if (len > tmax)
-                    len = tmax;
-                function handleNextCatI(i) {
-                    if (i >= len) {
+        return __awaiter(this, void 0, void 0, function () {
+            var prg, sym, _a, ts, ts, ts, found, index, ts, ls, ts, i, pe, pe, ts, sl, varVlc, ts, i, pe, ts, t, tmax, ts, p, ci, len, i, pe, i, unop, pe, ts, mutop, lp, skip, pe_8, ts, ple, pe_9, ts, pe, ts, binop, pe, left, pe, left, useleft, finish, sl, pe_10, ts, pe, obj, key, ts, pe, obj, sr;
+            return __generator(this, function (_b) {
+                switch (_b.label) {
+                    case 0:
+                        prg = pgen.prg;
+                        sym = pgen.sym;
+                        program_flp(prg, ex.flp);
+                        _a = ex.type;
+                        switch (_a) {
+                            case expr_enum.NIL: return [3, 1];
+                            case expr_enum.NUM: return [3, 2];
+                            case expr_enum.STR: return [3, 3];
+                            case expr_enum.LIST: return [3, 4];
+                            case expr_enum.NAMES: return [3, 14];
+                            case expr_enum.PAREN: return [3, 15];
+                            case expr_enum.GROUP: return [3, 16];
+                            case expr_enum.CAT: return [3, 20];
+                            case expr_enum.PREFIX: return [3, 28];
+                            case expr_enum.INFIX: return [3, 30];
+                            case expr_enum.CALL: return [3, 44];
+                            case expr_enum.INDEX: return [3, 45];
+                            case expr_enum.SLICE: return [3, 51];
+                        }
+                        return [3, 54];
+                    case 1:
+                        {
+                            if (mode === pem_enum.EMPTY)
+                                return [2, per_ok(VARLOC_NULL)];
+                            else if (mode === pem_enum.CREATE) {
+                                ts = symtbl_addTemp(sym);
+                                if (!ts.ok)
+                                    return [2, per_error(ex.flp, ts.msg)];
+                                intoVlc = ts.vlc;
+                            }
+                            op_nil(prg.ops, intoVlc);
+                            return [2, per_ok(intoVlc)];
+                        }
+                        _b.label = 2;
+                    case 2:
+                        {
+                            if (mode === pem_enum.EMPTY)
+                                return [2, per_ok(VARLOC_NULL)];
+                            else if (mode === pem_enum.CREATE) {
+                                ts = symtbl_addTemp(sym);
+                                if (!ts.ok)
+                                    return [2, per_error(ex.flp, ts.msg)];
+                                intoVlc = ts.vlc;
+                            }
+                            op_num(prg.ops, intoVlc, ex.num);
+                            return [2, per_ok(intoVlc)];
+                        }
+                        _b.label = 3;
+                    case 3:
+                        {
+                            if (mode === pem_enum.EMPTY)
+                                return [2, per_ok(VARLOC_NULL)];
+                            else if (mode === pem_enum.CREATE) {
+                                ts = symtbl_addTemp(sym);
+                                if (!ts.ok)
+                                    return [2, per_error(ex.flp, ts.msg)];
+                                intoVlc = ts.vlc;
+                            }
+                            found = false;
+                            index = 0;
+                            for (; index < prg.strTable.length; index++) {
+                                if (ex.str === prg.strTable[index]) {
+                                    found = true;
+                                    break;
+                                }
+                            }
+                            if (!found) {
+                                if (index >= 0x7FFFFFFF)
+                                    return [2, per_error(ex.flp, 'Too many string constants')];
+                                prg.strTable.push(ex.str);
+                            }
+                            op_str(prg.ops, intoVlc, index);
+                            return [2, per_ok(intoVlc)];
+                        }
+                        _b.label = 4;
+                    case 4:
+                        if (mode === pem_enum.EMPTY) {
+                            if (ex.ex !== null)
+                                return [2, program_eval(pgen, pem_enum.EMPTY, VARLOC_NULL, ex.ex)];
+                            return [2, per_ok(VARLOC_NULL)];
+                        }
+                        else if (mode === pem_enum.CREATE) {
+                            ts = symtbl_addTemp(sym);
+                            if (!ts.ok)
+                                return [2, per_error(ex.flp, ts.msg)];
+                            intoVlc = ts.vlc;
+                        }
+                        if (!(ex.ex !== null)) return [3, 12];
+                        if (!(ex.ex.type === expr_enum.GROUP)) return [3, 9];
+                        ls = intoVlc;
+                        if (mode === pem_enum.INTO) {
+                            ts = symtbl_addTemp(sym);
+                            if (!ts.ok)
+                                return [2, per_error(ex.flp, ts.msg)];
+                            ls = ts.vlc;
+                        }
+                        op_list(prg.ops, ls, ex.ex.group.length);
+                        i = 0;
+                        _b.label = 5;
+                    case 5:
+                        if (!(i < ex.ex.group.length)) return [3, 8];
+                        return [4, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.ex.group[i])];
+                    case 6:
+                        pe = _b.sent();
+                        if (!pe.ok)
+                            return [2, pe];
+                        symtbl_clearTemp(sym, pe.vlc);
+                        op_param2(prg.ops, op_enum.LIST_PUSH, ls, ls, pe.vlc);
+                        _b.label = 7;
+                    case 7:
+                        i++;
+                        return [3, 5];
+                    case 8:
+                        if (mode === pem_enum.INTO) {
+                            symtbl_clearTemp(sym, ls);
+                            op_move(prg.ops, intoVlc, ls);
+                        }
+                        return [2, per_ok(intoVlc)];
+                    case 9: return [4, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.ex)];
+                    case 10:
+                        pe = _b.sent();
+                        if (!pe.ok)
+                            return [2, pe];
+                        if (intoVlc.frame === pe.vlc.frame && intoVlc.index === pe.vlc.index) {
+                            ts = symtbl_addTemp(sym);
+                            if (!ts.ok)
+                                return [2, per_error(ex.flp, ts.msg)];
+                            symtbl_clearTemp(sym, ts.vlc);
+                            symtbl_clearTemp(sym, pe.vlc);
+                            op_list(prg.ops, ts.vlc, 1);
+                            op_param2(prg.ops, op_enum.LIST_PUSH, ts.vlc, ts.vlc, pe.vlc);
+                            op_move(prg.ops, intoVlc, ts.vlc);
+                        }
+                        else {
+                            symtbl_clearTemp(sym, pe.vlc);
+                            op_list(prg.ops, intoVlc, 1);
+                            op_param2(prg.ops, op_enum.LIST_PUSH, intoVlc, intoVlc, pe.vlc);
+                        }
+                        return [2, per_ok(intoVlc)];
+                    case 11: return [3, 13];
+                    case 12:
+                        op_list(prg.ops, intoVlc, 0);
+                        _b.label = 13;
+                    case 13: return [2, per_ok(intoVlc)];
+                    case 14:
+                        {
+                            sl = symtbl_lookup(sym, ex.names);
+                            if (!sl.ok)
+                                return [2, per_error(ex.flp, sl.msg)];
+                            switch (sl.nsn.type) {
+                                case nsname_enumt.VAR: {
+                                    if (mode === pem_enum.EMPTY)
+                                        return [2, per_ok(VARLOC_NULL)];
+                                    varVlc = varloc_new(sl.nsn.fr.level, sl.nsn.index);
+                                    if (mode === pem_enum.CREATE)
+                                        return [2, per_ok(varVlc)];
+                                    op_move(prg.ops, intoVlc, varVlc);
+                                    return [2, per_ok(intoVlc)];
+                                }
+                                case nsname_enumt.ENUM: {
+                                    if (mode === pem_enum.EMPTY)
+                                        return [2, per_ok(VARLOC_NULL)];
+                                    if (mode === pem_enum.CREATE) {
+                                        ts = symtbl_addTemp(sym);
+                                        if (!ts.ok)
+                                            return [2, per_error(ex.flp, ts.msg)];
+                                        intoVlc = ts.vlc;
+                                    }
+                                    op_num(prg.ops, intoVlc, sl.nsn.val);
+                                    return [2, per_ok(intoVlc)];
+                                }
+                                case nsname_enumt.CMD_LOCAL:
+                                case nsname_enumt.CMD_NATIVE:
+                                case nsname_enumt.CMD_OPCODE:
+                                    return [2, program_evalCall(pgen, mode, intoVlc, ex.flp, sl.nsn, null)];
+                                case nsname_enumt.NAMESPACE:
+                                    return [2, per_error(ex.flp, 'Invalid expression')];
+                            }
+                            throw new Error('Invalid namespace entry');
+                        }
+                        _b.label = 15;
+                    case 15: return [2, program_eval(pgen, mode, intoVlc, ex.ex)];
+                    case 16:
+                        i = 0;
+                        _b.label = 17;
+                    case 17:
+                        if (!true) return [3, 20];
+                        if (i === ex.group.length - 1)
+                            return [2, program_eval(pgen, mode, intoVlc, ex.group[i])];
+                        return [4, program_eval(pgen, pem_enum.EMPTY, VARLOC_NULL, ex.group[i])];
+                    case 18:
+                        pe = _b.sent();
+                        if (!pe.ok)
+                            return [2, pe];
+                        _b.label = 19;
+                    case 19:
+                        i++;
+                        return [3, 17];
+                    case 20:
+                        if (mode === pem_enum.EMPTY || mode === pem_enum.CREATE) {
+                            ts = symtbl_addTemp(sym);
+                            if (!ts.ok)
+                                return [2, per_error(ex.flp, ts.msg)];
+                            intoVlc = ts.vlc;
+                        }
+                        t = VARLOC_NULL;
+                        tmax = symtbl_tempAvail(sym) - 128;
+                        if (tmax < 16)
+                            tmax = 16;
+                        if (ex.cat.length > tmax) {
+                            tmax--;
+                            ts = symtbl_addTemp(sym);
+                            if (!ts.ok)
+                                return [2, per_error(ex.flp, ts.msg)];
+                            t = ts.vlc;
+                        }
+                        p = [];
+                        ci = 0;
+                        _b.label = 21;
+                    case 21:
+                        if (!(ci < ex.cat.length)) return [3, 27];
+                        len = ex.cat.length - ci;
+                        if (len > tmax)
+                            len = tmax;
+                        i = 0;
+                        _b.label = 22;
+                    case 22:
+                        if (!(i < len)) return [3, 25];
+                        return [4, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.cat[ci + i])];
+                    case 23:
+                        pe = _b.sent();
+                        if (!pe.ok)
+                            return [2, pe];
+                        p[i] = pe.vlc;
+                        _b.label = 24;
+                    case 24:
+                        i++;
+                        return [3, 22];
+                    case 25:
                         op_cat(prg.ops, ci > 0 ? t : intoVlc, len);
-                        for (var i_1 = 0; i_1 < len; i_1++) {
-                            symtbl_clearTemp(sym, p[i_1]);
-                            op_arg(prg.ops, p[i_1]);
+                        for (i = 0; i < len; i++) {
+                            symtbl_clearTemp(sym, p[i]);
+                            op_arg(prg.ops, p[i]);
                         }
                         if (ci > 0) {
                             op_cat(prg.ops, intoVlc, 2);
                             op_arg(prg.ops, intoVlc);
                             op_arg(prg.ops, t);
                         }
-                        return handleNextCat(ci + tmax);
-                    }
-                    return checkPromise(program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, cat[ci + i]), function (pe) {
-                        if (!pe.ok)
-                            return pe;
-                        p[i] = pe.vlc;
-                        return handleNextCatI(i + 1);
-                    });
-                }
-                return handleNextCatI(0);
-            }
-            return handleNextCat(0);
-        }
-        switch (ex.type) {
-            case expr_enum.NIL: {
-                if (mode === pem_enum.EMPTY)
-                    return per_ok(VARLOC_NULL);
-                else if (mode === pem_enum.CREATE) {
-                    var ts = symtbl_addTemp(sym);
-                    if (!ts.ok)
-                        return per_error(ex.flp, ts.msg);
-                    intoVlc = ts.vlc;
-                }
-                op_nil(prg.ops, intoVlc);
-                return per_ok(intoVlc);
-            }
-            case expr_enum.NUM: {
-                if (mode === pem_enum.EMPTY)
-                    return per_ok(VARLOC_NULL);
-                else if (mode === pem_enum.CREATE) {
-                    var ts = symtbl_addTemp(sym);
-                    if (!ts.ok)
-                        return per_error(ex.flp, ts.msg);
-                    intoVlc = ts.vlc;
-                }
-                op_num(prg.ops, intoVlc, ex.num);
-                return per_ok(intoVlc);
-            }
-            case expr_enum.STR: {
-                if (mode === pem_enum.EMPTY)
-                    return per_ok(VARLOC_NULL);
-                else if (mode === pem_enum.CREATE) {
-                    var ts = symtbl_addTemp(sym);
-                    if (!ts.ok)
-                        return per_error(ex.flp, ts.msg);
-                    intoVlc = ts.vlc;
-                }
-                var found = false;
-                var index = 0;
-                for (; index < prg.strTable.length; index++) {
-                    if (ex.str === prg.strTable[index]) {
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found) {
-                    if (index >= 0x7FFFFFFF)
-                        return per_error(ex.flp, 'Too many string constants');
-                    prg.strTable.push(ex.str);
-                }
-                op_str(prg.ops, intoVlc, index);
-                return per_ok(intoVlc);
-            }
-            case expr_enum.LIST: {
-                if (mode === pem_enum.EMPTY) {
-                    if (ex.ex !== null)
-                        return program_eval(pgen, pem_enum.EMPTY, VARLOC_NULL, ex.ex);
-                    return per_ok(VARLOC_NULL);
-                }
-                else if (mode === pem_enum.CREATE) {
-                    var ts = symtbl_addTemp(sym);
-                    if (!ts.ok)
-                        return per_error(ex.flp, ts.msg);
-                    intoVlc = ts.vlc;
-                }
-                if (ex.ex !== null) {
-                    if (ex.ex.type === expr_enum.GROUP) {
-                        var ls = intoVlc;
-                        if (mode === pem_enum.INTO) {
-                            var ts = symtbl_addTemp(sym);
-                            if (!ts.ok)
-                                return per_error(ex.flp, ts.msg);
-                            ls = ts.vlc;
+                        _b.label = 26;
+                    case 26:
+                        ci += tmax;
+                        return [3, 21];
+                    case 27:
+                        if (!varloc_isnull(t))
+                            symtbl_clearTemp(sym, t);
+                        if (mode === pem_enum.EMPTY) {
+                            symtbl_clearTemp(sym, intoVlc);
+                            return [2, per_ok(VARLOC_NULL)];
                         }
-                        op_list(prg.ops, ls, ex.ex.group.length);
-                        return handleListGroup(ex.ex.group, ls);
-                    }
-                    else {
-                        return checkPromise(program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.ex), function (pe) {
-                            if (!pe.ok)
-                                return pe;
-                            if (intoVlc.frame === pe.vlc.frame && intoVlc.index === pe.vlc.index) {
-                                var ts = symtbl_addTemp(sym);
-                                if (!ts.ok)
-                                    return per_error(ex.flp, ts.msg);
-                                symtbl_clearTemp(sym, ts.vlc);
-                                symtbl_clearTemp(sym, pe.vlc);
-                                op_list(prg.ops, ts.vlc, 1);
-                                op_param2(prg.ops, op_enum.LIST_PUSH, ts.vlc, ts.vlc, pe.vlc);
-                                op_move(prg.ops, intoVlc, ts.vlc);
-                            }
-                            else {
-                                symtbl_clearTemp(sym, pe.vlc);
-                                op_list(prg.ops, intoVlc, 1);
-                                op_param2(prg.ops, op_enum.LIST_PUSH, intoVlc, intoVlc, pe.vlc);
-                            }
-                            return per_ok(intoVlc);
-                        });
-                    }
-                }
-                else
-                    op_list(prg.ops, intoVlc, 0);
-                return per_ok(intoVlc);
-            }
-            case expr_enum.NAMES: {
-                var sl = symtbl_lookup(sym, ex.names);
-                if (!sl.ok)
-                    return per_error(ex.flp, sl.msg);
-                switch (sl.nsn.type) {
-                    case nsname_enumt.VAR: {
-                        if (mode === pem_enum.EMPTY)
-                            return per_ok(VARLOC_NULL);
-                        var varVlc = varloc_new(sl.nsn.fr.level, sl.nsn.index);
-                        if (mode === pem_enum.CREATE)
-                            return per_ok(varVlc);
-                        op_move(prg.ops, intoVlc, varVlc);
-                        return per_ok(intoVlc);
-                    }
-                    case nsname_enumt.ENUM: {
-                        if (mode === pem_enum.EMPTY)
-                            return per_ok(VARLOC_NULL);
-                        if (mode === pem_enum.CREATE) {
-                            var ts = symtbl_addTemp(sym);
+                        return [2, per_ok(intoVlc)];
+                    case 28:
+                        unop = ks_toUnaryOp(ex.k);
+                        if (unop === op_enum.INVALID)
+                            return [2, per_error(ex.flp, 'Invalid unary operator')];
+                        return [4, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.ex)];
+                    case 29:
+                        pe = _b.sent();
+                        if (!pe.ok)
+                            return [2, pe];
+                        if (mode === pem_enum.EMPTY || mode === pem_enum.CREATE) {
+                            ts = symtbl_addTemp(sym);
                             if (!ts.ok)
-                                return per_error(ex.flp, ts.msg);
+                                return [2, per_error(ex.flp, ts.msg)];
                             intoVlc = ts.vlc;
                         }
-                        op_num(prg.ops, intoVlc, sl.nsn.val);
-                        return per_ok(intoVlc);
-                    }
-                    case nsname_enumt.CMD_LOCAL:
-                    case nsname_enumt.CMD_NATIVE:
-                    case nsname_enumt.CMD_OPCODE:
-                        return program_evalCall(pgen, mode, intoVlc, ex.flp, sl.nsn, null);
-                    case nsname_enumt.NAMESPACE:
-                        return per_error(ex.flp, 'Invalid expression');
-                }
-                throw new Error('Invalid namespace entry');
-            }
-            case expr_enum.PAREN:
-                return program_eval(pgen, mode, intoVlc, ex.ex);
-            case expr_enum.GROUP:
-                return handleGroup(ex.group);
-            case expr_enum.CAT: {
-                if (mode === pem_enum.EMPTY || mode === pem_enum.CREATE) {
-                    var ts = symtbl_addTemp(sym);
-                    if (!ts.ok)
-                        return per_error(ex.flp, ts.msg);
-                    intoVlc = ts.vlc;
-                }
-                var t = VARLOC_NULL;
-                var tmax = symtbl_tempAvail(sym) - 128;
-                if (tmax < 16)
-                    tmax = 16;
-                if (ex.cat.length > tmax) {
-                    tmax--;
-                    var ts = symtbl_addTemp(sym);
-                    if (!ts.ok)
-                        return per_error(ex.flp, ts.msg);
-                    t = ts.vlc;
-                }
-                return handleCat(t, tmax, ex.cat);
-            }
-            case expr_enum.PREFIX: {
-                var unop_1 = ks_toUnaryOp(ex.k);
-                if (unop_1 === op_enum.INVALID)
-                    return per_error(ex.flp, 'Invalid unary operator');
-                return checkPromise(program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.ex), function (pe) {
-                    if (!pe.ok)
-                        return pe;
-                    if (mode === pem_enum.EMPTY || mode === pem_enum.CREATE) {
-                        var ts = symtbl_addTemp(sym);
-                        if (!ts.ok)
-                            return per_error(ex.flp, ts.msg);
-                        intoVlc = ts.vlc;
-                    }
-                    op_unop(prg.ops, unop_1, intoVlc, pe.vlc);
-                    symtbl_clearTemp(sym, pe.vlc);
-                    if (mode === pem_enum.EMPTY) {
-                        symtbl_clearTemp(sym, intoVlc);
-                        return per_ok(VARLOC_NULL);
-                    }
-                    return per_ok(intoVlc);
-                });
-            }
-            case expr_enum.INFIX: {
-                var mutop_1 = ks_toMutateOp(ex.k);
-                if (ex.k === ks_enum.EQU || ex.k === ks_enum.AMP2EQU ||
-                    ex.k === ks_enum.PIPE2EQU || mutop_1 !== op_enum.INVALID) {
-                    return checkPromise(lval_prepare(pgen, ex.left), function (lp) {
-                        if (!lp.ok)
-                            return per_error(lp.flp, lp.msg);
-                        if (ex.k === ks_enum.AMP2EQU || ex.k === ks_enum.PIPE2EQU) {
-                            var skip_1 = label_new('^condsetskip');
-                            var pe = program_lvalCheckNil(pgen, lp.lv, ex.k === ks_enum.AMP2EQU, false, skip_1);
-                            if (!pe.ok)
-                                return pe;
-                            if (ex.right === null)
-                                throw new Error('Invalid infix operator (right is null)');
-                            return checkPromise(program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.right), function (pe) {
-                                if (!pe.ok)
-                                    return pe;
-                                if (!lp.ok)
-                                    throw new Error('Invalid lvalue conditional assignment');
-                                var pe2 = program_lvalCondAssign(pgen, lp.lv, ex.k === ks_enum.AMP2EQU, pe.vlc);
-                                if (!pe2.ok)
-                                    return pe2;
-                                if (mode === pem_enum.EMPTY) {
-                                    label_declare(skip_1, prg.ops);
-                                    lval_clearTemps(lp.lv, sym);
-                                    return per_ok(VARLOC_NULL);
-                                }
-                                label_declare(skip_1, prg.ops);
-                                if (mode === pem_enum.CREATE) {
-                                    var ts = symtbl_addTemp(sym);
-                                    if (!ts.ok)
-                                        return per_error(ex.flp, ts.msg);
-                                    intoVlc = ts.vlc;
-                                }
-                                var ple = program_lvalGet(pgen, plm_enum.INTO, intoVlc, lp.lv);
-                                if (!ple.ok)
-                                    return ple;
-                                lval_clearTemps(lp.lv, sym);
-                                return per_ok(intoVlc);
-                            });
+                        op_unop(prg.ops, unop, intoVlc, pe.vlc);
+                        symtbl_clearTemp(sym, pe.vlc);
+                        if (mode === pem_enum.EMPTY) {
+                            symtbl_clearTemp(sym, intoVlc);
+                            return [2, per_ok(VARLOC_NULL)];
                         }
+                        return [2, per_ok(intoVlc)];
+                    case 30:
+                        mutop = ks_toMutateOp(ex.k);
+                        if (!(ex.k === ks_enum.EQU || ex.k === ks_enum.AMP2EQU ||
+                            ex.k === ks_enum.PIPE2EQU || mutop !== op_enum.INVALID)) return [3, 37];
+                        return [4, lval_prepare(pgen, ex.left)];
+                    case 31:
+                        lp = _b.sent();
+                        if (!lp.ok)
+                            return [2, per_error(lp.flp, lp.msg)];
+                        if (!(ex.k === ks_enum.AMP2EQU || ex.k === ks_enum.PIPE2EQU)) return [3, 33];
+                        skip = label_new('^condsetskip');
+                        pe_8 = program_lvalCheckNil(pgen, lp.lv, ex.k === ks_enum.AMP2EQU, false, skip);
+                        if (!pe_8.ok)
+                            return [2, pe_8];
+                        if (ex.right === null)
+                            throw new Error('Invalid infix operator (right is null)');
+                        return [4, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.right)];
+                    case 32:
+                        pe_8 = _b.sent();
+                        if (!pe_8.ok)
+                            return [2, pe_8];
+                        if (!lp.ok)
+                            throw new Error('Invalid lvalue conditional assignment');
+                        pe_8 = program_lvalCondAssign(pgen, lp.lv, ex.k === ks_enum.AMP2EQU, pe_8.vlc);
+                        if (!pe_8.ok)
+                            return [2, pe_8];
+                        if (mode === pem_enum.EMPTY) {
+                            label_declare(skip, prg.ops);
+                            lval_clearTemps(lp.lv, sym);
+                            return [2, per_ok(VARLOC_NULL)];
+                        }
+                        label_declare(skip, prg.ops);
+                        if (mode === pem_enum.CREATE) {
+                            ts = symtbl_addTemp(sym);
+                            if (!ts.ok)
+                                return [2, per_error(ex.flp, ts.msg)];
+                            intoVlc = ts.vlc;
+                        }
+                        ple = program_lvalGet(pgen, plm_enum.INTO, intoVlc, lp.lv);
+                        if (!ple.ok)
+                            return [2, ple];
+                        lval_clearTemps(lp.lv, sym);
+                        return [2, per_ok(intoVlc)];
+                    case 33:
                         if (ex.right === null)
                             throw new Error('Invalid assignment (right is null)');
-                        if (ex.k === ks_enum.EQU && lp.lv.type === lvr_enum.VAR) {
-                            return checkPromise(program_eval(pgen, pem_enum.INTO, lp.lv.vlc, ex.right), function (pe) {
-                                if (!pe.ok)
-                                    return pe;
-                                if (mode === pem_enum.EMPTY)
-                                    return per_ok(VARLOC_NULL);
-                                else if (mode === pem_enum.CREATE) {
-                                    var ts = symtbl_addTemp(sym);
-                                    if (!ts.ok)
-                                        return per_error(ex.flp, ts.msg);
-                                    intoVlc = ts.vlc;
-                                }
-                                if (!lp.ok)
-                                    throw new Error('Lvalue is an error in basic assignment');
-                                op_move(prg.ops, intoVlc, lp.lv.vlc);
-                                return per_ok(intoVlc);
-                            });
+                        if (!(ex.k === ks_enum.EQU && lp.lv.type === lvr_enum.VAR)) return [3, 35];
+                        return [4, program_eval(pgen, pem_enum.INTO, lp.lv.vlc, ex.right)];
+                    case 34:
+                        pe_9 = _b.sent();
+                        if (!pe_9.ok)
+                            return [2, pe_9];
+                        if (mode === pem_enum.EMPTY)
+                            return [2, per_ok(VARLOC_NULL)];
+                        else if (mode === pem_enum.CREATE) {
+                            ts = symtbl_addTemp(sym);
+                            if (!ts.ok)
+                                return [2, per_error(ex.flp, ts.msg)];
+                            intoVlc = ts.vlc;
                         }
-                        return checkPromise(program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.right), function (pe) {
-                            if (!pe.ok)
-                                return pe;
-                            if (!lp.ok)
-                                throw new Error('Lvalue is an error in assignment');
-                            return program_evalLval(pgen, mode, intoVlc, lp.lv, mutop_1, pe.vlc, true);
-                        });
-                    });
-                }
-                if (mode === pem_enum.EMPTY || mode === pem_enum.CREATE) {
-                    var ts = symtbl_addTemp(sym);
-                    if (!ts.ok)
-                        return per_error(ex.flp, ts.msg);
-                    intoVlc = ts.vlc;
-                }
-                var binop_1 = ks_toBinaryOp(ex.k);
-                if (binop_1 !== op_enum.INVALID) {
-                    return checkPromise(program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.left), function (pe) {
+                        if (!lp.ok)
+                            throw new Error('Lvalue is an error in basic assignment');
+                        op_move(prg.ops, intoVlc, lp.lv.vlc);
+                        return [2, per_ok(intoVlc)];
+                    case 35: return [4, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.right)];
+                    case 36:
+                        pe = _b.sent();
                         if (!pe.ok)
-                            return pe;
-                        var left = pe.vlc;
+                            return [2, pe];
+                        if (!lp.ok)
+                            throw new Error('Lvalue is an error in assignment');
+                        return [2, program_evalLval(pgen, mode, intoVlc, lp.lv, mutop, pe.vlc, true)];
+                    case 37:
+                        if (mode === pem_enum.EMPTY || mode === pem_enum.CREATE) {
+                            ts = symtbl_addTemp(sym);
+                            if (!ts.ok)
+                                return [2, per_error(ex.flp, ts.msg)];
+                            intoVlc = ts.vlc;
+                        }
+                        binop = ks_toBinaryOp(ex.k);
+                        if (!(binop !== op_enum.INVALID)) return [3, 40];
+                        return [4, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.left)];
+                    case 38:
+                        pe = _b.sent();
+                        if (!pe.ok)
+                            return [2, pe];
+                        left = pe.vlc;
                         if (ex.right === null)
                             throw new Error('Infix operator has null right');
-                        return checkPromise(program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.right), function (pe) {
-                            if (!pe.ok)
-                                return pe;
-                            program_flp(prg, ex.flp);
-                            op_binop(prg.ops, binop_1, intoVlc, left, pe.vlc);
-                            symtbl_clearTemp(sym, left);
-                            symtbl_clearTemp(sym, pe.vlc);
-                            if (mode === pem_enum.EMPTY) {
-                                symtbl_clearTemp(sym, intoVlc);
-                                return per_ok(VARLOC_NULL);
-                            }
-                            return per_ok(intoVlc);
-                        });
-                    });
-                }
-                else if (ex.k === ks_enum.AMP2 || ex.k === ks_enum.PIPE2) {
-                    return checkPromise(program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.left), function (pe) {
+                        return [4, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.right)];
+                    case 39:
+                        pe = _b.sent();
                         if (!pe.ok)
-                            return pe;
-                        var left = pe.vlc;
-                        var useleft = label_new('^useleft');
+                            return [2, pe];
+                        program_flp(prg, ex.flp);
+                        op_binop(prg.ops, binop, intoVlc, left, pe.vlc);
+                        symtbl_clearTemp(sym, left);
+                        symtbl_clearTemp(sym, pe.vlc);
+                        if (mode === pem_enum.EMPTY) {
+                            symtbl_clearTemp(sym, intoVlc);
+                            return [2, per_ok(VARLOC_NULL)];
+                        }
+                        return [2, per_ok(intoVlc)];
+                    case 40:
+                        if (!(ex.k === ks_enum.AMP2 || ex.k === ks_enum.PIPE2)) return [3, 43];
+                        return [4, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.left)];
+                    case 41:
+                        pe = _b.sent();
+                        if (!pe.ok)
+                            return [2, pe];
+                        left = pe.vlc;
+                        useleft = label_new('^useleft');
                         if (ex.k === ks_enum.AMP2)
                             label_jumpfalse(useleft, prg.ops, left);
                         else
                             label_jumptrue(useleft, prg.ops, left);
                         if (ex.right === null)
                             throw new Error('Infix conditional has null right expression');
-                        return checkPromise(program_eval(pgen, pem_enum.INTO, intoVlc, ex.right), function (pe) {
-                            if (!pe.ok)
-                                return pe;
-                            var finish = label_new('^finish');
-                            label_jump(finish, prg.ops);
-                            label_declare(useleft, prg.ops);
-                            op_move(prg.ops, intoVlc, left);
-                            label_declare(finish, prg.ops);
-                            symtbl_clearTemp(sym, left);
-                            if (mode === pem_enum.EMPTY) {
-                                symtbl_clearTemp(sym, intoVlc);
-                                return per_ok(VARLOC_NULL);
-                            }
-                            return per_ok(intoVlc);
-                        });
-                    });
-                }
-                return per_error(ex.flp, 'Invalid operation');
-            }
-            case expr_enum.CALL: {
-                if (ex.cmd.type !== expr_enum.NAMES)
-                    return per_error(ex.flp, 'Invalid call');
-                var sl = symtbl_lookup(sym, ex.cmd.names);
-                if (!sl.ok)
-                    return per_error(ex.flp, sl.msg);
-                return program_evalCall(pgen, mode, intoVlc, ex.flp, sl.nsn, ex.params);
-            }
-            case expr_enum.INDEX: {
-                if (mode === pem_enum.EMPTY) {
-                    return checkPromise(program_eval(pgen, pem_enum.EMPTY, VARLOC_NULL, ex.obj), function (pe) {
+                        return [4, program_eval(pgen, pem_enum.INTO, intoVlc, ex.right)];
+                    case 42:
+                        pe = _b.sent();
                         if (!pe.ok)
-                            return pe;
-                        return checkPromise(program_eval(pgen, pem_enum.EMPTY, VARLOC_NULL, ex.key), function (pe) {
-                            if (!pe.ok)
-                                return pe;
-                            return per_ok(VARLOC_NULL);
-                        });
-                    });
-                }
-                if (mode === pem_enum.CREATE) {
-                    var ts = symtbl_addTemp(sym);
-                    if (!ts.ok)
-                        return per_error(ex.flp, ts.msg);
-                    intoVlc = ts.vlc;
-                }
-                return checkPromise(program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.obj), function (pe) {
-                    if (!pe.ok)
-                        return pe;
-                    var obj = pe.vlc;
-                    return checkPromise(program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.key), function (pe) {
+                            return [2, pe];
+                        finish = label_new('^finish');
+                        label_jump(finish, prg.ops);
+                        label_declare(useleft, prg.ops);
+                        op_move(prg.ops, intoVlc, left);
+                        label_declare(finish, prg.ops);
+                        symtbl_clearTemp(sym, left);
+                        if (mode === pem_enum.EMPTY) {
+                            symtbl_clearTemp(sym, intoVlc);
+                            return [2, per_ok(VARLOC_NULL)];
+                        }
+                        return [2, per_ok(intoVlc)];
+                    case 43: return [2, per_error(ex.flp, 'Invalid operation')];
+                    case 44:
+                        {
+                            if (ex.cmd.type !== expr_enum.NAMES)
+                                return [2, per_error(ex.flp, 'Invalid call')];
+                            sl = symtbl_lookup(sym, ex.cmd.names);
+                            if (!sl.ok)
+                                return [2, per_error(ex.flp, sl.msg)];
+                            return [2, program_evalCall(pgen, mode, intoVlc, ex.flp, sl.nsn, ex.params)];
+                        }
+                        _b.label = 45;
+                    case 45:
+                        if (!(mode === pem_enum.EMPTY)) return [3, 48];
+                        return [4, program_eval(pgen, pem_enum.EMPTY, VARLOC_NULL, ex.obj)];
+                    case 46:
+                        pe_10 = _b.sent();
+                        if (!pe_10.ok)
+                            return [2, pe_10];
+                        return [4, program_eval(pgen, pem_enum.EMPTY, VARLOC_NULL, ex.key)];
+                    case 47:
+                        pe_10 = _b.sent();
+                        if (!pe_10.ok)
+                            return [2, pe_10];
+                        return [2, per_ok(VARLOC_NULL)];
+                    case 48:
+                        if (mode === pem_enum.CREATE) {
+                            ts = symtbl_addTemp(sym);
+                            if (!ts.ok)
+                                return [2, per_error(ex.flp, ts.msg)];
+                            intoVlc = ts.vlc;
+                        }
+                        return [4, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.obj)];
+                    case 49:
+                        pe = _b.sent();
                         if (!pe.ok)
-                            return pe;
-                        var key = pe.vlc;
+                            return [2, pe];
+                        obj = pe.vlc;
+                        return [4, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.key)];
+                    case 50:
+                        pe = _b.sent();
+                        if (!pe.ok)
+                            return [2, pe];
+                        key = pe.vlc;
                         op_getat(prg.ops, intoVlc, obj, key);
                         symtbl_clearTemp(sym, obj);
                         symtbl_clearTemp(sym, key);
-                        return per_ok(intoVlc);
-                    });
-                });
-            }
-            case expr_enum.SLICE: {
-                if (mode === pem_enum.EMPTY || mode === pem_enum.CREATE) {
-                    var ts = symtbl_addTemp(sym);
-                    if (!ts.ok)
-                        return per_error(ex.flp, ts.msg);
-                    intoVlc = ts.vlc;
-                }
-                return checkPromise(program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.obj), function (pe) {
-                    if (!pe.ok)
-                        return pe;
-                    var obj = pe.vlc;
-                    return checkPromise(program_slice(pgen, ex), function (sr) {
+                        return [2, per_ok(intoVlc)];
+                    case 51:
+                        if (mode === pem_enum.EMPTY || mode === pem_enum.CREATE) {
+                            ts = symtbl_addTemp(sym);
+                            if (!ts.ok)
+                                return [2, per_error(ex.flp, ts.msg)];
+                            intoVlc = ts.vlc;
+                        }
+                        return [4, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.obj)];
+                    case 52:
+                        pe = _b.sent();
+                        if (!pe.ok)
+                            return [2, pe];
+                        obj = pe.vlc;
+                        return [4, program_slice(pgen, ex)];
+                    case 53:
+                        sr = _b.sent();
                         if (!sr.ok)
-                            return per_error(sr.flp, sr.msg);
+                            return [2, per_error(sr.flp, sr.msg)];
                         op_slice(prg.ops, intoVlc, obj, sr.start, sr.len);
                         symtbl_clearTemp(sym, obj);
                         symtbl_clearTemp(sym, sr.start);
                         symtbl_clearTemp(sym, sr.len);
                         if (mode === pem_enum.EMPTY) {
                             symtbl_clearTemp(sym, intoVlc);
-                            return per_ok(VARLOC_NULL);
+                            return [2, per_ok(VARLOC_NULL)];
                         }
-                        return per_ok(intoVlc);
-                    });
-                });
-            }
-        }
-        throw new Error('Invalid expression type');
+                        return [2, per_ok(intoVlc)];
+                    case 54: throw new Error('Invalid expression type');
+                }
+            });
+        });
     }
     function program_exprToNum(pgen, ex) {
         if (ex.type === expr_enum.NUM)
@@ -5906,526 +6049,595 @@ var __extends = (this && this.__extends) || (function () {
         return pgr_push(pgs_for_new(p1, p2, p3, t, val_vlc, idx_vlc, top, inc, finish));
     }
     function program_genForGeneric(pgen, stmt) {
-        var prg = pgen.prg;
-        var sym = pgen.sym;
-        return checkPromise(program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, stmt.ex), function (pe) {
-            if (!pe.ok)
-                return pgr_error(pe.flp, pe.msg);
-            symtbl_pushScope(sym);
-            var exp_vlc = pe.vlc;
-            var pgi = program_forVars(sym, stmt);
-            if (pgi.type !== pgr_enum.FORVARS)
-                return pgi;
-            var val_vlc = pgi.val_vlc;
-            var idx_vlc = pgi.idx_vlc;
-            op_numint(prg.ops, idx_vlc, 0);
-            var top = label_new('^forG_top');
-            var inc = label_new('^forG_inc');
-            var finish = label_new('^forG_finish');
-            var ts = symtbl_addTemp(sym);
-            if (!ts.ok)
-                return pgr_error(stmt.flp, ts.msg);
-            var t = ts.vlc;
-            label_declare(top, prg.ops);
-            op_unop(prg.ops, op_enum.SIZE, t, exp_vlc);
-            op_binop(prg.ops, op_enum.LT, t, idx_vlc, t);
-            label_jumpfalse(finish, prg.ops, t);
-            if (!varloc_isnull(val_vlc))
-                op_getat(prg.ops, val_vlc, exp_vlc, idx_vlc);
-            sym.sc.lblBreak = finish;
-            sym.sc.lblContinue = inc;
-            return pgr_push(pgs_for_new(t, exp_vlc, VARLOC_NULL, VARLOC_NULL, val_vlc, idx_vlc, top, inc, finish));
+        return __awaiter(this, void 0, void 0, function () {
+            var prg, sym, pe, exp_vlc, pgi, val_vlc, idx_vlc, top, inc, finish, ts, t;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        prg = pgen.prg;
+                        sym = pgen.sym;
+                        return [4, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, stmt.ex)];
+                    case 1:
+                        pe = _a.sent();
+                        if (!pe.ok)
+                            return [2, pgr_error(pe.flp, pe.msg)];
+                        symtbl_pushScope(sym);
+                        exp_vlc = pe.vlc;
+                        pgi = program_forVars(sym, stmt);
+                        if (pgi.type !== pgr_enum.FORVARS)
+                            return [2, pgi];
+                        val_vlc = pgi.val_vlc;
+                        idx_vlc = pgi.idx_vlc;
+                        op_numint(prg.ops, idx_vlc, 0);
+                        top = label_new('^forG_top');
+                        inc = label_new('^forG_inc');
+                        finish = label_new('^forG_finish');
+                        ts = symtbl_addTemp(sym);
+                        if (!ts.ok)
+                            return [2, pgr_error(stmt.flp, ts.msg)];
+                        t = ts.vlc;
+                        label_declare(top, prg.ops);
+                        op_unop(prg.ops, op_enum.SIZE, t, exp_vlc);
+                        op_binop(prg.ops, op_enum.LT, t, idx_vlc, t);
+                        label_jumpfalse(finish, prg.ops, t);
+                        if (!varloc_isnull(val_vlc))
+                            op_getat(prg.ops, val_vlc, exp_vlc, idx_vlc);
+                        sym.sc.lblBreak = finish;
+                        sym.sc.lblContinue = inc;
+                        return [2, pgr_push(pgs_for_new(t, exp_vlc, VARLOC_NULL, VARLOC_NULL, val_vlc, idx_vlc, top, inc, finish))];
+                }
+            });
         });
     }
     function program_gen(pgen, stmt, state, sayexpr) {
-        var prg = pgen.prg;
-        var sym = pgen.sym;
-        program_flp(prg, stmt.flp);
-        function handleDefArgs(stmt, skip, lvs, level) {
-            function handleNext(i) {
-                if (i >= lvs)
-                    return pgr_push(skip);
-                var ex = stmt.lvalues[i];
-                function handleInfixRest(arg) {
-                    if (ex.type !== expr_enum.INFIX)
-                        throw new Error('Expecting parameter expression to be infix');
-                    var lr = lval_addVars(sym, ex.left, i);
-                    if (!lr.ok)
-                        return pgr_error(lr.flp, lr.msg);
-                    var pe = program_evalLval(pgen, pem_enum.EMPTY, VARLOC_NULL, lr.lv, op_enum.INVALID, arg, true);
-                    if (!pe.ok)
-                        return pgr_error(pe.flp, pe.msg);
-                    return handleNext(i + 1);
-                }
-                if (ex.type === expr_enum.INFIX) {
-                    var arg_1 = varloc_new(level, i);
-                    if (ex.right !== null) {
-                        var argset_1 = label_new('^argset');
-                        label_jumptrue(argset_1, prg.ops, arg_1);
-                        return checkPromise(program_eval(pgen, pem_enum.INTO, arg_1, ex.right), function (pr) {
-                            if (!pr.ok)
-                                return pgr_error(pr.flp, pr.msg);
-                            label_declare(argset_1, prg.ops);
-                            return handleInfixRest(arg_1);
-                        });
-                    }
-                    return handleInfixRest(arg_1);
-                }
-                else if (i === lvs - 1 && ex.type === expr_enum.PREFIX && ex.k === ks_enum.PERIOD3) {
-                    var lr = lval_addVars(sym, ex.ex, i);
-                    if (!lr.ok)
-                        return pgr_error(lr.flp, lr.msg);
-                    if (lr.lv.type !== lvr_enum.VAR)
-                        throw new Error('Assertion failed: `...rest` parameter must be identifier');
-                }
-                else
-                    throw new Error('Assertion failed: parameter must be infix expression');
-                return handleNext(i + 1);
-            }
-            return handleNext(0);
-        }
-        function handleGenRangeGroup(stmt, p) {
-            var rp = [VARLOC_NULL, VARLOC_NULL, VARLOC_NULL];
-            function handleNext(i) {
-                if (i >= p.group.length)
-                    return program_genForRange(pgen, stmt, rp[0], rp[1], rp[2]);
-                if (i < 3) {
-                    var ts = symtbl_addTemp(sym);
-                    if (!ts.ok)
-                        return pgr_error(stmt.flp, ts.msg);
-                    rp[i] = ts.vlc;
-                }
-                return checkPromise(program_eval(pgen, i < 3 ? pem_enum.INTO : pem_enum.EMPTY, i < 3 ? rp[i] : VARLOC_NULL, p.group[i]), function (pe) {
-                    if (!pe.ok)
-                        return pgr_error(pe.flp, pe.msg);
-                    return handleNext(i + 1);
-                });
-            }
-            return handleNext(0);
-        }
-        function handleVar(stmt) {
-            function handleNext(i) {
-                if (i >= stmt.lvalues.length)
-                    return pgr_ok();
-                var ex1 = stmt.lvalues[i];
-                if (ex1.type !== expr_enum.INFIX)
-                    throw new Error('Var expressions must be infix');
-                var ex = ex1;
-                var pr_vlc = VARLOC_NULL;
-                if (ex.right !== null) {
-                    return checkPromise(program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.right), function (pr) {
+        return __awaiter(this, void 0, void 0, function () {
+            var prg, sym, _a, dc, lbl, smsg, smsg, n, lbl, smsg, level, rest, lvs, last_ex, skip, i, ex, arg, argset, pr, lr, pe, lr, skip, top_1, cond, finish, pst, pe, pst_1, pst, last_val, i, ex, v, n, smsg, c, n, sl, nsn, p, rp, ts, pe, i, ts, pe, pst, lcont, lbrk, pst, i, lbl_1, lbl, pst, pr, pst, pst, smsg, nsn, params, ex, sl, sl, argcount, pe, p, nsn_lbl, eb, pe0, i, pr, sl, ns, sf, i, ex1, ex, pr_vlc, pr, lr, pe, pr, ts, lbl, found, i;
+            return __generator(this, function (_b) {
+                switch (_b.label) {
+                    case 0:
+                        prg = pgen.prg;
+                        sym = pgen.sym;
+                        program_flp(prg, stmt.flp);
+                        _a = stmt.type;
+                        switch (_a) {
+                            case ast_enumt.BREAK: return [3, 1];
+                            case ast_enumt.CONTINUE: return [3, 2];
+                            case ast_enumt.DECLARE: return [3, 3];
+                            case ast_enumt.DEF1: return [3, 4];
+                            case ast_enumt.DEF2: return [3, 11];
+                            case ast_enumt.DOWHILE1: return [3, 12];
+                            case ast_enumt.DOWHILE2: return [3, 13];
+                            case ast_enumt.DOWHILE3: return [3, 16];
+                            case ast_enumt.ENUM: return [3, 17];
+                            case ast_enumt.FOR1: return [3, 18];
+                            case ast_enumt.FOR2: return [3, 26];
+                            case ast_enumt.LOOP1: return [3, 27];
+                            case ast_enumt.LOOP2: return [3, 28];
+                            case ast_enumt.GOTO: return [3, 29];
+                            case ast_enumt.IF1: return [3, 30];
+                            case ast_enumt.IF2: return [3, 31];
+                            case ast_enumt.IF3: return [3, 33];
+                            case ast_enumt.IF4: return [3, 34];
+                            case ast_enumt.INCLUDE: return [3, 35];
+                            case ast_enumt.NAMESPACE1: return [3, 36];
+                            case ast_enumt.NAMESPACE2: return [3, 37];
+                            case ast_enumt.RETURN: return [3, 38];
+                            case ast_enumt.USING: return [3, 42];
+                            case ast_enumt.VAR: return [3, 43];
+                            case ast_enumt.EVAL: return [3, 49];
+                            case ast_enumt.LABEL: return [3, 51];
+                        }
+                        return [3, 52];
+                    case 1:
+                        {
+                            if (sym.sc.lblBreak === null)
+                                return [2, pgr_error(stmt.flp, 'Invalid `break`')];
+                            label_jump(sym.sc.lblBreak, prg.ops);
+                            return [2, pgr_ok()];
+                        }
+                        _b.label = 2;
+                    case 2:
+                        {
+                            if (sym.sc.lblContinue === null)
+                                return [2, pgr_error(stmt.flp, 'Invalid `continue`')];
+                            label_jump(sym.sc.lblContinue, prg.ops);
+                            return [2, pgr_ok()];
+                        }
+                        _b.label = 3;
+                    case 3:
+                        {
+                            dc = stmt.declare;
+                            if (dc.local) {
+                                lbl = label_new('^def');
+                                sym.fr.lbls.push(lbl);
+                                smsg = symtbl_addCmdLocal(sym, dc.names, lbl);
+                                if (smsg !== null)
+                                    return [2, pgr_error(dc.flp, smsg)];
+                            }
+                            else {
+                                if (dc.key === null)
+                                    throw new Error('Expecting native declaration to have key');
+                                smsg = symtbl_addCmdNative(sym, dc.names, native_hash(dc.key));
+                                if (smsg !== null)
+                                    return [2, pgr_error(dc.flp, smsg)];
+                            }
+                            return [2, pgr_ok()];
+                        }
+                        _b.label = 4;
+                    case 4:
+                        n = namespace_lookupImmediate(sym.sc.ns, stmt.names);
+                        lbl = void 0;
+                        if (n.found && n.nsn.type === nsname_enumt.CMD_LOCAL) {
+                            lbl = n.nsn.lbl;
+                            if (!sym.repl && lbl.pos >= 0)
+                                return [2, pgr_error(stmt.flpN, 'Cannot redefine: ' + stmt.names.join('.'))];
+                        }
+                        else {
+                            lbl = label_new('^def');
+                            sym.fr.lbls.push(lbl);
+                            smsg = symtbl_addCmdLocal(sym, stmt.names, lbl);
+                            if (smsg !== null)
+                                return [2, pgr_error(stmt.flpN, smsg)];
+                        }
+                        level = sym.fr.level + 1;
+                        if (level > 255)
+                            return [2, pgr_error(stmt.flp, 'Too many nested commands')];
+                        rest = 0xFF;
+                        lvs = stmt.lvalues.length;
+                        if (lvs > 255)
+                            return [2, pgr_error(stmt.flp, 'Too many parameters')];
+                        if (lvs > 0) {
+                            last_ex = stmt.lvalues[lvs - 1];
+                            if (last_ex.type === expr_enum.PREFIX && last_ex.k === ks_enum.PERIOD3)
+                                rest = lvs - 1;
+                        }
+                        skip = label_new('^after_def');
+                        label_jump(skip, prg.ops);
+                        label_declare(lbl, prg.ops);
+                        symtbl_pushFrame(sym);
+                        program_cmdhint(prg, stmt.names);
+                        op_cmdhead(prg.ops, level, rest);
+                        symtbl_reserveVars(sym, lvs);
+                        i = 0;
+                        _b.label = 5;
+                    case 5:
+                        if (!(i < lvs)) return [3, 10];
+                        ex = stmt.lvalues[i];
+                        if (!(ex.type === expr_enum.INFIX)) return [3, 8];
+                        arg = varloc_new(level, i);
+                        if (!(ex.right !== null)) return [3, 7];
+                        argset = label_new('^argset');
+                        label_jumptrue(argset, prg.ops, arg);
+                        return [4, program_eval(pgen, pem_enum.INTO, arg, ex.right)];
+                    case 6:
+                        pr = _b.sent();
                         if (!pr.ok)
-                            return pgr_error(pr.flp, pr.msg);
-                        pr_vlc = pr.vlc;
-                        return handleAddVars();
-                    });
-                }
-                return handleAddVars();
-                function handleAddVars() {
-                    var lr = lval_addVars(sym, ex.left, -1);
-                    if (!lr.ok)
-                        return pgr_error(lr.flp, lr.msg);
-                    if (ex.right !== null) {
-                        var pe = program_evalLval(pgen, pem_enum.EMPTY, VARLOC_NULL, lr.lv, op_enum.INVALID, pr_vlc, true);
+                            return [2, pgr_error(pr.flp, pr.msg)];
+                        label_declare(argset, prg.ops);
+                        _b.label = 7;
+                    case 7:
+                        if (ex.type !== expr_enum.INFIX)
+                            throw new Error('Expecting parameter expression to be infix');
+                        lr = lval_addVars(sym, ex.left, i);
+                        if (!lr.ok)
+                            return [2, pgr_error(lr.flp, lr.msg)];
+                        pe = program_evalLval(pgen, pem_enum.EMPTY, VARLOC_NULL, lr.lv, op_enum.INVALID, arg, true);
                         if (!pe.ok)
-                            return pgr_error(pe.flp, pe.msg);
-                        symtbl_clearTemp(sym, pr_vlc);
-                    }
-                    return handleNext(i + 1);
-                }
-            }
-            return handleNext(0);
-        }
-        switch (stmt.type) {
-            case ast_enumt.BREAK: {
-                if (sym.sc.lblBreak === null)
-                    return pgr_error(stmt.flp, 'Invalid `break`');
-                label_jump(sym.sc.lblBreak, prg.ops);
-                return pgr_ok();
-            }
-            case ast_enumt.CONTINUE: {
-                if (sym.sc.lblContinue === null)
-                    return pgr_error(stmt.flp, 'Invalid `continue`');
-                label_jump(sym.sc.lblContinue, prg.ops);
-                return pgr_ok();
-            }
-            case ast_enumt.DECLARE: {
-                var dc = stmt.declare;
-                if (dc.local) {
-                    var lbl = label_new('^def');
-                    sym.fr.lbls.push(lbl);
-                    var smsg = symtbl_addCmdLocal(sym, dc.names, lbl);
-                    if (smsg !== null)
-                        return pgr_error(dc.flp, smsg);
-                }
-                else {
-                    if (dc.key === null)
-                        throw new Error('Expecting native declaration to have key');
-                    var smsg = symtbl_addCmdNative(sym, dc.names, native_hash(dc.key));
-                    if (smsg !== null)
-                        return pgr_error(dc.flp, smsg);
-                }
-                return pgr_ok();
-            }
-            case ast_enumt.DEF1: {
-                var n = namespace_lookupImmediate(sym.sc.ns, stmt.names);
-                var lbl = void 0;
-                if (n.found && n.nsn.type === nsname_enumt.CMD_LOCAL) {
-                    lbl = n.nsn.lbl;
-                    if (!sym.repl && lbl.pos >= 0)
-                        return pgr_error(stmt.flpN, 'Cannot redefine: ' + stmt.names.join('.'));
-                }
-                else {
-                    lbl = label_new('^def');
-                    sym.fr.lbls.push(lbl);
-                    var smsg = symtbl_addCmdLocal(sym, stmt.names, lbl);
-                    if (smsg !== null)
-                        return pgr_error(stmt.flpN, smsg);
-                }
-                var level = sym.fr.level + 1;
-                if (level > 255)
-                    return pgr_error(stmt.flp, 'Too many nested commands');
-                var rest = 0xFF;
-                var lvs = stmt.lvalues.length;
-                if (lvs > 255)
-                    return pgr_error(stmt.flp, 'Too many parameters');
-                if (lvs > 0) {
-                    var last_ex = stmt.lvalues[lvs - 1];
-                    if (last_ex.type === expr_enum.PREFIX && last_ex.k === ks_enum.PERIOD3)
-                        rest = lvs - 1;
-                }
-                var skip = label_new('^after_def');
-                label_jump(skip, prg.ops);
-                label_declare(lbl, prg.ops);
-                symtbl_pushFrame(sym);
-                program_cmdhint(prg, stmt.names);
-                op_cmdhead(prg.ops, level, rest);
-                symtbl_reserveVars(sym, lvs);
-                return handleDefArgs(stmt, skip, lvs, level);
-            }
-            case ast_enumt.DEF2: {
-                program_cmdhint(prg, null);
-                op_cmdtail(prg.ops);
-                symtbl_popFrame(sym);
-                if (!label_check(state))
-                    throw new Error('Expecting state to be a label');
-                var skip = state;
-                label_declare(skip, prg.ops);
-                return pgr_pop();
-            }
-            case ast_enumt.DOWHILE1: {
-                var top_1 = label_new('^dowhile_top');
-                var cond = label_new('^dowhile_cond');
-                var finish = label_new('^dowhile_finish');
-                symtbl_pushScope(sym);
-                sym.sc.lblBreak = finish;
-                sym.sc.lblContinue = cond;
-                label_declare(top_1, prg.ops);
-                return pgr_push(pgs_dowhile_new(top_1, cond, finish));
-            }
-            case ast_enumt.DOWHILE2: {
-                if (!pgs_dowhile_check(state))
-                    throw new Error('Expecting state to be do-while structure');
-                var pst = state;
-                label_declare(pst.cond, prg.ops);
-                if (stmt.cond === null) {
-                    pst.top = null;
-                    return pgr_ok();
-                }
-                else {
-                    return checkPromise(program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, stmt.cond), function (pe) {
+                            return [2, pgr_error(pe.flp, pe.msg)];
+                        return [3, 9];
+                    case 8:
+                        if (i === lvs - 1 && ex.type === expr_enum.PREFIX && ex.k === ks_enum.PERIOD3) {
+                            lr = lval_addVars(sym, ex.ex, i);
+                            if (!lr.ok)
+                                return [2, pgr_error(lr.flp, lr.msg)];
+                            if (lr.lv.type !== lvr_enum.VAR)
+                                throw new Error('Assertion failed: `...rest` parameter must be identifier');
+                        }
+                        else
+                            throw new Error('Assertion failed: parameter must be infix expression');
+                        _b.label = 9;
+                    case 9:
+                        i++;
+                        return [3, 5];
+                    case 10: return [2, pgr_push(skip)];
+                    case 11:
+                        {
+                            program_cmdhint(prg, null);
+                            op_cmdtail(prg.ops);
+                            symtbl_popFrame(sym);
+                            if (!label_check(state))
+                                throw new Error('Expecting state to be a label');
+                            skip = state;
+                            label_declare(skip, prg.ops);
+                            return [2, pgr_pop()];
+                        }
+                        _b.label = 12;
+                    case 12:
+                        {
+                            top_1 = label_new('^dowhile_top');
+                            cond = label_new('^dowhile_cond');
+                            finish = label_new('^dowhile_finish');
+                            symtbl_pushScope(sym);
+                            sym.sc.lblBreak = finish;
+                            sym.sc.lblContinue = cond;
+                            label_declare(top_1, prg.ops);
+                            return [2, pgr_push(pgs_dowhile_new(top_1, cond, finish))];
+                        }
+                        _b.label = 13;
+                    case 13:
                         if (!pgs_dowhile_check(state))
                             throw new Error('Expecting state to be do-while structure');
-                        var pst = state;
+                        pst = state;
+                        label_declare(pst.cond, prg.ops);
+                        if (!(stmt.cond === null)) return [3, 14];
+                        pst.top = null;
+                        return [2, pgr_ok()];
+                    case 14: return [4, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, stmt.cond)];
+                    case 15:
+                        pe = _b.sent();
+                        if (!pgs_dowhile_check(state))
+                            throw new Error('Expecting state to be do-while structure');
+                        pst_1 = state;
                         if (!pe.ok)
-                            return pgr_error(pe.flp, pe.msg);
-                        label_jumpfalse(pst.finish, prg.ops, pe.vlc);
+                            return [2, pgr_error(pe.flp, pe.msg)];
+                        label_jumpfalse(pst_1.finish, prg.ops, pe.vlc);
                         symtbl_clearTemp(sym, pe.vlc);
-                        sym.sc.lblContinue = pst.top;
-                        return pgr_ok();
-                    });
-                }
-            }
-            case ast_enumt.DOWHILE3: {
-                if (!pgs_dowhile_check(state))
-                    throw new Error('Expecting state to be do-while structure');
-                var pst = state;
-                if (pst.top !== null)
-                    label_jump(pst.top, prg.ops);
-                label_declare(pst.finish, prg.ops);
-                symtbl_popScope(sym);
-                return pgr_pop();
-            }
-            case ast_enumt.ENUM: {
-                var last_val = -1;
-                for (var i = 0; i < stmt.lvalues.length; i++) {
-                    var ex = stmt.lvalues[i];
-                    if (ex.type !== expr_enum.INFIX)
-                        throw new Error('Enum expression must be infix');
-                    var v = last_val + 1;
-                    if (ex.right !== null) {
-                        var n = program_exprToNum(pgen, ex.right);
-                        if (!n.ok)
-                            return pgr_error(stmt.flp, n.msg);
-                        v = n.value;
-                    }
-                    if (ex.left.type !== expr_enum.NAMES)
-                        return pgr_error(stmt.flp, 'Enum name must only consist of identifiers');
-                    last_val = v;
-                    var smsg = symtbl_addEnum(sym, ex.left.names, v);
-                    if (smsg !== null)
-                        return pgr_error(stmt.flp, smsg);
-                }
-                return pgr_ok();
-            }
-            case ast_enumt.FOR1: {
-                if (stmt.ex.type === expr_enum.CALL) {
-                    var c = stmt.ex;
-                    if (c.cmd.type === expr_enum.NAMES) {
-                        var n = c.cmd;
-                        var sl = symtbl_lookup(sym, n.names);
-                        if (!sl.ok)
-                            return pgr_error(stmt.flp, sl.msg);
-                        var nsn = sl.nsn;
-                        if (nsn.type === nsname_enumt.CMD_OPCODE && nsn.opcode === op_enum.RANGE) {
-                            var p = c.params;
-                            if (p.type === expr_enum.GROUP)
-                                return handleGenRangeGroup(stmt, p);
-                            else {
-                                var rp_1 = [VARLOC_NULL, VARLOC_NULL, VARLOC_NULL];
-                                var ts = symtbl_addTemp(sym);
-                                if (!ts.ok)
-                                    return pgr_error(stmt.flp, ts.msg);
-                                rp_1[0] = ts.vlc;
-                                return checkPromise(program_eval(pgen, pem_enum.INTO, rp_1[0], p), function (pe) {
-                                    if (!pe.ok)
-                                        return pgr_error(pe.flp, pe.msg);
-                                    return program_genForRange(pgen, stmt, rp_1[0], rp_1[1], rp_1[2]);
-                                });
-                            }
+                        sym.sc.lblContinue = pst_1.top;
+                        return [2, pgr_ok()];
+                    case 16:
+                        {
+                            if (!pgs_dowhile_check(state))
+                                throw new Error('Expecting state to be do-while structure');
+                            pst = state;
+                            if (pst.top !== null)
+                                label_jump(pst.top, prg.ops);
+                            label_declare(pst.finish, prg.ops);
+                            symtbl_popScope(sym);
+                            return [2, pgr_pop()];
                         }
-                    }
-                }
-                return program_genForGeneric(pgen, stmt);
-            }
-            case ast_enumt.FOR2: {
-                if (!pgs_for_check(state))
-                    throw new Error('Expecting state to be for structure');
-                var pst = state;
-                label_declare(pst.inc, prg.ops);
-                op_inc(prg.ops, pst.idx_vlc);
-                label_jump(pst.top, prg.ops);
-                label_declare(pst.finish, prg.ops);
-                symtbl_clearTemp(sym, pst.t1);
-                symtbl_clearTemp(sym, pst.t2);
-                if (!varloc_isnull(pst.t3))
-                    symtbl_clearTemp(sym, pst.t3);
-                if (!varloc_isnull(pst.t4))
-                    symtbl_clearTemp(sym, pst.t4);
-                if (!varloc_isnull(pst.val_vlc))
-                    symtbl_clearTemp(sym, pst.val_vlc);
-                symtbl_clearTemp(sym, pst.idx_vlc);
-                symtbl_popScope(sym);
-                return pgr_pop();
-            }
-            case ast_enumt.LOOP1: {
-                symtbl_pushScope(sym);
-                var lcont = label_new('^loop_continue');
-                var lbrk = label_new('^loop_break');
-                sym.sc.lblContinue = lcont;
-                sym.sc.lblBreak = lbrk;
-                label_declare(lcont, prg.ops);
-                return pgr_push(pgs_loop_new(lcont, lbrk));
-            }
-            case ast_enumt.LOOP2: {
-                if (!pgs_loop_check(state))
-                    throw new Error('Expecting state to be loop structure');
-                var pst = state;
-                label_jump(pst.lcont, prg.ops);
-                label_declare(pst.lbrk, prg.ops);
-                symtbl_popScope(sym);
-                return pgr_pop();
-            }
-            case ast_enumt.GOTO: {
-                for (var i = 0; i < sym.fr.lbls.length; i++) {
-                    var lbl_1 = sym.fr.lbls[i];
-                    if (lbl_1.name !== null && lbl_1.name === stmt.ident) {
-                        label_jump(lbl_1, prg.ops);
-                        return pgr_ok();
-                    }
-                }
-                var lbl = label_new(stmt.ident);
-                label_jump(lbl, prg.ops);
-                sym.fr.lbls.push(lbl);
-                return pgr_ok();
-            }
-            case ast_enumt.IF1: {
-                return pgr_push(pgs_if_new(null, label_new('^ifdone')));
-            }
-            case ast_enumt.IF2: {
-                if (!pgs_if_check(state))
-                    throw new Error('Expecting state to be if struture');
-                var pst = state;
-                if (pst.nextcond !== null) {
-                    symtbl_popScope(sym);
-                    label_jump(pst.ifdone, prg.ops);
-                    label_declare(pst.nextcond, prg.ops);
-                }
-                pst.nextcond = label_new('^nextcond');
-                return checkPromise(program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, stmt.cond), function (pr) {
-                    if (!pgs_if_check(state))
-                        throw new Error('Expecting state to be if struture');
-                    var pst = state;
-                    if (!pr.ok)
-                        return pgr_error(pr.flp, pr.msg);
-                    if (pst.nextcond === null)
-                        throw new Error('If2 nextcond must not be null');
-                    label_jumpfalse(pst.nextcond, prg.ops, pr.vlc);
-                    symtbl_clearTemp(sym, pr.vlc);
-                    symtbl_pushScope(sym);
-                    return pgr_ok();
-                });
-            }
-            case ast_enumt.IF3: {
-                if (!pgs_if_check(state))
-                    throw new Error('Expecting state to be if structure');
-                var pst = state;
-                symtbl_popScope(sym);
-                label_jump(pst.ifdone, prg.ops);
-                if (pst.nextcond === null)
-                    throw new Error('Next condition label must exist');
-                label_declare(pst.nextcond, prg.ops);
-                symtbl_pushScope(sym);
-                return pgr_ok();
-            }
-            case ast_enumt.IF4: {
-                if (!pgs_if_check(state))
-                    throw new Error('Expecting state to be if structure');
-                var pst = state;
-                symtbl_popScope(sym);
-                label_declare(pst.ifdone, prg.ops);
-                return pgr_pop();
-            }
-            case ast_enumt.INCLUDE: {
-                throw new Error('Cannot generate code for include statement');
-            }
-            case ast_enumt.NAMESPACE1: {
-                var smsg = symtbl_pushNamespace(sym, stmt.names);
-                if (smsg !== null)
-                    return pgr_error(stmt.flp, smsg);
-                return pgr_push(null);
-            }
-            case ast_enumt.NAMESPACE2: {
-                symtbl_popNamespace(sym);
-                return pgr_pop();
-            }
-            case ast_enumt.RETURN: {
-                var nsn = null;
-                var params = null;
-                var ex = stmt.ex;
-                if (ex.type === expr_enum.CALL) {
-                    if (ex.cmd.type !== expr_enum.NAMES)
-                        return pgr_error(ex.flp, 'Invalid call');
-                    var sl = symtbl_lookup(sym, ex.cmd.names);
-                    if (!sl.ok)
-                        return pgr_error(ex.flp, sl.msg);
-                    nsn = sl.nsn;
-                    params = ex.params;
-                }
-                else if (ex.type === expr_enum.NAMES) {
-                    var sl = symtbl_lookup(sym, ex.names);
-                    if (!sl.ok)
-                        return pgr_error(ex.flp, sl.msg);
-                    nsn = sl.nsn;
-                }
-                if (nsn !== null && nsn.type === nsname_enumt.CMD_LOCAL &&
-                    nsn.fr.level + 1 === sym.fr.level) {
-                    var argcount_1 = [];
-                    var pe_7 = [];
-                    var p_4 = [];
-                    var nsn_lbl_1 = nsn.lbl;
-                    return checkPromise(program_evalCallArgcount(pgen, params, argcount_1, pe_7, p_4), function (eb) {
+                        _b.label = 17;
+                    case 17:
+                        {
+                            last_val = -1;
+                            for (i = 0; i < stmt.lvalues.length; i++) {
+                                ex = stmt.lvalues[i];
+                                if (ex.type !== expr_enum.INFIX)
+                                    throw new Error('Enum expression must be infix');
+                                v = last_val + 1;
+                                if (ex.right !== null) {
+                                    n = program_exprToNum(pgen, ex.right);
+                                    if (!n.ok)
+                                        return [2, pgr_error(stmt.flp, n.msg)];
+                                    v = n.value;
+                                }
+                                if (ex.left.type !== expr_enum.NAMES)
+                                    return [2, pgr_error(stmt.flp, 'Enum name must only consist of identifiers')];
+                                last_val = v;
+                                smsg = symtbl_addEnum(sym, ex.left.names, v);
+                                if (smsg !== null)
+                                    return [2, pgr_error(stmt.flp, smsg)];
+                            }
+                            return [2, pgr_ok()];
+                        }
+                        _b.label = 18;
+                    case 18:
+                        if (!(stmt.ex.type === expr_enum.CALL)) return [3, 25];
+                        c = stmt.ex;
+                        if (!(c.cmd.type === expr_enum.NAMES)) return [3, 25];
+                        n = c.cmd;
+                        sl = symtbl_lookup(sym, n.names);
+                        if (!sl.ok)
+                            return [2, pgr_error(stmt.flp, sl.msg)];
+                        nsn = sl.nsn;
+                        if (!(nsn.type === nsname_enumt.CMD_OPCODE && nsn.opcode === op_enum.RANGE)) return [3, 25];
+                        p = c.params;
+                        rp = [VARLOC_NULL, VARLOC_NULL, VARLOC_NULL];
+                        if (!(p.type !== expr_enum.GROUP)) return [3, 20];
+                        ts = symtbl_addTemp(sym);
+                        if (!ts.ok)
+                            return [2, pgr_error(stmt.flp, ts.msg)];
+                        rp[0] = ts.vlc;
+                        return [4, program_eval(pgen, pem_enum.INTO, rp[0], p)];
+                    case 19:
+                        pe = _b.sent();
+                        if (!pe.ok)
+                            return [2, pgr_error(pe.flp, pe.msg)];
+                        return [3, 24];
+                    case 20:
+                        i = 0;
+                        _b.label = 21;
+                    case 21:
+                        if (!(i < p.group.length)) return [3, 24];
+                        if (i < 3) {
+                            ts = symtbl_addTemp(sym);
+                            if (!ts.ok)
+                                return [2, pgr_error(stmt.flp, ts.msg)];
+                            rp[i] = ts.vlc;
+                        }
+                        return [4, program_eval(pgen, i < 3 ? pem_enum.INTO : pem_enum.EMPTY, i < 3 ? rp[i] : VARLOC_NULL, p.group[i])];
+                    case 22:
+                        pe = _b.sent();
+                        if (!pe.ok)
+                            return [2, pgr_error(pe.flp, pe.msg)];
+                        _b.label = 23;
+                    case 23:
+                        i++;
+                        return [3, 21];
+                    case 24: return [2, program_genForRange(pgen, stmt, rp[0], rp[1], rp[2])];
+                    case 25: return [2, program_genForGeneric(pgen, stmt)];
+                    case 26:
+                        {
+                            if (!pgs_for_check(state))
+                                throw new Error('Expecting state to be for structure');
+                            pst = state;
+                            label_declare(pst.inc, prg.ops);
+                            op_inc(prg.ops, pst.idx_vlc);
+                            label_jump(pst.top, prg.ops);
+                            label_declare(pst.finish, prg.ops);
+                            symtbl_clearTemp(sym, pst.t1);
+                            symtbl_clearTemp(sym, pst.t2);
+                            if (!varloc_isnull(pst.t3))
+                                symtbl_clearTemp(sym, pst.t3);
+                            if (!varloc_isnull(pst.t4))
+                                symtbl_clearTemp(sym, pst.t4);
+                            if (!varloc_isnull(pst.val_vlc))
+                                symtbl_clearTemp(sym, pst.val_vlc);
+                            symtbl_clearTemp(sym, pst.idx_vlc);
+                            symtbl_popScope(sym);
+                            return [2, pgr_pop()];
+                        }
+                        _b.label = 27;
+                    case 27:
+                        {
+                            symtbl_pushScope(sym);
+                            lcont = label_new('^loop_continue');
+                            lbrk = label_new('^loop_break');
+                            sym.sc.lblContinue = lcont;
+                            sym.sc.lblBreak = lbrk;
+                            label_declare(lcont, prg.ops);
+                            return [2, pgr_push(pgs_loop_new(lcont, lbrk))];
+                        }
+                        _b.label = 28;
+                    case 28:
+                        {
+                            if (!pgs_loop_check(state))
+                                throw new Error('Expecting state to be loop structure');
+                            pst = state;
+                            label_jump(pst.lcont, prg.ops);
+                            label_declare(pst.lbrk, prg.ops);
+                            symtbl_popScope(sym);
+                            return [2, pgr_pop()];
+                        }
+                        _b.label = 29;
+                    case 29:
+                        {
+                            for (i = 0; i < sym.fr.lbls.length; i++) {
+                                lbl_1 = sym.fr.lbls[i];
+                                if (lbl_1.name !== null && lbl_1.name === stmt.ident) {
+                                    label_jump(lbl_1, prg.ops);
+                                    return [2, pgr_ok()];
+                                }
+                            }
+                            lbl = label_new(stmt.ident);
+                            label_jump(lbl, prg.ops);
+                            sym.fr.lbls.push(lbl);
+                            return [2, pgr_ok()];
+                        }
+                        _b.label = 30;
+                    case 30:
+                        {
+                            return [2, pgr_push(pgs_if_new(null, label_new('^ifdone')))];
+                        }
+                        _b.label = 31;
+                    case 31:
+                        if (!pgs_if_check(state))
+                            throw new Error('Expecting state to be if struture');
+                        pst = state;
+                        if (pst.nextcond !== null) {
+                            symtbl_popScope(sym);
+                            label_jump(pst.ifdone, prg.ops);
+                            label_declare(pst.nextcond, prg.ops);
+                        }
+                        pst.nextcond = label_new('^nextcond');
+                        return [4, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, stmt.cond)];
+                    case 32:
+                        pr = _b.sent();
+                        if (!pgs_if_check(state))
+                            throw new Error('Expecting state to be if struture');
+                        if (!pr.ok)
+                            return [2, pgr_error(pr.flp, pr.msg)];
+                        if (pst.nextcond === null)
+                            throw new Error('If2 nextcond must not be null');
+                        label_jumpfalse(pst.nextcond, prg.ops, pr.vlc);
+                        symtbl_clearTemp(sym, pr.vlc);
+                        symtbl_pushScope(sym);
+                        return [2, pgr_ok()];
+                    case 33:
+                        {
+                            if (!pgs_if_check(state))
+                                throw new Error('Expecting state to be if structure');
+                            pst = state;
+                            symtbl_popScope(sym);
+                            label_jump(pst.ifdone, prg.ops);
+                            if (pst.nextcond === null)
+                                throw new Error('Next condition label must exist');
+                            label_declare(pst.nextcond, prg.ops);
+                            symtbl_pushScope(sym);
+                            return [2, pgr_ok()];
+                        }
+                        _b.label = 34;
+                    case 34:
+                        {
+                            if (!pgs_if_check(state))
+                                throw new Error('Expecting state to be if structure');
+                            pst = state;
+                            symtbl_popScope(sym);
+                            label_declare(pst.ifdone, prg.ops);
+                            return [2, pgr_pop()];
+                        }
+                        _b.label = 35;
+                    case 35:
+                        {
+                            throw new Error('Cannot generate code for include statement');
+                        }
+                        _b.label = 36;
+                    case 36:
+                        {
+                            smsg = symtbl_pushNamespace(sym, stmt.names);
+                            if (smsg !== null)
+                                return [2, pgr_error(stmt.flp, smsg)];
+                            return [2, pgr_push(null)];
+                        }
+                        _b.label = 37;
+                    case 37:
+                        {
+                            symtbl_popNamespace(sym);
+                            return [2, pgr_pop()];
+                        }
+                        _b.label = 38;
+                    case 38:
+                        nsn = null;
+                        params = null;
+                        ex = stmt.ex;
+                        if (ex.type === expr_enum.CALL) {
+                            if (ex.cmd.type !== expr_enum.NAMES)
+                                return [2, pgr_error(ex.flp, 'Invalid call')];
+                            sl = symtbl_lookup(sym, ex.cmd.names);
+                            if (!sl.ok)
+                                return [2, pgr_error(ex.flp, sl.msg)];
+                            nsn = sl.nsn;
+                            params = ex.params;
+                        }
+                        else if (ex.type === expr_enum.NAMES) {
+                            sl = symtbl_lookup(sym, ex.names);
+                            if (!sl.ok)
+                                return [2, pgr_error(ex.flp, sl.msg)];
+                            nsn = sl.nsn;
+                        }
+                        if (!(nsn !== null && nsn.type === nsname_enumt.CMD_LOCAL &&
+                            nsn.fr.level + 1 === sym.fr.level)) return [3, 40];
+                        argcount = [];
+                        pe = [];
+                        p = [];
+                        nsn_lbl = nsn.lbl;
+                        return [4, program_evalCallArgcount(pgen, params, argcount, pe, p)];
+                    case 39:
+                        eb = _b.sent();
                         if (!eb) {
-                            var pe0 = pe_7[0];
+                            pe0 = pe[0];
                             if (pe0.ok)
                                 throw new Error('Expecting error message from evalCallArgcount');
-                            return pgr_error(pe0.flp, pe0.msg);
+                            return [2, pgr_error(pe0.flp, pe0.msg)];
                         }
-                        label_returntail(nsn_lbl_1, prg.ops, argcount_1[0]);
-                        for (var i = 0; i < argcount_1[0]; i++) {
-                            op_arg(prg.ops, p_4[i]);
-                            symtbl_clearTemp(sym, p_4[i]);
+                        label_returntail(nsn_lbl, prg.ops, argcount[0]);
+                        for (i = 0; i < argcount[0]; i++) {
+                            op_arg(prg.ops, p[i]);
+                            symtbl_clearTemp(sym, p[i]);
                         }
-                        return pgr_ok();
-                    });
-                }
-                return checkPromise(program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex), function (pr) {
-                    if (!pr.ok)
-                        return pgr_error(pr.flp, pr.msg);
-                    symtbl_clearTemp(sym, pr.vlc);
-                    op_return(prg.ops, pr.vlc);
-                    return pgr_ok();
-                });
-            }
-            case ast_enumt.USING: {
-                var sl = symtbl_lookupfast(sym, stmt.names);
-                var ns = void 0;
-                if (!sl.ok) {
-                    var sf = symtbl_findNamespace(sym, stmt.names, stmt.names.length);
-                    if (!sf.ok)
-                        return pgr_error(stmt.flp, sf.msg);
-                    ns = sf.ns;
-                }
-                else {
-                    if (sl.nsn.type !== nsname_enumt.NAMESPACE)
-                        return pgr_error(stmt.flp, 'Expecting namespace');
-                    ns = sl.nsn.ns;
-                }
-                if (sym.sc.ns.usings.indexOf(ns) < 0)
-                    sym.sc.ns.usings.push(ns);
-                return pgr_ok();
-            }
-            case ast_enumt.VAR:
-                return handleVar(stmt);
-            case ast_enumt.EVAL: {
-                return checkPromise(program_eval(pgen, sayexpr ? pem_enum.CREATE : pem_enum.EMPTY, VARLOC_NULL, stmt.ex), function (pr) {
-                    if (!pr.ok)
-                        return pgr_error(pr.flp, pr.msg);
-                    if (sayexpr) {
-                        var ts = symtbl_addTemp(sym);
-                        if (!ts.ok)
-                            return pgr_error(stmt.flp, ts.msg);
-                        op_parama(prg.ops, op_enum.SAY, ts.vlc, 1);
-                        op_arg(prg.ops, pr.vlc);
+                        return [2, pgr_ok()];
+                    case 40: return [4, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex)];
+                    case 41:
+                        pr = _b.sent();
+                        if (!pr.ok)
+                            return [2, pgr_error(pr.flp, pr.msg)];
                         symtbl_clearTemp(sym, pr.vlc);
-                        symtbl_clearTemp(sym, ts.vlc);
-                    }
-                    return pgr_ok();
-                });
-            }
-            case ast_enumt.LABEL: {
-                var lbl = null;
-                var found = false;
-                for (var i = 0; i < sym.fr.lbls.length; i++) {
-                    lbl = sym.fr.lbls[i];
-                    if (lbl.name !== null && lbl.name === stmt.ident) {
-                        if (lbl.pos >= 0)
-                            return pgr_error(stmt.flp, 'Cannot redeclare label "' + stmt.ident + '"');
-                        found = true;
-                        break;
-                    }
+                        op_return(prg.ops, pr.vlc);
+                        return [2, pgr_ok()];
+                    case 42:
+                        {
+                            sl = symtbl_lookupfast(sym, stmt.names);
+                            ns = void 0;
+                            if (!sl.ok) {
+                                sf = symtbl_findNamespace(sym, stmt.names, stmt.names.length);
+                                if (!sf.ok)
+                                    return [2, pgr_error(stmt.flp, sf.msg)];
+                                ns = sf.ns;
+                            }
+                            else {
+                                if (sl.nsn.type !== nsname_enumt.NAMESPACE)
+                                    return [2, pgr_error(stmt.flp, 'Expecting namespace')];
+                                ns = sl.nsn.ns;
+                            }
+                            if (sym.sc.ns.usings.indexOf(ns) < 0)
+                                sym.sc.ns.usings.push(ns);
+                            return [2, pgr_ok()];
+                        }
+                        _b.label = 43;
+                    case 43:
+                        i = 0;
+                        _b.label = 44;
+                    case 44:
+                        if (!(i < stmt.lvalues.length)) return [3, 48];
+                        ex1 = stmt.lvalues[i];
+                        if (ex1.type !== expr_enum.INFIX)
+                            throw new Error('Var expressions must be infix');
+                        ex = ex1;
+                        pr_vlc = VARLOC_NULL;
+                        if (!(ex.right !== null)) return [3, 46];
+                        return [4, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.right)];
+                    case 45:
+                        pr = _b.sent();
+                        if (!pr.ok)
+                            return [2, pgr_error(pr.flp, pr.msg)];
+                        pr_vlc = pr.vlc;
+                        _b.label = 46;
+                    case 46:
+                        lr = lval_addVars(sym, ex.left, -1);
+                        if (!lr.ok)
+                            return [2, pgr_error(lr.flp, lr.msg)];
+                        if (ex.right !== null) {
+                            pe = program_evalLval(pgen, pem_enum.EMPTY, VARLOC_NULL, lr.lv, op_enum.INVALID, pr_vlc, true);
+                            if (!pe.ok)
+                                return [2, pgr_error(pe.flp, pe.msg)];
+                            symtbl_clearTemp(sym, pr_vlc);
+                        }
+                        _b.label = 47;
+                    case 47:
+                        i++;
+                        return [3, 44];
+                    case 48: return [2, pgr_ok()];
+                    case 49: return [4, program_eval(pgen, sayexpr ? pem_enum.CREATE : pem_enum.EMPTY, VARLOC_NULL, stmt.ex)];
+                    case 50:
+                        pr = _b.sent();
+                        if (!pr.ok)
+                            return [2, pgr_error(pr.flp, pr.msg)];
+                        if (sayexpr) {
+                            ts = symtbl_addTemp(sym);
+                            if (!ts.ok)
+                                return [2, pgr_error(stmt.flp, ts.msg)];
+                            op_parama(prg.ops, op_enum.SAY, ts.vlc, 1);
+                            op_arg(prg.ops, pr.vlc);
+                            symtbl_clearTemp(sym, pr.vlc);
+                            symtbl_clearTemp(sym, ts.vlc);
+                        }
+                        return [2, pgr_ok()];
+                    case 51:
+                        {
+                            lbl = null;
+                            found = false;
+                            for (i = 0; i < sym.fr.lbls.length; i++) {
+                                lbl = sym.fr.lbls[i];
+                                if (lbl.name !== null && lbl.name === stmt.ident) {
+                                    if (lbl.pos >= 0)
+                                        return [2, pgr_error(stmt.flp, 'Cannot redeclare label "' + stmt.ident + '"')];
+                                    found = true;
+                                    break;
+                                }
+                            }
+                            if (!found) {
+                                lbl = label_new(stmt.ident);
+                                sym.fr.lbls.push(lbl);
+                            }
+                            if (lbl === null)
+                                throw new Error('Label cannot be null');
+                            label_declare(lbl, prg.ops);
+                            return [2, pgr_ok()];
+                        }
+                        _b.label = 52;
+                    case 52: throw new Error('Invalid AST type');
                 }
-                if (!found) {
-                    lbl = label_new(stmt.ident);
-                    sym.fr.lbls.push(lbl);
-                }
-                if (lbl === null)
-                    throw new Error('Label cannot be null');
-                label_declare(lbl, prg.ops);
-                return pgr_ok();
-            }
-        }
-        throw new Error('Invalid AST type');
+            });
+        });
     }
     function ccs_new(pc, frame, index, lex_index) {
         return { pc: pc, frame: frame, index: index, lex_index: lex_index };
@@ -7759,22 +7971,36 @@ var __extends = (this && this.__extends) || (function () {
     }
     exports.tonum = tonum;
     function say(ctx, vals) {
-        if (ctx.io.f_say) {
-            return ctx.io.f_say(ctx, list_joinplain(vals, ' '), ctx.io.user);
-        }
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                if (ctx.io.f_say) {
+                    return [2, ctx.io.f_say(ctx, list_joinplain(vals, ' '), ctx.io.user)];
+                }
+                return [2];
+            });
+        });
     }
     exports.say = say;
     function warn(ctx, vals) {
-        if (ctx.io.f_warn) {
-            return ctx.io.f_warn(ctx, list_joinplain(vals, ' '), ctx.io.user);
-        }
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                if (ctx.io.f_warn) {
+                    return [2, ctx.io.f_warn(ctx, list_joinplain(vals, ' '), ctx.io.user)];
+                }
+                return [2];
+            });
+        });
     }
     exports.warn = warn;
     function ask(ctx, vals) {
-        if (ctx.io.f_ask) {
-            return ctx.io.f_ask(ctx, list_joinplain(vals, ' '), ctx.io.user);
-        }
-        return exports.NIL;
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                if (ctx.io.f_ask) {
+                    return [2, ctx.io.f_ask(ctx, list_joinplain(vals, ' '), ctx.io.user)];
+                }
+                return [2, exports.NIL];
+            });
+        });
     }
     exports.ask = ask;
     function opi_exit(ctx) {
@@ -9128,506 +9354,663 @@ var __extends = (this && this.__extends) || (function () {
     var txt_int_clz = 'counting leading zeros';
     var txt_int_pop = 'population count';
     var txt_int_bswap = 'byte swaping';
-    function context_run(ctx, f_rundone) {
-        function RUNDONE(result) {
-            if (result === run.PASS || result === run.FAIL)
-                context_reset(ctx);
-            f_rundone(ctx, result);
-        }
-        if (ctx.passed)
-            return RUNDONE(run.PASS);
-        if (ctx.failed)
-            return RUNDONE(run.FAIL);
-        if (ctx.async)
-            return;
-        if (ctx.timeout > 0 && ctx.timeout_left <= 0) {
-            ctx.timeout_left = ctx.timeout;
-            return RUNDONE(run.TIMEOUT);
-        }
-        var A = 0, B = 0, C = 0, D = 0, E = 0;
-        var F = 0, G = 0, H = 0, I = 0, J = 0;
-        var X = 0, Y = 0, Z = 0, W = 0;
-        var ls;
-        var str;
-        var ops = ctx.prg.ops;
-        function LOAD_ab() {
-            ctx.pc++;
-            A = ops[ctx.pc++];
-            B = ops[ctx.pc++];
-        }
-        function LOAD_abc() {
-            ctx.pc++;
-            A = ops[ctx.pc++];
-            B = ops[ctx.pc++];
-            C = ops[ctx.pc++];
-        }
-        function LOAD_abcd() {
-            ctx.pc++;
-            A = ops[ctx.pc++];
-            B = ops[ctx.pc++];
-            C = ops[ctx.pc++];
-            D = ops[ctx.pc++];
-        }
-        function LOAD_abcde() {
-            ctx.pc++;
-            A = ops[ctx.pc++];
-            B = ops[ctx.pc++];
-            C = ops[ctx.pc++];
-            D = ops[ctx.pc++];
-            E = ops[ctx.pc++];
-        }
-        function LOAD_abcdef() {
-            ctx.pc++;
-            A = ops[ctx.pc++];
-            B = ops[ctx.pc++];
-            C = ops[ctx.pc++];
-            D = ops[ctx.pc++];
-            E = ops[ctx.pc++];
-            F = ops[ctx.pc++];
-        }
-        function LOAD_abcdefg() {
-            ctx.pc++;
-            A = ops[ctx.pc++];
-            B = ops[ctx.pc++];
-            C = ops[ctx.pc++];
-            D = ops[ctx.pc++];
-            E = ops[ctx.pc++];
-            F = ops[ctx.pc++];
-            G = ops[ctx.pc++];
-        }
-        function LOAD_abcdefgh() {
-            ctx.pc++;
-            A = ops[ctx.pc++];
-            B = ops[ctx.pc++];
-            C = ops[ctx.pc++];
-            D = ops[ctx.pc++];
-            E = ops[ctx.pc++];
-            F = ops[ctx.pc++];
-            G = ops[ctx.pc++];
-            H = ops[ctx.pc++];
-        }
-        function LOAD_abcdefghi() {
-            ctx.pc++;
-            A = ops[ctx.pc++];
-            B = ops[ctx.pc++];
-            C = ops[ctx.pc++];
-            D = ops[ctx.pc++];
-            E = ops[ctx.pc++];
-            F = ops[ctx.pc++];
-            G = ops[ctx.pc++];
-            H = ops[ctx.pc++];
-            I = ops[ctx.pc++];
-        }
-        function LOAD_abcdefghij() {
-            ctx.pc++;
-            A = ops[ctx.pc++];
-            B = ops[ctx.pc++];
-            C = ops[ctx.pc++];
-            D = ops[ctx.pc++];
-            E = ops[ctx.pc++];
-            F = ops[ctx.pc++];
-            G = ops[ctx.pc++];
-            H = ops[ctx.pc++];
-            I = ops[ctx.pc++];
-            J = ops[ctx.pc++];
-        }
-        function INLINE_UNOP(func, erop) {
-            LOAD_abcd();
-            var_set(ctx, A, B, opi_unop(ctx, var_get(ctx, C, D), func, erop));
-        }
-        function INLINE_BINOP_T(func, erop, t1, t2) {
-            LOAD_abcdef();
-            var_set(ctx, A, B, opi_binop(ctx, var_get(ctx, C, D), var_get(ctx, E, F), func, erop, t1, t2));
-        }
-        function INLINE_BINOP(func, erop) {
-            INLINE_BINOP_T(func, erop, LT_ALLOWNUM, LT_ALLOWNUM);
-        }
-        function INLINE_TRIOP(func, erop) {
-            LOAD_abcdefgh();
-            var_set(ctx, A, B, opi_triop(ctx, var_get(ctx, C, D), var_get(ctx, E, F), var_get(ctx, G, H), func, erop));
-        }
-        while (ctx.pc < ops.length) {
-            ctx.lastpc = ctx.pc;
-            switch (ops[ctx.pc]) {
-                case op_enum.NOP:
-                    {
-                        ctx.pc++;
-                    }
-                    break;
-                case op_enum.MOVE:
-                    {
-                        LOAD_abcd();
-                        var_set(ctx, A, B, var_get(ctx, C, D));
-                    }
-                    break;
-                case op_enum.INC:
-                    {
-                        LOAD_ab();
-                        X = var_get(ctx, A, B);
-                        if (!isnum(X))
-                            return RUNDONE(opi_abort(ctx, 'Expecting number when incrementing'));
-                        var_set(ctx, A, B, X + 1);
-                    }
-                    break;
-                case op_enum.NIL:
-                    {
-                        LOAD_ab();
-                        var_set(ctx, A, B, exports.NIL);
-                    }
-                    break;
-                case op_enum.NUMP8:
-                    {
-                        LOAD_abc();
-                        var_set(ctx, A, B, C);
-                    }
-                    break;
-                case op_enum.NUMN8:
-                    {
-                        LOAD_abc();
-                        var_set(ctx, A, B, C - 256);
-                    }
-                    break;
-                case op_enum.NUMP16:
-                    {
-                        LOAD_abcd();
-                        var_set(ctx, A, B, C | (D << 8));
-                    }
-                    break;
-                case op_enum.NUMN16:
-                    {
-                        LOAD_abcd();
-                        var_set(ctx, A, B, (C | (D << 8)) - 65536);
-                    }
-                    break;
-                case op_enum.NUMP32:
-                    {
-                        LOAD_abcdef();
-                        C |= (D << 8) | (E << 16) | (F << 24);
-                        if (C < 0)
-                            C += 4294967296;
-                        var_set(ctx, A, B, C);
-                    }
-                    break;
-                case op_enum.NUMN32:
-                    {
-                        LOAD_abcdef();
-                        C |= (D << 8) | (E << 16) | (F << 24);
-                        if (C < 0)
-                            C += 4294967296;
-                        var_set(ctx, A, B, C - 4294967296);
-                    }
-                    break;
-                case op_enum.NUMDBL:
-                    {
-                        LOAD_abcdefghij();
-                        dview.setUint8(0, C);
-                        dview.setUint8(1, D);
-                        dview.setUint8(2, E);
-                        dview.setUint8(3, F);
-                        dview.setUint8(4, G);
-                        dview.setUint8(5, H);
-                        dview.setUint8(6, I);
-                        dview.setUint8(7, J);
-                        var_set(ctx, A, B, dview.getFloat64(0, true));
-                    }
-                    break;
-                case op_enum.STR:
-                    {
-                        LOAD_abcdef();
-                        C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
-                        var_set(ctx, A, B, ctx.prg.strTable[C]);
-                    }
-                    break;
-                case op_enum.LIST:
-                    {
-                        LOAD_abc();
-                        var_set(ctx, A, B, new list());
-                    }
-                    break;
-                case op_enum.ISNUM:
-                    {
-                        LOAD_abcd();
-                        X = var_get(ctx, C, D);
-                        var_set(ctx, A, B, bool(isnum(X)));
-                    }
-                    break;
-                case op_enum.ISSTR:
-                    {
-                        LOAD_abcd();
-                        X = var_get(ctx, C, D);
-                        var_set(ctx, A, B, bool(isstr(X)));
-                    }
-                    break;
-                case op_enum.ISLIST:
-                    {
-                        LOAD_abcd();
-                        X = var_get(ctx, C, D);
-                        var_set(ctx, A, B, bool(islist(X)));
-                    }
-                    break;
-                case op_enum.NOT:
-                    {
-                        LOAD_abcd();
-                        X = var_get(ctx, C, D);
-                        var_set(ctx, A, B, bool(isfalse(X)));
-                    }
-                    break;
-                case op_enum.SIZE:
-                    {
-                        LOAD_abcd();
-                        var_set(ctx, A, B, size(ctx, var_get(ctx, C, D)));
+    function context_run(ctx) {
+        return __awaiter(this, void 0, void 0, function () {
+            function RUNDONE(result) {
+                if (result === run.PASS || result === run.FAIL)
+                    context_reset(ctx);
+                return result;
+            }
+            function LOAD_ab() {
+                ctx.pc++;
+                A = ops[ctx.pc++];
+                B = ops[ctx.pc++];
+            }
+            function LOAD_abc() {
+                ctx.pc++;
+                A = ops[ctx.pc++];
+                B = ops[ctx.pc++];
+                C = ops[ctx.pc++];
+            }
+            function LOAD_abcd() {
+                ctx.pc++;
+                A = ops[ctx.pc++];
+                B = ops[ctx.pc++];
+                C = ops[ctx.pc++];
+                D = ops[ctx.pc++];
+            }
+            function LOAD_abcde() {
+                ctx.pc++;
+                A = ops[ctx.pc++];
+                B = ops[ctx.pc++];
+                C = ops[ctx.pc++];
+                D = ops[ctx.pc++];
+                E = ops[ctx.pc++];
+            }
+            function LOAD_abcdef() {
+                ctx.pc++;
+                A = ops[ctx.pc++];
+                B = ops[ctx.pc++];
+                C = ops[ctx.pc++];
+                D = ops[ctx.pc++];
+                E = ops[ctx.pc++];
+                F = ops[ctx.pc++];
+            }
+            function LOAD_abcdefg() {
+                ctx.pc++;
+                A = ops[ctx.pc++];
+                B = ops[ctx.pc++];
+                C = ops[ctx.pc++];
+                D = ops[ctx.pc++];
+                E = ops[ctx.pc++];
+                F = ops[ctx.pc++];
+                G = ops[ctx.pc++];
+            }
+            function LOAD_abcdefgh() {
+                ctx.pc++;
+                A = ops[ctx.pc++];
+                B = ops[ctx.pc++];
+                C = ops[ctx.pc++];
+                D = ops[ctx.pc++];
+                E = ops[ctx.pc++];
+                F = ops[ctx.pc++];
+                G = ops[ctx.pc++];
+                H = ops[ctx.pc++];
+            }
+            function LOAD_abcdefghi() {
+                ctx.pc++;
+                A = ops[ctx.pc++];
+                B = ops[ctx.pc++];
+                C = ops[ctx.pc++];
+                D = ops[ctx.pc++];
+                E = ops[ctx.pc++];
+                F = ops[ctx.pc++];
+                G = ops[ctx.pc++];
+                H = ops[ctx.pc++];
+                I = ops[ctx.pc++];
+            }
+            function LOAD_abcdefghij() {
+                ctx.pc++;
+                A = ops[ctx.pc++];
+                B = ops[ctx.pc++];
+                C = ops[ctx.pc++];
+                D = ops[ctx.pc++];
+                E = ops[ctx.pc++];
+                F = ops[ctx.pc++];
+                G = ops[ctx.pc++];
+                H = ops[ctx.pc++];
+                I = ops[ctx.pc++];
+                J = ops[ctx.pc++];
+            }
+            function INLINE_UNOP(func, erop) {
+                LOAD_abcd();
+                var_set(ctx, A, B, opi_unop(ctx, var_get(ctx, C, D), func, erop));
+            }
+            function INLINE_BINOP_T(func, erop, t1, t2) {
+                LOAD_abcdef();
+                var_set(ctx, A, B, opi_binop(ctx, var_get(ctx, C, D), var_get(ctx, E, F), func, erop, t1, t2));
+            }
+            function INLINE_BINOP(func, erop) {
+                INLINE_BINOP_T(func, erop, LT_ALLOWNUM, LT_ALLOWNUM);
+            }
+            function INLINE_TRIOP(func, erop) {
+                LOAD_abcdefgh();
+                var_set(ctx, A, B, opi_triop(ctx, var_get(ctx, C, D), var_get(ctx, E, F), var_get(ctx, G, H), func, erop));
+            }
+            var A, B, C, D, E, F, G, H, I, J, X, Y, Z, W, ls, str, ops, _a, listcat, p, s, lx, p, sl, np, p, nat, hash, i, nat2, res, s, lx, p, sl, np, lx, lx2, p, p, p, res, p, err, p, p, p, p, p, p, p;
+            return __generator(this, function (_b) {
+                switch (_b.label) {
+                    case 0:
+                        if (ctx.passed)
+                            return [2, RUNDONE(run.PASS)];
                         if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                    }
-                    break;
-                case op_enum.TONUM:
-                    {
-                        LOAD_abcd();
-                        var_set(ctx, A, B, tonum(ctx, var_get(ctx, C, D)));
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                    }
-                    break;
-                case op_enum.CAT:
-                    {
-                        LOAD_abc();
-                        var listcat = C > 0;
-                        var p = [];
-                        for (D = 0; D < C; D++) {
-                            E = ops[ctx.pc++];
-                            F = ops[ctx.pc++];
-                            p.push(var_get(ctx, E, F));
-                            if (!islist(p[D]))
-                                listcat = false;
+                            return [2, RUNDONE(run.FAIL)];
+                        if (ctx.async)
+                            return [2, RUNDONE(run.ASYNC)];
+                        if (ctx.timeout > 0 && ctx.timeout_left <= 0) {
+                            ctx.timeout_left = ctx.timeout;
+                            return [2, RUNDONE(run.TIMEOUT)];
                         }
-                        if (listcat)
-                            var_set(ctx, A, B, opi_list_cat(ctx, p));
-                        else {
-                            var_set(ctx, A, B, str_cat(ctx, p));
+                        A = 0, B = 0, C = 0, D = 0, E = 0;
+                        F = 0, G = 0, H = 0, I = 0, J = 0;
+                        X = 0, Y = 0, Z = 0, W = 0;
+                        ops = ctx.prg.ops;
+                        _b.label = 1;
+                    case 1:
+                        if (!(ctx.pc < ops.length)) return [3, 160];
+                        ctx.lastpc = ctx.pc;
+                        _a = ops[ctx.pc];
+                        switch (_a) {
+                            case op_enum.NOP: return [3, 2];
+                            case op_enum.MOVE: return [3, 3];
+                            case op_enum.INC: return [3, 4];
+                            case op_enum.NIL: return [3, 5];
+                            case op_enum.NUMP8: return [3, 6];
+                            case op_enum.NUMN8: return [3, 7];
+                            case op_enum.NUMP16: return [3, 8];
+                            case op_enum.NUMN16: return [3, 9];
+                            case op_enum.NUMP32: return [3, 10];
+                            case op_enum.NUMN32: return [3, 11];
+                            case op_enum.NUMDBL: return [3, 12];
+                            case op_enum.STR: return [3, 13];
+                            case op_enum.LIST: return [3, 14];
+                            case op_enum.ISNUM: return [3, 15];
+                            case op_enum.ISSTR: return [3, 16];
+                            case op_enum.ISLIST: return [3, 17];
+                            case op_enum.NOT: return [3, 18];
+                            case op_enum.SIZE: return [3, 19];
+                            case op_enum.TONUM: return [3, 20];
+                            case op_enum.CAT: return [3, 21];
+                            case op_enum.LT: return [3, 22];
+                            case op_enum.LTE: return [3, 23];
+                            case op_enum.NEQ: return [3, 24];
+                            case op_enum.EQU: return [3, 25];
+                            case op_enum.GETAT: return [3, 26];
+                            case op_enum.SLICE: return [3, 27];
+                            case op_enum.SETAT: return [3, 28];
+                            case op_enum.SPLICE: return [3, 29];
+                            case op_enum.JUMP: return [3, 30];
+                            case op_enum.JUMPTRUE: return [3, 31];
+                            case op_enum.JUMPFALSE: return [3, 32];
+                            case op_enum.CMDTAIL: return [3, 33];
+                            case op_enum.CALL: return [3, 34];
+                            case op_enum.NATIVE: return [3, 35];
+                            case op_enum.RETURN: return [3, 37];
+                            case op_enum.RETURNTAIL: return [3, 38];
+                            case op_enum.RANGE: return [3, 39];
+                            case op_enum.ORDER: return [3, 40];
+                            case op_enum.SAY: return [3, 41];
+                            case op_enum.WARN: return [3, 43];
+                            case op_enum.ASK: return [3, 45];
+                            case op_enum.EXIT: return [3, 47];
+                            case op_enum.ABORT: return [3, 50];
+                            case op_enum.STACKTRACE: return [3, 51];
+                            case op_enum.NUM_NEG: return [3, 52];
+                            case op_enum.NUM_ADD: return [3, 53];
+                            case op_enum.NUM_SUB: return [3, 54];
+                            case op_enum.NUM_MUL: return [3, 55];
+                            case op_enum.NUM_DIV: return [3, 56];
+                            case op_enum.NUM_MOD: return [3, 57];
+                            case op_enum.NUM_POW: return [3, 58];
+                            case op_enum.NUM_ABS: return [3, 59];
+                            case op_enum.NUM_SIGN: return [3, 60];
+                            case op_enum.NUM_MAX: return [3, 61];
+                            case op_enum.NUM_MIN: return [3, 62];
+                            case op_enum.NUM_CLAMP: return [3, 63];
+                            case op_enum.NUM_FLOOR: return [3, 64];
+                            case op_enum.NUM_CEIL: return [3, 65];
+                            case op_enum.NUM_ROUND: return [3, 66];
+                            case op_enum.NUM_TRUNC: return [3, 67];
+                            case op_enum.NUM_NAN: return [3, 68];
+                            case op_enum.NUM_INF: return [3, 69];
+                            case op_enum.NUM_ISNAN: return [3, 70];
+                            case op_enum.NUM_ISFINITE: return [3, 71];
+                            case op_enum.NUM_SIN: return [3, 72];
+                            case op_enum.NUM_COS: return [3, 73];
+                            case op_enum.NUM_TAN: return [3, 74];
+                            case op_enum.NUM_ASIN: return [3, 75];
+                            case op_enum.NUM_ACOS: return [3, 76];
+                            case op_enum.NUM_ATAN: return [3, 77];
+                            case op_enum.NUM_ATAN2: return [3, 78];
+                            case op_enum.NUM_LOG: return [3, 79];
+                            case op_enum.NUM_LOG2: return [3, 80];
+                            case op_enum.NUM_LOG10: return [3, 81];
+                            case op_enum.NUM_EXP: return [3, 82];
+                            case op_enum.NUM_LERP: return [3, 83];
+                            case op_enum.NUM_HEX: return [3, 84];
+                            case op_enum.NUM_OCT: return [3, 85];
+                            case op_enum.NUM_BIN: return [3, 86];
+                            case op_enum.INT_NEW: return [3, 87];
+                            case op_enum.INT_NOT: return [3, 88];
+                            case op_enum.INT_AND: return [3, 89];
+                            case op_enum.INT_OR: return [3, 90];
+                            case op_enum.INT_XOR: return [3, 91];
+                            case op_enum.INT_SHL: return [3, 92];
+                            case op_enum.INT_SHR: return [3, 93];
+                            case op_enum.INT_SAR: return [3, 94];
+                            case op_enum.INT_ADD: return [3, 95];
+                            case op_enum.INT_SUB: return [3, 96];
+                            case op_enum.INT_MUL: return [3, 97];
+                            case op_enum.INT_DIV: return [3, 98];
+                            case op_enum.INT_MOD: return [3, 99];
+                            case op_enum.INT_CLZ: return [3, 100];
+                            case op_enum.INT_POP: return [3, 101];
+                            case op_enum.INT_BSWAP: return [3, 102];
+                            case op_enum.RAND_SEED: return [3, 103];
+                            case op_enum.RAND_SEEDAUTO: return [3, 104];
+                            case op_enum.RAND_INT: return [3, 105];
+                            case op_enum.RAND_NUM: return [3, 106];
+                            case op_enum.RAND_GETSTATE: return [3, 107];
+                            case op_enum.RAND_SETSTATE: return [3, 108];
+                            case op_enum.RAND_PICK: return [3, 109];
+                            case op_enum.RAND_SHUFFLE: return [3, 110];
+                            case op_enum.STR_NEW: return [3, 111];
+                            case op_enum.STR_SPLIT: return [3, 112];
+                            case op_enum.STR_REPLACE: return [3, 113];
+                            case op_enum.STR_BEGINS: return [3, 114];
+                            case op_enum.STR_ENDS: return [3, 115];
+                            case op_enum.STR_PAD: return [3, 116];
+                            case op_enum.STR_FIND: return [3, 117];
+                            case op_enum.STR_RFIND: return [3, 118];
+                            case op_enum.STR_LOWER: return [3, 119];
+                            case op_enum.STR_UPPER: return [3, 120];
+                            case op_enum.STR_TRIM: return [3, 121];
+                            case op_enum.STR_REV: return [3, 122];
+                            case op_enum.STR_REP: return [3, 123];
+                            case op_enum.STR_LIST: return [3, 124];
+                            case op_enum.STR_BYTE: return [3, 125];
+                            case op_enum.STR_HASH: return [3, 126];
+                            case op_enum.UTF8_VALID: return [3, 127];
+                            case op_enum.UTF8_LIST: return [3, 128];
+                            case op_enum.UTF8_STR: return [3, 129];
+                            case op_enum.STRUCT_SIZE: return [3, 130];
+                            case op_enum.STRUCT_STR: return [3, 131];
+                            case op_enum.STRUCT_LIST: return [3, 132];
+                            case op_enum.STRUCT_ISLE: return [3, 133];
+                            case op_enum.LIST_NEW: return [3, 134];
+                            case op_enum.LIST_SHIFT: return [3, 135];
+                            case op_enum.LIST_POP: return [3, 136];
+                            case op_enum.LIST_PUSH: return [3, 137];
+                            case op_enum.LIST_UNSHIFT: return [3, 138];
+                            case op_enum.LIST_APPEND: return [3, 139];
+                            case op_enum.LIST_PREPEND: return [3, 140];
+                            case op_enum.LIST_FIND: return [3, 141];
+                            case op_enum.LIST_RFIND: return [3, 142];
+                            case op_enum.LIST_JOIN: return [3, 143];
+                            case op_enum.LIST_REV: return [3, 144];
+                            case op_enum.LIST_STR: return [3, 145];
+                            case op_enum.LIST_SORT: return [3, 146];
+                            case op_enum.LIST_RSORT: return [3, 147];
+                            case op_enum.PICKLE_JSON: return [3, 148];
+                            case op_enum.PICKLE_BIN: return [3, 149];
+                            case op_enum.PICKLE_VAL: return [3, 150];
+                            case op_enum.PICKLE_VALID: return [3, 151];
+                            case op_enum.PICKLE_SIBLING: return [3, 152];
+                            case op_enum.PICKLE_CIRCULAR: return [3, 153];
+                            case op_enum.PICKLE_COPY: return [3, 154];
+                            case op_enum.GC_GETLEVEL: return [3, 155];
+                            case op_enum.GC_SETLEVEL: return [3, 156];
+                            case op_enum.GC_RUN: return [3, 157];
+                        }
+                        return [3, 158];
+                    case 2:
+                        {
+                            ctx.pc++;
+                        }
+                        return [3, 159];
+                    case 3:
+                        {
+                            LOAD_abcd();
+                            var_set(ctx, A, B, var_get(ctx, C, D));
+                        }
+                        return [3, 159];
+                    case 4:
+                        {
+                            LOAD_ab();
+                            X = var_get(ctx, A, B);
+                            if (!isnum(X))
+                                return [2, RUNDONE(opi_abort(ctx, 'Expecting number when incrementing'))];
+                            var_set(ctx, A, B, X + 1);
+                        }
+                        return [3, 159];
+                    case 5:
+                        {
+                            LOAD_ab();
+                            var_set(ctx, A, B, exports.NIL);
+                        }
+                        return [3, 159];
+                    case 6:
+                        {
+                            LOAD_abc();
+                            var_set(ctx, A, B, C);
+                        }
+                        return [3, 159];
+                    case 7:
+                        {
+                            LOAD_abc();
+                            var_set(ctx, A, B, C - 256);
+                        }
+                        return [3, 159];
+                    case 8:
+                        {
+                            LOAD_abcd();
+                            var_set(ctx, A, B, C | (D << 8));
+                        }
+                        return [3, 159];
+                    case 9:
+                        {
+                            LOAD_abcd();
+                            var_set(ctx, A, B, (C | (D << 8)) - 65536);
+                        }
+                        return [3, 159];
+                    case 10:
+                        {
+                            LOAD_abcdef();
+                            C |= (D << 8) | (E << 16) | (F << 24);
+                            if (C < 0)
+                                C += 4294967296;
+                            var_set(ctx, A, B, C);
+                        }
+                        return [3, 159];
+                    case 11:
+                        {
+                            LOAD_abcdef();
+                            C |= (D << 8) | (E << 16) | (F << 24);
+                            if (C < 0)
+                                C += 4294967296;
+                            var_set(ctx, A, B, C - 4294967296);
+                        }
+                        return [3, 159];
+                    case 12:
+                        {
+                            LOAD_abcdefghij();
+                            dview.setUint8(0, C);
+                            dview.setUint8(1, D);
+                            dview.setUint8(2, E);
+                            dview.setUint8(3, F);
+                            dview.setUint8(4, G);
+                            dview.setUint8(5, H);
+                            dview.setUint8(6, I);
+                            dview.setUint8(7, J);
+                            var_set(ctx, A, B, dview.getFloat64(0, true));
+                        }
+                        return [3, 159];
+                    case 13:
+                        {
+                            LOAD_abcdef();
+                            C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
+                            var_set(ctx, A, B, ctx.prg.strTable[C]);
+                        }
+                        return [3, 159];
+                    case 14:
+                        {
+                            LOAD_abc();
+                            var_set(ctx, A, B, new list());
+                        }
+                        return [3, 159];
+                    case 15:
+                        {
+                            LOAD_abcd();
+                            X = var_get(ctx, C, D);
+                            var_set(ctx, A, B, bool(isnum(X)));
+                        }
+                        return [3, 159];
+                    case 16:
+                        {
+                            LOAD_abcd();
+                            X = var_get(ctx, C, D);
+                            var_set(ctx, A, B, bool(isstr(X)));
+                        }
+                        return [3, 159];
+                    case 17:
+                        {
+                            LOAD_abcd();
+                            X = var_get(ctx, C, D);
+                            var_set(ctx, A, B, bool(islist(X)));
+                        }
+                        return [3, 159];
+                    case 18:
+                        {
+                            LOAD_abcd();
+                            X = var_get(ctx, C, D);
+                            var_set(ctx, A, B, bool(isfalse(X)));
+                        }
+                        return [3, 159];
+                    case 19:
+                        {
+                            LOAD_abcd();
+                            var_set(ctx, A, B, size(ctx, var_get(ctx, C, D)));
                             if (ctx.failed)
-                                return RUNDONE(run.FAIL);
+                                return [2, RUNDONE(run.FAIL)];
                         }
-                    }
-                    break;
-                case op_enum.LT:
-                    {
-                        LOAD_abcdef();
-                        X = var_get(ctx, C, D);
-                        Y = var_get(ctx, E, F);
-                        if ((isstr(X) && isstr(Y)) ||
-                            (isnum(X) && isnum(Y)))
-                            var_set(ctx, A, B, bool(X < Y));
-                        else
-                            return RUNDONE(opi_abort(ctx, 'Expecting numbers or strings'));
-                    }
-                    break;
-                case op_enum.LTE:
-                    {
-                        LOAD_abcdef();
-                        X = var_get(ctx, C, D);
-                        Y = var_get(ctx, E, F);
-                        if ((isstr(X) && isstr(Y)) ||
-                            (isnum(X) && isnum(Y)))
-                            var_set(ctx, A, B, bool(X <= Y));
-                        else
-                            return RUNDONE(opi_abort(ctx, 'Expecting numbers or strings'));
-                    }
-                    break;
-                case op_enum.NEQ:
-                    {
-                        LOAD_abcdef();
-                        X = var_get(ctx, C, D);
-                        Y = var_get(ctx, E, F);
-                        var_set(ctx, A, B, bool(X !== Y));
-                    }
-                    break;
-                case op_enum.EQU:
-                    {
-                        LOAD_abcdef();
-                        X = var_get(ctx, C, D);
-                        Y = var_get(ctx, E, F);
-                        var_set(ctx, A, B, bool(X === Y));
-                    }
-                    break;
-                case op_enum.GETAT:
-                    {
-                        LOAD_abcdef();
-                        X = var_get(ctx, C, D);
-                        if (!islist(X) && !isstr(X))
-                            return RUNDONE(opi_abort(ctx, 'Expecting list or string when indexing'));
-                        Y = var_get(ctx, E, F);
-                        if (!isnum(Y))
-                            return RUNDONE(opi_abort(ctx, 'Expecting index to be number'));
-                        I = Y;
-                        if (islist(X)) {
-                            ls = X;
-                            if (I < 0)
-                                I += ls.length;
-                            if (I < 0 || I >= ls.length)
-                                var_set(ctx, A, B, exports.NIL);
-                            else
-                                var_set(ctx, A, B, ls[I]);
+                        return [3, 159];
+                    case 20:
+                        {
+                            LOAD_abcd();
+                            var_set(ctx, A, B, tonum(ctx, var_get(ctx, C, D)));
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
                         }
-                        else {
-                            str = X;
-                            if (I < 0)
-                                I += str.length;
-                            if (I < 0 || I >= str.length)
-                                var_set(ctx, A, B, exports.NIL);
-                            else
-                                var_set(ctx, A, B, str.charAt(I));
-                        }
-                    }
-                    break;
-                case op_enum.SLICE:
-                    {
-                        LOAD_abcdefgh();
-                        X = var_get(ctx, C, D);
-                        Y = var_get(ctx, E, F);
-                        Z = var_get(ctx, G, H);
-                        if (islist(X))
-                            var_set(ctx, A, B, list_slice(ctx, X, Y, Z));
-                        else
-                            var_set(ctx, A, B, str_slice(ctx, X, Y, Z));
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                    }
-                    break;
-                case op_enum.SETAT:
-                    {
-                        LOAD_abcdef();
-                        X = var_get(ctx, A, B);
-                        if (!islist(X))
-                            return RUNDONE(opi_abort(ctx, 'Expecting list when setting index'));
-                        Y = var_get(ctx, C, D);
-                        if (!isnum(Y))
-                            return RUNDONE(opi_abort(ctx, 'Expecting index to be number'));
-                        ls = X;
-                        A = Y;
-                        if (A < 0)
-                            A += ls.length;
-                        while (ls.length < A + 1)
-                            ls.push(exports.NIL);
-                        if (A >= 0 && A < ls.length)
-                            ls[A] = var_get(ctx, E, F);
-                    }
-                    break;
-                case op_enum.SPLICE:
-                    {
-                        LOAD_abcdefgh();
-                        X = var_get(ctx, A, B);
-                        Y = var_get(ctx, C, D);
-                        Z = var_get(ctx, E, F);
-                        W = var_get(ctx, G, H);
-                        if (islist(X))
-                            list_splice(ctx, X, Y, Z, W);
-                        else if (isstr(X))
-                            var_set(ctx, A, B, str_splice(ctx, X, Y, Z, W));
-                        else
-                            return RUNDONE(opi_abort(ctx, 'Expecting list or string when splicing'));
-                    }
-                    break;
-                case op_enum.JUMP:
-                    {
-                        LOAD_abcd();
-                        A = A + (B << 8) + (C << 16) + ((D << 23) * 2);
-                        if (ctx.prg.repl && A === 0xFFFFFFFF) {
-                            ctx.pc -= 5;
-                            return RUNDONE(run.REPLMORE);
-                        }
-                        ctx.pc = A;
-                    }
-                    break;
-                case op_enum.JUMPTRUE:
-                    {
-                        LOAD_abcdef();
-                        C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
-                        if (var_get(ctx, A, B) !== null) {
-                            if (ctx.prg.repl && C === 0xFFFFFFFF) {
-                                ctx.pc -= 7;
-                                return RUNDONE(run.REPLMORE);
+                        return [3, 159];
+                    case 21:
+                        {
+                            LOAD_abc();
+                            listcat = C > 0;
+                            p = [];
+                            for (D = 0; D < C; D++) {
+                                E = ops[ctx.pc++];
+                                F = ops[ctx.pc++];
+                                p.push(var_get(ctx, E, F));
+                                if (!islist(p[D]))
+                                    listcat = false;
                             }
-                            ctx.pc = C;
-                        }
-                    }
-                    break;
-                case op_enum.JUMPFALSE:
-                    {
-                        LOAD_abcdef();
-                        C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
-                        if (var_get(ctx, A, B) === null) {
-                            if (ctx.prg.repl && C === 0xFFFFFFFF) {
-                                ctx.pc -= 7;
-                                return RUNDONE(run.REPLMORE);
+                            if (listcat)
+                                var_set(ctx, A, B, opi_list_cat(ctx, p));
+                            else {
+                                var_set(ctx, A, B, str_cat(ctx, p));
+                                if (ctx.failed)
+                                    return [2, RUNDONE(run.FAIL)];
                             }
-                            ctx.pc = C;
                         }
-                    }
-                    break;
-                case op_enum.CMDTAIL:
-                    {
-                        var s = ctx.call_stk.pop();
-                        var lx = ctx.lex_stk[ctx.lex_index];
-                        ctx.lex_stk[ctx.lex_index] = lx.next;
-                        lxs_release(ctx, lx);
-                        ctx.lex_index = s.lex_index;
-                        var_set(ctx, s.frame, s.index, exports.NIL);
-                        ctx.pc = s.pc;
-                        ccs_release(ctx, s);
-                    }
-                    break;
-                case op_enum.CALL:
-                    {
-                        LOAD_abcdefg();
-                        C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
-                        if (C === 0xFFFFFFFF) {
-                            ctx.pc -= 8;
-                            return RUNDONE(run.REPLMORE);
+                        return [3, 159];
+                    case 22:
+                        {
+                            LOAD_abcdef();
+                            X = var_get(ctx, C, D);
+                            Y = var_get(ctx, E, F);
+                            if ((isstr(X) && isstr(Y)) ||
+                                (isnum(X) && isnum(Y)))
+                                var_set(ctx, A, B, bool(X < Y));
+                            else
+                                return [2, RUNDONE(opi_abort(ctx, 'Expecting numbers or strings'))];
                         }
-                        var p = [];
-                        for (I = 0; I < G; I++) {
-                            E = ops[ctx.pc++];
-                            F = ops[ctx.pc++];
-                            p.push(var_get(ctx, E, F));
+                        return [3, 159];
+                    case 23:
+                        {
+                            LOAD_abcdef();
+                            X = var_get(ctx, C, D);
+                            Y = var_get(ctx, E, F);
+                            if ((isstr(X) && isstr(Y)) ||
+                                (isnum(X) && isnum(Y)))
+                                var_set(ctx, A, B, bool(X <= Y));
+                            else
+                                return [2, RUNDONE(opi_abort(ctx, 'Expecting numbers or strings'))];
                         }
-                        ctx.call_stk.push(ccs_get(ctx, ctx.pc, A, B, ctx.lex_index));
-                        ctx.pc = C - 1;
-                        LOAD_abc();
-                        if (C !== 0xFF) {
-                            if (G <= C) {
-                                while (G < C)
-                                    p[G++] = exports.NIL;
-                                p[G] = new list();
+                        return [3, 159];
+                    case 24:
+                        {
+                            LOAD_abcdef();
+                            X = var_get(ctx, C, D);
+                            Y = var_get(ctx, E, F);
+                            var_set(ctx, A, B, bool(X !== Y));
+                        }
+                        return [3, 159];
+                    case 25:
+                        {
+                            LOAD_abcdef();
+                            X = var_get(ctx, C, D);
+                            Y = var_get(ctx, E, F);
+                            var_set(ctx, A, B, bool(X === Y));
+                        }
+                        return [3, 159];
+                    case 26:
+                        {
+                            LOAD_abcdef();
+                            X = var_get(ctx, C, D);
+                            if (!islist(X) && !isstr(X))
+                                return [2, RUNDONE(opi_abort(ctx, 'Expecting list or string when indexing'))];
+                            Y = var_get(ctx, E, F);
+                            if (!isnum(Y))
+                                return [2, RUNDONE(opi_abort(ctx, 'Expecting index to be number'))];
+                            I = Y;
+                            if (islist(X)) {
+                                ls = X;
+                                if (I < 0)
+                                    I += ls.length;
+                                if (I < 0 || I >= ls.length)
+                                    var_set(ctx, A, B, exports.NIL);
+                                else
+                                    var_set(ctx, A, B, ls[I]);
                             }
                             else {
-                                var sl = p.slice(C, G);
-                                var np = new list();
-                                np.push.apply(np, sl);
-                                p[C] = np;
+                                str = X;
+                                if (I < 0)
+                                    I += str.length;
+                                if (I < 0 || I >= str.length)
+                                    var_set(ctx, A, B, exports.NIL);
+                                else
+                                    var_set(ctx, A, B, str.charAt(I));
                             }
-                            G = C + 1;
                         }
-                        ctx.lex_index = B;
-                        while (ctx.lex_index >= ctx.lex_stk.length)
-                            ctx.lex_stk.push(null);
-                        ctx.lex_stk[ctx.lex_index] = lxs_get(ctx, p, ctx.lex_stk[ctx.lex_index]);
-                    }
-                    break;
-                case op_enum.NATIVE:
-                    {
+                        return [3, 159];
+                    case 27:
+                        {
+                            LOAD_abcdefgh();
+                            X = var_get(ctx, C, D);
+                            Y = var_get(ctx, E, F);
+                            Z = var_get(ctx, G, H);
+                            if (islist(X))
+                                var_set(ctx, A, B, list_slice(ctx, X, Y, Z));
+                            else
+                                var_set(ctx, A, B, str_slice(ctx, X, Y, Z));
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                        }
+                        return [3, 159];
+                    case 28:
+                        {
+                            LOAD_abcdef();
+                            X = var_get(ctx, A, B);
+                            if (!islist(X))
+                                return [2, RUNDONE(opi_abort(ctx, 'Expecting list when setting index'))];
+                            Y = var_get(ctx, C, D);
+                            if (!isnum(Y))
+                                return [2, RUNDONE(opi_abort(ctx, 'Expecting index to be number'))];
+                            ls = X;
+                            A = Y;
+                            if (A < 0)
+                                A += ls.length;
+                            while (ls.length < A + 1)
+                                ls.push(exports.NIL);
+                            if (A >= 0 && A < ls.length)
+                                ls[A] = var_get(ctx, E, F);
+                        }
+                        return [3, 159];
+                    case 29:
+                        {
+                            LOAD_abcdefgh();
+                            X = var_get(ctx, A, B);
+                            Y = var_get(ctx, C, D);
+                            Z = var_get(ctx, E, F);
+                            W = var_get(ctx, G, H);
+                            if (islist(X))
+                                list_splice(ctx, X, Y, Z, W);
+                            else if (isstr(X))
+                                var_set(ctx, A, B, str_splice(ctx, X, Y, Z, W));
+                            else
+                                return [2, RUNDONE(opi_abort(ctx, 'Expecting list or string when splicing'))];
+                        }
+                        return [3, 159];
+                    case 30:
+                        {
+                            LOAD_abcd();
+                            A = A + (B << 8) + (C << 16) + ((D << 23) * 2);
+                            if (ctx.prg.repl && A === 0xFFFFFFFF) {
+                                ctx.pc -= 5;
+                                return [2, RUNDONE(run.REPLMORE)];
+                            }
+                            ctx.pc = A;
+                        }
+                        return [3, 159];
+                    case 31:
+                        {
+                            LOAD_abcdef();
+                            C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
+                            if (var_get(ctx, A, B) !== null) {
+                                if (ctx.prg.repl && C === 0xFFFFFFFF) {
+                                    ctx.pc -= 7;
+                                    return [2, RUNDONE(run.REPLMORE)];
+                                }
+                                ctx.pc = C;
+                            }
+                        }
+                        return [3, 159];
+                    case 32:
+                        {
+                            LOAD_abcdef();
+                            C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
+                            if (var_get(ctx, A, B) === null) {
+                                if (ctx.prg.repl && C === 0xFFFFFFFF) {
+                                    ctx.pc -= 7;
+                                    return [2, RUNDONE(run.REPLMORE)];
+                                }
+                                ctx.pc = C;
+                            }
+                        }
+                        return [3, 159];
+                    case 33:
+                        {
+                            s = ctx.call_stk.pop();
+                            lx = ctx.lex_stk[ctx.lex_index];
+                            ctx.lex_stk[ctx.lex_index] = lx.next;
+                            lxs_release(ctx, lx);
+                            ctx.lex_index = s.lex_index;
+                            var_set(ctx, s.frame, s.index, exports.NIL);
+                            ctx.pc = s.pc;
+                            ccs_release(ctx, s);
+                        }
+                        return [3, 159];
+                    case 34:
+                        {
+                            LOAD_abcdefg();
+                            C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
+                            if (C === 0xFFFFFFFF) {
+                                ctx.pc -= 8;
+                                return [2, RUNDONE(run.REPLMORE)];
+                            }
+                            p = [];
+                            for (I = 0; I < G; I++) {
+                                E = ops[ctx.pc++];
+                                F = ops[ctx.pc++];
+                                p.push(var_get(ctx, E, F));
+                            }
+                            ctx.call_stk.push(ccs_get(ctx, ctx.pc, A, B, ctx.lex_index));
+                            ctx.pc = C - 1;
+                            LOAD_abc();
+                            if (C !== 0xFF) {
+                                if (G <= C) {
+                                    while (G < C)
+                                        p[G++] = exports.NIL;
+                                    p[G] = new list();
+                                }
+                                else {
+                                    sl = p.slice(C, G);
+                                    np = new list();
+                                    np.push.apply(np, sl);
+                                    p[C] = np;
+                                }
+                                G = C + 1;
+                            }
+                            ctx.lex_index = B;
+                            while (ctx.lex_index >= ctx.lex_stk.length)
+                                ctx.lex_stk.push(null);
+                            ctx.lex_stk[ctx.lex_index] = lxs_get(ctx, p, ctx.lex_stk[ctx.lex_index]);
+                        }
+                        return [3, 159];
+                    case 35:
                         LOAD_abcdefg();
-                        var p = [];
+                        p = [];
                         for (I = 0; I < G; I++) {
                             J = ops[ctx.pc++];
                             H = ops[ctx.pc++];
                             p.push(var_get(ctx, J, H));
                         }
                         C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
-                        var nat = null;
+                        nat = null;
                         if (ctx.prg.repl) {
-                            var hash = ctx.prg.keyTable[C];
-                            for (var i = 0; i < ctx.natives.length; i++) {
-                                var nat2 = ctx.natives[i];
+                            hash = ctx.prg.keyTable[C];
+                            for (i = 0; i < ctx.natives.length; i++) {
+                                nat2 = ctx.natives[i];
                                 if (u64_equ(nat2.hash, hash)) {
                                     nat = nat2;
                                     break;
@@ -9637,1223 +10020,1151 @@ var __extends = (this && this.__extends) || (function () {
                         else
                             nat = ctx.natives[C];
                         if (nat === null || nat.f_native === null)
-                            return RUNDONE(opi_abort(ctx, 'Native call not implemented'));
-                        var nr = null;
-                        try {
-                            nr = nat.f_native(ctx, p, nat.natuser);
-                        }
-                        catch (e) {
-                            return RUNDONE(opi_abort(ctx, '' + e));
-                        }
-                        if (isPromise(nr)) {
-                            ctx.async = true;
-                            nr.then(function (res) {
-                                ctx.async = false;
-                                var_set(ctx, A, B, res);
-                                context_run(ctx, f_rundone);
-                            }, function (err) {
-                                ctx.async = false;
-                                RUNDONE(opi_abort(ctx, '' + err));
-                            });
-                            return;
-                        }
+                            return [2, RUNDONE(opi_abort(ctx, 'Native call not implemented'))];
+                        ctx.async = true;
+                        return [4, nat.f_native(ctx, p, nat.natuser)];
+                    case 36:
+                        res = _b.sent();
+                        ctx.async = false;
                         if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                        var_set(ctx, A, B, nr);
-                    }
-                    break;
-                case op_enum.RETURN:
-                    {
-                        if (ctx.call_stk.length <= 0)
-                            return RUNDONE(opi_exit(ctx));
-                        LOAD_ab();
-                        X = var_get(ctx, A, B);
-                        var s = ctx.call_stk.pop();
-                        var lx = ctx.lex_stk[ctx.lex_index];
-                        ctx.lex_stk[ctx.lex_index] = lx.next;
-                        lxs_release(ctx, lx);
-                        ctx.lex_index = s.lex_index;
-                        var_set(ctx, s.frame, s.index, X);
-                        ctx.pc = s.pc;
-                        ccs_release(ctx, s);
-                    }
-                    break;
-                case op_enum.RETURNTAIL:
-                    {
-                        LOAD_abcde();
-                        A = A + (B << 8) + (C << 16) + ((D << 23) * 2);
-                        if (A === 0xFFFFFFFF) {
-                            ctx.pc -= 6;
-                            return RUNDONE(run.REPLMORE);
+                            return [2, RUNDONE(run.FAIL)];
+                        var_set(ctx, A, B, res);
+                        return [3, 159];
+                    case 37:
+                        {
+                            if (ctx.call_stk.length <= 0)
+                                return [2, RUNDONE(opi_exit(ctx))];
+                            LOAD_ab();
+                            X = var_get(ctx, A, B);
+                            s = ctx.call_stk.pop();
+                            lx = ctx.lex_stk[ctx.lex_index];
+                            ctx.lex_stk[ctx.lex_index] = lx.next;
+                            lxs_release(ctx, lx);
+                            ctx.lex_index = s.lex_index;
+                            var_set(ctx, s.frame, s.index, X);
+                            ctx.pc = s.pc;
+                            ccs_release(ctx, s);
                         }
-                        var p = [];
-                        for (I = 0; I < E; I++) {
-                            G = ops[ctx.pc++];
-                            H = ops[ctx.pc++];
-                            p.push(var_get(ctx, G, H));
+                        return [3, 159];
+                    case 38:
+                        {
+                            LOAD_abcde();
+                            A = A + (B << 8) + (C << 16) + ((D << 23) * 2);
+                            if (A === 0xFFFFFFFF) {
+                                ctx.pc -= 6;
+                                return [2, RUNDONE(run.REPLMORE)];
+                            }
+                            p = [];
+                            for (I = 0; I < E; I++) {
+                                G = ops[ctx.pc++];
+                                H = ops[ctx.pc++];
+                                p.push(var_get(ctx, G, H));
+                            }
+                            ctx.pc = A - 1;
+                            LOAD_abc();
+                            if (C !== 0xFF) {
+                                if (E <= C) {
+                                    while (E < C)
+                                        p[E++] = exports.NIL;
+                                    p[E] = new list();
+                                }
+                                else {
+                                    sl = p.slice(C, E);
+                                    np = new list();
+                                    np.push.apply(np, sl);
+                                    p[C] = np;
+                                }
+                                E = C + 1;
+                            }
+                            lx = ctx.lex_stk[ctx.lex_index];
+                            lx2 = lx.next;
+                            lxs_release(ctx, lx);
+                            ctx.lex_stk[ctx.lex_index] = lxs_get(ctx, p, lx2);
                         }
-                        ctx.pc = A - 1;
+                        return [3, 159];
+                    case 39:
+                        {
+                            LOAD_abcdefgh();
+                            X = var_get(ctx, C, D);
+                            Y = var_get(ctx, E, F);
+                            Z = var_get(ctx, G, H);
+                            if (!isnum(X))
+                                return [2, RUNDONE(opi_abort(ctx, 'Expecting number for range'))];
+                            if (isnum(Y)) {
+                                if (isnil(Z))
+                                    Z = 1;
+                                if (!isnum(Z))
+                                    return [2, RUNDONE(opi_abort(ctx, 'Expecting number for range step'))];
+                                X = range(ctx, X, Y, Z);
+                            }
+                            else if (isnil(Y)) {
+                                if (!isnil(Z))
+                                    return [2, RUNDONE(opi_abort(ctx, 'Expecting number for range stop'))];
+                                X = range(ctx, 0, X, 1);
+                            }
+                            else
+                                return [2, RUNDONE(opi_abort(ctx, 'Expecting number for range stop'))];
+                            var_set(ctx, A, B, X);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                        }
+                        return [3, 159];
+                    case 40:
+                        {
+                            LOAD_abcdef();
+                            X = var_get(ctx, C, D);
+                            Y = var_get(ctx, E, F);
+                            var_set(ctx, A, B, order(ctx, X, Y));
+                        }
+                        return [3, 159];
+                    case 41:
                         LOAD_abc();
-                        if (C !== 0xFF) {
-                            if (E <= C) {
-                                while (E < C)
-                                    p[E++] = exports.NIL;
-                                p[E] = new list();
-                            }
-                            else {
-                                var sl = p.slice(C, E);
-                                var np = new list();
-                                np.push.apply(np, sl);
-                                p[C] = np;
-                            }
-                            E = C + 1;
+                        p = [];
+                        for (D = 0; D < C; D++) {
+                            E = ops[ctx.pc++];
+                            F = ops[ctx.pc++];
+                            p.push(var_get(ctx, E, F));
                         }
-                        var lx = ctx.lex_stk[ctx.lex_index];
-                        var lx2 = lx.next;
-                        lxs_release(ctx, lx);
-                        ctx.lex_stk[ctx.lex_index] = lxs_get(ctx, p, lx2);
-                    }
-                    break;
-                case op_enum.RANGE:
-                    {
-                        LOAD_abcdefgh();
-                        X = var_get(ctx, C, D);
-                        Y = var_get(ctx, E, F);
-                        Z = var_get(ctx, G, H);
-                        if (!isnum(X))
-                            return RUNDONE(opi_abort(ctx, 'Expecting number for range'));
-                        if (isnum(Y)) {
-                            if (isnil(Z))
-                                Z = 1;
-                            if (!isnum(Z))
-                                return RUNDONE(opi_abort(ctx, 'Expecting number for range step'));
-                            X = range(ctx, X, Y, Z);
+                        ctx.async = true;
+                        return [4, say(ctx, p)];
+                    case 42:
+                        _b.sent();
+                        ctx.async = false;
+                        var_set(ctx, A, B, exports.NIL);
+                        if (ctx.failed)
+                            return [2, RUNDONE(run.FAIL)];
+                        return [3, 159];
+                    case 43:
+                        LOAD_abc();
+                        p = [];
+                        for (D = 0; D < C; D++) {
+                            E = ops[ctx.pc++];
+                            F = ops[ctx.pc++];
+                            p.push(var_get(ctx, E, F));
                         }
-                        else if (isnil(Y)) {
-                            if (!isnil(Z))
-                                return RUNDONE(opi_abort(ctx, 'Expecting number for range stop'));
-                            X = range(ctx, 0, X, 1);
+                        ctx.async = true;
+                        return [4, warn(ctx, p)];
+                    case 44:
+                        _b.sent();
+                        ctx.async = false;
+                        var_set(ctx, A, B, exports.NIL);
+                        if (ctx.failed)
+                            return [2, RUNDONE(run.FAIL)];
+                        return [3, 159];
+                    case 45:
+                        LOAD_abc();
+                        p = [];
+                        for (D = 0; D < C; D++) {
+                            E = ops[ctx.pc++];
+                            F = ops[ctx.pc++];
+                            p.push(var_get(ctx, E, F));
+                        }
+                        ctx.async = true;
+                        return [4, ask(ctx, p)];
+                    case 46:
+                        res = _b.sent();
+                        ctx.async = false;
+                        if (ctx.failed) {
+                            var_set(ctx, A, B, exports.NIL);
+                            return [2, RUNDONE(run.FAIL)];
                         }
                         else
-                            return RUNDONE(opi_abort(ctx, 'Expecting number for range stop'));
-                        var_set(ctx, A, B, X);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                    }
-                    break;
-                case op_enum.ORDER:
-                    {
-                        LOAD_abcdef();
-                        X = var_get(ctx, C, D);
-                        Y = var_get(ctx, E, F);
-                        var_set(ctx, A, B, order(ctx, X, Y));
-                    }
-                    break;
-                case op_enum.SAY:
-                    {
+                            var_set(ctx, A, B, res);
+                        return [3, 159];
+                    case 47:
                         LOAD_abc();
-                        var p = [];
+                        if (!(C > 0)) return [3, 49];
+                        p = [];
                         for (D = 0; D < C; D++) {
                             E = ops[ctx.pc++];
                             F = ops[ctx.pc++];
                             p.push(var_get(ctx, E, F));
                         }
-                        var res = void 0;
-                        try {
-                            res = say(ctx, p);
-                        }
-                        catch (e) {
-                            return RUNDONE(opi_abort(ctx, '' + e));
-                        }
-                        if (isPromise(res)) {
-                            ctx.async = true;
-                            res.then(function () {
-                                ctx.async = false;
-                                var_set(ctx, A, B, exports.NIL);
-                                context_run(ctx, f_rundone);
-                            }, function (err) {
-                                ctx.async = false;
-                                RUNDONE(opi_abort(ctx, '' + err));
-                            });
-                            return;
-                        }
-                        var_set(ctx, A, B, exports.NIL);
+                        ctx.async = true;
+                        return [4, say(ctx, p)];
+                    case 48:
+                        _b.sent();
+                        ctx.async = false;
                         if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                    }
-                    break;
-                case op_enum.WARN:
-                    {
-                        LOAD_abc();
-                        var p = [];
-                        for (D = 0; D < C; D++) {
-                            E = ops[ctx.pc++];
-                            F = ops[ctx.pc++];
-                            p.push(var_get(ctx, E, F));
+                            return [2, RUNDONE(run.FAIL)];
+                        _b.label = 49;
+                    case 49: return [2, RUNDONE(opi_exit(ctx))];
+                    case 50:
+                        {
+                            LOAD_abc();
+                            err = null;
+                            if (C > 0) {
+                                p = [];
+                                for (D = 0; D < C; D++) {
+                                    E = ops[ctx.pc++];
+                                    F = ops[ctx.pc++];
+                                    p.push(var_get(ctx, E, F));
+                                }
+                                err = list_joinplain(p, ' ');
+                            }
+                            return [2, RUNDONE(opi_abort(ctx, err))];
                         }
-                        var res = void 0;
-                        try {
-                            res = warn(ctx, p);
+                        _b.label = 51;
+                    case 51:
+                        {
+                            LOAD_ab();
+                            var_set(ctx, A, B, stacktrace(ctx));
                         }
-                        catch (e) {
-                            return RUNDONE(opi_abort(ctx, '' + e));
+                        return [3, 159];
+                    case 52:
+                        {
+                            INLINE_UNOP(unop_num_neg, txt_num_neg);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
                         }
-                        if (isPromise(res)) {
-                            ctx.async = true;
-                            res.then(function () {
-                                ctx.async = false;
-                                var_set(ctx, A, B, exports.NIL);
-                                context_run(ctx, f_rundone);
-                            }, function (err) {
-                                ctx.async = false;
-                                RUNDONE(opi_abort(ctx, '' + err));
-                            });
-                            return;
+                        return [3, 159];
+                    case 53:
+                        {
+                            INLINE_BINOP(binop_num_add, txt_num_add);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
                         }
-                        var_set(ctx, A, B, exports.NIL);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                    }
-                    break;
-                case op_enum.ASK:
-                    {
-                        LOAD_abc();
-                        var p = [];
-                        for (D = 0; D < C; D++) {
-                            E = ops[ctx.pc++];
-                            F = ops[ctx.pc++];
-                            p.push(var_get(ctx, E, F));
+                        return [3, 159];
+                    case 54:
+                        {
+                            INLINE_BINOP(binop_num_sub, txt_num_sub);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
                         }
-                        var res = null;
-                        try {
-                            res = ask(ctx, p);
+                        return [3, 159];
+                    case 55:
+                        {
+                            INLINE_BINOP(binop_num_mul, txt_num_mul);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
                         }
-                        catch (e) {
-                            return RUNDONE(opi_abort(ctx, '' + e));
+                        return [3, 159];
+                    case 56:
+                        {
+                            INLINE_BINOP(binop_num_div, txt_num_div);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
                         }
-                        if (isPromise(res)) {
-                            ctx.async = true;
-                            res.then(function (v) {
-                                ctx.async = false;
-                                var_set(ctx, A, B, v);
-                                context_run(ctx, f_rundone);
-                            }, function (err) {
-                                ctx.async = false;
-                                RUNDONE(opi_abort(ctx, '' + err));
-                            });
-                            return;
+                        return [3, 159];
+                    case 57:
+                        {
+                            INLINE_BINOP(binop_num_mod, txt_num_mod);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
                         }
-                        var_set(ctx, A, B, res);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                    }
-                    break;
-                case op_enum.EXIT: {
-                    LOAD_abc();
-                    if (C > 0) {
-                        var p = [];
-                        for (D = 0; D < C; D++) {
-                            E = ops[ctx.pc++];
-                            F = ops[ctx.pc++];
-                            p.push(var_get(ctx, E, F));
+                        return [3, 159];
+                    case 58:
+                        {
+                            INLINE_BINOP(binop_num_pow, txt_num_pow);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
                         }
-                        var res = void 0;
-                        try {
-                            res = say(ctx, p);
+                        return [3, 159];
+                    case 59:
+                        {
+                            INLINE_UNOP(unop_num_abs, txt_num_abs);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
                         }
-                        catch (e) {
-                            return RUNDONE(opi_abort(ctx, '' + e));
+                        return [3, 159];
+                    case 60:
+                        {
+                            INLINE_UNOP(unop_num_sign, txt_num_sign);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
                         }
-                        if (isPromise(res)) {
-                            ctx.async = true;
-                            res.then(function () {
-                                ctx.async = false;
-                                RUNDONE(opi_exit(ctx));
-                            }, function (err) {
-                                ctx.async = false;
-                                RUNDONE(opi_abort(ctx, '' + err));
-                            });
-                            return;
+                        return [3, 159];
+                    case 61:
+                        {
+                            LOAD_abc();
+                            p = [];
+                            for (D = 0; D < C; D++) {
+                                E = ops[ctx.pc++];
+                                F = ops[ctx.pc++];
+                                p.push(var_get(ctx, E, F));
+                            }
+                            var_set(ctx, A, B, opi_num_max(p));
                         }
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                    }
-                    return RUNDONE(opi_exit(ctx));
+                        return [3, 159];
+                    case 62:
+                        {
+                            LOAD_abc();
+                            p = [];
+                            for (D = 0; D < C; D++) {
+                                E = ops[ctx.pc++];
+                                F = ops[ctx.pc++];
+                                p.push(var_get(ctx, E, F));
+                            }
+                            var_set(ctx, A, B, opi_num_min(p));
+                        }
+                        return [3, 159];
+                    case 63:
+                        {
+                            INLINE_TRIOP(triop_num_clamp, txt_num_clamp);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                        }
+                        return [3, 159];
+                    case 64:
+                        {
+                            INLINE_UNOP(unop_num_floor, txt_num_floor);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                        }
+                        return [3, 159];
+                    case 65:
+                        {
+                            INLINE_UNOP(unop_num_ceil, txt_num_ceil);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                        }
+                        return [3, 159];
+                    case 66:
+                        {
+                            INLINE_UNOP(unop_num_round, txt_num_round);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                        }
+                        return [3, 159];
+                    case 67:
+                        {
+                            INLINE_UNOP(unop_num_trunc, txt_num_trunc);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                        }
+                        return [3, 159];
+                    case 68:
+                        {
+                            LOAD_ab();
+                            var_set(ctx, A, B, num_nan());
+                        }
+                        return [3, 159];
+                    case 69:
+                        {
+                            LOAD_ab();
+                            var_set(ctx, A, B, num_inf());
+                        }
+                        return [3, 159];
+                    case 70:
+                        {
+                            INLINE_UNOP(unop_num_isnan, txt_num_isnan);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                        }
+                        return [3, 159];
+                    case 71:
+                        {
+                            INLINE_UNOP(unop_num_isfinite, txt_num_isfinite);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                        }
+                        return [3, 159];
+                    case 72:
+                        {
+                            INLINE_UNOP(unop_num_sin, txt_num_sin);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                        }
+                        return [3, 159];
+                    case 73:
+                        {
+                            INLINE_UNOP(unop_num_cos, txt_num_cos);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                        }
+                        return [3, 159];
+                    case 74:
+                        {
+                            INLINE_UNOP(unop_num_tan, txt_num_tan);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                        }
+                        return [3, 159];
+                    case 75:
+                        {
+                            INLINE_UNOP(unop_num_asin, txt_num_asin);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                        }
+                        return [3, 159];
+                    case 76:
+                        {
+                            INLINE_UNOP(unop_num_acos, txt_num_acos);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                        }
+                        return [3, 159];
+                    case 77:
+                        {
+                            INLINE_UNOP(unop_num_atan, txt_num_atan);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                        }
+                        return [3, 159];
+                    case 78:
+                        {
+                            INLINE_BINOP(binop_num_atan2, txt_num_atan);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                        }
+                        return [3, 159];
+                    case 79:
+                        {
+                            INLINE_UNOP(unop_num_log, txt_num_log);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                        }
+                        return [3, 159];
+                    case 80:
+                        {
+                            INLINE_UNOP(unop_num_log2, txt_num_log);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                        }
+                        return [3, 159];
+                    case 81:
+                        {
+                            INLINE_UNOP(unop_num_log10, txt_num_log);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                        }
+                        return [3, 159];
+                    case 82:
+                        {
+                            INLINE_UNOP(unop_num_exp, txt_num_pow);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                        }
+                        return [3, 159];
+                    case 83:
+                        {
+                            INLINE_TRIOP(triop_num_lerp, txt_num_lerp);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                        }
+                        return [3, 159];
+                    case 84:
+                        {
+                            INLINE_BINOP_T(binop_num_hex, txt_num_hex, LT_ALLOWNUM, LT_ALLOWNUM | LT_ALLOWNIL);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                        }
+                        return [3, 159];
+                    case 85:
+                        {
+                            INLINE_BINOP_T(binop_num_oct, txt_num_oct, LT_ALLOWNUM, LT_ALLOWNUM | LT_ALLOWNIL);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                        }
+                        return [3, 159];
+                    case 86:
+                        {
+                            INLINE_BINOP_T(binop_num_bin, txt_num_bin, LT_ALLOWNUM, LT_ALLOWNUM | LT_ALLOWNIL);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                        }
+                        return [3, 159];
+                    case 87:
+                        {
+                            INLINE_UNOP(unop_int_new, txt_int_new);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                        }
+                        return [3, 159];
+                    case 88:
+                        {
+                            INLINE_UNOP(unop_int_not, txt_int_not);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                        }
+                        return [3, 159];
+                    case 89:
+                        {
+                            LOAD_abc();
+                            p = [];
+                            for (D = 0; D < C; D++) {
+                                E = ops[ctx.pc++];
+                                F = ops[ctx.pc++];
+                                p.push(var_get(ctx, E, F));
+                            }
+                            X = opi_combop(ctx, p, binop_int_and, txt_int_and);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                            var_set(ctx, A, B, X);
+                        }
+                        return [3, 159];
+                    case 90:
+                        {
+                            LOAD_abc();
+                            p = [];
+                            for (D = 0; D < C; D++) {
+                                E = ops[ctx.pc++];
+                                F = ops[ctx.pc++];
+                                p.push(var_get(ctx, E, F));
+                            }
+                            X = opi_combop(ctx, p, binop_int_or, txt_int_or);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                            var_set(ctx, A, B, X);
+                        }
+                        return [3, 159];
+                    case 91:
+                        {
+                            LOAD_abc();
+                            p = [];
+                            for (D = 0; D < C; D++) {
+                                E = ops[ctx.pc++];
+                                F = ops[ctx.pc++];
+                                p.push(var_get(ctx, E, F));
+                            }
+                            X = opi_combop(ctx, p, binop_int_xor, txt_int_xor);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                            var_set(ctx, A, B, X);
+                        }
+                        return [3, 159];
+                    case 92:
+                        {
+                            INLINE_BINOP(binop_int_shl, txt_int_shl);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                        }
+                        return [3, 159];
+                    case 93:
+                        {
+                            INLINE_BINOP(binop_int_shr, txt_int_shr);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                        }
+                        return [3, 159];
+                    case 94:
+                        {
+                            INLINE_BINOP(binop_int_sar, txt_int_shr);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                        }
+                        return [3, 159];
+                    case 95:
+                        {
+                            INLINE_BINOP(binop_int_add, txt_num_add);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                        }
+                        return [3, 159];
+                    case 96:
+                        {
+                            INLINE_BINOP(binop_int_sub, txt_num_sub);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                        }
+                        return [3, 159];
+                    case 97:
+                        {
+                            INLINE_BINOP(binop_int_mul, txt_num_mul);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                        }
+                        return [3, 159];
+                    case 98:
+                        {
+                            INLINE_BINOP(binop_int_div, txt_num_div);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                        }
+                        return [3, 159];
+                    case 99:
+                        {
+                            INLINE_BINOP(binop_int_mod, txt_num_mod);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                        }
+                        return [3, 159];
+                    case 100:
+                        {
+                            INLINE_UNOP(unop_int_clz, txt_int_clz);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                        }
+                        return [3, 159];
+                    case 101:
+                        {
+                            INLINE_UNOP(unop_int_pop, txt_int_pop);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                        }
+                        return [3, 159];
+                    case 102:
+                        {
+                            INLINE_UNOP(unop_int_bswap, txt_int_bswap);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                        }
+                        return [3, 159];
+                    case 103:
+                        {
+                            LOAD_abcd();
+                            X = var_get(ctx, C, D);
+                            if (isnil(X))
+                                X = 0;
+                            else if (!isnum(X))
+                                return [2, RUNDONE(opi_abort(ctx, 'Expecting number'))];
+                            rand_seed(ctx, X);
+                            var_set(ctx, A, B, exports.NIL);
+                        }
+                        return [3, 159];
+                    case 104:
+                        {
+                            LOAD_ab();
+                            rand_seedauto(ctx);
+                            var_set(ctx, A, B, exports.NIL);
+                        }
+                        return [3, 159];
+                    case 105:
+                        {
+                            LOAD_ab();
+                            var_set(ctx, A, B, rand_int(ctx));
+                        }
+                        return [3, 159];
+                    case 106:
+                        {
+                            LOAD_ab();
+                            var_set(ctx, A, B, rand_num(ctx));
+                        }
+                        return [3, 159];
+                    case 107:
+                        {
+                            LOAD_ab();
+                            var_set(ctx, A, B, rand_getstate(ctx));
+                        }
+                        return [3, 159];
+                    case 108:
+                        {
+                            LOAD_abcd();
+                            rand_setstate(ctx, var_get(ctx, C, D));
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                            var_set(ctx, A, B, exports.NIL);
+                        }
+                        return [3, 159];
+                    case 109:
+                        {
+                            LOAD_abcd();
+                            X = rand_pick(ctx, var_get(ctx, C, D));
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                            var_set(ctx, A, B, X);
+                        }
+                        return [3, 159];
+                    case 110:
+                        {
+                            LOAD_abcd();
+                            X = var_get(ctx, C, D);
+                            rand_shuffle(ctx, X);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                            var_set(ctx, A, B, X);
+                        }
+                        return [3, 159];
+                    case 111:
+                        {
+                            LOAD_abc();
+                            p = [];
+                            for (D = 0; D < C; D++) {
+                                E = ops[ctx.pc++];
+                                F = ops[ctx.pc++];
+                                p.push(var_get(ctx, E, F));
+                            }
+                            var_set(ctx, A, B, str_new(ctx, p));
+                        }
+                        return [3, 159];
+                    case 112:
+                        {
+                            LOAD_abcdef();
+                            X = var_get(ctx, C, D);
+                            Y = var_get(ctx, E, F);
+                            X = str_split(ctx, X, Y);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                            var_set(ctx, A, B, X);
+                        }
+                        return [3, 159];
+                    case 113:
+                        {
+                            LOAD_abcdefgh();
+                            X = var_get(ctx, C, D);
+                            Y = var_get(ctx, E, F);
+                            Z = var_get(ctx, G, H);
+                            X = str_replace(ctx, X, Y, Z);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                            var_set(ctx, A, B, X);
+                        }
+                        return [3, 159];
+                    case 114:
+                        {
+                            LOAD_abcdef();
+                            X = var_get(ctx, C, D);
+                            Y = var_get(ctx, E, F);
+                            X = bool(str_begins(ctx, X, Y));
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                            var_set(ctx, A, B, X);
+                        }
+                        return [3, 159];
+                    case 115:
+                        {
+                            LOAD_abcdef();
+                            X = var_get(ctx, C, D);
+                            Y = var_get(ctx, E, F);
+                            X = bool(str_ends(ctx, X, Y));
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                            var_set(ctx, A, B, X);
+                        }
+                        return [3, 159];
+                    case 116:
+                        {
+                            LOAD_abcdef();
+                            X = var_get(ctx, C, D);
+                            Y = var_get(ctx, E, F);
+                            if (isnil(Y))
+                                Y = 0;
+                            else if (!isnum(Y))
+                                return [2, RUNDONE(opi_abort(ctx, 'Expecting number'))];
+                            X = str_pad(ctx, X, Y);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                            var_set(ctx, A, B, X);
+                        }
+                        return [3, 159];
+                    case 117:
+                        {
+                            LOAD_abcdefgh();
+                            X = var_get(ctx, C, D);
+                            Y = var_get(ctx, E, F);
+                            Z = var_get(ctx, G, H);
+                            X = str_find(ctx, X, Y, Z);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                            var_set(ctx, A, B, X);
+                        }
+                        return [3, 159];
+                    case 118:
+                        {
+                            LOAD_abcdefgh();
+                            X = var_get(ctx, C, D);
+                            Y = var_get(ctx, E, F);
+                            Z = var_get(ctx, G, H);
+                            X = str_rfind(ctx, X, Y, Z);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                            var_set(ctx, A, B, X);
+                        }
+                        return [3, 159];
+                    case 119:
+                        {
+                            LOAD_abcd();
+                            X = var_get(ctx, C, D);
+                            X = str_lower(ctx, X);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                            var_set(ctx, A, B, X);
+                        }
+                        return [3, 159];
+                    case 120:
+                        {
+                            LOAD_abcd();
+                            X = var_get(ctx, C, D);
+                            X = str_upper(ctx, X);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                            var_set(ctx, A, B, X);
+                        }
+                        return [3, 159];
+                    case 121:
+                        {
+                            LOAD_abcd();
+                            X = var_get(ctx, C, D);
+                            X = str_trim(ctx, X);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                            var_set(ctx, A, B, X);
+                        }
+                        return [3, 159];
+                    case 122:
+                        {
+                            LOAD_abcd();
+                            X = var_get(ctx, C, D);
+                            X = str_rev(ctx, X);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                            var_set(ctx, A, B, X);
+                        }
+                        return [3, 159];
+                    case 123:
+                        {
+                            LOAD_abcdef();
+                            X = var_get(ctx, C, D);
+                            Y = var_get(ctx, E, F);
+                            if (isnil(Y))
+                                Y = 0;
+                            else if (!isnum(Y))
+                                return [2, RUNDONE(opi_abort(ctx, 'Expecting number'))];
+                            X = str_rep(ctx, X, Y);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                            var_set(ctx, A, B, X);
+                        }
+                        return [3, 159];
+                    case 124:
+                        {
+                            LOAD_abcd();
+                            X = var_get(ctx, C, D);
+                            X = str_list(ctx, X);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                            var_set(ctx, A, B, X);
+                        }
+                        return [3, 159];
+                    case 125:
+                        {
+                            LOAD_abcdef();
+                            X = var_get(ctx, C, D);
+                            Y = var_get(ctx, E, F);
+                            if (isnil(Y))
+                                Y = 0;
+                            else if (!isnum(Y))
+                                return [2, RUNDONE(opi_abort(ctx, 'Expecting number'))];
+                            X = str_byte(ctx, X, Y);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                            var_set(ctx, A, B, X);
+                        }
+                        return [3, 159];
+                    case 126:
+                        {
+                            LOAD_abcdef();
+                            X = var_get(ctx, C, D);
+                            Y = var_get(ctx, E, F);
+                            if (isnil(Y))
+                                Y = 0;
+                            else if (!isnum(Y))
+                                return [2, RUNDONE(opi_abort(ctx, 'Expecting number'))];
+                            X = str_hash(ctx, X, Y);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                            var_set(ctx, A, B, X);
+                        }
+                        return [3, 159];
+                    case 127:
+                        {
+                            LOAD_abcd();
+                            X = var_get(ctx, C, D);
+                            var_set(ctx, A, B, bool(utf8_valid(ctx, X)));
+                        }
+                        return [3, 159];
+                    case 128:
+                        {
+                            LOAD_abcd();
+                            X = var_get(ctx, C, D);
+                            X = utf8_list(ctx, X);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                            var_set(ctx, A, B, X);
+                        }
+                        return [3, 159];
+                    case 129:
+                        {
+                            LOAD_abcd();
+                            X = var_get(ctx, C, D);
+                            X = utf8_str(ctx, X);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                            var_set(ctx, A, B, X);
+                        }
+                        return [3, 159];
+                    case 130:
+                        {
+                            LOAD_abcd();
+                            var_set(ctx, A, B, struct_size(ctx, var_get(ctx, C, D)));
+                        }
+                        return [3, 159];
+                    case 131:
+                        {
+                            LOAD_abcdef();
+                            X = var_get(ctx, C, D);
+                            Y = var_get(ctx, E, F);
+                            X = struct_str(ctx, X, Y);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                            var_set(ctx, A, B, X);
+                        }
+                        return [3, 159];
+                    case 132:
+                        {
+                            LOAD_abcdef();
+                            X = var_get(ctx, C, D);
+                            Y = var_get(ctx, E, F);
+                            X = struct_list(ctx, X, Y);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                            var_set(ctx, A, B, X);
+                        }
+                        return [3, 159];
+                    case 133:
+                        {
+                            LOAD_ab();
+                            var_set(ctx, A, B, bool(struct_isLE()));
+                        }
+                        return [3, 159];
+                    case 134:
+                        {
+                            LOAD_abcdef();
+                            X = var_get(ctx, C, D);
+                            Y = var_get(ctx, E, F);
+                            X = list_new(ctx, X, Y);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                            var_set(ctx, A, B, X);
+                        }
+                        return [3, 159];
+                    case 135:
+                        {
+                            LOAD_abcd();
+                            X = var_get(ctx, C, D);
+                            X = list_shift(ctx, X);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                            var_set(ctx, A, B, X);
+                        }
+                        return [3, 159];
+                    case 136:
+                        {
+                            LOAD_abcd();
+                            X = var_get(ctx, C, D);
+                            X = list_pop(ctx, X);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                            var_set(ctx, A, B, X);
+                        }
+                        return [3, 159];
+                    case 137:
+                        {
+                            LOAD_abcdef();
+                            X = var_get(ctx, C, D);
+                            Y = var_get(ctx, E, F);
+                            X = list_push(ctx, X, Y);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                            var_set(ctx, A, B, X);
+                        }
+                        return [3, 159];
+                    case 138:
+                        {
+                            LOAD_abcdef();
+                            X = var_get(ctx, C, D);
+                            Y = var_get(ctx, E, F);
+                            X = list_unshift(ctx, X, Y);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                            var_set(ctx, A, B, X);
+                        }
+                        return [3, 159];
+                    case 139:
+                        {
+                            LOAD_abcdef();
+                            X = var_get(ctx, C, D);
+                            Y = var_get(ctx, E, F);
+                            X = list_append(ctx, X, Y);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                            var_set(ctx, A, B, X);
+                        }
+                        return [3, 159];
+                    case 140:
+                        {
+                            LOAD_abcdef();
+                            X = var_get(ctx, C, D);
+                            Y = var_get(ctx, E, F);
+                            X = list_prepend(ctx, X, Y);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                            var_set(ctx, A, B, X);
+                        }
+                        return [3, 159];
+                    case 141:
+                        {
+                            LOAD_abcdefgh();
+                            X = var_get(ctx, C, D);
+                            Y = var_get(ctx, E, F);
+                            Z = var_get(ctx, G, H);
+                            X = list_find(ctx, X, Y, Z);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                            var_set(ctx, A, B, X);
+                        }
+                        return [3, 159];
+                    case 142:
+                        {
+                            LOAD_abcdefgh();
+                            X = var_get(ctx, C, D);
+                            Y = var_get(ctx, E, F);
+                            Z = var_get(ctx, G, H);
+                            X = list_rfind(ctx, X, Y, Z);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                            var_set(ctx, A, B, X);
+                        }
+                        return [3, 159];
+                    case 143:
+                        {
+                            LOAD_abcdef();
+                            X = var_get(ctx, C, D);
+                            Y = var_get(ctx, E, F);
+                            X = list_join(ctx, X, Y);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                            var_set(ctx, A, B, X);
+                        }
+                        return [3, 159];
+                    case 144:
+                        {
+                            LOAD_abcd();
+                            X = var_get(ctx, C, D);
+                            X = list_rev(ctx, X);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                            var_set(ctx, A, B, X);
+                        }
+                        return [3, 159];
+                    case 145:
+                        {
+                            LOAD_abcd();
+                            X = var_get(ctx, C, D);
+                            X = list_str(ctx, X);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                            var_set(ctx, A, B, X);
+                        }
+                        return [3, 159];
+                    case 146:
+                        {
+                            LOAD_abcd();
+                            X = var_get(ctx, C, D);
+                            list_sort(ctx, X);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                            var_set(ctx, A, B, X);
+                        }
+                        return [3, 159];
+                    case 147:
+                        {
+                            LOAD_abcd();
+                            X = var_get(ctx, C, D);
+                            list_rsort(ctx, X);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                            var_set(ctx, A, B, X);
+                        }
+                        return [3, 159];
+                    case 148:
+                        {
+                            LOAD_abcd();
+                            X = var_get(ctx, C, D);
+                            X = pickle_json(ctx, X);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                            var_set(ctx, A, B, X);
+                        }
+                        return [3, 159];
+                    case 149:
+                        {
+                            LOAD_abcd();
+                            X = var_get(ctx, C, D);
+                            X = pickle_bin(ctx, X);
+                            var_set(ctx, A, B, X);
+                        }
+                        return [3, 159];
+                    case 150:
+                        {
+                            LOAD_abcd();
+                            X = var_get(ctx, C, D);
+                            X = pickle_val(ctx, X);
+                            if (ctx.failed)
+                                return [2, RUNDONE(run.FAIL)];
+                            var_set(ctx, A, B, X);
+                        }
+                        return [3, 159];
+                    case 151:
+                        {
+                            LOAD_abcd();
+                            X = var_get(ctx, C, D);
+                            E = pickle_valid(ctx, X);
+                            var_set(ctx, A, B, E === 0 ? exports.NIL : E);
+                        }
+                        return [3, 159];
+                    case 152:
+                        {
+                            LOAD_abcd();
+                            X = var_get(ctx, C, D);
+                            var_set(ctx, A, B, bool(pickle_sibling(ctx, X)));
+                        }
+                        return [3, 159];
+                    case 153:
+                        {
+                            LOAD_abcd();
+                            X = var_get(ctx, C, D);
+                            var_set(ctx, A, B, bool(pickle_circular(ctx, X)));
+                        }
+                        return [3, 159];
+                    case 154:
+                        {
+                            LOAD_abcd();
+                            X = var_get(ctx, C, D);
+                            X = pickle_copy(ctx, X);
+                            var_set(ctx, A, B, X);
+                        }
+                        return [3, 159];
+                    case 155:
+                        {
+                            LOAD_ab();
+                            var_set(ctx, A, B, ctx.gc_level);
+                        }
+                        return [3, 159];
+                    case 156:
+                        {
+                            LOAD_abcd();
+                            X = var_get(ctx, C, D);
+                            if (!isnum(X) ||
+                                (X !== gc_level.NONE && X !== gc_level.DEFAULT && X !== gc_level.LOWMEM))
+                                return [2, RUNDONE(opi_abort(ctx, 'Expecting one of gc.NONE, gc.DEFAULT, or gc.LOWMEM'))];
+                            ctx.gc_level = X;
+                            var_set(ctx, A, B, exports.NIL);
+                        }
+                        return [3, 159];
+                    case 157:
+                        {
+                            LOAD_ab();
+                            var_set(ctx, A, B, exports.NIL);
+                        }
+                        return [3, 159];
+                    case 158: return [3, 159];
+                    case 159:
+                        if (ctx.timeout > 0) {
+                            ctx.timeout_left--;
+                            if (ctx.timeout_left <= 0) {
+                                ctx.timeout_left = ctx.timeout;
+                                return [2, RUNDONE(run.TIMEOUT)];
+                            }
+                        }
+                        return [3, 1];
+                    case 160:
+                        if (ctx.prg.repl)
+                            return [2, RUNDONE(run.REPLMORE)];
+                        return [2, RUNDONE(opi_exit(ctx))];
                 }
-                case op_enum.ABORT: {
-                    LOAD_abc();
-                    var err = null;
-                    if (C > 0) {
-                        var p = [];
-                        for (D = 0; D < C; D++) {
-                            E = ops[ctx.pc++];
-                            F = ops[ctx.pc++];
-                            p.push(var_get(ctx, E, F));
-                        }
-                        err = list_joinplain(p, ' ');
-                    }
-                    return RUNDONE(opi_abort(ctx, err));
-                }
-                case op_enum.STACKTRACE:
-                    {
-                        LOAD_ab();
-                        var_set(ctx, A, B, stacktrace(ctx));
-                    }
-                    break;
-                case op_enum.NUM_NEG:
-                    {
-                        INLINE_UNOP(unop_num_neg, txt_num_neg);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                    }
-                    break;
-                case op_enum.NUM_ADD:
-                    {
-                        INLINE_BINOP(binop_num_add, txt_num_add);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                    }
-                    break;
-                case op_enum.NUM_SUB:
-                    {
-                        INLINE_BINOP(binop_num_sub, txt_num_sub);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                    }
-                    break;
-                case op_enum.NUM_MUL:
-                    {
-                        INLINE_BINOP(binop_num_mul, txt_num_mul);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                    }
-                    break;
-                case op_enum.NUM_DIV:
-                    {
-                        INLINE_BINOP(binop_num_div, txt_num_div);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                    }
-                    break;
-                case op_enum.NUM_MOD:
-                    {
-                        INLINE_BINOP(binop_num_mod, txt_num_mod);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                    }
-                    break;
-                case op_enum.NUM_POW:
-                    {
-                        INLINE_BINOP(binop_num_pow, txt_num_pow);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                    }
-                    break;
-                case op_enum.NUM_ABS:
-                    {
-                        INLINE_UNOP(unop_num_abs, txt_num_abs);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                    }
-                    break;
-                case op_enum.NUM_SIGN:
-                    {
-                        INLINE_UNOP(unop_num_sign, txt_num_sign);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                    }
-                    break;
-                case op_enum.NUM_MAX:
-                    {
-                        LOAD_abc();
-                        var p = [];
-                        for (D = 0; D < C; D++) {
-                            E = ops[ctx.pc++];
-                            F = ops[ctx.pc++];
-                            p.push(var_get(ctx, E, F));
-                        }
-                        var_set(ctx, A, B, opi_num_max(p));
-                    }
-                    break;
-                case op_enum.NUM_MIN:
-                    {
-                        LOAD_abc();
-                        var p = [];
-                        for (D = 0; D < C; D++) {
-                            E = ops[ctx.pc++];
-                            F = ops[ctx.pc++];
-                            p.push(var_get(ctx, E, F));
-                        }
-                        var_set(ctx, A, B, opi_num_min(p));
-                    }
-                    break;
-                case op_enum.NUM_CLAMP:
-                    {
-                        INLINE_TRIOP(triop_num_clamp, txt_num_clamp);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                    }
-                    break;
-                case op_enum.NUM_FLOOR:
-                    {
-                        INLINE_UNOP(unop_num_floor, txt_num_floor);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                    }
-                    break;
-                case op_enum.NUM_CEIL:
-                    {
-                        INLINE_UNOP(unop_num_ceil, txt_num_ceil);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                    }
-                    break;
-                case op_enum.NUM_ROUND:
-                    {
-                        INLINE_UNOP(unop_num_round, txt_num_round);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                    }
-                    break;
-                case op_enum.NUM_TRUNC:
-                    {
-                        INLINE_UNOP(unop_num_trunc, txt_num_trunc);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                    }
-                    break;
-                case op_enum.NUM_NAN:
-                    {
-                        LOAD_ab();
-                        var_set(ctx, A, B, num_nan());
-                    }
-                    break;
-                case op_enum.NUM_INF:
-                    {
-                        LOAD_ab();
-                        var_set(ctx, A, B, num_inf());
-                    }
-                    break;
-                case op_enum.NUM_ISNAN:
-                    {
-                        INLINE_UNOP(unop_num_isnan, txt_num_isnan);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                    }
-                    break;
-                case op_enum.NUM_ISFINITE:
-                    {
-                        INLINE_UNOP(unop_num_isfinite, txt_num_isfinite);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                    }
-                    break;
-                case op_enum.NUM_SIN:
-                    {
-                        INLINE_UNOP(unop_num_sin, txt_num_sin);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                    }
-                    break;
-                case op_enum.NUM_COS:
-                    {
-                        INLINE_UNOP(unop_num_cos, txt_num_cos);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                    }
-                    break;
-                case op_enum.NUM_TAN:
-                    {
-                        INLINE_UNOP(unop_num_tan, txt_num_tan);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                    }
-                    break;
-                case op_enum.NUM_ASIN:
-                    {
-                        INLINE_UNOP(unop_num_asin, txt_num_asin);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                    }
-                    break;
-                case op_enum.NUM_ACOS:
-                    {
-                        INLINE_UNOP(unop_num_acos, txt_num_acos);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                    }
-                    break;
-                case op_enum.NUM_ATAN:
-                    {
-                        INLINE_UNOP(unop_num_atan, txt_num_atan);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                    }
-                    break;
-                case op_enum.NUM_ATAN2:
-                    {
-                        INLINE_BINOP(binop_num_atan2, txt_num_atan);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                    }
-                    break;
-                case op_enum.NUM_LOG:
-                    {
-                        INLINE_UNOP(unop_num_log, txt_num_log);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                    }
-                    break;
-                case op_enum.NUM_LOG2:
-                    {
-                        INLINE_UNOP(unop_num_log2, txt_num_log);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                    }
-                    break;
-                case op_enum.NUM_LOG10:
-                    {
-                        INLINE_UNOP(unop_num_log10, txt_num_log);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                    }
-                    break;
-                case op_enum.NUM_EXP:
-                    {
-                        INLINE_UNOP(unop_num_exp, txt_num_pow);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                    }
-                    break;
-                case op_enum.NUM_LERP:
-                    {
-                        INLINE_TRIOP(triop_num_lerp, txt_num_lerp);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                    }
-                    break;
-                case op_enum.NUM_HEX:
-                    {
-                        INLINE_BINOP_T(binop_num_hex, txt_num_hex, LT_ALLOWNUM, LT_ALLOWNUM | LT_ALLOWNIL);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                    }
-                    break;
-                case op_enum.NUM_OCT:
-                    {
-                        INLINE_BINOP_T(binop_num_oct, txt_num_oct, LT_ALLOWNUM, LT_ALLOWNUM | LT_ALLOWNIL);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                    }
-                    break;
-                case op_enum.NUM_BIN:
-                    {
-                        INLINE_BINOP_T(binop_num_bin, txt_num_bin, LT_ALLOWNUM, LT_ALLOWNUM | LT_ALLOWNIL);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                    }
-                    break;
-                case op_enum.INT_NEW:
-                    {
-                        INLINE_UNOP(unop_int_new, txt_int_new);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                    }
-                    break;
-                case op_enum.INT_NOT:
-                    {
-                        INLINE_UNOP(unop_int_not, txt_int_not);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                    }
-                    break;
-                case op_enum.INT_AND:
-                    {
-                        LOAD_abc();
-                        var p = [];
-                        for (D = 0; D < C; D++) {
-                            E = ops[ctx.pc++];
-                            F = ops[ctx.pc++];
-                            p.push(var_get(ctx, E, F));
-                        }
-                        X = opi_combop(ctx, p, binop_int_and, txt_int_and);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                        var_set(ctx, A, B, X);
-                    }
-                    break;
-                case op_enum.INT_OR:
-                    {
-                        LOAD_abc();
-                        var p = [];
-                        for (D = 0; D < C; D++) {
-                            E = ops[ctx.pc++];
-                            F = ops[ctx.pc++];
-                            p.push(var_get(ctx, E, F));
-                        }
-                        X = opi_combop(ctx, p, binop_int_or, txt_int_or);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                        var_set(ctx, A, B, X);
-                    }
-                    break;
-                case op_enum.INT_XOR:
-                    {
-                        LOAD_abc();
-                        var p = [];
-                        for (D = 0; D < C; D++) {
-                            E = ops[ctx.pc++];
-                            F = ops[ctx.pc++];
-                            p.push(var_get(ctx, E, F));
-                        }
-                        X = opi_combop(ctx, p, binop_int_xor, txt_int_xor);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                        var_set(ctx, A, B, X);
-                    }
-                    break;
-                case op_enum.INT_SHL:
-                    {
-                        INLINE_BINOP(binop_int_shl, txt_int_shl);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                    }
-                    break;
-                case op_enum.INT_SHR:
-                    {
-                        INLINE_BINOP(binop_int_shr, txt_int_shr);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                    }
-                    break;
-                case op_enum.INT_SAR:
-                    {
-                        INLINE_BINOP(binop_int_sar, txt_int_shr);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                    }
-                    break;
-                case op_enum.INT_ADD:
-                    {
-                        INLINE_BINOP(binop_int_add, txt_num_add);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                    }
-                    break;
-                case op_enum.INT_SUB:
-                    {
-                        INLINE_BINOP(binop_int_sub, txt_num_sub);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                    }
-                    break;
-                case op_enum.INT_MUL:
-                    {
-                        INLINE_BINOP(binop_int_mul, txt_num_mul);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                    }
-                    break;
-                case op_enum.INT_DIV:
-                    {
-                        INLINE_BINOP(binop_int_div, txt_num_div);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                    }
-                    break;
-                case op_enum.INT_MOD:
-                    {
-                        INLINE_BINOP(binop_int_mod, txt_num_mod);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                    }
-                    break;
-                case op_enum.INT_CLZ:
-                    {
-                        INLINE_UNOP(unop_int_clz, txt_int_clz);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                    }
-                    break;
-                case op_enum.INT_POP:
-                    {
-                        INLINE_UNOP(unop_int_pop, txt_int_pop);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                    }
-                    break;
-                case op_enum.INT_BSWAP:
-                    {
-                        INLINE_UNOP(unop_int_bswap, txt_int_bswap);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                    }
-                    break;
-                case op_enum.RAND_SEED:
-                    {
-                        LOAD_abcd();
-                        X = var_get(ctx, C, D);
-                        if (isnil(X))
-                            X = 0;
-                        else if (!isnum(X))
-                            return RUNDONE(opi_abort(ctx, 'Expecting number'));
-                        rand_seed(ctx, X);
-                        var_set(ctx, A, B, exports.NIL);
-                    }
-                    break;
-                case op_enum.RAND_SEEDAUTO:
-                    {
-                        LOAD_ab();
-                        rand_seedauto(ctx);
-                        var_set(ctx, A, B, exports.NIL);
-                    }
-                    break;
-                case op_enum.RAND_INT:
-                    {
-                        LOAD_ab();
-                        var_set(ctx, A, B, rand_int(ctx));
-                    }
-                    break;
-                case op_enum.RAND_NUM:
-                    {
-                        LOAD_ab();
-                        var_set(ctx, A, B, rand_num(ctx));
-                    }
-                    break;
-                case op_enum.RAND_GETSTATE:
-                    {
-                        LOAD_ab();
-                        var_set(ctx, A, B, rand_getstate(ctx));
-                    }
-                    break;
-                case op_enum.RAND_SETSTATE:
-                    {
-                        LOAD_abcd();
-                        rand_setstate(ctx, var_get(ctx, C, D));
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                        var_set(ctx, A, B, exports.NIL);
-                    }
-                    break;
-                case op_enum.RAND_PICK:
-                    {
-                        LOAD_abcd();
-                        X = rand_pick(ctx, var_get(ctx, C, D));
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                        var_set(ctx, A, B, X);
-                    }
-                    break;
-                case op_enum.RAND_SHUFFLE:
-                    {
-                        LOAD_abcd();
-                        X = var_get(ctx, C, D);
-                        rand_shuffle(ctx, X);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                        var_set(ctx, A, B, X);
-                    }
-                    break;
-                case op_enum.STR_NEW:
-                    {
-                        LOAD_abc();
-                        var p = [];
-                        for (D = 0; D < C; D++) {
-                            E = ops[ctx.pc++];
-                            F = ops[ctx.pc++];
-                            p.push(var_get(ctx, E, F));
-                        }
-                        var_set(ctx, A, B, str_new(ctx, p));
-                    }
-                    break;
-                case op_enum.STR_SPLIT:
-                    {
-                        LOAD_abcdef();
-                        X = var_get(ctx, C, D);
-                        Y = var_get(ctx, E, F);
-                        X = str_split(ctx, X, Y);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                        var_set(ctx, A, B, X);
-                    }
-                    break;
-                case op_enum.STR_REPLACE:
-                    {
-                        LOAD_abcdefgh();
-                        X = var_get(ctx, C, D);
-                        Y = var_get(ctx, E, F);
-                        Z = var_get(ctx, G, H);
-                        X = str_replace(ctx, X, Y, Z);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                        var_set(ctx, A, B, X);
-                    }
-                    break;
-                case op_enum.STR_BEGINS:
-                    {
-                        LOAD_abcdef();
-                        X = var_get(ctx, C, D);
-                        Y = var_get(ctx, E, F);
-                        X = bool(str_begins(ctx, X, Y));
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                        var_set(ctx, A, B, X);
-                    }
-                    break;
-                case op_enum.STR_ENDS:
-                    {
-                        LOAD_abcdef();
-                        X = var_get(ctx, C, D);
-                        Y = var_get(ctx, E, F);
-                        X = bool(str_ends(ctx, X, Y));
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                        var_set(ctx, A, B, X);
-                    }
-                    break;
-                case op_enum.STR_PAD:
-                    {
-                        LOAD_abcdef();
-                        X = var_get(ctx, C, D);
-                        Y = var_get(ctx, E, F);
-                        if (isnil(Y))
-                            Y = 0;
-                        else if (!isnum(Y))
-                            return RUNDONE(opi_abort(ctx, 'Expecting number'));
-                        X = str_pad(ctx, X, Y);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                        var_set(ctx, A, B, X);
-                    }
-                    break;
-                case op_enum.STR_FIND:
-                    {
-                        LOAD_abcdefgh();
-                        X = var_get(ctx, C, D);
-                        Y = var_get(ctx, E, F);
-                        Z = var_get(ctx, G, H);
-                        X = str_find(ctx, X, Y, Z);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                        var_set(ctx, A, B, X);
-                    }
-                    break;
-                case op_enum.STR_RFIND:
-                    {
-                        LOAD_abcdefgh();
-                        X = var_get(ctx, C, D);
-                        Y = var_get(ctx, E, F);
-                        Z = var_get(ctx, G, H);
-                        X = str_rfind(ctx, X, Y, Z);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                        var_set(ctx, A, B, X);
-                    }
-                    break;
-                case op_enum.STR_LOWER:
-                    {
-                        LOAD_abcd();
-                        X = var_get(ctx, C, D);
-                        X = str_lower(ctx, X);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                        var_set(ctx, A, B, X);
-                    }
-                    break;
-                case op_enum.STR_UPPER:
-                    {
-                        LOAD_abcd();
-                        X = var_get(ctx, C, D);
-                        X = str_upper(ctx, X);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                        var_set(ctx, A, B, X);
-                    }
-                    break;
-                case op_enum.STR_TRIM:
-                    {
-                        LOAD_abcd();
-                        X = var_get(ctx, C, D);
-                        X = str_trim(ctx, X);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                        var_set(ctx, A, B, X);
-                    }
-                    break;
-                case op_enum.STR_REV:
-                    {
-                        LOAD_abcd();
-                        X = var_get(ctx, C, D);
-                        X = str_rev(ctx, X);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                        var_set(ctx, A, B, X);
-                    }
-                    break;
-                case op_enum.STR_REP:
-                    {
-                        LOAD_abcdef();
-                        X = var_get(ctx, C, D);
-                        Y = var_get(ctx, E, F);
-                        if (isnil(Y))
-                            Y = 0;
-                        else if (!isnum(Y))
-                            return RUNDONE(opi_abort(ctx, 'Expecting number'));
-                        X = str_rep(ctx, X, Y);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                        var_set(ctx, A, B, X);
-                    }
-                    break;
-                case op_enum.STR_LIST:
-                    {
-                        LOAD_abcd();
-                        X = var_get(ctx, C, D);
-                        X = str_list(ctx, X);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                        var_set(ctx, A, B, X);
-                    }
-                    break;
-                case op_enum.STR_BYTE:
-                    {
-                        LOAD_abcdef();
-                        X = var_get(ctx, C, D);
-                        Y = var_get(ctx, E, F);
-                        if (isnil(Y))
-                            Y = 0;
-                        else if (!isnum(Y))
-                            return RUNDONE(opi_abort(ctx, 'Expecting number'));
-                        X = str_byte(ctx, X, Y);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                        var_set(ctx, A, B, X);
-                    }
-                    break;
-                case op_enum.STR_HASH:
-                    {
-                        LOAD_abcdef();
-                        X = var_get(ctx, C, D);
-                        Y = var_get(ctx, E, F);
-                        if (isnil(Y))
-                            Y = 0;
-                        else if (!isnum(Y))
-                            return RUNDONE(opi_abort(ctx, 'Expecting number'));
-                        X = str_hash(ctx, X, Y);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                        var_set(ctx, A, B, X);
-                    }
-                    break;
-                case op_enum.UTF8_VALID:
-                    {
-                        LOAD_abcd();
-                        X = var_get(ctx, C, D);
-                        var_set(ctx, A, B, bool(utf8_valid(ctx, X)));
-                    }
-                    break;
-                case op_enum.UTF8_LIST:
-                    {
-                        LOAD_abcd();
-                        X = var_get(ctx, C, D);
-                        X = utf8_list(ctx, X);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                        var_set(ctx, A, B, X);
-                    }
-                    break;
-                case op_enum.UTF8_STR:
-                    {
-                        LOAD_abcd();
-                        X = var_get(ctx, C, D);
-                        X = utf8_str(ctx, X);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                        var_set(ctx, A, B, X);
-                    }
-                    break;
-                case op_enum.STRUCT_SIZE:
-                    {
-                        LOAD_abcd();
-                        var_set(ctx, A, B, struct_size(ctx, var_get(ctx, C, D)));
-                    }
-                    break;
-                case op_enum.STRUCT_STR:
-                    {
-                        LOAD_abcdef();
-                        X = var_get(ctx, C, D);
-                        Y = var_get(ctx, E, F);
-                        X = struct_str(ctx, X, Y);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                        var_set(ctx, A, B, X);
-                    }
-                    break;
-                case op_enum.STRUCT_LIST:
-                    {
-                        LOAD_abcdef();
-                        X = var_get(ctx, C, D);
-                        Y = var_get(ctx, E, F);
-                        X = struct_list(ctx, X, Y);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                        var_set(ctx, A, B, X);
-                    }
-                    break;
-                case op_enum.STRUCT_ISLE:
-                    {
-                        LOAD_ab();
-                        var_set(ctx, A, B, bool(struct_isLE()));
-                    }
-                    break;
-                case op_enum.LIST_NEW:
-                    {
-                        LOAD_abcdef();
-                        X = var_get(ctx, C, D);
-                        Y = var_get(ctx, E, F);
-                        X = list_new(ctx, X, Y);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                        var_set(ctx, A, B, X);
-                    }
-                    break;
-                case op_enum.LIST_SHIFT:
-                    {
-                        LOAD_abcd();
-                        X = var_get(ctx, C, D);
-                        X = list_shift(ctx, X);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                        var_set(ctx, A, B, X);
-                    }
-                    break;
-                case op_enum.LIST_POP:
-                    {
-                        LOAD_abcd();
-                        X = var_get(ctx, C, D);
-                        X = list_pop(ctx, X);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                        var_set(ctx, A, B, X);
-                    }
-                    break;
-                case op_enum.LIST_PUSH:
-                    {
-                        LOAD_abcdef();
-                        X = var_get(ctx, C, D);
-                        Y = var_get(ctx, E, F);
-                        X = list_push(ctx, X, Y);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                        var_set(ctx, A, B, X);
-                    }
-                    break;
-                case op_enum.LIST_UNSHIFT:
-                    {
-                        LOAD_abcdef();
-                        X = var_get(ctx, C, D);
-                        Y = var_get(ctx, E, F);
-                        X = list_unshift(ctx, X, Y);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                        var_set(ctx, A, B, X);
-                    }
-                    break;
-                case op_enum.LIST_APPEND:
-                    {
-                        LOAD_abcdef();
-                        X = var_get(ctx, C, D);
-                        Y = var_get(ctx, E, F);
-                        X = list_append(ctx, X, Y);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                        var_set(ctx, A, B, X);
-                    }
-                    break;
-                case op_enum.LIST_PREPEND:
-                    {
-                        LOAD_abcdef();
-                        X = var_get(ctx, C, D);
-                        Y = var_get(ctx, E, F);
-                        X = list_prepend(ctx, X, Y);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                        var_set(ctx, A, B, X);
-                    }
-                    break;
-                case op_enum.LIST_FIND:
-                    {
-                        LOAD_abcdefgh();
-                        X = var_get(ctx, C, D);
-                        Y = var_get(ctx, E, F);
-                        Z = var_get(ctx, G, H);
-                        X = list_find(ctx, X, Y, Z);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                        var_set(ctx, A, B, X);
-                    }
-                    break;
-                case op_enum.LIST_RFIND:
-                    {
-                        LOAD_abcdefgh();
-                        X = var_get(ctx, C, D);
-                        Y = var_get(ctx, E, F);
-                        Z = var_get(ctx, G, H);
-                        X = list_rfind(ctx, X, Y, Z);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                        var_set(ctx, A, B, X);
-                    }
-                    break;
-                case op_enum.LIST_JOIN:
-                    {
-                        LOAD_abcdef();
-                        X = var_get(ctx, C, D);
-                        Y = var_get(ctx, E, F);
-                        X = list_join(ctx, X, Y);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                        var_set(ctx, A, B, X);
-                    }
-                    break;
-                case op_enum.LIST_REV:
-                    {
-                        LOAD_abcd();
-                        X = var_get(ctx, C, D);
-                        X = list_rev(ctx, X);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                        var_set(ctx, A, B, X);
-                    }
-                    break;
-                case op_enum.LIST_STR:
-                    {
-                        LOAD_abcd();
-                        X = var_get(ctx, C, D);
-                        X = list_str(ctx, X);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                        var_set(ctx, A, B, X);
-                    }
-                    break;
-                case op_enum.LIST_SORT:
-                    {
-                        LOAD_abcd();
-                        X = var_get(ctx, C, D);
-                        list_sort(ctx, X);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                        var_set(ctx, A, B, X);
-                    }
-                    break;
-                case op_enum.LIST_RSORT:
-                    {
-                        LOAD_abcd();
-                        X = var_get(ctx, C, D);
-                        list_rsort(ctx, X);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                        var_set(ctx, A, B, X);
-                    }
-                    break;
-                case op_enum.PICKLE_JSON:
-                    {
-                        LOAD_abcd();
-                        X = var_get(ctx, C, D);
-                        X = pickle_json(ctx, X);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                        var_set(ctx, A, B, X);
-                    }
-                    break;
-                case op_enum.PICKLE_BIN:
-                    {
-                        LOAD_abcd();
-                        X = var_get(ctx, C, D);
-                        X = pickle_bin(ctx, X);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                        var_set(ctx, A, B, X);
-                    }
-                    break;
-                case op_enum.PICKLE_VAL:
-                    {
-                        LOAD_abcd();
-                        X = var_get(ctx, C, D);
-                        X = pickle_val(ctx, X);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                        var_set(ctx, A, B, X);
-                    }
-                    break;
-                case op_enum.PICKLE_VALID:
-                    {
-                        LOAD_abcd();
-                        X = var_get(ctx, C, D);
-                        E = pickle_valid(ctx, X);
-                        var_set(ctx, A, B, E === 0 ? exports.NIL : E);
-                    }
-                    break;
-                case op_enum.PICKLE_SIBLING:
-                    {
-                        LOAD_abcd();
-                        X = var_get(ctx, C, D);
-                        var_set(ctx, A, B, bool(pickle_sibling(ctx, X)));
-                    }
-                    break;
-                case op_enum.PICKLE_CIRCULAR:
-                    {
-                        LOAD_abcd();
-                        X = var_get(ctx, C, D);
-                        var_set(ctx, A, B, bool(pickle_circular(ctx, X)));
-                    }
-                    break;
-                case op_enum.PICKLE_COPY:
-                    {
-                        LOAD_abcd();
-                        X = var_get(ctx, C, D);
-                        X = pickle_copy(ctx, X);
-                        if (ctx.failed)
-                            return RUNDONE(run.FAIL);
-                        var_set(ctx, A, B, X);
-                    }
-                    break;
-                case op_enum.GC_GETLEVEL:
-                    {
-                        LOAD_ab();
-                        var_set(ctx, A, B, ctx.gc_level);
-                    }
-                    break;
-                case op_enum.GC_SETLEVEL:
-                    {
-                        LOAD_abcd();
-                        X = var_get(ctx, C, D);
-                        if (!isnum(X) ||
-                            (X !== gc_level.NONE && X !== gc_level.DEFAULT && X !== gc_level.LOWMEM))
-                            return RUNDONE(opi_abort(ctx, 'Expecting one of gc.NONE, gc.DEFAULT, or gc.LOWMEM'));
-                        ctx.gc_level = X;
-                        var_set(ctx, A, B, exports.NIL);
-                    }
-                    break;
-                case op_enum.GC_RUN:
-                    {
-                        LOAD_ab();
-                        var_set(ctx, A, B, exports.NIL);
-                    }
-                    break;
-                default: break;
-            }
-            if (ctx.timeout > 0) {
-                ctx.timeout_left--;
-                if (ctx.timeout_left <= 0) {
-                    ctx.timeout_left = ctx.timeout;
-                    return RUNDONE(run.TIMEOUT);
-                }
-            }
-        }
-        if (ctx.prg.repl)
-            return RUNDONE(run.REPLMORE);
-        return RUNDONE(opi_exit(ctx));
+            });
+        });
     }
     function flpn_new(fullfile, basefile, next) {
         return {
@@ -10929,181 +11240,231 @@ var __extends = (this && this.__extends) || (function () {
         cmp.flpn = cmp.flpn.next;
     }
     function compiler_endinc_cfu(success, file, cfu) {
-        if (success) {
-            return checkPromise(compiler_closeLexer(cfu.cmp), handleEnd);
-        }
-        return handleEnd();
-        function handleEnd() {
-            compiler_endinc(cfu.cmp, cfu.names !== null);
-            if (!success && cfu.cmp.msg === null)
-                compiler_setmsg(cfu.cmp, 'Failed to read file: ' + file);
-            return undefined;
-        }
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        if (!success) return [3, 2];
+                        return [4, compiler_closeLexer(cfu.cmp)];
+                    case 1:
+                        _a.sent();
+                        _a.label = 2;
+                    case 2:
+                        compiler_endinc(cfu.cmp, cfu.names !== null);
+                        if (!success && cfu.cmp.msg === null)
+                            compiler_setmsg(cfu.cmp, 'Failed to read file: ' + file);
+                        return [2];
+                }
+            });
+        });
     }
     function compiler_staticinc(cmp, names, file, body) {
-        if (!compiler_begininc(cmp, names, file))
-            return false;
-        return checkPromise(compiler_write(cmp, body), function (err) {
-            if (err) {
-                compiler_endinc(cmp, names !== null);
-                return false;
-            }
-            return checkPromise(compiler_closeLexer(cmp), function (err) {
-                compiler_endinc(cmp, names !== null);
-                if (err)
-                    return false;
-                return true;
+        return __awaiter(this, void 0, void 0, function () {
+            var err;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        if (!compiler_begininc(cmp, names, file))
+                            return [2, false];
+                        return [4, compiler_write(cmp, body)];
+                    case 1:
+                        err = _a.sent();
+                        if (err) {
+                            compiler_endinc(cmp, names !== null);
+                            return [2, false];
+                        }
+                        return [4, compiler_closeLexer(cmp)];
+                    case 2:
+                        err = _a.sent();
+                        compiler_endinc(cmp, names !== null);
+                        if (err)
+                            return [2, false];
+                        return [2, true];
+                }
             });
         });
     }
     function compiler_dynamicinc(cmp, names, file, from) {
-        var cfu = { cmp: cmp, names: names };
-        var cwd = null;
-        if (from)
-            cwd = pathjoin(from, '..', cmp.scr.posix);
-        return fileres_read(cmp.scr, true, file, cwd, compiler_begininc_cfu, compiler_endinc_cfu, cfu);
+        return __awaiter(this, void 0, void 0, function () {
+            var cfu, cwd;
+            return __generator(this, function (_a) {
+                cfu = { cmp: cmp, names: names };
+                cwd = null;
+                if (from)
+                    cwd = pathjoin(from, '..', cmp.scr.posix);
+                return [2, fileres_read(cmp.scr, true, file, cwd, compiler_begininc_cfu, compiler_endinc_cfu, cfu)];
+            });
+        });
     }
     function compiler_process(cmp) {
-        return handleNextFlpn();
-        function handleNextFlpn() {
-            if (cmp.flpn.tks.length <= 0)
-                return null;
-            var stmts = [];
-            while (cmp.flpn.tks.length > 0) {
-                var tk = cmp.flpn.tks.shift();
-                if (tk.type === tok_enum.ERROR) {
-                    compiler_setmsg(cmp, program_errormsg(cmp.prg, tk.flp, tk.msg));
-                    return cmp.msg;
-                }
-                var pmsg = parser_add(cmp.pr, tk, stmts);
-                if (pmsg) {
-                    compiler_setmsg(cmp, program_errormsg(cmp.prg, tk.flp, pmsg));
-                    return cmp.msg;
-                }
-                if (stmts.length > 0 && stmts[stmts.length - 1].type === ast_enumt.INCLUDE)
-                    break;
-            }
-            return handleNextStmt();
-            function handleNextStmt() {
-                if (stmts.length <= 0)
-                    return handleNextFlpn();
-                var stmt = stmts.shift();
-                function handleNextIncl(ii) {
-                    if (stmt.type !== ast_enumt.INCLUDE)
-                        throw new Error('Expecting include AST node');
-                    if (ii >= stmt.incls.length)
-                        return handleNextStmt();
-                    var inc = stmt.incls[ii];
-                    var file = inc.file;
-                    var internal = false;
-                    for (var i = 0; i < cmp.sinc.name.length; i++) {
-                        var sinc_name = cmp.sinc.name[i];
-                        if (file === sinc_name) {
-                            internal = true;
-                            var sinc_content = cmp.sinc.content[i];
-                            var is_body = cmp.sinc.type[i] === 0;
-                            if (is_body) {
-                                var success = compiler_staticinc(cmp, inc.names, file, sinc_content);
-                                if (!success)
-                                    return cmp.msg;
-                                return handleExternalInc();
+        return __awaiter(this, void 0, void 0, function () {
+            var stmts, tk, pmsg, stmt, ii, inc, file, internal, i, sinc_name, sinc_content, is_body, success, found, pgsl, pg;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        stmts = [];
+                        _a.label = 1;
+                    case 1:
+                        if (!(cmp.flpn.tks.length > 0)) return [3, 18];
+                        while (cmp.flpn.tks.length > 0) {
+                            tk = cmp.flpn.tks.shift();
+                            if (tk.type === tok_enum.ERROR) {
+                                compiler_setmsg(cmp, program_errormsg(cmp.prg, tk.flp, tk.msg));
+                                return [2, cmp.msg];
                             }
-                            else {
-                                return checkPromise(compiler_dynamicinc(cmp, inc.names, sinc_content, script_getfile(cmp.scr, stmt.flp.fullfile)), function (success) {
-                                    if (!success) {
-                                        compiler_setmsg(cmp, 'Failed to include: ' + file);
-                                        return cmp.msg;
-                                    }
-                                    return handleExternalInc();
-                                });
+                            pmsg = parser_add(cmp.pr, tk, stmts);
+                            if (pmsg) {
+                                compiler_setmsg(cmp, program_errormsg(cmp.prg, tk.flp, pmsg));
+                                return [2, cmp.msg];
                             }
+                            if (stmts.length > 0 && stmts[stmts.length - 1].type === ast_enumt.INCLUDE)
+                                break;
                         }
-                    }
-                    return handleExternalInc();
-                    function handleExternalInc() {
-                        if (internal)
-                            return handleNextIncl(ii + 1);
-                        return checkPromise(compiler_dynamicinc(cmp, inc.names, file, script_getfile(cmp.scr, stmt.flp.fullfile)), function (found) {
-                            if (!found && cmp.msg === null)
-                                compiler_setmsg(cmp, 'Failed to include: ' + file);
-                            if (cmp.msg)
-                                return cmp.msg;
-                            return handleNextIncl(ii + 1);
-                        });
-                    }
-                }
-                if (stmt.type === ast_enumt.INCLUDE) {
-                    return handleNextIncl(0);
-                }
-                else {
-                    var pgsl_1 = cmp.flpn.pgstate;
-                    return checkPromise(program_gen({
-                        prg: cmp.prg,
-                        sym: cmp.sym,
-                        scr: cmp.scr,
-                        from: stmt.flp.fullfile
-                    }, stmt, pgsl_1.length <= 0 ? null : pgsl_1[pgsl_1.length - 1], cmp.prg.repl && cmp.flpn.next === null && pgsl_1.length <= 0), function (pg) {
+                        _a.label = 2;
+                    case 2:
+                        if (!(stmts.length > 0)) return [3, 17];
+                        stmt = stmts.shift();
+                        if (!(stmt.type === ast_enumt.INCLUDE)) return [3, 14];
+                        ii = 0;
+                        _a.label = 3;
+                    case 3:
+                        if (!(ii < stmt.incls.length)) return [3, 13];
+                        inc = stmt.incls[ii];
+                        file = inc.file;
+                        internal = false;
+                        i = 0;
+                        _a.label = 4;
+                    case 4:
+                        if (!(i < cmp.sinc.name.length)) return [3, 10];
+                        sinc_name = cmp.sinc.name[i];
+                        if (!(file === sinc_name)) return [3, 9];
+                        internal = true;
+                        sinc_content = cmp.sinc.content[i];
+                        is_body = cmp.sinc.type[i] === 0;
+                        success = void 0;
+                        if (!is_body) return [3, 6];
+                        return [4, compiler_staticinc(cmp, inc.names, file, sinc_content)];
+                    case 5:
+                        success = _a.sent();
+                        return [3, 8];
+                    case 6: return [4, compiler_dynamicinc(cmp, inc.names, sinc_content, script_getfile(cmp.scr, stmt.flp.fullfile))];
+                    case 7:
+                        success = _a.sent();
+                        if (!success)
+                            compiler_setmsg(cmp, 'Failed to include: ' + file);
+                        _a.label = 8;
+                    case 8:
+                        if (!success)
+                            return [2, cmp.msg];
+                        _a.label = 9;
+                    case 9:
+                        i++;
+                        return [3, 4];
+                    case 10:
+                        if (!!internal) return [3, 12];
+                        return [4, compiler_dynamicinc(cmp, inc.names, file, script_getfile(cmp.scr, stmt.flp.fullfile))];
+                    case 11:
+                        found = _a.sent();
+                        if (!found && cmp.msg === null)
+                            compiler_setmsg(cmp, 'Failed to include: ' + file);
+                        if (cmp.msg)
+                            return [2, cmp.msg];
+                        _a.label = 12;
+                    case 12:
+                        ii++;
+                        return [3, 3];
+                    case 13: return [3, 16];
+                    case 14:
+                        pgsl = cmp.flpn.pgstate;
+                        return [4, program_gen({
+                                prg: cmp.prg,
+                                sym: cmp.sym,
+                                scr: cmp.scr,
+                                from: stmt.flp.fullfile
+                            }, stmt, pgsl.length <= 0 ? null : pgsl[pgsl.length - 1], cmp.prg.repl && cmp.flpn.next === null && pgsl.length <= 0)];
+                    case 15:
+                        pg = _a.sent();
                         switch (pg.type) {
                             case pgr_enum.OK:
                                 break;
                             case pgr_enum.PUSH:
-                                pgsl_1.push(pg.pgs);
+                                pgsl.push(pg.pgs);
                                 break;
                             case pgr_enum.POP:
-                                pgsl_1.pop();
+                                pgsl.pop();
                                 break;
                             case pgr_enum.ERROR:
                                 compiler_setmsg(cmp, program_errormsg(cmp.prg, pg.flp, pg.msg));
-                                return cmp.msg;
+                                return [2, cmp.msg];
                             case pgr_enum.FORVARS:
                                 throw new Error('Program generator can\'t return FORVARS');
                         }
-                        return handleNextStmt();
-                    });
+                        _a.label = 16;
+                    case 16: return [3, 2];
+                    case 17: return [3, 1];
+                    case 18: return [2, null];
                 }
-            }
-        }
+            });
+        });
     }
     function compiler_write(cmp, bytes) {
-        var flpn = cmp.flpn;
-        for (var i = 0; i < bytes.length; i++) {
-            var b = bytes.charAt(i);
-            lex_add(flpn.lx, filepos_copy(flpn.flp), b, flpn.tks);
-            if (b === '\n') {
-                if (!flpn.wascr) {
-                    flpn.flp.line++;
-                    flpn.flp.chr = 1;
+        return __awaiter(this, void 0, void 0, function () {
+            var flpn, i, b;
+            return __generator(this, function (_a) {
+                flpn = cmp.flpn;
+                for (i = 0; i < bytes.length; i++) {
+                    b = bytes.charAt(i);
+                    lex_add(flpn.lx, filepos_copy(flpn.flp), b, flpn.tks);
+                    if (b === '\n') {
+                        if (!flpn.wascr) {
+                            flpn.flp.line++;
+                            flpn.flp.chr = 1;
+                        }
+                        flpn.wascr = false;
+                    }
+                    else if (b === '\r') {
+                        flpn.flp.line++;
+                        flpn.flp.chr = 1;
+                        flpn.wascr = true;
+                    }
+                    else {
+                        flpn.flp.chr++;
+                        flpn.wascr = false;
+                    }
                 }
-                flpn.wascr = false;
-            }
-            else if (b === '\r') {
-                flpn.flp.line++;
-                flpn.flp.chr = 1;
-                flpn.wascr = true;
-            }
-            else {
-                flpn.flp.chr++;
-                flpn.wascr = false;
-            }
-        }
-        return compiler_process(cmp);
+                return [2, compiler_process(cmp)];
+            });
+        });
     }
     function compiler_closeLexer(cmp) {
-        lex_close(cmp.flpn.lx, cmp.flpn.flp, cmp.flpn.tks);
-        return compiler_process(cmp);
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                lex_close(cmp.flpn.lx, cmp.flpn.flp, cmp.flpn.tks);
+                return [2, compiler_process(cmp)];
+            });
+        });
     }
     function compiler_close(cmp) {
-        if (cmp.msg)
-            return cmp.msg;
-        return checkPromise(compiler_closeLexer(cmp), function (err) {
-            if (err)
-                return err;
-            var pmsg = parser_close(cmp.pr);
-            if (pmsg) {
-                compiler_setmsg(cmp, program_errormsg(cmp.prg, cmp.flpn.flp, pmsg));
-                return cmp.msg;
-            }
-            return null;
+        return __awaiter(this, void 0, void 0, function () {
+            var err, pmsg;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        if (cmp.msg)
+                            return [2, cmp.msg];
+                        return [4, compiler_closeLexer(cmp)];
+                    case 1:
+                        err = _a.sent();
+                        if (err)
+                            return [2, err];
+                        pmsg = parser_close(cmp.pr);
+                        if (pmsg) {
+                            compiler_setmsg(cmp, program_errormsg(cmp.prg, cmp.flpn.flp, pmsg));
+                            return [2, cmp.msg];
+                        }
+                        return [2, null];
+                }
+            });
         });
     }
     function scr_new(inc, curdir, posix, repl) {
@@ -11182,40 +11543,74 @@ var __extends = (this && this.__extends) || (function () {
             sc.err = 'Error: Invalid end of file';
     }
     function text_validate(sc, close, resetonclose) {
-        if (sc.err && sc.prg.repl)
-            compiler_reset(sc.cmp);
-        if (close) {
-            var err2 = compiler_close(sc.cmp);
-            if (err2)
-                sc.err = 'Error: ' + err2;
-            if (resetonclose)
-                compiler_reset(sc.cmp);
-        }
+        return __awaiter(this, void 0, void 0, function () {
+            var err2;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        if (sc.err && sc.prg.repl)
+                            compiler_reset(sc.cmp);
+                        if (!close) return [3, 2];
+                        return [4, compiler_close(sc.cmp)];
+                    case 1:
+                        err2 = _a.sent();
+                        if (err2)
+                            sc.err = 'Error: ' + err2;
+                        if (resetonclose)
+                            compiler_reset(sc.cmp);
+                        _a.label = 2;
+                    case 2: return [2];
+                }
+            });
+        });
     }
     function sfr_end(success, file, sc) {
-        if (!success)
-            sc.err = 'Error: ' + sc.cmp.msg;
-        else {
-            switch (sc.mode) {
-                case scriptmode_enum.UNKNOWN:
-                    break;
-                case scriptmode_enum.BINARY:
-                    binary_validate(sc);
-                    break;
-                case scriptmode_enum.TEXT:
-                    text_validate(sc, true, false);
-                    break;
-            }
-        }
+        return __awaiter(this, void 0, void 0, function () {
+            var _a;
+            return __generator(this, function (_b) {
+                switch (_b.label) {
+                    case 0:
+                        if (!!success) return [3, 1];
+                        sc.err = 'Error: ' + sc.cmp.msg;
+                        return [3, 6];
+                    case 1:
+                        _a = sc.mode;
+                        switch (_a) {
+                            case scriptmode_enum.UNKNOWN: return [3, 2];
+                            case scriptmode_enum.BINARY: return [3, 3];
+                            case scriptmode_enum.TEXT: return [3, 4];
+                        }
+                        return [3, 6];
+                    case 2: return [3, 6];
+                    case 3:
+                        binary_validate(sc);
+                        return [3, 6];
+                    case 4: return [4, text_validate(sc, true, false)];
+                    case 5:
+                        _b.sent();
+                        return [3, 6];
+                    case 6: return [2];
+                }
+            });
+        });
     }
     function scr_loadfile(scr, file) {
-        var sc = scr;
-        if (sc.err)
-            sc.err = null;
-        return checkPromise(fileres_read(sc, true, file, null, sfr_begin, sfr_end, sc), function (read) {
-            if (!read && sc.err === null)
-                sc.err = 'Error: Failed to read file: ' + file;
-            return sc.err === null;
+        return __awaiter(this, void 0, void 0, function () {
+            var sc, read;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        sc = scr;
+                        if (sc.err)
+                            sc.err = null;
+                        return [4, fileres_read(sc, true, file, null, sfr_begin, sfr_end, sc)];
+                    case 1:
+                        read = _a.sent();
+                        if (!read && sc.err === null)
+                            sc.err = 'Error: Failed to read file: ' + file;
+                        return [2, sc.err === null];
+                }
+            });
         });
     }
     exports.scr_loadfile = scr_loadfile;
@@ -11234,216 +11629,223 @@ var __extends = (this && this.__extends) || (function () {
     var BSZ_POS = 16;
     var BSZ_CMD = 8;
     function scr_write(scr, bytes) {
-        if (bytes.length <= 0)
-            return true;
-        var sc = scr;
-        if (sc.capture_write !== null) {
-            sc.capture_write += bytes;
-            return true;
-        }
-        if (sc.mode === scriptmode_enum.UNKNOWN) {
-            if (bytes.charCodeAt(0) === 0xFC) {
-                sc.mode = scriptmode_enum.BINARY;
-                sc.binstate.state = bis_enum.HEADER;
-                sc.binstate.left = BSZ_HEADER;
-                sc.binstate.buf = '';
+        return __awaiter(this, void 0, void 0, function () {
+            function GETINT(i) {
+                return ((bs.buf.charCodeAt(i + 0)) +
+                    (bs.buf.charCodeAt(i + 1) << 8) +
+                    (bs.buf.charCodeAt(i + 2) << 16) +
+                    ((bs.buf.charCodeAt(i + 3) << 23) * 2));
             }
-            else {
-                sc.mode = scriptmode_enum.TEXT;
-                sc.cmp = compiler_new(sc, sc.prg, sc.sinc, sc.inc, sc.file, sc.paths);
-            }
-        }
-        var bs = sc.binstate;
-        var prg = sc.prg;
-        function GETINT(i) {
-            return ((bs.buf.charCodeAt(i + 0)) +
-                (bs.buf.charCodeAt(i + 1) << 8) +
-                (bs.buf.charCodeAt(i + 2) << 16) +
-                ((bs.buf.charCodeAt(i + 3) << 23) * 2));
-        }
-        function WRITE() {
-            if (bytes.length > bs.left) {
-                bs.buf += bytes.substr(0, bs.left);
-                bytes = bytes.substr(bs.left);
-                bs.left = 0;
-            }
-            else {
-                bs.buf += bytes;
-                bs.left -= bytes.length;
-                bytes = '';
-            }
-        }
-        if (sc.mode === scriptmode_enum.BINARY) {
-            if (sc.err)
-                sc.err = null;
-            while (bytes.length > 0) {
-                switch (bs.state) {
-                    case bis_enum.HEADER:
-                        WRITE();
-                        if (bs.left === 0) {
-                            var magic = GETINT(0);
-                            bs.str_size = GETINT(4);
-                            bs.key_size = GETINT(8);
-                            bs.dbg_size = GETINT(12);
-                            bs.pos_size = GETINT(16);
-                            bs.cmd_size = GETINT(20);
-                            bs.ops_size = GETINT(24);
-                            if (magic !== 0x016B53FC) {
-                                sc.err = 'Error: Invalid binary header';
-                                return false;
-                            }
-                            bs.state = bis_enum.STR_HEAD;
-                            bs.left = BSZ_STR_HEAD;
-                            bs.item = 0;
-                            bs.buf = '';
-                        }
-                        break;
-                    case bis_enum.STR_HEAD:
-                        if (bs.item >= bs.str_size) {
-                            bs.state = bis_enum.KEY;
-                            bs.left = BSZ_KEY;
-                            bs.item = 0;
-                            break;
-                        }
-                        WRITE();
-                        if (bs.left === 0) {
-                            bs.state = bis_enum.STR_BODY;
-                            bs.left = GETINT(0);
-                            bs.buf = '';
-                        }
-                        break;
-                    case bis_enum.STR_BODY:
-                        WRITE();
-                        if (bs.left === 0) {
-                            prg.strTable.push(bs.buf);
-                            bs.buf = '';
-                            bs.state = bis_enum.STR_HEAD;
-                            bs.left = BSZ_STR_HEAD;
-                            bs.item++;
-                        }
-                        break;
-                    case bis_enum.KEY:
-                        if (bs.item >= bs.key_size) {
-                            bs.state = bis_enum.DEBUG_HEAD;
-                            bs.left = BSZ_DEBUG_HEAD;
-                            bs.item = 0;
-                            break;
-                        }
-                        WRITE();
-                        if (bs.left === 0) {
-                            var key1 = GETINT(0);
-                            var key2 = GETINT(4);
-                            var key = [key1, key2];
-                            prg.keyTable.push(key);
-                            bs.item++;
-                            bs.left = BSZ_KEY;
-                            bs.buf = '';
-                        }
-                        break;
-                    case bis_enum.DEBUG_HEAD:
-                        if (bs.item >= bs.dbg_size) {
-                            bs.state = bis_enum.POS;
-                            bs.left = BSZ_POS;
-                            bs.item = 0;
-                            break;
-                        }
-                        WRITE();
-                        if (bs.left === 0) {
-                            bs.state = bis_enum.DEBUG_BODY;
-                            bs.left = GETINT(0);
-                            bs.buf = '';
-                        }
-                        break;
-                    case bis_enum.DEBUG_BODY:
-                        WRITE();
-                        if (bs.left === 0) {
-                            prg.debugTable.push(bs.buf);
-                            bs.buf = '';
-                            bs.state = bis_enum.DEBUG_HEAD;
-                            bs.left = BSZ_DEBUG_HEAD;
-                            bs.item++;
-                        }
-                        break;
-                    case bis_enum.POS:
-                        if (bs.item >= bs.pos_size) {
-                            bs.state = bis_enum.CMD;
-                            bs.left = BSZ_CMD;
-                            bs.item = 0;
-                            break;
-                        }
-                        WRITE();
-                        if (bs.left === 0) {
-                            var p = {
-                                pc: GETINT(0),
-                                flp: {
-                                    line: GETINT(4),
-                                    chr: GETINT(8),
-                                    basefile: GETINT(12),
-                                    fullfile: -1
-                                }
-                            };
-                            prg.posTable.push(p);
-                            bs.buf = '';
-                            bs.left = BSZ_POS;
-                            bs.item++;
-                            if (p.flp.basefile >= bs.dbg_size)
-                                p.flp.basefile = -1;
-                        }
-                        break;
-                    case bis_enum.CMD:
-                        if (bs.item >= bs.cmd_size) {
-                            bs.state = bis_enum.OPS;
-                            bs.left = bs.ops_size + 1;
-                            break;
-                        }
-                        WRITE();
-                        if (bs.left === 0) {
-                            var p = {
-                                pc: GETINT(0),
-                                cmdhint: GETINT(4)
-                            };
-                            prg.cmdTable.push(p);
-                            bs.buf = '';
-                            bs.left = BSZ_CMD;
-                            bs.item++;
-                            if (p.cmdhint >= bs.dbg_size)
-                                p.cmdhint = -1;
-                        }
-                        break;
-                    case bis_enum.OPS:
-                        WRITE();
-                        if (bs.left === 0) {
-                            if (bs.buf.charCodeAt(bs.buf.length - 1) !== 0xFD) {
-                                sc.err = 'Error: Invalid binary file';
-                                return false;
-                            }
-                            for (var i = 0; i < bs.buf.length - 1; i++)
-                                prg.ops.push(bs.buf.charCodeAt(i));
-                            bs.buf = '';
-                            bs.state = bis_enum.DONE;
-                        }
-                        break;
-                    case bis_enum.DONE:
-                        sc.err = 'Error: Invalid data at end of file';
-                        return false;
+            function WRITE() {
+                if (bytes.length > bs.left) {
+                    bs.buf += bytes.substr(0, bs.left);
+                    bytes = bytes.substr(bs.left);
+                    bs.left = 0;
+                }
+                else {
+                    bs.buf += bytes;
+                    bs.left -= bytes.length;
+                    bytes = '';
                 }
             }
-            var is_eval = !sc.prg.repl && sc.file === null;
-            if (is_eval)
-                binary_validate(sc);
-            return sc.err === null;
-        }
-        else {
-            if (sc.err)
-                sc.err = null;
-            return checkPromise(compiler_write(sc.cmp, bytes), function (err) {
-                if (err)
-                    sc.err = 'Error: ' + err;
-                var is_eval = !sc.prg.repl && sc.file === null;
-                text_validate(sc, is_eval, true);
-                return sc.err === null;
+            var sc, bs, prg, magic, key1, key2, key, p, p, i, is_eval, err, is_eval;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        if (bytes.length <= 0)
+                            return [2, true];
+                        sc = scr;
+                        if (sc.capture_write !== null) {
+                            sc.capture_write += bytes;
+                            return [2, true];
+                        }
+                        if (sc.mode === scriptmode_enum.UNKNOWN) {
+                            if (bytes.charCodeAt(0) === 0xFC) {
+                                sc.mode = scriptmode_enum.BINARY;
+                                sc.binstate.state = bis_enum.HEADER;
+                                sc.binstate.left = BSZ_HEADER;
+                                sc.binstate.buf = '';
+                            }
+                            else {
+                                sc.mode = scriptmode_enum.TEXT;
+                                sc.cmp = compiler_new(sc, sc.prg, sc.sinc, sc.inc, sc.file, sc.paths);
+                            }
+                        }
+                        bs = sc.binstate;
+                        prg = sc.prg;
+                        if (!(sc.mode === scriptmode_enum.BINARY)) return [3, 1];
+                        if (sc.err)
+                            sc.err = null;
+                        while (bytes.length > 0) {
+                            switch (bs.state) {
+                                case bis_enum.HEADER:
+                                    WRITE();
+                                    if (bs.left === 0) {
+                                        magic = GETINT(0);
+                                        bs.str_size = GETINT(4);
+                                        bs.key_size = GETINT(8);
+                                        bs.dbg_size = GETINT(12);
+                                        bs.pos_size = GETINT(16);
+                                        bs.cmd_size = GETINT(20);
+                                        bs.ops_size = GETINT(24);
+                                        if (magic !== 0x016B53FC) {
+                                            sc.err = 'Error: Invalid binary header';
+                                            return [2, false];
+                                        }
+                                        bs.state = bis_enum.STR_HEAD;
+                                        bs.left = BSZ_STR_HEAD;
+                                        bs.item = 0;
+                                        bs.buf = '';
+                                    }
+                                    break;
+                                case bis_enum.STR_HEAD:
+                                    if (bs.item >= bs.str_size) {
+                                        bs.state = bis_enum.KEY;
+                                        bs.left = BSZ_KEY;
+                                        bs.item = 0;
+                                        break;
+                                    }
+                                    WRITE();
+                                    if (bs.left === 0) {
+                                        bs.state = bis_enum.STR_BODY;
+                                        bs.left = GETINT(0);
+                                        bs.buf = '';
+                                    }
+                                    break;
+                                case bis_enum.STR_BODY:
+                                    WRITE();
+                                    if (bs.left === 0) {
+                                        prg.strTable.push(bs.buf);
+                                        bs.buf = '';
+                                        bs.state = bis_enum.STR_HEAD;
+                                        bs.left = BSZ_STR_HEAD;
+                                        bs.item++;
+                                    }
+                                    break;
+                                case bis_enum.KEY:
+                                    if (bs.item >= bs.key_size) {
+                                        bs.state = bis_enum.DEBUG_HEAD;
+                                        bs.left = BSZ_DEBUG_HEAD;
+                                        bs.item = 0;
+                                        break;
+                                    }
+                                    WRITE();
+                                    if (bs.left === 0) {
+                                        key1 = GETINT(0);
+                                        key2 = GETINT(4);
+                                        key = [key1, key2];
+                                        prg.keyTable.push(key);
+                                        bs.item++;
+                                        bs.left = BSZ_KEY;
+                                        bs.buf = '';
+                                    }
+                                    break;
+                                case bis_enum.DEBUG_HEAD:
+                                    if (bs.item >= bs.dbg_size) {
+                                        bs.state = bis_enum.POS;
+                                        bs.left = BSZ_POS;
+                                        bs.item = 0;
+                                        break;
+                                    }
+                                    WRITE();
+                                    if (bs.left === 0) {
+                                        bs.state = bis_enum.DEBUG_BODY;
+                                        bs.left = GETINT(0);
+                                        bs.buf = '';
+                                    }
+                                    break;
+                                case bis_enum.DEBUG_BODY:
+                                    WRITE();
+                                    if (bs.left === 0) {
+                                        prg.debugTable.push(bs.buf);
+                                        bs.buf = '';
+                                        bs.state = bis_enum.DEBUG_HEAD;
+                                        bs.left = BSZ_DEBUG_HEAD;
+                                        bs.item++;
+                                    }
+                                    break;
+                                case bis_enum.POS:
+                                    if (bs.item >= bs.pos_size) {
+                                        bs.state = bis_enum.CMD;
+                                        bs.left = BSZ_CMD;
+                                        bs.item = 0;
+                                        break;
+                                    }
+                                    WRITE();
+                                    if (bs.left === 0) {
+                                        p = {
+                                            pc: GETINT(0),
+                                            flp: {
+                                                line: GETINT(4),
+                                                chr: GETINT(8),
+                                                basefile: GETINT(12),
+                                                fullfile: -1
+                                            }
+                                        };
+                                        prg.posTable.push(p);
+                                        bs.buf = '';
+                                        bs.left = BSZ_POS;
+                                        bs.item++;
+                                        if (p.flp.basefile >= bs.dbg_size)
+                                            p.flp.basefile = -1;
+                                    }
+                                    break;
+                                case bis_enum.CMD:
+                                    if (bs.item >= bs.cmd_size) {
+                                        bs.state = bis_enum.OPS;
+                                        bs.left = bs.ops_size + 1;
+                                        break;
+                                    }
+                                    WRITE();
+                                    if (bs.left === 0) {
+                                        p = {
+                                            pc: GETINT(0),
+                                            cmdhint: GETINT(4)
+                                        };
+                                        prg.cmdTable.push(p);
+                                        bs.buf = '';
+                                        bs.left = BSZ_CMD;
+                                        bs.item++;
+                                        if (p.cmdhint >= bs.dbg_size)
+                                            p.cmdhint = -1;
+                                    }
+                                    break;
+                                case bis_enum.OPS:
+                                    WRITE();
+                                    if (bs.left === 0) {
+                                        if (bs.buf.charCodeAt(bs.buf.length - 1) !== 0xFD) {
+                                            sc.err = 'Error: Invalid binary file';
+                                            return [2, false];
+                                        }
+                                        for (i = 0; i < bs.buf.length - 1; i++)
+                                            prg.ops.push(bs.buf.charCodeAt(i));
+                                        bs.buf = '';
+                                        bs.state = bis_enum.DONE;
+                                    }
+                                    break;
+                                case bis_enum.DONE:
+                                    sc.err = 'Error: Invalid data at end of file';
+                                    return [2, false];
+                            }
+                        }
+                        is_eval = !sc.prg.repl && sc.file === null;
+                        if (is_eval)
+                            binary_validate(sc);
+                        return [2, sc.err === null];
+                    case 1:
+                        if (sc.err)
+                            sc.err = null;
+                        return [4, compiler_write(sc.cmp, bytes)];
+                    case 2:
+                        err = _a.sent();
+                        if (err)
+                            sc.err = 'Error: ' + err;
+                        is_eval = !sc.prg.repl && sc.file === null;
+                        text_validate(sc, is_eval, true);
+                        return [2, sc.err === null];
+                }
             });
-        }
+        });
     }
     exports.scr_write = scr_write;
     function scr_geterr(scr) {
@@ -11636,11 +12038,16 @@ var __extends = (this && this.__extends) || (function () {
         ctx.timeout_left = 0;
     }
     exports.ctx_forcetimeout = ctx_forcetimeout;
-    function ctx_run(ctx, f_rundone) {
-        var ctx2 = ctx;
-        if (ctx2.prg.repl && ctx2.err)
-            ctx2.err = null;
-        context_run(ctx2, f_rundone);
+    function ctx_run(ctx) {
+        return __awaiter(this, void 0, void 0, function () {
+            var ctx2;
+            return __generator(this, function (_a) {
+                ctx2 = ctx;
+                if (ctx2.prg.repl && ctx2.err)
+                    ctx2.err = null;
+                return [2, context_run(ctx2)];
+            });
+        });
     }
     exports.ctx_run = ctx_run;
     function ctx_geterr(ctx) {
@@ -11721,12 +12128,14 @@ var __extends = (this && this.__extends) || (function () {
     }
     exports.tostr = tostr;
     function exit(ctx, vals) {
-        if (vals.length > 0) {
-            return checkPromise(say(ctx, vals), function () {
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                if (vals.length > 0)
+                    say(ctx, vals);
                 opi_exit(ctx);
+                return [2];
             });
-        }
-        opi_exit(ctx);
+        });
     }
     exports.exit = exit;
     function abort(ctx, vals) {

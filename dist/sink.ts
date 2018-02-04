@@ -55,13 +55,19 @@ export enum run {
 	REPLMORE
 }
 
-export type output_f = (ctx: ctx, str: str, iouser: any) => void | Promise<void>;
-export type input_f = (ctx: ctx, str: str, iouser: any) => val | Promise<val>;
-export type native_f = (ctx: ctx, args: val[], natuser: any) => val | Promise<val>;
-export type fstype_f = (file: string, incuser: any) => fstype | Promise<fstype>;
-export type fsread_f = (scr: scr, file: string, incuser: any) => boolean | Promise<boolean>;
+export enum status {
+	READY,
+	WAITING,
+	PASSED,
+	FAILED
+}
+
+export type fsread_f = (scr: scr, file: string, incuser: any) => Promise<boolean>;
+export type fstype_f = (file: string, incuser: any) => Promise<fstype>;
+export type output_f = (ctx: ctx, str: str, iouser: any) => Promise<void>;
+export type input_f = (ctx: ctx, str: str, iouser: any) => Promise<val>;
+export type native_f = (ctx: ctx, args: val[], natuser: any) => Promise<val>;
 export type dump_f = (data: string, dumpuser: any) => void;
-export type rundone_f = (ctx: ctx, result: run) => void;
 
 export interface io_st {
 	f_say?: output_f;
@@ -76,26 +82,8 @@ export interface inc_st {
 	user?: any;
 }
 
-export enum status {
-	READY,
-	WAITING,
-	PASSED,
-	FAILED
-}
-
 const NAN = Number.NaN;
 export const NIL = null;
-
-export function isPromise<T>(p: any): p is Promise<T> {
-	return typeof p === 'object' && p !== null && typeof (<Promise<T>>p).then === 'function';
-}
-
-export function checkPromise<T, U>(v: T | Promise<T>,
-	func: (v2: T) => U | Promise<U>): U | Promise<U> {
-	if (isPromise<T>(v))
-		return v.then(func);
-	return func(v);
-}
 
 export function bool(f: boolean): val { return f ? 1 : NIL; }
 export function istrue(v: val): v is valtrue { return v !== NIL; }
@@ -4837,42 +4825,34 @@ function pathjoin(prev: string, next: string, posix: boolean): string {
 //
 
 type fileres_begin_f = (file: string, fuser: any) => boolean;
-type fileres_end_f = (success: boolean, file: string, fuser: any) => void;
+type fileres_end_f = (success: boolean, file: string, fuser: any) => Promise<void>;
 
-function fileres_try(scr: script_st, postfix: boolean, file: string,
-	f_begin: fileres_begin_f, f_end: fileres_end_f, fuser: any): boolean | Promise<boolean> {
+async function fileres_try(scr: script_st, postfix: boolean, file: string,
+	f_begin: fileres_begin_f, f_end: fileres_end_f, fuser: any): Promise<boolean> {
 	let inc = scr.inc;
-	return checkPromise<fstype, boolean>(
-		inc.f_fstype(file, inc.user),
-		function(fst: fstype): boolean | Promise<boolean> {
-			switch (fst){
-				case fstype.FILE:
-					if (f_begin(file, fuser)){
-						return checkPromise<boolean, boolean>(
-							inc.f_fsread(scr, file, inc.user),
-							function(readRes: boolean): boolean {
-								f_end(readRes, file, fuser);
-								return true;
-							});
-					}
-					return true;
-				case fstype.NONE:
-					if (!postfix)
-						return false;
-					// try adding a .sink extension
-					if (file.substr(-5) === '.sink')
-						return false;
-					return fileres_try(scr, false, file + '.sink', f_begin, f_end, fuser);
-				case fstype.DIR:
-					if (!postfix)
-						return false;
-					// try looking for index.sink inside the directory
-					return fileres_try(scr, false, pathjoin(file, 'index.sink', scr.posix),
-						f_begin, f_end, fuser);
+	let fst = await inc.f_fstype(file, inc.user);
+	switch (fst){
+		case fstype.FILE:
+			if (f_begin(file, fuser)){
+				let readRes = await inc.f_fsread(scr, file, inc.user);
+				await f_end(readRes, file, fuser);
 			}
-			throw new Error('Bad file type');
-		}
-	);
+			return true;
+		case fstype.NONE:
+			if (!postfix)
+				return false;
+			// try adding a .sink extension
+			if (file.substr(-5) === '.sink')
+				return false;
+			return fileres_try(scr, false, file + '.sink', f_begin, f_end, fuser);
+		case fstype.DIR:
+			if (!postfix)
+				return false;
+			// try looking for index.sink inside the directory
+			return fileres_try(scr, false, pathjoin(file, 'index.sink', scr.posix),
+				f_begin, f_end, fuser);
+	}
+	throw new Error('Bad file type');
 }
 
 function isabs(file: string, posix: boolean): boolean {
@@ -4880,8 +4860,8 @@ function isabs(file: string, posix: boolean): boolean {
 		(!posix && (file.charAt(1) == ':' || (file.charAt(0) == '/' && file.charAt(1) == '/')));
 }
 
-function fileres_read(scr: script_st, postfix: boolean, file: string, cwd: strnil,
-	f_begin: fileres_begin_f, f_end: fileres_end_f, fuser: any): boolean | Promise<boolean> {
+async function fileres_read(scr: script_st, postfix: boolean, file: string, cwd: strnil,
+	f_begin: fileres_begin_f, f_end: fileres_end_f, fuser: any): Promise<boolean> {
 	// if an absolute path, there is no searching, so just try to read it directly
 	if (isabs(file, scr.posix))
 		return fileres_try(scr, postfix, file, f_begin, f_end, fuser);
@@ -4889,29 +4869,21 @@ function fileres_read(scr: script_st, postfix: boolean, file: string, cwd: strni
 	if (cwd === null)
 		cwd = scr.curdir;
 	let paths = scr.paths;
-	return nextPath(0);
-
-	function nextPath(i: number): boolean | Promise<boolean> {
-		if (i >= paths.length)
-			return false;
+	for (let i = 0; i < paths.length; i++){
 		let path = paths[i];
 		let join: string;
 		if (isabs(path, scr.posix)) // search path is absolute
 			join = pathjoin(path, file, scr.posix);
 		else{ // search path is relative
 			if (cwd === null)
-				return nextPath(i + 1);
+				continue;
 			join = pathjoin(pathjoin(cwd, path, scr.posix), file, scr.posix);
 		}
-		return checkPromise<boolean, boolean>(
-			fileres_try(scr, postfix, join, f_begin, f_end, fuser),
-			function(found: boolean): boolean | Promise<boolean> {
-				if (found)
-					return true;
-				return nextPath(i + 1);
-			}
-		);
+		let found = await fileres_try(scr, postfix, join, f_begin, f_end, fuser);
+		if (found)
+			return true;
 	}
+	return false;
 }
 
 //
@@ -5398,64 +5370,7 @@ function lval_addVars(sym: symtbl_st, ex: expr_st, slot: number): lvp_st {
 	return lvp_error(ex.flp, 'Invalid assignment');
 }
 
-function lval_prepare(pgen: pgen_st, ex: expr_st): lvp_st | Promise<lvp_st> {
-	function handleListGroup(flp: filepos_st, exg: expr_st_GROUP): lvp_st | Promise<lvp_st> {
-		let body: lvr_st[] = [];
-		let rest: lvr_st | null = null;
-		function handleNext(i: number): lvp_st | Promise<lvp_st> {
-			if (i >= exg.group.length)
-				return lvp_ok(lvr_list(flp, body, rest));
-
-			let gex = exg.group[i];
-			if (i === exg.group.length - 1 && gex.type === expr_enum.PREFIX &&
-				gex.k === ks_enum.PERIOD3){
-				return checkPromise<lvp_st, lvp_st>(
-					lval_prepare(pgen, gex.ex),
-					function(lp: lvp_st): lvp_st | Promise<lvp_st> {
-						if (!lp.ok)
-							return lp;
-						rest = lp.lv;
-						return handleNext(i + 1);
-					}
-				);
-			}
-			else{
-				return checkPromise<lvp_st, lvp_st>(
-					lval_prepare(pgen, gex),
-					function(lp: lvp_st): lvp_st | Promise<lvp_st> {
-						if (!lp.ok)
-							return lp;
-						body.push(lp.lv);
-						return handleNext(i + 1);
-					}
-				);
-			}
-		}
-		return handleNext(0);
-	}
-
-	function handleListRest(flp: filepos_st, exr: expr_st): lvp_st | Promise<lvp_st> {
-		return checkPromise<lvp_st, lvp_st>(
-			lval_prepare(pgen, exr),
-			function(lp: lvp_st): lvp_st {
-				if (!lp.ok)
-					return lp;
-				return lvp_ok(lvr_list(flp, [], lp.lv));
-			}
-		);
-	}
-
-	function handleListBody(flp: filepos_st, exb: expr_st): lvp_st | Promise<lvp_st> {
-		return checkPromise<lvp_st, lvp_st>(
-			lval_prepare(pgen, exb),
-			function(lp: lvp_st): lvp_st {
-				if (!lp.ok)
-					return lp;
-				return lvp_ok(lvr_list(flp, [lp.lv], null));
-			}
-		);
-	}
-
+async function lval_prepare(pgen: pgen_st, ex: expr_st): Promise<lvp_st> {
 	if (ex.type === expr_enum.NAMES){
 		let sl = symtbl_lookup(pgen.sym, ex.names);
 		if (!sl.ok)
@@ -5465,99 +5380,89 @@ function lval_prepare(pgen: pgen_st, ex: expr_st): lvp_st | Promise<lvp_st> {
 		return lvp_ok(lvr_var(ex.flp, varloc_new(sl.nsn.fr.level, sl.nsn.index)));
 	}
 	else if (ex.type === expr_enum.INDEX){
-		return checkPromise<per_st, lvp_st>(
-			program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.obj),
-			function handleIndex(pe: per_st): lvp_st | Promise<lvp_st> {
-				if (!pe.ok)
-					return lvp_error(pe.flp, pe.msg);
-				let obj = pe.vlc;
-
-				if (ex.type !== expr_enum.INDEX)
-					throw new Error('Expression type must be index');
-				return checkPromise<per_st, lvp_st>(
-					program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.key),
-					function(pe: per_st): lvp_st {
-						if (!pe.ok)
-							return lvp_error(pe.flp, pe.msg);
-						return lvp_ok(lvr_index(ex.flp, obj, pe.vlc));
-					}
-				);
-			}
-		);
+		let pe = await program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.obj);
+		if (!pe.ok)
+			return lvp_error(pe.flp, pe.msg);
+		let obj = pe.vlc;
+		if (ex.type !== expr_enum.INDEX)
+			throw new Error('Expression type must be index');
+		pe = await program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.key);
+		if (!pe.ok)
+			return lvp_error(pe.flp, pe.msg);
+		return lvp_ok(lvr_index(ex.flp, obj, pe.vlc));
 	}
 	else if (ex.type === expr_enum.SLICE){
 		if (ex.obj.type === expr_enum.INDEX){
 			// we have a slice of an index `foo[1][2:3]`
-			return checkPromise<per_st, lvp_st>(
-				program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.obj.obj),
-				function(pe: per_st): lvp_st | Promise<lvp_st> {
-					if (!pe.ok)
-						return lvp_error(pe.flp, pe.msg);
-					let obj = pe.vlc;
-
-					if (ex.type !== expr_enum.SLICE || ex.obj.type !== expr_enum.INDEX)
-						throw new Error('Expression type must be a slice index');
-					return checkPromise<per_st, lvp_st>(
-						program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.obj.key),
-						function(pe: per_st): lvp_st | Promise<lvp_st> {
-							if (!pe.ok)
-								return lvp_error(pe.flp, pe.msg);
-							let key = pe.vlc;
-
-							function fixex(ex: expr_st): expr_st_SLICE {
-								if (ex.type !== expr_enum.SLICE)
-									throw new Error('Expression type must be slice');
-								return ex;
-							}
-							return checkPromise<psr_st, lvp_st>(
-								program_slice(pgen, fixex(ex)),
-								function(sr: psr_st): lvp_st {
-									if (!sr.ok)
-										return lvp_error(sr.flp, sr.msg);
-									return lvp_ok(lvr_sliceindex(ex.flp, obj, key, sr.start, sr.len));
-								}
-							);
-						}
-					);
-				}
-			);
+			let pe = await program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.obj.obj);
+			if (!pe.ok)
+				return lvp_error(pe.flp, pe.msg);
+			let obj = pe.vlc;
+			if (ex.type !== expr_enum.SLICE || ex.obj.type !== expr_enum.INDEX)
+				throw new Error('Expression type must be a slice index');
+			pe = await program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.obj.key);
+			if (!pe.ok)
+				return lvp_error(pe.flp, pe.msg);
+			let key = pe.vlc;
+			if (ex.type !== expr_enum.SLICE)
+				throw new Error('Expression type must be slice');
+			let sr = await program_slice(pgen, ex);
+			if (!sr.ok)
+				return lvp_error(sr.flp, sr.msg);
+			return lvp_ok(lvr_sliceindex(ex.flp, obj, key, sr.start, sr.len));
 		}
 		else{
-			return checkPromise<per_st, lvp_st>(
-				program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.obj),
-				function(pe: per_st): lvp_st | Promise<lvp_st> {
-					if (!pe.ok)
-						return lvp_error(pe.flp, pe.msg);
-					let obj = pe.vlc;
-
-					function fixex(ex: expr_st): expr_st_SLICE {
-						if (ex.type !== expr_enum.SLICE)
-							throw new Error('Expression type must be slice');
-						return ex;
-					}
-					return checkPromise<psr_st, lvp_st>(
-						program_slice(pgen, fixex(ex)),
-						function(sr: psr_st): lvp_st {
-							if (!sr.ok)
-								return lvp_error(sr.flp, sr.msg);
-							return lvp_ok(lvr_slice(ex.flp, obj, sr.start, sr.len));
-						}
-					);
-				}
-			);
+			let pe = await program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.obj);
+			if (!pe.ok)
+				return lvp_error(pe.flp, pe.msg);
+			let obj = pe.vlc;
+			if (ex.type !== expr_enum.SLICE)
+				throw new Error('Expression type must be slice');
+			let sr = await program_slice(pgen, ex);
+			if (!sr.ok)
+				return lvp_error(sr.flp, sr.msg);
+			return lvp_ok(lvr_slice(ex.flp, obj, sr.start, sr.len));
 		}
 	}
 	else if (ex.type === expr_enum.LIST){
+		let body: lvr_st[] = [];
+		let rest: lvr_st | null = null;
 		if (ex.ex === null)
 			return lvp_error(ex.flp, 'Invalid assignment');
-		else if (ex.ex.type === expr_enum.GROUP)
-			return handleListGroup(ex.flp, ex.ex);
-		else{
-			if (ex.ex.type === expr_enum.PREFIX && ex.ex.k === ks_enum.PERIOD3)
-				return handleListRest(ex.flp, ex.ex.ex);
-			else
-				return handleListBody(ex.flp, ex.ex);
+		else if (ex.ex.type === expr_enum.GROUP){
+			for (let i = 0; i < ex.ex.group.length; i++){
+				let gex = ex.ex.group[i];
+				if (i === ex.ex.group.length - 1 && gex.type === expr_enum.PREFIX &&
+					gex.k === ks_enum.PERIOD3){
+					let lp = await lval_prepare(pgen, gex.ex);
+					if (!lp.ok)
+						return lp;
+					rest = lp.lv;
+				}
+				else{
+					let lp = await lval_prepare(pgen, gex);
+					if (!lp.ok)
+						return lp;
+					body.push(lp.lv);
+				}
+			}
 		}
+		else{
+			if (ex.ex.type === expr_enum.PREFIX && ex.ex.k === ks_enum.PERIOD3){
+				let lp = await lval_prepare(pgen, ex.ex.ex);
+				if (!lp.ok)
+					return lp;
+				rest = lp.lv;
+				return lvp_ok(lvr_list(ex.flp, [], lp.lv));
+			}
+			else{
+				let lp = await lval_prepare(pgen, ex.ex);
+				if (!lp.ok)
+					return lp;
+				body.push(lp.lv);
+			}
+		}
+		return lvp_ok(lvr_list(ex.flp, body, rest));
 	}
 	return lvp_error(ex.flp, 'Invalid assignment');
 }
@@ -5735,44 +5640,37 @@ function program_evalLval(pgen: pgen_st, mode: pem_enum, intoVlc: varloc_st, lv:
 	return per_ok(intoVlc);
 }
 
-function program_slice(pgen: pgen_st, ex: expr_st_SLICE): psr_st | Promise<psr_st> {
+async function program_slice(pgen: pgen_st, ex: expr_st_SLICE): Promise<psr_st> {
+	let start: varloc_st;
 	if (ex.start === null){
 		let ts = symtbl_addTemp(pgen.sym);
 		if (!ts.ok)
 			return psr_error(ex.flp, ts.msg);
 		op_numint(pgen.prg.ops, ts.vlc, 0);
-		return gotStart(ts.vlc);
+		start = ts.vlc;
 	}
 	else{
-		return checkPromise<per_st, psr_st>(
-			program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.start),
-			function(pe: per_st): psr_st | Promise<psr_st> {
-				if (!pe.ok)
-					return psr_error(pe.flp, pe.msg);
-				return gotStart(pe.vlc);
-			}
-		);
+		let pe = await program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.start);
+		if (!pe.ok)
+			return psr_error(pe.flp, pe.msg);
+		start = pe.vlc;
 	}
-	function gotStart(start: varloc_st): psr_st | Promise<psr_st> {
-		if (ex.len === null){
-			let ts = symtbl_addTemp(pgen.sym);
-			if (!ts.ok)
-				return psr_error(ex.flp, ts.msg);
-			let len = ts.vlc;
-			op_nil(pgen.prg.ops, len);
-			return psr_ok(start, len);
-		}
-		else{
-			return checkPromise<per_st, psr_st>(
-				program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.len),
-				function(pe: per_st): psr_st {
-					if (!pe.ok)
-						return psr_error(pe.flp, pe.msg);
-					return psr_ok(start, pe.vlc);
-				}
-			);
-		}
+
+	let len: varloc_st;
+	if (ex.len === null){
+		let ts = symtbl_addTemp(pgen.sym);
+		if (!ts.ok)
+			return psr_error(ex.flp, ts.msg);
+		len = ts.vlc;
+		op_nil(pgen.prg.ops, len);
 	}
+	else{
+		let pe = await program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.len);
+		if (!pe.ok)
+			return psr_error(pe.flp, pe.msg);
+		len = pe.vlc;
+	}
+	return psr_ok(start, len);
 }
 
 function program_lvalGetIndex(pgen: pgen_st, lv: lvr_st_SLICEINDEX): per_st {
@@ -5846,8 +5744,8 @@ function program_lvalGet(pgen: pgen_st, mode: plm_enum, intoVlc: varloc_st, lv: 
 	return per_ok(intoVlc);
 }
 
-function program_evalCallArgcount(pgen: pgen_st, params: expr_st | null, argcount: number[],
-	pe: per_st[], p: varloc_st[]): boolean | Promise<boolean> {
+async function program_evalCallArgcount(pgen: pgen_st, params: expr_st | null, argcount: number[],
+	pe: per_st[], p: varloc_st[]): Promise<boolean> {
 	// `p` is an array of 255 varloc_st's, which get filled with `argcount` arguments
 	// returns false on error, with error inside of `pe`
 	// `argcount` is a single-element array, so values can be written out to caller
@@ -5855,46 +5753,29 @@ function program_evalCallArgcount(pgen: pgen_st, params: expr_st | null, argcoun
 	argcount[0] = 0;
 	if (params === null)
 		return true;
-
-	function handleGroup(group: expr_st[]): boolean | Promise<boolean> {
-		function handleNext(i: number): boolean | Promise<boolean> {
-			if (i >= group.length)
-				return true;
-			return checkPromise<per_st, boolean>(
-				program_eval(pgen, i < argcount[0] ? pem_enum.CREATE : pem_enum.EMPTY,
-					VARLOC_NULL, group[i]),
-				function(pe0: per_st): boolean | Promise<boolean> {
-					pe[0] = pe0;
-					if (!pe0.ok)
-						return false;
-					if (i < argcount[0])
-						p[i] = pe0.vlc;
-					return handleNext(i + 1);
-				}
-			);
-		}
-		return handleNext(0);
-	}
-
 	if (params.type === expr_enum.GROUP){
 		argcount[0] = params.group.length;
 		if (argcount[0] > 254)
 			argcount[0] = 254;
-		return handleGroup(params.group);
+		for (let i = 0; i < params.group.length; i++){
+			let pe0 = await program_eval(pgen, i < argcount[0] ? pem_enum.CREATE : pem_enum.EMPTY,
+				VARLOC_NULL, params.group[i]);
+			pe[0] = pe0;
+			if (!pe0.ok)
+				return false;
+			if (i < argcount[0])
+				p[i] = pe0.vlc;
+		}
 	}
 	else{
 		argcount[0] = 1;
-		return checkPromise<per_st, boolean>(
-			program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, params),
-			function(pe0: per_st): boolean {
-				pe[0] = pe0;
-				if (!pe0.ok)
-					return false;
-				p[0] = pe0.vlc;
-				return true;
-			}
-		);
+		let pe0 = await program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, params);
+		pe[0] = pe0;
+		if (!pe0.ok)
+			return false;
+		p[0] = pe0.vlc;
 	}
+	return true;
 }
 
 interface efu_st {
@@ -5911,16 +5792,13 @@ function embed_begin(file: string, efu: efu_st): boolean {
 	return true;
 }
 
-function embed_end(success: boolean, file: string, efu: efu_st): void {
+async function embed_end(success: boolean, file: string, efu: efu_st): Promise<void> {
 	if (success){
 		// convert the data into a string expression, then load it
 		if (efu.pgen.scr.capture_write === null)
 			throw new Error('Bad embed capture');
 		let ex = expr_str(efu.flp, efu.pgen.scr.capture_write);
-		let pe = program_eval(efu.pgen, efu.mode, efu.intoVlc, ex);
-		if (isPromise<per_st>(pe))
-			throw new Error('Embed cannot result in an asynchronous string');
-		efu.pe = pe;
+		efu.pe = await program_eval(efu.pgen, efu.mode, efu.intoVlc, ex);
 	}
 	else
 		efu.pe = per_error(efu.flp, 'Failed to read file for `embed`: ' + file);
@@ -5945,8 +5823,8 @@ function pen_error(msg: string): pen_st {
 	return { ok: false, msg: msg };
 }
 
-function program_evalCall(pgen: pgen_st, mode: pem_enum, intoVlc: varloc_st, flp: filepos_st,
-	nsn: nsname_st, params: expr_st | null): per_st | Promise<per_st> {
+async function program_evalCall(pgen: pgen_st, mode: pem_enum, intoVlc: varloc_st, flp: filepos_st,
+	nsn: nsname_st, params: expr_st | null): Promise<per_st> {
 	let prg = pgen.prg;
 	let sym = pgen.sym;
 
@@ -5960,60 +5838,44 @@ function program_evalCall(pgen: pgen_st, mode: pem_enum, intoVlc: varloc_st, flp
 			params.group.length !== 3)
 			return per_error(flp, 'Using `pick` requires exactly three arguments');
 
-		return checkPromise<per_st, per_st>(
-			program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, params.group[0]),
-			function(pe: per_st): per_st | Promise<per_st> {
-				if (!pe.ok)
-					return pe;
-				if (mode === pem_enum.CREATE){
-					let ts = symtbl_addTemp(sym);
-					if (!ts.ok)
-						return per_error(flp, ts.msg);
-					intoVlc = ts.vlc;
-				}
+		let pe = await program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, params.group[0]);
+		if (!pe.ok)
+			return pe;
+		if (mode === pem_enum.CREATE){
+			let ts = symtbl_addTemp(sym);
+			if (!ts.ok)
+				return per_error(flp, ts.msg);
+			intoVlc = ts.vlc;
+		}
 
-				let pickfalse = label_new('^pickfalse');
-				let finish = label_new('^pickfinish');
+		let pickfalse = label_new('^pickfalse');
+		let finish = label_new('^pickfinish');
 
-				label_jumpfalse(pickfalse, prg.ops, pe.vlc);
-				symtbl_clearTemp(sym, pe.vlc);
+		label_jumpfalse(pickfalse, prg.ops, pe.vlc);
+		symtbl_clearTemp(sym, pe.vlc);
 
-				let pe2: per_st | Promise<per_st>;
-				if (params === null || params.type !== expr_enum.GROUP)
-					throw new Error('Bad params for pick');
-				if (mode === pem_enum.EMPTY)
-					pe2 = program_eval(pgen, pem_enum.EMPTY, intoVlc, params.group[1]);
-				else
-					pe2 = program_eval(pgen, pem_enum.INTO, intoVlc, params.group[1]);
-				return checkPromise<per_st, per_st>(
-					pe2,
-					function(pe: per_st): per_st | Promise<per_st> {
-						if (!pe.ok)
-							return pe;
-						label_jump(finish, prg.ops);
+		if (params === null || params.type !== expr_enum.GROUP)
+			throw new Error('Bad params for pick');
+		if (mode === pem_enum.EMPTY)
+			pe = await program_eval(pgen, pem_enum.EMPTY, intoVlc, params.group[1]);
+		else
+			pe = await program_eval(pgen, pem_enum.INTO, intoVlc, params.group[1]);
+		if (!pe.ok)
+			return pe;
+		label_jump(finish, prg.ops);
 
-						label_declare(pickfalse, prg.ops);
-						let pe2: per_st | Promise<per_st>;
-						if (params === null || params.type !== expr_enum.GROUP)
-							throw new Error('Bad params for pick');
-						if (mode === pem_enum.EMPTY)
-							pe2 = program_eval(pgen, pem_enum.EMPTY, intoVlc, params.group[2]);
-						else
-							pe2 = program_eval(pgen, pem_enum.INTO, intoVlc, params.group[2]);
-						return checkPromise<per_st, per_st>(
-							pe2,
-							function(pe: per_st): per_st {
-								if (!pe.ok)
-									return pe;
+		label_declare(pickfalse, prg.ops);
+		if (params === null || params.type !== expr_enum.GROUP)
+			throw new Error('Bad params for pick');
+		if (mode === pem_enum.EMPTY)
+			pe = await program_eval(pgen, pem_enum.EMPTY, intoVlc, params.group[2]);
+		else
+			pe = await program_eval(pgen, pem_enum.INTO, intoVlc, params.group[2]);
+		if (!pe.ok)
+			return pe;
 
-								label_declare(finish, prg.ops);
-								return per_ok(intoVlc);
-							}
-						);
-					}
-				);
-			}
-		);
+		label_declare(finish, prg.ops);
+		return per_ok(intoVlc);
 	}
 	else if (nsn.type === nsname_enumt.CMD_OPCODE && nsn.opcode === op_enum.EMBED){
 		let file = params;
@@ -6032,14 +5894,10 @@ function program_evalCall(pgen: pgen_st, mode: pem_enum, intoVlc: varloc_st, flp
 		if (pgen.from >= 0)
 			cwd = pathjoin(script_getfile(pgen.scr, pgen.from) as string, '..', pgen.scr.posix);
 		let fstr = file.str;
-		return checkPromise<boolean, per_st>(
-			fileres_read(pgen.scr, false, fstr, cwd, embed_begin, embed_end, efu),
-			function(res: boolean): per_st {
-				if (!res)
-					return per_error(flp, 'Failed to embed: ' + fstr);
-				return efu.pe;
-			}
-		);
+		let res = await fileres_read(pgen.scr, false, fstr, cwd, embed_begin, embed_end, efu);
+		if (!res)
+			return per_error(flp, 'Failed to embed: ' + fstr);
+		return efu.pe;
 	}
 	else if (nsn.type === nsname_enumt.CMD_OPCODE && nsn.opcode === op_enum.STR_HASH &&
 		params !== null){
@@ -6074,9 +5932,7 @@ function program_evalCall(pgen: pgen_st, mode: pem_enum, intoVlc: varloc_st, flp
 				expr_num(flp, out[1])),
 				expr_num(flp, out[2])),
 				expr_num(flp, out[3])));
-			let p = program_eval(pgen, mode, intoVlc, ex);
-			if (isPromise<per_st>(p))
-				throw new Error('Expecting synchronous expression for compile-time hash');
+			let p = await program_eval(pgen, mode, intoVlc, ex);
 			return p;
 		}
 	}
@@ -6093,71 +5949,66 @@ function program_evalCall(pgen: pgen_st, mode: pem_enum, intoVlc: varloc_st, flp
 		p.push(VARLOC_NULL);
 	let argcount: number[] = [0];
 	let pe: per_st[] = [per_ok(VARLOC_NULL)];
-	return checkPromise<boolean, per_st>(
-		program_evalCallArgcount(pgen, params, argcount, pe, p),
-		function(evc: boolean): per_st {
-			if (!evc)
-				return pe[0];
+	if (!await program_evalCallArgcount(pgen, params, argcount, pe, p))
+		return pe[0];
 
-			program_flp(prg, flp);
-			let oarg = true;
-			if (nsn.type === nsname_enumt.CMD_LOCAL)
-				label_call(nsn.lbl, prg.ops, intoVlc, argcount[0]);
-			else if (nsn.type === nsname_enumt.CMD_NATIVE){
-				// search for the hash
-				let index = 0;
-				let found = false;
-				for ( ; index < prg.keyTable.length; index++){
-					if (u64_equ(prg.keyTable[index], nsn.hash)){
-						found = true;
-						break;
-					}
-				}
-				if (!found){
-					if (prg.keyTable.length >= 0x7FFFFFFF) // using too many native calls?
-						return per_error(flp, 'Too many native commands');
-					index = prg.keyTable.length;
-					prg.keyTable.push(nsn.hash);
-				}
-				op_native(prg.ops, intoVlc, index, argcount[0]);
+	program_flp(prg, flp);
+	let oarg = true;
+	if (nsn.type === nsname_enumt.CMD_LOCAL)
+		label_call(nsn.lbl, prg.ops, intoVlc, argcount[0]);
+	else if (nsn.type === nsname_enumt.CMD_NATIVE){
+		// search for the hash
+		let index = 0;
+		let found = false;
+		for ( ; index < prg.keyTable.length; index++){
+			if (u64_equ(prg.keyTable[index], nsn.hash)){
+				found = true;
+				break;
 			}
-			else{ // nsname_enumt.CMD_OPCODE
-				if (nsn.params < 0)
-					op_parama(prg.ops, nsn.opcode, intoVlc, argcount[0]);
-				else{
-					oarg = false;
-					if (nsn.params > argcount[0]){
-						let ts = symtbl_addTemp(sym);
-						if (!ts.ok)
-							return per_error(flp, ts.msg);
-						p[argcount[0] + 0] = p[argcount[0] + 1] = p[argcount[0] + 2] = ts.vlc;
-						op_nil(prg.ops, p[argcount[0]]);
-						argcount[0]++;
-					}
-					if (nsn.params === 0)
-						op_param0(prg.ops, nsn.opcode, intoVlc);
-					else if (nsn.params === 1)
-						op_param1(prg.ops, nsn.opcode, intoVlc, p[0]);
-					else if (nsn.params === 2)
-						op_param2(prg.ops, nsn.opcode, intoVlc, p[0], p[1]);
-					else // nsn.params === 3
-						op_param3(prg.ops, nsn.opcode, intoVlc, p[0], p[1], p[2]);
-				}
-			}
-
-			for (let i = 0; i < argcount[0]; i++){
-				if (oarg)
-					op_arg(prg.ops, p[i]);
-				symtbl_clearTemp(sym, p[i]);
-			}
-
-			if (mode === pem_enum.EMPTY){
-				symtbl_clearTemp(sym, intoVlc);
-				return per_ok(VARLOC_NULL);
-			}
-			return per_ok(intoVlc);
 		}
-	);
+		if (!found){
+			if (prg.keyTable.length >= 0x7FFFFFFF) // using too many native calls?
+				return per_error(flp, 'Too many native commands');
+			index = prg.keyTable.length;
+			prg.keyTable.push(nsn.hash);
+		}
+		op_native(prg.ops, intoVlc, index, argcount[0]);
+	}
+	else{ // nsname_enumt.CMD_OPCODE
+		if (nsn.params < 0)
+			op_parama(prg.ops, nsn.opcode, intoVlc, argcount[0]);
+		else{
+			oarg = false;
+			if (nsn.params > argcount[0]){
+				let ts = symtbl_addTemp(sym);
+				if (!ts.ok)
+					return per_error(flp, ts.msg);
+				p[argcount[0] + 0] = p[argcount[0] + 1] = p[argcount[0] + 2] = ts.vlc;
+				op_nil(prg.ops, p[argcount[0]]);
+				argcount[0]++;
+			}
+			if (nsn.params === 0)
+				op_param0(prg.ops, nsn.opcode, intoVlc);
+			else if (nsn.params === 1)
+				op_param1(prg.ops, nsn.opcode, intoVlc, p[0]);
+			else if (nsn.params === 2)
+				op_param2(prg.ops, nsn.opcode, intoVlc, p[0], p[1]);
+			else // nsn.params === 3
+				op_param3(prg.ops, nsn.opcode, intoVlc, p[0], p[1], p[2]);
+		}
+	}
+
+	for (let i = 0; i < argcount[0]; i++){
+		if (oarg)
+			op_arg(prg.ops, p[i]);
+		symtbl_clearTemp(sym, p[i]);
+	}
+
+	if (mode === pem_enum.EMPTY){
+		symtbl_clearTemp(sym, intoVlc);
+		return per_ok(VARLOC_NULL);
+	}
+	return per_ok(intoVlc);
 }
 
 function program_lvalCheckNil(pgen: pgen_st, lv: lvr_st, jumpFalse: boolean, inverted: boolean,
@@ -6398,95 +6249,11 @@ function program_lvalCondAssign(pgen: pgen_st, lv: lvr_st, jumpFalse: boolean,
 	return per_ok(VARLOC_NULL);
 }
 
-function program_eval(pgen: pgen_st, mode: pem_enum, intoVlc: varloc_st,
-	ex: expr_st): per_st | Promise<per_st> {
+async function program_eval(pgen: pgen_st, mode: pem_enum, intoVlc: varloc_st,
+	ex: expr_st): Promise<per_st> {
 	let prg = pgen.prg;
 	let sym = pgen.sym;
 	program_flp(prg, ex.flp);
-
-	function handleListGroup(group: expr_st[], ls: varloc_st): per_st | Promise<per_st> {
-		function handleNext(i: number): per_st | Promise<per_st> {
-			if (i >= group.length){
-				if (mode === pem_enum.INTO){
-					symtbl_clearTemp(sym, ls);
-					op_move(prg.ops, intoVlc, ls);
-				}
-				return per_ok(intoVlc);
-			}
-			return checkPromise<per_st, per_st>(
-				program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, group[i]),
-				function(pe: per_st): per_st | Promise<per_st> {
-					if (!pe.ok)
-						return pe;
-					symtbl_clearTemp(sym, pe.vlc);
-					op_param2(prg.ops, op_enum.LIST_PUSH, ls, ls, pe.vlc);
-					return handleNext(i + 1);
-				}
-			);
-		}
-		return handleNext(0);
-	}
-
-	function handleGroup(group: expr_st[]): per_st | Promise<per_st> {
-		function handleNext(i: number): per_st | Promise<per_st> {
-			if (i === group.length - 1)
-				return program_eval(pgen, mode, intoVlc, group[i]);
-			return checkPromise<per_st, per_st>(
-				program_eval(pgen, pem_enum.EMPTY, VARLOC_NULL, group[i]),
-				function(pe: per_st): per_st | Promise<per_st> {
-					if (!pe.ok)
-						return pe;
-					return handleNext(i + 1);
-				}
-			);
-		}
-		return handleNext(0);
-	}
-
-	function handleCat(t: varloc_st, tmax: number, cat: expr_st[]): per_st | Promise<per_st> {
-		let p: varloc_st[] = [];
-		function handleNextCat(ci: number): per_st | Promise<per_st> {
-			if (ci >= cat.length){
-				if (!varloc_isnull(t))
-					symtbl_clearTemp(sym, t);
-				if (mode === pem_enum.EMPTY){
-					symtbl_clearTemp(sym, intoVlc);
-					return per_ok(VARLOC_NULL);
-				}
-				return per_ok(intoVlc);
-			}
-			let len = cat.length - ci;
-			if (len > tmax)
-				len = tmax;
-			function handleNextCatI(i: number): per_st | Promise<per_st> {
-				if (i >= len){
-					op_cat(prg.ops, ci > 0 ? t : intoVlc, len);
-					for (let i = 0; i < len; i++){
-						symtbl_clearTemp(sym, p[i]);
-						op_arg(prg.ops, p[i]);
-					}
-					if (ci > 0){
-						op_cat(prg.ops, intoVlc, 2);
-						op_arg(prg.ops, intoVlc);
-						op_arg(prg.ops, t);
-					}
-					return handleNextCat(ci + tmax);
-				}
-				return checkPromise<per_st, per_st>(
-					program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, cat[ci + i]),
-					function(pe: per_st): per_st | Promise<per_st> {
-						if (!pe.ok)
-							return pe;
-						p[i] = pe.vlc;
-						return handleNextCatI(i + 1);
-					}
-				);
-			}
-			return handleNextCatI(0);
-		}
-		return handleNextCat(0);
-	}
-
 	switch (ex.type){
 		case expr_enum.NIL: {
 			if (mode === pem_enum.EMPTY)
@@ -6562,33 +6329,41 @@ function program_eval(pgen: pgen_st, mode: pem_enum, intoVlc: varloc_st,
 						ls = ts.vlc;
 					}
 					op_list(prg.ops, ls, ex.ex.group.length);
-					return handleListGroup(ex.ex.group, ls);
+					for (let i = 0; i < ex.ex.group.length; i++){
+						let pe = await program_eval(pgen, pem_enum.CREATE, VARLOC_NULL,
+							ex.ex.group[i]);
+						if (!pe.ok)
+							return pe;
+						symtbl_clearTemp(sym, pe.vlc);
+						op_param2(prg.ops, op_enum.LIST_PUSH, ls, ls, pe.vlc);
+					}
+					if (mode === pem_enum.INTO){
+						symtbl_clearTemp(sym, ls);
+						op_move(prg.ops, intoVlc, ls);
+					}
+					return per_ok(intoVlc);
 				}
 				else{
-					return checkPromise<per_st, per_st>(
-						program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.ex),
-						function(pe: per_st): per_st {
-							if (!pe.ok)
-								return pe;
-							// check for `a = {a}`
-							if (intoVlc.frame === pe.vlc.frame && intoVlc.index === pe.vlc.index){
-								let ts = symtbl_addTemp(sym);
-								if (!ts.ok)
-									return per_error(ex.flp, ts.msg);
-								symtbl_clearTemp(sym, ts.vlc);
-								symtbl_clearTemp(sym, pe.vlc);
-								op_list(prg.ops, ts.vlc, 1);
-								op_param2(prg.ops, op_enum.LIST_PUSH, ts.vlc, ts.vlc, pe.vlc);
-								op_move(prg.ops, intoVlc, ts.vlc);
-							}
-							else{
-								symtbl_clearTemp(sym, pe.vlc);
-								op_list(prg.ops, intoVlc, 1);
-								op_param2(prg.ops, op_enum.LIST_PUSH, intoVlc, intoVlc, pe.vlc);
-							}
-							return per_ok(intoVlc);
-						}
-					);
+					let pe = await program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.ex);
+					if (!pe.ok)
+						return pe;
+					// check for `a = {a}`
+					if (intoVlc.frame === pe.vlc.frame && intoVlc.index === pe.vlc.index){
+						let ts = symtbl_addTemp(sym);
+						if (!ts.ok)
+							return per_error(ex.flp, ts.msg);
+						symtbl_clearTemp(sym, ts.vlc);
+						symtbl_clearTemp(sym, pe.vlc);
+						op_list(prg.ops, ts.vlc, 1);
+						op_param2(prg.ops, op_enum.LIST_PUSH, ts.vlc, ts.vlc, pe.vlc);
+						op_move(prg.ops, intoVlc, ts.vlc);
+					}
+					else{
+						symtbl_clearTemp(sym, pe.vlc);
+						op_list(prg.ops, intoVlc, 1);
+						op_param2(prg.ops, op_enum.LIST_PUSH, intoVlc, intoVlc, pe.vlc);
+					}
+					return per_ok(intoVlc);
 				}
 			}
 			else
@@ -6639,7 +6414,13 @@ function program_eval(pgen: pgen_st, mode: pem_enum, intoVlc: varloc_st,
 			return program_eval(pgen, mode, intoVlc, ex.ex);
 
 		case expr_enum.GROUP:
-			return handleGroup(ex.group);
+			for (let i = 0; true; i++){
+				if (i === ex.group.length - 1)
+					return program_eval(pgen, mode, intoVlc, ex.group[i]);
+				let pe = await program_eval(pgen, pem_enum.EMPTY, VARLOC_NULL, ex.group[i]);
+				if (!pe.ok)
+					return pe;
+			}
 
 		case expr_enum.CAT: {
 			if (mode === pem_enum.EMPTY || mode === pem_enum.CREATE){
@@ -6659,131 +6440,137 @@ function program_eval(pgen: pgen_st, mode: pem_enum, intoVlc: varloc_st,
 					return per_error(ex.flp, ts.msg);
 				t = ts.vlc;
 			}
-			return handleCat(t, tmax, ex.cat);
+			let p: varloc_st[] = [];
+			for (let ci = 0; ci < ex.cat.length; ci += tmax){
+				let len = ex.cat.length - ci;
+				if (len > tmax)
+					len = tmax;
+				for (let i = 0; i < len; i++){
+					let pe = await program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.cat[ci + i]);
+					if (!pe.ok)
+						return pe;
+					p[i] = pe.vlc;
+				}
+				op_cat(prg.ops, ci > 0 ? t : intoVlc, len);
+				for (let i = 0; i < len; i++){
+					symtbl_clearTemp(sym, p[i]);
+					op_arg(prg.ops, p[i]);
+				}
+				if (ci > 0){
+					op_cat(prg.ops, intoVlc, 2);
+					op_arg(prg.ops, intoVlc);
+					op_arg(prg.ops, t);
+				}
+			}
+			if (!varloc_isnull(t))
+				symtbl_clearTemp(sym, t);
+			if (mode === pem_enum.EMPTY){
+				symtbl_clearTemp(sym, intoVlc);
+				return per_ok(VARLOC_NULL);
+			}
+			return per_ok(intoVlc);
 		}
 
 		case expr_enum.PREFIX: {
 			let unop = ks_toUnaryOp(ex.k);
 			if (unop === op_enum.INVALID)
 				return per_error(ex.flp, 'Invalid unary operator');
-			return checkPromise<per_st, per_st>(
-				program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.ex),
-				function(pe: per_st): per_st | Promise<per_st> {
-					if (!pe.ok)
-						return pe;
-					if (mode === pem_enum.EMPTY || mode === pem_enum.CREATE){
-						let ts = symtbl_addTemp(sym);
-						if (!ts.ok)
-							return per_error(ex.flp, ts.msg);
-						intoVlc = ts.vlc;
-					}
-					op_unop(prg.ops, unop, intoVlc, pe.vlc);
-					symtbl_clearTemp(sym, pe.vlc);
-					if (mode === pem_enum.EMPTY){
-						symtbl_clearTemp(sym, intoVlc);
-						return per_ok(VARLOC_NULL);
-					}
-					return per_ok(intoVlc);
-				}
-			);
+			let pe = await program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.ex);
+			if (!pe.ok)
+				return pe;
+			if (mode === pem_enum.EMPTY || mode === pem_enum.CREATE){
+				let ts = symtbl_addTemp(sym);
+				if (!ts.ok)
+					return per_error(ex.flp, ts.msg);
+				intoVlc = ts.vlc;
+			}
+			op_unop(prg.ops, unop, intoVlc, pe.vlc);
+			symtbl_clearTemp(sym, pe.vlc);
+			if (mode === pem_enum.EMPTY){
+				symtbl_clearTemp(sym, intoVlc);
+				return per_ok(VARLOC_NULL);
+			}
+			return per_ok(intoVlc);
 		}
 
 		case expr_enum.INFIX: {
 			let mutop = ks_toMutateOp(ex.k);
 			if (ex.k === ks_enum.EQU || ex.k === ks_enum.AMP2EQU ||
 				ex.k === ks_enum.PIPE2EQU || mutop !== op_enum.INVALID){
-				return checkPromise<lvp_st, per_st>(
-					lval_prepare(pgen, ex.left),
-					function(lp: lvp_st): per_st | Promise<per_st> {
-						if (!lp.ok)
-							return per_error(lp.flp, lp.msg);
+				let lp = await lval_prepare(pgen, ex.left);
+				if (!lp.ok)
+					return per_error(lp.flp, lp.msg);
 
-						if (ex.k === ks_enum.AMP2EQU || ex.k === ks_enum.PIPE2EQU){
-							let skip = label_new('^condsetskip');
+				if (ex.k === ks_enum.AMP2EQU || ex.k === ks_enum.PIPE2EQU){
+					let skip = label_new('^condsetskip');
 
-							let pe = program_lvalCheckNil(pgen, lp.lv, ex.k === ks_enum.AMP2EQU,
-								false, skip);
-							if (!pe.ok)
-								return pe;
+					let pe = program_lvalCheckNil(pgen, lp.lv, ex.k === ks_enum.AMP2EQU,
+						false, skip);
+					if (!pe.ok)
+						return pe;
 
-							if (ex.right === null)
-								throw new Error('Invalid infix operator (right is null)');
-							return checkPromise<per_st, per_st>(
-								program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.right),
-								function(pe: per_st): per_st | Promise<per_st> {
-									if (!pe.ok)
-										return pe;
+					if (ex.right === null)
+						throw new Error('Invalid infix operator (right is null)');
+					pe = await program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.right);
+					if (!pe.ok)
+						return pe;
 
-									if (!lp.ok)
-										throw new Error('Invalid lvalue conditional assignment');
+					if (!lp.ok)
+						throw new Error('Invalid lvalue conditional assignment');
+					pe = program_lvalCondAssign(pgen, lp.lv, ex.k === ks_enum.AMP2EQU, pe.vlc);
+					if (!pe.ok)
+						return pe;
 
-									let pe2 = program_lvalCondAssign(pgen, lp.lv,
-										ex.k === ks_enum.AMP2EQU, pe.vlc);
-									if (!pe2.ok)
-										return pe2;
-
-									if (mode === pem_enum.EMPTY){
-										label_declare(skip, prg.ops);
-										lval_clearTemps(lp.lv, sym);
-										return per_ok(VARLOC_NULL);
-									}
-
-									label_declare(skip, prg.ops);
-
-									if (mode === pem_enum.CREATE){
-										let ts = symtbl_addTemp(sym);
-										if (!ts.ok)
-											return per_error(ex.flp, ts.msg);
-										intoVlc = ts.vlc;
-									}
-
-									let ple = program_lvalGet(pgen, plm_enum.INTO, intoVlc, lp.lv);
-									if (!ple.ok)
-										return ple;
-
-									lval_clearTemps(lp.lv, sym);
-									return per_ok(intoVlc);
-								}
-							);
-						}
-
-						// special handling for basic variable assignment to avoid a temporary
-						if (ex.right === null)
-							throw new Error('Invalid assignment (right is null)');
-						if (ex.k === ks_enum.EQU && lp.lv.type === lvr_enum.VAR){
-							return checkPromise<per_st, per_st>(
-								program_eval(pgen, pem_enum.INTO, lp.lv.vlc, ex.right),
-								function(pe: per_st): per_st {
-									if (!pe.ok)
-										return pe;
-									if (mode === pem_enum.EMPTY)
-										return per_ok(VARLOC_NULL);
-									else if (mode === pem_enum.CREATE){
-										let ts = symtbl_addTemp(sym);
-										if (!ts.ok)
-											return per_error(ex.flp, ts.msg);
-										intoVlc = ts.vlc;
-									}
-									if (!lp.ok)
-										throw new Error('Lvalue is an error in basic assignment');
-									op_move(prg.ops, intoVlc, lp.lv.vlc);
-									return per_ok(intoVlc);
-								}
-							);
-						}
-
-						return checkPromise<per_st, per_st>(
-							program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.right),
-							function(pe: per_st): per_st {
-								if (!pe.ok)
-									return pe;
-								if (!lp.ok)
-									throw new Error('Lvalue is an error in assignment');
-								return program_evalLval(pgen, mode, intoVlc, lp.lv, mutop, pe.vlc, true);
-							}
-						);
+					if (mode === pem_enum.EMPTY){
+						label_declare(skip, prg.ops);
+						lval_clearTemps(lp.lv, sym);
+						return per_ok(VARLOC_NULL);
 					}
-				);
+
+					label_declare(skip, prg.ops);
+
+					if (mode === pem_enum.CREATE){
+						let ts = symtbl_addTemp(sym);
+						if (!ts.ok)
+							return per_error(ex.flp, ts.msg);
+						intoVlc = ts.vlc;
+					}
+
+					let ple = program_lvalGet(pgen, plm_enum.INTO, intoVlc, lp.lv);
+					if (!ple.ok)
+						return ple;
+
+					lval_clearTemps(lp.lv, sym);
+					return per_ok(intoVlc);
+				}
+
+				// special handling for basic variable assignment to avoid a temporary
+				if (ex.right === null)
+					throw new Error('Invalid assignment (right is null)');
+				if (ex.k === ks_enum.EQU && lp.lv.type === lvr_enum.VAR){
+					let pe = await program_eval(pgen, pem_enum.INTO, lp.lv.vlc, ex.right);
+					if (!pe.ok)
+						return pe;
+					if (mode === pem_enum.EMPTY)
+						return per_ok(VARLOC_NULL);
+					else if (mode === pem_enum.CREATE){
+						let ts = symtbl_addTemp(sym);
+						if (!ts.ok)
+							return per_error(ex.flp, ts.msg);
+						intoVlc = ts.vlc;
+					}
+					if (!lp.ok)
+						throw new Error('Lvalue is an error in basic assignment');
+					op_move(prg.ops, intoVlc, lp.lv.vlc);
+					return per_ok(intoVlc);
+				}
+
+				let pe = await program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.right);
+				if (!pe.ok)
+					return pe;
+				if (!lp.ok)
+					throw new Error('Lvalue is an error in assignment');
+				return program_evalLval(pgen, mode, intoVlc, lp.lv, mutop, pe.vlc, true);
 			}
 
 			if (mode === pem_enum.EMPTY || mode === pem_enum.CREATE){
@@ -6795,67 +6582,51 @@ function program_eval(pgen: pgen_st, mode: pem_enum, intoVlc: varloc_st,
 
 			let binop = ks_toBinaryOp(ex.k);
 			if (binop !== op_enum.INVALID){
-				return checkPromise<per_st, per_st>(
-					program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.left),
-					function(pe: per_st): per_st | Promise<per_st> {
-						if (!pe.ok)
-							return pe;
-						let left = pe.vlc;
-						if (ex.right === null)
-							throw new Error('Infix operator has null right');
-						return checkPromise<per_st, per_st>(
-							program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.right),
-							function(pe: per_st): per_st {
-								if (!pe.ok)
-									return pe;
-								program_flp(prg, ex.flp);
-								op_binop(prg.ops, binop, intoVlc, left, pe.vlc);
-								symtbl_clearTemp(sym, left);
-								symtbl_clearTemp(sym, pe.vlc);
-								if (mode === pem_enum.EMPTY){
-									symtbl_clearTemp(sym, intoVlc);
-									return per_ok(VARLOC_NULL);
-								}
-								return per_ok(intoVlc);
-							}
-						);
-					}
-				);
+				let pe = await program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.left);
+				if (!pe.ok)
+					return pe;
+				let left = pe.vlc;
+				if (ex.right === null)
+					throw new Error('Infix operator has null right');
+				pe = await program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.right);
+				if (!pe.ok)
+					return pe;
+				program_flp(prg, ex.flp);
+				op_binop(prg.ops, binop, intoVlc, left, pe.vlc);
+				symtbl_clearTemp(sym, left);
+				symtbl_clearTemp(sym, pe.vlc);
+				if (mode === pem_enum.EMPTY){
+					symtbl_clearTemp(sym, intoVlc);
+					return per_ok(VARLOC_NULL);
+				}
+				return per_ok(intoVlc);
 			}
 			else if (ex.k === ks_enum.AMP2 || ex.k === ks_enum.PIPE2){
-				return checkPromise<per_st, per_st>(
-					program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.left),
-					function(pe: per_st): per_st | Promise<per_st> {
-						if (!pe.ok)
-							return pe;
-						let left = pe.vlc;
-						let useleft = label_new('^useleft');
-						if (ex.k === ks_enum.AMP2)
-							label_jumpfalse(useleft, prg.ops, left);
-						else
-							label_jumptrue(useleft, prg.ops, left);
-						if (ex.right === null)
-							throw new Error('Infix conditional has null right expression');
-						return checkPromise<per_st, per_st>(
-							program_eval(pgen, pem_enum.INTO, intoVlc, ex.right),
-							function(pe: per_st): per_st {
-								if (!pe.ok)
-									return pe;
-								let finish = label_new('^finish');
-								label_jump(finish, prg.ops);
-								label_declare(useleft, prg.ops);
-								op_move(prg.ops, intoVlc, left);
-								label_declare(finish, prg.ops);
-								symtbl_clearTemp(sym, left);
-								if (mode === pem_enum.EMPTY){
-									symtbl_clearTemp(sym, intoVlc);
-									return per_ok(VARLOC_NULL);
-								}
-								return per_ok(intoVlc);
-							}
-						);
-					}
-				);
+				let pe = await program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.left);
+				if (!pe.ok)
+					return pe;
+				let left = pe.vlc;
+				let useleft = label_new('^useleft');
+				if (ex.k === ks_enum.AMP2)
+					label_jumpfalse(useleft, prg.ops, left);
+				else
+					label_jumptrue(useleft, prg.ops, left);
+				if (ex.right === null)
+					throw new Error('Infix conditional has null right expression');
+				pe = await program_eval(pgen, pem_enum.INTO, intoVlc, ex.right);
+				if (!pe.ok)
+					return pe;
+				let finish = label_new('^finish');
+				label_jump(finish, prg.ops);
+				label_declare(useleft, prg.ops);
+				op_move(prg.ops, intoVlc, left);
+				label_declare(finish, prg.ops);
+				symtbl_clearTemp(sym, left);
+				if (mode === pem_enum.EMPTY){
+					symtbl_clearTemp(sym, intoVlc);
+					return per_ok(VARLOC_NULL);
+				}
+				return per_ok(intoVlc);
 			}
 			return per_error(ex.flp, 'Invalid operation');
 		}
@@ -6871,21 +6642,13 @@ function program_eval(pgen: pgen_st, mode: pem_enum, intoVlc: varloc_st,
 
 		case expr_enum.INDEX: {
 			if (mode === pem_enum.EMPTY){
-				return checkPromise<per_st, per_st>(
-					program_eval(pgen, pem_enum.EMPTY, VARLOC_NULL, ex.obj),
-					function(pe: per_st): per_st | Promise<per_st> {
-						if (!pe.ok)
-							return pe;
-						return checkPromise<per_st, per_st>(
-							program_eval(pgen, pem_enum.EMPTY, VARLOC_NULL, ex.key),
-							function(pe: per_st): per_st {
-								if (!pe.ok)
-									return pe;
-								return per_ok(VARLOC_NULL);
-							}
-						);
-					}
-				);
+				let pe = await program_eval(pgen, pem_enum.EMPTY, VARLOC_NULL, ex.obj);
+				if (!pe.ok)
+					return pe;
+				pe = await program_eval(pgen, pem_enum.EMPTY, VARLOC_NULL, ex.key);
+				if (!pe.ok)
+					return pe;
+				return per_ok(VARLOC_NULL);
 			}
 
 			if (mode === pem_enum.CREATE){
@@ -6895,28 +6658,20 @@ function program_eval(pgen: pgen_st, mode: pem_enum, intoVlc: varloc_st,
 				intoVlc = ts.vlc;
 			}
 
-			return checkPromise<per_st, per_st>(
-				program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.obj),
-				function(pe: per_st): per_st | Promise<per_st> {
-					if (!pe.ok)
-						return pe;
-					let obj = pe.vlc;
+			let pe = await program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.obj);
+			if (!pe.ok)
+				return pe;
+			let obj = pe.vlc;
 
-					return checkPromise<per_st, per_st>(
-						program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.key),
-						function(pe: per_st): per_st {
-							if (!pe.ok)
-								return pe;
-							let key = pe.vlc;
+			pe = await program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.key);
+			if (!pe.ok)
+				return pe;
+			let key = pe.vlc;
 
-							op_getat(prg.ops, intoVlc, obj, key);
-							symtbl_clearTemp(sym, obj);
-							symtbl_clearTemp(sym, key);
-							return per_ok(intoVlc);
-						}
-					);
-				}
-			);
+			op_getat(prg.ops, intoVlc, obj, key);
+			symtbl_clearTemp(sym, obj);
+			symtbl_clearTemp(sym, key);
+			return per_ok(intoVlc);
 		}
 
 		case expr_enum.SLICE: {
@@ -6926,30 +6681,25 @@ function program_eval(pgen: pgen_st, mode: pem_enum, intoVlc: varloc_st,
 					return per_error(ex.flp, ts.msg);
 				intoVlc = ts.vlc;
 			}
-			return checkPromise<per_st, per_st>(
-				program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.obj),
-				function(pe: per_st): per_st | Promise<per_st> {
-					if (!pe.ok)
-						return pe;
-					let obj = pe.vlc;
-					return checkPromise<psr_st, per_st>(
-						program_slice(pgen, ex),
-						function(sr: psr_st): per_st {
-							if (!sr.ok)
-								return per_error(sr.flp, sr.msg);
-							op_slice(prg.ops, intoVlc, obj, sr.start, sr.len);
-							symtbl_clearTemp(sym, obj);
-							symtbl_clearTemp(sym, sr.start);
-							symtbl_clearTemp(sym, sr.len);
-							if (mode === pem_enum.EMPTY){
-								symtbl_clearTemp(sym, intoVlc);
-								return per_ok(VARLOC_NULL);
-							}
-							return per_ok(intoVlc);
-						}
-					);
-				}
-			);
+
+			let pe = await program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.obj);
+			if (!pe.ok)
+				return pe;
+			let obj = pe.vlc;
+
+			let sr = await program_slice(pgen, ex);
+			if (!sr.ok)
+				return per_error(sr.flp, sr.msg);
+
+			op_slice(prg.ops, intoVlc, obj, sr.start, sr.len);
+			symtbl_clearTemp(sym, obj);
+			symtbl_clearTemp(sym, sr.start);
+			symtbl_clearTemp(sym, sr.len);
+			if (mode === pem_enum.EMPTY){
+				symtbl_clearTemp(sym, intoVlc);
+				return per_ok(VARLOC_NULL);
+			}
+			return per_ok(intoVlc);
 		}
 	}
 	throw new Error('Invalid expression type');
@@ -7215,187 +6965,55 @@ function program_genForRange(pgen: pgen_st, stmt: ast_st_FOR1, p1: varloc_st, p2
 	return pgr_push(pgs_for_new(p1, p2, p3, t, val_vlc, idx_vlc, top, inc, finish));
 }
 
-function program_genForGeneric(pgen: pgen_st, stmt: ast_st_FOR1): pgr_st | Promise<pgr_st> {
+async function program_genForGeneric(pgen: pgen_st, stmt: ast_st_FOR1): Promise<pgr_st> {
 	let prg = pgen.prg;
 	let sym = pgen.sym;
-	return checkPromise<per_st, pgr_st>(
-		program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, stmt.ex),
-		function(pe: per_st): pgr_st {
-			if (!pe.ok)
-				return pgr_error(pe.flp, pe.msg);
+	let pe = await program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, stmt.ex);
+	if (!pe.ok)
+		return pgr_error(pe.flp, pe.msg);
 
-			symtbl_pushScope(sym);
+	symtbl_pushScope(sym);
 
-			let exp_vlc = pe.vlc;
+	let exp_vlc = pe.vlc;
 
-			let pgi = program_forVars(sym, stmt);
-			if (pgi.type !== pgr_enum.FORVARS)
-				return pgi;
-			let val_vlc = pgi.val_vlc;
-			let idx_vlc = pgi.idx_vlc;
+	let pgi = program_forVars(sym, stmt);
+	if (pgi.type !== pgr_enum.FORVARS)
+		return pgi;
+	let val_vlc = pgi.val_vlc;
+	let idx_vlc = pgi.idx_vlc;
 
-			// clear the index
-			op_numint(prg.ops, idx_vlc, 0);
+	// clear the index
+	op_numint(prg.ops, idx_vlc, 0);
 
-			let top    = label_new('^forG_top');
-			let inc    = label_new('^forG_inc');
-			let finish = label_new('^forG_finish');
+	let top    = label_new('^forG_top');
+	let inc    = label_new('^forG_inc');
+	let finish = label_new('^forG_finish');
 
-			let ts = symtbl_addTemp(sym);
-			if (!ts.ok)
-				return pgr_error(stmt.flp, ts.msg);
-			let t = ts.vlc;
+	let ts = symtbl_addTemp(sym);
+	if (!ts.ok)
+		return pgr_error(stmt.flp, ts.msg);
+	let t = ts.vlc;
 
-			label_declare(top, prg.ops);
+	label_declare(top, prg.ops);
 
-			op_unop(prg.ops, op_enum.SIZE, t, exp_vlc);
-			op_binop(prg.ops, op_enum.LT, t, idx_vlc, t);
-			label_jumpfalse(finish, prg.ops, t);
+	op_unop(prg.ops, op_enum.SIZE, t, exp_vlc);
+	op_binop(prg.ops, op_enum.LT, t, idx_vlc, t);
+	label_jumpfalse(finish, prg.ops, t);
 
-			if (!varloc_isnull(val_vlc))
-				op_getat(prg.ops, val_vlc, exp_vlc, idx_vlc);
-			sym.sc.lblBreak = finish;
-			sym.sc.lblContinue = inc;
+	if (!varloc_isnull(val_vlc))
+		op_getat(prg.ops, val_vlc, exp_vlc, idx_vlc);
+	sym.sc.lblBreak = finish;
+	sym.sc.lblContinue = inc;
 
-			return pgr_push(pgs_for_new(t, exp_vlc, VARLOC_NULL, VARLOC_NULL, val_vlc, idx_vlc,
-				top, inc, finish));
-		}
-	);
+	return pgr_push(
+		pgs_for_new(t, exp_vlc, VARLOC_NULL, VARLOC_NULL, val_vlc, idx_vlc, top, inc, finish));
 }
 
-function program_gen(pgen: pgen_st, stmt: ast_st, state: pgst_st,
-	sayexpr: boolean): pgr_st | Promise<pgr_st> {
+async function program_gen(pgen: pgen_st, stmt: ast_st, state: pgst_st,
+	sayexpr: boolean): Promise<pgr_st> {
 	let prg = pgen.prg;
 	let sym = pgen.sym;
 	program_flp(prg, stmt.flp);
-
-	function handleDefArgs(stmt: ast_st_DEF1, skip: label_st,
-		lvs: number, level: number): pgr_st | Promise<pgr_st> {
-		// initialize our arguments as needed
-		function handleNext(i: number): pgr_st | Promise<pgr_st> {
-			if (i >= lvs)
-				return pgr_push(skip);
-
-			let ex = stmt.lvalues[i];
-
-			function handleInfixRest(arg: varloc_st): pgr_st | Promise<pgr_st> {
-				// now we can add the param symbols
-				if (ex.type !== expr_enum.INFIX)
-					throw new Error('Expecting parameter expression to be infix');
-				let lr = lval_addVars(sym, ex.left, i);
-				if (!lr.ok)
-					return pgr_error(lr.flp, lr.msg);
-
-				// move argument into lval(s)
-				let pe = program_evalLval(pgen, pem_enum.EMPTY, VARLOC_NULL, lr.lv,
-					op_enum.INVALID, arg, true);
-				if (!pe.ok)
-					return pgr_error(pe.flp, pe.msg);
-				return handleNext(i + 1);
-			}
-
-			if (ex.type === expr_enum.INFIX){
-				// the argument is the i-th register
-				let arg = varloc_new(level, i);
-
-				// check for initialization -- must happen before the symbols are added so that
-				// `def a x = x` binds the seconds `x` to the outer scope
-				if (ex.right !== null){
-					let argset = label_new('^argset');
-					label_jumptrue(argset, prg.ops, arg);
-					return checkPromise<per_st, pgr_st>(
-						program_eval(pgen, pem_enum.INTO, arg, ex.right),
-						function(pr: per_st): pgr_st | Promise<pgr_st> {
-							if (!pr.ok)
-								return pgr_error(pr.flp, pr.msg);
-							label_declare(argset, prg.ops);
-							return handleInfixRest(arg);
-						}
-					);
-				}
-				return handleInfixRest(arg);
-			}
-			else if (i === lvs - 1 && ex.type === expr_enum.PREFIX && ex.k === ks_enum.PERIOD3){
-				let lr = lval_addVars(sym, ex.ex, i);
-				if (!lr.ok)
-					return pgr_error(lr.flp, lr.msg);
-				if (lr.lv.type !== lvr_enum.VAR)
-					throw new Error('Assertion failed: `...rest` parameter must be identifier');
-			}
-			else
-				throw new Error('Assertion failed: parameter must be infix expression');
-			return handleNext(i + 1);
-		}
-		return handleNext(0);
-	}
-
-	function handleGenRangeGroup(stmt: ast_st_FOR1, p: expr_st_GROUP): pgr_st | Promise<pgr_st> {
-		let rp: varloc_st[] = [VARLOC_NULL, VARLOC_NULL, VARLOC_NULL];
-		function handleNext(i: number): pgr_st | Promise<pgr_st> {
-			if (i >= p.group.length)
-				return program_genForRange(pgen, stmt, rp[0], rp[1], rp[2]);
-			if (i < 3){
-				let ts = symtbl_addTemp(sym);
-				if (!ts.ok)
-					return pgr_error(stmt.flp, ts.msg);
-				rp[i] = ts.vlc;
-			}
-			return checkPromise<per_st, pgr_st>(
-				program_eval(pgen,
-					i < 3 ? pem_enum.INTO : pem_enum.EMPTY,
-					i < 3 ? rp[i] : VARLOC_NULL,
-					p.group[i]),
-				function(pe: per_st): pgr_st | Promise<pgr_st> {
-					if (!pe.ok)
-						return pgr_error(pe.flp, pe.msg);
-					return handleNext(i + 1);
-				}
-			);
-		}
-		return handleNext(0);
-	}
-
-	function handleVar(stmt: ast_st_VAR): pgr_st | Promise<pgr_st> {
-		function handleNext(i: number): pgr_st | Promise<pgr_st> {
-			if (i >= stmt.lvalues.length)
-				return pgr_ok();
-
-			let ex1 = stmt.lvalues[i];
-			if (ex1.type !== expr_enum.INFIX)
-				throw new Error('Var expressions must be infix');
-			let ex: expr_st_INFIX = ex1;
-			let pr_vlc: varloc_st = VARLOC_NULL;
-
-			if (ex.right !== null){
-				return checkPromise<per_st, pgr_st>(
-					program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.right),
-					function(pr: per_st): pgr_st | Promise<pgr_st> {
-						if (!pr.ok)
-							return pgr_error(pr.flp, pr.msg);
-						pr_vlc = pr.vlc;
-						return handleAddVars();
-					}
-				);
-			}
-			return handleAddVars();
-
-			function handleAddVars(): pgr_st | Promise<pgr_st> {
-				let lr = lval_addVars(sym, ex.left, -1);
-				if (!lr.ok)
-					return pgr_error(lr.flp, lr.msg);
-				if (ex.right !== null){
-					let pe = program_evalLval(pgen, pem_enum.EMPTY, VARLOC_NULL, lr.lv,
-						op_enum.INVALID, pr_vlc, true);
-					if (!pe.ok)
-						return pgr_error(pe.flp, pe.msg);
-					symtbl_clearTemp(sym, pr_vlc);
-				}
-				return handleNext(i + 1);
-			}
-		}
-		return handleNext(0);
-	}
-
 	switch (stmt.type){
 		case ast_enumt.BREAK: {
 			if (sym.sc.lblBreak === null)
@@ -7472,7 +7090,48 @@ function program_gen(pgen: pgen_st, stmt: ast_st, state: pgst_st,
 			// reserve our argument registers as explicit registers 0 to lvs-1
 			symtbl_reserveVars(sym, lvs);
 
-			return handleDefArgs(stmt, skip, lvs, level);
+			// initialize our arguments as needed
+			for (let i = 0; i < lvs; i++){
+				let ex = stmt.lvalues[i];
+				if (ex.type === expr_enum.INFIX){
+					// the argument is the i-th register
+					let arg = varloc_new(level, i);
+
+					// check for initialization -- must happen before the symbols are added so that
+					// `def a x = x` binds the seconds `x` to the outer scope
+					if (ex.right !== null){
+						let argset = label_new('^argset');
+						label_jumptrue(argset, prg.ops, arg);
+						let pr = await program_eval(pgen, pem_enum.INTO, arg, ex.right);
+						if (!pr.ok)
+							return pgr_error(pr.flp, pr.msg);
+						label_declare(argset, prg.ops);
+					}
+
+					// now we can add the param symbols
+					if (ex.type !== expr_enum.INFIX)
+						throw new Error('Expecting parameter expression to be infix');
+					let lr = lval_addVars(sym, ex.left, i);
+					if (!lr.ok)
+						return pgr_error(lr.flp, lr.msg);
+
+					// move argument into lval(s)
+					let pe = program_evalLval(pgen, pem_enum.EMPTY, VARLOC_NULL, lr.lv,
+						op_enum.INVALID, arg, true);
+					if (!pe.ok)
+						return pgr_error(pe.flp, pe.msg);
+				}
+				else if (i === lvs - 1 && ex.type === expr_enum.PREFIX && ex.k === ks_enum.PERIOD3){
+					let lr = lval_addVars(sym, ex.ex, i);
+					if (!lr.ok)
+						return pgr_error(lr.flp, lr.msg);
+					if (lr.lv.type !== lvr_enum.VAR)
+						throw new Error('Assertion failed: `...rest` parameter must be identifier');
+				}
+				else
+					throw new Error('Assertion failed: parameter must be infix expression');
+			}
+			return pgr_push(skip);
 		}
 
 		case ast_enumt.DEF2: {
@@ -7512,20 +7171,16 @@ function program_gen(pgen: pgen_st, stmt: ast_st, state: pgst_st,
 			}
 			else{
 				// do while end
-				return checkPromise<per_st, pgr_st>(
-					program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, stmt.cond),
-					function(pe: per_st): pgr_st {
-						if (!pgs_dowhile_check(state))
-							throw new Error('Expecting state to be do-while structure');
-						let pst: pgs_dowhile_st = state;
-						if (!pe.ok)
-							return pgr_error(pe.flp, pe.msg);
-						label_jumpfalse(pst.finish, prg.ops, pe.vlc);
-						symtbl_clearTemp(sym, pe.vlc);
-						sym.sc.lblContinue = pst.top;
-						return pgr_ok();
-					}
-				);
+				let pe = await program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, stmt.cond);
+				if (!pgs_dowhile_check(state))
+					throw new Error('Expecting state to be do-while structure');
+				let pst: pgs_dowhile_st = state;
+				if (!pe.ok)
+					return pgr_error(pe.flp, pe.msg);
+				label_jumpfalse(pst.finish, prg.ops, pe.vlc);
+				symtbl_clearTemp(sym, pe.vlc);
+				sym.sc.lblContinue = pst.top;
+				return pgr_ok();
 			}
 		}
 
@@ -7575,23 +7230,33 @@ function program_gen(pgen: pgen_st, stmt: ast_st, state: pgst_st,
 					let nsn = sl.nsn;
 					if (nsn.type === nsname_enumt.CMD_OPCODE && nsn.opcode === op_enum.RANGE){
 						let p = c.params;
-						if (p.type === expr_enum.GROUP)
-							return handleGenRangeGroup(stmt, p);
-						else{
-							let rp: varloc_st[] = [VARLOC_NULL, VARLOC_NULL, VARLOC_NULL];
+						let rp: varloc_st[] = [VARLOC_NULL, VARLOC_NULL, VARLOC_NULL];
+						if (p.type !== expr_enum.GROUP){
 							let ts = symtbl_addTemp(sym);
 							if (!ts.ok)
 								return pgr_error(stmt.flp, ts.msg);
 							rp[0] = ts.vlc;
-							return checkPromise<per_st, pgr_st>(
-								program_eval(pgen, pem_enum.INTO, rp[0], p),
-								function(pe: per_st): pgr_st {
-									if (!pe.ok)
-										return pgr_error(pe.flp, pe.msg);
-									return program_genForRange(pgen, stmt, rp[0], rp[1], rp[2]);
-								}
-							);
+							let pe = await program_eval(pgen, pem_enum.INTO, rp[0], p);
+							if (!pe.ok)
+								return pgr_error(pe.flp, pe.msg);
 						}
+						else{
+							for (let i = 0; i < p.group.length; i++){
+								if (i < 3){
+									let ts = symtbl_addTemp(sym);
+									if (!ts.ok)
+										return pgr_error(stmt.flp, ts.msg);
+									rp[i] = ts.vlc;
+								}
+								let pe = await program_eval(pgen,
+									i < 3 ? pem_enum.INTO : pem_enum.EMPTY,
+									i < 3 ? rp[i] : VARLOC_NULL,
+									p.group[i]);
+								if (!pe.ok)
+									return pgr_error(pe.flp, pe.msg);
+							}
+						}
+						return program_genForRange(pgen, stmt, rp[0], rp[1], rp[2]);
 					}
 				}
 			}
@@ -7673,25 +7338,20 @@ function program_gen(pgen: pgen_st, stmt: ast_st, state: pgst_st,
 				label_declare(pst.nextcond, prg.ops);
 			}
 			pst.nextcond = label_new('^nextcond');
-			return checkPromise<per_st, pgr_st>(
-				program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, stmt.cond),
-				function(pr: per_st): pgr_st {
-					if (!pgs_if_check(state))
-						throw new Error('Expecting state to be if struture');
-					let pst: pgs_if_st = state;
+			let pr = await program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, stmt.cond);
+			if (!pgs_if_check(state))
+				throw new Error('Expecting state to be if struture');
 
-					if (!pr.ok)
-						return pgr_error(pr.flp, pr.msg);
+			if (!pr.ok)
+				return pgr_error(pr.flp, pr.msg);
 
-					if (pst.nextcond === null)
-						throw new Error('If2 nextcond must not be null');
-					label_jumpfalse(pst.nextcond, prg.ops, pr.vlc);
-					symtbl_clearTemp(sym, pr.vlc);
+			if (pst.nextcond === null)
+				throw new Error('If2 nextcond must not be null');
+			label_jumpfalse(pst.nextcond, prg.ops, pr.vlc);
+			symtbl_clearTemp(sym, pr.vlc);
 
-					symtbl_pushScope(sym);
-					return pgr_ok();
-				}
-			);
+			symtbl_pushScope(sym);
+			return pgr_ok();
 		}
 
 		case ast_enumt.IF3: {
@@ -7764,35 +7424,27 @@ function program_gen(pgen: pgen_st, stmt: ast_st, state: pgst_st,
 				let pe: per_st[] = [];
 				let p: varloc_st[] = [];
 				let nsn_lbl = nsn.lbl;
-				return checkPromise<boolean, pgr_st>(
-					program_evalCallArgcount(pgen, params, argcount, pe, p),
-					function(eb: boolean): pgr_st {
-						if (!eb){
-							let pe0 = pe[0];
-							if (pe0.ok)
-								throw new Error('Expecting error message from evalCallArgcount');
-							return pgr_error(pe0.flp, pe0.msg);
-						}
-						label_returntail(nsn_lbl, prg.ops, argcount[0]);
-						for (let i = 0; i < argcount[0]; i++){
-							op_arg(prg.ops, p[i]);
-							symtbl_clearTemp(sym, p[i]);
-						}
-						return pgr_ok();
-					}
-				);
+				let eb = await program_evalCallArgcount(pgen, params, argcount, pe, p);
+				if (!eb){
+					let pe0 = pe[0];
+					if (pe0.ok)
+						throw new Error('Expecting error message from evalCallArgcount');
+					return pgr_error(pe0.flp, pe0.msg);
+				}
+				label_returntail(nsn_lbl, prg.ops, argcount[0]);
+				for (let i = 0; i < argcount[0]; i++){
+					op_arg(prg.ops, p[i]);
+					symtbl_clearTemp(sym, p[i]);
+				}
+				return pgr_ok();
 			}
 
-			return checkPromise<per_st, pgr_st>(
-				program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex),
-				function(pr: per_st): pgr_st {
-					if (!pr.ok)
-						return pgr_error(pr.flp, pr.msg);
-					symtbl_clearTemp(sym, pr.vlc);
-					op_return(prg.ops, pr.vlc);
-					return pgr_ok();
-				}
-			);
+			let pr = await program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex);
+			if (!pr.ok)
+				return pgr_error(pr.flp, pr.msg);
+			symtbl_clearTemp(sym, pr.vlc);
+			op_return(prg.ops, pr.vlc);
+			return pgr_ok();
 		}
 
 		case ast_enumt.USING: {
@@ -7816,27 +7468,46 @@ function program_gen(pgen: pgen_st, stmt: ast_st, state: pgst_st,
 		}
 
 		case ast_enumt.VAR:
-			return handleVar(stmt);
-
-		case ast_enumt.EVAL: {
-			return checkPromise<per_st, pgr_st>(
-				program_eval(pgen, sayexpr ? pem_enum.CREATE : pem_enum.EMPTY, VARLOC_NULL,
-					stmt.ex),
-				function(pr: per_st): pgr_st {
+			for (let i = 0; i < stmt.lvalues.length; i++){
+				let ex1 = stmt.lvalues[i];
+				if (ex1.type !== expr_enum.INFIX)
+					throw new Error('Var expressions must be infix');
+				let ex: expr_st_INFIX = ex1;
+				let pr_vlc: varloc_st = VARLOC_NULL;
+				if (ex.right !== null){
+					let pr = await program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.right);
 					if (!pr.ok)
 						return pgr_error(pr.flp, pr.msg);
-					if (sayexpr){
-						let ts = symtbl_addTemp(sym);
-						if (!ts.ok)
-							return pgr_error(stmt.flp, ts.msg);
-						op_parama(prg.ops, op_enum.SAY, ts.vlc, 1);
-						op_arg(prg.ops, pr.vlc);
-						symtbl_clearTemp(sym, pr.vlc);
-						symtbl_clearTemp(sym, ts.vlc);
-					}
-					return pgr_ok();
+					pr_vlc = pr.vlc;
 				}
-			);
+				let lr = lval_addVars(sym, ex.left, -1);
+				if (!lr.ok)
+					return pgr_error(lr.flp, lr.msg);
+				if (ex.right !== null){
+					let pe = program_evalLval(pgen, pem_enum.EMPTY, VARLOC_NULL, lr.lv,
+						op_enum.INVALID, pr_vlc, true);
+					if (!pe.ok)
+						return pgr_error(pe.flp, pe.msg);
+					symtbl_clearTemp(sym, pr_vlc);
+				}
+			}
+			return pgr_ok();
+
+		case ast_enumt.EVAL: {
+			let pr = await program_eval(pgen, sayexpr ? pem_enum.CREATE : pem_enum.EMPTY,
+				VARLOC_NULL, stmt.ex);
+			if (!pr.ok)
+				return pgr_error(pr.flp, pr.msg);
+			if (sayexpr){
+				let ts = symtbl_addTemp(sym);
+				if (!ts.ok)
+					return pgr_error(stmt.flp, ts.msg);
+				op_parama(prg.ops, op_enum.SAY, ts.vlc, 1);
+				op_arg(prg.ops, pr.vlc);
+				symtbl_clearTemp(sym, pr.vlc);
+				symtbl_clearTemp(sym, ts.vlc);
+			}
+			return pgr_ok();
 		}
 
 		case ast_enumt.LABEL: {
@@ -9297,7 +8968,7 @@ export function tonum(ctx: ctx, a: val): val {
 	return oper_un(a, unop_tonum);
 }
 
-export function say(ctx: ctx, vals: val[]): void | Promise<void> {
+export async function say(ctx: ctx, vals: val[]): Promise<void> {
 	if (ctx.io.f_say){
 		return ctx.io.f_say(
 			ctx,
@@ -9307,7 +8978,7 @@ export function say(ctx: ctx, vals: val[]): void | Promise<void> {
 	}
 }
 
-export function warn(ctx: ctx, vals: val[]): void | Promise<void> {
+export async function warn(ctx: ctx, vals: val[]): Promise<void> {
 	if (ctx.io.f_warn){
 		return ctx.io.f_warn(
 			ctx,
@@ -9317,7 +8988,7 @@ export function warn(ctx: ctx, vals: val[]): void | Promise<void> {
 	}
 }
 
-export function ask(ctx: ctx, vals: val[]): val | Promise<val> {
+export async function ask(ctx: ctx, vals: val[]): Promise<val> {
 	if (ctx.io.f_ask){
 		return ctx.io.f_ask(
 			ctx,
@@ -10733,16 +10404,16 @@ const txt_int_clz      = 'counting leading zeros';
 const txt_int_pop      = 'population count';
 const txt_int_bswap    = 'byte swaping';
 
-function context_run(ctx: context_st, f_rundone: rundone_f): void {
-	function RUNDONE(result: run): void {
+async function context_run(ctx: context_st): Promise<run> {
+	function RUNDONE(result: run): run {
 		if (result === run.PASS || result === run.FAIL)
 			context_reset(ctx);
-		f_rundone(ctx, result);
+		return result;
 	}
 
-	if (ctx.passed) return RUNDONE(run.PASS);
-	if (ctx.failed) return RUNDONE(run.FAIL);
-	if (ctx.async ) return;
+	if (ctx.passed) return RUNDONE(run.PASS );
+	if (ctx.failed) return RUNDONE(run.FAIL );
+	if (ctx.async ) return RUNDONE(run.ASYNC);
 
 	if (ctx.timeout > 0 && ctx.timeout_left <= 0){
 		ctx.timeout_left = ctx.timeout;
@@ -11201,28 +10872,12 @@ function context_run(ctx: context_st, f_rundone: rundone_f): void {
 					nat = ctx.natives[C];
 				if (nat === null || nat.f_native === null)
 					return RUNDONE(opi_abort(ctx, 'Native call not implemented'));
-				let nr: val | Promise<val> = null;
-				try {
-					nr = nat.f_native(ctx, p, nat.natuser);
-				}
-				catch (e){
-					return RUNDONE(opi_abort(ctx, '' + e));
-				}
-				if (isPromise<val>(nr)){
-					ctx.async = true;
-					nr.then(function(res: val){
-						ctx.async = false;
-						var_set(ctx, A, B, res);
-						context_run(ctx, f_rundone);
-					}, function(err){
-						ctx.async = false;
-						RUNDONE(opi_abort(ctx, '' + err));
-					});
-					return;
-				}
+				ctx.async = true;
+				let res = await nat.f_native(ctx, p, nat.natuser);
+				ctx.async = false;
 				if (ctx.failed)
 					return RUNDONE(run.FAIL);
-				var_set(ctx, A, B, nr);
+				var_set(ctx, A, B, res);
 			} break;
 
 			case op_enum.RETURN         : { // [SRC]
@@ -11314,25 +10969,9 @@ function context_run(ctx: context_st, f_rundone: rundone_f): void {
 					E = ops[ctx.pc++]; F = ops[ctx.pc++];
 					p.push(var_get(ctx, E, F));
 				}
-				let res: void | Promise<void>;
-				try {
-					res = say(ctx, p);
-				}
-				catch (e){
-					return RUNDONE(opi_abort(ctx, '' + e));
-				}
-				if (isPromise<undefined>(res)){
-					ctx.async = true;
-					res.then(function(){
-						ctx.async = false;
-						var_set(ctx, A, B, NIL);
-						context_run(ctx, f_rundone);
-					}, function(err){
-						ctx.async = false;
-						RUNDONE(opi_abort(ctx, '' + err));
-					});
-					return;
-				}
+				ctx.async = true;
+				await say(ctx, p);
+				ctx.async = false;
 				var_set(ctx, A, B, NIL);
 				if (ctx.failed)
 					return RUNDONE(run.FAIL);
@@ -11345,25 +10984,9 @@ function context_run(ctx: context_st, f_rundone: rundone_f): void {
 					E = ops[ctx.pc++]; F = ops[ctx.pc++];
 					p.push(var_get(ctx, E, F));
 				}
-				let res: void | Promise<void>;
-				try {
-					res = warn(ctx, p);
-				}
-				catch (e){
-					return RUNDONE(opi_abort(ctx, '' + e));
-				}
-				if (isPromise<undefined>(res)){
-					ctx.async = true;
-					res.then(function(){
-						ctx.async = false;
-						var_set(ctx, A, B, NIL);
-						context_run(ctx, f_rundone);
-					}, function(err){
-						ctx.async = false;
-						RUNDONE(opi_abort(ctx, '' + err));
-					});
-					return;
-				}
+				ctx.async = true;
+				await warn(ctx, p);
+				ctx.async = false;
 				var_set(ctx, A, B, NIL);
 				if (ctx.failed)
 					return RUNDONE(run.FAIL);
@@ -11376,28 +10999,15 @@ function context_run(ctx: context_st, f_rundone: rundone_f): void {
 					E = ops[ctx.pc++]; F = ops[ctx.pc++];
 					p.push(var_get(ctx, E, F));
 				}
-				let res: val | Promise<val> = null;
-				try {
-					res = ask(ctx, p);
-				}
-				catch (e){
-					return RUNDONE(opi_abort(ctx, '' + e));
-				}
-				if (isPromise<val>(res)){
-					ctx.async = true;
-					res.then(function(v: val){
-						ctx.async = false;
-						var_set(ctx, A, B, v);
-						context_run(ctx, f_rundone);
-					}, function(err){
-						ctx.async = false;
-						RUNDONE(opi_abort(ctx, '' + err));
-					});
-					return;
-				}
-				var_set(ctx, A, B, res);
-				if (ctx.failed)
+				ctx.async = true;
+				let res = await ask(ctx, p);
+				ctx.async = false;
+				if (ctx.failed){
+					var_set(ctx, A, B, NIL);
 					return RUNDONE(run.FAIL);
+				}
+				else
+					var_set(ctx, A, B, res);
 			} break;
 
 			case op_enum.EXIT           : { // [TGT], ARGCOUNT, [ARGS]...
@@ -11408,24 +11018,9 @@ function context_run(ctx: context_st, f_rundone: rundone_f): void {
 						E = ops[ctx.pc++]; F = ops[ctx.pc++];
 						p.push(var_get(ctx, E, F));
 					}
-					let res: void | Promise<void>;
-					try {
-						res = say(ctx, p);
-					}
-					catch (e){
-						return RUNDONE(opi_abort(ctx, '' + e));
-					}
-					if (isPromise<undefined>(res)){
-						ctx.async = true;
-						res.then(function(){
-							ctx.async = false;
-							RUNDONE(opi_exit(ctx));
-						}, function(err){
-							ctx.async = false;
-							RUNDONE(opi_abort(ctx, '' + err));
-						});
-						return;
-					}
+					ctx.async = true;
+					await say(ctx, p);
+					ctx.async = false;
 					if (ctx.failed)
 						return RUNDONE(run.FAIL);
 				}
@@ -12221,8 +11816,6 @@ function context_run(ctx: context_st, f_rundone: rundone_f): void {
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				X = pickle_bin(ctx, X);
-				if (ctx.failed) // can fail in C impl because of type.ASYNC
-					return RUNDONE(run.FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -12258,8 +11851,6 @@ function context_run(ctx: context_st, f_rundone: rundone_f): void {
 				LOAD_abcd();
 				X = var_get(ctx, C, D);
 				X = pickle_copy(ctx, X);
-				if (ctx.failed) // can fail in C impl because of type.ASYNC
-					return RUNDONE(run.FAIL);
 				var_set(ctx, A, B, X);
 			} break;
 
@@ -12422,49 +12013,33 @@ function compiler_endinc(cmp: compiler_st, ns: boolean): void {
 	cmp.flpn = cmp.flpn.next;
 }
 
-function compiler_endinc_cfu(success: boolean, file: string,
-	cfu: compiler_fileres_user_st): undefined | Promise<undefined> {
-	if (success){
-		return checkPromise<strnil, undefined>(
-			compiler_closeLexer(cfu.cmp),
-			handleEnd
-		);
-	}
-	return handleEnd();
-	function handleEnd(): undefined {
-		compiler_endinc(cfu.cmp, cfu.names !== null);
-		if (!success && cfu.cmp.msg === null)
-			compiler_setmsg(cfu.cmp, 'Failed to read file: ' + file);
-		return undefined;
-	}
+async function compiler_endinc_cfu(success: boolean, file: string,
+	cfu: compiler_fileres_user_st): Promise<void> {
+	if (success)
+		await compiler_closeLexer(cfu.cmp);
+	compiler_endinc(cfu.cmp, cfu.names !== null);
+	if (!success && cfu.cmp.msg === null)
+		compiler_setmsg(cfu.cmp, 'Failed to read file: ' + file);
 }
 
-function compiler_staticinc(cmp: compiler_st, names: string[] | true | null, file: string,
-	body: string): boolean | Promise<boolean> {
+async function compiler_staticinc(cmp: compiler_st, names: string[] | true | null, file: string,
+	body: string): Promise<boolean> {
 	if (!compiler_begininc(cmp, names, file))
 		return false;
-	return checkPromise<strnil, boolean>(
-		compiler_write(cmp, body),
-		function(err: strnil): boolean | Promise<boolean> {
-			if (err){
-				compiler_endinc(cmp, names !== null);
-				return false;
-			}
-			return checkPromise<strnil, boolean>(
-				compiler_closeLexer(cmp),
-				function(err: strnil): boolean {
-					compiler_endinc(cmp, names !== null);
-					if (err)
-						return false;
-					return true;
-				}
-			);
-		}
-	);
+	let err = await compiler_write(cmp, body);
+	if (err){
+		compiler_endinc(cmp, names !== null);
+		return false;
+	}
+	err = await compiler_closeLexer(cmp);
+	compiler_endinc(cmp, names !== null);
+	if (err)
+		return false;
+	return true;
 }
 
-function compiler_dynamicinc(cmp: compiler_st, names: string[] | true | null, file: string,
-	from: strnil): boolean | Promise<boolean> {
+async function compiler_dynamicinc(cmp: compiler_st, names: string[] | true | null, file: string,
+	from: strnil): Promise<boolean> {
 	let cfu = { cmp: cmp, names: names };
 	let cwd: strnil = null;
 	if (from)
@@ -12472,15 +12047,10 @@ function compiler_dynamicinc(cmp: compiler_st, names: string[] | true | null, fi
 	return fileres_read(cmp.scr, true, file, cwd, compiler_begininc_cfu, compiler_endinc_cfu, cfu);
 }
 
-function compiler_process(cmp: compiler_st): strnil | Promise<strnil> {
-	return handleNextFlpn();
-
-	function handleNextFlpn(): strnil | Promise<strnil> {
-		if (cmp.flpn.tks.length <= 0)
-			return null;
-
-		// generate statements
-		let stmts: ast_st[] = [];
+async function compiler_process(cmp: compiler_st): Promise<strnil> {
+	// generate statements
+	let stmts: ast_st[] = [];
+	while (cmp.flpn.tks.length > 0){
 		while (cmp.flpn.tks.length > 0){
 			let tk = cmp.flpn.tks.shift() as tok_st;
 			if (tk.type === tok_enum.ERROR){
@@ -12496,113 +12066,83 @@ function compiler_process(cmp: compiler_st): strnil | Promise<strnil> {
 				break;
 		}
 
-		return handleNextStmt();
-
-		function handleNextStmt(): strnil | Promise<strnil> {
-			// process statements
-			if (stmts.length <= 0)
-				return handleNextFlpn();
-
+		// process statements
+		while (stmts.length > 0){
 			let stmt = stmts.shift() as ast_st;
-
-			function handleNextIncl(ii: number): strnil | Promise<strnil> {
-				if (stmt.type !== ast_enumt.INCLUDE)
-					throw new Error('Expecting include AST node');
-				if (ii >= stmt.incls.length)
-					return handleNextStmt();
-
-				let inc = stmt.incls[ii];
-				let file = inc.file;
-
-				// look if file matches a static include pseudo-file
-				let internal = false;
-				for (let i = 0; i < cmp.sinc.name.length; i++){
-					let sinc_name = cmp.sinc.name[i];
-					if (file === sinc_name){
-						internal = true;
-						let sinc_content = cmp.sinc.content[i];
-						let is_body = cmp.sinc.type[i] === 0;
-						if (is_body){
-							let success = compiler_staticinc(cmp, inc.names, file, sinc_content);
-							if (!success)
-								return cmp.msg;
-							return handleExternalInc();
-						}
-						else{
-							return checkPromise<boolean, strnil>(
-								compiler_dynamicinc(cmp, inc.names, sinc_content,
-									script_getfile(cmp.scr, stmt.flp.fullfile)),
-								function(success: boolean): strnil | Promise<strnil> {
-									if (!success){
-										compiler_setmsg(cmp, 'Failed to include: ' + file);
-										return cmp.msg;
-									}
-									return handleExternalInc();
-								}
-							);
-						}
-					}
-				}
-				return handleExternalInc();
-
-				function handleExternalInc(): strnil | Promise<strnil> {
-					if (internal)
-						return handleNextIncl(ii + 1);
-					return checkPromise<boolean, strnil>(
-						compiler_dynamicinc(cmp, inc.names, file,
-							script_getfile(cmp.scr, stmt.flp.fullfile)),
-						function(found: boolean): strnil | Promise<strnil> {
-							if (!found && cmp.msg === null)
-								compiler_setmsg(cmp, 'Failed to include: ' + file);
-							if (cmp.msg)
-								return cmp.msg;
-							return handleNextIncl(ii + 1);
-						}
-					);
-				}
-			}
 
 			if (stmt.type === ast_enumt.INCLUDE){
 				// intercept include statements to process by the compiler
-				return handleNextIncl(0);
+				for (let ii = 0; ii < stmt.incls.length; ii++){
+					let inc = stmt.incls[ii];
+					let file = inc.file;
+
+					// look if file matches a static include pseudo-file
+					let internal = false;
+					for (let i = 0; i < cmp.sinc.name.length; i++){
+						let sinc_name = cmp.sinc.name[i];
+						if (file === sinc_name){
+							internal = true;
+							let sinc_content = cmp.sinc.content[i];
+							let is_body = cmp.sinc.type[i] === 0;
+							let success: boolean;
+							if (is_body){
+								success = await compiler_staticinc(cmp, inc.names, file,
+									sinc_content);
+							}
+							else{
+								success = await compiler_dynamicinc(cmp, inc.names, sinc_content,
+										script_getfile(cmp.scr, stmt.flp.fullfile));
+								if (!success)
+									compiler_setmsg(cmp, 'Failed to include: ' + file);
+							}
+							if (!success)
+								return cmp.msg;
+						}
+					}
+
+					if (!internal){
+						let found = await compiler_dynamicinc(cmp, inc.names, file,
+								script_getfile(cmp.scr, stmt.flp.fullfile));
+						if (!found && cmp.msg === null)
+							compiler_setmsg(cmp, 'Failed to include: ' + file);
+						if (cmp.msg)
+							return cmp.msg;
+					}
+				}
 			}
 			else{
 				let pgsl = cmp.flpn.pgstate;
-				return checkPromise<pgr_st, strnil>(
-					program_gen({
-							prg: cmp.prg,
-							sym: cmp.sym,
-							scr: cmp.scr,
-							from: stmt.flp.fullfile
-						}, stmt,
-						pgsl.length <= 0 ? null : pgsl[pgsl.length - 1],
-						cmp.prg.repl && cmp.flpn.next === null && pgsl.length <= 0),
-					function(pg: pgr_st): strnil | Promise<strnil> {
-						switch (pg.type){
-							case pgr_enum.OK:
-								break;
-							case pgr_enum.PUSH:
-								pgsl.push(pg.pgs);
-								break;
-							case pgr_enum.POP:
-								pgsl.pop();
-								break;
-							case pgr_enum.ERROR:
-								compiler_setmsg(cmp, program_errormsg(cmp.prg, pg.flp, pg.msg));
-								return cmp.msg;
-							case pgr_enum.FORVARS:
-								// impossible
-								throw new Error('Program generator can\'t return FORVARS');
-						}
-						return handleNextStmt();
-					}
-				);
+				let pg = await program_gen({
+						prg: cmp.prg,
+						sym: cmp.sym,
+						scr: cmp.scr,
+						from: stmt.flp.fullfile
+					}, stmt,
+					pgsl.length <= 0 ? null : pgsl[pgsl.length - 1],
+					cmp.prg.repl && cmp.flpn.next === null && pgsl.length <= 0);
+				switch (pg.type){
+					case pgr_enum.OK:
+						break;
+					case pgr_enum.PUSH:
+						pgsl.push(pg.pgs);
+						break;
+					case pgr_enum.POP:
+						pgsl.pop();
+						break;
+					case pgr_enum.ERROR:
+						compiler_setmsg(cmp, program_errormsg(cmp.prg, pg.flp, pg.msg));
+						return cmp.msg;
+					case pgr_enum.FORVARS:
+						// impossible
+						throw new Error('Program generator can\'t return FORVARS');
+				}
 			}
 		}
 	}
+	return null;
 }
 
-function compiler_write(cmp: compiler_st, bytes: string): strnil | Promise<strnil> {
+async function compiler_write(cmp: compiler_st, bytes: string): Promise<strnil> {
 	let flpn = cmp.flpn;
 	for (let i = 0; i < bytes.length; i++){
 		let b = bytes.charAt(i);
@@ -12627,29 +12167,25 @@ function compiler_write(cmp: compiler_st, bytes: string): strnil | Promise<strni
 	return compiler_process(cmp);
 }
 
-function compiler_closeLexer(cmp: compiler_st): strnil | Promise<strnil> {
+async function compiler_closeLexer(cmp: compiler_st): Promise<strnil> {
 	lex_close(cmp.flpn.lx, cmp.flpn.flp, cmp.flpn.tks);
 	return compiler_process(cmp);
 }
 
-function compiler_close(cmp: compiler_st): strnil | Promise<strnil> {
+async function compiler_close(cmp: compiler_st): Promise<strnil> {
 	if (cmp.msg)
 		return cmp.msg;
-	return checkPromise<strnil, strnil>(
-		compiler_closeLexer(cmp),
-		function(err: strnil): strnil {
-			if (err)
-				return err;
+	let err = await compiler_closeLexer(cmp);
+	if (err)
+		return err;
 
-			let pmsg = parser_close(cmp.pr);
-			if (pmsg){
-				compiler_setmsg(cmp, program_errormsg(cmp.prg, cmp.flpn.flp, pmsg));
-				return cmp.msg;
-			}
+	let pmsg = parser_close(cmp.pr);
+	if (pmsg){
+		compiler_setmsg(cmp, program_errormsg(cmp.prg, cmp.flpn.flp, pmsg));
+		return cmp.msg;
+	}
 
-			return null;
-		}
-	);
+	return null;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -12741,11 +12277,11 @@ function binary_validate(sc: script_st): void {
 		sc.err = 'Error: Invalid end of file';
 }
 
-function text_validate(sc: script_st, close: boolean, resetonclose: boolean): void {
+async function text_validate(sc: script_st, close: boolean, resetonclose: boolean): Promise<void> {
 	if (sc.err && sc.prg.repl)
 		compiler_reset(sc.cmp as compiler_st);
 	if (close){
-		let err2 = compiler_close(sc.cmp as compiler_st);
+		let err2 = await compiler_close(sc.cmp as compiler_st);
 		if (err2)
 			sc.err = 'Error: ' + err2;
 		if (resetonclose)
@@ -12753,7 +12289,7 @@ function text_validate(sc: script_st, close: boolean, resetonclose: boolean): vo
 	}
 }
 
-function sfr_end(success: boolean, file: string, sc: script_st): void {
+async function sfr_end(success: boolean, file: string, sc: script_st): Promise<void> {
 	if (!success)
 		sc.err = 'Error: ' + (sc.cmp as compiler_st).msg;
 	else{
@@ -12765,24 +12301,20 @@ function sfr_end(success: boolean, file: string, sc: script_st): void {
 				binary_validate(sc);
 				break;
 			case scriptmode_enum.TEXT:
-				text_validate(sc, true, false);
+				await text_validate(sc, true, false);
 				break;
 		}
 	}
 }
 
-export function scr_loadfile(scr: scr, file: string): boolean | Promise<boolean> {
+export async function scr_loadfile(scr: scr, file: string): Promise<boolean> {
 	let sc = scr as script_st;
 	if (sc.err)
 		sc.err = null;
-	return checkPromise<boolean, boolean>(
-		fileres_read(sc, true, file, null, sfr_begin, sfr_end, sc),
-		function(read: boolean): boolean {
-			if (!read && sc.err === null)
-				sc.err = 'Error: Failed to read file: ' + file;
-			return sc.err === null;
-		}
-	);
+	let read = await fileres_read(sc, true, file, null, sfr_begin, sfr_end, sc);
+	if (!read && sc.err === null)
+		sc.err = 'Error: Failed to read file: ' + file;
+	return sc.err === null;
 }
 
 export function scr_getfile(scr: scr): strnil {
@@ -12801,7 +12333,7 @@ const BSZ_DEBUG_HEAD =  4;
 const BSZ_POS        = 16;
 const BSZ_CMD        =  8;
 
-export function scr_write(scr: scr, bytes: string): boolean | Promise<boolean> {
+export async function scr_write(scr: scr, bytes: string): Promise<boolean> {
 	if (bytes.length <= 0)
 		return true;
 	let sc = scr as script_st;
@@ -13024,16 +12556,12 @@ export function scr_write(scr: scr, bytes: string): boolean | Promise<boolean> {
 	else{
 		if (sc.err)
 			sc.err = null;
-		return checkPromise<strnil, boolean>(
-			compiler_write(sc.cmp as compiler_st, bytes),
-			function(err: strnil): boolean {
-				if (err)
-					sc.err = 'Error: ' + err;
-				let is_eval = !sc.prg.repl && sc.file === null;
-				text_validate(sc, is_eval, true);
-				return sc.err === null;
-			}
-		);
+		let err = await compiler_write(sc.cmp as compiler_st, bytes);
+		if (err)
+			sc.err = 'Error: ' + err;
+		let is_eval = !sc.prg.repl && sc.file === null;
+		text_validate(sc, is_eval, true);
+		return sc.err === null;
 	}
 }
 
@@ -13272,11 +12800,11 @@ export function ctx_forcetimeout(ctx: ctx): void {
 	(ctx as context_st).timeout_left = 0;
 }
 
-export function ctx_run(ctx: ctx, f_rundone: rundone_f): void {
+export async function ctx_run(ctx: ctx): Promise<run> {
 	let ctx2 = ctx as context_st;
 	if (ctx2.prg.repl && ctx2.err)
 		ctx2.err = null;
-	context_run(ctx2, f_rundone);
+	return context_run(ctx2);
 }
 
 export function ctx_geterr(ctx: ctx): strnil {
@@ -13358,15 +12886,9 @@ export function tostr(v: val): str {
 	return sinkhelp_tostr([], v);
 }
 
-export function exit(ctx: ctx, vals: val[]): void | Promise<void> {
-	if (vals.length > 0){
-		return checkPromise<void, void>(
-			say(ctx, vals),
-			function(){
-				opi_exit(ctx);
-			}
-		);
-	}
+export async function exit(ctx: ctx, vals: val[]): Promise<void> {
+	if (vals.length > 0)
+		say(ctx, vals);
 	opi_exit(ctx);
 }
 
