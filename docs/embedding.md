@@ -70,7 +70,7 @@ The API is in four basic sections:
 |-----------------------------|-------------------------------------------------------|
 | [Script API](#script-api)   | Loading a program into memory, compiling if necessary |
 | [Context API](#context-api) | Executing a program, pausing/resuming execution       |
-| [Sink Commands API](#sink-commands-api) | Executing commands from the [standard library](https://github.com/voidqk/sink/blob/master/docs/lib.md) inside a context |
+| [Standard Library API](#standard-library-api) | Executing commands from the [standard library](https://github.com/voidqk/sink/blob/master/docs/lib.md) inside a context |
 | [Misc/Helper Functions](#mischelper-functions) | Assorted functions to make life easier |
 
 Script API
@@ -1351,8 +1351,8 @@ The Wait object.
 
 The final result for the operation.
 
-Sink Commands API
-=================
+Standard Library API
+====================
 
 The entire [standard library](https://github.com/voidqk/sink/blob/master/docs/lib.md) is available
 from the host environment.
