@@ -156,11 +156,11 @@ sink_shell.scr(sk_scr);
 var sk_ctx = sink.ctx_new(sk_scr, {
 	f_say: function(sk_ctx, str){
 		lines.push('#fff', str);
-		return Promise.resolve();
+		return Promise.resolve(sink.NIL);
 	},
 	f_warn: function(sk_ctx, str){
 		lines.push('#f00', str);
-		return Promise.resolve();
+		return Promise.resolve(sink.NIL);
 	},
 	f_ask: function(sk_ctx, str){
 		return Promise.resolve(prompt(str));
