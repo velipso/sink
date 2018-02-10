@@ -9457,7 +9457,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                 LOAD_abcdefgh();
                 var_set(ctx, A, B, opi_triop(ctx, var_get(ctx, C, D), var_get(ctx, E, F), var_get(ctx, G, H), func, erop));
             }
-            var A, B, C, D, E, F, G, H, I, J, X, Y, Z, W, ls, str, ops, _a, listcat, p, s, lx, p, sl, np, p, nat, hash, i, nat2, res, s, lx, p, sl, np, lx, lx2, p, p, p, p, err, p, p, p, p, p, p, p;
+            var A, B, C, D, E, F, G, H, I, J, X, Y, Z, W, ls, str, ops, _a, listcat, p, s, lx, p, sl, np, p, nat, hash, i, nat2, s, lx, p, sl, np, lx, lx2, p, p, p, p, err, p, p, p, p, p, p, p;
             return __generator(this, function (_b) {
                 switch (_b.label) {
                     case 0:
@@ -10024,11 +10024,11 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                         ctx.async = true;
                         return [4, nat.f_native(ctx, p, nat.natuser)];
                     case 36:
-                        res = _b.sent();
+                        X = _b.sent();
                         ctx.async = false;
                         if (ctx.failed)
                             return [2, RUNDONE(run.FAIL)];
-                        var_set(ctx, A, B, res);
+                        var_set(ctx, A, B, X);
                         return [3, 159];
                     case 37:
                         {

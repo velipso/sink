@@ -618,10 +618,10 @@ virtual machine.
 | [`ctx_forcetimeout`](#ctx_forcetimeout) | Force a timeout to occur immediately                  |
 | [`ctx_run`](#ctx_run)                   | Run the virtual machine                               |
 | [`ctx_free`](#ctx_free)                 | Free a Context object (C only)                        |
-| [`waiter`](#waiter)                     | Create a wait object (C only)                         |
-| [`done`](#done)                         | Create a wait object that already has a result (C only) |
-| [`then`](#then)                         | Attach a handler to a wait object (C only)            |
-| [`result`](#result)                     | Provide a result for a wait object (C only)           |
+| [`waiter`](#waiter)                     | Create a Wait object (C only)                         |
+| [`done`](#done)                         | Create a Wait object that already has a result (C only) |
+| [`then`](#then)                         | Attach a handler to a Wait object (C only)            |
+| [`result`](#result)                     | Provide a result for a Wait object (C only)           |
 
 ctx_new
 -------
@@ -797,7 +797,8 @@ User-defined value passed to `f_native`.
 
 ### `f_native`
 
-The native function implementation.
+The native function implementation.  This function returns a [sink_wait](#waiter) object in C, and
+a Promise in TypeScript.
 
 ctx_nativehash
 --------------
@@ -851,7 +852,8 @@ User-defined value passed to `f_native`.
 
 ### `f_native`
 
-The native function implementation.
+The native function implementation.  This function returns a [sink_wait](#waiter) object in C, and
+a Promise in TypeScript.
 
 ctx_cleanup
 -----------
@@ -1190,10 +1192,33 @@ It will return one of the following values:
 * `REPLMORE` - The machine has detected it has executed as much as it could before needing more
   source code entered from the REPL.  This only happens if the Script is in [REPL mode](#scr_new).
 
-The C version will return a [`sink_wait`](#waiter) object, that will resolve to a number that
-corresponds to the `sink_run` result.
-
 The TypeScript version will return a Promise.
+
+The C version will return a [`sink_wait`](#waiter) object, that will resolve to a number that
+corresponds to the `sink_run` result, i.e.:
+
+```c
+void run_finished(sink_ctx ctx, sink_val statusv, void *thenuser){
+  sink_run status = (sink_run)sink_castnum(statusv);
+  switch (status){
+    case SINK_RUN_PASS:     // ... etc ...
+    case SINK_RUN_FAIL:     // ... etc ...
+    case SINK_RUN_ASYNC:    // ... etc ...
+    case SINK_RUN_TIMEOUT:  // ... etc ...
+    case SINK_RUN_REPLMORE: // ... etc ...
+  }
+}
+
+// somewhere else:
+sink_then(
+  sink_ctx_run(ctx),
+  (sink_then_st){
+    .f_then = run_finished,
+    .f_cancel = NULL,
+    .user = NULL
+  }
+);
+```
 
 ### `ctx`
 
@@ -1219,22 +1244,106 @@ The Context object.
 waiter
 ------
 
-TODO
+Create a Wait object that will eventually be resolved with a result and handler (C only).
+
+```c
+sink_wait sink_waiter(sink_ctx ctx);
+```
+
+Wait objects are used to implement asynchronous operations within the Context.  A Wait object
+becomes resolved when two things are provided: a handler (via [`sink_then`](#then)), and a result
+(via [`sink_result`](#result)).  When both items are provided, the handler's `f_then` function is
+immediately called with the result.
+
+Once a Wait object is resolved, it is automatically freed.  If a Wait object never resolves (for
+example, if [`ctx_free`](#ctx_free) is called on the Context with an outstanding Wait object), it is
+cancelled in order to free any dangling user data.
+
+Wait objects are used in [I/O](#ctx_new) and [native](#ctx_native) functions.  These functions can
+return a Wait object, or `NULL` to indicate the result is `NIL` (in order to avoid allocating a new
+Wait object).
+
+### `ctx`
+
+The Context object.
 
 done
 ----
 
-TODO
+Create a Wait object that already has a result (C only).
+
+```c
+sink_wait sink_done(sink_ctx ctx, sink_val result);
+```
+
+Many functions will not be asynchronous, and can just return a result directly.  Use `sink_done`
+for convenience.  It is equivalent to:
+
+```c
+sink_wait w = sink_waiter(ctx);
+sink_result(w, result);
+return w;
+```
+
+### `ctx`
+
+The Context object.
+
+### `result`
+
+The result to provide to the Wait object.
 
 then
 ----
 
-TODO
+Attach a handler to a Wait object (C only).
+
+```c
+typedef void (*sink_then_f)(sink_ctx ctx, sink_val result, void *thenuser);
+typedef void (*sink_cancel_f)(void *thenuser);
+
+typedef struct {
+  sink_then_f f_then;
+  sink_cancel_f f_cancel;
+  void *user;
+} sink_then_st;
+
+void sink_then(sink_wait w, sink_then_st then);
+```
+
+### `w`
+
+The Wait object.
+
+### `then`
+
+The handler for the Wait object.
+
+The `f_then` function is what will be called when both the handler and result are provided to a Wait
+object.
+
+The `f_cancel` function will be called if an outstanding Wait object is cancelled.  This can happen
+if the Context is freed in the middle of an asynchronous operation.  The `f_cancel` function should
+free any data inside the `user` field.
+
+The `user` field is passed through to the `thenuser` argument in the functions, at your discretion.
 
 result
 ------
 
-TODO
+Provide a result for a Wait object (C only).
+
+```c
+void sink_result(sink_wait w, sink_val result);
+```
+
+### `w`
+
+The Wait object.
+
+### `result`
+
+The final result for the operation.
 
 Sink Commands API
 =================

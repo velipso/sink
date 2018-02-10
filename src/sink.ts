@@ -10874,11 +10874,11 @@ async function context_run(ctx: context_st): Promise<run> {
 				if (nat === null || nat.f_native === null)
 					return RUNDONE(opi_abort(ctx, 'Native call not implemented'));
 				ctx.async = true;
-				let res = await nat.f_native(ctx, p, nat.natuser);
+				X = await nat.f_native(ctx, p, nat.natuser);
 				ctx.async = false;
 				if (ctx.failed)
 					return RUNDONE(run.FAIL);
-				var_set(ctx, A, B, res);
+				var_set(ctx, A, B, X);
 			} break;
 
 			case op_enum.RETURN         : { // [SRC]
