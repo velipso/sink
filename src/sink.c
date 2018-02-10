@@ -9433,7 +9433,10 @@ static inline void context_gc(context ctx){
 	context_mark(ctx);
 	context_sweep(ctx);
 	context_gcleft(ctx, true);
-	ctx->timeout_left -= 100; // GC counts as 100 "ticks" I suppose
+	if (ctx->timeout_left <= SINK_GC_TICKS)
+		ctx->timeout_left = 0;
+	else
+		ctx->timeout_left -= SINK_GC_TICKS;
 }
 
 static const int sink_pin_grow = 50;

@@ -1067,9 +1067,9 @@ function sink.ctx_settimeout(ctx: sink.ctx, timeout: number): void;
 ```
 
 For example, if the timeout is 1000, then the VM will run 1000 ticks before timing out.  Each
-machine instruction counts as 1 tick, and a garbage collection cycle counts as 100 ticks.  Native
-functions can consume ticks via [`ctx_consumeticks`](#ctx_consumeticks), or empty the available ticks
-to 0 via [`ctx_forcetimeout`](#ctx_forcetimeout).
+machine instruction counts as 1 tick, and a garbage collection cycle counts as 100 ticks (defined by
+`SINK_GC_TICKS`).  Native functions can consume ticks via [`ctx_consumeticks`](#ctx_consumeticks),
+or empty the available ticks to 0 via [`ctx_forcetimeout`](#ctx_forcetimeout).
 
 When there are no ticks left, `ctx_run` returns `TIMEOUT` and resets the available ticks to
 `timeout`.  The machine is resumed with another call to `ctx_run`, and the process repeats.

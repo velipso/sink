@@ -38,6 +38,11 @@ extern sink_free_f    sink_free;
 typedef uint32_t (*sink_seedauto_src_f)();
 extern sink_seedauto_src_f sink_seedauto_src;
 
+// the number of ticks a garbage collection consumes
+#ifndef SINK_GC_TICKS
+#	define SINK_GC_TICKS 100
+#endif
+
 typedef enum {
 	SINK_TYPE_NIL,
 	SINK_TYPE_NUM,
