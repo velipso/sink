@@ -58,7 +58,7 @@ requirejs(['sink'], function(sink){
 API
 ===
 
-The API is very similar across the implementations.  The TypeScript API will be access via
+The API is very similar across the implementations.  The TypeScript API is accessed via
 `sink.some_function`, whereas the C99 API is `sink_some_function`.  See the appropriate header files
 ([`sink.h`](https://github.com/voidqk/sink/blob/master/src/sink.h) and
 [`sink.d.ts`](https://github.com/voidqk/sink/blob/master/dist/sink.d.ts)) for the exact
