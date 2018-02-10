@@ -1612,8 +1612,8 @@ void sink_gc_pin(sink_ctx ctx, sink_val v);
 void sink_gc_unpin(sink_ctx ctx, sink_val v);
 
 // always returns NIL
-sink_val sink_abortstr(sink_ctx ctx, const char *fmt, ...);
-function sink.abortstr(ctx: sink.ctx, str: string): sink.val;
+sink_wait sink_abortstr(sink_ctx ctx, const char *fmt, ...);
+function sink.abortstr(ctx: sink.ctx, str: string): Promise<sink.val>;
 
 bool sink_arg_bool(int size, sink_val *args, int index);
 function sink.arg_bool(args: sink.val[], index: number): boolean;

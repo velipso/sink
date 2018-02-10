@@ -6,7 +6,7 @@ Sink is a minimal programming language for embedding small scripts in larger pro
 TypeScript and C99 implementations.  It is specifically designed to be small, simple, and easily
 embeddable, with support for a REPL as used in debug consoles.
 
-**Note: sink is currently in [beta](https://en.wikipedia.org/wiki/Software_release_life_cycle#Beta)** - the language is done but the embedding API still needs work
+**Note: sink is currently in [beta](https://en.wikipedia.org/wiki/Software_release_life_cycle#Beta)**
 
 ### Sink the Language
 
@@ -17,7 +17,7 @@ embeddable, with support for a REPL as used in debug consoles.
 
 ### Sink for Embedding
 
-* [Guide to Embedding](https://github.com/voidqk/sink/blob/master/docs/embedding.md) (work-in-progress)
+* [Guide to Embedding](https://github.com/voidqk/sink/blob/master/docs/embedding.md)
 
 ### Sink Binaries
 

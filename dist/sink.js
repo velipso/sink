@@ -12152,8 +12152,12 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     }
     exports.abort = abort;
     function abortstr(ctx, str) {
-        opi_abort(ctx, str);
-        return exports.NIL;
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                opi_abort(ctx, str);
+                return [2, Promise.resolve(exports.NIL)];
+            });
+        });
     }
     exports.abortstr = abortstr;
     function num_neg(ctx, a) {

@@ -12906,9 +12906,9 @@ export function abort(ctx: ctx, vals: val[]): void {
 	opi_abort(ctx, bytes);
 }
 
-export function abortstr(ctx: ctx, str: string): val {
+export async function abortstr(ctx: ctx, str: string): Promise<val> {
 	opi_abort(ctx, str);
-	return NIL;
+	return Promise.resolve(NIL);
 }
 
 // numbers
