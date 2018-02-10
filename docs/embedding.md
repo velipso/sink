@@ -1311,6 +1311,9 @@ typedef struct {
 void sink_then(sink_wait w, sink_then_st then);
 ```
 
+If the Wait object already has a result, the `f_then` function will be called immediately with the
+result.
+
 ### `w`
 
 The Wait object.
@@ -1336,6 +1339,9 @@ Provide a result for a Wait object (C only).
 ```c
 void sink_result(sink_wait w, sink_val result);
 ```
+
+If the Wait object already has a handler, its `f_then` function will be called immediately with the
+result.
 
 ### `w`
 
