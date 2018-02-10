@@ -147,8 +147,8 @@ window.addEventListener('keydown', function(e){
 cnv.focus();
 
 var sk_scr = sink.scr_new({
-	f_fstype: function(){ return Promise.resolve(sink.fstype.NONE); },
-	f_fsread: function(){ return Promise.resolve(false); },
+	f_fstype: function(){ return sink.fstype.NONE; },
+	f_fsread: function(){ return false },
 }, '/', true, true);
 
 sink_shell.scr(sk_scr);
@@ -156,18 +156,26 @@ sink_shell.scr(sk_scr);
 var sk_ctx = sink.ctx_new(sk_scr, {
 	f_say: function(sk_ctx, str){
 		lines.push('#fff', str);
-		return Promise.resolve();
 	},
 	f_warn: function(sk_ctx, str){
 		lines.push('#f00', str);
-		return Promise.resolve();
 	},
 	f_ask: function(sk_ctx, str){
-		return Promise.resolve(prompt(str));
+		return prompt(str);
 	}
 });
 
 sink_shell.ctx(sk_ctx);
+
+function isPromise(p){
+	return typeof p === 'object' && p !== null && typeof p.then === 'function';
+}
+
+function checkPromise(v, func){
+	if (isPromise(v))
+		return v.then(func);
+	return func(v);
+}
 
 function readLine(){
 	var levels = sink.scr_level(sk_scr);
@@ -179,27 +187,30 @@ function readLine(){
 	else
 		inputPrompt = inLine + inputPrompt;
 	allowInput = function(str){
-		sink.scr_write(sk_scr, str).then(function(written){
-			if (!written){
-				sink.scr_geterr(sk_scr).split('\n').forEach(function(err){
-					lines.push('#f00', err);
-				});
-			}
-			if (sink.scr_level(sk_scr) <= 0){
-				sink.ctx_run(sk_ctx).then(function(res){
-					if (res === sink.run.PASS)
-						return;
-					else if (res === sink.run.FAIL){
-						sink.ctx_geterr(sk_ctx).split('\n').forEach(function(err){
-							lines.push('#f00', err);
-						});
-					}
+		checkPromise(
+			sink.scr_write(sk_scr, str),
+			function(written){
+				if (!written){
+					sink.scr_geterr(sk_scr).split('\n').forEach(function(err){
+						lines.push('#f00', err);
+					});
+				}
+				if (sink.scr_level(sk_scr) <= 0){
+					sink.ctx_run(sk_ctx, function(ctx, res){
+						if (res === sink.run.PASS)
+							return;
+						else if (res === sink.run.FAIL){
+							sink.ctx_geterr(sk_ctx).split('\n').forEach(function(err){
+								lines.push('#f00', err);
+							});
+						}
+						readLine();
+					});
+				}
+				else
 					readLine();
-				});
 			}
-			else
-				readLine();
-		});
+		);
 	};
 	redraw();
 }

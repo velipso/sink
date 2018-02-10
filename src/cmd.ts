@@ -50,7 +50,7 @@ async function nodeStat(file: string): Promise<fs.Stats | null> {
 	});
 }
 
-async function fstype(file: string): Promise<sink.fstype> {
+async function fstype(scr: sink.scr, file: string): Promise<sink.fstype> {
 	let st = await nodeStat(file);
 	if (st !== null){
 		if (st.isFile())

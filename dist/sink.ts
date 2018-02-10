@@ -63,7 +63,7 @@ export enum status {
 }
 
 export type fsread_f = (scr: scr, file: string, incuser: any) => Promise<boolean>;
-export type fstype_f = (file: string, incuser: any) => Promise<fstype>;
+export type fstype_f = (scr: scr, file: string, incuser: any) => Promise<fstype>;
 export type output_f = (ctx: ctx, str: str, iouser: any) => Promise<void>;
 export type input_f = (ctx: ctx, str: str, iouser: any) => Promise<val>;
 export type native_f = (ctx: ctx, args: val[], natuser: any) => Promise<val>;
@@ -4830,7 +4830,7 @@ type fileres_end_f = (success: boolean, file: string, fuser: any) => Promise<voi
 async function fileres_try(scr: script_st, postfix: boolean, file: string,
 	f_begin: fileres_begin_f, f_end: fileres_end_f, fuser: any): Promise<boolean> {
 	let inc = scr.inc;
-	let fst = await inc.f_fstype(file, inc.user);
+	let fst = await inc.f_fstype(scr, file, inc.user);
 	switch (fst){
 		case fstype.FILE:
 			if (f_begin(file, fuser)){

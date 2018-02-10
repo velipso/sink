@@ -143,7 +143,7 @@ static bool fsread(sink_scr scr, const char *file, void *user){
 	return true; // `true` indicates that the file was read
 }
 
-static sink_fstype fstype(const char *file, void *user){
+static sink_fstype fstype(sink_scr scr, const char *file, void *user){
 	if (isdir(file))
 		return SINK_FSTYPE_DIR;
 	else if (isfile(file))
@@ -205,7 +205,7 @@ static void main_repl_nextline(sink_ctx ctx, sink_val statusv, replinfo ri){
 	if (done)
 		return;
 
-	sink_run status = (int)statusv.f;
+	sink_run status = (sink_run)sink_castnum(statusv);
 	switch (status){
 		case SINK_RUN_PASS:
 			done = true;
@@ -260,6 +260,9 @@ static void main_repl_nextline(sink_ctx ctx, sink_val statusv, replinfo ri){
 						}
 					);
 				}
+				// the level is <= 0, so we need to run the context... this is done by returning
+				// from this function, which will eventually return up to `main_repl`, where the
+				// while-loop will execute `sink_ctx_run`
 				return;
 			}
 			else{

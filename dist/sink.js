@@ -4051,7 +4051,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                 switch (_b.label) {
                     case 0:
                         inc = scr.inc;
-                        return [4, inc.f_fstype(file, inc.user)];
+                        return [4, inc.f_fstype(scr, file, inc.user)];
                     case 1:
                         fst = _b.sent();
                         _a = fst;

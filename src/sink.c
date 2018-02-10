@@ -6132,7 +6132,7 @@ static bool fileres_try(script scr, bool postfix, const char *file,
 	sink_inc_st inc = scr->inc;
 	if (file == NULL)
 		return false;
-	sink_fstype fst = inc.f_fstype(file, inc.user);
+	sink_fstype fst = inc.f_fstype(scr, file, inc.user);
 	bool result = false;
 	switch (fst){
 		case SINK_FSTYPE_FILE: {
@@ -9184,15 +9184,9 @@ static inline void wait_make(waitt w, context ctx){
 	w->ctx = ctx;
 }
 
-static inline void wait_cancel(waitt w){
-	if (!w->has_then)
-		return;
-	if (w->then.f_cancel)
-		w->then.f_cancel(w->then.user);
-}
-
 static void wait_cancelfree(waitt w){
-	wait_cancel(w);
+	if (w->has_then && w->then.f_cancel)
+		w->then.f_cancel(w->then.user);
 	mem_free(w);
 }
 

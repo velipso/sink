@@ -98,7 +98,7 @@ typedef enum {
 } sink_status;
 
 typedef bool (*sink_fsread_f)(sink_scr scr, const char *file, void *incuser);
-typedef sink_fstype (*sink_fstype_f)(const char *file, void *incuser);
+typedef sink_fstype (*sink_fstype_f)(sink_scr scr, const char *file, void *incuser);
 typedef sink_wait (*sink_output_f)(sink_ctx ctx, sink_str str, void *iouser);
 typedef sink_wait (*sink_input_f)(sink_ctx ctx, sink_str str, void *iouser);
 typedef sink_wait (*sink_native_f)(sink_ctx ctx, int size, sink_val *args, void *natuser);

@@ -105,7 +105,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             });
         });
     }
-    function fstype(file) {
+    function fstype(scr, file) {
         return __awaiter(this, void 0, void 0, function () {
             var st;
             return __generator(this, function (_a) {

@@ -41,7 +41,7 @@ export declare enum status {
     FAILED = 3,
 }
 export declare type fsread_f = (scr: scr, file: string, incuser: any) => Promise<boolean>;
-export declare type fstype_f = (file: string, incuser: any) => Promise<fstype>;
+export declare type fstype_f = (scr: scr, file: string, incuser: any) => Promise<fstype>;
 export declare type output_f = (ctx: ctx, str: str, iouser: any) => Promise<void>;
 export declare type input_f = (ctx: ctx, str: str, iouser: any) => Promise<val>;
 export declare type native_f = (ctx: ctx, args: val[], natuser: any) => Promise<val>;

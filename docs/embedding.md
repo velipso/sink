@@ -125,7 +125,7 @@ typedef enum {
   SINK_FSTYPE_DIR
 } sink_fstype;
 
-typedef sink_fstype (*sink_fstype_f)(const char *file, void *incuser);
+typedef sink_fstype (*sink_fstype_f)(sink_scr scr, const char *file, void *incuser);
 typedef bool (*sink_fsread_f)(sink_scr scr, const char *file, void *incuser);
 
 typedef struct {
@@ -142,7 +142,7 @@ enum sink.fstype {
   DIR
 }
 
-type sink.fstype_f = (file: string, incuser: any) => Promise<sink.fstype>;
+type sink.fstype_f = (scr: sink.scr, file: string, incuser: any) => Promise<sink.fstype>;
 type sink.fsread_f = (scr: sink.scr, file: string, incuser: any) => Promise<boolean>;
 
 interface sink.inc_st {
@@ -170,7 +170,7 @@ The `user` field is passed through to the `incuser` argument in the functions, a
 
 The current working directory (or `null`/`NULL`).  This must be an absolute path.
 
-This is used when a script includes or embeds a relative path, in order to construct an aboslute
+This is used when a script includes or embeds a relative path, in order to construct an absolute
 path.
 
 ### `posix`
