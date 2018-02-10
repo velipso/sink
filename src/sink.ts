@@ -64,15 +64,14 @@ export enum status {
 
 export type fsread_f = (scr: scr, file: string, incuser: any) => Promise<boolean>;
 export type fstype_f = (scr: scr, file: string, incuser: any) => Promise<fstype>;
-export type output_f = (ctx: ctx, str: str, iouser: any) => Promise<void>;
-export type input_f = (ctx: ctx, str: str, iouser: any) => Promise<val>;
+export type io_f = (ctx: ctx, str: str, iouser: any) => Promise<val>;
 export type native_f = (ctx: ctx, args: val[], natuser: any) => Promise<val>;
 export type dump_f = (data: string, dumpuser: any) => void;
 
 export interface io_st {
-	f_say?: output_f;
-	f_warn?: output_f;
-	f_ask?: input_f;
+	f_say?: io_f;
+	f_warn?: io_f;
+	f_ask?: io_f;
 	user?: any;
 }
 
@@ -8968,7 +8967,7 @@ export function tonum(ctx: ctx, a: val): val {
 	return oper_un(a, unop_tonum);
 }
 
-export async function say(ctx: ctx, vals: val[]): Promise<void> {
+export async function say(ctx: ctx, vals: val[]): Promise<val> {
 	if (ctx.io.f_say){
 		return ctx.io.f_say(
 			ctx,
@@ -8976,9 +8975,10 @@ export async function say(ctx: ctx, vals: val[]): Promise<void> {
 			ctx.io.user
 		);
 	}
+	return NIL;
 }
 
-export async function warn(ctx: ctx, vals: val[]): Promise<void> {
+export async function warn(ctx: ctx, vals: val[]): Promise<val> {
 	if (ctx.io.f_warn){
 		return ctx.io.f_warn(
 			ctx,
@@ -8986,6 +8986,7 @@ export async function warn(ctx: ctx, vals: val[]): Promise<void> {
 			ctx.io.user
 		);
 	}
+	return NIL;
 }
 
 export async function ask(ctx: ctx, vals: val[]): Promise<val> {
@@ -10970,11 +10971,14 @@ async function context_run(ctx: context_st): Promise<run> {
 					p.push(var_get(ctx, E, F));
 				}
 				ctx.async = true;
-				await say(ctx, p);
+				X = await say(ctx, p);
 				ctx.async = false;
-				var_set(ctx, A, B, NIL);
-				if (ctx.failed)
+				if (ctx.failed){
+					var_set(ctx, A, B, NIL);
 					return RUNDONE(run.FAIL);
+				}
+				else
+					var_set(ctx, A, B, X);
 			} break;
 
 			case op_enum.WARN           : { // [TGT], ARGCOUNT, [ARGS]...
@@ -10985,11 +10989,14 @@ async function context_run(ctx: context_st): Promise<run> {
 					p.push(var_get(ctx, E, F));
 				}
 				ctx.async = true;
-				await warn(ctx, p);
+				X = await warn(ctx, p);
 				ctx.async = false;
-				var_set(ctx, A, B, NIL);
-				if (ctx.failed)
+				if (ctx.failed){
+					var_set(ctx, A, B, NIL);
 					return RUNDONE(run.FAIL);
+				}
+				else
+					var_set(ctx, A, B, X);
 			} break;
 
 			case op_enum.ASK            : { // [TGT], ARGCOUNT, [ARGS]...
@@ -11000,14 +11007,14 @@ async function context_run(ctx: context_st): Promise<run> {
 					p.push(var_get(ctx, E, F));
 				}
 				ctx.async = true;
-				let res = await ask(ctx, p);
+				X = await ask(ctx, p);
 				ctx.async = false;
 				if (ctx.failed){
 					var_set(ctx, A, B, NIL);
 					return RUNDONE(run.FAIL);
 				}
 				else
-					var_set(ctx, A, B, res);
+					var_set(ctx, A, B, X);
 			} break;
 
 			case op_enum.EXIT           : { // [TGT], ARGCOUNT, [ARGS]...

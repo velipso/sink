@@ -53,7 +53,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
                 console.log(str);
-                return [2];
+                return [2, sink.NIL];
             });
         });
     }
@@ -61,7 +61,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
                 console.error(str);
-                return [2];
+                return [2, sink.NIL];
             });
         });
     }

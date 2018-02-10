@@ -42,14 +42,13 @@ export declare enum status {
 }
 export declare type fsread_f = (scr: scr, file: string, incuser: any) => Promise<boolean>;
 export declare type fstype_f = (scr: scr, file: string, incuser: any) => Promise<fstype>;
-export declare type output_f = (ctx: ctx, str: str, iouser: any) => Promise<void>;
-export declare type input_f = (ctx: ctx, str: str, iouser: any) => Promise<val>;
+export declare type io_f = (ctx: ctx, str: str, iouser: any) => Promise<val>;
 export declare type native_f = (ctx: ctx, args: val[], natuser: any) => Promise<val>;
 export declare type dump_f = (data: string, dumpuser: any) => void;
 export interface io_st {
-    f_say?: output_f;
-    f_warn?: output_f;
-    f_ask?: input_f;
+    f_say?: io_f;
+    f_warn?: io_f;
+    f_ask?: io_f;
     user?: any;
 }
 export interface inc_st {
@@ -110,8 +109,8 @@ export declare function struct_list(ctx: ctx, a: val, b: val): val;
 export declare function struct_isLE(): boolean;
 export declare function size(ctx: ctx, a: val): number;
 export declare function tonum(ctx: ctx, a: val): val;
-export declare function say(ctx: ctx, vals: val[]): Promise<void>;
-export declare function warn(ctx: ctx, vals: val[]): Promise<void>;
+export declare function say(ctx: ctx, vals: val[]): Promise<val>;
+export declare function warn(ctx: ctx, vals: val[]): Promise<val>;
 export declare function ask(ctx: ctx, vals: val[]): Promise<val>;
 export declare function stacktrace(ctx: ctx): val;
 export declare function str_cat(ctx: ctx, vals: val[]): val;

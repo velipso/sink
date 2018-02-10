@@ -629,13 +629,12 @@ ctx_new
 Create a new Context object.
 
 ```c
-typedef sink_wait (*sink_output_f)(sink_ctx ctx, sink_str str, void *iouser);
-typedef sink_wait (*sink_input_f)(sink_ctx ctx, sink_str str, void *iouser);
+typedef sink_wait (*sink_io_f)(sink_ctx ctx, sink_str str, void *iouser);
 
 typedef struct {
-  sink_output_f f_say;
-  sink_output_f f_warn;
-  sink_input_f f_ask;
+  sink_io_f f_say;
+  sink_io_f f_warn;
+  sink_io_f f_ask;
   void *user;
 } sink_io_st;
 
@@ -643,13 +642,12 @@ sink_ctx sink_ctx_new(sink_scr scr, sink_io_st io);
 ```
 
 ```typescript
-type sink.output_f = (ctx: sink.ctx, str: sink.str, iouser: any) => Promise<void>;
-type sink.input_f = (ctx: sink.ctx, str: sink.str, iouser: any) => Promise<sink.val>;
+type sink.io_f = (ctx: sink.ctx, str: sink.str, iouser: any) => Promise<sink.val>;
 
 interface sink.io_st {
-    f_say?: sink.output_f;
-    f_warn?: sink.output_f;
-    f_ask?: sink.input_f;
+    f_say?: sink.io_f;
+    f_warn?: sink.io_f;
+    f_ask?: sink.io_f;
     user?: any;
 }
 
@@ -670,6 +668,8 @@ commands are executed in the script.
 The C versions use the [`sink_wait`](#waiter) system to deal with asynchronous operations.
 
 The TypeScript versions must return a Promise.
+
+It's recommended that `f_say` and `f_warn` always return `NIL`, but not required.
 
 The `user` field is mapped to `iouser`, and can be used for anything.
 

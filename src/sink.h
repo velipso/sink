@@ -99,8 +99,7 @@ typedef enum {
 
 typedef bool (*sink_fsread_f)(sink_scr scr, const char *file, void *incuser);
 typedef sink_fstype (*sink_fstype_f)(sink_scr scr, const char *file, void *incuser);
-typedef sink_wait (*sink_output_f)(sink_ctx ctx, sink_str str, void *iouser);
-typedef sink_wait (*sink_input_f)(sink_ctx ctx, sink_str str, void *iouser);
+typedef sink_wait (*sink_io_f)(sink_ctx ctx, sink_str str, void *iouser);
 typedef sink_wait (*sink_native_f)(sink_ctx ctx, int size, sink_val *args, void *natuser);
 typedef size_t (*sink_dump_f)(const void *restrict ptr, size_t size, size_t nitems,
 	void *restrict dumpuser);
@@ -108,9 +107,9 @@ typedef void (*sink_then_f)(sink_ctx ctx, sink_val result, void *thenuser);
 typedef void (*sink_cancel_f)(void *thenuser);
 
 typedef struct {
-	sink_output_f f_say;
-	sink_output_f f_warn;
-	sink_input_f f_ask;
+	sink_io_f f_say;
+	sink_io_f f_warn;
+	sink_io_f f_ask;
 	void *user; // passed as iouser to functions
 } sink_io_st;
 

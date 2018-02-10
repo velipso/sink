@@ -8,12 +8,14 @@ import fs = require('fs');
 import path = require('path');
 import readline = require('readline');
 
-async function io_say(ctx: sink.ctx, str: sink.str, iouser: any): Promise<void> {
+async function io_say(ctx: sink.ctx, str: sink.str, iouser: any): Promise<sink.val> {
 	console.log(str);
+	return sink.NIL;
 }
 
-async function io_warn(ctx: sink.ctx, str: sink.str, iouser: any): Promise<void> {
+async function io_warn(ctx: sink.ctx, str: sink.str, iouser: any): Promise<sink.val> {
 	console.error(str);
+	return sink.NIL;
 }
 
 async function io_ask(ctx: sink.ctx, str: sink.str, iouser: any): Promise<sink.val> {
