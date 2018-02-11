@@ -1714,7 +1714,7 @@ In order to *convert* a value to a string, use `sink_tostr`.
 
 The return value is a `sink_str` object, where the application can access the raw bytes and size of
 the array.  The `bytes` value can be `NULL` for an empty string, otherwise it is guaranteed to be
-`NULL`-terminated (i.e., `str->bytes[str->size] == 0`).
+`NULL`-terminated (i.e., `result->bytes[result->size] == 0`).
 
 The application should not change the data in any way.
 
