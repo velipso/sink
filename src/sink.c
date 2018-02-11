@@ -221,6 +221,11 @@ sink_seedauto_src_f sink_seedauto_src = wrap_clock;
 // string creation
 //
 
+typedef struct {
+	uint8_t *bytes;
+	int size;
+} sink_mstr_st, *sink_mstr;
+
 #if !defined(SINK_WIN)
 #	define vsprintf_s(a, b, c, d)  vsprintf(a, c, d)
 #endif
@@ -254,12 +259,12 @@ static inline void list_byte_free(list_byte b){
 	mem_free(b);
 }
 
-static inline sink_str_st list_byte_freetostr(list_byte b){
+static inline sink_mstr_st list_byte_freetostr(list_byte b){
 	if (b->size <= 0){
 		list_byte_free(b);
-		return (sink_str_st){ .size = 0, .bytes = NULL };
+		return (sink_mstr_st){ .size = 0, .bytes = NULL };
 	}
-	sink_str_st res = { .size = b->size, .bytes = b->bytes };
+	sink_mstr_st res = { .size = b->size, .bytes = b->bytes };
 	mem_free(b);
 	return res;
 }
@@ -9208,7 +9213,7 @@ struct context_struct {
 
 	sink_io_st io;
 
-	sink_str_st *str_tbl;
+	sink_mstr_st *str_tbl;
 	sink_list_st *list_tbl;
 
 	uint64_t *str_aloc;
@@ -9529,7 +9534,7 @@ static inline context context_new(program prg, sink_io_st io){
 	}
 	ctx->list_size = 64;
 
-	ctx->str_tbl = mem_alloc(sizeof(sink_str_st) * ctx->str_size);
+	ctx->str_tbl = mem_alloc(sizeof(sink_mstr_st) * ctx->str_size);
 	ctx->list_tbl = mem_alloc(sizeof(sink_list_st) * ctx->list_size);
 
 	ctx->str_aloc = mem_alloc(sizeof(uint64_t) * (ctx->str_size / 64));
@@ -9609,8 +9614,12 @@ static inline void var_set(context ctx, int frame, int index, sink_val val){
 	((lxs)ctx->lex_stk->ptrs[frame])->vals[index] = val;
 }
 
-static inline sink_str var_caststr(context ctx, sink_val a){
+static inline sink_mstr var_castmstr(context ctx, sink_val a){
 	return &ctx->str_tbl[var_index(a)];
+}
+
+static inline sink_str var_caststr(context ctx, sink_val a){
+	return (sink_str)&ctx->str_tbl[var_index(a)];
 }
 
 static inline sink_list var_castlist(context ctx, sink_val a){
@@ -12244,7 +12253,7 @@ static inline bool pk_isjson(sink_str s){
 	return state == PKV_ENDVAL;
 }
 
-static bool pk_tojson(context ctx, sink_val a, list_int li, sink_str s){
+static bool pk_tojson(context ctx, sink_val a, list_int li, sink_mstr s){
 	switch (sink_typeof(a)){
 		case SINK_TYPE_NIL:
 			set_null:
@@ -12338,9 +12347,9 @@ static bool pk_tojson(context ctx, sink_val a, list_int li, sink_str s){
 			list_int_push(li, idx);
 			sink_list ls = var_castlist(ctx, a);
 			int tot = 2;
-			sink_str_st *strs = mem_alloc(sizeof(sink_str_st) * ls->size);
+			sink_mstr_st *strs = mem_alloc(sizeof(sink_mstr_st) * ls->size);
 			for (int i = 0; i < ls->size; i++){
-				sink_str_st s2;
+				sink_mstr_st s2;
 				if (!pk_tojson(ctx, ls->vals[i], li, &s2)){
 					for (int j = 0; j < i; j++)
 						mem_free(strs[j].bytes);
@@ -12375,7 +12384,7 @@ static inline sink_val opi_pickle_json(context ctx, sink_val a){
 	list_int li = NULL;
 	if (sink_islist(a))
 		li = list_int_new();
-	sink_str_st s = { .size = 0, .bytes = NULL};
+	sink_mstr_st s = { .size = 0, .bytes = NULL};
 	bool suc = pk_tojson(ctx, a, li, &s);
 	if (li)
 		list_int_free(li);
@@ -12494,7 +12503,7 @@ static void pk_tobin(context ctx, sink_val a, list_int li, uint32_t *str_table_s
 	}
 }
 
-static inline bool opi_pickle_binstr(context ctx, sink_val a, sink_str_st *out){
+static inline bool opi_pickle_binstr(context ctx, sink_val a, sink_mstr_st *out){
 	list_int li = NULL;
 	if (sink_islist(a))
 		li = list_int_new();
@@ -12529,12 +12538,12 @@ static inline bool opi_pickle_binstr(context ctx, sink_val a, sink_str_st *out){
 	bytes[tot] = 0;
 	list_byte_free(strs);
 	list_byte_free(body);
-	*out = (sink_str_st){ .size = tot, .bytes = bytes };
+	*out = (sink_mstr_st){ .size = tot, .bytes = bytes };
 	return true;
 }
 
 static inline sink_val opi_pickle_bin(context ctx, sink_val a){
-	sink_str_st str;
+	sink_mstr_st str;
 	if (!opi_pickle_binstr(ctx, a, &str))
 		return SINK_NIL;
 	return sink_str_newblobgive(ctx, str.size, str.bytes);
@@ -12752,7 +12761,7 @@ static bool pk_fmjson(context ctx, sink_str s, int *pos, sink_val *res){
 			if (b == '"'){
 				(*pos)++;
 				list_byte_null(str);
-				sink_str_st bstr = list_byte_freetostr(str);
+				sink_mstr_st bstr = list_byte_freetostr(str);
 				*res = sink_str_newblobgive(ctx, bstr.size, bstr.bytes);
 				return true;
 			}
@@ -15729,36 +15738,36 @@ sink_val sink_tonum(sink_ctx ctx, sink_val v){
 	return opi_tonum(ctx, v);
 }
 
-static sink_str_st sinkhelp_tostr(context ctx, list_int li, sink_val v){
+static sink_mstr_st sinkhelp_tostr(context ctx, list_int li, sink_val v){
 	switch (sink_typeof(v)){
 		case SINK_TYPE_NIL: {
 			uint8_t *bytes = mem_alloc(sizeof(uint8_t) * 4);
 			bytes[0] = 'n'; bytes[1] = 'i'; bytes[2] = 'l'; bytes[3] = 0;
-			return (sink_str_st){ .bytes = bytes, .size = 3 };
+			return (sink_mstr_st){ .bytes = bytes, .size = 3 };
 		} break;
 
 		case SINK_TYPE_NUM: {
 			if (isnan(v.f)){
 				uint8_t *bytes = mem_alloc(sizeof(uint8_t) * 4);
 				bytes[0] = 'n'; bytes[1] = 'a'; bytes[2] = 'n'; bytes[3] = 0;
-				return (sink_str_st){ .bytes = bytes, .size = 3 };
+				return (sink_mstr_st){ .bytes = bytes, .size = 3 };
 			}
 			else if (isinf(v.f)){
 				if (v.f < 0){
 					uint8_t *bytes = mem_alloc(sizeof(uint8_t) * 5);
 					bytes[0] = '-'; bytes[1] = 'i'; bytes[2] = 'n'; bytes[3] = 'f'; bytes[4] = 0;
-					return (sink_str_st){ .bytes = bytes, .size = 4 };
+					return (sink_mstr_st){ .bytes = bytes, .size = 4 };
 				}
 				uint8_t *bytes = mem_alloc(sizeof(uint8_t) * 4);
 				bytes[0] = 'i'; bytes[1] = 'n'; bytes[2] = 'f'; bytes[3] = 0;
-				return (sink_str_st){ .bytes = bytes, .size = 3 };
+				return (sink_mstr_st){ .bytes = bytes, .size = 3 };
 			}
 			char buf[64];
 			int size;
 			numtostr(v.f, buf, sizeof(buf), &size);
 			uint8_t *bytes = mem_alloc(sizeof(uint8_t) * (size + 1));
 			memcpy(bytes, buf, sizeof(uint8_t) * (size + 1));
-			return (sink_str_st){ .bytes = bytes, .size = size };
+			return (sink_mstr_st){ .bytes = bytes, .size = size };
 		} break;
 
 		case SINK_TYPE_STR: {
@@ -15779,7 +15788,7 @@ static sink_str_st sinkhelp_tostr(context ctx, list_int li, sink_val v){
 			}
 			bytes[p++] = '\'';
 			bytes[tot] = 0;
-			return (sink_str_st){ .bytes = bytes, .size = tot };
+			return (sink_mstr_st){ .bytes = bytes, .size = tot };
 		} break;
 
 		case SINK_TYPE_LIST: {
@@ -15789,14 +15798,14 @@ static sink_str_st sinkhelp_tostr(context ctx, list_int li, sink_val v){
 				bytes[0] = '{'; bytes[1] = 'c'; bytes[2] = 'i'; bytes[3] = 'r'; bytes[4] = 'c';
 				bytes[5] = 'u'; bytes[6] = 'l'; bytes[7] = 'a'; bytes[8] = 'r'; bytes[9] = '}';
 				bytes[10] = 0;
-				return (sink_str_st){ .bytes = bytes, .size = 10 };
+				return (sink_mstr_st){ .bytes = bytes, .size = 10 };
 			}
 			list_int_push(li, idx);
 			sink_list ls = var_castlist(ctx, v);
 			int tot = 2;
-			sink_str_st *strs = mem_alloc(sizeof(sink_str_st) * ls->size);
+			sink_mstr_st *strs = mem_alloc(sizeof(sink_mstr_st) * ls->size);
 			for (int i = 0; i < ls->size; i++){
-				sink_str_st s = sinkhelp_tostr(ctx, li, ls->vals[i]);
+				sink_mstr_st s = sinkhelp_tostr(ctx, li, ls->vals[i]);
 				strs[i] = s;
 				tot += (i == 0 ? 0 : 2) + s.size;
 			}
@@ -15818,7 +15827,7 @@ static sink_str_st sinkhelp_tostr(context ctx, list_int li, sink_val v){
 			mem_free(strs);
 			bytes[p] = '}';
 			bytes[tot] = 0;
-			return (sink_str_st){ .bytes = bytes, .size = tot };
+			return (sink_mstr_st){ .bytes = bytes, .size = tot };
 		} break;
 	}
 }
@@ -15829,7 +15838,7 @@ sink_val sink_tostr(sink_ctx ctx, sink_val v){
 	list_int li = NULL;
 	if (sink_islist(v))
 		li = list_int_new();
-	sink_str_st s = sinkhelp_tostr(ctx, li, v);
+	sink_mstr_st s = sinkhelp_tostr(ctx, li, v);
 	if (li)
 		list_int_free(li);
 	return sink_str_newblobgive(ctx, s.size, s.bytes);
@@ -16130,7 +16139,7 @@ sink_val sink_str_newblobgive(sink_ctx ctx, int size, uint8_t *bytes){
 	context ctx2 = ctx;
 	int index = bmp_reserve((void **)&ctx2->str_tbl, &ctx2->str_size, &ctx2->str_aloc,
 		&ctx2->str_ref, sizeof(sink_str_st));
-	sink_str s = &ctx2->str_tbl[index];
+	sink_mstr s = &ctx2->str_tbl[index];
 	s->bytes = bytes;
 	s->size = size;
 	return (sink_val){ .u = SINK_TAG_STR | index };
@@ -16663,12 +16672,12 @@ sink_val sink_pickle_copy(sink_ctx ctx, sink_val a){
 }
 
 bool sink_pickle_binstr(sink_ctx ctx, sink_val a, sink_str_st *out){
-	return opi_pickle_binstr(ctx, a, out);
+	return opi_pickle_binstr(ctx, a, (sink_mstr_st *)out);
 }
 
 void sink_pickle_binstrfree(sink_str_st str){
 	if (str.size >= 0 && str.bytes)
-		mem_free(str.bytes);
+		mem_free((uint8_t *)str.bytes);
 }
 
 bool sink_pickle_valstr(sink_ctx ctx, sink_str_st str, sink_val *out){

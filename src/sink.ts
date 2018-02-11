@@ -13102,7 +13102,7 @@ export function int_bswap(ctx: ctx, a: val): val {
 }
 
 // strings
-export function str_hashplain(str: string, seed: number): [number, number, number, number] {
+export function str_hashplain(bytes: string, seed: number): [number, number, number, number] {
 	// MurmurHash3 was written by Austin Appleby, and is placed in the public
 	// domain. The author hereby disclaims copyright to this source code.
 	// https://github.com/aappleby/smhasher
@@ -13199,20 +13199,20 @@ export function str_hashplain(str: string, seed: number): [number, number, numbe
 
 	function getblock(i: number): u64 {
 		return [
-			(str.charCodeAt(i + 0)      ) |
-			(str.charCodeAt(i + 1) <<  8) |
-			(str.charCodeAt(i + 2) << 16) |
-			(str.charCodeAt(i + 3) << 24),
-			(str.charCodeAt(i + 4)      ) |
-			(str.charCodeAt(i + 5) <<  8) |
-			(str.charCodeAt(i + 6) << 16) |
-			(str.charCodeAt(i + 7) << 24)
+			(bytes.charCodeAt(i + 0)      ) |
+			(bytes.charCodeAt(i + 1) <<  8) |
+			(bytes.charCodeAt(i + 2) << 16) |
+			(bytes.charCodeAt(i + 3) << 24),
+			(bytes.charCodeAt(i + 4)      ) |
+			(bytes.charCodeAt(i + 5) <<  8) |
+			(bytes.charCodeAt(i + 6) << 16) |
+			(bytes.charCodeAt(i + 7) << 24)
 		];
 	}
 
 	// hash code
 
-	let nblocks = str.length >>> 4;
+	let nblocks = bytes.length >>> 4;
 	let h1: u64 = [seed, 0];
 	let h2: u64 = [seed, 0];
 	let c1: u64 = [0x114253D5, 0x87C37B91];
@@ -13242,7 +13242,7 @@ export function str_hashplain(str: string, seed: number): [number, number, numbe
 
 	let k1: u64 = [0, 0];
 	let k2: u64 = [0, 0];
-	var tail = str.substr(nblocks << 4);
+	var tail = bytes.substr(nblocks << 4);
 
 	switch(tail.length) {
 		case 15: k2 = x64_xor(k2, x64_shl([tail.charCodeAt(14), 0], 48));
@@ -13273,8 +13273,8 @@ export function str_hashplain(str: string, seed: number): [number, number, numbe
 			h1 = x64_xor(h1, k1);
 	}
 
-	h1 = x64_xor(h1, [str.length, 0]);
-	h2 = x64_xor(h2, [str.length, 0]);
+	h1 = x64_xor(h1, [bytes.length, 0]);
+	h2 = x64_xor(h2, [bytes.length, 0]);
 
 	h1 = x64_add(h1, h2);
 	h2 = x64_add(h2, h1);

@@ -67,8 +67,8 @@ typedef struct {
 typedef struct {
 	// `bytes` can be NULL for a size 0 string
 	// otherwise, `bytes[size]` is guaranteed to be 0
-	uint8_t *bytes;
-	int size;
+	const uint8_t *bytes;
+	const int size;
 } sink_str_st, *sink_str;
 
 typedef void *sink_wait;

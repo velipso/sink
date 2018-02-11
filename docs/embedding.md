@@ -1547,40 +1547,376 @@ Misc/Helper Functions
 | [`realloc`](#realloc)                   | The function that provides all memory reallocation (C only) |
 | [`free`](#free)                         | The function that provides all memory freeing (C only)|
 
-```
+NIL
+---
+
+The literal `nil` value.
+
+```c
 const sink_val SINK_NIL;
+```
+
+```typescript
 const sink.NIL: null;
+```
 
-sink_val sink_bool(bool f)
+bool
+----
+
+Convert a boolean to a sink value.
+
+```c
+sink_val sink_bool(bool f);
+```
+
+```typescript
 function sink.bool(f: boolean): sink.val;
+```
 
+This is a convenience function that will return `nil` for `false`, and `1` for `true`.
+
+### `f`
+
+The boolean flag to convert.
+
+isnil
+-----
+
+Test if a sink value is `nil`.
+
+```c
 bool sink_isnil(sink_val v);
+```
+
+```typescript
 function sink.isnil(v: sink.val): boolean;
+```
 
+### `v`
+
+The value to test.
+
+isfalse
+-------
+
+Test if a sink value is false (`nil`).
+
+```c
 bool sink_isfalse(sink_val v);
-function sink.isfalse(v: sink.val): boolean;
+```
 
+```typescript
+function sink.isfalse(v: sink.val): boolean;
+```
+
+### `v`
+
+The value to test.
+
+istrue
+------
+
+Test if a sink value is true (non-`nil`).
+
+```c
 bool sink_istrue(sink_val v);
+```
+
+```typescript
 function sink.istrue(v: sink.val): boolean;
+```
+
+### `v`
+
+The value to test.
+
+typeof
+------
+
+Get the type of a sink value.
+
+```c
+typedef enum {
+  SINK_TYPE_NIL,
+  SINK_TYPE_NUM,
+  SINK_TYPE_STR,
+  SINK_TYPE_LIST
+} sink_type;
 
 sink_type sink_typeof(sink_val v);
-function sink.sink_typeof(v: sink.val): sink.type;
+```
 
+```typescript
+enum sink.type {
+  NIL,
+  NUM,
+  STR,
+  LIST
+}
+
+function sink.sink_typeof(v: sink.val): sink.type;
+```
+
+Note that the TypeScript version is `sink.sink_typeof` instead of `sink.typeof` because `typeof` is
+a reserved keyword in TypeScript/JavaScript.
+
+### `v`
+
+The value that should be type checked.
+
+castnum
+-------
+
+Reinterpret a sink value as a number (C only).
+
+```c
 double sink_castnum(sink_val v);
+```
+
+Note that this function does not perform type checking.  If a non-number is cast to a number, the
+results are undefined.
+
+### `v`
+
+The value to be reinterpretted.
+
+num
+---
+
+Convert a number to a sink value (C only).
+
+```c
 sink_val sink_num(double v);
+```
+
+### `v`
+
+The value to be converted.
+
+caststr
+-------
+
+Reinterpret a sink value as a string (C only).
+
+```c
+typedef struct {
+  const uint8_t *bytes;
+  const int size;
+} sink_str_st, *sink_str;
 
 sink_str sink_caststr(sink_ctx ctx, sink_val str);
-sink_val sink_str_newcstr(sink_ctx ctx, const char *str);
-sink_val sink_str_newcstrgive(sink_ctx ctx, char *str);
-sink_val sink_str_newblob(sink_ctx ctx, int size, const uint8_t *bytes);
-sink_val sink_str_newblobgive(sink_ctx ctx, int size, uint8_t *bytes);
-sink_val sink_str_newempty(sink_ctx ctx);
-sink_val sink_str_newformat(sink_ctx ctx, const char *fmt, ...);
+```
 
+Note that this function does not perform type checking.  If a non-string is cast to a string, the
+results are undefined.
+
+In order to *convert* a value to a string, use `sink_tostr`.
+
+The return value is a `sink_str` object, where the application can access the raw bytes and size of
+the array.  The `bytes` value can be `NULL` for an empty string, otherwise it is guaranteed to be
+`NULL`-terminated (i.e., `str->bytes[str->size] == 0`).
+
+The application should not change the data in any way.
+
+### `ctx`
+
+The Context object.
+
+### `str`
+
+The value to be reinterpretted.
+
+str_newcstr
+-----------
+
+Create a sink string by copying a C string (C only).
+
+```c
+sink_val sink_str_newcstr(sink_ctx ctx, const char *str);
+```
+
+### `ctx`
+
+The Context object.
+
+### `str`
+
+The `NULL`-terminated C string.
+
+str_newblob
+-----------
+
+Create sink string by copying a blob of data (C only).
+
+```c
+sink_val sink_str_newblob(sink_ctx ctx, int size, const uint8_t *bytes);
+```
+
+### `ctx`
+
+The Context object.
+
+### `size`
+
+The size of the `bytes` array, or `0` for an empty string.
+
+### `bytes`
+
+The raw bytes to copy, or `NULL` for an empty string.
+
+str_newblobgive
+---------------
+
+Create sink string from a blob of data, giving memory ownership to sink (C only).
+
+```c
+sink_val sink_str_newblobgive(sink_ctx ctx, int size, uint8_t *bytes);
+```
+
+**Note:** non-empty strings *must* have `bytes` allocated to store `size + 1` bytes, where
+`bytes[size]` is set to `0`, guaranteeing that the string is `NULL`-terminated.
+
+**Note:** non-empty strings *must* use [`sink_malloc`](#malloc) to allocate the `bytes` array.  It
+will be freed by the garbage collector using [`sink_free`](#free) automatically.
+
+### `ctx`
+
+The Context object.
+
+### `size`
+
+The size of the `bytes` array, or `0` for an empty string.
+
+### `bytes`
+
+The raw bytes to use as the string, or `NULL` for an empty string.
+
+str_newempty
+------------
+
+Create an empty string (C only).
+
+```c
+sink_val sink_str_newempty(sink_ctx ctx);
+```
+
+### `ctx`
+
+The Context object.
+
+str_newformat
+-------------
+
+Create a string from a `printf`-formatted expression (C only).
+
+```c
+sink_val sink_str_newformat(sink_ctx ctx, const char *fmt, ...);
+```
+
+### `ctx`
+
+The Context object.
+
+### `fmt`
+
+The `printf`-style format string.
+
+### `...`
+
+The arguments to feed to the formatter.
+
+str_hashplain
+-------------
+
+Hash a string directly.
+
+```c
 void sink_str_hashplain(int size, const uint8_t *bytes, uint32_t seed, uint32_t *out);
-function sink.str_hashplain(str: string, seed: number): [number, number, number, number];
+```
+
+```typescript
+function sink.str_hashplain(bytes: string, seed: number): [number, number, number, number];
+```
+
+This function is useful because it can calculate hashes without a Context object.  It doesn't
+require any parameters other than the string and seed.
+
+### `size`
+
+The size of the `bytes` array (C only).
+
+### `bytes`
+
+The raw bytes.  Note: in TypeScript/JavaScript, the string is interpretted as
+[`'binary'` encoding](https://nodejs.org/api/buffer.html#buffer_buffers_and_character_encodings).
+
+### `seed`
+
+The seed (see: [`str.hash`](https://github.com/voidqk/sink/blob/master/docs/hash.md)).
+
+### `out`
+
+An array of `uint32_t` values that must have space for the 4 `uint32_t` results.  I.e., `out[0]`,
+`out[1]`, `out[2]`, and `out[3]` will have the hash result (C only).
+
+castlist
+--------
+
+Reinterpret a sink value as a list (C only).
+
+```c
+typedef int sink_user;
+typedef struct {
+  sink_val *vals;
+  int size;
+  int count;
+  void *user;
+  sink_user usertype;
+} sink_list_st, *sink_list;
 
 sink_list sink_castlist(sink_ctx ctx, sink_val ls);
+```
+
+Note that this function does not perform type checking.  If a non-list is cast to a list, the
+results are undefined.
+
+The return value is a `sink_list` object, where the application can access the values and size of
+the array.
+
+The `vals` element is the array of sink values in the list.
+
+The `size` element is the size of the list.
+
+The `count` element is how much space is allocated in `vals`.  This will always be greater than or
+equal to `size`.
+
+The `user` element is the raw user pointer associated with the list.
+
+The `usertype` element is the user type of the `user` pointer, or `-1` for no user data.
+
+The application can modify this data, if it chooses to -- but in most situations, it should only
+read `vals` and `size`.
+
+To modify a list, the application should normally just use the `sink_list_*` standard library
+functions against the sink value.  To access user data, the application should use the appropriate
+helper functions ([`list_hasuser`](#list_hasuser) and [`list_getuser`](#list_getuser)).
+
+These are just recommendations though -- it might be better to modify everything directly.  Just be
+sure to use the sink memory allocation functions for `vals` ([`sink_malloc`](#malloc),
+[`sink_realloc`](#realloc), and [`sink_free`](#free)), and ensure `count >= size`.
+
+### `ctx`
+
+The Context object.
+
+### `ls`
+
+The value to be reinterpretted.
+
+TODO
+----
+
+```
 sink_val sink_list_newblob(sink_ctx ctx, int size, const sink_val *vals);
 sink_val sink_list_newblobgive(sink_ctx ctx, int size, int count, sink_val *vals);
 sink_val sink_list_newempty(sink_ctx ctx);
