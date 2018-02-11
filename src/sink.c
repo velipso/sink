@@ -9376,7 +9376,7 @@ static inline void context_sweep(context ctx){
 }
 
 static inline int var_index(sink_val v){
-	return (int)(v.u & UINT64_C(0x000000007FFFFFFF));
+	return (int)(v.u & SINK_INDEX_MASK);
 }
 
 static void context_markvals(context ctx, int size, sink_val *vals){

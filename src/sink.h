@@ -145,6 +145,7 @@ static const sink_val SINK_NIL         = { .u = UINT64_C(0x7FF0000100000000) };
 static const uint64_t SINK_TAG_STR     =        UINT64_C(0x7FF0000200000000)  ;
 static const uint64_t SINK_TAG_LIST    =        UINT64_C(0x7FF0000300000000)  ;
 static const uint64_t SINK_TAG_MASK    =        UINT64_C(0xFFFFFFFF80000000)  ;
+static const uint64_t SINK_INDEX_MASK  =        UINT64_C(0x000000007FFFFFFF)  ;
 static const uint64_t SINK_NAN_MASK    =        UINT64_C(0x7FF8000000000000)  ;
 
 sink_scr    sink_scr_new(sink_inc_st inc, const char *curdir, bool posix, bool repl);
