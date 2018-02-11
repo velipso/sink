@@ -103,22 +103,6 @@ scr_new
 Create a new Script object.
 
 ```c
-sink_scr sink_scr_new(sink_inc_st inc, const char *curdir, bool posix, bool repl);
-```
-
-```typescript
-function sink.scr_new(inc: sink.inc_st, curdir: string | null, posix: boolean, repl: boolean):
-  sink.scr;
-```
-
-### `inc`
-
-An object that provides functions for the compiler to read files from the filesystem.
-
-When a script uses `include` or `embed`, the compiler will query these functions (using the
-[search path](#scr_addpath)) to figure out how to resolve to the correct file, and read the file.
-
-```c
 typedef enum {
   SINK_FSTYPE_NONE,
   SINK_FSTYPE_FILE,
@@ -133,6 +117,8 @@ typedef struct {
   sink_fsread_f f_fsread;
   void *user;
 } sink_inc_st;
+
+sink_scr sink_scr_new(sink_inc_st inc, const char *curdir, bool posix, bool repl);
 ```
 
 ```typescript
@@ -150,7 +136,17 @@ interface sink.inc_st {
   f_fsread: sink.fsread_f;
   user?: any;
 }
+
+function sink.scr_new(inc: sink.inc_st, curdir: string | null, posix: boolean, repl: boolean):
+  sink.scr;
 ```
+
+### `inc`
+
+An object that provides functions for the compiler to read files from the filesystem.
+
+When a script uses `include` or `embed`, the compiler will query these functions (using the
+[search path](#scr_addpath)) to figure out how to resolve to the correct file, and read the file.
 
 The `f_fstype` function should query the filesystem, and return one of the results: `NONE`
 (i.e., `SINK_FSTYPE_NONE` in C, and `sink.fstype.NONE` in TypeScript) for a file that doesn't exist,
