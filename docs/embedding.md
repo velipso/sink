@@ -172,7 +172,7 @@ path.
 ### `posix`
 
 If true, then path routines will use POSIX logic.  It will treat `/` as a path seperator, and any
-path starting with `/` will be considered an aboslute path.
+path starting with `/` will be considered an absolute path.
 
 If false, then path routines will use Windows logic.  It will treat `/` and `\` as path seperators,
 join paths using `\`, and paths starting with a drive letter or network name will be considered
