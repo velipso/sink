@@ -221,6 +221,7 @@ sink_seedauto_src_f sink_seedauto_src = wrap_clock;
 // string creation
 //
 
+// a non-const version of sink_str
 typedef struct {
 	uint8_t *bytes;
 	int size;

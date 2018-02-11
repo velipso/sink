@@ -12348,7 +12348,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         return opi_unop(ctx, a, unop_int_bswap, txt_int_bswap);
     }
     exports.int_bswap = int_bswap;
-    function str_hashplain(str, seed) {
+    function str_hashplain(bytes, seed) {
         function x64_add(a, b) {
             var A0 = a[0] & 0xFFFF;
             var A1 = a[0] >>> 16;
@@ -12442,17 +12442,17 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         }
         function getblock(i) {
             return [
-                (str.charCodeAt(i + 0)) |
-                    (str.charCodeAt(i + 1) << 8) |
-                    (str.charCodeAt(i + 2) << 16) |
-                    (str.charCodeAt(i + 3) << 24),
-                (str.charCodeAt(i + 4)) |
-                    (str.charCodeAt(i + 5) << 8) |
-                    (str.charCodeAt(i + 6) << 16) |
-                    (str.charCodeAt(i + 7) << 24)
+                (bytes.charCodeAt(i + 0)) |
+                    (bytes.charCodeAt(i + 1) << 8) |
+                    (bytes.charCodeAt(i + 2) << 16) |
+                    (bytes.charCodeAt(i + 3) << 24),
+                (bytes.charCodeAt(i + 4)) |
+                    (bytes.charCodeAt(i + 5) << 8) |
+                    (bytes.charCodeAt(i + 6) << 16) |
+                    (bytes.charCodeAt(i + 7) << 24)
             ];
         }
-        var nblocks = str.length >>> 4;
+        var nblocks = bytes.length >>> 4;
         var h1 = [seed, 0];
         var h2 = [seed, 0];
         var c1 = [0x114253D5, 0x87C37B91];
@@ -12477,7 +12477,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         }
         var k1 = [0, 0];
         var k2 = [0, 0];
-        var tail = str.substr(nblocks << 4);
+        var tail = bytes.substr(nblocks << 4);
         switch (tail.length) {
             case 15: k2 = x64_xor(k2, x64_shl([tail.charCodeAt(14), 0], 48));
             case 14: k2 = x64_xor(k2, x64_shl([tail.charCodeAt(13), 0], 40));
@@ -12505,8 +12505,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                 k1 = x64_mul(k1, c2);
                 h1 = x64_xor(h1, k1);
         }
-        h1 = x64_xor(h1, [str.length, 0]);
-        h2 = x64_xor(h2, [str.length, 0]);
+        h1 = x64_xor(h1, [bytes.length, 0]);
+        h2 = x64_xor(h2, [bytes.length, 0]);
         h1 = x64_add(h1, h2);
         h2 = x64_add(h2, h1);
         h1 = x64_fmix(h1);

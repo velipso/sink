@@ -224,7 +224,7 @@ export declare function int_mod(ctx: ctx, a: val, b: val): val;
 export declare function int_clz(ctx: ctx, a: val): val;
 export declare function int_pop(ctx: ctx, a: val): val;
 export declare function int_bswap(ctx: ctx, a: val): val;
-export declare function str_hashplain(str: string, seed: number): [number, number, number, number];
+export declare function str_hashplain(bytes: string, seed: number): [number, number, number, number];
 export declare function list_setuser(ctx: ctx, ls: val, usertype: user, user: any): void;
 export declare function list_hasuser(ctx: ctx, ls: val, usertype: user): boolean;
 export declare function list_getuser(ctx: ctx, ls: val): any;
