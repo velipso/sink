@@ -17,7 +17,13 @@
 #	include <sys/types.h>  // necessary for read
 #	include <sys/uio.h>    // necessary for read
 #	include <fcntl.h>      // O_CLOEXEC
-#	include <unistd.h>     // getcwd, fork, pipe, dup2, close, read, write, execv, _exit, access
+#	if defined(SINK_POSIX)
+#		define __USE_GNU
+#		include <unistd.h>     // getcwd, fork, pipe, dup2, close, read, write, execv, _exit, access
+#		undef __USE_GNU
+#	else
+#		include <unistd.h>     // getcwd, fork, pipe, dup2, close, read, write, execv, _exit, access
+#	endif
 #	include <sys/wait.h>   // waitpid
 #	include <poll.h>       // poll
 #	include <string.h>     // strerror
@@ -1111,10 +1117,15 @@ static sink_wait L_dir_list(sink_ctx ctx, int size, sink_val *args, void *nuser)
 		ep = readdir(dp);
 		if (ep == NULL)
 			break;
-		if ((ep->d_namlen == 1 && ep->d_name[0] == '.') ||
-			(ep->d_namlen == 2 && ep->d_name[0] == '.' && ep->d_name[1] == '.'))
+#if defined(SINK_POSIX)
+		int name_len = strlen(ep->d_name);
+#else
+		int name_len = ep->d_namlen;
+#endif
+		if ((name_len == 1 && ep->d_name[0] == '.') ||
+			(name_len == 2 && ep->d_name[0] == '.' && ep->d_name[1] == '.'))
 			continue;
-		sink_list_push(ctx, res, sink_str_newblob(ctx, ep->d_namlen, (const uint8_t *)ep->d_name));
+		sink_list_push(ctx, res, sink_str_newblob(ctx, name_len, (const uint8_t *)ep->d_name));
 	}
 	closedir(dp);
 

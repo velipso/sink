@@ -141,6 +141,7 @@ if [ "$BUILD_C" = "1" ]; then
 			C_OPTS="$C_OPTS -O2"
 		fi
 		clang $C_OPTS              \
+			-lm                    \
 			-o $TGT_DIR/sink       \
 			$SRC_DIR/sink.c        \
 			$SRC_DIR/sink_shell.c  \

@@ -4,8 +4,15 @@
 
 #include "sink.h"
 #include <stdio.h>
-#include <string.h>
 #include <time.h>
+
+#if defined(SINK_POSIX)
+#	define __USE_GNU
+#	include <string.h>
+#	undef __USE_GNU
+#else
+#	include <string.h>
+#endif
 
 #if defined(SINK_MAC) || defined(SINK_POSIX)
 #	include <strings.h>  // ffsll
@@ -11102,7 +11109,12 @@ static sink_val unop_int_not(context ctx, sink_val a){
 }
 
 static sink_val unop_int_clz(context ctx, sink_val a){
-	#if defined(BITSCAN_FFSLL)
+	#if defined(__has_builtin) && __has_builtin(__builtin_clz)
+		int32_t i = toint(a);
+		if (i == 0)
+			return sink_num(32);
+		return sink_num(__builtin_clz(i));
+	#elif defined(BITSCAN_FFSLL)
 		return sink_num(32 - fls(toint(a)));
 	#elif defined(BITSCAN_WIN)
 		int i = toint(a);
