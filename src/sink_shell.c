@@ -301,9 +301,9 @@ static sink_wait L_which(sink_ctx ctx, int size, sink_val *args, void *nuser){
 	sink_str str;
 	if (!sink_arg_str(ctx, size, args, 0, &str))
 		return NULL;
-	if (str->bytes == NULL) // empty string
+	if (str.bytes == NULL) // empty string
 		return NULL;
-	char *res = Li_which((const char *)str->bytes);
+	char *res = Li_which((const char *)str.bytes);
 	if (res == NULL)
 		return NULL;
 	return sink_done(ctx, sink_str_newblobgive(ctx, strlen(res), (uint8_t *)res));
@@ -484,7 +484,7 @@ static inline void RD_push_arg(rundata rd, char *ptr){
 }
 
 static inline void RD_add_arg(rundata rd, sink_str str){
-	RD_push_arg(rd, (char *)str->bytes);
+	RD_push_arg(rd, (char *)str.bytes);
 }
 
 static inline void RD_push_env(rundata rd, char *ptr){
@@ -497,7 +497,7 @@ static inline void RD_push_env(rundata rd, char *ptr){
 
 static inline void RD_add_env(rundata rd, sink_str key, sink_str val){
 	// TODO: test this with keys that have equals inside of them, empty keys, empty vals
-	RD_push_env(rd, format("%s=%s", (char *)key->bytes, (char *)val->bytes));
+	RD_push_env(rd, format("%s=%s", (char *)key.bytes, (char *)val.bytes));
 }
 
 static inline void RD_finish(rundata rd, bool hasargs, bool hasenvs){
@@ -598,11 +598,11 @@ static sink_wait L_run(sink_ctx ctx, int size, sink_val *args, void *nuser){
 	sink_str file;
 	if (!sink_arg_str(ctx, size, args, 0, &file))
 		return NULL;
-	if (file->bytes == NULL)
+	if (file.bytes == NULL)
 		return sink_abortstr(ctx, "Invalid command");
-	char *abs_cmd = Li_which((const char *)file->bytes);
+	char *abs_cmd = Li_which((const char *)file.bytes);
 	if (abs_cmd == NULL)
-		return sink_abortstr(ctx, "Command not found: %.*s", file->size, file->bytes);
+		return sink_abortstr(ctx, "Command not found: %.*s", file.size, file.bytes);
 
 	rundata_st rd;
 	RD_make(&rd, abs_cmd);
@@ -623,16 +623,16 @@ static sink_wait L_run(sink_ctx ctx, int size, sink_val *args, void *nuser){
 			RD_destroy(&rd);
 			return NULL;
 		}
-		for (int i = 0; i < args_ls->size; i++){
-			if (!sink_isstr(args_ls->vals[i]) && !sink_isnum(args_ls->vals[i])){
+		for (int i = 0; i < args_ls.size; i++){
+			if (!sink_isstr(args_ls.vals[i]) && !sink_isnum(args_ls.vals[i])){
 				RD_destroy(&rd);
 				return sink_abortstr(ctx, "Argument list must be a list of strings");
 			}
 		}
 
 		// load args list into rd
-		for (int i = 0; i < args_ls->size; i++){
-			sink_str args_s = sink_caststr(ctx, sink_tostr(ctx, args_ls->vals[i]));
+		for (int i = 0; i < args_ls.size; i++){
+			sink_str args_s = sink_caststr(ctx, sink_tostr(ctx, args_ls.vals[i]));
 			RD_add_arg(&rd, args_s);
 		}
 	}
@@ -646,25 +646,25 @@ static sink_wait L_run(sink_ctx ctx, int size, sink_val *args, void *nuser){
 			RD_destroy(&rd);
 			return NULL;
 		}
-		for (int i = 0; i < env_ls->size; i++){
-			if (!sink_islist(env_ls->vals[i])){
+		for (int i = 0; i < env_ls.size; i++){
+			if (!sink_islist(env_ls.vals[i])){
 				RD_destroy(&rd);
 				return sink_abortstr(ctx, "Environment list must be list of {'KEY', 'VALUE'}");
 			}
-			sink_list kv = sink_castlist(ctx, env_ls->vals[i]);
-			if (kv->size != 2 ||
-				!sink_isstr(kv->vals[0]) ||
-				(!sink_isstr(kv->vals[1]) && !sink_isnum(kv->vals[1]))){
+			sink_list kv = sink_castlist(ctx, env_ls.vals[i]);
+			if (kv.size != 2 ||
+				!sink_isstr(kv.vals[0]) ||
+				(!sink_isstr(kv.vals[1]) && !sink_isnum(kv.vals[1]))){
 				RD_destroy(&rd);
 				return sink_abortstr(ctx, "Environment list must be list of {'KEY', 'VALUE'}");
 			}
 		}
 
 		// load env list into rd
-		for (int i = 0; i < env_ls->size; i++){
-			sink_list kv = sink_castlist(ctx, env_ls->vals[i]);
-			sink_str key = sink_caststr(ctx, kv->vals[0]);
-			sink_str val = sink_caststr(ctx, sink_tostr(ctx, kv->vals[1]));
+		for (int i = 0; i < env_ls.size; i++){
+			sink_list kv = sink_castlist(ctx, env_ls.vals[i]);
+			sink_str key = sink_caststr(ctx, kv.vals[0]);
+			sink_str val = sink_caststr(ctx, sink_tostr(ctx, kv.vals[1]));
 			RD_add_env(&rd, key, val);
 		}
 	}
@@ -673,11 +673,11 @@ static sink_wait L_run(sink_ctx ctx, int size, sink_val *args, void *nuser){
 		sink_str inp_s;
 		if (!sink_arg_str(ctx, size, args, 3, &inp_s))
 			return NULL;
-		if (inp_s->bytes == NULL)
+		if (inp_s.bytes == NULL)
 			writein = (const uint8_t *)emptystr;
 		else{
-			writein = inp_s->bytes;
-			writein_size = inp_s->size;
+			writein = inp_s.bytes;
+			writein_size = inp_s.size;
 		}
 	}
 
@@ -1110,9 +1110,9 @@ static sink_wait L_dir_list(sink_ctx ctx, int size, sink_val *args, void *nuser)
 #else
 
 	struct dirent *ep;
-	DIR *dp = opendir((const char *)dir->bytes);
+	DIR *dp = opendir((const char *)dir.bytes);
 	if (dp == NULL)
-		return sink_abortstr(ctx, "Failed to read directory: %.*s", dir->size, dir->bytes);
+		return sink_abortstr(ctx, "Failed to read directory: %.*s", dir.size, dir.bytes);
 	while (true){
 		ep = readdir(dp);
 		if (ep == NULL)
@@ -1156,7 +1156,7 @@ static sink_wait L_file_canread(sink_ctx ctx, int size, sink_val *args, void *nu
 	sink_str file;
 	if (!sink_arg_str(ctx, size, args, 0, &file))
 		return NULL;
-	FILE *fp = fopen_i((const char *)file->bytes, "rb");
+	FILE *fp = fopen_i((const char *)file.bytes, "rb");
 	if (fp){
 		fclose(fp);
 		return sink_done(ctx, sink_bool(true));
@@ -1171,12 +1171,12 @@ static sink_wait L_file_exists(sink_ctx ctx, int size, sink_val *args, void *nus
 #if defined(SINK_WIN)
 	// TODO: test this with network paths that are *just* \\host\computer
 	// I think `file.exists` should return true
-	DWORD a = GetFileAttributes((const char *)file->bytes);
+	DWORD a = GetFileAttributes((const char *)file.bytes);
 	if (a == INVALID_FILE_ATTRIBUTES)
 		return sink_done(ctx, sink_bool(GetLastError() == ERROR_BAD_NETPATH));
 	return sink_done(ctx, sink_bool(true));
 #else
-	return sink_done(ctx, sink_bool(access((const char *)file->bytes, F_OK) != -1));
+	return sink_done(ctx, sink_bool(access((const char *)file.bytes, F_OK) != -1));
 #endif
 }
 
@@ -1184,9 +1184,9 @@ static sink_wait L_file_read(sink_ctx ctx, int size, sink_val *args, void *nuser
 	sink_str file;
 	if (!sink_arg_str(ctx, size, args, 0, &file))
 		return NULL;
-	FILE *fp = fopen_i((const char *)file->bytes, "rb");
+	FILE *fp = fopen_i((const char *)file.bytes, "rb");
 	if (fp == NULL)
-		return sink_abortstr(ctx, "Could not read file: %.*s", file->size, file->bytes);
+		return sink_abortstr(ctx, "Could not read file: %.*s", file.size, file.bytes);
 	fseek(fp, 0L, SEEK_END);
 	long sz = ftell(fp);
 	fseek(fp, 0L, SEEK_SET);
@@ -1211,17 +1211,17 @@ static sink_wait L_file_write(sink_ctx ctx, int size, sink_val *args, void *nuse
 	sink_str file;
 	if (!sink_arg_str(ctx, size, args, 0, &file))
 		return NULL;
-	FILE *fp = fopen_i((const char *)file->bytes, "wb");
+	FILE *fp = fopen_i((const char *)file.bytes, "wb");
 	if (fp == NULL)
-		return sink_abortstr(ctx, "Could not write to file: %.*s", file->size, file->bytes);
+		return sink_abortstr(ctx, "Could not write to file: %.*s", file.size, file.bytes);
 	if (size >= 2){
 		sink_str data;
 		if (size == 2)
 			data = sink_caststr(ctx, sink_tostr(ctx, args[1]));
 		else
 			data = sink_caststr(ctx, sink_str_new(ctx, size - 1, &args[1]));
-		if (data->size > 0)
-			fwrite(data->bytes, data->size, 1, fp);
+		if (data.size > 0)
+			fwrite(data.bytes, data.size, 1, fp);
 	}
 	fclose(fp);
 	return NULL;
@@ -1238,7 +1238,7 @@ static sink_wait L_path_joinp(sink_ctx ctx, int size, sink_val *args, void *nuse
 			return sink_abortstr(ctx, "Expecting string for argument %d", i + 1);
 	}
 
-	bool abs = start->size > 0 && start->bytes[0] == '/';
+	bool abs = start.size > 0 && start.bytes[0] == '/';
 
 	sink_val comp_v = sink_list_newempty(ctx);
 	sink_list comp = sink_castlist(ctx, comp_v);

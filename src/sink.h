@@ -56,20 +56,18 @@ typedef union {
 } sink_val;
 
 typedef int sink_user;
+
 typedef struct {
-	sink_val *vals;
-	void *user;
-	int size; // how many elements are in the list
-	int count; // how much total room is in *vals
-	sink_user usertype;
-} sink_list_st, *sink_list;
+	const sink_val *vals;
+	const int size;
+} sink_list;
 
 typedef struct {
 	// `bytes` can be NULL for a size 0 string
 	// otherwise, `bytes[size]` is guaranteed to be 0
 	const uint8_t *bytes;
 	const int size;
-} sink_str_st, *sink_str;
+} sink_str;
 
 typedef void *sink_wait;
 typedef void *sink_scr;
@@ -372,9 +370,9 @@ int      sink_pickle_valid(sink_ctx ctx, sink_val a); // 0 for invalid, 1 for JS
 bool     sink_pickle_sibling(sink_ctx ctx, sink_val a);
 bool     sink_pickle_circular(sink_ctx ctx, sink_val a);
 sink_val sink_pickle_copy(sink_ctx ctx, sink_val a);
-bool     sink_pickle_binstr(sink_ctx ctx, sink_val a, sink_str_st *out);
-void     sink_pickle_binstrfree(sink_str_st str);
-bool     sink_pickle_valstr(sink_ctx ctx, sink_str_st str, sink_val *out);
+sink_str sink_pickle_binstr(sink_ctx ctx, sink_val a);
+void     sink_pickle_binstrfree(sink_str str);
+bool     sink_pickle_valstr(sink_ctx ctx, sink_str str, sink_val *out);
 
 // gc
 void          sink_gc_pin(sink_ctx ctx, sink_val v);   // prevent a value from being GC'ed

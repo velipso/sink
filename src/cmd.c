@@ -49,17 +49,17 @@ static inline void freeenv_i(const char *ptr){
 #endif
 
 static sink_wait io_say(sink_ctx ctx, sink_str str, void *iouser){
-	printf("%.*s\n", str->size, str->bytes);
+	printf("%.*s\n", str.size, str.bytes);
 	return NULL;
 }
 
 static sink_wait io_warn(sink_ctx ctx, sink_str str, void *iouser){
-	fprintf(stderr, "%.*s\n", str->size, str->bytes);
+	fprintf(stderr, "%.*s\n", str.size, str.bytes);
 	return NULL;
 }
 
 static sink_wait io_ask(sink_ctx ctx, sink_str str, void *iouser){
-	printf("%.*s", str->size, str->bytes);
+	printf("%.*s", str.size, str.bytes);
 	char buf[1000];
 	if (fgets(buf, sizeof(buf), stdin) == NULL)
 		return NULL;
