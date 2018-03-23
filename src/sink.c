@@ -15698,13 +15698,13 @@ sink_list sink_castlist(sink_ctx ctx, sink_val ls){
 	return (sink_list){ .size = ls2.size, .vals = ls2.vals };
 }
 
-bool sink_arg_bool(int size, sink_val *args, int index){
+bool sink_arg_bool(int size, const sink_val *args, int index){
 	if (index < 0 || index >= size)
 		return false;
 	return sink_istrue(args[index]);
 }
 
-bool sink_arg_num(sink_ctx ctx, int size, sink_val *args, int index, double *num){
+bool sink_arg_num(sink_ctx ctx, int size, const sink_val *args, int index, double *num){
 	if (index < 0 || index >= size){
 		*num = 0;
 		return true;
@@ -15717,7 +15717,7 @@ bool sink_arg_num(sink_ctx ctx, int size, sink_val *args, int index, double *num
 	return false;
 }
 
-bool sink_arg_str(sink_ctx ctx, int size, sink_val *args, int index, sink_str *str){
+bool sink_arg_str(sink_ctx ctx, int size, const sink_val *args, int index, sink_str *str){
 	if (index < 0 || index >= size || !sink_isstr(args[index])){
 		opi_abortformat(ctx, "Expecting string for argument %d", index + 1);
 		return false;
@@ -15726,7 +15726,7 @@ bool sink_arg_str(sink_ctx ctx, int size, sink_val *args, int index, sink_str *s
 	return true;
 }
 
-bool sink_arg_list(sink_ctx ctx, int size, sink_val *args, int index, sink_list *ls){
+bool sink_arg_list(sink_ctx ctx, int size, const sink_val *args, int index, sink_list *ls){
 	if (index < 0 || index >= size || !sink_islist(args[index])){
 		opi_abortformat(ctx, "Expecting list for argument %d", index + 1);
 		return false;
@@ -15735,7 +15735,7 @@ bool sink_arg_list(sink_ctx ctx, int size, sink_val *args, int index, sink_list 
 	return true;
 }
 
-bool sink_arg_user(sink_ctx ctx, int size, sink_val *args, int index, sink_user usertype,
+bool sink_arg_user(sink_ctx ctx, int size, const sink_val *args, int index, sink_user usertype,
 	void **user){
 	context ctx2 = ctx;
 	const char *hint = ctx2->user_hint->ptrs[usertype];

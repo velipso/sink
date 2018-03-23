@@ -103,7 +103,7 @@ typedef enum {
 typedef bool (*sink_fsread_f)(sink_scr scr, const char *file, void *incuser);
 typedef sink_fstype (*sink_fstype_f)(sink_scr scr, const char *file, void *incuser);
 typedef sink_wait (*sink_io_f)(sink_ctx ctx, sink_str str, void *iouser);
-typedef sink_wait (*sink_native_f)(sink_ctx ctx, int size, sink_val *args, void *natuser);
+typedef sink_wait (*sink_native_f)(sink_ctx ctx, int size, const sink_val *args, void *natuser);
 typedef size_t (*sink_dump_f)(const void *restrict ptr, size_t size, size_t nitems,
 	void *restrict dumpuser);
 typedef void (*sink_then_f)(sink_ctx ctx, sink_val result, void *thenuser);
@@ -207,11 +207,11 @@ sink_str  sink_caststr(sink_ctx ctx, sink_val str);
 sink_list sink_castlist(sink_ctx ctx, sink_val ls);
 
 // argument helpers
-bool sink_arg_bool(int size, sink_val *args, int index);
-bool sink_arg_num(sink_ctx ctx, int size, sink_val *args, int index, double *num);
-bool sink_arg_str(sink_ctx ctx, int size, sink_val *args, int index, sink_str *str);
-bool sink_arg_list(sink_ctx ctx, int size, sink_val *args, int index, sink_list *ls);
-bool sink_arg_user(sink_ctx ctx, int size, sink_val *args, int index, sink_user usertype,
+bool sink_arg_bool(int size, const sink_val *args, int index);
+bool sink_arg_num(sink_ctx ctx, int size, const sink_val *args, int index, double *num);
+bool sink_arg_str(sink_ctx ctx, int size, const sink_val *args, int index, sink_str *str);
+bool sink_arg_list(sink_ctx ctx, int size, const sink_val *args, int index, sink_list *ls);
+bool sink_arg_user(sink_ctx ctx, int size, const sink_val *args, int index, sink_user usertype,
 	void **user);
 
 // globals
