@@ -10874,7 +10874,14 @@ async function context_run(ctx: context_st): Promise<run> {
 				if (nat === null || nat.f_native === null)
 					return RUNDONE(opi_abort(ctx, 'Native call not implemented'));
 				ctx.async = true;
-				X = await nat.f_native(ctx, p, nat.natuser);
+				try{
+					X = await nat.f_native(ctx, p, nat.natuser);
+				}
+				catch (e){
+					ctx.async = false;
+					ctx.failed = true;
+					return RUNDONE(opi_abort(ctx, '' + e));
+				}
 				ctx.async = false;
 				if (ctx.failed)
 					return RUNDONE(run.FAIL);

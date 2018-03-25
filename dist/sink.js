@@ -9457,7 +9457,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                 LOAD_abcdefgh();
                 var_set(ctx, A, B, opi_triop(ctx, var_get(ctx, C, D), var_get(ctx, E, F), var_get(ctx, G, H), func, erop));
             }
-            var A, B, C, D, E, F, G, H, I, J, X, Y, Z, W, ls, str, ops, _a, listcat, p, s, lx, p, sl, np, p, nat, hash, i, nat2, s, lx, p, sl, np, lx, lx2, p, p, p, p, err, p, p, p, p, p, p, p;
+            var A, B, C, D, E, F, G, H, I, J, X, Y, Z, W, ls, str, ops, _a, listcat, p, s, lx, p, sl, np, p, nat, hash, i, nat2, e_1, s, lx, p, sl, np, lx, lx2, p, p, p, p, err, p, p, p, p, p, p, p;
             return __generator(this, function (_b) {
                 switch (_b.label) {
                     case 0:
@@ -9477,7 +9477,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                         ops = ctx.prg.ops;
                         _b.label = 1;
                     case 1:
-                        if (!(ctx.pc < ops.length)) return [3, 160];
+                        if (!(ctx.pc < ops.length)) return [3, 163];
                         ctx.lastpc = ctx.pc;
                         _a = ops[ctx.pc];
                         switch (_a) {
@@ -9515,135 +9515,135 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             case op_enum.CMDTAIL: return [3, 33];
                             case op_enum.CALL: return [3, 34];
                             case op_enum.NATIVE: return [3, 35];
-                            case op_enum.RETURN: return [3, 37];
-                            case op_enum.RETURNTAIL: return [3, 38];
-                            case op_enum.RANGE: return [3, 39];
-                            case op_enum.ORDER: return [3, 40];
-                            case op_enum.SAY: return [3, 41];
-                            case op_enum.WARN: return [3, 43];
-                            case op_enum.ASK: return [3, 45];
-                            case op_enum.EXIT: return [3, 47];
-                            case op_enum.ABORT: return [3, 50];
-                            case op_enum.STACKTRACE: return [3, 51];
-                            case op_enum.NUM_NEG: return [3, 52];
-                            case op_enum.NUM_ADD: return [3, 53];
-                            case op_enum.NUM_SUB: return [3, 54];
-                            case op_enum.NUM_MUL: return [3, 55];
-                            case op_enum.NUM_DIV: return [3, 56];
-                            case op_enum.NUM_MOD: return [3, 57];
-                            case op_enum.NUM_POW: return [3, 58];
-                            case op_enum.NUM_ABS: return [3, 59];
-                            case op_enum.NUM_SIGN: return [3, 60];
-                            case op_enum.NUM_MAX: return [3, 61];
-                            case op_enum.NUM_MIN: return [3, 62];
-                            case op_enum.NUM_CLAMP: return [3, 63];
-                            case op_enum.NUM_FLOOR: return [3, 64];
-                            case op_enum.NUM_CEIL: return [3, 65];
-                            case op_enum.NUM_ROUND: return [3, 66];
-                            case op_enum.NUM_TRUNC: return [3, 67];
-                            case op_enum.NUM_NAN: return [3, 68];
-                            case op_enum.NUM_INF: return [3, 69];
-                            case op_enum.NUM_ISNAN: return [3, 70];
-                            case op_enum.NUM_ISFINITE: return [3, 71];
-                            case op_enum.NUM_SIN: return [3, 72];
-                            case op_enum.NUM_COS: return [3, 73];
-                            case op_enum.NUM_TAN: return [3, 74];
-                            case op_enum.NUM_ASIN: return [3, 75];
-                            case op_enum.NUM_ACOS: return [3, 76];
-                            case op_enum.NUM_ATAN: return [3, 77];
-                            case op_enum.NUM_ATAN2: return [3, 78];
-                            case op_enum.NUM_LOG: return [3, 79];
-                            case op_enum.NUM_LOG2: return [3, 80];
-                            case op_enum.NUM_LOG10: return [3, 81];
-                            case op_enum.NUM_EXP: return [3, 82];
-                            case op_enum.NUM_LERP: return [3, 83];
-                            case op_enum.NUM_HEX: return [3, 84];
-                            case op_enum.NUM_OCT: return [3, 85];
-                            case op_enum.NUM_BIN: return [3, 86];
-                            case op_enum.INT_NEW: return [3, 87];
-                            case op_enum.INT_NOT: return [3, 88];
-                            case op_enum.INT_AND: return [3, 89];
-                            case op_enum.INT_OR: return [3, 90];
-                            case op_enum.INT_XOR: return [3, 91];
-                            case op_enum.INT_SHL: return [3, 92];
-                            case op_enum.INT_SHR: return [3, 93];
-                            case op_enum.INT_SAR: return [3, 94];
-                            case op_enum.INT_ADD: return [3, 95];
-                            case op_enum.INT_SUB: return [3, 96];
-                            case op_enum.INT_MUL: return [3, 97];
-                            case op_enum.INT_DIV: return [3, 98];
-                            case op_enum.INT_MOD: return [3, 99];
-                            case op_enum.INT_CLZ: return [3, 100];
-                            case op_enum.INT_POP: return [3, 101];
-                            case op_enum.INT_BSWAP: return [3, 102];
-                            case op_enum.RAND_SEED: return [3, 103];
-                            case op_enum.RAND_SEEDAUTO: return [3, 104];
-                            case op_enum.RAND_INT: return [3, 105];
-                            case op_enum.RAND_NUM: return [3, 106];
-                            case op_enum.RAND_GETSTATE: return [3, 107];
-                            case op_enum.RAND_SETSTATE: return [3, 108];
-                            case op_enum.RAND_PICK: return [3, 109];
-                            case op_enum.RAND_SHUFFLE: return [3, 110];
-                            case op_enum.STR_NEW: return [3, 111];
-                            case op_enum.STR_SPLIT: return [3, 112];
-                            case op_enum.STR_REPLACE: return [3, 113];
-                            case op_enum.STR_BEGINS: return [3, 114];
-                            case op_enum.STR_ENDS: return [3, 115];
-                            case op_enum.STR_PAD: return [3, 116];
-                            case op_enum.STR_FIND: return [3, 117];
-                            case op_enum.STR_RFIND: return [3, 118];
-                            case op_enum.STR_LOWER: return [3, 119];
-                            case op_enum.STR_UPPER: return [3, 120];
-                            case op_enum.STR_TRIM: return [3, 121];
-                            case op_enum.STR_REV: return [3, 122];
-                            case op_enum.STR_REP: return [3, 123];
-                            case op_enum.STR_LIST: return [3, 124];
-                            case op_enum.STR_BYTE: return [3, 125];
-                            case op_enum.STR_HASH: return [3, 126];
-                            case op_enum.UTF8_VALID: return [3, 127];
-                            case op_enum.UTF8_LIST: return [3, 128];
-                            case op_enum.UTF8_STR: return [3, 129];
-                            case op_enum.STRUCT_SIZE: return [3, 130];
-                            case op_enum.STRUCT_STR: return [3, 131];
-                            case op_enum.STRUCT_LIST: return [3, 132];
-                            case op_enum.STRUCT_ISLE: return [3, 133];
-                            case op_enum.LIST_NEW: return [3, 134];
-                            case op_enum.LIST_SHIFT: return [3, 135];
-                            case op_enum.LIST_POP: return [3, 136];
-                            case op_enum.LIST_PUSH: return [3, 137];
-                            case op_enum.LIST_UNSHIFT: return [3, 138];
-                            case op_enum.LIST_APPEND: return [3, 139];
-                            case op_enum.LIST_PREPEND: return [3, 140];
-                            case op_enum.LIST_FIND: return [3, 141];
-                            case op_enum.LIST_RFIND: return [3, 142];
-                            case op_enum.LIST_JOIN: return [3, 143];
-                            case op_enum.LIST_REV: return [3, 144];
-                            case op_enum.LIST_STR: return [3, 145];
-                            case op_enum.LIST_SORT: return [3, 146];
-                            case op_enum.LIST_RSORT: return [3, 147];
-                            case op_enum.PICKLE_JSON: return [3, 148];
-                            case op_enum.PICKLE_BIN: return [3, 149];
-                            case op_enum.PICKLE_VAL: return [3, 150];
-                            case op_enum.PICKLE_VALID: return [3, 151];
-                            case op_enum.PICKLE_SIBLING: return [3, 152];
-                            case op_enum.PICKLE_CIRCULAR: return [3, 153];
-                            case op_enum.PICKLE_COPY: return [3, 154];
-                            case op_enum.GC_GETLEVEL: return [3, 155];
-                            case op_enum.GC_SETLEVEL: return [3, 156];
-                            case op_enum.GC_RUN: return [3, 157];
+                            case op_enum.RETURN: return [3, 40];
+                            case op_enum.RETURNTAIL: return [3, 41];
+                            case op_enum.RANGE: return [3, 42];
+                            case op_enum.ORDER: return [3, 43];
+                            case op_enum.SAY: return [3, 44];
+                            case op_enum.WARN: return [3, 46];
+                            case op_enum.ASK: return [3, 48];
+                            case op_enum.EXIT: return [3, 50];
+                            case op_enum.ABORT: return [3, 53];
+                            case op_enum.STACKTRACE: return [3, 54];
+                            case op_enum.NUM_NEG: return [3, 55];
+                            case op_enum.NUM_ADD: return [3, 56];
+                            case op_enum.NUM_SUB: return [3, 57];
+                            case op_enum.NUM_MUL: return [3, 58];
+                            case op_enum.NUM_DIV: return [3, 59];
+                            case op_enum.NUM_MOD: return [3, 60];
+                            case op_enum.NUM_POW: return [3, 61];
+                            case op_enum.NUM_ABS: return [3, 62];
+                            case op_enum.NUM_SIGN: return [3, 63];
+                            case op_enum.NUM_MAX: return [3, 64];
+                            case op_enum.NUM_MIN: return [3, 65];
+                            case op_enum.NUM_CLAMP: return [3, 66];
+                            case op_enum.NUM_FLOOR: return [3, 67];
+                            case op_enum.NUM_CEIL: return [3, 68];
+                            case op_enum.NUM_ROUND: return [3, 69];
+                            case op_enum.NUM_TRUNC: return [3, 70];
+                            case op_enum.NUM_NAN: return [3, 71];
+                            case op_enum.NUM_INF: return [3, 72];
+                            case op_enum.NUM_ISNAN: return [3, 73];
+                            case op_enum.NUM_ISFINITE: return [3, 74];
+                            case op_enum.NUM_SIN: return [3, 75];
+                            case op_enum.NUM_COS: return [3, 76];
+                            case op_enum.NUM_TAN: return [3, 77];
+                            case op_enum.NUM_ASIN: return [3, 78];
+                            case op_enum.NUM_ACOS: return [3, 79];
+                            case op_enum.NUM_ATAN: return [3, 80];
+                            case op_enum.NUM_ATAN2: return [3, 81];
+                            case op_enum.NUM_LOG: return [3, 82];
+                            case op_enum.NUM_LOG2: return [3, 83];
+                            case op_enum.NUM_LOG10: return [3, 84];
+                            case op_enum.NUM_EXP: return [3, 85];
+                            case op_enum.NUM_LERP: return [3, 86];
+                            case op_enum.NUM_HEX: return [3, 87];
+                            case op_enum.NUM_OCT: return [3, 88];
+                            case op_enum.NUM_BIN: return [3, 89];
+                            case op_enum.INT_NEW: return [3, 90];
+                            case op_enum.INT_NOT: return [3, 91];
+                            case op_enum.INT_AND: return [3, 92];
+                            case op_enum.INT_OR: return [3, 93];
+                            case op_enum.INT_XOR: return [3, 94];
+                            case op_enum.INT_SHL: return [3, 95];
+                            case op_enum.INT_SHR: return [3, 96];
+                            case op_enum.INT_SAR: return [3, 97];
+                            case op_enum.INT_ADD: return [3, 98];
+                            case op_enum.INT_SUB: return [3, 99];
+                            case op_enum.INT_MUL: return [3, 100];
+                            case op_enum.INT_DIV: return [3, 101];
+                            case op_enum.INT_MOD: return [3, 102];
+                            case op_enum.INT_CLZ: return [3, 103];
+                            case op_enum.INT_POP: return [3, 104];
+                            case op_enum.INT_BSWAP: return [3, 105];
+                            case op_enum.RAND_SEED: return [3, 106];
+                            case op_enum.RAND_SEEDAUTO: return [3, 107];
+                            case op_enum.RAND_INT: return [3, 108];
+                            case op_enum.RAND_NUM: return [3, 109];
+                            case op_enum.RAND_GETSTATE: return [3, 110];
+                            case op_enum.RAND_SETSTATE: return [3, 111];
+                            case op_enum.RAND_PICK: return [3, 112];
+                            case op_enum.RAND_SHUFFLE: return [3, 113];
+                            case op_enum.STR_NEW: return [3, 114];
+                            case op_enum.STR_SPLIT: return [3, 115];
+                            case op_enum.STR_REPLACE: return [3, 116];
+                            case op_enum.STR_BEGINS: return [3, 117];
+                            case op_enum.STR_ENDS: return [3, 118];
+                            case op_enum.STR_PAD: return [3, 119];
+                            case op_enum.STR_FIND: return [3, 120];
+                            case op_enum.STR_RFIND: return [3, 121];
+                            case op_enum.STR_LOWER: return [3, 122];
+                            case op_enum.STR_UPPER: return [3, 123];
+                            case op_enum.STR_TRIM: return [3, 124];
+                            case op_enum.STR_REV: return [3, 125];
+                            case op_enum.STR_REP: return [3, 126];
+                            case op_enum.STR_LIST: return [3, 127];
+                            case op_enum.STR_BYTE: return [3, 128];
+                            case op_enum.STR_HASH: return [3, 129];
+                            case op_enum.UTF8_VALID: return [3, 130];
+                            case op_enum.UTF8_LIST: return [3, 131];
+                            case op_enum.UTF8_STR: return [3, 132];
+                            case op_enum.STRUCT_SIZE: return [3, 133];
+                            case op_enum.STRUCT_STR: return [3, 134];
+                            case op_enum.STRUCT_LIST: return [3, 135];
+                            case op_enum.STRUCT_ISLE: return [3, 136];
+                            case op_enum.LIST_NEW: return [3, 137];
+                            case op_enum.LIST_SHIFT: return [3, 138];
+                            case op_enum.LIST_POP: return [3, 139];
+                            case op_enum.LIST_PUSH: return [3, 140];
+                            case op_enum.LIST_UNSHIFT: return [3, 141];
+                            case op_enum.LIST_APPEND: return [3, 142];
+                            case op_enum.LIST_PREPEND: return [3, 143];
+                            case op_enum.LIST_FIND: return [3, 144];
+                            case op_enum.LIST_RFIND: return [3, 145];
+                            case op_enum.LIST_JOIN: return [3, 146];
+                            case op_enum.LIST_REV: return [3, 147];
+                            case op_enum.LIST_STR: return [3, 148];
+                            case op_enum.LIST_SORT: return [3, 149];
+                            case op_enum.LIST_RSORT: return [3, 150];
+                            case op_enum.PICKLE_JSON: return [3, 151];
+                            case op_enum.PICKLE_BIN: return [3, 152];
+                            case op_enum.PICKLE_VAL: return [3, 153];
+                            case op_enum.PICKLE_VALID: return [3, 154];
+                            case op_enum.PICKLE_SIBLING: return [3, 155];
+                            case op_enum.PICKLE_CIRCULAR: return [3, 156];
+                            case op_enum.PICKLE_COPY: return [3, 157];
+                            case op_enum.GC_GETLEVEL: return [3, 158];
+                            case op_enum.GC_SETLEVEL: return [3, 159];
+                            case op_enum.GC_RUN: return [3, 160];
                         }
-                        return [3, 158];
+                        return [3, 161];
                     case 2:
                         {
                             ctx.pc++;
                         }
-                        return [3, 159];
+                        return [3, 162];
                     case 3:
                         {
                             LOAD_abcd();
                             var_set(ctx, A, B, var_get(ctx, C, D));
                         }
-                        return [3, 159];
+                        return [3, 162];
                     case 4:
                         {
                             LOAD_ab();
@@ -9652,37 +9652,37 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 return [2, RUNDONE(opi_abort(ctx, 'Expecting number when incrementing'))];
                             var_set(ctx, A, B, X + 1);
                         }
-                        return [3, 159];
+                        return [3, 162];
                     case 5:
                         {
                             LOAD_ab();
                             var_set(ctx, A, B, exports.NIL);
                         }
-                        return [3, 159];
+                        return [3, 162];
                     case 6:
                         {
                             LOAD_abc();
                             var_set(ctx, A, B, C);
                         }
-                        return [3, 159];
+                        return [3, 162];
                     case 7:
                         {
                             LOAD_abc();
                             var_set(ctx, A, B, C - 256);
                         }
-                        return [3, 159];
+                        return [3, 162];
                     case 8:
                         {
                             LOAD_abcd();
                             var_set(ctx, A, B, C | (D << 8));
                         }
-                        return [3, 159];
+                        return [3, 162];
                     case 9:
                         {
                             LOAD_abcd();
                             var_set(ctx, A, B, (C | (D << 8)) - 65536);
                         }
-                        return [3, 159];
+                        return [3, 162];
                     case 10:
                         {
                             LOAD_abcdef();
@@ -9691,7 +9691,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 C += 4294967296;
                             var_set(ctx, A, B, C);
                         }
-                        return [3, 159];
+                        return [3, 162];
                     case 11:
                         {
                             LOAD_abcdef();
@@ -9700,7 +9700,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 C += 4294967296;
                             var_set(ctx, A, B, C - 4294967296);
                         }
-                        return [3, 159];
+                        return [3, 162];
                     case 12:
                         {
                             LOAD_abcdefghij();
@@ -9714,48 +9714,48 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             dview.setUint8(7, J);
                             var_set(ctx, A, B, dview.getFloat64(0, true));
                         }
-                        return [3, 159];
+                        return [3, 162];
                     case 13:
                         {
                             LOAD_abcdef();
                             C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
                             var_set(ctx, A, B, ctx.prg.strTable[C]);
                         }
-                        return [3, 159];
+                        return [3, 162];
                     case 14:
                         {
                             LOAD_abc();
                             var_set(ctx, A, B, new list());
                         }
-                        return [3, 159];
+                        return [3, 162];
                     case 15:
                         {
                             LOAD_abcd();
                             X = var_get(ctx, C, D);
                             var_set(ctx, A, B, bool(isnum(X)));
                         }
-                        return [3, 159];
+                        return [3, 162];
                     case 16:
                         {
                             LOAD_abcd();
                             X = var_get(ctx, C, D);
                             var_set(ctx, A, B, bool(isstr(X)));
                         }
-                        return [3, 159];
+                        return [3, 162];
                     case 17:
                         {
                             LOAD_abcd();
                             X = var_get(ctx, C, D);
                             var_set(ctx, A, B, bool(islist(X)));
                         }
-                        return [3, 159];
+                        return [3, 162];
                     case 18:
                         {
                             LOAD_abcd();
                             X = var_get(ctx, C, D);
                             var_set(ctx, A, B, bool(isfalse(X)));
                         }
-                        return [3, 159];
+                        return [3, 162];
                     case 19:
                         {
                             LOAD_abcd();
@@ -9763,7 +9763,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             if (ctx.failed)
                                 return [2, RUNDONE(run.FAIL)];
                         }
-                        return [3, 159];
+                        return [3, 162];
                     case 20:
                         {
                             LOAD_abcd();
@@ -9771,7 +9771,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             if (ctx.failed)
                                 return [2, RUNDONE(run.FAIL)];
                         }
-                        return [3, 159];
+                        return [3, 162];
                     case 21:
                         {
                             LOAD_abc();
@@ -9792,7 +9792,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                     return [2, RUNDONE(run.FAIL)];
                             }
                         }
-                        return [3, 159];
+                        return [3, 162];
                     case 22:
                         {
                             LOAD_abcdef();
@@ -9804,7 +9804,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             else
                                 return [2, RUNDONE(opi_abort(ctx, 'Expecting numbers or strings'))];
                         }
-                        return [3, 159];
+                        return [3, 162];
                     case 23:
                         {
                             LOAD_abcdef();
@@ -9816,7 +9816,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             else
                                 return [2, RUNDONE(opi_abort(ctx, 'Expecting numbers or strings'))];
                         }
-                        return [3, 159];
+                        return [3, 162];
                     case 24:
                         {
                             LOAD_abcdef();
@@ -9824,7 +9824,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             Y = var_get(ctx, E, F);
                             var_set(ctx, A, B, bool(X !== Y));
                         }
-                        return [3, 159];
+                        return [3, 162];
                     case 25:
                         {
                             LOAD_abcdef();
@@ -9832,7 +9832,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             Y = var_get(ctx, E, F);
                             var_set(ctx, A, B, bool(X === Y));
                         }
-                        return [3, 159];
+                        return [3, 162];
                     case 26:
                         {
                             LOAD_abcdef();
@@ -9862,7 +9862,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                     var_set(ctx, A, B, str.charAt(I));
                             }
                         }
-                        return [3, 159];
+                        return [3, 162];
                     case 27:
                         {
                             LOAD_abcdefgh();
@@ -9876,7 +9876,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             if (ctx.failed)
                                 return [2, RUNDONE(run.FAIL)];
                         }
-                        return [3, 159];
+                        return [3, 162];
                     case 28:
                         {
                             LOAD_abcdef();
@@ -9895,7 +9895,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             if (A >= 0 && A < ls.length)
                                 ls[A] = var_get(ctx, E, F);
                         }
-                        return [3, 159];
+                        return [3, 162];
                     case 29:
                         {
                             LOAD_abcdefgh();
@@ -9910,7 +9910,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             else
                                 return [2, RUNDONE(opi_abort(ctx, 'Expecting list or string when splicing'))];
                         }
-                        return [3, 159];
+                        return [3, 162];
                     case 30:
                         {
                             LOAD_abcd();
@@ -9921,7 +9921,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             }
                             ctx.pc = A;
                         }
-                        return [3, 159];
+                        return [3, 162];
                     case 31:
                         {
                             LOAD_abcdef();
@@ -9934,7 +9934,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 ctx.pc = C;
                             }
                         }
-                        return [3, 159];
+                        return [3, 162];
                     case 32:
                         {
                             LOAD_abcdef();
@@ -9947,7 +9947,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 ctx.pc = C;
                             }
                         }
-                        return [3, 159];
+                        return [3, 162];
                     case 33:
                         {
                             s = ctx.call_stk.pop();
@@ -9959,7 +9959,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             ctx.pc = s.pc;
                             ccs_release(ctx, s);
                         }
-                        return [3, 159];
+                        return [3, 162];
                     case 34:
                         {
                             LOAD_abcdefg();
@@ -9996,7 +9996,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 ctx.lex_stk.push(null);
                             ctx.lex_stk[ctx.lex_index] = lxs_get(ctx, p, ctx.lex_stk[ctx.lex_index]);
                         }
-                        return [3, 159];
+                        return [3, 162];
                     case 35:
                         LOAD_abcdefg();
                         p = [];
@@ -10022,15 +10022,25 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                         if (nat === null || nat.f_native === null)
                             return [2, RUNDONE(opi_abort(ctx, 'Native call not implemented'))];
                         ctx.async = true;
-                        return [4, nat.f_native(ctx, p, nat.natuser)];
+                        _b.label = 36;
                     case 36:
+                        _b.trys.push([36, 38, , 39]);
+                        return [4, nat.f_native(ctx, p, nat.natuser)];
+                    case 37:
                         X = _b.sent();
+                        return [3, 39];
+                    case 38:
+                        e_1 = _b.sent();
+                        ctx.async = false;
+                        ctx.failed = true;
+                        return [2, RUNDONE(opi_abort(ctx, '' + e_1))];
+                    case 39:
                         ctx.async = false;
                         if (ctx.failed)
                             return [2, RUNDONE(run.FAIL)];
                         var_set(ctx, A, B, X);
-                        return [3, 159];
-                    case 37:
+                        return [3, 162];
+                    case 40:
                         {
                             if (ctx.call_stk.length <= 0)
                                 return [2, RUNDONE(opi_exit(ctx))];
@@ -10045,8 +10055,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             ctx.pc = s.pc;
                             ccs_release(ctx, s);
                         }
-                        return [3, 159];
-                    case 38:
+                        return [3, 162];
+                    case 41:
                         {
                             LOAD_abcde();
                             A = A + (B << 8) + (C << 16) + ((D << 23) * 2);
@@ -10081,8 +10091,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             lxs_release(ctx, lx);
                             ctx.lex_stk[ctx.lex_index] = lxs_get(ctx, p, lx2);
                         }
-                        return [3, 159];
-                    case 39:
+                        return [3, 162];
+                    case 42:
                         {
                             LOAD_abcdefgh();
                             X = var_get(ctx, C, D);
@@ -10108,16 +10118,16 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             if (ctx.failed)
                                 return [2, RUNDONE(run.FAIL)];
                         }
-                        return [3, 159];
-                    case 40:
+                        return [3, 162];
+                    case 43:
                         {
                             LOAD_abcdef();
                             X = var_get(ctx, C, D);
                             Y = var_get(ctx, E, F);
                             var_set(ctx, A, B, order(ctx, X, Y));
                         }
-                        return [3, 159];
-                    case 41:
+                        return [3, 162];
+                    case 44:
                         LOAD_abc();
                         p = [];
                         for (D = 0; D < C; D++) {
@@ -10127,7 +10137,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                         }
                         ctx.async = true;
                         return [4, say(ctx, p)];
-                    case 42:
+                    case 45:
                         X = _b.sent();
                         ctx.async = false;
                         if (ctx.failed) {
@@ -10136,8 +10146,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                         }
                         else
                             var_set(ctx, A, B, X);
-                        return [3, 159];
-                    case 43:
+                        return [3, 162];
+                    case 46:
                         LOAD_abc();
                         p = [];
                         for (D = 0; D < C; D++) {
@@ -10147,7 +10157,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                         }
                         ctx.async = true;
                         return [4, warn(ctx, p)];
-                    case 44:
+                    case 47:
                         X = _b.sent();
                         ctx.async = false;
                         if (ctx.failed) {
@@ -10156,8 +10166,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                         }
                         else
                             var_set(ctx, A, B, X);
-                        return [3, 159];
-                    case 45:
+                        return [3, 162];
+                    case 48:
                         LOAD_abc();
                         p = [];
                         for (D = 0; D < C; D++) {
@@ -10167,7 +10177,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                         }
                         ctx.async = true;
                         return [4, ask(ctx, p)];
-                    case 46:
+                    case 49:
                         X = _b.sent();
                         ctx.async = false;
                         if (ctx.failed) {
@@ -10176,10 +10186,10 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                         }
                         else
                             var_set(ctx, A, B, X);
-                        return [3, 159];
-                    case 47:
+                        return [3, 162];
+                    case 50:
                         LOAD_abc();
-                        if (!(C > 0)) return [3, 49];
+                        if (!(C > 0)) return [3, 52];
                         p = [];
                         for (D = 0; D < C; D++) {
                             E = ops[ctx.pc++];
@@ -10188,14 +10198,14 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                         }
                         ctx.async = true;
                         return [4, say(ctx, p)];
-                    case 48:
+                    case 51:
                         _b.sent();
                         ctx.async = false;
                         if (ctx.failed)
                             return [2, RUNDONE(run.FAIL)];
-                        _b.label = 49;
-                    case 49: return [2, RUNDONE(opi_exit(ctx))];
-                    case 50:
+                        _b.label = 52;
+                    case 52: return [2, RUNDONE(opi_exit(ctx))];
+                    case 53:
                         {
                             LOAD_abc();
                             err = null;
@@ -10210,77 +10220,77 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             }
                             return [2, RUNDONE(opi_abort(ctx, err))];
                         }
-                        _b.label = 51;
-                    case 51:
+                        _b.label = 54;
+                    case 54:
                         {
                             LOAD_ab();
                             var_set(ctx, A, B, stacktrace(ctx));
                         }
-                        return [3, 159];
-                    case 52:
+                        return [3, 162];
+                    case 55:
                         {
                             INLINE_UNOP(unop_num_neg, txt_num_neg);
                             if (ctx.failed)
                                 return [2, RUNDONE(run.FAIL)];
                         }
-                        return [3, 159];
-                    case 53:
+                        return [3, 162];
+                    case 56:
                         {
                             INLINE_BINOP(binop_num_add, txt_num_add);
                             if (ctx.failed)
                                 return [2, RUNDONE(run.FAIL)];
                         }
-                        return [3, 159];
-                    case 54:
+                        return [3, 162];
+                    case 57:
                         {
                             INLINE_BINOP(binop_num_sub, txt_num_sub);
                             if (ctx.failed)
                                 return [2, RUNDONE(run.FAIL)];
                         }
-                        return [3, 159];
-                    case 55:
+                        return [3, 162];
+                    case 58:
                         {
                             INLINE_BINOP(binop_num_mul, txt_num_mul);
                             if (ctx.failed)
                                 return [2, RUNDONE(run.FAIL)];
                         }
-                        return [3, 159];
-                    case 56:
+                        return [3, 162];
+                    case 59:
                         {
                             INLINE_BINOP(binop_num_div, txt_num_div);
                             if (ctx.failed)
                                 return [2, RUNDONE(run.FAIL)];
                         }
-                        return [3, 159];
-                    case 57:
+                        return [3, 162];
+                    case 60:
                         {
                             INLINE_BINOP(binop_num_mod, txt_num_mod);
                             if (ctx.failed)
                                 return [2, RUNDONE(run.FAIL)];
                         }
-                        return [3, 159];
-                    case 58:
+                        return [3, 162];
+                    case 61:
                         {
                             INLINE_BINOP(binop_num_pow, txt_num_pow);
                             if (ctx.failed)
                                 return [2, RUNDONE(run.FAIL)];
                         }
-                        return [3, 159];
-                    case 59:
+                        return [3, 162];
+                    case 62:
                         {
                             INLINE_UNOP(unop_num_abs, txt_num_abs);
                             if (ctx.failed)
                                 return [2, RUNDONE(run.FAIL)];
                         }
-                        return [3, 159];
-                    case 60:
+                        return [3, 162];
+                    case 63:
                         {
                             INLINE_UNOP(unop_num_sign, txt_num_sign);
                             if (ctx.failed)
                                 return [2, RUNDONE(run.FAIL)];
                         }
-                        return [3, 159];
-                    case 61:
+                        return [3, 162];
+                    case 64:
                         {
                             LOAD_abc();
                             p = [];
@@ -10291,8 +10301,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             }
                             var_set(ctx, A, B, opi_num_max(p));
                         }
-                        return [3, 159];
-                    case 62:
+                        return [3, 162];
+                    case 65:
                         {
                             LOAD_abc();
                             p = [];
@@ -10303,188 +10313,188 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             }
                             var_set(ctx, A, B, opi_num_min(p));
                         }
-                        return [3, 159];
-                    case 63:
+                        return [3, 162];
+                    case 66:
                         {
                             INLINE_TRIOP(triop_num_clamp, txt_num_clamp);
                             if (ctx.failed)
                                 return [2, RUNDONE(run.FAIL)];
                         }
-                        return [3, 159];
-                    case 64:
+                        return [3, 162];
+                    case 67:
                         {
                             INLINE_UNOP(unop_num_floor, txt_num_floor);
                             if (ctx.failed)
                                 return [2, RUNDONE(run.FAIL)];
                         }
-                        return [3, 159];
-                    case 65:
+                        return [3, 162];
+                    case 68:
                         {
                             INLINE_UNOP(unop_num_ceil, txt_num_ceil);
                             if (ctx.failed)
                                 return [2, RUNDONE(run.FAIL)];
                         }
-                        return [3, 159];
-                    case 66:
+                        return [3, 162];
+                    case 69:
                         {
                             INLINE_UNOP(unop_num_round, txt_num_round);
                             if (ctx.failed)
                                 return [2, RUNDONE(run.FAIL)];
                         }
-                        return [3, 159];
-                    case 67:
+                        return [3, 162];
+                    case 70:
                         {
                             INLINE_UNOP(unop_num_trunc, txt_num_trunc);
                             if (ctx.failed)
                                 return [2, RUNDONE(run.FAIL)];
                         }
-                        return [3, 159];
-                    case 68:
+                        return [3, 162];
+                    case 71:
                         {
                             LOAD_ab();
                             var_set(ctx, A, B, num_nan());
                         }
-                        return [3, 159];
-                    case 69:
+                        return [3, 162];
+                    case 72:
                         {
                             LOAD_ab();
                             var_set(ctx, A, B, num_inf());
                         }
-                        return [3, 159];
-                    case 70:
+                        return [3, 162];
+                    case 73:
                         {
                             INLINE_UNOP(unop_num_isnan, txt_num_isnan);
                             if (ctx.failed)
                                 return [2, RUNDONE(run.FAIL)];
                         }
-                        return [3, 159];
-                    case 71:
+                        return [3, 162];
+                    case 74:
                         {
                             INLINE_UNOP(unop_num_isfinite, txt_num_isfinite);
                             if (ctx.failed)
                                 return [2, RUNDONE(run.FAIL)];
                         }
-                        return [3, 159];
-                    case 72:
+                        return [3, 162];
+                    case 75:
                         {
                             INLINE_UNOP(unop_num_sin, txt_num_sin);
                             if (ctx.failed)
                                 return [2, RUNDONE(run.FAIL)];
                         }
-                        return [3, 159];
-                    case 73:
+                        return [3, 162];
+                    case 76:
                         {
                             INLINE_UNOP(unop_num_cos, txt_num_cos);
                             if (ctx.failed)
                                 return [2, RUNDONE(run.FAIL)];
                         }
-                        return [3, 159];
-                    case 74:
+                        return [3, 162];
+                    case 77:
                         {
                             INLINE_UNOP(unop_num_tan, txt_num_tan);
                             if (ctx.failed)
                                 return [2, RUNDONE(run.FAIL)];
                         }
-                        return [3, 159];
-                    case 75:
+                        return [3, 162];
+                    case 78:
                         {
                             INLINE_UNOP(unop_num_asin, txt_num_asin);
                             if (ctx.failed)
                                 return [2, RUNDONE(run.FAIL)];
                         }
-                        return [3, 159];
-                    case 76:
+                        return [3, 162];
+                    case 79:
                         {
                             INLINE_UNOP(unop_num_acos, txt_num_acos);
                             if (ctx.failed)
                                 return [2, RUNDONE(run.FAIL)];
                         }
-                        return [3, 159];
-                    case 77:
+                        return [3, 162];
+                    case 80:
                         {
                             INLINE_UNOP(unop_num_atan, txt_num_atan);
                             if (ctx.failed)
                                 return [2, RUNDONE(run.FAIL)];
                         }
-                        return [3, 159];
-                    case 78:
+                        return [3, 162];
+                    case 81:
                         {
                             INLINE_BINOP(binop_num_atan2, txt_num_atan);
                             if (ctx.failed)
                                 return [2, RUNDONE(run.FAIL)];
                         }
-                        return [3, 159];
-                    case 79:
+                        return [3, 162];
+                    case 82:
                         {
                             INLINE_UNOP(unop_num_log, txt_num_log);
                             if (ctx.failed)
                                 return [2, RUNDONE(run.FAIL)];
                         }
-                        return [3, 159];
-                    case 80:
+                        return [3, 162];
+                    case 83:
                         {
                             INLINE_UNOP(unop_num_log2, txt_num_log);
                             if (ctx.failed)
                                 return [2, RUNDONE(run.FAIL)];
                         }
-                        return [3, 159];
-                    case 81:
+                        return [3, 162];
+                    case 84:
                         {
                             INLINE_UNOP(unop_num_log10, txt_num_log);
                             if (ctx.failed)
                                 return [2, RUNDONE(run.FAIL)];
                         }
-                        return [3, 159];
-                    case 82:
+                        return [3, 162];
+                    case 85:
                         {
                             INLINE_UNOP(unop_num_exp, txt_num_pow);
                             if (ctx.failed)
                                 return [2, RUNDONE(run.FAIL)];
                         }
-                        return [3, 159];
-                    case 83:
+                        return [3, 162];
+                    case 86:
                         {
                             INLINE_TRIOP(triop_num_lerp, txt_num_lerp);
                             if (ctx.failed)
                                 return [2, RUNDONE(run.FAIL)];
                         }
-                        return [3, 159];
-                    case 84:
+                        return [3, 162];
+                    case 87:
                         {
                             INLINE_BINOP_T(binop_num_hex, txt_num_hex, LT_ALLOWNUM, LT_ALLOWNUM | LT_ALLOWNIL);
                             if (ctx.failed)
                                 return [2, RUNDONE(run.FAIL)];
                         }
-                        return [3, 159];
-                    case 85:
+                        return [3, 162];
+                    case 88:
                         {
                             INLINE_BINOP_T(binop_num_oct, txt_num_oct, LT_ALLOWNUM, LT_ALLOWNUM | LT_ALLOWNIL);
                             if (ctx.failed)
                                 return [2, RUNDONE(run.FAIL)];
                         }
-                        return [3, 159];
-                    case 86:
+                        return [3, 162];
+                    case 89:
                         {
                             INLINE_BINOP_T(binop_num_bin, txt_num_bin, LT_ALLOWNUM, LT_ALLOWNUM | LT_ALLOWNIL);
                             if (ctx.failed)
                                 return [2, RUNDONE(run.FAIL)];
                         }
-                        return [3, 159];
-                    case 87:
+                        return [3, 162];
+                    case 90:
                         {
                             INLINE_UNOP(unop_int_new, txt_int_new);
                             if (ctx.failed)
                                 return [2, RUNDONE(run.FAIL)];
                         }
-                        return [3, 159];
-                    case 88:
+                        return [3, 162];
+                    case 91:
                         {
                             INLINE_UNOP(unop_int_not, txt_int_not);
                             if (ctx.failed)
                                 return [2, RUNDONE(run.FAIL)];
                         }
-                        return [3, 159];
-                    case 89:
+                        return [3, 162];
+                    case 92:
                         {
                             LOAD_abc();
                             p = [];
@@ -10498,8 +10508,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 return [2, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 159];
-                    case 90:
+                        return [3, 162];
+                    case 93:
                         {
                             LOAD_abc();
                             p = [];
@@ -10513,8 +10523,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 return [2, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 159];
-                    case 91:
+                        return [3, 162];
+                    case 94:
                         {
                             LOAD_abc();
                             p = [];
@@ -10528,85 +10538,85 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 return [2, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 159];
-                    case 92:
+                        return [3, 162];
+                    case 95:
                         {
                             INLINE_BINOP(binop_int_shl, txt_int_shl);
                             if (ctx.failed)
                                 return [2, RUNDONE(run.FAIL)];
                         }
-                        return [3, 159];
-                    case 93:
+                        return [3, 162];
+                    case 96:
                         {
                             INLINE_BINOP(binop_int_shr, txt_int_shr);
                             if (ctx.failed)
                                 return [2, RUNDONE(run.FAIL)];
                         }
-                        return [3, 159];
-                    case 94:
+                        return [3, 162];
+                    case 97:
                         {
                             INLINE_BINOP(binop_int_sar, txt_int_shr);
                             if (ctx.failed)
                                 return [2, RUNDONE(run.FAIL)];
                         }
-                        return [3, 159];
-                    case 95:
+                        return [3, 162];
+                    case 98:
                         {
                             INLINE_BINOP(binop_int_add, txt_num_add);
                             if (ctx.failed)
                                 return [2, RUNDONE(run.FAIL)];
                         }
-                        return [3, 159];
-                    case 96:
+                        return [3, 162];
+                    case 99:
                         {
                             INLINE_BINOP(binop_int_sub, txt_num_sub);
                             if (ctx.failed)
                                 return [2, RUNDONE(run.FAIL)];
                         }
-                        return [3, 159];
-                    case 97:
+                        return [3, 162];
+                    case 100:
                         {
                             INLINE_BINOP(binop_int_mul, txt_num_mul);
                             if (ctx.failed)
                                 return [2, RUNDONE(run.FAIL)];
                         }
-                        return [3, 159];
-                    case 98:
+                        return [3, 162];
+                    case 101:
                         {
                             INLINE_BINOP(binop_int_div, txt_num_div);
                             if (ctx.failed)
                                 return [2, RUNDONE(run.FAIL)];
                         }
-                        return [3, 159];
-                    case 99:
+                        return [3, 162];
+                    case 102:
                         {
                             INLINE_BINOP(binop_int_mod, txt_num_mod);
                             if (ctx.failed)
                                 return [2, RUNDONE(run.FAIL)];
                         }
-                        return [3, 159];
-                    case 100:
+                        return [3, 162];
+                    case 103:
                         {
                             INLINE_UNOP(unop_int_clz, txt_int_clz);
                             if (ctx.failed)
                                 return [2, RUNDONE(run.FAIL)];
                         }
-                        return [3, 159];
-                    case 101:
+                        return [3, 162];
+                    case 104:
                         {
                             INLINE_UNOP(unop_int_pop, txt_int_pop);
                             if (ctx.failed)
                                 return [2, RUNDONE(run.FAIL)];
                         }
-                        return [3, 159];
-                    case 102:
+                        return [3, 162];
+                    case 105:
                         {
                             INLINE_UNOP(unop_int_bswap, txt_int_bswap);
                             if (ctx.failed)
                                 return [2, RUNDONE(run.FAIL)];
                         }
-                        return [3, 159];
-                    case 103:
+                        return [3, 162];
+                    case 106:
                         {
                             LOAD_abcd();
                             X = var_get(ctx, C, D);
@@ -10617,33 +10627,33 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             rand_seed(ctx, X);
                             var_set(ctx, A, B, exports.NIL);
                         }
-                        return [3, 159];
-                    case 104:
+                        return [3, 162];
+                    case 107:
                         {
                             LOAD_ab();
                             rand_seedauto(ctx);
                             var_set(ctx, A, B, exports.NIL);
                         }
-                        return [3, 159];
-                    case 105:
+                        return [3, 162];
+                    case 108:
                         {
                             LOAD_ab();
                             var_set(ctx, A, B, rand_int(ctx));
                         }
-                        return [3, 159];
-                    case 106:
+                        return [3, 162];
+                    case 109:
                         {
                             LOAD_ab();
                             var_set(ctx, A, B, rand_num(ctx));
                         }
-                        return [3, 159];
-                    case 107:
+                        return [3, 162];
+                    case 110:
                         {
                             LOAD_ab();
                             var_set(ctx, A, B, rand_getstate(ctx));
                         }
-                        return [3, 159];
-                    case 108:
+                        return [3, 162];
+                    case 111:
                         {
                             LOAD_abcd();
                             rand_setstate(ctx, var_get(ctx, C, D));
@@ -10651,8 +10661,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 return [2, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, exports.NIL);
                         }
-                        return [3, 159];
-                    case 109:
+                        return [3, 162];
+                    case 112:
                         {
                             LOAD_abcd();
                             X = rand_pick(ctx, var_get(ctx, C, D));
@@ -10660,8 +10670,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 return [2, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 159];
-                    case 110:
+                        return [3, 162];
+                    case 113:
                         {
                             LOAD_abcd();
                             X = var_get(ctx, C, D);
@@ -10670,8 +10680,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 return [2, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 159];
-                    case 111:
+                        return [3, 162];
+                    case 114:
                         {
                             LOAD_abc();
                             p = [];
@@ -10682,8 +10692,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             }
                             var_set(ctx, A, B, str_new(ctx, p));
                         }
-                        return [3, 159];
-                    case 112:
+                        return [3, 162];
+                    case 115:
                         {
                             LOAD_abcdef();
                             X = var_get(ctx, C, D);
@@ -10693,8 +10703,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 return [2, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 159];
-                    case 113:
+                        return [3, 162];
+                    case 116:
                         {
                             LOAD_abcdefgh();
                             X = var_get(ctx, C, D);
@@ -10705,8 +10715,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 return [2, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 159];
-                    case 114:
+                        return [3, 162];
+                    case 117:
                         {
                             LOAD_abcdef();
                             X = var_get(ctx, C, D);
@@ -10716,8 +10726,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 return [2, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 159];
-                    case 115:
+                        return [3, 162];
+                    case 118:
                         {
                             LOAD_abcdef();
                             X = var_get(ctx, C, D);
@@ -10727,8 +10737,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 return [2, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 159];
-                    case 116:
+                        return [3, 162];
+                    case 119:
                         {
                             LOAD_abcdef();
                             X = var_get(ctx, C, D);
@@ -10742,8 +10752,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 return [2, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 159];
-                    case 117:
+                        return [3, 162];
+                    case 120:
                         {
                             LOAD_abcdefgh();
                             X = var_get(ctx, C, D);
@@ -10754,8 +10764,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 return [2, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 159];
-                    case 118:
+                        return [3, 162];
+                    case 121:
                         {
                             LOAD_abcdefgh();
                             X = var_get(ctx, C, D);
@@ -10766,8 +10776,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 return [2, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 159];
-                    case 119:
+                        return [3, 162];
+                    case 122:
                         {
                             LOAD_abcd();
                             X = var_get(ctx, C, D);
@@ -10776,8 +10786,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 return [2, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 159];
-                    case 120:
+                        return [3, 162];
+                    case 123:
                         {
                             LOAD_abcd();
                             X = var_get(ctx, C, D);
@@ -10786,8 +10796,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 return [2, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 159];
-                    case 121:
+                        return [3, 162];
+                    case 124:
                         {
                             LOAD_abcd();
                             X = var_get(ctx, C, D);
@@ -10796,8 +10806,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 return [2, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 159];
-                    case 122:
+                        return [3, 162];
+                    case 125:
                         {
                             LOAD_abcd();
                             X = var_get(ctx, C, D);
@@ -10806,8 +10816,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 return [2, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 159];
-                    case 123:
+                        return [3, 162];
+                    case 126:
                         {
                             LOAD_abcdef();
                             X = var_get(ctx, C, D);
@@ -10821,8 +10831,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 return [2, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 159];
-                    case 124:
+                        return [3, 162];
+                    case 127:
                         {
                             LOAD_abcd();
                             X = var_get(ctx, C, D);
@@ -10831,8 +10841,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 return [2, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 159];
-                    case 125:
+                        return [3, 162];
+                    case 128:
                         {
                             LOAD_abcdef();
                             X = var_get(ctx, C, D);
@@ -10846,8 +10856,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 return [2, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 159];
-                    case 126:
+                        return [3, 162];
+                    case 129:
                         {
                             LOAD_abcdef();
                             X = var_get(ctx, C, D);
@@ -10861,15 +10871,15 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 return [2, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 159];
-                    case 127:
+                        return [3, 162];
+                    case 130:
                         {
                             LOAD_abcd();
                             X = var_get(ctx, C, D);
                             var_set(ctx, A, B, bool(utf8_valid(ctx, X)));
                         }
-                        return [3, 159];
-                    case 128:
+                        return [3, 162];
+                    case 131:
                         {
                             LOAD_abcd();
                             X = var_get(ctx, C, D);
@@ -10878,8 +10888,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 return [2, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 159];
-                    case 129:
+                        return [3, 162];
+                    case 132:
                         {
                             LOAD_abcd();
                             X = var_get(ctx, C, D);
@@ -10888,14 +10898,14 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 return [2, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 159];
-                    case 130:
+                        return [3, 162];
+                    case 133:
                         {
                             LOAD_abcd();
                             var_set(ctx, A, B, struct_size(ctx, var_get(ctx, C, D)));
                         }
-                        return [3, 159];
-                    case 131:
+                        return [3, 162];
+                    case 134:
                         {
                             LOAD_abcdef();
                             X = var_get(ctx, C, D);
@@ -10905,8 +10915,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 return [2, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 159];
-                    case 132:
+                        return [3, 162];
+                    case 135:
                         {
                             LOAD_abcdef();
                             X = var_get(ctx, C, D);
@@ -10916,14 +10926,14 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 return [2, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 159];
-                    case 133:
+                        return [3, 162];
+                    case 136:
                         {
                             LOAD_ab();
                             var_set(ctx, A, B, bool(struct_isLE()));
                         }
-                        return [3, 159];
-                    case 134:
+                        return [3, 162];
+                    case 137:
                         {
                             LOAD_abcdef();
                             X = var_get(ctx, C, D);
@@ -10933,8 +10943,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 return [2, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 159];
-                    case 135:
+                        return [3, 162];
+                    case 138:
                         {
                             LOAD_abcd();
                             X = var_get(ctx, C, D);
@@ -10943,8 +10953,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 return [2, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 159];
-                    case 136:
+                        return [3, 162];
+                    case 139:
                         {
                             LOAD_abcd();
                             X = var_get(ctx, C, D);
@@ -10953,8 +10963,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 return [2, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 159];
-                    case 137:
+                        return [3, 162];
+                    case 140:
                         {
                             LOAD_abcdef();
                             X = var_get(ctx, C, D);
@@ -10964,8 +10974,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 return [2, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 159];
-                    case 138:
+                        return [3, 162];
+                    case 141:
                         {
                             LOAD_abcdef();
                             X = var_get(ctx, C, D);
@@ -10975,8 +10985,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 return [2, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 159];
-                    case 139:
+                        return [3, 162];
+                    case 142:
                         {
                             LOAD_abcdef();
                             X = var_get(ctx, C, D);
@@ -10986,8 +10996,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 return [2, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 159];
-                    case 140:
+                        return [3, 162];
+                    case 143:
                         {
                             LOAD_abcdef();
                             X = var_get(ctx, C, D);
@@ -10997,8 +11007,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 return [2, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 159];
-                    case 141:
+                        return [3, 162];
+                    case 144:
                         {
                             LOAD_abcdefgh();
                             X = var_get(ctx, C, D);
@@ -11009,8 +11019,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 return [2, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 159];
-                    case 142:
+                        return [3, 162];
+                    case 145:
                         {
                             LOAD_abcdefgh();
                             X = var_get(ctx, C, D);
@@ -11021,8 +11031,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 return [2, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 159];
-                    case 143:
+                        return [3, 162];
+                    case 146:
                         {
                             LOAD_abcdef();
                             X = var_get(ctx, C, D);
@@ -11032,8 +11042,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 return [2, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 159];
-                    case 144:
+                        return [3, 162];
+                    case 147:
                         {
                             LOAD_abcd();
                             X = var_get(ctx, C, D);
@@ -11042,8 +11052,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 return [2, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 159];
-                    case 145:
+                        return [3, 162];
+                    case 148:
                         {
                             LOAD_abcd();
                             X = var_get(ctx, C, D);
@@ -11052,8 +11062,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 return [2, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 159];
-                    case 146:
+                        return [3, 162];
+                    case 149:
                         {
                             LOAD_abcd();
                             X = var_get(ctx, C, D);
@@ -11062,8 +11072,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 return [2, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 159];
-                    case 147:
+                        return [3, 162];
+                    case 150:
                         {
                             LOAD_abcd();
                             X = var_get(ctx, C, D);
@@ -11072,8 +11082,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 return [2, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 159];
-                    case 148:
+                        return [3, 162];
+                    case 151:
                         {
                             LOAD_abcd();
                             X = var_get(ctx, C, D);
@@ -11082,16 +11092,16 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 return [2, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 159];
-                    case 149:
+                        return [3, 162];
+                    case 152:
                         {
                             LOAD_abcd();
                             X = var_get(ctx, C, D);
                             X = pickle_bin(ctx, X);
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 159];
-                    case 150:
+                        return [3, 162];
+                    case 153:
                         {
                             LOAD_abcd();
                             X = var_get(ctx, C, D);
@@ -11100,44 +11110,44 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 return [2, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 159];
-                    case 151:
+                        return [3, 162];
+                    case 154:
                         {
                             LOAD_abcd();
                             X = var_get(ctx, C, D);
                             E = pickle_valid(ctx, X);
                             var_set(ctx, A, B, E === 0 ? exports.NIL : E);
                         }
-                        return [3, 159];
-                    case 152:
+                        return [3, 162];
+                    case 155:
                         {
                             LOAD_abcd();
                             X = var_get(ctx, C, D);
                             var_set(ctx, A, B, bool(pickle_sibling(ctx, X)));
                         }
-                        return [3, 159];
-                    case 153:
+                        return [3, 162];
+                    case 156:
                         {
                             LOAD_abcd();
                             X = var_get(ctx, C, D);
                             var_set(ctx, A, B, bool(pickle_circular(ctx, X)));
                         }
-                        return [3, 159];
-                    case 154:
+                        return [3, 162];
+                    case 157:
                         {
                             LOAD_abcd();
                             X = var_get(ctx, C, D);
                             X = pickle_copy(ctx, X);
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 159];
-                    case 155:
+                        return [3, 162];
+                    case 158:
                         {
                             LOAD_ab();
                             var_set(ctx, A, B, ctx.gc_level);
                         }
-                        return [3, 159];
-                    case 156:
+                        return [3, 162];
+                    case 159:
                         {
                             LOAD_abcd();
                             X = var_get(ctx, C, D);
@@ -11147,15 +11157,15 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             ctx.gc_level = X;
                             var_set(ctx, A, B, exports.NIL);
                         }
-                        return [3, 159];
-                    case 157:
+                        return [3, 162];
+                    case 160:
                         {
                             LOAD_ab();
                             var_set(ctx, A, B, exports.NIL);
                         }
-                        return [3, 159];
-                    case 158: return [3, 159];
-                    case 159:
+                        return [3, 162];
+                    case 161: return [3, 162];
+                    case 162:
                         if (ctx.timeout > 0) {
                             ctx.timeout_left--;
                             if (ctx.timeout_left <= 0) {
@@ -11164,7 +11174,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             }
                         }
                         return [3, 1];
-                    case 160:
+                    case 163:
                         if (ctx.prg.repl)
                             return [2, RUNDONE(run.REPLMORE)];
                         return [2, RUNDONE(opi_exit(ctx))];
