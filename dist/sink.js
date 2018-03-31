@@ -4653,6 +4653,18 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                 return;
         }
     }
+    function program_varInit(prg, lv) {
+        if (lv.type === lvr_enum.VAR)
+            op_nil(prg.ops, lv.vlc);
+        else if (lv.type === lvr_enum.LIST) {
+            for (var i = 0; i < lv.body.length; i++)
+                program_varInit(prg, lv.body[i]);
+            if (lv.rest !== null)
+                program_varInit(prg, lv.rest);
+        }
+        else
+            throw new Error('Unexpected variable initialization type');
+    }
     function program_evalLval(pgen, mode, intoVlc, lv, mutop, valueVlc, clearTemps) {
         var prg = pgen.prg;
         var sym = pgen.sym;
@@ -6591,6 +6603,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 return [2, pgr_error(pe.flp, pe.msg)];
                             symtbl_clearTemp(sym, pr_vlc);
                         }
+                        else
+                            program_varInit(prg, lr.lv);
                         _b.label = 47;
                     case 47:
                         i++;

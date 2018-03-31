@@ -5502,6 +5502,19 @@ function lval_clearTemps(lv: lvr_st, sym: symtbl_st): void {
 	}
 }
 
+function program_varInit(prg: program_st, lv: lvr_st): void {
+	if (lv.type === lvr_enum.VAR)
+		op_nil(prg.ops, lv.vlc);
+	else if (lv.type === lvr_enum.LIST){
+		for (var i = 0; i < lv.body.length; i++)
+			program_varInit(prg, lv.body[i]);
+		if (lv.rest !== null)
+			program_varInit(prg, lv.rest);
+	}
+	else
+		throw new Error('Unexpected variable initialization type');
+}
+
 function program_evalLval(pgen: pgen_st, mode: pem_enum, intoVlc: varloc_st, lv: lvr_st,
 	mutop: op_enum, valueVlc: varloc_st, clearTemps: boolean): per_st {
 	let prg = pgen.prg;
@@ -7489,6 +7502,8 @@ async function program_gen(pgen: pgen_st, stmt: ast_st, state: pgst_st,
 						return pgr_error(pe.flp, pe.msg);
 					symtbl_clearTemp(sym, pr_vlc);
 				}
+				else
+					program_varInit(prg, lr.lv);
 			}
 			return pgr_ok();
 

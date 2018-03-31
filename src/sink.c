@@ -6929,6 +6929,19 @@ static void lval_clearTemps(lvr lv, symtbl sym){
 	}
 }
 
+static void program_varInit(program prg, lvr lv){
+	if (lv->type == LVR_VAR)
+		op_nil(prg->ops, lv->vlc);
+	else if (lv->type == LVR_LIST){
+		for (int i = 0; i < lv->u.list.body->size; i++)
+			program_varInit(prg, lv->u.list.body->ptrs[i]);
+		if (lv->u.list.rest)
+			program_varInit(prg, lv->u.list.rest);
+	}
+	else
+		assert(false);
+}
+
 static per_st program_evalLval(pgen_st pgen, pem_enum mode, varloc_st intoVlc, lvr lv,
 	op_enum mutop, varloc_st valueVlc, bool clearTemps){
 	program prg = pgen.prg;
@@ -8997,8 +9010,10 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 						return pgr_error(pe.u.error.flp, pe.u.error.msg);
 					symtbl_clearTemp(sym, pr.u.vlc);
 				}
-				else
+				else{
+					program_varInit(prg, lr.u.lv);
 					lvr_free(lr.u.lv);
+				}
 			}
 			return pgr_ok();
 		} break;
