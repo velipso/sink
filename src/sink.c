@@ -4413,7 +4413,7 @@ static const char *parser_process(parser pr, list_ptr stmts){
 		case PRS_DEF_BODY:
 			if (!tok_isKS(tk1, KS_END))
 				return "Missing `end` of def block";
-			list_ptr_push(stmts, ast_def2(flpS));
+			list_ptr_push(stmts, ast_def2(flpT));
 			return parser_statement(pr, stmts, true);
 
 		case PRS_DO:
@@ -4428,8 +4428,8 @@ static const char *parser_process(parser pr, list_ptr stmts){
 				return NULL;
 			}
 			else if (tok_isKS(tk1, KS_END)){
-				list_ptr_push(stmts, ast_dowhile2(flpS, NULL));
-				list_ptr_push(stmts, ast_dowhile3(flpS));
+				list_ptr_push(stmts, ast_dowhile2(flpT, NULL));
+				list_ptr_push(stmts, ast_dowhile3(flpT));
 				return parser_statement(pr, stmts, true);
 			}
 			return "Missing `while` or `end` of do block";
@@ -4443,7 +4443,7 @@ static const char *parser_process(parser pr, list_ptr stmts){
 				return NULL;
 			}
 			else if (tok_isKS(tk1, KS_END)){
-				list_ptr_push(stmts, ast_dowhile3(flpS));
+				list_ptr_push(stmts, ast_dowhile3(flpT));
 				return parser_statement(pr, stmts, true);
 			}
 			return "Missing newline or semicolon";
@@ -4451,7 +4451,7 @@ static const char *parser_process(parser pr, list_ptr stmts){
 		case PRS_DO_WHILE_BODY:
 			if (!tok_isKS(tk1, KS_END))
 				return "Missing `end` of do-while block";
-			list_ptr_push(stmts, ast_dowhile3(flpS));
+			list_ptr_push(stmts, ast_dowhile3(flpT));
 			return parser_statement(pr, stmts, true);
 
 		case PRS_FOR:
@@ -4475,7 +4475,7 @@ static const char *parser_process(parser pr, list_ptr stmts){
 		case PRS_LOOP_BODY:
 			if (!tok_isKS(tk1, KS_END))
 				return "Missing `end` of for block";
-			list_ptr_push(stmts, ast_loop2(flpS));
+			list_ptr_push(stmts, ast_loop2(flpT));
 			return parser_statement(pr, stmts, true);
 
 		case PRS_FOR_VARS:
@@ -4524,7 +4524,7 @@ static const char *parser_process(parser pr, list_ptr stmts){
 				return NULL;
 			}
 			else if (tok_isKS(tk1, KS_END)){
-				list_ptr_push(stmts, ast_for2(flpS));
+				list_ptr_push(stmts, ast_for2(flpT));
 				return parser_statement(pr, stmts, true);
 			}
 			return "Missing newline or semicolon";
@@ -4532,7 +4532,7 @@ static const char *parser_process(parser pr, list_ptr stmts){
 		case PRS_FOR_BODY:
 			if (!tok_isKS(tk1, KS_END))
 				return "Missing `end` of for block";
-			list_ptr_push(stmts, ast_for2(flpS));
+			list_ptr_push(stmts, ast_for2(flpT));
 			return parser_statement(pr, stmts, true);
 
 		case PRS_GOTO:
@@ -4572,7 +4572,7 @@ static const char *parser_process(parser pr, list_ptr stmts){
 				return NULL;
 			}
 			else if (tok_isKS(tk1, KS_END)){
-				list_ptr_push(stmts, ast_if4(flpS));
+				list_ptr_push(stmts, ast_if4(flpT));
 				return parser_statement(pr, stmts, true);
 			}
 			return "Missing newline or semicolon";
@@ -4589,7 +4589,7 @@ static const char *parser_process(parser pr, list_ptr stmts){
 				return NULL;
 			}
 			else if (tok_isKS(tk1, KS_END)){
-				list_ptr_push(stmts, ast_if4(flpS));
+				list_ptr_push(stmts, ast_if4(flpT));
 				return parser_statement(pr, stmts, true);
 			}
 			return "Missing `elseif`, `else`, or `end` of if block";
@@ -4597,7 +4597,7 @@ static const char *parser_process(parser pr, list_ptr stmts){
 		case PRS_ELSE_BODY:
 			if (!tok_isKS(tk1, KS_END))
 				return "Missing `end` of if block";
-			list_ptr_push(stmts, ast_if4(flpS));
+			list_ptr_push(stmts, ast_if4(flpT));
 			return parser_statement(pr, stmts, true);
 
 		case PRS_ENUM:
@@ -4681,7 +4681,7 @@ static const char *parser_process(parser pr, list_ptr stmts){
 		case PRS_NAMESPACE_BODY:
 			if (!tok_isKS(tk1, KS_END))
 				return "Missing `end` of namespace block";
-			list_ptr_push(stmts, ast_namespace2(flpS));
+			list_ptr_push(stmts, ast_namespace2(flpT));
 			return parser_statement(pr, stmts, true);
 
 		case PRS_RETURN:
@@ -5463,6 +5463,7 @@ typedef struct scope_struct scope_st, *scope;
 struct scope_struct {
 	namespace ns;
 	list_ptr nsStack;
+	list_ptr declares;
 	label lblBreak; // not freed by scope_free
 	label lblContinue; // not freed by scope_free
 	scope parent;
@@ -5474,6 +5475,7 @@ static inline void scope_free(scope sc){
 	// the ns->names field, which will be freed via nsname_free
 	namespace_free(sc->nsStack->ptrs[0]);
 	list_ptr_free(sc->nsStack);
+	list_ptr_free(sc->declares);
 	mem_free(sc);
 }
 
@@ -5488,11 +5490,55 @@ static inline scope scope_new(frame fr, label lblBreak, label lblContinue, scope
 	scope sc = mem_alloc(sizeof(scope_st));
 	sc->ns = namespace_new(fr);
 	sc->nsStack = list_ptr_new(NULL);
+	sc->declares = list_ptr_new(mem_free_func);
 	list_ptr_push(sc->nsStack, sc->ns);
 	sc->lblBreak = lblBreak;
 	sc->lblContinue = lblContinue;
 	sc->parent = parent;
 	return sc;
+}
+
+#define SCD_HINT_SIZE 96
+typedef struct {
+	label lbl;
+	char hint[SCD_HINT_SIZE];
+	filepos_st flp;
+} scopedecl_st, *scopedecl;
+
+static inline void scope_addDeclare(scope sc, filepos_st flp, list_ptr names, label lbl){
+	scopedecl scd = mem_alloc(sizeof(scopedecl_st));
+	scd->flp = flp;
+	scd->lbl = lbl;
+	int sz = 0;
+	for (int i = 0; i < names->size; i++){
+		list_byte lb = names->ptrs[i];
+		if (sz + 5 + lb->size >= SCD_HINT_SIZE){
+			scd->hint[sz++] = '.';
+			scd->hint[sz++] = '.';
+			scd->hint[sz++] = '.';
+			break;
+		}
+		else{
+			if (i > 0)
+				scd->hint[sz++] = '.';
+			memcpy(&scd->hint[sz], lb->bytes, sizeof(uint8_t) * lb->size);
+			sz += lb->size;
+		}
+	}
+	scd->hint[sz] = 0;
+	list_ptr_push(sc->declares, scd);
+}
+
+static inline void scope_removeDeclare(scope sc, label lbl){
+	for (int i = 0; i < sc->declares->size; i++){
+		scopedecl scd = sc->declares->ptrs[i];
+		if (scd->lbl == lbl){
+			mem_free(scd);
+			list_ptr_remove(sc->declares, i);
+			return;
+		}
+	}
+	assert(false);
 }
 
 typedef struct {
@@ -5608,10 +5654,16 @@ static inline void symtbl_pushScope(symtbl sym){
 	sym->sc = scope_new(sym->fr, sym->sc->lblBreak, sym->sc->lblContinue, sym->sc);
 }
 
-static inline void symtbl_popScope(symtbl sym){
+static inline char *symtbl_popScope(symtbl sym){
+	if (sym->sc->declares->size > 0){
+		scopedecl scd = sym->sc->declares->ptrs[0];
+		return format("Failed to define `%s`, declared at %d:%d",
+			scd->hint, scd->flp.line, scd->flp.chr);
+	}
 	scope del = sym->sc;
 	sym->sc = sym->sc->parent;
 	scope_free(del);
+	return NULL;
 }
 
 static inline void symtbl_pushFrame(symtbl sym){
@@ -5619,13 +5671,19 @@ static inline void symtbl_pushFrame(symtbl sym){
 	sym->sc = scope_new(sym->fr, NULL, NULL, sym->sc);
 }
 
-static inline void symtbl_popFrame(symtbl sym){
-	scope del = sym->sc;
-	frame del2 = sym->fr;
-	sym->sc = sym->sc->parent;
+static inline char *symtbl_popFrame(symtbl sym){
+	char *err = symtbl_popScope(sym);
+	if (err)
+		return err;
+	for (int i = 0; i < sym->fr->lbls->size; i++){
+		label lbl = sym->fr->lbls->ptrs[i];
+		if (lbl->pos < 0)
+			return format("Missing label '%.*s'", lbl->name->size, lbl->name->bytes);
+	}
+	frame del = sym->fr;
 	sym->fr = sym->fr->parent;
-	scope_free(del);
-	frame_free(del2);
+	frame_free(del);
+	return NULL;
 }
 
 typedef struct {
@@ -8568,6 +8626,7 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 				char *smsg = symtbl_addCmdLocal(sym, dc->names, lbl);
 				if (smsg)
 					return pgr_error(dc->flp, smsg);
+				scope_addDeclare(sym->sc, stmt->flp, dc->names, lbl);
 			}
 			else{ // native
 				char *smsg = symtbl_addCmdNative(sym, dc->names,
@@ -8583,7 +8642,9 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 			label lbl;
 			if (n.found && n.nsn->type == NSN_CMD_LOCAL){
 				lbl = n.nsn->u.cmdLocal.lbl;
-				if (!sym->repl && lbl->pos >= 0){ // if already defined, error
+				if (lbl->pos < 0)
+					scope_removeDeclare(sym->sc, lbl);
+				else if (!sym->repl){ // if already defined, error
 					list_byte b = stmt->u.def1.names->ptrs[0];
 					char *join = format("Cannot redefine \"%.*s", b->size, b->bytes);
 					for (int i = 1; i < stmt->u.def1.names->size; i++){
@@ -8687,7 +8748,9 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 		case AST_DEF2: {
 			program_cmdhint(prg, NULL);
 			op_cmdtail(prg->ops);
-			symtbl_popFrame(sym);
+			char *err = symtbl_popFrame(sym);
+			if (err)
+				return pgr_error(stmt->flp, err);
 			label skip = state;
 			label_declare(skip, prg->ops);
 			return pgr_pop();
@@ -8734,7 +8797,9 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 			if (pst->top)
 				label_jump(pst->top, prg->ops);
 			label_declare(pst->finish, prg->ops);
-			symtbl_popScope(sym);
+			char *err = symtbl_popScope(sym);
+			if (err)
+				return pgr_error(stmt->flp, err);
 			return pgr_pop();
 		} break;
 
@@ -8823,7 +8888,9 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 			if (!varloc_isnull(pst->val_vlc))
 				symtbl_clearTemp(sym, pst->val_vlc);
 			symtbl_clearTemp(sym, pst->idx_vlc);
-			symtbl_popScope(sym);
+			char *err = symtbl_popScope(sym);
+			if (err)
+				return pgr_error(stmt->flp, err);
 			return pgr_pop();
 		} break;
 
@@ -8842,7 +8909,9 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 
 			label_jump(pst->lcont, prg->ops);
 			label_declare(pst->lbrk, prg->ops);
-			symtbl_popScope(sym);
+			char *err = symtbl_popScope(sym);
+			if (err)
+				return pgr_error(stmt->flp, err);
 			return pgr_pop();
 		} break;
 
@@ -8870,7 +8939,9 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 			pgs_if pst = state;
 
 			if (pst->nextcond){
-				symtbl_popScope(sym);
+				char *err = symtbl_popScope(sym);
+				if (err)
+					return pgr_error(stmt->flp, err);
 				label_jump(pst->ifdone, prg->ops);
 
 				label_declare(pst->nextcond, prg->ops);
@@ -8891,7 +8962,9 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 		case AST_IF3: {
 			pgs_if pst = state;
 
-			symtbl_popScope(sym);
+			char *err = symtbl_popScope(sym);
+			if (err)
+				return pgr_error(stmt->flp, err);
 			label_jump(pst->ifdone, prg->ops);
 
 			label_declare(pst->nextcond, prg->ops);
@@ -8902,7 +8975,9 @@ static inline pgr_st program_gen(pgen_st pgen, ast stmt, void *state, bool sayex
 		case AST_IF4: {
 			pgs_if pst = state;
 
-			symtbl_popScope(sym);
+			char *err = symtbl_popScope(sym);
+			if (err)
+				return pgr_error(stmt->flp, err);
 			label_declare(pst->ifdone, prg->ops);
 			return pgr_pop();
 		} break;
@@ -14934,6 +15009,13 @@ static char *compiler_close(compiler cmp){
 	const char *pmsg = parser_close(cmp->pr);
 	if (pmsg){
 		compiler_setmsg(cmp, program_errormsg(cmp->prg, cmp->flpn->flp, pmsg));
+		return cmp->msg;
+	}
+
+	err = symtbl_popFrame(cmp->sym);
+	if (err){
+		compiler_setmsg(cmp, program_errormsg(cmp->prg, cmp->flpn->flp, err));
+		mem_free(err);
 		return cmp->msg;
 	}
 

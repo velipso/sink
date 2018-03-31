@@ -3227,7 +3227,7 @@ function parser_process(pr: parser_st, stmts: ast_st[]): strnil {
 		case prs_enum.DEF_BODY:
 			if (!tok_isKS(tk1, ks_enum.END))
 				return 'Missing `end` of def block';
-			stmts.push(ast_def2(flpS));
+			stmts.push(ast_def2(flpT));
 			return parser_statement(pr, stmts, true);
 
 		case prs_enum.DO:
@@ -3242,8 +3242,8 @@ function parser_process(pr: parser_st, stmts: ast_st[]): strnil {
 				return null;
 			}
 			else if (tok_isKS(tk1, ks_enum.END)){
-				stmts.push(ast_dowhile2(flpS, null));
-				stmts.push(ast_dowhile3(flpS));
+				stmts.push(ast_dowhile2(flpT, null));
+				stmts.push(ast_dowhile3(flpT));
 				return parser_statement(pr, stmts, true);
 			}
 			return 'Missing `while` or `end` of do block';
@@ -3257,7 +3257,7 @@ function parser_process(pr: parser_st, stmts: ast_st[]): strnil {
 				return null;
 			}
 			else if (tok_isKS(tk1, ks_enum.END)){
-				stmts.push(ast_dowhile3(flpS));
+				stmts.push(ast_dowhile3(flpT));
 				return parser_statement(pr, stmts, true);
 			}
 			return 'Missing newline or semicolon';
@@ -3265,7 +3265,7 @@ function parser_process(pr: parser_st, stmts: ast_st[]): strnil {
 		case prs_enum.DO_WHILE_BODY:
 			if (!tok_isKS(tk1, ks_enum.END))
 				return 'Missing `end` of do-while block';
-			stmts.push(ast_dowhile3(flpS));
+			stmts.push(ast_dowhile3(flpT));
 			return parser_statement(pr, stmts, true);
 
 		case prs_enum.FOR:
@@ -3289,7 +3289,7 @@ function parser_process(pr: parser_st, stmts: ast_st[]): strnil {
 		case prs_enum.LOOP_BODY:
 			if (!tok_isKS(tk1, ks_enum.END))
 				return 'Missing `end` of for block';
-			stmts.push(ast_loop2(flpS));
+			stmts.push(ast_loop2(flpT));
 			return parser_statement(pr, stmts, true);
 
 		case prs_enum.FOR_VARS:
@@ -3344,7 +3344,7 @@ function parser_process(pr: parser_st, stmts: ast_st[]): strnil {
 				return null;
 			}
 			else if (tok_isKS(tk1, ks_enum.END)){
-				stmts.push(ast_for2(flpS));
+				stmts.push(ast_for2(flpT));
 				return parser_statement(pr, stmts, true);
 			}
 			return 'Missing newline or semicolon';
@@ -3352,7 +3352,7 @@ function parser_process(pr: parser_st, stmts: ast_st[]): strnil {
 		case prs_enum.FOR_BODY:
 			if (!tok_isKS(tk1, ks_enum.END))
 				return 'Missing `end` of for block';
-			stmts.push(ast_for2(flpS));
+			stmts.push(ast_for2(flpT));
 			return parser_statement(pr, stmts, true);
 
 		case prs_enum.GOTO:
@@ -3393,7 +3393,7 @@ function parser_process(pr: parser_st, stmts: ast_st[]): strnil {
 				return null;
 			}
 			else if (tok_isKS(tk1, ks_enum.END)){
-				stmts.push(ast_if4(flpS));
+				stmts.push(ast_if4(flpT));
 				return parser_statement(pr, stmts, true);
 			}
 			return 'Missing newline or semicolon';
@@ -3410,7 +3410,7 @@ function parser_process(pr: parser_st, stmts: ast_st[]): strnil {
 				return null;
 			}
 			else if (tok_isKS(tk1, ks_enum.END)){
-				stmts.push(ast_if4(flpS));
+				stmts.push(ast_if4(flpT));
 				return parser_statement(pr, stmts, true);
 			}
 			return 'Missing `elseif`, `else`, or `end` of if block';
@@ -3418,7 +3418,7 @@ function parser_process(pr: parser_st, stmts: ast_st[]): strnil {
 		case prs_enum.ELSE_BODY:
 			if (!tok_isKS(tk1, ks_enum.END))
 				return 'Missing `end` of if block';
-			stmts.push(ast_if4(flpS));
+			stmts.push(ast_if4(flpT));
 			return parser_statement(pr, stmts, true);
 
 		case prs_enum.ENUM:
@@ -3503,7 +3503,7 @@ function parser_process(pr: parser_st, stmts: ast_st[]): strnil {
 		case prs_enum.NAMESPACE_BODY:
 			if (!tok_isKS(tk1, ks_enum.END))
 				return 'Missing `end` of namespace block';
-			stmts.push(ast_namespace2(flpS));
+			stmts.push(ast_namespace2(flpT));
 			return parser_statement(pr, stmts, true);
 
 		case prs_enum.RETURN:
@@ -4226,6 +4226,7 @@ function namespace_lookupImmediate(ns: namespace_st, names: string[]): nl_st {
 interface scope_st {
 	ns: namespace_st;
 	nsStack: namespace_st[];
+	declares: scopedecl_st[];
 	lblBreak: label_st | null;
 	lblContinue: label_st | null;
 	parent: scope_st | null;
@@ -4237,10 +4238,36 @@ function scope_new(fr: frame_st, lblBreak: label_st | null, lblContinue: label_s
 	return {
 		ns: ns,
 		nsStack: [ns],
+		declares: [],
 		lblBreak: lblBreak,
 		lblContinue: lblContinue,
 		parent: parent
 	};
+}
+
+interface scopedecl_st {
+	lbl: label_st;
+	hint: string;
+	flp: filepos_st;
+}
+
+function scope_addDeclare(sc: scope_st, flp: filepos_st, names: string[], lbl: label_st): void {
+	sc.declares.push({
+		lbl: lbl,
+		hint: names.join('.'),
+		flp: flp
+	});
+}
+
+function scope_removeDeclare(sc: scope_st, lbl: label_st): void {
+	for (let i = 0; i < sc.declares.length; i++){
+		let scd = sc.declares[i];
+		if (scd.lbl === lbl){
+			sc.declares.splice(i, 1);
+			return;
+		}
+	}
+	throw new Error('Failed to find previous declared object');
 }
 
 interface symtbl_st {
@@ -4305,7 +4332,7 @@ function symtbl_findNamespace(sym: symtbl_st, names: string[], max: number): sfn
 	return sfn_ok(ns);
 }
 
-function symtbl_pushNamespace(sym: symtbl_st, names: string[] | true): strnil{
+function symtbl_pushNamespace(sym: symtbl_st, names: string[] | true): strnil {
 	let ns: namespace_st;
 	if (names === true){
 		// create a unique namespace and use it (via `using`) immediately
@@ -4335,10 +4362,15 @@ function symtbl_pushScope(sym: symtbl_st): void {
 	sym.sc = scope_new(sym.fr, sym.sc.lblBreak, sym.sc.lblContinue, sym.sc);
 }
 
-function symtbl_popScope(sym: symtbl_st): void {
-	if (sym.sc.parent === null)
-		throw new Error('Cannot pop last scope');
-	sym.sc = sym.sc.parent;
+function symtbl_popScope(sym: symtbl_st): strnil {
+	if (sym.sc.declares.length > 0){
+		let scd = sym.sc.declares[0];
+		return 'Failed to define `' + scd.hint + '`, declared at ' + scd.flp.line + ':' +
+			scd.flp.chr;
+	}
+	if (sym.sc.parent !== null)
+		sym.sc = sym.sc.parent;
+	return null;
 }
 
 function symtbl_pushFrame(sym: symtbl_st): void {
@@ -4346,11 +4378,18 @@ function symtbl_pushFrame(sym: symtbl_st): void {
 	sym.sc = scope_new(sym.fr, null, null, sym.sc);
 }
 
-function symtbl_popFrame(sym: symtbl_st): void {
-	if (sym.sc.parent === null || sym.fr.parent === null)
-		throw new Error('Cannot pop last frame');
-	sym.sc = sym.sc.parent;
-	sym.fr = sym.fr.parent;
+function symtbl_popFrame(sym: symtbl_st): strnil {
+	let err = symtbl_popScope(sym);
+	if (err !== null)
+		return err;
+	for (let i = 0; i < sym.fr.lbls.length; i++){
+		let lbl = sym.fr.lbls[i];
+		if (lbl.pos < 0)
+			return 'Missing label \'' + lbl.name + '\'';
+	}
+	if (sym.fr.parent !== null)
+		sym.fr = sym.fr.parent;
+	return null;
 }
 
 interface stl_st_OK {
@@ -4473,7 +4512,7 @@ function symtbl_addVar(sym: symtbl_st, names: string[], slot: number): sta_st {
 	return sta_ok(varloc_new(sym.fr.level, slot));
 }
 
-function symtbl_addEnum(sym: symtbl_st, names: string[], val: number): strnil{
+function symtbl_addEnum(sym: symtbl_st, names: string[], val: number): strnil {
 	let nsr = symtbl_findNamespace(sym, names, names.length - 1);
 	if (!nsr.ok)
 		return nsr.msg;
@@ -7049,6 +7088,7 @@ async function program_gen(pgen: pgen_st, stmt: ast_st, state: pgst_st,
 				let smsg = symtbl_addCmdLocal(sym, dc.names, lbl);
 				if (smsg !== null)
 					return pgr_error(dc.flp, smsg);
+				scope_addDeclare(sym.sc, stmt.flp, dc.names, lbl);
 			}
 			else{ // native
 				if (dc.key === null)
@@ -7065,7 +7105,9 @@ async function program_gen(pgen: pgen_st, stmt: ast_st, state: pgst_st,
 			let lbl: label_st;
 			if (n.found && n.nsn.type === nsname_enumt.CMD_LOCAL){
 				lbl = n.nsn.lbl;
-				if (!sym.repl && lbl.pos >= 0) // if already defined, error
+				if (lbl.pos < 0)
+					scope_removeDeclare(sym.sc, lbl);
+				else if (!sym.repl) // if already defined, error
 					return pgr_error(stmt.flpN, 'Cannot redefine: ' + stmt.names.join('.'));
 			}
 			else{
@@ -7149,7 +7191,9 @@ async function program_gen(pgen: pgen_st, stmt: ast_st, state: pgst_st,
 		case ast_enumt.DEF2: {
 			program_cmdhint(prg, null);
 			op_cmdtail(prg.ops);
-			symtbl_popFrame(sym);
+			let err = symtbl_popFrame(sym);
+			if (err !== null)
+				return pgr_error(stmt.flp, err);
 			if (!label_check(state))
 				throw new Error('Expecting state to be a label');
 			let skip: label_st = state;
@@ -7204,7 +7248,9 @@ async function program_gen(pgen: pgen_st, stmt: ast_st, state: pgst_st,
 			if (pst.top !== null)
 				label_jump(pst.top, prg.ops);
 			label_declare(pst.finish, prg.ops);
-			symtbl_popScope(sym);
+			let err = symtbl_popScope(sym);
+			if (err !== null)
+				return pgr_error(stmt.flp, err);
 			return pgr_pop();
 		}
 
@@ -7294,7 +7340,9 @@ async function program_gen(pgen: pgen_st, stmt: ast_st, state: pgst_st,
 			if (!varloc_isnull(pst.val_vlc))
 				symtbl_clearTemp(sym, pst.val_vlc);
 			symtbl_clearTemp(sym, pst.idx_vlc);
-			symtbl_popScope(sym);
+			let err = symtbl_popScope(sym);
+			if (err !== null)
+				return pgr_error(stmt.flp, err);
 			return pgr_pop();
 		}
 
@@ -7315,7 +7363,9 @@ async function program_gen(pgen: pgen_st, stmt: ast_st, state: pgst_st,
 
 			label_jump(pst.lcont, prg.ops);
 			label_declare(pst.lbrk, prg.ops);
-			symtbl_popScope(sym);
+			let err = symtbl_popScope(sym);
+			if (err !== null)
+				return pgr_error(stmt.flp, err);
 			return pgr_pop();
 		}
 
@@ -7344,7 +7394,9 @@ async function program_gen(pgen: pgen_st, stmt: ast_st, state: pgst_st,
 			let pst: pgs_if_st = state;
 
 			if (pst.nextcond !== null){
-				symtbl_popScope(sym);
+				let err = symtbl_popScope(sym);
+				if (err !== null)
+					return pgr_error(stmt.flp, err);
 				label_jump(pst.ifdone, prg.ops);
 
 				label_declare(pst.nextcond, prg.ops);
@@ -7371,7 +7423,9 @@ async function program_gen(pgen: pgen_st, stmt: ast_st, state: pgst_st,
 				throw new Error('Expecting state to be if structure');
 			let pst: pgs_if_st = state;
 
-			symtbl_popScope(sym);
+			let err = symtbl_popScope(sym);
+			if (err !== null)
+				return pgr_error(stmt.flp, err);
 			label_jump(pst.ifdone, prg.ops);
 
 			if (pst.nextcond === null)
@@ -7386,7 +7440,9 @@ async function program_gen(pgen: pgen_st, stmt: ast_st, state: pgst_st,
 				throw new Error('Expecting state to be if structure');
 			let pst: pgs_if_st = state;
 
-			symtbl_popScope(sym);
+			let err = symtbl_popScope(sym);
+			if (err !== null)
+				return pgr_error(stmt.flp, err);
 			label_declare(pst.ifdone, prg.ops);
 			return pgr_pop();
 		}
@@ -12211,6 +12267,12 @@ async function compiler_close(cmp: compiler_st): Promise<strnil> {
 	let pmsg = parser_close(cmp.pr);
 	if (pmsg){
 		compiler_setmsg(cmp, program_errormsg(cmp.prg, cmp.flpn.flp, pmsg));
+		return cmp.msg;
+	}
+
+	let err2 = symtbl_popFrame(cmp.sym);
+	if (err2 !== null){
+		compiler_setmsg(cmp, program_errormsg(cmp.prg, cmp.flpn.flp, err2));
 		return cmp.msg;
 	}
 

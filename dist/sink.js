@@ -2760,7 +2760,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             case prs_enum.DEF_BODY:
                 if (!tok_isKS(tk1, ks_enum.END))
                     return 'Missing `end` of def block';
-                stmts.push(ast_def2(flpS));
+                stmts.push(ast_def2(flpT));
                 return parser_statement(pr, stmts, true);
             case prs_enum.DO:
                 stmts.push(ast_dowhile1(flpS));
@@ -2773,8 +2773,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                     return null;
                 }
                 else if (tok_isKS(tk1, ks_enum.END)) {
-                    stmts.push(ast_dowhile2(flpS, null));
-                    stmts.push(ast_dowhile3(flpS));
+                    stmts.push(ast_dowhile2(flpT, null));
+                    stmts.push(ast_dowhile3(flpT));
                     return parser_statement(pr, stmts, true);
                 }
                 return 'Missing `while` or `end` of do block';
@@ -2787,14 +2787,14 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                     return null;
                 }
                 else if (tok_isKS(tk1, ks_enum.END)) {
-                    stmts.push(ast_dowhile3(flpS));
+                    stmts.push(ast_dowhile3(flpT));
                     return parser_statement(pr, stmts, true);
                 }
                 return 'Missing newline or semicolon';
             case prs_enum.DO_WHILE_BODY:
                 if (!tok_isKS(tk1, ks_enum.END))
                     return 'Missing `end` of do-while block';
-                stmts.push(ast_dowhile3(flpS));
+                stmts.push(ast_dowhile3(flpT));
                 return parser_statement(pr, stmts, true);
             case prs_enum.FOR:
                 if (tk1.type === tok_enum.NEWLINE) {
@@ -2816,7 +2816,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             case prs_enum.LOOP_BODY:
                 if (!tok_isKS(tk1, ks_enum.END))
                     return 'Missing `end` of for block';
-                stmts.push(ast_loop2(flpS));
+                stmts.push(ast_loop2(flpT));
                 return parser_statement(pr, stmts, true);
             case prs_enum.FOR_VARS:
                 if (tk1.type !== tok_enum.IDENT)
@@ -2865,14 +2865,14 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                     return null;
                 }
                 else if (tok_isKS(tk1, ks_enum.END)) {
-                    stmts.push(ast_for2(flpS));
+                    stmts.push(ast_for2(flpT));
                     return parser_statement(pr, stmts, true);
                 }
                 return 'Missing newline or semicolon';
             case prs_enum.FOR_BODY:
                 if (!tok_isKS(tk1, ks_enum.END))
                     return 'Missing `end` of for block';
-                stmts.push(ast_for2(flpS));
+                stmts.push(ast_for2(flpT));
                 return parser_statement(pr, stmts, true);
             case prs_enum.GOTO:
                 if (tk1.type !== tok_enum.IDENT)
@@ -2909,7 +2909,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                     return null;
                 }
                 else if (tok_isKS(tk1, ks_enum.END)) {
-                    stmts.push(ast_if4(flpS));
+                    stmts.push(ast_if4(flpT));
                     return parser_statement(pr, stmts, true);
                 }
                 return 'Missing newline or semicolon';
@@ -2925,14 +2925,14 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                     return null;
                 }
                 else if (tok_isKS(tk1, ks_enum.END)) {
-                    stmts.push(ast_if4(flpS));
+                    stmts.push(ast_if4(flpT));
                     return parser_statement(pr, stmts, true);
                 }
                 return 'Missing `elseif`, `else`, or `end` of if block';
             case prs_enum.ELSE_BODY:
                 if (!tok_isKS(tk1, ks_enum.END))
                     return 'Missing `end` of if block';
-                stmts.push(ast_if4(flpS));
+                stmts.push(ast_if4(flpT));
                 return parser_statement(pr, stmts, true);
             case prs_enum.ENUM:
                 if (tk1.type === tok_enum.NEWLINE && !tk1.soft)
@@ -3007,7 +3007,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             case prs_enum.NAMESPACE_BODY:
                 if (!tok_isKS(tk1, ks_enum.END))
                     return 'Missing `end` of namespace block';
-                stmts.push(ast_namespace2(flpS));
+                stmts.push(ast_namespace2(flpT));
                 return parser_statement(pr, stmts, true);
             case prs_enum.RETURN:
                 if (tk1.type === tok_enum.NEWLINE) {
@@ -3582,10 +3582,28 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         return {
             ns: ns,
             nsStack: [ns],
+            declares: [],
             lblBreak: lblBreak,
             lblContinue: lblContinue,
             parent: parent
         };
+    }
+    function scope_addDeclare(sc, flp, names, lbl) {
+        sc.declares.push({
+            lbl: lbl,
+            hint: names.join('.'),
+            flp: flp
+        });
+    }
+    function scope_removeDeclare(sc, lbl) {
+        for (var i = 0; i < sc.declares.length; i++) {
+            var scd = sc.declares[i];
+            if (scd.lbl === lbl) {
+                sc.declares.splice(i, 1);
+                return;
+            }
+        }
+        throw new Error('Failed to find previous declared object');
     }
     function symtbl_new(repl) {
         var fr = frame_new(null);
@@ -3655,19 +3673,31 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         sym.sc = scope_new(sym.fr, sym.sc.lblBreak, sym.sc.lblContinue, sym.sc);
     }
     function symtbl_popScope(sym) {
-        if (sym.sc.parent === null)
-            throw new Error('Cannot pop last scope');
-        sym.sc = sym.sc.parent;
+        if (sym.sc.declares.length > 0) {
+            var scd = sym.sc.declares[0];
+            return 'Failed to define `' + scd.hint + '`, declared at ' + scd.flp.line + ':' +
+                scd.flp.chr;
+        }
+        if (sym.sc.parent !== null)
+            sym.sc = sym.sc.parent;
+        return null;
     }
     function symtbl_pushFrame(sym) {
         sym.fr = frame_new(sym.fr);
         sym.sc = scope_new(sym.fr, null, null, sym.sc);
     }
     function symtbl_popFrame(sym) {
-        if (sym.sc.parent === null || sym.fr.parent === null)
-            throw new Error('Cannot pop last frame');
-        sym.sc = sym.sc.parent;
-        sym.fr = sym.fr.parent;
+        var err = symtbl_popScope(sym);
+        if (err !== null)
+            return err;
+        for (var i = 0; i < sym.fr.lbls.length; i++) {
+            var lbl = sym.fr.lbls[i];
+            if (lbl.pos < 0)
+                return 'Missing label \'' + lbl.name + '\'';
+        }
+        if (sym.fr.parent !== null)
+            sym.fr = sym.fr.parent;
+        return null;
     }
     function stl_ok(nsn) {
         return { ok: true, nsn: nsn };
@@ -6103,7 +6133,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     }
     function program_gen(pgen, stmt, state, sayexpr) {
         return __awaiter(this, void 0, void 0, function () {
-            var prg, sym, _a, dc, lbl, smsg, smsg, n, lbl, smsg, level, rest, lvs, last_ex, skip, i, ex, arg, argset, pr, lr, pe, lr, skip, top_1, cond, finish, pst, pe, pst_1, pst, last_val, i, ex, v, n, smsg, c, n, sl, nsn, p, rp, ts, pe, i, ts, pe, pst, lcont, lbrk, pst, i, lbl_1, lbl, pst, pr, pst, pst, smsg, nsn, params, ex, sl, sl, argcount, pe, p, nsn_lbl, eb, pe0, i, pr, sl, ns, sf, i, ex1, ex, pr_vlc, pr, lr, pe, pr, ts, lbl, found, i;
+            var prg, sym, _a, dc, lbl, smsg, smsg, n, lbl, smsg, level, rest, lvs, last_ex, skip, i, ex, arg, argset, pr, lr, pe, lr, err, skip, top_1, cond, finish, pst, pe, pst_1, pst, err, last_val, i, ex, v, n, smsg, c, n, sl, nsn, p, rp, ts, pe, i, ts, pe, pst, err, lcont, lbrk, pst, err, i, lbl_1, lbl, pst, err, pr, pst, err, pst, err, smsg, nsn, params, ex, sl, sl, argcount, pe, p, nsn_lbl, eb, pe0, i, pr, sl, ns, sf, i, ex1, ex, pr_vlc, pr, lr, pe, pr, ts, lbl, found, i;
             return __generator(this, function (_b) {
                 switch (_b.label) {
                     case 0:
@@ -6165,6 +6195,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 smsg = symtbl_addCmdLocal(sym, dc.names, lbl);
                                 if (smsg !== null)
                                     return [2, pgr_error(dc.flp, smsg)];
+                                scope_addDeclare(sym.sc, stmt.flp, dc.names, lbl);
                             }
                             else {
                                 if (dc.key === null)
@@ -6181,7 +6212,9 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                         lbl = void 0;
                         if (n.found && n.nsn.type === nsname_enumt.CMD_LOCAL) {
                             lbl = n.nsn.lbl;
-                            if (!sym.repl && lbl.pos >= 0)
+                            if (lbl.pos < 0)
+                                scope_removeDeclare(sym.sc, lbl);
+                            else if (!sym.repl)
                                 return [2, pgr_error(stmt.flpN, 'Cannot redefine: ' + stmt.names.join('.'))];
                         }
                         else {
@@ -6256,7 +6289,9 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                         {
                             program_cmdhint(prg, null);
                             op_cmdtail(prg.ops);
-                            symtbl_popFrame(sym);
+                            err = symtbl_popFrame(sym);
+                            if (err !== null)
+                                return [2, pgr_error(stmt.flp, err)];
                             if (!label_check(state))
                                 throw new Error('Expecting state to be a label');
                             skip = state;
@@ -6304,7 +6339,9 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             if (pst.top !== null)
                                 label_jump(pst.top, prg.ops);
                             label_declare(pst.finish, prg.ops);
-                            symtbl_popScope(sym);
+                            err = symtbl_popScope(sym);
+                            if (err !== null)
+                                return [2, pgr_error(stmt.flp, err)];
                             return [2, pgr_pop()];
                         }
                         _b.label = 17;
@@ -6395,7 +6432,9 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             if (!varloc_isnull(pst.val_vlc))
                                 symtbl_clearTemp(sym, pst.val_vlc);
                             symtbl_clearTemp(sym, pst.idx_vlc);
-                            symtbl_popScope(sym);
+                            err = symtbl_popScope(sym);
+                            if (err !== null)
+                                return [2, pgr_error(stmt.flp, err)];
                             return [2, pgr_pop()];
                         }
                         _b.label = 27;
@@ -6417,7 +6456,9 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             pst = state;
                             label_jump(pst.lcont, prg.ops);
                             label_declare(pst.lbrk, prg.ops);
-                            symtbl_popScope(sym);
+                            err = symtbl_popScope(sym);
+                            if (err !== null)
+                                return [2, pgr_error(stmt.flp, err)];
                             return [2, pgr_pop()];
                         }
                         _b.label = 29;
@@ -6446,7 +6487,9 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             throw new Error('Expecting state to be if struture');
                         pst = state;
                         if (pst.nextcond !== null) {
-                            symtbl_popScope(sym);
+                            err = symtbl_popScope(sym);
+                            if (err !== null)
+                                return [2, pgr_error(stmt.flp, err)];
                             label_jump(pst.ifdone, prg.ops);
                             label_declare(pst.nextcond, prg.ops);
                         }
@@ -6469,7 +6512,9 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             if (!pgs_if_check(state))
                                 throw new Error('Expecting state to be if structure');
                             pst = state;
-                            symtbl_popScope(sym);
+                            err = symtbl_popScope(sym);
+                            if (err !== null)
+                                return [2, pgr_error(stmt.flp, err)];
                             label_jump(pst.ifdone, prg.ops);
                             if (pst.nextcond === null)
                                 throw new Error('Next condition label must exist');
@@ -6483,7 +6528,9 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             if (!pgs_if_check(state))
                                 throw new Error('Expecting state to be if structure');
                             pst = state;
-                            symtbl_popScope(sym);
+                            err = symtbl_popScope(sym);
+                            if (err !== null)
+                                return [2, pgr_error(stmt.flp, err)];
                             label_declare(pst.ifdone, prg.ops);
                             return [2, pgr_pop()];
                         }
@@ -11476,7 +11523,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     }
     function compiler_close(cmp) {
         return __awaiter(this, void 0, void 0, function () {
-            var err, pmsg;
+            var err, pmsg, err2;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
@@ -11490,6 +11537,11 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                         pmsg = parser_close(cmp.pr);
                         if (pmsg) {
                             compiler_setmsg(cmp, program_errormsg(cmp.prg, cmp.flpn.flp, pmsg));
+                            return [2, cmp.msg];
+                        }
+                        err2 = symtbl_popFrame(cmp.sym);
+                        if (err2 !== null) {
+                            compiler_setmsg(cmp, program_errormsg(cmp.prg, cmp.flpn.flp, err2));
                             return [2, cmp.msg];
                         }
                         return [2, null];
