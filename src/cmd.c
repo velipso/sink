@@ -21,11 +21,10 @@ static inline FILE *fopen_i(const char *file, const char *mode){
 	// remove annoying warnings about using "deprecated" (ugh) fopen
 	FILE *fp;
 	errno_t err = fopen_s(&fp, file, mode);
-	if (err == 0)
-		return fp;
-	if (fp){
-		fclose(fp);
-		fp = NULL;
+	if (err != 0){
+		if (fp)
+			fclose(fp);
+		return NULL;
 	}
 	return fp;
 }

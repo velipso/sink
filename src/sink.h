@@ -100,8 +100,8 @@ typedef enum {
 	SINK_FAILED
 } sink_status;
 
-typedef bool (*sink_fsread_f)(sink_scr scr, const char *file, void *incuser);
 typedef sink_fstype (*sink_fstype_f)(sink_scr scr, const char *file, void *incuser);
+typedef bool (*sink_fsread_f)(sink_scr scr, const char *file, void *incuser);
 typedef sink_wait (*sink_io_f)(sink_ctx ctx, sink_str str, void *iouser);
 typedef sink_wait (*sink_native_f)(sink_ctx ctx, int size, const sink_val *args, void *natuser);
 typedef size_t (*sink_dump_f)(const void *restrict ptr, size_t size, size_t nitems,
@@ -356,7 +356,8 @@ void     sink_list_prepend(sink_ctx ctx, sink_val ls, sink_val ls2);
 sink_val sink_list_find(sink_ctx ctx, sink_val ls, sink_val a, sink_val b);
 sink_val sink_list_rfind(sink_ctx ctx, sink_val ls, sink_val a, sink_val b);
 sink_val sink_list_join(sink_ctx ctx, sink_val ls, sink_val a);
-sink_val sink_list_joinplain(sink_ctx ctx, int size, sink_val *vals, int sepz, const uint8_t *sep);
+sink_val sink_list_joinplain(sink_ctx ctx, int size, const sink_val *vals, int sepz,
+	const uint8_t *sep);
 void     sink_list_rev(sink_ctx ctx, sink_val ls);
 sink_val sink_list_str(sink_ctx ctx, sink_val ls);
 void     sink_list_sort(sink_ctx ctx, sink_val ls);

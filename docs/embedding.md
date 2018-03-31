@@ -734,7 +734,7 @@ ctx_native
 Add a native command implementation to the virtual machine using a string identifier.
 
 ```c
-typedef sink_wait (*sink_native_f)(sink_ctx ctx, int size, sink_val *args, void *natuser);
+typedef sink_wait (*sink_native_f)(sink_ctx ctx, int size, const sink_val *args, void *natuser);
 
 void sink_ctx_native(sink_ctx ctx, const char *name, void *natuser, sink_native_f f_native);
 ```
@@ -758,7 +758,7 @@ declare foo 'company.product.foo'
 This is wired to a host function via:
 
 ```c
-sink_wait my_foo(sink_ctx ctx, int size, sink_val *args, void *natuser){
+sink_wait my_foo(sink_ctx ctx, int size, const sink_val *args, void *natuser){
   // implementation here
 }
 
@@ -777,7 +777,7 @@ function my_foo(ctx: sink.ctx, args: sink.val[], natuser: any): Promise<sink.val
 sink.ctx_native(ctx, 'company.product.foo', null, my_foo);
 ```
 
-Notice that the `name` parameter matches the declaration in sink.
+Notice that the `name` parameter (`'company.product.foo'`) matches the declaration in sink.
 
 ### `ctx`
 
@@ -802,7 +802,7 @@ ctx_nativehash
 Add a native command implementation to the virtual machine using a specific hash value.
 
 ```c
-typedef sink_wait (*sink_native_f)(sink_ctx ctx, int size, sink_val *args, void *natuser);
+typedef sink_wait (*sink_native_f)(sink_ctx ctx, int size, const sink_val *args, void *natuser);
 
 void sink_ctx_nativehash(sink_ctx ctx, uint64_t hash, void *natuser, sink_native_f f_native);
 ```
@@ -1698,7 +1698,7 @@ Reinterpret a sink value as a string (C only).
 typedef struct {
   const uint8_t *bytes;
   const int size;
-} sink_str_st, *sink_str;
+} sink_str;
 
 sink_str sink_caststr(sink_ctx ctx, sink_val str);
 ```
@@ -1708,11 +1708,9 @@ results are undefined.
 
 In order to *convert* a value to a string, use `sink_tostr`.
 
-The return value is a `sink_str` object, where the application can access the raw bytes and size of
-the array.  The `bytes` value can be `NULL` for an empty string, otherwise it is guaranteed to be
-`NULL`-terminated (i.e., `result->bytes[result->size] == 0`).
-
-The application should not change the data in any way.
+The return value is a `sink_str` structure, where the application can access the raw bytes and size
+of the array.  The `bytes` value can be `NULL` for an empty string, otherwise it is guaranteed to be
+`NULL`-terminated (i.e., `result.bytes[result.size] == 0`).
 
 ### `ctx`
 
@@ -1861,14 +1859,10 @@ castlist
 Reinterpret a sink value as a list (C only).
 
 ```c
-typedef int sink_user;
 typedef struct {
-  sink_val *vals;
+  const sink_val *vals;
   int size;
-  int count;
-  void *user;
-  sink_user usertype;
-} sink_list_st, *sink_list;
+} sink_list;
 
 sink_list sink_castlist(sink_ctx ctx, sink_val ls);
 ```
@@ -1876,30 +1870,12 @@ sink_list sink_castlist(sink_ctx ctx, sink_val ls);
 Note that this function does not perform type checking.  If a non-list is cast to a list, the
 results are undefined.
 
-The return value is a `sink_list` object, where the application can access the values and size of
+The return value is a `sink_list` structure, where the application can access the values and size of
 the array.
 
 The `vals` element is the array of sink values in the list.
 
 The `size` element is the size of the list.
-
-The `count` element is how much space is allocated in `vals`.  This will always be greater than or
-equal to `size`.
-
-The `user` element is the raw user pointer associated with the list.
-
-The `usertype` element is the user type of the `user` pointer, or `-1` for no user data.
-
-The application can modify this data, if it chooses to -- but in most situations, it should only
-read `vals` and `size`.
-
-To modify a list, the application should normally just use the `sink_list_*` standard library
-functions against the sink value.  To access user data, the application should use the appropriate
-helper functions ([`list_hasuser`](#list_hasuser) and [`list_getuser`](#list_getuser)).
-
-These are just recommendations though -- it might be better to modify everything directly.  Just be
-sure to use the sink memory allocation functions for `vals` ([`sink_malloc`](#malloc),
-[`sink_realloc`](#realloc), and [`sink_free`](#free)), and ensure `count >= size`.
 
 ### `ctx`
 
@@ -1926,7 +1902,7 @@ function sink.list_hasuser(ctx: sink.ctx, ls: sink.val, usertype: sink.user): bo
 void *sink_list_getuser(sink_ctx ctx, sink_val ls);
 function sink.list_getuser(ctx: sink.ctx, ls: sink.val): any;
 
-sink_val sink_list_joinplain(sink_ctx ctx, int size, sink_val *vals, int sepz, const uint8_t *sep);
+sink_val sink_list_joinplain(sink_ctx ctx, int size, const sink_val *vals, int sepz, const uint8_t *sep);
 function sink.list_joinplain(vals: list | val[], sep: string): val;
 
 sink_val sink_user_new(sink_ctx ctx, sink_user usertype, void *user);

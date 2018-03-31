@@ -11472,7 +11472,7 @@ static inline sink_val opi_combop(context ctx, int size, sink_val *vals, binary_
 	return opi_abortformat(ctx, "Expecting number or list of numbers when %s", erop);
 }
 
-static inline sink_val opi_str_cat(context ctx, int argcount, sink_val *args){
+static inline sink_val opi_str_cat(context ctx, int argcount, const sink_val *args){
 	return sink_list_joinplain(ctx, argcount, args, 0, NULL);
 }
 
@@ -13111,7 +13111,7 @@ static inline sink_val opi_pickle_copy(context ctx, sink_val a){
 	return a;
 }
 
-static inline uint8_t *opi_list_joinplain(sink_ctx ctx, int size, sink_val *vals, int sepz,
+static inline uint8_t *opi_list_joinplain(sink_ctx ctx, int size, const sink_val *vals, int sepz,
 	const uint8_t *sep, int *totv);
 
 // op descriptions for error messages
@@ -16607,7 +16607,7 @@ sink_val sink_list_join(sink_ctx ctx, sink_val ls, sink_val a){
 	return opi_list_join(ctx, ls, a);
 }
 
-static inline uint8_t *opi_list_joinplain(sink_ctx ctx, int size, sink_val *vals, int sepz,
+static inline uint8_t *opi_list_joinplain(sink_ctx ctx, int size, const sink_val *vals, int sepz,
 	const uint8_t *sep, int *totv){
 	sink_val *strs = mem_alloc(sizeof(sink_val) * size);
 	int tot = 0;
@@ -16637,7 +16637,8 @@ static inline uint8_t *opi_list_joinplain(sink_ctx ctx, int size, sink_val *vals
 	return bytes;
 }
 
-sink_val sink_list_joinplain(sink_ctx ctx, int size, sink_val *vals, int sepz, const uint8_t *sep){
+sink_val sink_list_joinplain(sink_ctx ctx, int size, const sink_val *vals, int sepz,
+	const uint8_t *sep){
 	if (size <= 0)
 		return sink_str_newblobgive(ctx, 0, NULL);
 	int tot;

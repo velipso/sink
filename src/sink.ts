@@ -62,8 +62,8 @@ export enum status {
 	FAILED
 }
 
-export type fsread_f = (scr: scr, file: string, incuser: any) => Promise<boolean>;
 export type fstype_f = (scr: scr, file: string, incuser: any) => Promise<fstype>;
+export type fsread_f = (scr: scr, file: string, incuser: any) => Promise<boolean>;
 export type io_f = (ctx: ctx, str: str, iouser: any) => Promise<val>;
 export type native_f = (ctx: ctx, args: val[], natuser: any) => Promise<val>;
 export type dump_f = (data: string, dumpuser: any) => void;
