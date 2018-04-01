@@ -12915,18 +12915,18 @@ export function arg_num(ctx: ctx, args: val[], index: number): number {
 	let a = args[index];
 	if (isnum(a))
 		return a;
-	throw new Error('Expecting number for argument ' + (index + 1));
+	throw new Error('Expecting number for item ' + (index + 1));
 }
 
 export function arg_str(ctx: ctx, args: val[], index: number): string {
 	if (index < 0 || index >= args.length || !isstr(args[index]))
-		throw new Error('Expecting string for argument ' + (index + 1));
+		throw new Error('Expecting string for item ' + (index + 1));
 	return args[index] as string;
 }
 
 export function arg_list(ctx: ctx, args: val[], index: number): list {
 	if (index < 0 || index >= args.length || !islist(args[index]))
-		throw new Error('Expecting list for argument ' + (index + 1));
+		throw new Error('Expecting list for item ' + (index + 1));
 	return args[index] as list;
 }
 
@@ -12934,7 +12934,7 @@ export function arg_user(ctx: ctx, args: val[], index: number,
 	usertype: user): any {
 	let ctx2 = ctx as context_st;
 	let hint = ctx2.user_hint[usertype];
-	let err = 'Expecting user type ' + hint + ' for argument ' + (index + 1);
+	let err = 'Expecting user type ' + hint + ' for item ' + (index + 1);
 	if (index < 0 || index >= args.length)
 		throw new Error(err);
 	let ls = args[index];

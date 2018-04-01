@@ -15811,13 +15811,13 @@ bool sink_arg_num(sink_ctx ctx, int size, const sink_val *args, int index, doubl
 		*num = args[index].f;
 		return true;
 	}
-	opi_abortformat(ctx, "Expecting number for argument %d", index + 1);
+	opi_abortformat(ctx, "Expecting number for item %d", index + 1);
 	return false;
 }
 
 bool sink_arg_str(sink_ctx ctx, int size, const sink_val *args, int index, sink_str *str){
 	if (index < 0 || index >= size || !sink_isstr(args[index])){
-		opi_abortformat(ctx, "Expecting string for argument %d", index + 1);
+		opi_abortformat(ctx, "Expecting string for item %d", index + 1);
 		return false;
 	}
 	*str = sink_caststr(ctx, args[index]);
@@ -15826,7 +15826,7 @@ bool sink_arg_str(sink_ctx ctx, int size, const sink_val *args, int index, sink_
 
 bool sink_arg_list(sink_ctx ctx, int size, const sink_val *args, int index, sink_list *ls){
 	if (index < 0 || index >= size || !sink_islist(args[index])){
-		opi_abortformat(ctx, "Expecting list for argument %d", index + 1);
+		opi_abortformat(ctx, "Expecting list for item %d", index + 1);
 		return false;
 	}
 	*ls = sink_castlist(ctx, args[index]);
@@ -15840,7 +15840,7 @@ bool sink_arg_user(sink_ctx ctx, int size, const sink_val *args, int index, sink
 
 	if (index < 0 || index >= size || !sink_islist(args[index]) ||
 		!sink_list_hasuser(ctx, args[index], usertype)){
-		opi_abortformat(ctx, "Expecting user type%s%s for argument %d",
+		opi_abortformat(ctx, "Expecting user type%s%s for item %d",
 			hint == NULL ? "" : " ", hint == NULL ? "" : hint, index + 1);
 		return false;
 	}

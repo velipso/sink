@@ -12150,25 +12150,25 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         var a = args[index];
         if (isnum(a))
             return a;
-        throw new Error('Expecting number for argument ' + (index + 1));
+        throw new Error('Expecting number for item ' + (index + 1));
     }
     exports.arg_num = arg_num;
     function arg_str(ctx, args, index) {
         if (index < 0 || index >= args.length || !isstr(args[index]))
-            throw new Error('Expecting string for argument ' + (index + 1));
+            throw new Error('Expecting string for item ' + (index + 1));
         return args[index];
     }
     exports.arg_str = arg_str;
     function arg_list(ctx, args, index) {
         if (index < 0 || index >= args.length || !islist(args[index]))
-            throw new Error('Expecting list for argument ' + (index + 1));
+            throw new Error('Expecting list for item ' + (index + 1));
         return args[index];
     }
     exports.arg_list = arg_list;
     function arg_user(ctx, args, index, usertype) {
         var ctx2 = ctx;
         var hint = ctx2.user_hint[usertype];
-        var err = 'Expecting user type ' + hint + ' for argument ' + (index + 1);
+        var err = 'Expecting user type ' + hint + ' for item ' + (index + 1);
         if (index < 0 || index >= args.length)
             throw new Error(err);
         var ls = args[index];
