@@ -22,7 +22,7 @@ Both implementations:
 * REPL supported
 * All I/O is governed by the host
 * Designed for asynchronous use, with ability to pause execution at any time
-* Almost identical embedding API between implementations
+* Almost identical [embedding API](https://github.com/voidqk/sink/blob/master/docs/embedding.md) between implementations
 
 C99 implementation:
 
