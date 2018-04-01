@@ -8026,6 +8026,12 @@ export function rand_num(ctx: ctx): number {
 }
 
 export function rand_range(ctx: ctx, start: number, stop: number, step: number): val {
+	if (start === stop)
+		return NIL;
+	if (step === 0){
+		opi_abort(ctx, 'Range step cannot be 0');
+		return NIL;
+	}
 	let count = Math.ceil((stop - start) / step);
 	if (count <= 0)
 		return NIL;
@@ -9623,6 +9629,12 @@ export function order(ctx: ctx, a: val, b: val): number {
 }
 
 export function range(ctx: ctx, start: number, stop: number, step: number): val {
+	if (start === stop)
+		return new list();
+	if (step === 0){
+		opi_abort(ctx, 'Range step cannot be 0');
+		return NIL;
+	}
 	let count = Math.ceil((stop - start) / step);
 	if (count > 10000000){
 		opi_abort(ctx, 'Range too large (maximum 10000000)');

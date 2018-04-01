@@ -7012,6 +7012,12 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     }
     exports.rand_num = rand_num;
     function rand_range(ctx, start, stop, step) {
+        if (start === stop)
+            return exports.NIL;
+        if (step === 0) {
+            opi_abort(ctx, 'Range step cannot be 0');
+            return exports.NIL;
+        }
         var count = Math.ceil((stop - start) / step);
         if (count <= 0)
             return exports.NIL;
@@ -8587,6 +8593,12 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     }
     exports.order = order;
     function range(ctx, start, stop, step) {
+        if (start === stop)
+            return new list();
+        if (step === 0) {
+            opi_abort(ctx, 'Range step cannot be 0');
+            return exports.NIL;
+        }
         var count = Math.ceil((stop - start) / step);
         if (count > 10000000) {
             opi_abort(ctx, 'Range too large (maximum 10000000)');

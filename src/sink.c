@@ -10001,6 +10001,12 @@ static inline double opi_rand_num(context ctx){
 }
 
 static inline sink_val opi_rand_range(context ctx, double start, double stop, double step){
+	if (start == stop)
+		return SINK_NIL;
+	if (step == 0){
+		opi_abortcstr(ctx, "Range step cannot be 0");
+		return SINK_NIL;
+	}
 	double count = ceil((stop - start) / step);
 	if (count <= 0)
 		return SINK_NIL;
@@ -12157,6 +12163,12 @@ static inline int opi_order(context ctx, sink_val a, sink_val b){
 }
 
 static inline sink_val opi_range(context ctx, double start, double stop, double step){
+	if (start == stop)
+		return sink_list_newempty(ctx);
+	if (step == 0){
+		opi_abortcstr(ctx, "Range step cannot be 0");
+		return SINK_NIL;
+	}
 	int64_t count = ceil((stop - start) / step);
 	if (count > 10000000){
 		opi_abortcstr(ctx, "Range too large (maximum 10000000)");
