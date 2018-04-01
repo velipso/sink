@@ -57,8 +57,7 @@ def dorun exe, args
 	# if windows is attempting to run the node.js version, we have to pass through node.exe, instead
 	# of running the .js file directly
 	if windows && exe == sink_js
-		list.unshift args, exe
-		return run 'node.exe', args, nil, nil, 1
+		return run 'node.exe', {exe} ~ args, nil, nil, 1
 	end
 	return run exe, args, nil, nil, 1
 end

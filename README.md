@@ -19,11 +19,11 @@ embeddable, with support for a REPL as used in debug consoles.
 
 * [Guide to Embedding](https://github.com/voidqk/sink/blob/master/docs/embedding.md)
 
-### Sink Binaries (BETA 2)
+### Sink Binaries (BETA 3)
 
-* [Mac OSX](https://github.com/voidqk/sink/raw/master/dist/mac/sink-beta2)
-* [Linux](https://github.com/voidqk/sink/raw/master/dist/posix/sink-beta2)
-* [Windows](https://github.com/voidqk/sink/raw/master/dist/windows/sink-beta2.exe)
+* [Mac OSX](https://github.com/voidqk/sink/raw/master/dist/mac/sink-beta3)
+* [Linux](https://github.com/voidqk/sink/raw/master/dist/posix/sink-beta3)
+* [Windows](https://github.com/voidqk/sink/raw/master/dist/windows/sink-beta3.exe)
 
 ### Details
 
