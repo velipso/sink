@@ -11361,21 +11361,18 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             });
         });
     }
-    function compiler_dynamicinc(cmp, names, file, from) {
+    function compiler_dynamicinc(cmp, names, file, cwd) {
         return __awaiter(this, void 0, void 0, function () {
-            var cfu, cwd;
+            var cfu;
             return __generator(this, function (_a) {
                 cfu = { cmp: cmp, names: names };
-                cwd = null;
-                if (from)
-                    cwd = pathjoin(from, '..', cmp.scr.posix);
                 return [2, fileres_read(cmp.scr, true, file, cwd, compiler_begininc_cfu, compiler_endinc_cfu, cfu)];
             });
         });
     }
     function compiler_process(cmp) {
         return __awaiter(this, void 0, void 0, function () {
-            var stmts, tk, pmsg, stmt, ii, inc, file, internal, i, sinc_name, sinc_content, is_body, success, found, pgsl, pg;
+            var stmts, tk, pmsg, stmt, ii, inc, file, internal, i, sinc_name, sinc_content, is_body, success, found, cwd, from, found, pgsl, pg;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
@@ -11424,11 +11421,12 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                     case 5:
                         success = _a.sent();
                         return [3, 8];
-                    case 6: return [4, compiler_dynamicinc(cmp, inc.names, sinc_content, script_getfile(cmp.scr, stmt.flp.fullfile))];
+                    case 6: return [4, compiler_dynamicinc(cmp, inc.names, sinc_content, cmp.scr.curdir)];
                     case 7:
-                        success = _a.sent();
-                        if (!success)
+                        found = _a.sent();
+                        if (!found && cmp.msg === null)
                             compiler_setmsg(cmp, 'Failed to include: ' + file);
+                        success = cmp.msg === null;
                         _a.label = 8;
                     case 8:
                         if (!success)
@@ -11439,7 +11437,11 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                         return [3, 4];
                     case 10:
                         if (!!internal) return [3, 12];
-                        return [4, compiler_dynamicinc(cmp, inc.names, file, script_getfile(cmp.scr, stmt.flp.fullfile))];
+                        cwd = null;
+                        from = script_getfile(cmp.scr, stmt.flp.fullfile);
+                        if (from !== null)
+                            cwd = pathjoin(from, '..', cmp.scr.posix);
+                        return [4, compiler_dynamicinc(cmp, inc.names, file, cwd)];
                     case 11:
                         found = _a.sent();
                         if (!found && cmp.msg === null)

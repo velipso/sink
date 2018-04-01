@@ -12124,11 +12124,8 @@ async function compiler_staticinc(cmp: compiler_st, names: string[] | true | nul
 }
 
 async function compiler_dynamicinc(cmp: compiler_st, names: string[] | true | null, file: string,
-	from: strnil): Promise<boolean> {
+	cwd: strnil): Promise<boolean> {
 	let cfu = { cmp: cmp, names: names };
-	let cwd: strnil = null;
-	if (from)
-		cwd = pathjoin(from, '..', cmp.scr.posix);
 	return fileres_read(cmp.scr, true, file, cwd, compiler_begininc_cfu, compiler_endinc_cfu, cfu);
 }
 
@@ -12175,10 +12172,11 @@ async function compiler_process(cmp: compiler_st): Promise<strnil> {
 									sinc_content);
 							}
 							else{
-								success = await compiler_dynamicinc(cmp, inc.names, sinc_content,
-										script_getfile(cmp.scr, stmt.flp.fullfile));
-								if (!success)
+								let found = await compiler_dynamicinc(cmp, inc.names, sinc_content,
+										cmp.scr.curdir);
+								if (!found && cmp.msg === null)
 									compiler_setmsg(cmp, 'Failed to include: ' + file);
+								success = cmp.msg === null;
 							}
 							if (!success)
 								return cmp.msg;
@@ -12186,8 +12184,11 @@ async function compiler_process(cmp: compiler_st): Promise<strnil> {
 					}
 
 					if (!internal){
-						let found = await compiler_dynamicinc(cmp, inc.names, file,
-								script_getfile(cmp.scr, stmt.flp.fullfile));
+						let cwd: strnil = null;
+						let from = script_getfile(cmp.scr, stmt.flp.fullfile);
+						if (from !== null)
+							cwd = pathjoin(from, '..', cmp.scr.posix);
+						let found = await compiler_dynamicinc(cmp, inc.names, file, cwd);
 						if (!found && cmp.msg === null)
 							compiler_setmsg(cmp, 'Failed to include: ' + file);
 						if (cmp.msg)
