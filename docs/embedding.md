@@ -1440,6 +1440,7 @@ Note: the following commands are not available at run-time because they only wor
 | `rand.seedauto`   | `rand_seedauto`   |
 | `rand.int`        | `rand_int`        |
 | `rand.num`        | `rand_num`        |
+| `rand.range`      | `rand_range`      |
 | `rand.getstate`   | `rand_getstate`   |
 | `rand.setstate`   | `rand_setstate`   |
 | `rand.pick`       | `rand_pick`       |

@@ -80,6 +80,7 @@ export declare function rand_seedauto(ctx: ctx): void;
 export declare function rand_seed(ctx: ctx, n: number): void;
 export declare function rand_int(ctx: ctx): number;
 export declare function rand_num(ctx: ctx): number;
+export declare function rand_range(ctx: ctx, start: number, stop: number, step: number): val;
 export declare function rand_getstate(ctx: ctx): list;
 export declare function rand_setstate(ctx: ctx, a: val): void;
 export declare function rand_pick(ctx: ctx, a: val): val;

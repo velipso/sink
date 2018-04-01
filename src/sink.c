@@ -820,57 +820,58 @@ typedef enum {
 	OP_RAND_SEEDAUTO   = 0x61, // [TGT]
 	OP_RAND_INT        = 0x62, // [TGT]
 	OP_RAND_NUM        = 0x63, // [TGT]
-	OP_RAND_GETSTATE   = 0x64, // [TGT]
-	OP_RAND_SETSTATE   = 0x65, // [TGT], [SRC]
-	OP_RAND_PICK       = 0x66, // [TGT], [SRC]
-	OP_RAND_SHUFFLE    = 0x67, // [TGT], [SRC]
-	OP_STR_NEW         = 0x68, // [TGT], ARGCOUNT, [ARGS]...
-	OP_STR_SPLIT       = 0x69, // [TGT], [SRC1], [SRC2]
-	OP_STR_REPLACE     = 0x6A, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_STR_BEGINS      = 0x6B, // [TGT], [SRC1], [SRC2]
-	OP_STR_ENDS        = 0x6C, // [TGT], [SRC1], [SRC2]
-	OP_STR_PAD         = 0x6D, // [TGT], [SRC1], [SRC2]
-	OP_STR_FIND        = 0x6E, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_STR_RFIND       = 0x6F, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_STR_LOWER       = 0x70, // [TGT], [SRC]
-	OP_STR_UPPER       = 0x71, // [TGT], [SRC]
-	OP_STR_TRIM        = 0x72, // [TGT], [SRC]
-	OP_STR_REV         = 0x73, // [TGT], [SRC]
-	OP_STR_REP         = 0x74, // [TGT], [SRC1], [SRC2]
-	OP_STR_LIST        = 0x75, // [TGT], [SRC]
-	OP_STR_BYTE        = 0x76, // [TGT], [SRC1], [SRC2]
-	OP_STR_HASH        = 0x77, // [TGT], [SRC1], [SRC2]
-	OP_UTF8_VALID      = 0x78, // [TGT], [SRC]
-	OP_UTF8_LIST       = 0x79, // [TGT], [SRC]
-	OP_UTF8_STR        = 0x7A, // [TGT], [SRC]
-	OP_STRUCT_SIZE     = 0x7B, // [TGT], [SRC]
-	OP_STRUCT_STR      = 0x7C, // [TGT], [SRC1], [SRC2]
-	OP_STRUCT_LIST     = 0x7D, // [TGT], [SRC1], [SRC2]
-	OP_STRUCT_ISLE     = 0x7E, // [TGT]
-	OP_LIST_NEW        = 0x7F, // [TGT], [SRC1], [SRC2]
-	OP_LIST_SHIFT      = 0x80, // [TGT], [SRC]
-	OP_LIST_POP        = 0x81, // [TGT], [SRC]
-	OP_LIST_PUSH       = 0x82, // [TGT], [SRC1], [SRC2]
-	OP_LIST_UNSHIFT    = 0x83, // [TGT], [SRC1], [SRC2]
-	OP_LIST_APPEND     = 0x84, // [TGT], [SRC1], [SRC2]
-	OP_LIST_PREPEND    = 0x85, // [TGT], [SRC1], [SRC2]
-	OP_LIST_FIND       = 0x86, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_LIST_RFIND      = 0x87, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_LIST_JOIN       = 0x88, // [TGT], [SRC1], [SRC2]
-	OP_LIST_REV        = 0x89, // [TGT], [SRC]
-	OP_LIST_STR        = 0x8A, // [TGT], [SRC]
-	OP_LIST_SORT       = 0x8B, // [TGT], [SRC]
-	OP_LIST_RSORT      = 0x8C, // [TGT], [SRC]
-	OP_PICKLE_JSON     = 0x8D, // [TGT], [SRC]
-	OP_PICKLE_BIN      = 0x8E, // [TGT], [SRC]
-	OP_PICKLE_VAL      = 0x8F, // [TGT], [SRC]
-	OP_PICKLE_VALID    = 0x90, // [TGT], [SRC]
-	OP_PICKLE_SIBLING  = 0x91, // [TGT], [SRC]
-	OP_PICKLE_CIRCULAR = 0x92, // [TGT], [SRC]
-	OP_PICKLE_COPY     = 0x93, // [TGT], [SRC]
-	OP_GC_GETLEVEL     = 0x94, // [TGT]
-	OP_GC_SETLEVEL     = 0x95, // [TGT], [SRC]
-	OP_GC_RUN          = 0x96, // [TGT]
+	OP_RAND_RANGE      = 0x64, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_RAND_GETSTATE   = 0x65, // [TGT]
+	OP_RAND_SETSTATE   = 0x66, // [TGT], [SRC]
+	OP_RAND_PICK       = 0x67, // [TGT], [SRC]
+	OP_RAND_SHUFFLE    = 0x68, // [TGT], [SRC]
+	OP_STR_NEW         = 0x69, // [TGT], ARGCOUNT, [ARGS]...
+	OP_STR_SPLIT       = 0x6A, // [TGT], [SRC1], [SRC2]
+	OP_STR_REPLACE     = 0x6B, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_STR_BEGINS      = 0x6C, // [TGT], [SRC1], [SRC2]
+	OP_STR_ENDS        = 0x6D, // [TGT], [SRC1], [SRC2]
+	OP_STR_PAD         = 0x6E, // [TGT], [SRC1], [SRC2]
+	OP_STR_FIND        = 0x6F, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_STR_RFIND       = 0x70, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_STR_LOWER       = 0x71, // [TGT], [SRC]
+	OP_STR_UPPER       = 0x72, // [TGT], [SRC]
+	OP_STR_TRIM        = 0x73, // [TGT], [SRC]
+	OP_STR_REV         = 0x74, // [TGT], [SRC]
+	OP_STR_REP         = 0x75, // [TGT], [SRC1], [SRC2]
+	OP_STR_LIST        = 0x76, // [TGT], [SRC]
+	OP_STR_BYTE        = 0x77, // [TGT], [SRC1], [SRC2]
+	OP_STR_HASH        = 0x78, // [TGT], [SRC1], [SRC2]
+	OP_UTF8_VALID      = 0x79, // [TGT], [SRC]
+	OP_UTF8_LIST       = 0x7A, // [TGT], [SRC]
+	OP_UTF8_STR        = 0x7B, // [TGT], [SRC]
+	OP_STRUCT_SIZE     = 0x7C, // [TGT], [SRC]
+	OP_STRUCT_STR      = 0x7D, // [TGT], [SRC1], [SRC2]
+	OP_STRUCT_LIST     = 0x7E, // [TGT], [SRC1], [SRC2]
+	OP_STRUCT_ISLE     = 0x7F, // [TGT]
+	OP_LIST_NEW        = 0x80, // [TGT], [SRC1], [SRC2]
+	OP_LIST_SHIFT      = 0x81, // [TGT], [SRC]
+	OP_LIST_POP        = 0x82, // [TGT], [SRC]
+	OP_LIST_PUSH       = 0x83, // [TGT], [SRC1], [SRC2]
+	OP_LIST_UNSHIFT    = 0x84, // [TGT], [SRC1], [SRC2]
+	OP_LIST_APPEND     = 0x85, // [TGT], [SRC1], [SRC2]
+	OP_LIST_PREPEND    = 0x86, // [TGT], [SRC1], [SRC2]
+	OP_LIST_FIND       = 0x87, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_LIST_RFIND      = 0x88, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_LIST_JOIN       = 0x89, // [TGT], [SRC1], [SRC2]
+	OP_LIST_REV        = 0x8A, // [TGT], [SRC]
+	OP_LIST_STR        = 0x8B, // [TGT], [SRC]
+	OP_LIST_SORT       = 0x8C, // [TGT], [SRC]
+	OP_LIST_RSORT      = 0x8D, // [TGT], [SRC]
+	OP_PICKLE_JSON     = 0x8E, // [TGT], [SRC]
+	OP_PICKLE_BIN      = 0x8F, // [TGT], [SRC]
+	OP_PICKLE_VAL      = 0x90, // [TGT], [SRC]
+	OP_PICKLE_VALID    = 0x91, // [TGT], [SRC]
+	OP_PICKLE_SIBLING  = 0x92, // [TGT], [SRC]
+	OP_PICKLE_CIRCULAR = 0x93, // [TGT], [SRC]
+	OP_PICKLE_COPY     = 0x94, // [TGT], [SRC]
+	OP_GC_GETLEVEL     = 0x95, // [TGT]
+	OP_GC_SETLEVEL     = 0x96, // [TGT], [SRC]
+	OP_GC_RUN          = 0x97, // [TGT]
 	// RESERVED        = 0xFD,
 	// fake ops
 	OP_GT              = 0x1F0,
@@ -1005,6 +1006,7 @@ static inline op_pcat op_paramcat(op_enum op){
 		case OP_RAND_SEEDAUTO  : return OPPC_V;
 		case OP_RAND_INT       : return OPPC_V;
 		case OP_RAND_NUM       : return OPPC_V;
+		case OP_RAND_RANGE     : return OPPC_VVVV;
 		case OP_RAND_GETSTATE  : return OPPC_V;
 		case OP_RAND_SETSTATE  : return OPPC_VV;
 		case OP_RAND_PICK      : return OPPC_VV;
@@ -5988,6 +5990,7 @@ static inline void symtbl_loadStdlib(symtbl sym){
 		SAC(sym, "seedauto"  , OP_RAND_SEEDAUTO  ,  0);
 		SAC(sym, "int"       , OP_RAND_INT       ,  0);
 		SAC(sym, "num"       , OP_RAND_NUM       ,  0);
+		SAC(sym, "range"     , OP_RAND_RANGE     ,  3);
 		SAC(sym, "getstate"  , OP_RAND_GETSTATE  ,  0);
 		SAC(sym, "setstate"  , OP_RAND_SETSTATE  ,  1);
 		SAC(sym, "pick"      , OP_RAND_PICK      ,  1);
@@ -9995,6 +9998,13 @@ static inline double opi_rand_num(context ctx){
 		.i = UINT64_C(0x3FF) << 52 | M
 	};
 	return u.d - 1.0;
+}
+
+static inline sink_val opi_rand_range(context ctx, double start, double stop, double step){
+	double count = ceil((stop - start) / step);
+	if (count <= 0)
+		return SINK_NIL;
+	return sink_num(start + floor(opi_rand_num(ctx) * count) * step);
 }
 
 static inline sink_val opi_rand_getstate(context ctx){
@@ -14156,6 +14166,32 @@ static void context_run_w(context ctx, waitt wrun){
 				var_set(ctx, A, B, sink_num(opi_rand_num(ctx)));
 			} break;
 
+			case OP_RAND_RANGE     : { // [TGT], [SRC1], [SRC2], [SRC3]
+				LOAD_abcdefgh();
+				X = var_get(ctx, C, D);
+				Y = var_get(ctx, E, F);
+				Z = var_get(ctx, G, H);
+				if (!sink_isnum(X))
+					RUNDONE(opi_abortcstr(ctx, "Expecting number for rand.range"));
+				if (sink_isnum(Y)){
+					if (sink_isnil(Z))
+						Z = sink_num(1);
+					if (!sink_isnum(Z))
+						RUNDONE(opi_abortcstr(ctx, "Expecting number for rand.range step"));
+					X = opi_rand_range(ctx, X.f, Y.f, Z.f);
+				}
+				else if (sink_isnil(Y)){
+					if (!sink_isnil(Z))
+						RUNDONE(opi_abortcstr(ctx, "Expecting number for rand.range stop"));
+					X = opi_rand_range(ctx, 0, X.f, 1);
+				}
+				else
+					RUNDONE(opi_abortcstr(ctx, "Expecting number for rand.range stop"));
+				var_set(ctx, A, B, X);
+				if (ctx->failed)
+					RUNDONE(SINK_RUN_FAIL);
+			} break;
+
 			case OP_RAND_GETSTATE  : { // [TGT]
 				LOAD_ab();
 				var_set(ctx, A, B, opi_rand_getstate(ctx));
@@ -16208,6 +16244,10 @@ uint32_t sink_rand_int(sink_ctx ctx){
 
 double sink_rand_num(sink_ctx ctx){
 	return opi_rand_num(ctx);
+}
+
+sink_val sink_rand_range(sink_ctx ctx, double start, double stop, double step){
+	return opi_rand_range(ctx, start, stop, step);
 }
 
 sink_val sink_rand_getstate(sink_ctx ctx){

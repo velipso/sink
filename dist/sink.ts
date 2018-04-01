@@ -244,57 +244,58 @@ enum op_enum {
 	RAND_SEEDAUTO   = 0x61,
 	RAND_INT        = 0x62,
 	RAND_NUM        = 0x63,
-	RAND_GETSTATE   = 0x64,
-	RAND_SETSTATE   = 0x65,
-	RAND_PICK       = 0x66,
-	RAND_SHUFFLE    = 0x67,
-	STR_NEW         = 0x68,
-	STR_SPLIT       = 0x69,
-	STR_REPLACE     = 0x6A,
-	STR_BEGINS      = 0x6B,
-	STR_ENDS        = 0x6C,
-	STR_PAD         = 0x6D,
-	STR_FIND        = 0x6E,
-	STR_RFIND       = 0x6F,
-	STR_LOWER       = 0x70,
-	STR_UPPER       = 0x71,
-	STR_TRIM        = 0x72,
-	STR_REV         = 0x73,
-	STR_REP         = 0x74,
-	STR_LIST        = 0x75,
-	STR_BYTE        = 0x76,
-	STR_HASH        = 0x77,
-	UTF8_VALID      = 0x78,
-	UTF8_LIST       = 0x79,
-	UTF8_STR        = 0x7A,
-	STRUCT_SIZE     = 0x7B,
-	STRUCT_STR      = 0x7C,
-	STRUCT_LIST     = 0x7D,
-	STRUCT_ISLE     = 0x7E,
-	LIST_NEW        = 0x7F,
-	LIST_SHIFT      = 0x80,
-	LIST_POP        = 0x81,
-	LIST_PUSH       = 0x82,
-	LIST_UNSHIFT    = 0x83,
-	LIST_APPEND     = 0x84,
-	LIST_PREPEND    = 0x85,
-	LIST_FIND       = 0x86,
-	LIST_RFIND      = 0x87,
-	LIST_JOIN       = 0x88,
-	LIST_REV        = 0x89,
-	LIST_STR        = 0x8A,
-	LIST_SORT       = 0x8B,
-	LIST_RSORT      = 0x8C,
-	PICKLE_JSON     = 0x8D,
-	PICKLE_BIN      = 0x8E,
-	PICKLE_VAL      = 0x8F,
-	PICKLE_VALID    = 0x90,
-	PICKLE_SIBLING  = 0x91,
-	PICKLE_CIRCULAR = 0x92,
-	PICKLE_COPY     = 0x93,
-	GC_GETLEVEL     = 0x94,
-	GC_SETLEVEL     = 0x95,
-	GC_RUN          = 0x96,
+	RAND_RANGE      = 0x64,
+	RAND_GETSTATE   = 0x65,
+	RAND_SETSTATE   = 0x66,
+	RAND_PICK       = 0x67,
+	RAND_SHUFFLE    = 0x68,
+	STR_NEW         = 0x69,
+	STR_SPLIT       = 0x6A,
+	STR_REPLACE     = 0x6B,
+	STR_BEGINS      = 0x6C,
+	STR_ENDS        = 0x6D,
+	STR_PAD         = 0x6E,
+	STR_FIND        = 0x6F,
+	STR_RFIND       = 0x70,
+	STR_LOWER       = 0x71,
+	STR_UPPER       = 0x72,
+	STR_TRIM        = 0x73,
+	STR_REV         = 0x74,
+	STR_REP         = 0x75,
+	STR_LIST        = 0x76,
+	STR_BYTE        = 0x77,
+	STR_HASH        = 0x78,
+	UTF8_VALID      = 0x79,
+	UTF8_LIST       = 0x7A,
+	UTF8_STR        = 0x7B,
+	STRUCT_SIZE     = 0x7C,
+	STRUCT_STR      = 0x7D,
+	STRUCT_LIST     = 0x7E,
+	STRUCT_ISLE     = 0x7F,
+	LIST_NEW        = 0x80,
+	LIST_SHIFT      = 0x81,
+	LIST_POP        = 0x82,
+	LIST_PUSH       = 0x83,
+	LIST_UNSHIFT    = 0x84,
+	LIST_APPEND     = 0x85,
+	LIST_PREPEND    = 0x86,
+	LIST_FIND       = 0x87,
+	LIST_RFIND      = 0x88,
+	LIST_JOIN       = 0x89,
+	LIST_REV        = 0x8A,
+	LIST_STR        = 0x8B,
+	LIST_SORT       = 0x8C,
+	LIST_RSORT      = 0x8D,
+	PICKLE_JSON     = 0x8E,
+	PICKLE_BIN      = 0x8F,
+	PICKLE_VAL      = 0x90,
+	PICKLE_VALID    = 0x91,
+	PICKLE_SIBLING  = 0x92,
+	PICKLE_CIRCULAR = 0x93,
+	PICKLE_COPY     = 0x94,
+	GC_GETLEVEL     = 0x95,
+	GC_SETLEVEL     = 0x96,
+	GC_RUN          = 0x97,
 	// RESERVED     = 0xFD,
 	// fake ops
 	GT              = 0x1F0,
@@ -428,6 +429,7 @@ function op_paramcat(op: op_enum): op_pcat {
 		case op_enum.RAND_SEEDAUTO  : return op_pcat.V;
 		case op_enum.RAND_INT       : return op_pcat.V;
 		case op_enum.RAND_NUM       : return op_pcat.V;
+		case op_enum.RAND_RANGE     : return op_pcat.VVVV;
 		case op_enum.RAND_GETSTATE  : return op_pcat.V;
 		case op_enum.RAND_SETSTATE  : return op_pcat.VV;
 		case op_enum.RAND_PICK      : return op_pcat.VV;
@@ -4675,6 +4677,7 @@ function symtbl_loadStdlib(sym: symtbl_st): void {
 		SAC(sym, 'seedauto'  , op_enum.RAND_SEEDAUTO  ,  0);
 		SAC(sym, 'int'       , op_enum.RAND_INT       ,  0);
 		SAC(sym, 'num'       , op_enum.RAND_NUM       ,  0);
+		SAC(sym, 'range'     , op_enum.RAND_RANGE     ,  3);
 		SAC(sym, 'getstate'  , op_enum.RAND_GETSTATE  ,  0);
 		SAC(sym, 'setstate'  , op_enum.RAND_SETSTATE  ,  1);
 		SAC(sym, 'pick'      , op_enum.RAND_PICK      ,  1);
@@ -8020,6 +8023,13 @@ export function rand_num(ctx: ctx): number {
 	view.setInt32(0, (M1 << 20) | (M2 >>> 12), true);
 	view.setInt32(4, 0x3FF00000 | (M1 >>> 12), true);
 	return view.getFloat64(0, true) - 1;
+}
+
+export function rand_range(ctx: ctx, start: number, stop: number, step: number): val {
+	let count = Math.ceil((stop - start) / step);
+	if (count <= 0)
+		return NIL;
+	return start + Math.floor(rand_num(ctx) * count) * step;
 }
 
 export function rand_getstate(ctx: ctx): list {
@@ -11492,6 +11502,32 @@ async function context_run(ctx: context_st): Promise<run> {
 			case op_enum.RAND_NUM       : { // [TGT]
 				LOAD_ab();
 				var_set(ctx, A, B, rand_num(ctx));
+			} break;
+
+			case op_enum.RAND_RANGE     : { // [TGT], [SRC1], [SRC2], [SRC3]
+				LOAD_abcdefgh();
+				X = var_get(ctx, C, D);
+				Y = var_get(ctx, E, F);
+				Z = var_get(ctx, G, H);
+				if (!isnum(X))
+					return RUNDONE(opi_abort(ctx, 'Expecting number for rand.range'));
+				if (isnum(Y)){
+					if (isnil(Z))
+						Z = 1;
+					if (!isnum(Z))
+						return RUNDONE(opi_abort(ctx, 'Expecting number for rand.range step'));
+					X = rand_range(ctx, X, Y, Z);
+				}
+				else if (isnil(Y)){
+					if (!isnil(Z))
+						return RUNDONE(opi_abort(ctx, 'Expecting number for rand.range stop'));
+					X = rand_range(ctx, 0, X, 1);
+				}
+				else
+					return RUNDONE(opi_abort(ctx, 'Expecting number for rand.range stop'));
+				var_set(ctx, A, B, X);
+				if (ctx.failed)
+					return RUNDONE(run.FAIL);
 			} break;
 
 			case op_enum.RAND_GETSTATE  : { // [TGT]

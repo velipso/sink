@@ -120,6 +120,7 @@ On startup, it is automatically seeded via `rand.seedauto`.
 | `rand.seedauto`   | Set the seed of the RNG automatically (likely based on current time)        |
 | `rand.int`        | Random 32-bit unsigned integer ranging [0, 2<sup>32</sup> - 1]              |
 | `rand.num`        | Random number ranging [0, 1) (contains 52 bits of randomness)               |
+| `rand.range [start,] stop[, step]` | Random element from `range` defined by `start`, `stop`, `step` |
 | `rand.getstate`   | Returns a two item list, each a 32-bit unsigned integer                     |
 | `rand.setstate a` | Restores a previous state (`a` should be a two item list of integers)       |
 | `rand.pick ls`    | Pick a random item out of the list `ls`                                     |

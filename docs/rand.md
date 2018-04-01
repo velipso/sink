@@ -28,6 +28,11 @@ double rand_num(){
   return u.d - 1.0;
 }
 
+double rand_range(double start, double stop, double step){
+  double count = ceil((stop - start) / step);
+  return start + floor(rand_num() * count) * step;
+}
+
 void rand_getstate(uint32_t *state){
   state[0] = seed;
   state[1] = i;

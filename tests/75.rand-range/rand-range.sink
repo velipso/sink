@@ -1,0 +1,6 @@
+
+rand.seed 0
+
+say rand.range 10
+say rand.range 10, 20
+say rand.range 10, 20, 5
