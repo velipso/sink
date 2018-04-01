@@ -14840,17 +14840,12 @@ static bool compiler_staticinc(compiler cmp, list_ptr names, const char *file, c
 	return true;
 }
 
-static bool compiler_dynamicinc(compiler cmp, list_ptr names, const char *file, const char *from){
+static bool compiler_dynamicinc(compiler cmp, list_ptr names, const char *file, const char *cwd){
 	compiler_fileres_user_st cfu;
 	cfu.cmp = cmp;
 	cfu.names = names;
-	char *cwd = NULL;
-	if (from)
-		cwd = pathjoin(from, "..", cmp->scr->posix);
 	bool res = fileres_read(cmp->scr, true, file, cwd,
 		(f_fileres_begin_f)compiler_begininc_cfu, (f_fileres_end_f)compiler_endinc_cfu, &cfu);
-	if (cwd)
-		mem_free(cwd);
 	return res;
 }
 
@@ -14900,12 +14895,13 @@ static char *compiler_process(compiler cmp){
 							if (is_body)
 								success = compiler_staticinc(cmp, inc->names, file, sinc_content);
 							else{
-								success = compiler_dynamicinc(cmp, inc->names, sinc_content,
-									script_getfile(cmp->scr, stmt->flp.fullfile));
-								if (!success){
+								bool found = compiler_dynamicinc(cmp, inc->names, sinc_content,
+									cmp->scr->curdir);
+								if (!found && cmp->msg == NULL){
 									compiler_setmsg(cmp,
 										format("Failed to include: %s", file));
 								}
+								success = cmp->msg == NULL;
 							}
 							if (!success){
 								ast_free(stmt);
@@ -14917,8 +14913,13 @@ static char *compiler_process(compiler cmp){
 					}
 
 					if (!internal){
-						bool found = compiler_dynamicinc(cmp, inc->names, file,
-							script_getfile(cmp->scr, stmt->flp.fullfile));
+						const char *from = script_getfile(cmp->scr, stmt->flp.fullfile);
+						char *cwd = NULL;
+						if (from)
+							cwd = pathjoin(from, "..", cmp->scr->posix);
+						bool found = compiler_dynamicinc(cmp, inc->names, file, cwd);
+						if (cwd)
+							mem_free(cwd);
 						if (!found && cmp->msg == NULL)
 							compiler_setmsg(cmp, format("Failed to include: %s", file));
 						if (cmp->msg){
