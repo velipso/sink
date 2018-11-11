@@ -10,7 +10,7 @@ For example:
 declare circle 'company.product.shape.circle'
 
 if isnative circle
-  # save to use circle
+  # safe to use circle
   var c = circle 0, 0, 50
   #...
 else
