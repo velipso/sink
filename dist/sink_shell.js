@@ -13,8 +13,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     function step(op) {
         if (f) throw new TypeError("Generator is already executing.");
         while (_) try {
-            if (f = 1, y && (t = y[op[0] & 2 ? "return" : op[0] ? "throw" : "next"]) && !(t = t.call(y, op[1])).done) return t;
-            if (y = 0, t) op = [0, t.value];
+            if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
+            if (y = 0, t) op = [op[0] & 2, t.value];
             switch (op[0]) {
                 case 0: case 1: t = op; break;
                 case 4: _.label++; return { value: op[1], done: false };
@@ -49,15 +49,6 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     var VERSION_MIN = 0;
     var VERSION_PAT = 0;
     var isBrowser = typeof window === 'object';
-    function L_pwd__b() {
-        return window.location.href
-            .replace(/^.*:/, '')
-            .replace(/\?.*$/, '')
-            .replace(/\/[^\/]*$/, '');
-    }
-    function L_pwd__n() {
-        return process.cwd();
-    }
     function L_version(ctx, args) {
         return __awaiter(this, void 0, void 0, function () {
             var reqmaj, reqmin, reqpat;
@@ -107,14 +98,28 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             });
         });
     }
+    function L_dir_work(ctx, args) {
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                return [2, isBrowser ?
+                        window.location.href
+                            .replace(/^.*:/, '')
+                            .replace(/\?.*$/, '')
+                            .replace(/\/[^\/]*$/, '') :
+                        process.cwd()];
+            });
+        });
+    }
     function scr(scr) {
-        sink.scr_incbody(scr, 'shell', "declare version 'sink.shell.version';" +
-            "declare args    'sink.shell.args'   ;");
+        sink.scr_incbody(scr, 'shell', "declare version  'sink.shell.version' ;" +
+            "declare args     'sink.shell.args'    ;" +
+            "declare dir.work 'sink.shell.dir.work';");
     }
     exports.scr = scr;
     function ctx(ctx, args) {
         sink.ctx_native(ctx, 'sink.shell.version', null, L_version);
         sink.ctx_native(ctx, 'sink.shell.args', args, L_args);
+        sink.ctx_native(ctx, 'sink.shell.dir.work', null, L_dir_work);
     }
     exports.ctx = ctx;
 });

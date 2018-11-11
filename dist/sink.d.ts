@@ -2,7 +2,7 @@ export declare enum type {
     NIL = 0,
     NUM = 1,
     STR = 2,
-    LIST = 3,
+    LIST = 3
 }
 export declare type str = string;
 export declare type strnil = string | null;
@@ -20,25 +20,25 @@ export declare type scr = any;
 export declare enum fstype {
     NONE = 0,
     FILE = 1,
-    DIR = 2,
+    DIR = 2
 }
 export declare enum gc_level {
     NONE = 0,
     DEFAULT = 1,
-    LOWMEM = 2,
+    LOWMEM = 2
 }
 export declare enum run {
     PASS = 0,
     FAIL = 1,
     ASYNC = 2,
     TIMEOUT = 3,
-    REPLMORE = 4,
+    REPLMORE = 4
 }
 export declare enum status {
     READY = 0,
     WAITING = 1,
     PASSED = 2,
-    FAILED = 3,
+    FAILED = 3
 }
 export declare type fstype_f = (scr: scr, file: string, incuser: any) => Promise<fstype>;
 export declare type fsread_f = (scr: scr, file: string, incuser: any) => Promise<boolean>;
@@ -178,6 +178,8 @@ export declare function tostr(v: val): str;
 export declare function exit(ctx: ctx, vals: val[]): Promise<void>;
 export declare function abort(ctx: ctx, vals: val[]): void;
 export declare function abortstr(ctx: ctx, str: string): Promise<val>;
+export declare function isnative(ctx: ctx, name: string): boolean;
+export declare function isnativehash(ctx: ctx, hash: u64): boolean;
 export declare function num_neg(ctx: ctx, a: val): val;
 export declare function num_add(ctx: ctx, a: val, b: val): val;
 export declare function num_sub(ctx: ctx, a: val, b: val): val;

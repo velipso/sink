@@ -10,17 +10,6 @@ const VERSION_PAT = 0;
 
 var isBrowser = typeof window === 'object';
 
-function L_pwd__b(): sink.val {
-	return window.location.href
-		.replace(/^.*:/, '')  // remove protocol
-		.replace(/\?.*$/, '') // remove query params
-		.replace(/\/[^\/]*$/, ''); // remove trailing file and slash
-}
-
-function L_pwd__n(): sink.val {
-	return process.cwd();
-}
-
 async function L_version(ctx: sink.ctx, args: sink.val[]): Promise<sink.val> {
 	let reqmaj = 0, reqmin = 0, reqpat = 0;
 	if (args.length >= 1){
@@ -63,13 +52,24 @@ async function L_args(ctx: sink.ctx, args: sink.val[], pargs: string[]): Promise
 	return v;
 }
 
+async function L_dir_work(ctx: sink.ctx, args: sink.val[]): Promise<sink.val> {
+	return isBrowser ?
+		window.location.href
+			.replace(/^.*:/, '')  // remove protocol
+			.replace(/\?.*$/, '') // remove query params
+			.replace(/\/[^\/]*$/, '') : // remove trailing file and slash
+		process.cwd();
+}
+
 export function scr(scr: sink.scr): void {
 	sink.scr_incbody(scr, 'shell',
-		"declare version 'sink.shell.version';" +
-		"declare args    'sink.shell.args'   ;");
+		"declare version  'sink.shell.version' ;" +
+		"declare args     'sink.shell.args'    ;" +
+		"declare dir.work 'sink.shell.dir.work';");
 }
 
 export function ctx(ctx: sink.ctx, args: string[]): void {
 	sink.ctx_native(ctx, 'sink.shell.version', null, L_version);
 	sink.ctx_native(ctx, 'sink.shell.args', args, L_args);
+	sink.ctx_native(ctx, 'sink.shell.dir.work', null, L_dir_work);
 }

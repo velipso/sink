@@ -178,124 +178,125 @@ enum op_enum {
 	CMDHEAD         = 0x1F,
 	CMDTAIL         = 0x20,
 	CALL            = 0x21,
-	NATIVE          = 0x22,
-	RETURN          = 0x23,
-	RETURNTAIL      = 0x24,
-	RANGE           = 0x25,
-	ORDER           = 0x26,
-	SAY             = 0x27,
-	WARN            = 0x28,
-	ASK             = 0x29,
-	EXIT            = 0x2A,
-	ABORT           = 0x2B,
-	STACKTRACE      = 0x2C,
-	NUM_NEG         = 0x2D,
-	NUM_ADD         = 0x2E,
-	NUM_SUB         = 0x2F,
-	NUM_MUL         = 0x30,
-	NUM_DIV         = 0x31,
-	NUM_MOD         = 0x32,
-	NUM_POW         = 0x33,
-	NUM_ABS         = 0x34,
-	NUM_SIGN        = 0x35,
-	NUM_MAX         = 0x36,
-	NUM_MIN         = 0x37,
-	NUM_CLAMP       = 0x38,
-	NUM_FLOOR       = 0x39,
-	NUM_CEIL        = 0x3A,
-	NUM_ROUND       = 0x3B,
-	NUM_TRUNC       = 0x3C,
-	NUM_NAN         = 0x3D,
-	NUM_INF         = 0x3E,
-	NUM_ISNAN       = 0x3F,
-	NUM_ISFINITE    = 0x40,
-	NUM_SIN         = 0x41,
-	NUM_COS         = 0x42,
-	NUM_TAN         = 0x43,
-	NUM_ASIN        = 0x44,
-	NUM_ACOS        = 0x45,
-	NUM_ATAN        = 0x46,
-	NUM_ATAN2       = 0x47,
-	NUM_LOG         = 0x48,
-	NUM_LOG2        = 0x49,
-	NUM_LOG10       = 0x4A,
-	NUM_EXP         = 0x4B,
-	NUM_LERP        = 0x4C,
-	NUM_HEX         = 0x4D,
-	NUM_OCT         = 0x4E,
-	NUM_BIN         = 0x4F,
-	INT_NEW         = 0x50,
-	INT_NOT         = 0x51,
-	INT_AND         = 0x52,
-	INT_OR          = 0x53,
-	INT_XOR         = 0x54,
-	INT_SHL         = 0x55,
-	INT_SHR         = 0x56,
-	INT_SAR         = 0x57,
-	INT_ADD         = 0x58,
-	INT_SUB         = 0x59,
-	INT_MUL         = 0x5A,
-	INT_DIV         = 0x5B,
-	INT_MOD         = 0x5C,
-	INT_CLZ         = 0x5D,
-	INT_POP         = 0x5E,
-	INT_BSWAP       = 0x5F,
-	RAND_SEED       = 0x60,
-	RAND_SEEDAUTO   = 0x61,
-	RAND_INT        = 0x62,
-	RAND_NUM        = 0x63,
-	RAND_RANGE      = 0x64,
-	RAND_GETSTATE   = 0x65,
-	RAND_SETSTATE   = 0x66,
-	RAND_PICK       = 0x67,
-	RAND_SHUFFLE    = 0x68,
-	STR_NEW         = 0x69,
-	STR_SPLIT       = 0x6A,
-	STR_REPLACE     = 0x6B,
-	STR_BEGINS      = 0x6C,
-	STR_ENDS        = 0x6D,
-	STR_PAD         = 0x6E,
-	STR_FIND        = 0x6F,
-	STR_RFIND       = 0x70,
-	STR_LOWER       = 0x71,
-	STR_UPPER       = 0x72,
-	STR_TRIM        = 0x73,
-	STR_REV         = 0x74,
-	STR_REP         = 0x75,
-	STR_LIST        = 0x76,
-	STR_BYTE        = 0x77,
-	STR_HASH        = 0x78,
-	UTF8_VALID      = 0x79,
-	UTF8_LIST       = 0x7A,
-	UTF8_STR        = 0x7B,
-	STRUCT_SIZE     = 0x7C,
-	STRUCT_STR      = 0x7D,
-	STRUCT_LIST     = 0x7E,
-	STRUCT_ISLE     = 0x7F,
-	LIST_NEW        = 0x80,
-	LIST_SHIFT      = 0x81,
-	LIST_POP        = 0x82,
-	LIST_PUSH       = 0x83,
-	LIST_UNSHIFT    = 0x84,
-	LIST_APPEND     = 0x85,
-	LIST_PREPEND    = 0x86,
-	LIST_FIND       = 0x87,
-	LIST_RFIND      = 0x88,
-	LIST_JOIN       = 0x89,
-	LIST_REV        = 0x8A,
-	LIST_STR        = 0x8B,
-	LIST_SORT       = 0x8C,
-	LIST_RSORT      = 0x8D,
-	PICKLE_JSON     = 0x8E,
-	PICKLE_BIN      = 0x8F,
-	PICKLE_VAL      = 0x90,
-	PICKLE_VALID    = 0x91,
-	PICKLE_SIBLING  = 0x92,
-	PICKLE_CIRCULAR = 0x93,
-	PICKLE_COPY     = 0x94,
-	GC_GETLEVEL     = 0x95,
-	GC_SETLEVEL     = 0x96,
-	GC_RUN          = 0x97,
+	ISNATIVE        = 0x22,
+	NATIVE          = 0x23,
+	RETURN          = 0x24,
+	RETURNTAIL      = 0x25,
+	RANGE           = 0x26,
+	ORDER           = 0x27,
+	SAY             = 0x28,
+	WARN            = 0x29,
+	ASK             = 0x2A,
+	EXIT            = 0x2B,
+	ABORT           = 0x2C,
+	STACKTRACE      = 0x2D,
+	NUM_NEG         = 0x2E,
+	NUM_ADD         = 0x2F,
+	NUM_SUB         = 0x30,
+	NUM_MUL         = 0x31,
+	NUM_DIV         = 0x32,
+	NUM_MOD         = 0x33,
+	NUM_POW         = 0x34,
+	NUM_ABS         = 0x35,
+	NUM_SIGN        = 0x36,
+	NUM_MAX         = 0x37,
+	NUM_MIN         = 0x38,
+	NUM_CLAMP       = 0x39,
+	NUM_FLOOR       = 0x3A,
+	NUM_CEIL        = 0x3B,
+	NUM_ROUND       = 0x3C,
+	NUM_TRUNC       = 0x3D,
+	NUM_NAN         = 0x3E,
+	NUM_INF         = 0x3F,
+	NUM_ISNAN       = 0x40,
+	NUM_ISFINITE    = 0x41,
+	NUM_SIN         = 0x42,
+	NUM_COS         = 0x43,
+	NUM_TAN         = 0x44,
+	NUM_ASIN        = 0x45,
+	NUM_ACOS        = 0x46,
+	NUM_ATAN        = 0x47,
+	NUM_ATAN2       = 0x48,
+	NUM_LOG         = 0x49,
+	NUM_LOG2        = 0x4A,
+	NUM_LOG10       = 0x4B,
+	NUM_EXP         = 0x4C,
+	NUM_LERP        = 0x4D,
+	NUM_HEX         = 0x4E,
+	NUM_OCT         = 0x4F,
+	NUM_BIN         = 0x50,
+	INT_NEW         = 0x51,
+	INT_NOT         = 0x52,
+	INT_AND         = 0x53,
+	INT_OR          = 0x54,
+	INT_XOR         = 0x55,
+	INT_SHL         = 0x56,
+	INT_SHR         = 0x57,
+	INT_SAR         = 0x58,
+	INT_ADD         = 0x59,
+	INT_SUB         = 0x5A,
+	INT_MUL         = 0x5B,
+	INT_DIV         = 0x5C,
+	INT_MOD         = 0x5D,
+	INT_CLZ         = 0x5E,
+	INT_POP         = 0x5F,
+	INT_BSWAP       = 0x60,
+	RAND_SEED       = 0x61,
+	RAND_SEEDAUTO   = 0x62,
+	RAND_INT        = 0x63,
+	RAND_NUM        = 0x64,
+	RAND_RANGE      = 0x65,
+	RAND_GETSTATE   = 0x66,
+	RAND_SETSTATE   = 0x67,
+	RAND_PICK       = 0x68,
+	RAND_SHUFFLE    = 0x69,
+	STR_NEW         = 0x6A,
+	STR_SPLIT       = 0x6B,
+	STR_REPLACE     = 0x6C,
+	STR_BEGINS      = 0x6D,
+	STR_ENDS        = 0x6E,
+	STR_PAD         = 0x6F,
+	STR_FIND        = 0x70,
+	STR_RFIND       = 0x71,
+	STR_LOWER       = 0x72,
+	STR_UPPER       = 0x73,
+	STR_TRIM        = 0x74,
+	STR_REV         = 0x75,
+	STR_REP         = 0x76,
+	STR_LIST        = 0x77,
+	STR_BYTE        = 0x78,
+	STR_HASH        = 0x79,
+	UTF8_VALID      = 0x7A,
+	UTF8_LIST       = 0x7B,
+	UTF8_STR        = 0x7C,
+	STRUCT_SIZE     = 0x7D,
+	STRUCT_STR      = 0x7E,
+	STRUCT_LIST     = 0x7F,
+	STRUCT_ISLE     = 0x80,
+	LIST_NEW        = 0x81,
+	LIST_SHIFT      = 0x82,
+	LIST_POP        = 0x83,
+	LIST_PUSH       = 0x84,
+	LIST_UNSHIFT    = 0x85,
+	LIST_APPEND     = 0x86,
+	LIST_PREPEND    = 0x87,
+	LIST_FIND       = 0x88,
+	LIST_RFIND      = 0x89,
+	LIST_JOIN       = 0x8A,
+	LIST_REV        = 0x8B,
+	LIST_STR        = 0x8C,
+	LIST_SORT       = 0x8D,
+	LIST_RSORT      = 0x8E,
+	PICKLE_JSON     = 0x8F,
+	PICKLE_BIN      = 0x90,
+	PICKLE_VAL      = 0x91,
+	PICKLE_VALID    = 0x92,
+	PICKLE_SIBLING  = 0x93,
+	PICKLE_CIRCULAR = 0x94,
+	PICKLE_COPY     = 0x95,
+	GC_GETLEVEL     = 0x96,
+	GC_SETLEVEL     = 0x97,
+	GC_RUN          = 0x98,
 	// RESERVED     = 0xFD,
 	// fake ops
 	GT              = 0x1F0,
@@ -313,6 +314,7 @@ enum op_pcat {
 	JUMP,
 	VJUMP,
 	CALL,
+	ISNATIVE,
 	NATIVE,
 	RETURNTAIL,
 	VVVV,
@@ -363,6 +365,7 @@ function op_paramcat(op: op_enum): op_pcat {
 		case op_enum.CMDHEAD        : return op_pcat.CMDHEAD;
 		case op_enum.CMDTAIL        : return op_pcat.CMDTAIL;
 		case op_enum.CALL           : return op_pcat.CALL;
+		case op_enum.ISNATIVE       : return op_pcat.ISNATIVE;
 		case op_enum.NATIVE         : return op_pcat.NATIVE;
 		case op_enum.RETURN         : return op_pcat.V;
 		case op_enum.RETURNTAIL     : return op_pcat.RETURNTAIL;
@@ -653,6 +656,14 @@ function op_call(b: number[], ret: varloc_st, index: number, argcount: number, h
 		Math.floor(index /    65536) % 256,
 		Math.floor(index / 16777216) % 256,
 		argcount);
+}
+
+function op_isnative(b: number[], ret: varloc_st, index: number): void {
+	b.push(op_enum.ISNATIVE, ret.frame, ret.index,
+		index % 256,
+		Math.floor(index /      256) % 256,
+		Math.floor(index /    65536) % 256,
+		Math.floor(index / 16777216) % 256);
 }
 
 function op_native(b: number[], ret: varloc_st, index: number, argcount: number): void {
@@ -4616,6 +4627,7 @@ function symtbl_loadStdlib(sym: symtbl_st): void {
 	SAC(sym, 'isnum'         , op_enum.ISNUM          ,  1);
 	SAC(sym, 'isstr'         , op_enum.ISSTR          ,  1);
 	SAC(sym, 'islist'        , op_enum.ISLIST         ,  1);
+	SAC(sym, 'isnative'      , op_enum.ISNATIVE       ,  1);
 	SAC(sym, 'range'         , op_enum.RANGE          ,  3);
 	SAC(sym, 'order'         , op_enum.ORDER          ,  2);
 	SAC(sym, 'pick'          , op_enum.PICK           ,  3);
@@ -5071,7 +5083,7 @@ function program_validate(prg: program_st): boolean {
 		switch (opc){
 			case op_pcat.INVALID   : return false;
 
-			case op_pcat.STR       : { // [VAR], [INDEX]
+			case op_pcat.STR       : { // [VAR], [[INDEX]]
 				READVAR();
 				READINDEX();
 				if (A < 0 || A >= prg.strTable.length)
@@ -5115,7 +5127,14 @@ function program_validate(prg: program_st): boolean {
 				READCNT();
 			} break;
 
-			case op_pcat.NATIVE    : { // [VAR], [INDEX], ARGCOUNT, [VARS]...
+			case op_pcat.ISNATIVE  : { // [VAR], [[INDEX]]
+				READVAR();
+				READINDEX();
+				if (A < 0 || A >= prg.keyTable.length)
+					return false;
+			} break;
+
+			case op_pcat.NATIVE    : { // [VAR], [[INDEX]], ARGCOUNT, [VARS]...
 				READVAR();
 				READINDEX();
 				if (A < 0 || A >= prg.keyTable.length)
@@ -5877,6 +5896,19 @@ function pen_error(msg: string): pen_st {
 	return { ok: false, msg: msg };
 }
 
+function native_index(prg: program_st, hash: u64): number {
+	// search for the hash
+	for (let index = 0; index < prg.keyTable.length; index++){
+		if (u64_equ(prg.keyTable[index], hash))
+			return index;
+	}
+	if (prg.keyTable.length >= 0x7FFFFFFF) // using too many native calls?
+		return -1;
+	let index = prg.keyTable.length;
+	prg.keyTable.push(hash);
+	return index;
+}
+
 async function program_evalCall(pgen: pgen_st, mode: pem_enum, intoVlc: varloc_st, flp: filepos_st,
 	nsn: nsname_st, params: expr_st | null): Promise<per_st> {
 	let prg = pgen.prg;
@@ -5953,6 +5985,30 @@ async function program_evalCall(pgen: pgen_st, mode: pem_enum, intoVlc: varloc_s
 			return per_error(flp, 'Failed to embed: ' + fstr);
 		return efu.pe;
 	}
+	else if (nsn.type == nsname_enumt.CMD_OPCODE && nsn.opcode == op_enum.ISNATIVE){
+		let func = params;
+		while (func && func.type == expr_enum.PAREN)
+			func = func.ex;
+		if (func && func.type == expr_enum.NAMES){
+			let sl = symtbl_lookup(sym, func.names);
+			if (!sl.ok)
+				return per_error(func.flp, sl.msg);
+			if (sl.nsn.type == nsname_enumt.CMD_NATIVE){
+				if (mode === pem_enum.EMPTY || mode === pem_enum.CREATE){
+					let ts = symtbl_addTemp(sym);
+					if (!ts.ok)
+						return per_error(flp, ts.msg);
+					intoVlc = ts.vlc;
+				}
+				let index = native_index(prg, sl.nsn.hash);
+				if (index < 0)
+					return per_error(flp, 'Too many native commands');
+				op_isnative(prg.ops, intoVlc, index);
+				return per_ok(intoVlc);
+			}
+		}
+		return per_error(flp, 'Expecting `isnative` to test against a declared native command');
+	}
 	else if (nsn.type === nsname_enumt.CMD_OPCODE && nsn.opcode === op_enum.STR_HASH &&
 		params !== null){
 		// attempt to str.hash at compile-time if possible
@@ -6011,21 +6067,9 @@ async function program_evalCall(pgen: pgen_st, mode: pem_enum, intoVlc: varloc_s
 	if (nsn.type === nsname_enumt.CMD_LOCAL)
 		label_call(nsn.lbl, prg.ops, intoVlc, argcount[0]);
 	else if (nsn.type === nsname_enumt.CMD_NATIVE){
-		// search for the hash
-		let index = 0;
-		let found = false;
-		for ( ; index < prg.keyTable.length; index++){
-			if (u64_equ(prg.keyTable[index], nsn.hash)){
-				found = true;
-				break;
-			}
-		}
-		if (!found){
-			if (prg.keyTable.length >= 0x7FFFFFFF) // using too many native calls?
-				return per_error(flp, 'Too many native commands');
-			index = prg.keyTable.length;
-			prg.keyTable.push(nsn.hash);
-		}
+		let index = native_index(prg, nsn.hash);
+		if (index < 0)
+			return per_error(flp, 'Too many native commands');
 		op_native(prg.ops, intoVlc, index, argcount[0]);
 	}
 	else{ // nsname_enumt.CMD_OPCODE
@@ -10942,6 +10986,26 @@ async function context_run(ctx: context_st): Promise<run> {
 				ctx.lex_stk[ctx.lex_index] = lxs_get(ctx, p, ctx.lex_stk[ctx.lex_index]);
 			} break;
 
+			case op_enum.ISNATIVE       : { // [TGT], [[INDEX]]
+				LOAD_abcdef();
+				C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
+				let nat: native_st | null = null;
+				if (ctx.prg.repl){
+					// if REPL, then we need to search for the hash
+					let hash = ctx.prg.keyTable[C];
+					for (let i = 0; i < ctx.natives.length; i++){
+						let nat2 = ctx.natives[i];
+						if (u64_equ(nat2.hash, hash)){
+							nat = nat2;
+							break;
+						}
+					}
+				}
+				else
+					nat = ctx.natives[C];
+				var_set(ctx, A, B, bool(nat !== null && nat.f_native !== null));
+			} break;
+
 			case op_enum.NATIVE         : { // [TGT], [[INDEX]], ARGCOUNT, [ARGS]...
 				LOAD_abcdefg();
 				let p: val[] = [];
@@ -13042,6 +13106,20 @@ export function abort(ctx: ctx, vals: val[]): void {
 export async function abortstr(ctx: ctx, str: string): Promise<val> {
 	opi_abort(ctx, str);
 	return Promise.resolve(NIL);
+}
+
+export function isnative(ctx: ctx, name: string): boolean {
+	return isnativehash(ctx, native_hash(name));
+}
+
+export function isnativehash(ctx: ctx, hash: u64): boolean {
+	let ctx2 = ctx as context_st;
+	for (let i = 0; i < ctx2.natives.length; i++){
+		let nat = ctx2.natives[i];
+		if (u64_equ(nat.hash, hash) && nat.f_native !== null)
+			return true;
+	}
+	return false;
 }
 
 // numbers
