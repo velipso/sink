@@ -32,6 +32,7 @@ Globals
 | `isnum a`         | Returns true if `a` is a number; otherwise false                            |
 | `isstr a`         | Returns true if `a` is a string; otherwise false                            |
 | `islist a`        | Returns true if `a` is a list; otherwise false                              |
+| [`isnative cmd`](./isnative.md) | Returns true if `cmd` is defined in the host environment      |
 | [`range [start,] stop[, step]`](./range.md) | Returns a list of numbers in the interval [`start`, `stop`) |
 | [`order a, b`](./order.md) | Compare `a` with `b` according to the sorting precedence (-1, 0, 1) |
 | `pick cond, a, b` | If `cond` is true, return `a`, otherwise return `b` (short-circuited)       |

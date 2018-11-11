@@ -224,6 +224,8 @@ sink_wait sink_ask(sink_ctx ctx, int size, sink_val *vals);
 void      sink_exit(sink_ctx ctx);
 void      sink_abort(sink_ctx ctx, int size, sink_val *vals);
 sink_wait sink_abortstr(sink_ctx ctx, const char *fmt, ...); // always returns NULL
+bool      sink_isnative(sink_ctx ctx, const char *name);
+bool      sink_isnativehash(sink_ctx ctx, uint64_t hash);
 sink_val  sink_range(sink_ctx ctx, double start, double stop, double step);
 int       sink_order(sink_ctx ctx, sink_val a, sink_val b);
 sink_val  sink_stacktrace(sink_ctx ctx);

@@ -754,124 +754,125 @@ typedef enum {
 	OP_CMDHEAD         = 0x1F, // LEVEL, RESTPOS
 	OP_CMDTAIL         = 0x20, //
 	OP_CALL            = 0x21, // [TGT], [[LOCATION]], ARGCOUNT, [ARGS]...
-	OP_NATIVE          = 0x22, // [TGT], [[INDEX]], ARGCOUNT, [ARGS]...
-	OP_RETURN          = 0x23, // [SRC]
-	OP_RETURNTAIL      = 0x24, // [[LOCATION]], ARGCOUNT, [ARGS]...
-	OP_RANGE           = 0x25, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_ORDER           = 0x26, // [TGT], [SRC1], [SRC2]
-	OP_SAY             = 0x27, // [TGT], ARGCOUNT, [ARGS]...
-	OP_WARN            = 0x28, // [TGT], ARGCOUNT, [ARGS]...
-	OP_ASK             = 0x29, // [TGT], ARGCOUNT, [ARGS]...
-	OP_EXIT            = 0x2A, // [TGT], ARGCOUNT, [ARGS]...
-	OP_ABORT           = 0x2B, // [TGT], ARGCOUNT, [ARGS]...
-	OP_STACKTRACE      = 0x2C, // [TGT]
-	OP_NUM_NEG         = 0x2D, // [TGT], [SRC]
-	OP_NUM_ADD         = 0x2E, // [TGT], [SRC1], [SRC2]
-	OP_NUM_SUB         = 0x2F, // [TGT], [SRC1], [SRC2]
-	OP_NUM_MUL         = 0x30, // [TGT], [SRC1], [SRC2]
-	OP_NUM_DIV         = 0x31, // [TGT], [SRC1], [SRC2]
-	OP_NUM_MOD         = 0x32, // [TGT], [SRC1], [SRC2]
-	OP_NUM_POW         = 0x33, // [TGT], [SRC1], [SRC2]
-	OP_NUM_ABS         = 0x34, // [TGT], [SRC]
-	OP_NUM_SIGN        = 0x35, // [TGT], [SRC]
-	OP_NUM_MAX         = 0x36, // [TGT], ARGCOUNT, [ARGS]...
-	OP_NUM_MIN         = 0x37, // [TGT], ARGCOUNT, [ARGS]...
-	OP_NUM_CLAMP       = 0x38, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_NUM_FLOOR       = 0x39, // [TGT], [SRC]
-	OP_NUM_CEIL        = 0x3A, // [TGT], [SRC]
-	OP_NUM_ROUND       = 0x3B, // [TGT], [SRC]
-	OP_NUM_TRUNC       = 0x3C, // [TGT], [SRC]
-	OP_NUM_NAN         = 0x3D, // [TGT]
-	OP_NUM_INF         = 0x3E, // [TGT]
-	OP_NUM_ISNAN       = 0x3F, // [TGT], [SRC]
-	OP_NUM_ISFINITE    = 0x40, // [TGT], [SRC]
-	OP_NUM_SIN         = 0x41, // [TGT], [SRC]
-	OP_NUM_COS         = 0x42, // [TGT], [SRC]
-	OP_NUM_TAN         = 0x43, // [TGT], [SRC]
-	OP_NUM_ASIN        = 0x44, // [TGT], [SRC]
-	OP_NUM_ACOS        = 0x45, // [TGT], [SRC]
-	OP_NUM_ATAN        = 0x46, // [TGT], [SRC]
-	OP_NUM_ATAN2       = 0x47, // [TGT], [SRC1], [SRC2]
-	OP_NUM_LOG         = 0x48, // [TGT], [SRC]
-	OP_NUM_LOG2        = 0x49, // [TGT], [SRC]
-	OP_NUM_LOG10       = 0x4A, // [TGT], [SRC]
-	OP_NUM_EXP         = 0x4B, // [TGT], [SRC]
-	OP_NUM_LERP        = 0x4C, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_NUM_HEX         = 0x4D, // [TGT], [SRC1], [SRC2]
-	OP_NUM_OCT         = 0x4E, // [TGT], [SRC1], [SRC2]
-	OP_NUM_BIN         = 0x4F, // [TGT], [SRC1], [SRC2]
-	OP_INT_NEW         = 0x50, // [TGT], [SRC]
-	OP_INT_NOT         = 0x51, // [TGT], [SRC]
-	OP_INT_AND         = 0x52, // [TGT], ARGCOUNT, [ARGS]...
-	OP_INT_OR          = 0x53, // [TGT], ARGCOUNT, [ARGS]...
-	OP_INT_XOR         = 0x54, // [TGT], ARGCOUNT, [ARGS]...
-	OP_INT_SHL         = 0x55, // [TGT], [SRC1], [SRC2]
-	OP_INT_SHR         = 0x56, // [TGT], [SRC1], [SRC2]
-	OP_INT_SAR         = 0x57, // [TGT], [SRC1], [SRC2]
-	OP_INT_ADD         = 0x58, // [TGT], [SRC1], [SRC2]
-	OP_INT_SUB         = 0x59, // [TGT], [SRC1], [SRC2]
-	OP_INT_MUL         = 0x5A, // [TGT], [SRC1], [SRC2]
-	OP_INT_DIV         = 0x5B, // [TGT], [SRC1], [SRC2]
-	OP_INT_MOD         = 0x5C, // [TGT], [SRC1], [SRC2]
-	OP_INT_CLZ         = 0x5D, // [TGT], [SRC]
-	OP_INT_POP         = 0x5E, // [TGT], [SRC]
-	OP_INT_BSWAP       = 0x5F, // [TGT], [SRC]
-	OP_RAND_SEED       = 0x60, // [TGT], [SRC]
-	OP_RAND_SEEDAUTO   = 0x61, // [TGT]
-	OP_RAND_INT        = 0x62, // [TGT]
-	OP_RAND_NUM        = 0x63, // [TGT]
-	OP_RAND_RANGE      = 0x64, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_RAND_GETSTATE   = 0x65, // [TGT]
-	OP_RAND_SETSTATE   = 0x66, // [TGT], [SRC]
-	OP_RAND_PICK       = 0x67, // [TGT], [SRC]
-	OP_RAND_SHUFFLE    = 0x68, // [TGT], [SRC]
-	OP_STR_NEW         = 0x69, // [TGT], ARGCOUNT, [ARGS]...
-	OP_STR_SPLIT       = 0x6A, // [TGT], [SRC1], [SRC2]
-	OP_STR_REPLACE     = 0x6B, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_STR_BEGINS      = 0x6C, // [TGT], [SRC1], [SRC2]
-	OP_STR_ENDS        = 0x6D, // [TGT], [SRC1], [SRC2]
-	OP_STR_PAD         = 0x6E, // [TGT], [SRC1], [SRC2]
-	OP_STR_FIND        = 0x6F, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_STR_RFIND       = 0x70, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_STR_LOWER       = 0x71, // [TGT], [SRC]
-	OP_STR_UPPER       = 0x72, // [TGT], [SRC]
-	OP_STR_TRIM        = 0x73, // [TGT], [SRC]
-	OP_STR_REV         = 0x74, // [TGT], [SRC]
-	OP_STR_REP         = 0x75, // [TGT], [SRC1], [SRC2]
-	OP_STR_LIST        = 0x76, // [TGT], [SRC]
-	OP_STR_BYTE        = 0x77, // [TGT], [SRC1], [SRC2]
-	OP_STR_HASH        = 0x78, // [TGT], [SRC1], [SRC2]
-	OP_UTF8_VALID      = 0x79, // [TGT], [SRC]
-	OP_UTF8_LIST       = 0x7A, // [TGT], [SRC]
-	OP_UTF8_STR        = 0x7B, // [TGT], [SRC]
-	OP_STRUCT_SIZE     = 0x7C, // [TGT], [SRC]
-	OP_STRUCT_STR      = 0x7D, // [TGT], [SRC1], [SRC2]
-	OP_STRUCT_LIST     = 0x7E, // [TGT], [SRC1], [SRC2]
-	OP_STRUCT_ISLE     = 0x7F, // [TGT]
-	OP_LIST_NEW        = 0x80, // [TGT], [SRC1], [SRC2]
-	OP_LIST_SHIFT      = 0x81, // [TGT], [SRC]
-	OP_LIST_POP        = 0x82, // [TGT], [SRC]
-	OP_LIST_PUSH       = 0x83, // [TGT], [SRC1], [SRC2]
-	OP_LIST_UNSHIFT    = 0x84, // [TGT], [SRC1], [SRC2]
-	OP_LIST_APPEND     = 0x85, // [TGT], [SRC1], [SRC2]
-	OP_LIST_PREPEND    = 0x86, // [TGT], [SRC1], [SRC2]
-	OP_LIST_FIND       = 0x87, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_LIST_RFIND      = 0x88, // [TGT], [SRC1], [SRC2], [SRC3]
-	OP_LIST_JOIN       = 0x89, // [TGT], [SRC1], [SRC2]
-	OP_LIST_REV        = 0x8A, // [TGT], [SRC]
-	OP_LIST_STR        = 0x8B, // [TGT], [SRC]
-	OP_LIST_SORT       = 0x8C, // [TGT], [SRC]
-	OP_LIST_RSORT      = 0x8D, // [TGT], [SRC]
-	OP_PICKLE_JSON     = 0x8E, // [TGT], [SRC]
-	OP_PICKLE_BIN      = 0x8F, // [TGT], [SRC]
-	OP_PICKLE_VAL      = 0x90, // [TGT], [SRC]
-	OP_PICKLE_VALID    = 0x91, // [TGT], [SRC]
-	OP_PICKLE_SIBLING  = 0x92, // [TGT], [SRC]
-	OP_PICKLE_CIRCULAR = 0x93, // [TGT], [SRC]
-	OP_PICKLE_COPY     = 0x94, // [TGT], [SRC]
-	OP_GC_GETLEVEL     = 0x95, // [TGT]
-	OP_GC_SETLEVEL     = 0x96, // [TGT], [SRC]
-	OP_GC_RUN          = 0x97, // [TGT]
+	OP_ISNATIVE        = 0x22, // [TGT], [[INDEX]]
+	OP_NATIVE          = 0x23, // [TGT], [[INDEX]], ARGCOUNT, [ARGS]...
+	OP_RETURN          = 0x24, // [SRC]
+	OP_RETURNTAIL      = 0x25, // [[LOCATION]], ARGCOUNT, [ARGS]...
+	OP_RANGE           = 0x26, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_ORDER           = 0x27, // [TGT], [SRC1], [SRC2]
+	OP_SAY             = 0x28, // [TGT], ARGCOUNT, [ARGS]...
+	OP_WARN            = 0x29, // [TGT], ARGCOUNT, [ARGS]...
+	OP_ASK             = 0x2A, // [TGT], ARGCOUNT, [ARGS]...
+	OP_EXIT            = 0x2B, // [TGT], ARGCOUNT, [ARGS]...
+	OP_ABORT           = 0x2C, // [TGT], ARGCOUNT, [ARGS]...
+	OP_STACKTRACE      = 0x2D, // [TGT]
+	OP_NUM_NEG         = 0x2E, // [TGT], [SRC]
+	OP_NUM_ADD         = 0x2F, // [TGT], [SRC1], [SRC2]
+	OP_NUM_SUB         = 0x30, // [TGT], [SRC1], [SRC2]
+	OP_NUM_MUL         = 0x31, // [TGT], [SRC1], [SRC2]
+	OP_NUM_DIV         = 0x32, // [TGT], [SRC1], [SRC2]
+	OP_NUM_MOD         = 0x33, // [TGT], [SRC1], [SRC2]
+	OP_NUM_POW         = 0x34, // [TGT], [SRC1], [SRC2]
+	OP_NUM_ABS         = 0x35, // [TGT], [SRC]
+	OP_NUM_SIGN        = 0x36, // [TGT], [SRC]
+	OP_NUM_MAX         = 0x37, // [TGT], ARGCOUNT, [ARGS]...
+	OP_NUM_MIN         = 0x38, // [TGT], ARGCOUNT, [ARGS]...
+	OP_NUM_CLAMP       = 0x39, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_NUM_FLOOR       = 0x3A, // [TGT], [SRC]
+	OP_NUM_CEIL        = 0x3B, // [TGT], [SRC]
+	OP_NUM_ROUND       = 0x3C, // [TGT], [SRC]
+	OP_NUM_TRUNC       = 0x3D, // [TGT], [SRC]
+	OP_NUM_NAN         = 0x3E, // [TGT]
+	OP_NUM_INF         = 0x3F, // [TGT]
+	OP_NUM_ISNAN       = 0x40, // [TGT], [SRC]
+	OP_NUM_ISFINITE    = 0x41, // [TGT], [SRC]
+	OP_NUM_SIN         = 0x42, // [TGT], [SRC]
+	OP_NUM_COS         = 0x43, // [TGT], [SRC]
+	OP_NUM_TAN         = 0x44, // [TGT], [SRC]
+	OP_NUM_ASIN        = 0x45, // [TGT], [SRC]
+	OP_NUM_ACOS        = 0x46, // [TGT], [SRC]
+	OP_NUM_ATAN        = 0x47, // [TGT], [SRC]
+	OP_NUM_ATAN2       = 0x48, // [TGT], [SRC1], [SRC2]
+	OP_NUM_LOG         = 0x49, // [TGT], [SRC]
+	OP_NUM_LOG2        = 0x4A, // [TGT], [SRC]
+	OP_NUM_LOG10       = 0x4B, // [TGT], [SRC]
+	OP_NUM_EXP         = 0x4C, // [TGT], [SRC]
+	OP_NUM_LERP        = 0x4D, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_NUM_HEX         = 0x4E, // [TGT], [SRC1], [SRC2]
+	OP_NUM_OCT         = 0x4F, // [TGT], [SRC1], [SRC2]
+	OP_NUM_BIN         = 0x50, // [TGT], [SRC1], [SRC2]
+	OP_INT_NEW         = 0x51, // [TGT], [SRC]
+	OP_INT_NOT         = 0x52, // [TGT], [SRC]
+	OP_INT_AND         = 0x53, // [TGT], ARGCOUNT, [ARGS]...
+	OP_INT_OR          = 0x54, // [TGT], ARGCOUNT, [ARGS]...
+	OP_INT_XOR         = 0x55, // [TGT], ARGCOUNT, [ARGS]...
+	OP_INT_SHL         = 0x56, // [TGT], [SRC1], [SRC2]
+	OP_INT_SHR         = 0x57, // [TGT], [SRC1], [SRC2]
+	OP_INT_SAR         = 0x58, // [TGT], [SRC1], [SRC2]
+	OP_INT_ADD         = 0x59, // [TGT], [SRC1], [SRC2]
+	OP_INT_SUB         = 0x5A, // [TGT], [SRC1], [SRC2]
+	OP_INT_MUL         = 0x5B, // [TGT], [SRC1], [SRC2]
+	OP_INT_DIV         = 0x5C, // [TGT], [SRC1], [SRC2]
+	OP_INT_MOD         = 0x5D, // [TGT], [SRC1], [SRC2]
+	OP_INT_CLZ         = 0x5E, // [TGT], [SRC]
+	OP_INT_POP         = 0x5F, // [TGT], [SRC]
+	OP_INT_BSWAP       = 0x60, // [TGT], [SRC]
+	OP_RAND_SEED       = 0x61, // [TGT], [SRC]
+	OP_RAND_SEEDAUTO   = 0x62, // [TGT]
+	OP_RAND_INT        = 0x63, // [TGT]
+	OP_RAND_NUM        = 0x64, // [TGT]
+	OP_RAND_RANGE      = 0x65, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_RAND_GETSTATE   = 0x66, // [TGT]
+	OP_RAND_SETSTATE   = 0x67, // [TGT], [SRC]
+	OP_RAND_PICK       = 0x68, // [TGT], [SRC]
+	OP_RAND_SHUFFLE    = 0x69, // [TGT], [SRC]
+	OP_STR_NEW         = 0x6A, // [TGT], ARGCOUNT, [ARGS]...
+	OP_STR_SPLIT       = 0x6B, // [TGT], [SRC1], [SRC2]
+	OP_STR_REPLACE     = 0x6C, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_STR_BEGINS      = 0x6D, // [TGT], [SRC1], [SRC2]
+	OP_STR_ENDS        = 0x6E, // [TGT], [SRC1], [SRC2]
+	OP_STR_PAD         = 0x6F, // [TGT], [SRC1], [SRC2]
+	OP_STR_FIND        = 0x70, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_STR_RFIND       = 0x71, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_STR_LOWER       = 0x72, // [TGT], [SRC]
+	OP_STR_UPPER       = 0x73, // [TGT], [SRC]
+	OP_STR_TRIM        = 0x74, // [TGT], [SRC]
+	OP_STR_REV         = 0x75, // [TGT], [SRC]
+	OP_STR_REP         = 0x76, // [TGT], [SRC1], [SRC2]
+	OP_STR_LIST        = 0x77, // [TGT], [SRC]
+	OP_STR_BYTE        = 0x78, // [TGT], [SRC1], [SRC2]
+	OP_STR_HASH        = 0x79, // [TGT], [SRC1], [SRC2]
+	OP_UTF8_VALID      = 0x7A, // [TGT], [SRC]
+	OP_UTF8_LIST       = 0x7B, // [TGT], [SRC]
+	OP_UTF8_STR        = 0x7C, // [TGT], [SRC]
+	OP_STRUCT_SIZE     = 0x7D, // [TGT], [SRC]
+	OP_STRUCT_STR      = 0x7E, // [TGT], [SRC1], [SRC2]
+	OP_STRUCT_LIST     = 0x7F, // [TGT], [SRC1], [SRC2]
+	OP_STRUCT_ISLE     = 0x80, // [TGT]
+	OP_LIST_NEW        = 0x81, // [TGT], [SRC1], [SRC2]
+	OP_LIST_SHIFT      = 0x82, // [TGT], [SRC]
+	OP_LIST_POP        = 0x83, // [TGT], [SRC]
+	OP_LIST_PUSH       = 0x84, // [TGT], [SRC1], [SRC2]
+	OP_LIST_UNSHIFT    = 0x85, // [TGT], [SRC1], [SRC2]
+	OP_LIST_APPEND     = 0x86, // [TGT], [SRC1], [SRC2]
+	OP_LIST_PREPEND    = 0x87, // [TGT], [SRC1], [SRC2]
+	OP_LIST_FIND       = 0x88, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_LIST_RFIND      = 0x89, // [TGT], [SRC1], [SRC2], [SRC3]
+	OP_LIST_JOIN       = 0x8A, // [TGT], [SRC1], [SRC2]
+	OP_LIST_REV        = 0x8B, // [TGT], [SRC]
+	OP_LIST_STR        = 0x8C, // [TGT], [SRC]
+	OP_LIST_SORT       = 0x8D, // [TGT], [SRC]
+	OP_LIST_RSORT      = 0x8E, // [TGT], [SRC]
+	OP_PICKLE_JSON     = 0x8F, // [TGT], [SRC]
+	OP_PICKLE_BIN      = 0x90, // [TGT], [SRC]
+	OP_PICKLE_VAL      = 0x91, // [TGT], [SRC]
+	OP_PICKLE_VALID    = 0x92, // [TGT], [SRC]
+	OP_PICKLE_SIBLING  = 0x93, // [TGT], [SRC]
+	OP_PICKLE_CIRCULAR = 0x94, // [TGT], [SRC]
+	OP_PICKLE_COPY     = 0x95, // [TGT], [SRC]
+	OP_GC_GETLEVEL     = 0x96, // [TGT]
+	OP_GC_SETLEVEL     = 0x97, // [TGT], [SRC]
+	OP_GC_RUN          = 0x98, // [TGT]
 	// RESERVED        = 0xFD,
 	// fake ops
 	OP_GT              = 0x1F0,
@@ -883,13 +884,14 @@ typedef enum {
 
 typedef enum {
 	OPPC_INVALID,
-	OPPC_STR,        // [VAR], [INDEX]
+	OPPC_STR,        // [VAR], [[INDEX]]
 	OPPC_CMDHEAD,    // LEVEL, RESTPOS
 	OPPC_CMDTAIL,    //
 	OPPC_JUMP,       // [[LOCATION]]
 	OPPC_VJUMP,      // [VAR], [[LOCATION]]
 	OPPC_CALL,       // [VAR], [[LOCATION]], ARGCOUNT, [VARS]...
-	OPPC_NATIVE,     // [VAR], [INDEX], ARGCOUNT, [VARS]...
+	OPPC_ISNATIVE,   // [VAR], [[INDEX]]
+	OPPC_NATIVE,     // [VAR], [[INDEX]], ARGCOUNT, [VARS]...
 	OPPC_RETURNTAIL, // [[LOCATION]], ARGCOUNT, [VARS]...
 	OPPC_VVVV,       // [VAR], [VAR], [VAR], [VAR]
 	OPPC_VVV,        // [VAR], [VAR], [VAR]
@@ -940,6 +942,7 @@ static inline op_pcat op_paramcat(op_enum op){
 		case OP_CMDHEAD        : return OPPC_CMDHEAD;
 		case OP_CMDTAIL        : return OPPC_CMDTAIL;
 		case OP_CALL           : return OPPC_CALL;
+		case OP_ISNATIVE       : return OPPC_ISNATIVE;
 		case OP_NATIVE         : return OPPC_NATIVE;
 		case OP_RETURN         : return OPPC_V;
 		case OP_RETURNTAIL     : return OPPC_RETURNTAIL;
@@ -1077,6 +1080,7 @@ static const char *op_pcat_name(op_pcat opc){
 		case OPPC_JUMP      : return "OPPC_JUMP";
 		case OPPC_VJUMP     : return "OPPC_VJUMP";
 		case OPPC_CALL      : return "OPPC_CALL";
+		case OPPC_ISNATIVE  : return "OPPC_ISNATIVE";
 		case OPPC_NATIVE    : return "OPPC_NATIVE";
 		case OPPC_RETURNTAIL: return "OPPC_RETURNTAIL";
 		case OPPC_VVVV      : return "OPPC_VVVV";
@@ -1301,6 +1305,12 @@ static inline void op_call(list_byte b, varloc_st ret, uint32_t index, int argco
 	oplogf("CALL %d:%d, %.*s, %d", ret.frame, ret.index, hint->size, hint->bytes, argcount);
 	list_byte_push8(b, OP_CALL, ret.frame, ret.index,
 		index % 256, (index >> 8) % 256, (index >> 16) % 256, (index >> 24) % 256, argcount);
+}
+
+static inline void op_isnative(list_byte b, varloc_st tgt, int index){
+	oplogf("ISNATIVE %d:%d, %d", tgt.frame, tgt.index, index);
+	list_byte_push7(b, OP_ISNATIVE, tgt.frame, tgt.index,
+		index % 256, (index >> 8) % 256, (index >> 16) % 256, (index >> 24) % 256);
 }
 
 static inline void op_native(list_byte b, varloc_st ret, int index, int argcount){
@@ -5929,6 +5939,7 @@ static inline void symtbl_loadStdlib(symtbl sym){
 	SAC(sym, "isnum"         , OP_ISNUM          ,  1);
 	SAC(sym, "isstr"         , OP_ISSTR          ,  1);
 	SAC(sym, "islist"        , OP_ISLIST         ,  1);
+	SAC(sym, "isnative"      , OP_ISNATIVE       ,  1);
 	SAC(sym, "range"         , OP_RANGE          ,  3);
 	SAC(sym, "order"         , OP_ORDER          ,  2);
 	SAC(sym, "pick"          , OP_PICK           ,  3);
@@ -6427,7 +6438,7 @@ static bool program_validate(program prg){
 		switch (opc){
 			case OPPC_INVALID    : goto fail;
 
-			case OPPC_STR        : { // [VAR], [INDEX]
+			case OPPC_STR        : { // [VAR], [[INDEX]]
 				READVAR();
 				READINDEX();
 				if (A < 0 || A >= prg->strTable->size)
@@ -6471,7 +6482,14 @@ static bool program_validate(program prg){
 				READCNT();
 			} break;
 
-			case OPPC_NATIVE     : { // [VAR], [INDEX], ARGCOUNT, [VARS]...
+			case OPPC_ISNATIVE   : { // [VAR], [[INDEX]]
+				READVAR();
+				READINDEX();
+				if (A < 0 || A >= prg->keyTable->size)
+					goto fail;
+			} break;
+
+			case OPPC_NATIVE     : { // [VAR], [[INDEX]], ARGCOUNT, [VARS]...
 				READVAR();
 				READINDEX();
 				if (A < 0 || A >= prg->keyTable->size)
@@ -7327,6 +7345,19 @@ static inline pen_st pen_error(char *msg){
 static pen_st program_exprToNum(pgen_st pgen, expr ex);
 static inline const char *script_getfile(script scr, int file);
 
+static int native_index(program prg, uint64_t hash){
+	// search for the hash
+	for (int index = 0; index < prg->keyTable->size; index++){
+		if (prg->keyTable->vals[index] == hash)
+			return index;
+	}
+	if (prg->keyTable->size >= 0x7FFFFFFF) // using too many native calls?
+		return -1;
+	int index = prg->keyTable->size;
+	list_u64_push(prg->keyTable, hash);
+	return index;
+}
+
 static per_st program_evalCall(pgen_st pgen, pem_enum mode, varloc_st intoVlc,
 	filepos_st flp, nsname nsn, expr params){
 	program prg = pgen.prg;
@@ -7409,6 +7440,31 @@ static per_st program_evalCall(pgen_st pgen, pem_enum mode, varloc_st intoVlc,
 			return per_error(flp, format("Failed to embed: %s", (const char *)fstr->bytes));
 		return efu.pe;
 	}
+	else if (nsn->type == NSN_CMD_OPCODE && nsn->u.cmdOpcode.opcode == OP_ISNATIVE){
+		expr func = params;
+		while (func && func->type == EXPR_PAREN)
+			func = func->u.ex;
+		if (func && func->type == EXPR_NAMES){
+			stl_st sl = symtbl_lookup(sym, func->u.names);
+			if (!sl.ok)
+				return per_error(func->flp, sl.u.msg);
+			if (sl.u.nsn->type == NSN_CMD_NATIVE){
+				if (mode == PEM_EMPTY || mode == PEM_CREATE){
+					sta_st ts = symtbl_addTemp(sym);
+					if (!ts.ok)
+						return per_error(flp, ts.u.msg);
+					intoVlc = ts.u.vlc;
+				}
+				int index = native_index(prg, sl.u.nsn->u.hash);
+				if (index < 0)
+					return per_error(flp, format("Too many native commands"));
+				op_isnative(prg->ops, intoVlc, index);
+				return per_ok(intoVlc);
+			}
+		}
+		return per_error(flp,
+			format("Expecting `isnative` to test against a declared native command"));
+	}
 	else if (nsn->type == NSN_CMD_OPCODE && nsn->u.cmdOpcode.opcode == OP_STR_HASH && params){
 		// attempt to str.hash at compile-time if possible
 		list_byte str = NULL;
@@ -7468,21 +7524,9 @@ static per_st program_evalCall(pgen_st pgen, pem_enum mode, varloc_st intoVlc,
 	if (nsn->type == NSN_CMD_LOCAL)
 		label_call(nsn->u.cmdLocal.lbl, prg->ops, intoVlc, argcount);
 	else if (nsn->type == NSN_CMD_NATIVE){
-		// search for the hash
-		int index;
-		bool found = false;
-		for (index = 0; index < prg->keyTable->size; index++){
-			if (prg->keyTable->vals[index] == nsn->u.hash){
-				found = true;
-				break;
-			}
-		}
-		if (!found){
-			if (prg->keyTable->size >= 0x7FFFFFFF) // using too many native calls?
-				return per_error(flp, format("Too many native commands"));
-			index = prg->keyTable->size;
-			list_u64_push(prg->keyTable, nsn->u.hash);
-		}
+		int index = native_index(prg, nsn->u.hash);
+		if (index < 0)
+			return per_error(flp, format("Too many native commands"));
 		op_native(prg->ops, intoVlc, index, argcount);
 	}
 	else{ // NSN_CMD_OPCODE
@@ -13747,6 +13791,26 @@ static void context_run_w(context ctx, waitt wrun){
 					lxs_get(ctx, G, p, ctx->lex_stk->ptrs[ctx->lex_index]);
 			} break;
 
+			case OP_ISNATIVE       : { // [TGT], [[INDEX]]
+				LOAD_abcdef();
+				C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
+				native nat = NULL;
+				if (ctx->prg->repl){
+					// if REPL, then we need to search for the hash
+					uint64_t hash = ctx->prg->keyTable->vals[C];
+					for (int i = 0; i < ctx->natives->size; i++){
+						native nat2 = ctx->natives->ptrs[i];
+						if (nat2->hash == hash){
+							nat = nat2;
+							break;
+						}
+					}
+				}
+				else
+					nat = ctx->natives->ptrs[C];
+				var_set(ctx, A, B, sink_bool(nat != NULL && nat->f_native != NULL));
+			} break;
+
 			case OP_NATIVE         : { // [TGT], [[INDEX]], ARGCOUNT, [ARGS]...
 				LOAD_abcdefg();
 				for (I = 0; I < G; I++){
@@ -16037,6 +16101,20 @@ void sink_abort(sink_ctx ctx, int size, sink_val *vals){
 		bytes = opi_list_joinplain(ctx, size, vals, 1, (const uint8_t *)" ", &tot);
 	}
 	opi_abort(ctx, (char *)bytes);
+}
+
+bool sink_isnative(sink_ctx ctx, const char *name){
+	return sink_isnativehash(ctx, native_hash((int)strlen(name), (const uint8_t *)name));
+}
+
+bool sink_isnativehash(sink_ctx ctx, uint64_t hash){
+	context ctx2 = ctx;
+	for (int i = 0; i < ctx2->natives->size; i++){
+		native nat = ctx2->natives->ptrs[i];
+		if (nat->hash == hash && nat->f_native != NULL)
+			return true;
+	}
+	return false;
 }
 
 sink_val sink_range(sink_ctx ctx, double start, double stop, double step){

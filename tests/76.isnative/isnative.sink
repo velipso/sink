@@ -1,0 +1,15 @@
+include 'shell'
+declare notnative 'not.native'
+
+if isnative dir.work
+	say isstr dir.work
+else
+	say 'fail'
+end
+
+if isnative notnative
+	notnative
+	say 'fail'
+else
+	say 'pass'
+end

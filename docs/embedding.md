@@ -600,6 +600,8 @@ virtual machine.
 | [`ctx_new`](#ctx_new)                   | Create a new Context object                           |
 | [`ctx_getstatus`](#ctx_getstatus)       | Get the status of the Context's virtual machine       |
 | [`ctx_geterr`](#ctx_geterr)             | Get any error message associated with the run-time    |
+| [`ctx_isnative`](#ctx_isnative)         | Check to see if a native function is defined          |
+| [`ctx_isnativehash`](#ctx_isnativehash) | Check to see if a native function is defined, via hash|
 | [`ctx_native`](#ctx_native)             | Add a native command using a string                   |
 | [`ctx_nativehash`](#ctx_nativehash)     | Add a native command using a 64-bit hash              |
 | [`ctx_cleanup`](#ctx_cleanup)           | Add user-defined objects to be freed when Context is freed (C only) |
@@ -727,6 +729,16 @@ instead.
 ### `ctx`
 
 The Context object.
+
+ctx_isnative
+------------
+
+TODO
+
+ctx_isnativehash
+----------------
+
+TODO
 
 ctx_native
 ----------
@@ -1380,6 +1392,7 @@ Note: the following commands are not available at run-time because they only wor
 | `isnum`           | `isnum`           |
 | `isstr`           | `isstr`           |
 | `islist`          | `islist`          |
+| `isnative`        | `isnative` or `isnativehash` |
 | `range`           | `range`           |
 | `order`           | `order`           |
 | `stacktrace`      | `stacktrace`      |
