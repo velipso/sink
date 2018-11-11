@@ -23,8 +23,8 @@ CodeMirror.defineMode('sink', function(config, parserConfig) {
 
   var libs = {
     'nil': true, 'say': true, 'warn': true, 'ask': true, 'exit': true, 'abort': true,
-    'isnum': true, 'isstr': true, 'islist': true, 'range': true, 'order': true, 'pick': true,
-    'embed': true, 'stacktrace': true,
+    'isnum': true, 'isstr': true, 'islist': true, 'isnative': true, 'range': true, 'order': true,
+    'pick': true, 'embed': true, 'stacktrace': true,
     'num': [
       'abs', 'sign', 'max', 'min', 'clamp', 'floor', 'ceil', 'round', 'trunc', 'nan', 'inf',
       'isnan', 'isfinite', 'e', 'pi', 'tau', 'sin', 'cos', 'tan', 'asin', 'acos', 'atan',
