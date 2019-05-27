@@ -15558,7 +15558,7 @@ bool sink_scr_write(sink_scr scr, int size, const uint8_t *bytes){
 			sc->err = NULL;
 		}
 		char *err = compiler_write(sc->cmp, size, bytes);
-		if (err)
+		if (err && sc->err == NULL)
 			sc->err = format("Error: %s", err);
 		bool is_eval = !sc->prg->repl && sc->file == NULL;
 		text_validate(sc, is_eval, true);
