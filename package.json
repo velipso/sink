@@ -26,6 +26,6 @@
   "homepage": "https://github.com/voidqk/sink",
   "devDependencies": {
     "@types/es6-promise": "0.0.33",
-    "@types/node": "^8.5.1"
+    "@types/node": "^8.10.48"
   }
 }

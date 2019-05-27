@@ -1,7 +1,10 @@
 var __extends = (this && this.__extends) || (function () {
-    var extendStatics = Object.setPrototypeOf ||
-        ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
-        function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
+    var extendStatics = function (d, b) {
+        extendStatics = Object.setPrototypeOf ||
+            ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
+            function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
+        return extendStatics(d, b);
+    };
     return function (d, b) {
         extendStatics(d, b);
         function __() { this.constructor = d; }
@@ -69,9 +72,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                 args[_i] = arguments[_i];
             }
             var _this = _super.call(this) || this;
-            args.unshift(0);
-            args.unshift(0);
-            _this.splice.apply(_this, args);
+            _this.splice.apply(_this, [0, 0].concat(args));
             _this.usertype = -1;
             _this.user = null;
             return _this;
@@ -8405,9 +8406,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         }
         else {
             var t = d.concat();
-            t.unshift(sl.len);
-            t.unshift(sl.start);
-            a.splice.apply(a, t);
+            a.splice.apply(a, [sl.start, sl.len].concat(t));
         }
     }
     exports.list_splice = list_splice;
@@ -9479,8 +9478,13 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     function context_run(ctx) {
         return __awaiter(this, void 0, void 0, function () {
             function RUNDONE(result) {
-                if (result === run.PASS || result === run.FAIL)
+                if (result === run.PASS || result === run.FAIL) {
                     context_reset(ctx);
+                    if (!ctx.prg.repl) {
+                        ctx.passed = result === run.PASS;
+                        ctx.failed = result === run.FAIL;
+                    }
+                }
                 return result;
             }
             function LOAD_ab() {

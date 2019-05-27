@@ -13326,8 +13326,13 @@ static void context_run_then(context ctx, sink_val result, waitt wrun){
 static void context_run_w(context ctx, waitt wrun){
 	#define RUNDONE(res) do{                                                               \
 			sink_run result = res;                                                         \
-			if (result == SINK_RUN_PASS || result == SINK_RUN_FAIL)                        \
+			if (result == SINK_RUN_PASS || result == SINK_RUN_FAIL){                       \
 				context_reset(ctx);                                                        \
+				if (!ctx->prg->repl){                                                      \
+					ctx->passed = result == SINK_RUN_PASS;                                 \
+					ctx->failed = result == SINK_RUN_FAIL;                                 \
+				}                                                                          \
+			}                                                                              \
 			wrun->has_result = true;                                                       \
 			wrun->result = sink_num(result);                                               \
 			if (wrun->has_then)                                                            \

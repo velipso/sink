@@ -18,9 +18,7 @@ export class list extends Array<val> {
 	user: any;
 	constructor(...args: val[]) {
 		super();
-		args.unshift(0);
-		args.unshift(0);
-		this.splice.apply(this, args);
+		this.splice.apply(this, [0, 0, ...args]);
 		this.usertype = -1;
 		this.user = null;
 	}
@@ -9394,7 +9392,7 @@ export function list_new(ctx: ctx, a: val, b: val): val {
 	return ret;
 }
 
-function opi_list_cat(ctx: ctx, vals: val[]): val {
+function opi_list_cat(ctx: ctx, vals: val[][]): val {
 	let res = new list();
 	for (let i = 0; i < vals.length; i++)
 		res.push.apply(res, vals[i]);
@@ -9441,9 +9439,7 @@ export function list_splice(ctx: ctx, a: val, b: val, c: val,
 	}
 	else{
 		let t = d.concat();
-		t.unshift(sl.len);
-		t.unshift(sl.start);
-		a.splice.apply(a, t);
+		a.splice.apply(a, [sl.start, sl.len, ...t]);
 	}
 }
 
@@ -10544,8 +10540,13 @@ const txt_int_bswap    = 'byte swaping';
 
 async function context_run(ctx: context_st): Promise<run> {
 	function RUNDONE(result: run): run {
-		if (result === run.PASS || result === run.FAIL)
+		if (result === run.PASS || result === run.FAIL){
 			context_reset(ctx);
+			if (!ctx.prg.repl){
+				ctx.passed = result === run.PASS;
+				ctx.failed = result === run.FAIL;
+			}
+		}
 		return result;
 	}
 
@@ -10787,7 +10788,7 @@ async function context_run(ctx: context_st): Promise<run> {
 						listcat = false;
 				}
 				if (listcat)
-					var_set(ctx, A, B, opi_list_cat(ctx, p));
+					var_set(ctx, A, B, opi_list_cat(ctx, p as val[][]));
 				else{
 					var_set(ctx, A, B, str_cat(ctx, p));
 					if (ctx.failed)
@@ -13526,7 +13527,7 @@ export function list_cat(ctx: ctx, vals: val[]): val {
 			return NIL;
 		}
 	}
-	return opi_list_cat(ctx, vals);
+	return opi_list_cat(ctx, vals as val[][]);
 }
 
 export function list_joinplain(vals: list | val[], sep: string): val {
