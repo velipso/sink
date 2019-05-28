@@ -15270,7 +15270,10 @@ static void sfr_end(bool success, const char *file, script sc){
 	if (!success){
 		if (sc->err)
 			mem_free(sc->err);
-		sc->err = format("Error: %s", sc->cmp->msg);
+		if (sc->cmp && sc->cmp->msg)
+			sc->err = format("Error: %s", sc->cmp->msg);
+		else
+			sc->err = format("Error: Failed to read file: %s", file);
 	}
 	else{
 		switch (sc->mode){

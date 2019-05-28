@@ -12495,8 +12495,12 @@ async function text_validate(sc: script_st, close: boolean, resetonclose: boolea
 }
 
 async function sfr_end(success: boolean, file: string, sc: script_st): Promise<void> {
-	if (!success)
-		sc.err = 'Error: ' + (sc.cmp as compiler_st).msg;
+	if (!success){
+		if (sc.cmp && sc.cmp.msg)
+			sc.err = 'Error: ' + sc.cmp.msg;
+		else
+			sc.err = 'Error: Failed to read file: ' + file;
+	}
 	else{
 		switch (sc.mode){
 			case scriptmode_enum.UNKNOWN:

@@ -11769,7 +11769,10 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                 switch (_b.label) {
                     case 0:
                         if (!!success) return [3, 1];
-                        sc.err = 'Error: ' + sc.cmp.msg;
+                        if (sc.cmp && sc.cmp.msg)
+                            sc.err = 'Error: ' + sc.cmp.msg;
+                        else
+                            sc.err = 'Error: Failed to read file: ' + file;
                         return [3, 6];
                     case 1:
                         _a = sc.mode;
