@@ -112,7 +112,7 @@ Random
 
 The random number generator is the same on all host environments, [defined here](./rand.md).
 It is fast, simple, and
-[passes many statistical tests](https://gist.github.com/voidqk/d112165a26b45244a65298933c0349a4).
+[passes many statistical tests](https://gist.github.com/velipso/d112165a26b45244a65298933c0349a4).
 On startup, it is automatically seeded via `rand.seedauto`.
 
 | Function          | Description                                                                 |
@@ -267,7 +267,7 @@ referencing lists and is slightly inefficient.
 
 The binary format is compact, fast, and restores list references -- therefore it can
 safely serialize *any* sink value, and is the recommended format for serialization.
-See: [Pickle Binary Format](https://github.com/voidqk/sink/blob/master/docs/pickle.md).
+See: [Pickle Binary Format](https://github.com/velipso/sink/blob/master/docs/pickle.md).
 
 Note: Pickling completely ignores host user data attached to lists and cannot be used to copy or
 marshal user objects in the host environment.

@@ -1,6 +1,6 @@
-// (c) Copyright 2016-2018, Sean Connelly (@voidqk), http://sean.cm
+// (c) Copyright 2016-2020, Sean Connelly (@velipso), sean.cm
 // MIT License
-// Project Home: https://github.com/voidqk/sink
+// Project Home: https://github.com/velipso/sink
 
 (function(mod){
   if (typeof exports == 'object' && typeof module == 'object') // CommonJS

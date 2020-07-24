@@ -10,22 +10,22 @@ embeddable, with support for a REPL as used in debug consoles.
 
 ### Sink the Language
 
-* [Crash Course](https://github.com/voidqk/sink/blob/master/docs/crash-course.md) (Tutorial)
+* [Crash Course](https://github.com/velipso/sink/blob/master/docs/crash-course.md) (Tutorial)
 &larr; Read This
-* [Online Demo](https://rawgit.com/voidqk/sink/master/dist/repl.html)
-* [Standard Library](https://github.com/voidqk/sink/blob/master/docs/lib.md)
+* [Online Demo](https://sean.cm/m/sink/dist/repl.html)
+* [Standard Library](https://github.com/velipso/sink/blob/master/docs/lib.md)
 
 ### Sink for Embedding
 
-* [Guide to Embedding](https://github.com/voidqk/sink/blob/master/docs/embedding.md)
+* [Guide to Embedding](https://github.com/velipso/sink/blob/master/docs/embedding.md)
 
 ### Sink Binaries (BETA 3)
 
-* [Mac OSX](https://github.com/voidqk/sink/raw/master/dist/mac/sink-beta3)
-* [Linux](https://github.com/voidqk/sink/raw/master/dist/posix/sink-beta3)
-* [Windows](https://github.com/voidqk/sink/raw/master/dist/windows/sink-beta3.exe)
+* [Mac OSX](https://github.com/velipso/sink/raw/master/dist/mac/sink-beta3)
+* [Linux](https://github.com/velipso/sink/raw/master/dist/posix/sink-beta3)
+* [Windows](https://github.com/velipso/sink/raw/master/dist/windows/sink-beta3.exe)
 
 ### Details
 
-* [Why Another Language](https://github.com/voidqk/sink/blob/master/docs/why.md)
-* [Technical Information](https://github.com/voidqk/sink/blob/master/docs/tech-info.md)
+* [Why Another Language](https://github.com/velipso/sink/blob/master/docs/why.md)
+* [Technical Information](https://github.com/velipso/sink/blob/master/docs/tech-info.md)

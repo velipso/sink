@@ -1,6 +1,6 @@
-// (c) Copyright 2016-2018, Sean Connelly (@voidqk), http://sean.cm
+// (c) Copyright 2016-2020, Sean Connelly (@velipso), sean.cm
 // MIT License
-// Project Home: https://github.com/voidqk/sink
+// Project Home: https://github.com/velipso/sink
 
 #include "sink.h"
 #include "sink_shell.h"
@@ -385,8 +385,8 @@ static int main_compile_eval(sink_scr scr, const char *eval, bool debug){
 static void print_version(){
 	printf(
 		"Sink v1.0\n"
-		"Copyright (c) 2016-2018 Sean Connelly (@voidqk), MIT License\n"
-		"https://github.com/voidqk/sink  http://sean.cm\n");
+		"Copyright (c) 2016-2020 Sean Connelly (@velipso), MIT License\n"
+		"https://github.com/velipso/sink  https://sean.cm\n");
 }
 
 static void print_help(){

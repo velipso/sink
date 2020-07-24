@@ -332,8 +332,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     }
     function print_version() {
         console.log('Sink v1.0\n' +
-            'Copyright (c) 2016-2018 Sean Connelly (@voidqk), MIT License\n' +
-            'https://github.com/voidqk/sink  http://sean.cm');
+            'Copyright (c) 2016-2020 Sean Connelly (@velipso), MIT License\n' +
+            'https://github.com/velipso/sink  https://sean.cm');
     }
     function print_help() {
         print_version();

@@ -8,7 +8,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git@github.com:voidqk/sink.git"
+    "url": "git@github.com:velipso/sink.git"
   },
   "keywords": [
     "programming language",
@@ -16,14 +16,14 @@
   ],
   "author": {
     "name": "Sean",
-    "twitter": "voidqk",
-    "url": "http://sean.cm"
+    "twitter": "velipso",
+    "url": "https://sean.cm"
   },
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/voidqk/sink/issues"
+    "url": "https://github.com/velipso/sink/issues"
   },
-  "homepage": "https://github.com/voidqk/sink",
+  "homepage": "https://github.com/velipso/sink",
   "devDependencies": {
     "@types/es6-promise": "0.0.33",
     "@types/node": "^8.10.48"

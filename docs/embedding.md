@@ -60,8 +60,8 @@ API
 
 The API is very similar across the implementations.  The TypeScript API is accessed via
 `sink.some_function`, whereas the C99 API is `sink_some_function`.  See the appropriate header files
-([`sink.h`](https://github.com/voidqk/sink/blob/master/src/sink.h) and
-[`sink.d.ts`](https://github.com/voidqk/sink/blob/master/dist/sink.d.ts)) for the exact
+([`sink.h`](https://github.com/velipso/sink/blob/master/src/sink.h) and
+[`sink.d.ts`](https://github.com/velipso/sink/blob/master/dist/sink.d.ts)) for the exact
 declarations.
 
 The API is in four basic sections:
@@ -70,7 +70,7 @@ The API is in four basic sections:
 |-----------------------------|-------------------------------------------------------|
 | [Script API](#script-api)   | Loading a program into memory, compiling if necessary |
 | [Context API](#context-api) | Executing a program, pausing/resuming execution       |
-| [Standard Library API](#standard-library-api) | Executing commands from the [standard library](https://github.com/voidqk/sink/blob/master/docs/lib.md) inside a context |
+| [Standard Library API](#standard-library-api) | Executing commands from the [standard library](https://github.com/velipso/sink/blob/master/docs/lib.md) inside a context |
 | [Misc/Helper Functions](#mischelper-functions) | Assorted functions to make life easier |
 
 Script API
@@ -156,8 +156,8 @@ The `f_fsread` function should attempt to open the provided file, and write it t
 using [`scr_write`](#scr_write).  It should return `true` if the file was read successfully, and
 `false` if the file failed to be read.
 
-See [cmd.c](https://github.com/voidqk/sink/blob/master/src/cmd.c) or
-[cmd.ts](https://github.com/voidqk/sink/blob/master/src/cmd.ts) for example implementations of these
+See [cmd.c](https://github.com/velipso/sink/blob/master/src/cmd.c) or
+[cmd.ts](https://github.com/velipso/sink/blob/master/src/cmd.ts) for example implementations of these
 functions.  Note that the TypeScript/JavaScript version must return a Promise.
 
 The `user` field is passed through to the `incuser` argument in the functions, at your discretion.
@@ -1350,14 +1350,14 @@ The final result for the operation.
 Standard Library API
 ====================
 
-The entire [standard library](https://github.com/voidqk/sink/blob/master/docs/lib.md) is available
+The entire [standard library](https://github.com/velipso/sink/blob/master/docs/lib.md) is available
 from the host environment.
 
 In C, the host function is prefixed with `sink_`, and in TypeScript/JavaScript, the host function
 is prefixed with `sink.`.
 
-See the [C header file](https://github.com/voidqk/sink/blob/master/src/sink.h) and the
-[TypeScript declaration file](https://github.com/voidqk/sink/blob/master/dist/sink.d.ts) for
+See the [C header file](https://github.com/velipso/sink/blob/master/src/sink.h) and the
+[TypeScript declaration file](https://github.com/velipso/sink/blob/master/dist/sink.d.ts) for
 function parameters.  It should be straight-forward.
 
 Note: the following commands are not available at run-time because they only work at compile-time:
@@ -1848,7 +1848,7 @@ The raw bytes.  Note: in TypeScript/JavaScript, the string is interpretted as
 
 ### `seed`
 
-The seed (see: [`str.hash`](https://github.com/voidqk/sink/blob/master/docs/hash.md)).
+The seed (see: [`str.hash`](https://github.com/velipso/sink/blob/master/docs/hash.md)).
 
 ### `out`
 

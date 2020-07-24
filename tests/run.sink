@@ -1,6 +1,6 @@
-# (c) Copyright 2016-2018, Sean Connelly (@voidqk), http://sean.cm
+# (c) Copyright 2016-2018, Sean Connelly (@velipso), sean.cm
 # MIT License
-# Project Home: https://github.com/voidqk/sink
+# Project Home: https://github.com/velipso/sink
 
 #
 # this script will search for sink executables to test, and run the test suite against them
