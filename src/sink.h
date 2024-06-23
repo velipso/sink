@@ -1,6 +1,9 @@
-// (c) Copyright 2016-2018, Sean Connelly (@velipso), sean.cm
-// MIT License
+//
+// sink - Minimal programming language for embedding small scripts in larger programs
+// by Sean Connelly (@velipso), https://sean.fun
 // Project Home: https://github.com/velipso/sink
+// SPDX-License-Identifier: 0BSD
+//
 
 #ifndef SINK__H
 #define SINK__H
@@ -58,15 +61,15 @@ typedef union {
 typedef int sink_user;
 
 typedef struct {
-	const sink_val *vals;
-	const int size;
+	sink_val *vals;
+	int size;
 } sink_list;
 
 typedef struct {
 	// `bytes` can be NULL for a size 0 string
 	// otherwise, `bytes[size]` is guaranteed to be 0
-	const uint8_t *bytes;
-	const int size;
+	uint8_t *bytes;
+	int size;
 } sink_str;
 
 typedef void *sink_wait;

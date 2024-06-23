@@ -1,21 +1,30 @@
+//
+// sink - Minimal programming language for embedding small scripts in larger programs
+// by Sean Connelly (@velipso), https://sean.fun
+// Project Home: https://github.com/velipso/sink
+// SPDX-License-Identifier: 0BSD
+//
 var __extends = (this && this.__extends) || (function () {
     var extendStatics = function (d, b) {
         extendStatics = Object.setPrototypeOf ||
             ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
-            function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
+            function (d, b) { for (var p in b) if (Object.prototype.hasOwnProperty.call(b, p)) d[p] = b[p]; };
         return extendStatics(d, b);
     };
     return function (d, b) {
+        if (typeof b !== "function" && b !== null)
+            throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
         extendStatics(d, b);
         function __() { this.constructor = d; }
         d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
     };
 })();
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
         function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
         function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
@@ -25,7 +34,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     function verb(n) { return function (v) { return step([n, v]); }; }
     function step(op) {
         if (f) throw new TypeError("Generator is already executing.");
-        while (_) try {
+        while (g && (g = 0, op[0] && (_ = 0)), _) try {
             if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
             if (y = 0, t) op = [op[0] & 2, t.value];
             switch (op[0]) {
@@ -46,6 +55,15 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
+var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
+    if (pack || arguments.length === 2) for (var i = 0, l = from.length, ar; i < l; i++) {
+        if (ar || !(i in from)) {
+            if (!ar) ar = Array.prototype.slice.call(from, 0, i);
+            ar[i] = from[i];
+        }
+    }
+    return to.concat(ar || Array.prototype.slice.call(from));
+};
 (function (factory) {
     if (typeof module === "object" && typeof module.exports === "object") {
         var v = factory(require, exports);
@@ -57,14 +75,192 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 })(function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
+    exports.seedauto_src = exports.NIL = exports.status = exports.run = exports.gc_level = exports.fstype = exports.list = exports.type = void 0;
+    exports.bool = bool;
+    exports.istrue = istrue;
+    exports.isfalse = isfalse;
+    exports.isnil = isnil;
+    exports.isstr = isstr;
+    exports.islist = islist;
+    exports.isnum = isnum;
+    exports.sink_typeof = sink_typeof;
+    exports.num_nan = num_nan;
+    exports.num_inf = num_inf;
+    exports.num_isnan = num_isnan;
+    exports.num_isfinite = num_isfinite;
+    exports.num_e = num_e;
+    exports.num_pi = num_pi;
+    exports.num_tau = num_tau;
+    exports.user_new = user_new;
+    exports.scr_setuser = scr_setuser;
+    exports.scr_getuser = scr_getuser;
+    exports.rand_seedauto = rand_seedauto;
+    exports.rand_seed = rand_seed;
+    exports.rand_int = rand_int;
+    exports.rand_num = rand_num;
+    exports.rand_range = rand_range;
+    exports.rand_getstate = rand_getstate;
+    exports.rand_setstate = rand_setstate;
+    exports.rand_pick = rand_pick;
+    exports.rand_shuffle = rand_shuffle;
+    exports.str_new = str_new;
+    exports.str_split = str_split;
+    exports.str_replace = str_replace;
+    exports.str_find = str_find;
+    exports.str_rfind = str_rfind;
+    exports.str_begins = str_begins;
+    exports.str_ends = str_ends;
+    exports.str_pad = str_pad;
+    exports.str_lower = str_lower;
+    exports.str_upper = str_upper;
+    exports.str_trim = str_trim;
+    exports.str_rev = str_rev;
+    exports.str_rep = str_rep;
+    exports.str_list = str_list;
+    exports.str_byte = str_byte;
+    exports.str_hash = str_hash;
+    exports.utf8_valid = utf8_valid;
+    exports.utf8_list = utf8_list;
+    exports.utf8_str = utf8_str;
+    exports.struct_size = struct_size;
+    exports.struct_str = struct_str;
+    exports.struct_list = struct_list;
+    exports.struct_isLE = struct_isLE;
+    exports.size = size;
+    exports.tonum = tonum;
+    exports.say = say;
+    exports.warn = warn;
+    exports.ask = ask;
+    exports.stacktrace = stacktrace;
+    exports.str_cat = str_cat;
+    exports.str_slice = str_slice;
+    exports.str_splice = str_splice;
+    exports.list_new = list_new;
+    exports.list_slice = list_slice;
+    exports.list_splice = list_splice;
+    exports.list_shift = list_shift;
+    exports.list_pop = list_pop;
+    exports.list_push = list_push;
+    exports.list_unshift = list_unshift;
+    exports.list_append = list_append;
+    exports.list_prepend = list_prepend;
+    exports.list_find = list_find;
+    exports.list_rfind = list_rfind;
+    exports.list_join = list_join;
+    exports.list_rev = list_rev;
+    exports.list_str = list_str;
+    exports.list_sort = list_sort;
+    exports.list_rsort = list_rsort;
+    exports.order = order;
+    exports.range = range;
+    exports.pickle_json = pickle_json;
+    exports.pickle_binstr = pickle_binstr;
+    exports.pickle_bin = pickle_bin;
+    exports.pickle_valstr = pickle_valstr;
+    exports.pickle_val = pickle_val;
+    exports.pickle_valid = pickle_valid;
+    exports.pickle_sibling = pickle_sibling;
+    exports.pickle_circular = pickle_circular;
+    exports.pickle_copy = pickle_copy;
+    exports.scr_new = scr_new;
+    exports.scr_addpath = scr_addpath;
+    exports.scr_incbody = scr_incbody;
+    exports.scr_incfile = scr_incfile;
+    exports.scr_loadfile = scr_loadfile;
+    exports.scr_getfile = scr_getfile;
+    exports.scr_getcwd = scr_getcwd;
+    exports.scr_write = scr_write;
+    exports.scr_geterr = scr_geterr;
+    exports.scr_level = scr_level;
+    exports.scr_dump = scr_dump;
+    exports.ctx_new = ctx_new;
+    exports.ctx_getstatus = ctx_getstatus;
+    exports.ctx_native = ctx_native;
+    exports.ctx_nativehash = ctx_nativehash;
+    exports.ctx_setuser = ctx_setuser;
+    exports.ctx_getuser = ctx_getuser;
+    exports.ctx_addusertype = ctx_addusertype;
+    exports.ctx_getuserhint = ctx_getuserhint;
+    exports.ctx_settimeout = ctx_settimeout;
+    exports.ctx_gettimeout = ctx_gettimeout;
+    exports.ctx_consumeticks = ctx_consumeticks;
+    exports.ctx_forcetimeout = ctx_forcetimeout;
+    exports.ctx_run = ctx_run;
+    exports.ctx_geterr = ctx_geterr;
+    exports.arg_bool = arg_bool;
+    exports.arg_num = arg_num;
+    exports.arg_str = arg_str;
+    exports.arg_list = arg_list;
+    exports.arg_user = arg_user;
+    exports.tostr = tostr;
+    exports.exit = exit;
+    exports.abort = abort;
+    exports.abortstr = abortstr;
+    exports.isnative = isnative;
+    exports.isnativehash = isnativehash;
+    exports.num_neg = num_neg;
+    exports.num_add = num_add;
+    exports.num_sub = num_sub;
+    exports.num_mul = num_mul;
+    exports.num_div = num_div;
+    exports.num_mod = num_mod;
+    exports.num_pow = num_pow;
+    exports.num_abs = num_abs;
+    exports.num_sign = num_sign;
+    exports.num_max = num_max;
+    exports.num_min = num_min;
+    exports.num_clamp = num_clamp;
+    exports.num_floor = num_floor;
+    exports.num_ceil = num_ceil;
+    exports.num_round = num_round;
+    exports.num_trunc = num_trunc;
+    exports.num_sin = num_sin;
+    exports.num_cos = num_cos;
+    exports.num_tan = num_tan;
+    exports.num_asin = num_asin;
+    exports.num_acos = num_acos;
+    exports.num_atan = num_atan;
+    exports.num_atan2 = num_atan2;
+    exports.num_log = num_log;
+    exports.num_log2 = num_log2;
+    exports.num_log10 = num_log10;
+    exports.num_exp = num_exp;
+    exports.num_lerp = num_lerp;
+    exports.num_hex = num_hex;
+    exports.num_oct = num_oct;
+    exports.num_bin = num_bin;
+    exports.int_new = int_new;
+    exports.int_not = int_not;
+    exports.int_and = int_and;
+    exports.int_or = int_or;
+    exports.int_xor = int_xor;
+    exports.int_shl = int_shl;
+    exports.int_shr = int_shr;
+    exports.int_sar = int_sar;
+    exports.int_add = int_add;
+    exports.int_sub = int_sub;
+    exports.int_mul = int_mul;
+    exports.int_div = int_div;
+    exports.int_mod = int_mod;
+    exports.int_clz = int_clz;
+    exports.int_pop = int_pop;
+    exports.int_bswap = int_bswap;
+    exports.str_hashplain = str_hashplain;
+    exports.list_setuser = list_setuser;
+    exports.list_hasuser = list_hasuser;
+    exports.list_getuser = list_getuser;
+    exports.list_cat = list_cat;
+    exports.list_joinplain = list_joinplain;
+    exports.gc_getlevel = gc_getlevel;
+    exports.gc_setlevel = gc_setlevel;
     var type;
     (function (type) {
         type[type["NIL"] = 0] = "NIL";
         type[type["NUM"] = 1] = "NUM";
         type[type["STR"] = 2] = "STR";
         type[type["LIST"] = 3] = "LIST";
-    })(type = exports.type || (exports.type = {}));
-    var list = (function (_super) {
+    })(type || (exports.type = type = {}));
+    var list = /** @class */ (function (_super) {
         __extends(list, _super);
         function list() {
             var args = [];
@@ -72,7 +268,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                 args[_i] = arguments[_i];
             }
             var _this = _super.call(this) || this;
-            _this.splice.apply(_this, [0, 0].concat(args));
+            _this.splice.apply(_this, __spreadArray([0, 0], args, true));
             _this.usertype = -1;
             _this.user = null;
             return _this;
@@ -88,13 +284,13 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         fstype[fstype["NONE"] = 0] = "NONE";
         fstype[fstype["FILE"] = 1] = "FILE";
         fstype[fstype["DIR"] = 2] = "DIR";
-    })(fstype = exports.fstype || (exports.fstype = {}));
+    })(fstype || (exports.fstype = fstype = {}));
     var gc_level;
     (function (gc_level) {
         gc_level[gc_level["NONE"] = 0] = "NONE";
         gc_level[gc_level["DEFAULT"] = 1] = "DEFAULT";
         gc_level[gc_level["LOWMEM"] = 2] = "LOWMEM";
-    })(gc_level = exports.gc_level || (exports.gc_level = {}));
+    })(gc_level || (exports.gc_level = gc_level = {}));
     var run;
     (function (run) {
         run[run["PASS"] = 0] = "PASS";
@@ -102,32 +298,25 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         run[run["ASYNC"] = 2] = "ASYNC";
         run[run["TIMEOUT"] = 3] = "TIMEOUT";
         run[run["REPLMORE"] = 4] = "REPLMORE";
-    })(run = exports.run || (exports.run = {}));
+    })(run || (exports.run = run = {}));
     var status;
     (function (status) {
         status[status["READY"] = 0] = "READY";
         status[status["WAITING"] = 1] = "WAITING";
         status[status["PASSED"] = 2] = "PASSED";
         status[status["FAILED"] = 3] = "FAILED";
-    })(status = exports.status || (exports.status = {}));
+    })(status || (exports.status = status = {}));
     var NAN = Number.NaN;
     exports.NIL = null;
     function bool(f) { return f ? 1 : exports.NIL; }
-    exports.bool = bool;
     function istrue(v) { return v !== exports.NIL; }
-    exports.istrue = istrue;
     function isfalse(v) { return v === exports.NIL; }
-    exports.isfalse = isfalse;
     function isnil(v) { return v === exports.NIL; }
-    exports.isnil = isnil;
     function isstr(v) { return typeof v === 'string'; }
-    exports.isstr = isstr;
     function islist(v) {
         return typeof v === 'object' && v !== null;
     }
-    exports.islist = islist;
     function isnum(v) { return typeof v === 'number'; }
-    exports.isnum = isnum;
     function sink_typeof(v) {
         if (isnil(v))
             return type.NIL;
@@ -138,33 +327,24 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         else
             return type.NUM;
     }
-    exports.sink_typeof = sink_typeof;
     function num_nan() { return NAN; }
-    exports.num_nan = num_nan;
     function num_inf() { return Infinity; }
-    exports.num_inf = num_inf;
     function num_isnan(v) { return typeof v === 'number' && isNaN(v); }
-    exports.num_isnan = num_isnan;
     function num_isfinite(v) {
         return typeof v === 'number' && isFinite(v);
     }
-    exports.num_isfinite = num_isfinite;
     function num_e() { return Math.E; }
-    exports.num_e = num_e;
     function num_pi() { return Math.PI; }
-    exports.num_pi = num_pi;
     function num_tau() { return Math.PI * 2; }
-    exports.num_tau = num_tau;
     function user_new(ctx, usertype, user) {
         var hint = ctx_getuserhint(ctx, usertype);
         var ls = new list(hint);
         list_setuser(ctx, ls, usertype, user);
         return ls;
     }
-    exports.user_new = user_new;
     function wrap_clock() { return (new Date()).getTime(); }
     exports.seedauto_src = wrap_clock;
-    var list_u64 = (function (_super) {
+    var list_u64 = /** @class */ (function (_super) {
         __extends(list_u64, _super);
         function list_u64() {
             return _super !== null && _super.apply(this, arguments) || this;
@@ -337,6 +517,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         op_enum[op_enum["GC_GETLEVEL"] = 150] = "GC_GETLEVEL";
         op_enum[op_enum["GC_SETLEVEL"] = 151] = "GC_SETLEVEL";
         op_enum[op_enum["GC_RUN"] = 152] = "GC_RUN";
+        // RESERVED     = 0xFD,
+        // fake ops
         op_enum[op_enum["GT"] = 496] = "GT";
         op_enum[op_enum["GTE"] = 497] = "GTE";
         op_enum[op_enum["PICK"] = 498] = "PICK";
@@ -1182,6 +1364,28 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         }
         return info;
     }
+    // strangely, in JavaScript (at least in node v6.9.1), Math.pow doesn't always return the exact same
+    // results as typing in the number directly...
+    //
+    // node:
+    //   > 1e100
+    //   1e+100
+    //   > Math.pow(10, 100)
+    //   1.0000000000000002e+100
+    //
+    // so I created a table of hardcoded powers of 10, both the positive and negative
+    //
+    // tables stop at their respective values due to manually testing the limits:
+    //
+    // node:
+    //   > 1e308
+    //   1e+308
+    //   > 1e309
+    //   Infinity
+    //   > 1e-323
+    //   1e-323
+    //   > 1e-324
+    //   0
     var powp10 = [1, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9, 1e10, 1e11, 1e12, 1e13, 1e14, 1e15,
         1e16, 1e17, 1e18, 1e19, 1e20, 1e21, 1e22, 1e23, 1e24, 1e25, 1e26, 1e27, 1e28, 1e29, 1e30, 1e31,
         1e32, 1e33, 1e34, 1e35, 1e36, 1e37, 1e38, 1e39, 1e40, 1e41, 1e42, 1e43, 1e44, 1e45, 1e46, 1e47,
@@ -1401,6 +1605,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                 }
                 else {
                     var ks1 = ks_char(lx.ch2);
+                    // hack to detect difference between binary and unary +/-
                     if (ks1 === ks_enum.PLUS) {
                         if (!isSpace(ch1) && isSpace(lx.ch3))
                             ks1 = ks_enum.UNPLUS;
@@ -1430,6 +1635,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                         }
                         else {
                             var ks1 = ks_char(lx.ch3);
+                            // hack to detect difference between binary and unary +/-
                             if (ks1 === ks_enum.PLUS && isSpace(lx.ch4))
                                 ks1 = ks_enum.UNPLUS;
                             else if (ks1 === ks_enum.MINUS && isSpace(lx.ch4))
@@ -1618,7 +1824,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                 else if (isIdentStart(ch1)) {
                     lx.str = ch1;
                     lx.state = lex_enum.STR_INTERP_DLR_ID;
-                    lx.flpS = flp;
+                    lx.flpS = flp; // save start position of ident
                 }
                 else
                     tks.push(tok_error(flp, 'Invalid substitution'));
@@ -1789,6 +1995,9 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         }
         tks.push(tok_newline(flp, false));
     }
+    //
+    // expr
+    //
     var expr_enum;
     (function (expr_enum) {
         expr_enum[expr_enum["NIL"] = 0] = "NIL";
@@ -1865,10 +2074,12 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         };
     }
     function expr_cat(flp, left, right) {
+        // unwrap any parens
         while (left.type === expr_enum.PAREN)
             left = left.ex;
         while (right.type === expr_enum.PAREN)
             right = right.ex;
+        // check for static concat
         if (left.type === expr_enum.STR && right.type === expr_enum.STR) {
             left.str += right.str;
             return left;
@@ -1913,6 +2124,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     }
     function expr_infix(flp, k, left, right) {
         if (left.type === expr_enum.NUM && right !== null && right.type === expr_enum.NUM) {
+            // check for compile-time numeric optimizations
             if (k === ks_enum.PLUS) {
                 left.num += right.num;
                 return left;
@@ -2210,6 +2422,9 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     function eps_new(e, next) {
         return { e: e, next: next };
     }
+    //
+    // parser state
+    //
     var prs_enum;
     (function (prs_enum) {
         prs_enum[prs_enum["STATEMENT"] = 0] = "STATEMENT";
@@ -2418,6 +2633,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         pr.state.names = [pr.tk1.ident];
         return null;
     }
+    // returns null for success, or an error message
     function parser_process(pr, stmts) {
         if (pr.tk1 === null)
             throw new Error('Parser cannot process null token');
@@ -3084,6 +3300,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             case prs_enum.EXPR:
                 st.flpE = flpT;
                 st.state = prs_enum.EXPR_PRE;
+            // fall through
             case prs_enum.EXPR_PRE:
                 if (tok_isPre(tk1)) {
                     st.exprPreStack = ets_new(tk1, st.exprPreStack);
@@ -3181,6 +3398,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                     st.state = prs_enum.EXPR_FINISH;
                     return parser_process(pr, stmts);
                 }
+                // otherwise, this should be a call
                 st.exprTerm2 = st.exprTerm;
                 st.exprTerm = null;
                 parser_expr(pr, prs_enum.EXPR_POST_CALL);
@@ -3274,7 +3492,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                 return null;
             case prs_enum.EXPR_COMMA:
                 if (tk1.type === tok_enum.NEWLINE && !tk1.soft) {
-                    parser_rev(pr);
+                    parser_rev(pr); // keep the comma in tk1
                     pr.tkR = null;
                     return null;
                 }
@@ -3287,6 +3505,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                     parser_fwd(pr, pr.tkR);
                     return parser_process(pr, stmts);
                 }
+                // found a trailing comma
                 st.state = prs_enum.EXPR_FINISH;
                 return parser_process(pr, stmts);
             case prs_enum.EXPR_MID:
@@ -3295,6 +3514,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                     return parser_process(pr, stmts);
                 }
                 while (true) {
+                    // fight between the Pre and the Mid
                     while (true) {
                         if (st.exprPreStack === null)
                             break;
@@ -3303,14 +3523,17 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             throw new Error('Parser expression mid expecting keyword');
                         if (!tok_isPreBeforeMid(st.exprPreStack.tk, tk1))
                             break;
+                        // apply the Pre
                         var ptk = st.exprPreStack.tk;
                         if (st.exprTerm === null)
                             throw new Error('Parser expression mid expecting expression');
                         st.exprTerm = expr_prefix(ptk.flp, ptk.k, st.exprTerm);
                         st.exprPreStack = st.exprPreStack.next;
                     }
+                    // if we've exhaused the exprPreStack, then check against the exprMidStack
                     if (st.exprPreStack === null && st.exprMidStack !== null &&
                         tok_isMidBeforeMid(st.exprMidStack.tk, tk1)) {
+                        // apply the previous Mid
                         var mtk = st.exprMidStack.tk;
                         if (st.exprStack === null)
                             throw new Error('Parser expression mid expecting expression stack');
@@ -3327,9 +3550,12 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                         st.exprPreStackStack = st.exprPreStackStack.next;
                         st.exprMidStack = st.exprMidStack.next;
                     }
-                    else
+                    else // otherwise, the current Mid wins
                         break;
                 }
+                // finally, we're safe to apply the Mid...
+                // except instead of applying it, we need to schedule to apply it, in case another
+                // operator takes precedence over this one
                 st.exprPreStackStack = eps_new(st.exprPreStack, st.exprPreStackStack);
                 st.exprPreStack = null;
                 if (st.exprTerm === null)
@@ -3342,6 +3568,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                 return null;
             case prs_enum.EXPR_FINISH:
                 while (true) {
+                    // apply any outstanding Pre's
                     while (st.exprPreStack !== null) {
                         var ptk = st.exprPreStack.tk;
                         if (st.exprTerm === null)
@@ -3349,13 +3576,16 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                         st.exprTerm = expr_prefix(ptk.flp, ptk.k, st.exprTerm);
                         st.exprPreStack = st.exprPreStack.next;
                     }
+                    // grab left side's Pre's
                     if (st.exprPreStackStack !== null) {
                         st.exprPreStack = st.exprPreStackStack.e;
                         st.exprPreStackStack = st.exprPreStackStack.next;
                     }
+                    // fight between the left Pre and the Mid
                     while (st.exprPreStack !== null &&
                         (st.exprMidStack === null ||
                             tok_isPreBeforeMid(st.exprPreStack.tk, st.exprMidStack.tk))) {
+                        // apply the Pre to the left side
                         var ptk = st.exprPreStack.tk;
                         if (st.exprStack === null)
                             throw new Error('Parser expression end expecting expression stack');
@@ -3364,6 +3594,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                     }
                     if (st.exprMidStack === null)
                         break;
+                    // apply the Mid
                     var mtk = st.exprMidStack.tk;
                     if (st.exprStack === null || st.exprTerm === null)
                         throw new Error('Parser expression end expecting expression stack');
@@ -3374,6 +3605,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                     st.exprStack = st.exprStack.next;
                     st.exprMidStack = st.exprMidStack.next;
                 }
+                // everything has been applied, and exprTerm has been set!
                 if (st.next === null)
                     throw new Error('Parser expression expecting to return state');
                 st.next.exprTerm = st.exprTerm;
@@ -3446,6 +3678,9 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         lbl.pos = ops.length;
         label_refresh(lbl, ops, 0);
     }
+    //
+    // symbol table
+    //
     var frame_enum;
     (function (frame_enum) {
         frame_enum[frame_enum["VAR"] = 0] = "VAR";
@@ -3531,8 +3766,9 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         for (var nsni = 0; nsni < ns.names.length; nsni++) {
             var nsn = ns.names[nsni];
             if (nsn.name === names[start]) {
-                if (start === names.length - 1)
+                if (start === names.length - 1) // if we're at the end of names, then report the find
                     return nl_found(nsn);
+                // otherwise, we need to traverse
                 if (nsn.type === nsname_enumt.NAMESPACE)
                     return namespace_lookup(nsn.ns, names, start + 1, tried);
                 return nl_notfound();
@@ -3566,6 +3802,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         return nl_notfound();
     }
     function namespace_lookupImmediate(ns, names) {
+        // should perform the most ideal lookup... if it fails, then there is room to add a symbol
         for (var ni = 0; ni < names.length; ni++) {
             var name_1 = names[ni];
             var found = false;
@@ -3659,12 +3896,14 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     function symtbl_pushNamespace(sym, names) {
         var ns;
         if (names === true) {
+            // create a unique namespace and use it (via `using`) immediately
             var nsp = sym.sc.ns;
             ns = namespace_new(nsp.fr);
             nsp.names.push(nsname_namespace('.', ns));
             nsp.usings.push(ns);
         }
         else {
+            // find (and create if non-existant) namespace
             var nsr = symtbl_findNamespace(sym, names, names.length);
             if (!nsr.ok)
                 return nsr.msg;
@@ -3767,6 +4006,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         return cnt;
     }
     function symtbl_addVar(sym, names, slot) {
+        // set `slot` to negative to add variable at next available location
         var nsr = symtbl_findNamespace(sym, names, names.length - 1);
         if (!nsr.ok)
             return sta_error(nsr.msg);
@@ -3815,6 +4055,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         return null;
     }
     function symtbl_reserveVars(sym, count) {
+        // reserves the slots 0 to count-1 for arguments to be passed in for commands
         for (var i = 0; i < count; i++)
             sym.fr.vars.push(frame_enum.VAR);
     }
@@ -3852,6 +4093,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         ns.names.push(nsname_cmdNative(names[names.length - 1], hash));
         return null;
     }
+    // symtbl_addCmdOpcode
+    // can simplify this function because it is only called internally
     function SAC(sym, name, opcode, params) {
         sym.sc.ns.names.push(nsname_cmdOpcode(name, opcode, params));
     }
@@ -4063,11 +4306,12 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     function scr_setuser(scr, user) {
         scr.user = user;
     }
-    exports.scr_setuser = scr_setuser;
     function scr_getuser(scr) {
         return scr.user;
     }
-    exports.scr_getuser = scr_getuser;
+    //
+    // pathjoin
+    //
     function pathjoin(prev, next, posix) {
         var p;
         if (posix)
@@ -4092,36 +4336,38 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                 switch (_b.label) {
                     case 0:
                         inc = scr.inc;
-                        return [4, inc.f_fstype(scr, file, inc.user)];
+                        return [4 /*yield*/, inc.f_fstype(scr, file, inc.user)];
                     case 1:
                         fst = _b.sent();
                         _a = fst;
                         switch (_a) {
-                            case fstype.FILE: return [3, 2];
-                            case fstype.NONE: return [3, 6];
-                            case fstype.DIR: return [3, 7];
+                            case fstype.FILE: return [3 /*break*/, 2];
+                            case fstype.NONE: return [3 /*break*/, 6];
+                            case fstype.DIR: return [3 /*break*/, 7];
                         }
-                        return [3, 8];
+                        return [3 /*break*/, 8];
                     case 2:
-                        if (!f_begin(file, fuser)) return [3, 5];
-                        return [4, inc.f_fsread(scr, file, inc.user)];
+                        if (!f_begin(file, fuser)) return [3 /*break*/, 5];
+                        return [4 /*yield*/, inc.f_fsread(scr, file, inc.user)];
                     case 3:
                         readRes = _b.sent();
-                        return [4, f_end(readRes, file, fuser)];
+                        return [4 /*yield*/, f_end(readRes, file, fuser)];
                     case 4:
                         _b.sent();
                         _b.label = 5;
-                    case 5: return [2, true];
+                    case 5: return [2 /*return*/, true];
                     case 6:
                         if (!postfix)
-                            return [2, false];
+                            return [2 /*return*/, false];
+                        // try adding a .sink extension
                         if (file.substr(-5) === '.sink')
-                            return [2, false];
-                        return [2, fileres_try(scr, false, file + '.sink', f_begin, f_end, fuser)];
+                            return [2 /*return*/, false];
+                        return [2 /*return*/, fileres_try(scr, false, file + '.sink', f_begin, f_end, fuser)];
                     case 7:
                         if (!postfix)
-                            return [2, false];
-                        return [2, fileres_try(scr, false, pathjoin(file, 'index.sink', scr.posix), f_begin, f_end, fuser)];
+                            return [2 /*return*/, false];
+                        // try looking for index.sink inside the directory
+                        return [2 /*return*/, fileres_try(scr, false, pathjoin(file, 'index.sink', scr.posix), f_begin, f_end, fuser)];
                     case 8: throw new Error('Bad file type');
                 }
             });
@@ -4137,38 +4383,43 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
+                        // if an absolute path, there is no searching, so just try to read it directly
                         if (isabs(file, scr.posix))
-                            return [2, fileres_try(scr, postfix, file, f_begin, f_end, fuser)];
+                            return [2 /*return*/, fileres_try(scr, postfix, file, f_begin, f_end, fuser)];
+                        // otherwise, we have a relative path, so we need to go through our search list
                         if (cwd === null)
                             cwd = scr.curdir;
                         paths = scr.paths;
                         i = 0;
                         _a.label = 1;
                     case 1:
-                        if (!(i < paths.length)) return [3, 4];
+                        if (!(i < paths.length)) return [3 /*break*/, 4];
                         path = paths[i];
                         join = void 0;
-                        if (isabs(path, scr.posix))
+                        if (isabs(path, scr.posix)) // search path is absolute
                             join = pathjoin(path, file, scr.posix);
-                        else {
+                        else { // search path is relative
                             if (cwd === null)
-                                return [3, 3];
+                                return [3 /*break*/, 3];
                             join = pathjoin(pathjoin(cwd, path, scr.posix), file, scr.posix);
                         }
-                        return [4, fileres_try(scr, postfix, join, f_begin, f_end, fuser)];
+                        return [4 /*yield*/, fileres_try(scr, postfix, join, f_begin, f_end, fuser)];
                     case 2:
                         found = _a.sent();
                         if (found)
-                            return [2, true];
+                            return [2 /*return*/, true];
                         _a.label = 3;
                     case 3:
                         i++;
-                        return [3, 1];
-                    case 4: return [2, false];
+                        return [3 /*break*/, 1];
+                    case 4: return [2 /*return*/, false];
                 }
             });
         });
     }
+    //
+    // program
+    //
     function program_new(posix, repl) {
         return {
             strTable: [],
@@ -4192,6 +4443,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     function program_addfile(prg, str) {
         if (str === null)
             return -1;
+        // get the basename
         var i = str.lastIndexOf('/');
         if (!prg.posix)
             i = Math.max(i, str.lastIndexOf('\\'));
@@ -4222,9 +4474,14 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             jumplocs.push(0);
         var ops = prg.ops;
         var A = 0, B = 0, C = 0, D = 0;
+        // holds alignment information
+        // op_actual: the actual alignment of each byte
+        //   0 = invalid target, 1 = valid jump target, 2 = valid call target
         var op_actual = [];
         for (var i = 0; i < ops.length; i++)
             op_actual.push(0);
+        // op_need: the required alignment of each byte
+        //   0 = don't care, 1 = valid jump target, 2 = valid call target
         var op_need = [];
         for (var i = 0; i < ops.length; i++)
             op_need.push(0);
@@ -4291,7 +4548,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             switch (opc) {
                 case op_pcat.INVALID: return false;
                 case op_pcat.STR:
-                    {
+                    { // [VAR], [[INDEX]]
                         READVAR();
                         READINDEX();
                         if (A < 0 || A >= prg.strTable.length)
@@ -4299,15 +4556,15 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                     }
                     break;
                 case op_pcat.CMDHEAD:
-                    {
+                    { // LEVEL, RESTPOS
                         if (!wasjump)
                             return false;
                         if (pc + 2 > ops.length)
                             return false;
-                        op_actual[pc - 1] = 2;
+                        op_actual[pc - 1] = 2; // valid call target
                         if (level > 255)
                             return false;
-                        jumplocs[level++] = jumploc;
+                        jumplocs[level++] = jumploc; // save previous jump target
                         A = ops[pc++];
                         B = ops[pc++];
                         if (A !== level)
@@ -4315,33 +4572,33 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                     }
                     break;
                 case op_pcat.CMDTAIL:
-                    {
+                    { //
                         if (level <= 0)
                             return false;
-                        if (jumplocs[--level] !== pc)
+                        if (jumplocs[--level] !== pc) // force jump target to jump over command body
                             return false;
                     }
                     break;
                 case op_pcat.JUMP:
-                    {
-                        READLOC(1);
+                    { // [[LOCATION]]
+                        READLOC(1); // need valid jump target
                     }
                     break;
                 case op_pcat.VJUMP:
-                    {
+                    { // [VAR], [[LOCATION]]
                         READVAR();
-                        READLOC(1);
+                        READLOC(1); // need valid jump target
                     }
                     break;
                 case op_pcat.CALL:
-                    {
+                    { // [VAR], [[LOCATION]], ARGCOUNT, [VARS]...
                         READVAR();
-                        READLOC(2);
+                        READLOC(2); // need valid call target
                         READCNT();
                     }
                     break;
                 case op_pcat.ISNATIVE:
-                    {
+                    { // [VAR], [[INDEX]]
                         READVAR();
                         READINDEX();
                         if (A < 0 || A >= prg.keyTable.length)
@@ -4349,7 +4606,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                     }
                     break;
                 case op_pcat.NATIVE:
-                    {
+                    { // [VAR], [[INDEX]], ARGCOUNT, [VARS]...
                         READVAR();
                         READINDEX();
                         if (A < 0 || A >= prg.keyTable.length)
@@ -4358,51 +4615,52 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                     }
                     break;
                 case op_pcat.RETURNTAIL:
-                    {
-                        READLOC(2);
+                    { // [[LOCATION]], ARGCOUNT, [VARS]...
+                        READLOC(2); // need valid call target
                         READCNT();
                         if (jumploc < ops.length - 1) {
+                            // check that the call target's level matches this level
                             if (ops[jumploc] !== op_enum.CMDHEAD || ops[jumploc + 1] !== level)
                                 return false;
                         }
                     }
                     break;
-                case op_pcat.VVVV:
+                case op_pcat.VVVV: // [VAR], [VAR], [VAR], [VAR]
                     READVAR();
-                case op_pcat.VVV:
+                case op_pcat.VVV: // [VAR], [VAR], [VAR]
                     READVAR();
-                case op_pcat.VV:
+                case op_pcat.VV: // [VAR], [VAR]
                     READVAR();
-                case op_pcat.V:
+                case op_pcat.V: // [VAR]
                     READVAR();
-                case op_pcat.EMPTY:
+                case op_pcat.EMPTY: // nothing
                     break;
                 case op_pcat.VA:
-                    {
+                    { // [VAR], ARGCOUNT, [VARS]...
                         READVAR();
                         READCNT();
                     }
                     break;
                 case op_pcat.VN:
-                    {
+                    { // [VAR], DATA
                         READVAR();
                         READDATA(1);
                     }
                     break;
                 case op_pcat.VNN:
-                    {
+                    { // [VAR], [DATA]
                         READVAR();
                         READDATA(2);
                     }
                     break;
                 case op_pcat.VNNNN:
-                    {
+                    { // [VAR], [[DATA]]
                         READVAR();
                         READDATA(4);
                     }
                     break;
                 case op_pcat.VNNNNNNNN:
-                    {
+                    { // [VAR], [[[DATA]]]
                         READVAR();
                         READDATA(8);
                     }
@@ -4412,6 +4670,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                 return false;
             wasjump = opc === op_pcat.JUMP;
         }
+        // validate op_need alignments matches op_actual alignments
         for (var i = 0; i < ops.length; i++) {
             if (op_need[i] !== 0 && op_need[i] !== op_actual[i])
                 return false;
@@ -4446,7 +4705,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     (function (pem_enum) {
         pem_enum[pem_enum["EMPTY"] = 0] = "EMPTY";
         pem_enum[pem_enum["CREATE"] = 1] = "CREATE";
-        pem_enum[pem_enum["INTO"] = 2] = "INTO";
+        pem_enum[pem_enum["INTO"] = 2] = "INTO"; // I need to own the register
     })(pem_enum || (pem_enum = {}));
     function psr_ok(start, len) {
         return { ok: true, start: start, len: len };
@@ -4549,120 +4808,120 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        if (!(ex.type === expr_enum.NAMES)) return [3, 1];
+                        if (!(ex.type === expr_enum.NAMES)) return [3 /*break*/, 1];
                         sl = symtbl_lookup(pgen.sym, ex.names);
                         if (!sl.ok)
-                            return [2, lvp_error(ex.flp, sl.msg)];
+                            return [2 /*return*/, lvp_error(ex.flp, sl.msg)];
                         if (sl.nsn.type !== nsname_enumt.VAR)
-                            return [2, lvp_error(ex.flp, 'Invalid assignment')];
-                        return [2, lvp_ok(lvr_var(ex.flp, varloc_new(sl.nsn.fr.level, sl.nsn.index)))];
+                            return [2 /*return*/, lvp_error(ex.flp, 'Invalid assignment')];
+                        return [2 /*return*/, lvp_ok(lvr_var(ex.flp, varloc_new(sl.nsn.fr.level, sl.nsn.index)))];
                     case 1:
-                        if (!(ex.type === expr_enum.INDEX)) return [3, 4];
-                        return [4, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.obj)];
+                        if (!(ex.type === expr_enum.INDEX)) return [3 /*break*/, 4];
+                        return [4 /*yield*/, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.obj)];
                     case 2:
                         pe = _a.sent();
                         if (!pe.ok)
-                            return [2, lvp_error(pe.flp, pe.msg)];
+                            return [2 /*return*/, lvp_error(pe.flp, pe.msg)];
                         obj = pe.vlc;
                         if (ex.type !== expr_enum.INDEX)
                             throw new Error('Expression type must be index');
-                        return [4, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.key)];
+                        return [4 /*yield*/, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.key)];
                     case 3:
                         pe = _a.sent();
                         if (!pe.ok)
-                            return [2, lvp_error(pe.flp, pe.msg)];
-                        return [2, lvp_ok(lvr_index(ex.flp, obj, pe.vlc))];
+                            return [2 /*return*/, lvp_error(pe.flp, pe.msg)];
+                        return [2 /*return*/, lvp_ok(lvr_index(ex.flp, obj, pe.vlc))];
                     case 4:
-                        if (!(ex.type === expr_enum.SLICE)) return [3, 12];
-                        if (!(ex.obj.type === expr_enum.INDEX)) return [3, 8];
-                        return [4, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.obj.obj)];
+                        if (!(ex.type === expr_enum.SLICE)) return [3 /*break*/, 12];
+                        if (!(ex.obj.type === expr_enum.INDEX)) return [3 /*break*/, 8];
+                        return [4 /*yield*/, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.obj.obj)];
                     case 5:
                         pe = _a.sent();
                         if (!pe.ok)
-                            return [2, lvp_error(pe.flp, pe.msg)];
+                            return [2 /*return*/, lvp_error(pe.flp, pe.msg)];
                         obj = pe.vlc;
                         if (ex.type !== expr_enum.SLICE || ex.obj.type !== expr_enum.INDEX)
                             throw new Error('Expression type must be a slice index');
-                        return [4, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.obj.key)];
+                        return [4 /*yield*/, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.obj.key)];
                     case 6:
                         pe = _a.sent();
                         if (!pe.ok)
-                            return [2, lvp_error(pe.flp, pe.msg)];
+                            return [2 /*return*/, lvp_error(pe.flp, pe.msg)];
                         key = pe.vlc;
                         if (ex.type !== expr_enum.SLICE)
                             throw new Error('Expression type must be slice');
-                        return [4, program_slice(pgen, ex)];
+                        return [4 /*yield*/, program_slice(pgen, ex)];
                     case 7:
                         sr = _a.sent();
                         if (!sr.ok)
-                            return [2, lvp_error(sr.flp, sr.msg)];
-                        return [2, lvp_ok(lvr_sliceindex(ex.flp, obj, key, sr.start, sr.len))];
-                    case 8: return [4, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.obj)];
+                            return [2 /*return*/, lvp_error(sr.flp, sr.msg)];
+                        return [2 /*return*/, lvp_ok(lvr_sliceindex(ex.flp, obj, key, sr.start, sr.len))];
+                    case 8: return [4 /*yield*/, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.obj)];
                     case 9:
                         pe = _a.sent();
                         if (!pe.ok)
-                            return [2, lvp_error(pe.flp, pe.msg)];
+                            return [2 /*return*/, lvp_error(pe.flp, pe.msg)];
                         obj = pe.vlc;
                         if (ex.type !== expr_enum.SLICE)
                             throw new Error('Expression type must be slice');
-                        return [4, program_slice(pgen, ex)];
+                        return [4 /*yield*/, program_slice(pgen, ex)];
                     case 10:
                         sr = _a.sent();
                         if (!sr.ok)
-                            return [2, lvp_error(sr.flp, sr.msg)];
-                        return [2, lvp_ok(lvr_slice(ex.flp, obj, sr.start, sr.len))];
-                    case 11: return [3, 25];
+                            return [2 /*return*/, lvp_error(sr.flp, sr.msg)];
+                        return [2 /*return*/, lvp_ok(lvr_slice(ex.flp, obj, sr.start, sr.len))];
+                    case 11: return [3 /*break*/, 25];
                     case 12:
-                        if (!(ex.type === expr_enum.LIST)) return [3, 25];
+                        if (!(ex.type === expr_enum.LIST)) return [3 /*break*/, 25];
                         body = [];
                         rest = null;
-                        if (!(ex.ex === null)) return [3, 13];
-                        return [2, lvp_error(ex.flp, 'Invalid assignment')];
+                        if (!(ex.ex === null)) return [3 /*break*/, 13];
+                        return [2 /*return*/, lvp_error(ex.flp, 'Invalid assignment')];
                     case 13:
-                        if (!(ex.ex.type === expr_enum.GROUP)) return [3, 20];
+                        if (!(ex.ex.type === expr_enum.GROUP)) return [3 /*break*/, 20];
                         i = 0;
                         _a.label = 14;
                     case 14:
-                        if (!(i < ex.ex.group.length)) return [3, 19];
+                        if (!(i < ex.ex.group.length)) return [3 /*break*/, 19];
                         gex = ex.ex.group[i];
                         if (!(i === ex.ex.group.length - 1 && gex.type === expr_enum.PREFIX &&
-                            gex.k === ks_enum.PERIOD3)) return [3, 16];
-                        return [4, lval_prepare(pgen, gex.ex)];
+                            gex.k === ks_enum.PERIOD3)) return [3 /*break*/, 16];
+                        return [4 /*yield*/, lval_prepare(pgen, gex.ex)];
                     case 15:
                         lp = _a.sent();
                         if (!lp.ok)
-                            return [2, lp];
+                            return [2 /*return*/, lp];
                         rest = lp.lv;
-                        return [3, 18];
-                    case 16: return [4, lval_prepare(pgen, gex)];
+                        return [3 /*break*/, 18];
+                    case 16: return [4 /*yield*/, lval_prepare(pgen, gex)];
                     case 17:
                         lp = _a.sent();
                         if (!lp.ok)
-                            return [2, lp];
+                            return [2 /*return*/, lp];
                         body.push(lp.lv);
                         _a.label = 18;
                     case 18:
                         i++;
-                        return [3, 14];
-                    case 19: return [3, 24];
+                        return [3 /*break*/, 14];
+                    case 19: return [3 /*break*/, 24];
                     case 20:
-                        if (!(ex.ex.type === expr_enum.PREFIX && ex.ex.k === ks_enum.PERIOD3)) return [3, 22];
-                        return [4, lval_prepare(pgen, ex.ex.ex)];
+                        if (!(ex.ex.type === expr_enum.PREFIX && ex.ex.k === ks_enum.PERIOD3)) return [3 /*break*/, 22];
+                        return [4 /*yield*/, lval_prepare(pgen, ex.ex.ex)];
                     case 21:
                         lp = _a.sent();
                         if (!lp.ok)
-                            return [2, lp];
+                            return [2 /*return*/, lp];
                         rest = lp.lv;
-                        return [2, lvp_ok(lvr_list(ex.flp, [], lp.lv))];
-                    case 22: return [4, lval_prepare(pgen, ex.ex)];
+                        return [2 /*return*/, lvp_ok(lvr_list(ex.flp, [], lp.lv))];
+                    case 22: return [4 /*yield*/, lval_prepare(pgen, ex.ex)];
                     case 23:
                         lp = _a.sent();
                         if (!lp.ok)
-                            return [2, lp];
+                            return [2 /*return*/, lp];
                         body.push(lp.lv);
                         _a.label = 24;
-                    case 24: return [2, lvp_ok(lvr_list(ex.flp, body, rest))];
-                    case 25: return [2, lvp_error(ex.flp, 'Invalid assignment')];
+                    case 24: return [2 /*return*/, lvp_ok(lvr_list(ex.flp, body, rest))];
+                    case 25: return [2 /*return*/, lvp_error(ex.flp, 'Invalid assignment')];
                 }
             });
         });
@@ -4717,6 +4976,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     function program_evalLval(pgen, mode, intoVlc, lv, mutop, valueVlc, clearTemps) {
         var prg = pgen.prg;
         var sym = pgen.sym;
+        // first, perform the assignment of valueVlc into lv
         switch (lv.type) {
             case lvr_enum.VAR:
                 if (mutop === op_enum.INVALID)
@@ -4824,6 +5084,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                 }
                 break;
         }
+        // now, see if we need to put the result into anything
         if (mode === pem_enum.EMPTY) {
             if (clearTemps)
                 lval_clearTemps(lv, sym);
@@ -4848,41 +5109,42 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        if (!(ex.start === null)) return [3, 1];
+                        if (!(ex.start === null)) return [3 /*break*/, 1];
                         ts = symtbl_addTemp(pgen.sym);
                         if (!ts.ok)
-                            return [2, psr_error(ex.flp, ts.msg)];
+                            return [2 /*return*/, psr_error(ex.flp, ts.msg)];
                         op_numint(pgen.prg.ops, ts.vlc, 0);
                         start = ts.vlc;
-                        return [3, 3];
-                    case 1: return [4, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.start)];
+                        return [3 /*break*/, 3];
+                    case 1: return [4 /*yield*/, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.start)];
                     case 2:
                         pe = _a.sent();
                         if (!pe.ok)
-                            return [2, psr_error(pe.flp, pe.msg)];
+                            return [2 /*return*/, psr_error(pe.flp, pe.msg)];
                         start = pe.vlc;
                         _a.label = 3;
                     case 3:
-                        if (!(ex.len === null)) return [3, 4];
+                        if (!(ex.len === null)) return [3 /*break*/, 4];
                         ts = symtbl_addTemp(pgen.sym);
                         if (!ts.ok)
-                            return [2, psr_error(ex.flp, ts.msg)];
+                            return [2 /*return*/, psr_error(ex.flp, ts.msg)];
                         len = ts.vlc;
                         op_nil(pgen.prg.ops, len);
-                        return [3, 6];
-                    case 4: return [4, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.len)];
+                        return [3 /*break*/, 6];
+                    case 4: return [4 /*yield*/, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.len)];
                     case 5:
                         pe = _a.sent();
                         if (!pe.ok)
-                            return [2, psr_error(pe.flp, pe.msg)];
+                            return [2 /*return*/, psr_error(pe.flp, pe.msg)];
                         len = pe.vlc;
                         _a.label = 6;
-                    case 6: return [2, psr_ok(start, len)];
+                    case 6: return [2 /*return*/, psr_ok(start, len)];
                 }
             });
         });
     }
     function program_lvalGetIndex(pgen, lv) {
+        // specifically for lvr_enum.SLICEINDEX in order to fill lv.indexvlc
         if (!varloc_isnull(lv.indexvlc))
             return per_ok(lv.indexvlc);
         var ts = symtbl_addTemp(pgen.sym);
@@ -4949,46 +5211,51 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
+                        // `p` is an array of 255 varloc_st's, which get filled with `argcount` arguments
+                        // returns false on error, with error inside of `pe`
+                        // `argcount` is a single-element array, so values can be written out to caller
+                        // `pe` is a single-element array, so values can be written out to caller
                         argcount[0] = 0;
                         if (params === null)
-                            return [2, true];
-                        if (!(params.type === expr_enum.GROUP)) return [3, 5];
+                            return [2 /*return*/, true];
+                        if (!(params.type === expr_enum.GROUP)) return [3 /*break*/, 5];
                         argcount[0] = params.group.length;
                         if (argcount[0] > 254)
                             argcount[0] = 254;
                         i = 0;
                         _a.label = 1;
                     case 1:
-                        if (!(i < params.group.length)) return [3, 4];
-                        return [4, program_eval(pgen, i < argcount[0] ? pem_enum.CREATE : pem_enum.EMPTY, VARLOC_NULL, params.group[i])];
+                        if (!(i < params.group.length)) return [3 /*break*/, 4];
+                        return [4 /*yield*/, program_eval(pgen, i < argcount[0] ? pem_enum.CREATE : pem_enum.EMPTY, VARLOC_NULL, params.group[i])];
                     case 2:
                         pe0 = _a.sent();
                         pe[0] = pe0;
                         if (!pe0.ok)
-                            return [2, false];
+                            return [2 /*return*/, false];
                         if (i < argcount[0])
                             p[i] = pe0.vlc;
                         _a.label = 3;
                     case 3:
                         i++;
-                        return [3, 1];
-                    case 4: return [3, 7];
+                        return [3 /*break*/, 1];
+                    case 4: return [3 /*break*/, 7];
                     case 5:
                         argcount[0] = 1;
-                        return [4, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, params)];
+                        return [4 /*yield*/, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, params)];
                     case 6:
                         pe0 = _a.sent();
                         pe[0] = pe0;
                         if (!pe0.ok)
-                            return [2, false];
+                            return [2 /*return*/, false];
                         p[0] = pe0.vlc;
                         _a.label = 7;
-                    case 7: return [2, true];
+                    case 7: return [2 /*return*/, true];
                 }
             });
         });
     }
     function embed_begin(file, efu) {
+        // in order to capture the `scr_write`, we need to set `capture_write`
         efu.pgen.scr.capture_write = '';
         return true;
     }
@@ -4998,21 +5265,22 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             return __generator(this, function (_b) {
                 switch (_b.label) {
                     case 0:
-                        if (!success) return [3, 2];
+                        if (!success) return [3 /*break*/, 2];
+                        // convert the data into a string expression, then load it
                         if (efu.pgen.scr.capture_write === null)
                             throw new Error('Bad embed capture');
                         ex = expr_str(efu.flp, efu.pgen.scr.capture_write);
                         _a = efu;
-                        return [4, program_eval(efu.pgen, efu.mode, efu.intoVlc, ex)];
+                        return [4 /*yield*/, program_eval(efu.pgen, efu.mode, efu.intoVlc, ex)];
                     case 1:
                         _a.pe = _b.sent();
-                        return [3, 3];
+                        return [3 /*break*/, 3];
                     case 2:
                         efu.pe = per_error(efu.flp, 'Failed to read file for `embed`: ' + file);
                         _b.label = 3;
                     case 3:
                         efu.pgen.scr.capture_write = null;
-                        return [2];
+                        return [2 /*return*/];
                 }
             });
         });
@@ -5024,11 +5292,12 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         return { ok: false, msg: msg };
     }
     function native_index(prg, hash) {
+        // search for the hash
         for (var index_1 = 0; index_1 < prg.keyTable.length; index_1++) {
             if (u64_equ(prg.keyTable[index_1], hash))
                 return index_1;
         }
-        if (prg.keyTable.length >= 0x7FFFFFFF)
+        if (prg.keyTable.length >= 0x7FFFFFFF) // using too many native calls?
             return -1;
         var index = prg.keyTable.length;
         prg.keyTable.push(hash);
@@ -5044,20 +5313,20 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                         sym = pgen.sym;
                         if (nsn.type !== nsname_enumt.CMD_LOCAL && nsn.type !== nsname_enumt.CMD_NATIVE &&
                             nsn.type !== nsname_enumt.CMD_OPCODE)
-                            return [2, per_error(flp, 'Invalid call - not a command')];
-                        if (!(nsn.type === nsname_enumt.CMD_OPCODE && nsn.opcode === op_enum.PICK)) return [3, 10];
+                            return [2 /*return*/, per_error(flp, 'Invalid call - not a command')];
+                        if (!(nsn.type === nsname_enumt.CMD_OPCODE && nsn.opcode === op_enum.PICK)) return [3 /*break*/, 10];
                         if (params === null || params.type !== expr_enum.GROUP ||
                             params.group.length !== 3)
-                            return [2, per_error(flp, 'Using `pick` requires exactly three arguments')];
-                        return [4, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, params.group[0])];
+                            return [2 /*return*/, per_error(flp, 'Using `pick` requires exactly three arguments')];
+                        return [4 /*yield*/, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, params.group[0])];
                     case 1:
                         pe_7 = _a.sent();
                         if (!pe_7.ok)
-                            return [2, pe_7];
+                            return [2 /*return*/, pe_7];
                         if (mode === pem_enum.CREATE) {
                             ts = symtbl_addTemp(sym);
                             if (!ts.ok)
-                                return [2, per_error(flp, ts.msg)];
+                                return [2 /*return*/, per_error(flp, ts.msg)];
                             intoVlc = ts.vlc;
                         }
                         pickfalse = label_new('^pickfalse');
@@ -5066,43 +5335,43 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                         symtbl_clearTemp(sym, pe_7.vlc);
                         if (params === null || params.type !== expr_enum.GROUP)
                             throw new Error('Bad params for pick');
-                        if (!(mode === pem_enum.EMPTY)) return [3, 3];
-                        return [4, program_eval(pgen, pem_enum.EMPTY, intoVlc, params.group[1])];
+                        if (!(mode === pem_enum.EMPTY)) return [3 /*break*/, 3];
+                        return [4 /*yield*/, program_eval(pgen, pem_enum.EMPTY, intoVlc, params.group[1])];
                     case 2:
                         pe_7 = _a.sent();
-                        return [3, 5];
-                    case 3: return [4, program_eval(pgen, pem_enum.INTO, intoVlc, params.group[1])];
+                        return [3 /*break*/, 5];
+                    case 3: return [4 /*yield*/, program_eval(pgen, pem_enum.INTO, intoVlc, params.group[1])];
                     case 4:
                         pe_7 = _a.sent();
                         _a.label = 5;
                     case 5:
                         if (!pe_7.ok)
-                            return [2, pe_7];
+                            return [2 /*return*/, pe_7];
                         label_jump(finish, prg.ops);
                         label_declare(pickfalse, prg.ops);
                         if (params === null || params.type !== expr_enum.GROUP)
                             throw new Error('Bad params for pick');
-                        if (!(mode === pem_enum.EMPTY)) return [3, 7];
-                        return [4, program_eval(pgen, pem_enum.EMPTY, intoVlc, params.group[2])];
+                        if (!(mode === pem_enum.EMPTY)) return [3 /*break*/, 7];
+                        return [4 /*yield*/, program_eval(pgen, pem_enum.EMPTY, intoVlc, params.group[2])];
                     case 6:
                         pe_7 = _a.sent();
-                        return [3, 9];
-                    case 7: return [4, program_eval(pgen, pem_enum.INTO, intoVlc, params.group[2])];
+                        return [3 /*break*/, 9];
+                    case 7: return [4 /*yield*/, program_eval(pgen, pem_enum.INTO, intoVlc, params.group[2])];
                     case 8:
                         pe_7 = _a.sent();
                         _a.label = 9;
                     case 9:
                         if (!pe_7.ok)
-                            return [2, pe_7];
+                            return [2 /*return*/, pe_7];
                         label_declare(finish, prg.ops);
-                        return [2, per_ok(intoVlc)];
+                        return [2 /*return*/, per_ok(intoVlc)];
                     case 10:
-                        if (!(nsn.type === nsname_enumt.CMD_OPCODE && nsn.opcode === op_enum.EMBED)) return [3, 12];
+                        if (!(nsn.type === nsname_enumt.CMD_OPCODE && nsn.opcode === op_enum.EMBED)) return [3 /*break*/, 12];
                         file = params;
                         while (file !== null && file.type === expr_enum.PAREN)
                             file = file.ex;
                         if (file === null || file.type !== expr_enum.STR)
-                            return [2, per_error(flp, 'Expecting constant string for `embed`')];
+                            return [2 /*return*/, per_error(flp, 'Expecting constant string for `embed`')];
                         cwd = null;
                         efu = {
                             pgen: pgen,
@@ -5114,39 +5383,39 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                         if (pgen.from >= 0)
                             cwd = pathjoin(script_getfile(pgen.scr, pgen.from), '..', pgen.scr.posix);
                         fstr = file.str;
-                        return [4, fileres_read(pgen.scr, false, fstr, cwd, embed_begin, embed_end, efu)];
+                        return [4 /*yield*/, fileres_read(pgen.scr, false, fstr, cwd, embed_begin, embed_end, efu)];
                     case 11:
                         res = _a.sent();
                         if (!res)
-                            return [2, per_error(flp, 'Failed to embed: ' + fstr)];
-                        return [2, efu.pe];
+                            return [2 /*return*/, per_error(flp, 'Failed to embed: ' + fstr)];
+                        return [2 /*return*/, efu.pe];
                     case 12:
-                        if (!(nsn.type == nsname_enumt.CMD_OPCODE && nsn.opcode == op_enum.ISNATIVE)) return [3, 13];
+                        if (!(nsn.type == nsname_enumt.CMD_OPCODE && nsn.opcode == op_enum.ISNATIVE)) return [3 /*break*/, 13];
                         func = params;
                         while (func && func.type == expr_enum.PAREN)
                             func = func.ex;
                         if (func && func.type == expr_enum.NAMES) {
                             sl = symtbl_lookup(sym, func.names);
                             if (!sl.ok)
-                                return [2, per_error(func.flp, sl.msg)];
+                                return [2 /*return*/, per_error(func.flp, sl.msg)];
                             if (sl.nsn.type == nsname_enumt.CMD_NATIVE) {
                                 if (mode === pem_enum.EMPTY || mode === pem_enum.CREATE) {
                                     ts = symtbl_addTemp(sym);
                                     if (!ts.ok)
-                                        return [2, per_error(flp, ts.msg)];
+                                        return [2 /*return*/, per_error(flp, ts.msg)];
                                     intoVlc = ts.vlc;
                                 }
                                 index = native_index(prg, sl.nsn.hash);
                                 if (index < 0)
-                                    return [2, per_error(flp, 'Too many native commands')];
+                                    return [2 /*return*/, per_error(flp, 'Too many native commands')];
                                 op_isnative(prg.ops, intoVlc, index);
-                                return [2, per_ok(intoVlc)];
+                                return [2 /*return*/, per_ok(intoVlc)];
                             }
                         }
-                        return [2, per_error(flp, 'Expecting `isnative` to test against a declared native command')];
+                        return [2 /*return*/, per_error(flp, 'Expecting `isnative` to test against a declared native command')];
                     case 13:
                         if (!(nsn.type === nsname_enumt.CMD_OPCODE && nsn.opcode === op_enum.STR_HASH &&
-                            params !== null)) return [3, 15];
+                            params !== null)) return [3 /*break*/, 15];
                         str = null;
                         seed = 0;
                         ex = params;
@@ -5169,18 +5438,18 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             if (ex.type === expr_enum.STR)
                                 str = ex.str;
                         }
-                        if (!(str !== null)) return [3, 15];
+                        if (!(str !== null)) return [3 /*break*/, 15];
                         out = str_hashplain(str, seed);
                         ex_1 = expr_list(flp, expr_group(flp, expr_group(flp, expr_group(flp, expr_num(flp, out[0]), expr_num(flp, out[1])), expr_num(flp, out[2])), expr_num(flp, out[3])));
-                        return [4, program_eval(pgen, mode, intoVlc, ex_1)];
+                        return [4 /*yield*/, program_eval(pgen, mode, intoVlc, ex_1)];
                     case 14:
                         p_3 = _a.sent();
-                        return [2, p_3];
+                        return [2 /*return*/, p_3];
                     case 15:
                         if (mode === pem_enum.EMPTY || mode === pem_enum.CREATE) {
                             ts = symtbl_addTemp(sym);
                             if (!ts.ok)
-                                return [2, per_error(flp, ts.msg)];
+                                return [2 /*return*/, per_error(flp, ts.msg)];
                             intoVlc = ts.vlc;
                         }
                         p = [];
@@ -5188,10 +5457,10 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             p.push(VARLOC_NULL);
                         argcount = [0];
                         pe = [per_ok(VARLOC_NULL)];
-                        return [4, program_evalCallArgcount(pgen, params, argcount, pe, p)];
+                        return [4 /*yield*/, program_evalCallArgcount(pgen, params, argcount, pe, p)];
                     case 16:
                         if (!(_a.sent()))
-                            return [2, pe[0]];
+                            return [2 /*return*/, pe[0]];
                         program_flp(prg, flp);
                         oarg = true;
                         if (nsn.type === nsname_enumt.CMD_LOCAL)
@@ -5199,10 +5468,10 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                         else if (nsn.type === nsname_enumt.CMD_NATIVE) {
                             index = native_index(prg, nsn.hash);
                             if (index < 0)
-                                return [2, per_error(flp, 'Too many native commands')];
+                                return [2 /*return*/, per_error(flp, 'Too many native commands')];
                             op_native(prg.ops, intoVlc, index, argcount[0]);
                         }
-                        else {
+                        else { // nsname_enumt.CMD_OPCODE
                             if (nsn.params < 0)
                                 op_parama(prg.ops, nsn.opcode, intoVlc, argcount[0]);
                             else {
@@ -5210,7 +5479,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 if (nsn.params > argcount[0]) {
                                     ts = symtbl_addTemp(sym);
                                     if (!ts.ok)
-                                        return [2, per_error(flp, ts.msg)];
+                                        return [2 /*return*/, per_error(flp, ts.msg)];
                                     p[argcount[0] + 0] = p[argcount[0] + 1] = p[argcount[0] + 2] = ts.vlc;
                                     op_nil(prg.ops, p[argcount[0]]);
                                     argcount[0]++;
@@ -5221,7 +5490,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                     op_param1(prg.ops, nsn.opcode, intoVlc, p[0]);
                                 else if (nsn.params === 2)
                                     op_param2(prg.ops, nsn.opcode, intoVlc, p[0], p[1]);
-                                else
+                                else // nsn.params === 3
                                     op_param3(prg.ops, nsn.opcode, intoVlc, p[0], p[1], p[2]);
                             }
                         }
@@ -5232,9 +5501,9 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                         }
                         if (mode === pem_enum.EMPTY) {
                             symtbl_clearTemp(sym, intoVlc);
-                            return [2, per_ok(VARLOC_NULL)];
+                            return [2 /*return*/, per_ok(VARLOC_NULL)];
                         }
-                        return [2, per_ok(intoVlc)];
+                        return [2 /*return*/, per_ok(intoVlc)];
                 }
             });
         });
@@ -5465,57 +5734,57 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                         program_flp(prg, ex.flp);
                         _a = ex.type;
                         switch (_a) {
-                            case expr_enum.NIL: return [3, 1];
-                            case expr_enum.NUM: return [3, 2];
-                            case expr_enum.STR: return [3, 3];
-                            case expr_enum.LIST: return [3, 4];
-                            case expr_enum.NAMES: return [3, 14];
-                            case expr_enum.PAREN: return [3, 15];
-                            case expr_enum.GROUP: return [3, 16];
-                            case expr_enum.CAT: return [3, 20];
-                            case expr_enum.PREFIX: return [3, 28];
-                            case expr_enum.INFIX: return [3, 30];
-                            case expr_enum.CALL: return [3, 44];
-                            case expr_enum.INDEX: return [3, 45];
-                            case expr_enum.SLICE: return [3, 51];
+                            case expr_enum.NIL: return [3 /*break*/, 1];
+                            case expr_enum.NUM: return [3 /*break*/, 2];
+                            case expr_enum.STR: return [3 /*break*/, 3];
+                            case expr_enum.LIST: return [3 /*break*/, 4];
+                            case expr_enum.NAMES: return [3 /*break*/, 14];
+                            case expr_enum.PAREN: return [3 /*break*/, 15];
+                            case expr_enum.GROUP: return [3 /*break*/, 16];
+                            case expr_enum.CAT: return [3 /*break*/, 20];
+                            case expr_enum.PREFIX: return [3 /*break*/, 28];
+                            case expr_enum.INFIX: return [3 /*break*/, 30];
+                            case expr_enum.CALL: return [3 /*break*/, 44];
+                            case expr_enum.INDEX: return [3 /*break*/, 45];
+                            case expr_enum.SLICE: return [3 /*break*/, 51];
                         }
-                        return [3, 54];
+                        return [3 /*break*/, 54];
                     case 1:
                         {
                             if (mode === pem_enum.EMPTY)
-                                return [2, per_ok(VARLOC_NULL)];
+                                return [2 /*return*/, per_ok(VARLOC_NULL)];
                             else if (mode === pem_enum.CREATE) {
                                 ts = symtbl_addTemp(sym);
                                 if (!ts.ok)
-                                    return [2, per_error(ex.flp, ts.msg)];
+                                    return [2 /*return*/, per_error(ex.flp, ts.msg)];
                                 intoVlc = ts.vlc;
                             }
                             op_nil(prg.ops, intoVlc);
-                            return [2, per_ok(intoVlc)];
+                            return [2 /*return*/, per_ok(intoVlc)];
                         }
                         _b.label = 2;
                     case 2:
                         {
                             if (mode === pem_enum.EMPTY)
-                                return [2, per_ok(VARLOC_NULL)];
+                                return [2 /*return*/, per_ok(VARLOC_NULL)];
                             else if (mode === pem_enum.CREATE) {
                                 ts = symtbl_addTemp(sym);
                                 if (!ts.ok)
-                                    return [2, per_error(ex.flp, ts.msg)];
+                                    return [2 /*return*/, per_error(ex.flp, ts.msg)];
                                 intoVlc = ts.vlc;
                             }
                             op_num(prg.ops, intoVlc, ex.num);
-                            return [2, per_ok(intoVlc)];
+                            return [2 /*return*/, per_ok(intoVlc)];
                         }
                         _b.label = 3;
                     case 3:
                         {
                             if (mode === pem_enum.EMPTY)
-                                return [2, per_ok(VARLOC_NULL)];
+                                return [2 /*return*/, per_ok(VARLOC_NULL)];
                             else if (mode === pem_enum.CREATE) {
                                 ts = symtbl_addTemp(sym);
                                 if (!ts.ok)
-                                    return [2, per_error(ex.flp, ts.msg)];
+                                    return [2 /*return*/, per_error(ex.flp, ts.msg)];
                                 intoVlc = ts.vlc;
                             }
                             found = false;
@@ -5528,65 +5797,66 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             }
                             if (!found) {
                                 if (index >= 0x7FFFFFFF)
-                                    return [2, per_error(ex.flp, 'Too many string constants')];
+                                    return [2 /*return*/, per_error(ex.flp, 'Too many string constants')];
                                 prg.strTable.push(ex.str);
                             }
                             op_str(prg.ops, intoVlc, index);
-                            return [2, per_ok(intoVlc)];
+                            return [2 /*return*/, per_ok(intoVlc)];
                         }
                         _b.label = 4;
                     case 4:
                         if (mode === pem_enum.EMPTY) {
                             if (ex.ex !== null)
-                                return [2, program_eval(pgen, pem_enum.EMPTY, VARLOC_NULL, ex.ex)];
-                            return [2, per_ok(VARLOC_NULL)];
+                                return [2 /*return*/, program_eval(pgen, pem_enum.EMPTY, VARLOC_NULL, ex.ex)];
+                            return [2 /*return*/, per_ok(VARLOC_NULL)];
                         }
                         else if (mode === pem_enum.CREATE) {
                             ts = symtbl_addTemp(sym);
                             if (!ts.ok)
-                                return [2, per_error(ex.flp, ts.msg)];
+                                return [2 /*return*/, per_error(ex.flp, ts.msg)];
                             intoVlc = ts.vlc;
                         }
-                        if (!(ex.ex !== null)) return [3, 12];
-                        if (!(ex.ex.type === expr_enum.GROUP)) return [3, 9];
+                        if (!(ex.ex !== null)) return [3 /*break*/, 12];
+                        if (!(ex.ex.type === expr_enum.GROUP)) return [3 /*break*/, 9];
                         ls = intoVlc;
                         if (mode === pem_enum.INTO) {
                             ts = symtbl_addTemp(sym);
                             if (!ts.ok)
-                                return [2, per_error(ex.flp, ts.msg)];
+                                return [2 /*return*/, per_error(ex.flp, ts.msg)];
                             ls = ts.vlc;
                         }
                         op_list(prg.ops, ls, ex.ex.group.length);
                         i = 0;
                         _b.label = 5;
                     case 5:
-                        if (!(i < ex.ex.group.length)) return [3, 8];
-                        return [4, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.ex.group[i])];
+                        if (!(i < ex.ex.group.length)) return [3 /*break*/, 8];
+                        return [4 /*yield*/, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.ex.group[i])];
                     case 6:
                         pe = _b.sent();
                         if (!pe.ok)
-                            return [2, pe];
+                            return [2 /*return*/, pe];
                         symtbl_clearTemp(sym, pe.vlc);
                         op_param2(prg.ops, op_enum.LIST_PUSH, ls, ls, pe.vlc);
                         _b.label = 7;
                     case 7:
                         i++;
-                        return [3, 5];
+                        return [3 /*break*/, 5];
                     case 8:
                         if (mode === pem_enum.INTO) {
                             symtbl_clearTemp(sym, ls);
                             op_move(prg.ops, intoVlc, ls);
                         }
-                        return [2, per_ok(intoVlc)];
-                    case 9: return [4, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.ex)];
+                        return [2 /*return*/, per_ok(intoVlc)];
+                    case 9: return [4 /*yield*/, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.ex)];
                     case 10:
                         pe = _b.sent();
                         if (!pe.ok)
-                            return [2, pe];
+                            return [2 /*return*/, pe];
+                        // check for `a = {a}`
                         if (intoVlc.frame === pe.vlc.frame && intoVlc.index === pe.vlc.index) {
                             ts = symtbl_addTemp(sym);
                             if (!ts.ok)
-                                return [2, per_error(ex.flp, ts.msg)];
+                                return [2 /*return*/, per_error(ex.flp, ts.msg)];
                             symtbl_clearTemp(sym, ts.vlc);
                             symtbl_clearTemp(sym, pe.vlc);
                             op_list(prg.ops, ts.vlc, 1);
@@ -5598,71 +5868,71 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             op_list(prg.ops, intoVlc, 1);
                             op_param2(prg.ops, op_enum.LIST_PUSH, intoVlc, intoVlc, pe.vlc);
                         }
-                        return [2, per_ok(intoVlc)];
-                    case 11: return [3, 13];
+                        return [2 /*return*/, per_ok(intoVlc)];
+                    case 11: return [3 /*break*/, 13];
                     case 12:
                         op_list(prg.ops, intoVlc, 0);
                         _b.label = 13;
-                    case 13: return [2, per_ok(intoVlc)];
+                    case 13: return [2 /*return*/, per_ok(intoVlc)];
                     case 14:
                         {
                             sl = symtbl_lookup(sym, ex.names);
                             if (!sl.ok)
-                                return [2, per_error(ex.flp, sl.msg)];
+                                return [2 /*return*/, per_error(ex.flp, sl.msg)];
                             switch (sl.nsn.type) {
                                 case nsname_enumt.VAR: {
                                     if (mode === pem_enum.EMPTY)
-                                        return [2, per_ok(VARLOC_NULL)];
+                                        return [2 /*return*/, per_ok(VARLOC_NULL)];
                                     varVlc = varloc_new(sl.nsn.fr.level, sl.nsn.index);
                                     if (mode === pem_enum.CREATE)
-                                        return [2, per_ok(varVlc)];
+                                        return [2 /*return*/, per_ok(varVlc)];
                                     op_move(prg.ops, intoVlc, varVlc);
-                                    return [2, per_ok(intoVlc)];
+                                    return [2 /*return*/, per_ok(intoVlc)];
                                 }
                                 case nsname_enumt.ENUM: {
                                     if (mode === pem_enum.EMPTY)
-                                        return [2, per_ok(VARLOC_NULL)];
+                                        return [2 /*return*/, per_ok(VARLOC_NULL)];
                                     if (mode === pem_enum.CREATE) {
                                         ts = symtbl_addTemp(sym);
                                         if (!ts.ok)
-                                            return [2, per_error(ex.flp, ts.msg)];
+                                            return [2 /*return*/, per_error(ex.flp, ts.msg)];
                                         intoVlc = ts.vlc;
                                     }
                                     op_num(prg.ops, intoVlc, sl.nsn.val);
-                                    return [2, per_ok(intoVlc)];
+                                    return [2 /*return*/, per_ok(intoVlc)];
                                 }
                                 case nsname_enumt.CMD_LOCAL:
                                 case nsname_enumt.CMD_NATIVE:
                                 case nsname_enumt.CMD_OPCODE:
-                                    return [2, program_evalCall(pgen, mode, intoVlc, ex.flp, sl.nsn, null)];
+                                    return [2 /*return*/, program_evalCall(pgen, mode, intoVlc, ex.flp, sl.nsn, null)];
                                 case nsname_enumt.NAMESPACE:
-                                    return [2, per_error(ex.flp, 'Invalid expression')];
+                                    return [2 /*return*/, per_error(ex.flp, 'Invalid expression')];
                             }
                             throw new Error('Invalid namespace entry');
                         }
                         _b.label = 15;
-                    case 15: return [2, program_eval(pgen, mode, intoVlc, ex.ex)];
+                    case 15: return [2 /*return*/, program_eval(pgen, mode, intoVlc, ex.ex)];
                     case 16:
                         i = 0;
                         _b.label = 17;
                     case 17:
-                        if (!true) return [3, 20];
+                        if (!true) return [3 /*break*/, 20];
                         if (i === ex.group.length - 1)
-                            return [2, program_eval(pgen, mode, intoVlc, ex.group[i])];
-                        return [4, program_eval(pgen, pem_enum.EMPTY, VARLOC_NULL, ex.group[i])];
+                            return [2 /*return*/, program_eval(pgen, mode, intoVlc, ex.group[i])];
+                        return [4 /*yield*/, program_eval(pgen, pem_enum.EMPTY, VARLOC_NULL, ex.group[i])];
                     case 18:
                         pe = _b.sent();
                         if (!pe.ok)
-                            return [2, pe];
+                            return [2 /*return*/, pe];
                         _b.label = 19;
                     case 19:
                         i++;
-                        return [3, 17];
+                        return [3 /*break*/, 17];
                     case 20:
                         if (mode === pem_enum.EMPTY || mode === pem_enum.CREATE) {
                             ts = symtbl_addTemp(sym);
                             if (!ts.ok)
-                                return [2, per_error(ex.flp, ts.msg)];
+                                return [2 /*return*/, per_error(ex.flp, ts.msg)];
                             intoVlc = ts.vlc;
                         }
                         t = VARLOC_NULL;
@@ -5673,31 +5943,31 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             tmax--;
                             ts = symtbl_addTemp(sym);
                             if (!ts.ok)
-                                return [2, per_error(ex.flp, ts.msg)];
+                                return [2 /*return*/, per_error(ex.flp, ts.msg)];
                             t = ts.vlc;
                         }
                         p = [];
                         ci = 0;
                         _b.label = 21;
                     case 21:
-                        if (!(ci < ex.cat.length)) return [3, 27];
+                        if (!(ci < ex.cat.length)) return [3 /*break*/, 27];
                         len = ex.cat.length - ci;
                         if (len > tmax)
                             len = tmax;
                         i = 0;
                         _b.label = 22;
                     case 22:
-                        if (!(i < len)) return [3, 25];
-                        return [4, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.cat[ci + i])];
+                        if (!(i < len)) return [3 /*break*/, 25];
+                        return [4 /*yield*/, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.cat[ci + i])];
                     case 23:
                         pe = _b.sent();
                         if (!pe.ok)
-                            return [2, pe];
+                            return [2 /*return*/, pe];
                         p[i] = pe.vlc;
                         _b.label = 24;
                     case 24:
                         i++;
-                        return [3, 22];
+                        return [3 /*break*/, 22];
                     case 25:
                         op_cat(prg.ops, ci > 0 ? t : intoVlc, len);
                         for (i = 0; i < len; i++) {
@@ -5712,147 +5982,148 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                         _b.label = 26;
                     case 26:
                         ci += tmax;
-                        return [3, 21];
+                        return [3 /*break*/, 21];
                     case 27:
                         if (!varloc_isnull(t))
                             symtbl_clearTemp(sym, t);
                         if (mode === pem_enum.EMPTY) {
                             symtbl_clearTemp(sym, intoVlc);
-                            return [2, per_ok(VARLOC_NULL)];
+                            return [2 /*return*/, per_ok(VARLOC_NULL)];
                         }
-                        return [2, per_ok(intoVlc)];
+                        return [2 /*return*/, per_ok(intoVlc)];
                     case 28:
                         unop = ks_toUnaryOp(ex.k);
                         if (unop === op_enum.INVALID)
-                            return [2, per_error(ex.flp, 'Invalid unary operator')];
-                        return [4, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.ex)];
+                            return [2 /*return*/, per_error(ex.flp, 'Invalid unary operator')];
+                        return [4 /*yield*/, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.ex)];
                     case 29:
                         pe = _b.sent();
                         if (!pe.ok)
-                            return [2, pe];
+                            return [2 /*return*/, pe];
                         if (mode === pem_enum.EMPTY || mode === pem_enum.CREATE) {
                             ts = symtbl_addTemp(sym);
                             if (!ts.ok)
-                                return [2, per_error(ex.flp, ts.msg)];
+                                return [2 /*return*/, per_error(ex.flp, ts.msg)];
                             intoVlc = ts.vlc;
                         }
                         op_unop(prg.ops, unop, intoVlc, pe.vlc);
                         symtbl_clearTemp(sym, pe.vlc);
                         if (mode === pem_enum.EMPTY) {
                             symtbl_clearTemp(sym, intoVlc);
-                            return [2, per_ok(VARLOC_NULL)];
+                            return [2 /*return*/, per_ok(VARLOC_NULL)];
                         }
-                        return [2, per_ok(intoVlc)];
+                        return [2 /*return*/, per_ok(intoVlc)];
                     case 30:
                         mutop = ks_toMutateOp(ex.k);
                         if (!(ex.k === ks_enum.EQU || ex.k === ks_enum.AMP2EQU ||
-                            ex.k === ks_enum.PIPE2EQU || mutop !== op_enum.INVALID)) return [3, 37];
-                        return [4, lval_prepare(pgen, ex.left)];
+                            ex.k === ks_enum.PIPE2EQU || mutop !== op_enum.INVALID)) return [3 /*break*/, 37];
+                        return [4 /*yield*/, lval_prepare(pgen, ex.left)];
                     case 31:
                         lp = _b.sent();
                         if (!lp.ok)
-                            return [2, per_error(lp.flp, lp.msg)];
-                        if (!(ex.k === ks_enum.AMP2EQU || ex.k === ks_enum.PIPE2EQU)) return [3, 33];
+                            return [2 /*return*/, per_error(lp.flp, lp.msg)];
+                        if (!(ex.k === ks_enum.AMP2EQU || ex.k === ks_enum.PIPE2EQU)) return [3 /*break*/, 33];
                         skip = label_new('^condsetskip');
                         pe_8 = program_lvalCheckNil(pgen, lp.lv, ex.k === ks_enum.AMP2EQU, false, skip);
                         if (!pe_8.ok)
-                            return [2, pe_8];
+                            return [2 /*return*/, pe_8];
                         if (ex.right === null)
                             throw new Error('Invalid infix operator (right is null)');
-                        return [4, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.right)];
+                        return [4 /*yield*/, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.right)];
                     case 32:
                         pe_8 = _b.sent();
                         if (!pe_8.ok)
-                            return [2, pe_8];
+                            return [2 /*return*/, pe_8];
                         if (!lp.ok)
                             throw new Error('Invalid lvalue conditional assignment');
                         pe_8 = program_lvalCondAssign(pgen, lp.lv, ex.k === ks_enum.AMP2EQU, pe_8.vlc);
                         if (!pe_8.ok)
-                            return [2, pe_8];
+                            return [2 /*return*/, pe_8];
                         if (mode === pem_enum.EMPTY) {
                             label_declare(skip, prg.ops);
                             lval_clearTemps(lp.lv, sym);
-                            return [2, per_ok(VARLOC_NULL)];
+                            return [2 /*return*/, per_ok(VARLOC_NULL)];
                         }
                         label_declare(skip, prg.ops);
                         if (mode === pem_enum.CREATE) {
                             ts = symtbl_addTemp(sym);
                             if (!ts.ok)
-                                return [2, per_error(ex.flp, ts.msg)];
+                                return [2 /*return*/, per_error(ex.flp, ts.msg)];
                             intoVlc = ts.vlc;
                         }
                         ple = program_lvalGet(pgen, plm_enum.INTO, intoVlc, lp.lv);
                         if (!ple.ok)
-                            return [2, ple];
+                            return [2 /*return*/, ple];
                         lval_clearTemps(lp.lv, sym);
-                        return [2, per_ok(intoVlc)];
+                        return [2 /*return*/, per_ok(intoVlc)];
                     case 33:
+                        // special handling for basic variable assignment to avoid a temporary
                         if (ex.right === null)
                             throw new Error('Invalid assignment (right is null)');
-                        if (!(ex.k === ks_enum.EQU && lp.lv.type === lvr_enum.VAR)) return [3, 35];
-                        return [4, program_eval(pgen, pem_enum.INTO, lp.lv.vlc, ex.right)];
+                        if (!(ex.k === ks_enum.EQU && lp.lv.type === lvr_enum.VAR)) return [3 /*break*/, 35];
+                        return [4 /*yield*/, program_eval(pgen, pem_enum.INTO, lp.lv.vlc, ex.right)];
                     case 34:
                         pe_9 = _b.sent();
                         if (!pe_9.ok)
-                            return [2, pe_9];
+                            return [2 /*return*/, pe_9];
                         if (mode === pem_enum.EMPTY)
-                            return [2, per_ok(VARLOC_NULL)];
+                            return [2 /*return*/, per_ok(VARLOC_NULL)];
                         else if (mode === pem_enum.CREATE) {
                             ts = symtbl_addTemp(sym);
                             if (!ts.ok)
-                                return [2, per_error(ex.flp, ts.msg)];
+                                return [2 /*return*/, per_error(ex.flp, ts.msg)];
                             intoVlc = ts.vlc;
                         }
                         if (!lp.ok)
                             throw new Error('Lvalue is an error in basic assignment');
                         op_move(prg.ops, intoVlc, lp.lv.vlc);
-                        return [2, per_ok(intoVlc)];
-                    case 35: return [4, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.right)];
+                        return [2 /*return*/, per_ok(intoVlc)];
+                    case 35: return [4 /*yield*/, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.right)];
                     case 36:
                         pe = _b.sent();
                         if (!pe.ok)
-                            return [2, pe];
+                            return [2 /*return*/, pe];
                         if (!lp.ok)
                             throw new Error('Lvalue is an error in assignment');
-                        return [2, program_evalLval(pgen, mode, intoVlc, lp.lv, mutop, pe.vlc, true)];
+                        return [2 /*return*/, program_evalLval(pgen, mode, intoVlc, lp.lv, mutop, pe.vlc, true)];
                     case 37:
                         if (mode === pem_enum.EMPTY || mode === pem_enum.CREATE) {
                             ts = symtbl_addTemp(sym);
                             if (!ts.ok)
-                                return [2, per_error(ex.flp, ts.msg)];
+                                return [2 /*return*/, per_error(ex.flp, ts.msg)];
                             intoVlc = ts.vlc;
                         }
                         binop = ks_toBinaryOp(ex.k);
-                        if (!(binop !== op_enum.INVALID)) return [3, 40];
-                        return [4, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.left)];
+                        if (!(binop !== op_enum.INVALID)) return [3 /*break*/, 40];
+                        return [4 /*yield*/, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.left)];
                     case 38:
                         pe = _b.sent();
                         if (!pe.ok)
-                            return [2, pe];
+                            return [2 /*return*/, pe];
                         left = pe.vlc;
                         if (ex.right === null)
                             throw new Error('Infix operator has null right');
-                        return [4, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.right)];
+                        return [4 /*yield*/, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.right)];
                     case 39:
                         pe = _b.sent();
                         if (!pe.ok)
-                            return [2, pe];
+                            return [2 /*return*/, pe];
                         program_flp(prg, ex.flp);
                         op_binop(prg.ops, binop, intoVlc, left, pe.vlc);
                         symtbl_clearTemp(sym, left);
                         symtbl_clearTemp(sym, pe.vlc);
                         if (mode === pem_enum.EMPTY) {
                             symtbl_clearTemp(sym, intoVlc);
-                            return [2, per_ok(VARLOC_NULL)];
+                            return [2 /*return*/, per_ok(VARLOC_NULL)];
                         }
-                        return [2, per_ok(intoVlc)];
+                        return [2 /*return*/, per_ok(intoVlc)];
                     case 40:
-                        if (!(ex.k === ks_enum.AMP2 || ex.k === ks_enum.PIPE2)) return [3, 43];
-                        return [4, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.left)];
+                        if (!(ex.k === ks_enum.AMP2 || ex.k === ks_enum.PIPE2)) return [3 /*break*/, 43];
+                        return [4 /*yield*/, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.left)];
                     case 41:
                         pe = _b.sent();
                         if (!pe.ok)
-                            return [2, pe];
+                            return [2 /*return*/, pe];
                         left = pe.vlc;
                         useleft = label_new('^useleft');
                         if (ex.k === ks_enum.AMP2)
@@ -5861,11 +6132,11 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             label_jumptrue(useleft, prg.ops, left);
                         if (ex.right === null)
                             throw new Error('Infix conditional has null right expression');
-                        return [4, program_eval(pgen, pem_enum.INTO, intoVlc, ex.right)];
+                        return [4 /*yield*/, program_eval(pgen, pem_enum.INTO, intoVlc, ex.right)];
                     case 42:
                         pe = _b.sent();
                         if (!pe.ok)
-                            return [2, pe];
+                            return [2 /*return*/, pe];
                         finish = label_new('^finish');
                         label_jump(finish, prg.ops);
                         label_declare(useleft, prg.ops);
@@ -5874,83 +6145,83 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                         symtbl_clearTemp(sym, left);
                         if (mode === pem_enum.EMPTY) {
                             symtbl_clearTemp(sym, intoVlc);
-                            return [2, per_ok(VARLOC_NULL)];
+                            return [2 /*return*/, per_ok(VARLOC_NULL)];
                         }
-                        return [2, per_ok(intoVlc)];
-                    case 43: return [2, per_error(ex.flp, 'Invalid operation')];
+                        return [2 /*return*/, per_ok(intoVlc)];
+                    case 43: return [2 /*return*/, per_error(ex.flp, 'Invalid operation')];
                     case 44:
                         {
                             if (ex.cmd.type !== expr_enum.NAMES)
-                                return [2, per_error(ex.flp, 'Invalid call')];
+                                return [2 /*return*/, per_error(ex.flp, 'Invalid call')];
                             sl = symtbl_lookup(sym, ex.cmd.names);
                             if (!sl.ok)
-                                return [2, per_error(ex.flp, sl.msg)];
-                            return [2, program_evalCall(pgen, mode, intoVlc, ex.flp, sl.nsn, ex.params)];
+                                return [2 /*return*/, per_error(ex.flp, sl.msg)];
+                            return [2 /*return*/, program_evalCall(pgen, mode, intoVlc, ex.flp, sl.nsn, ex.params)];
                         }
                         _b.label = 45;
                     case 45:
-                        if (!(mode === pem_enum.EMPTY)) return [3, 48];
-                        return [4, program_eval(pgen, pem_enum.EMPTY, VARLOC_NULL, ex.obj)];
+                        if (!(mode === pem_enum.EMPTY)) return [3 /*break*/, 48];
+                        return [4 /*yield*/, program_eval(pgen, pem_enum.EMPTY, VARLOC_NULL, ex.obj)];
                     case 46:
                         pe_10 = _b.sent();
                         if (!pe_10.ok)
-                            return [2, pe_10];
-                        return [4, program_eval(pgen, pem_enum.EMPTY, VARLOC_NULL, ex.key)];
+                            return [2 /*return*/, pe_10];
+                        return [4 /*yield*/, program_eval(pgen, pem_enum.EMPTY, VARLOC_NULL, ex.key)];
                     case 47:
                         pe_10 = _b.sent();
                         if (!pe_10.ok)
-                            return [2, pe_10];
-                        return [2, per_ok(VARLOC_NULL)];
+                            return [2 /*return*/, pe_10];
+                        return [2 /*return*/, per_ok(VARLOC_NULL)];
                     case 48:
                         if (mode === pem_enum.CREATE) {
                             ts = symtbl_addTemp(sym);
                             if (!ts.ok)
-                                return [2, per_error(ex.flp, ts.msg)];
+                                return [2 /*return*/, per_error(ex.flp, ts.msg)];
                             intoVlc = ts.vlc;
                         }
-                        return [4, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.obj)];
+                        return [4 /*yield*/, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.obj)];
                     case 49:
                         pe = _b.sent();
                         if (!pe.ok)
-                            return [2, pe];
+                            return [2 /*return*/, pe];
                         obj = pe.vlc;
-                        return [4, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.key)];
+                        return [4 /*yield*/, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.key)];
                     case 50:
                         pe = _b.sent();
                         if (!pe.ok)
-                            return [2, pe];
+                            return [2 /*return*/, pe];
                         key = pe.vlc;
                         op_getat(prg.ops, intoVlc, obj, key);
                         symtbl_clearTemp(sym, obj);
                         symtbl_clearTemp(sym, key);
-                        return [2, per_ok(intoVlc)];
+                        return [2 /*return*/, per_ok(intoVlc)];
                     case 51:
                         if (mode === pem_enum.EMPTY || mode === pem_enum.CREATE) {
                             ts = symtbl_addTemp(sym);
                             if (!ts.ok)
-                                return [2, per_error(ex.flp, ts.msg)];
+                                return [2 /*return*/, per_error(ex.flp, ts.msg)];
                             intoVlc = ts.vlc;
                         }
-                        return [4, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.obj)];
+                        return [4 /*yield*/, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.obj)];
                     case 52:
                         pe = _b.sent();
                         if (!pe.ok)
-                            return [2, pe];
+                            return [2 /*return*/, pe];
                         obj = pe.vlc;
-                        return [4, program_slice(pgen, ex)];
+                        return [4 /*yield*/, program_slice(pgen, ex)];
                     case 53:
                         sr = _b.sent();
                         if (!sr.ok)
-                            return [2, per_error(sr.flp, sr.msg)];
+                            return [2 /*return*/, per_error(sr.flp, sr.msg)];
                         op_slice(prg.ops, intoVlc, obj, sr.start, sr.len);
                         symtbl_clearTemp(sym, obj);
                         symtbl_clearTemp(sym, sr.start);
                         symtbl_clearTemp(sym, sr.len);
                         if (mode === pem_enum.EMPTY) {
                             symtbl_clearTemp(sym, intoVlc);
-                            return [2, per_ok(VARLOC_NULL)];
+                            return [2 /*return*/, per_ok(VARLOC_NULL)];
                         }
-                        return [2, per_ok(intoVlc)];
+                        return [2 /*return*/, per_ok(intoVlc)];
                     case 54: throw new Error('Invalid expression type');
                 }
             });
@@ -6101,7 +6372,9 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             return pgi;
         var val_vlc = pgi.val_vlc;
         var idx_vlc = pgi.idx_vlc;
+        // clear the index
         op_numint(prg.ops, idx_vlc, 0);
+        // calculate count
         if (!zerostart)
             op_binop(prg.ops, op_enum.NUM_SUB, p2, p2, p1);
         if (!varloc_isnull(p3))
@@ -6141,25 +6414,26 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                     case 0:
                         prg = pgen.prg;
                         sym = pgen.sym;
-                        return [4, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, stmt.ex)];
+                        return [4 /*yield*/, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, stmt.ex)];
                     case 1:
                         pe = _a.sent();
                         if (!pe.ok)
-                            return [2, pgr_error(pe.flp, pe.msg)];
+                            return [2 /*return*/, pgr_error(pe.flp, pe.msg)];
                         symtbl_pushScope(sym);
                         exp_vlc = pe.vlc;
                         pgi = program_forVars(sym, stmt);
                         if (pgi.type !== pgr_enum.FORVARS)
-                            return [2, pgi];
+                            return [2 /*return*/, pgi];
                         val_vlc = pgi.val_vlc;
                         idx_vlc = pgi.idx_vlc;
+                        // clear the index
                         op_numint(prg.ops, idx_vlc, 0);
                         top = label_new('^forG_top');
                         inc = label_new('^forG_inc');
                         finish = label_new('^forG_finish');
                         ts = symtbl_addTemp(sym);
                         if (!ts.ok)
-                            return [2, pgr_error(stmt.flp, ts.msg)];
+                            return [2 /*return*/, pgr_error(stmt.flp, ts.msg)];
                         t = ts.vlc;
                         label_declare(top, prg.ops);
                         op_unop(prg.ops, op_enum.SIZE, t, exp_vlc);
@@ -6169,7 +6443,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             op_getat(prg.ops, val_vlc, exp_vlc, idx_vlc);
                         sym.sc.lblBreak = finish;
                         sym.sc.lblContinue = inc;
-                        return [2, pgr_push(pgs_for_new(t, exp_vlc, VARLOC_NULL, VARLOC_NULL, val_vlc, idx_vlc, top, inc, finish))];
+                        return [2 /*return*/, pgr_push(pgs_for_new(t, exp_vlc, VARLOC_NULL, VARLOC_NULL, val_vlc, idx_vlc, top, inc, finish))];
                 }
             });
         });
@@ -6185,48 +6459,48 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                         program_flp(prg, stmt.flp);
                         _a = stmt.type;
                         switch (_a) {
-                            case ast_enumt.BREAK: return [3, 1];
-                            case ast_enumt.CONTINUE: return [3, 2];
-                            case ast_enumt.DECLARE: return [3, 3];
-                            case ast_enumt.DEF1: return [3, 4];
-                            case ast_enumt.DEF2: return [3, 11];
-                            case ast_enumt.DOWHILE1: return [3, 12];
-                            case ast_enumt.DOWHILE2: return [3, 13];
-                            case ast_enumt.DOWHILE3: return [3, 16];
-                            case ast_enumt.ENUM: return [3, 17];
-                            case ast_enumt.FOR1: return [3, 18];
-                            case ast_enumt.FOR2: return [3, 26];
-                            case ast_enumt.LOOP1: return [3, 27];
-                            case ast_enumt.LOOP2: return [3, 28];
-                            case ast_enumt.GOTO: return [3, 29];
-                            case ast_enumt.IF1: return [3, 30];
-                            case ast_enumt.IF2: return [3, 31];
-                            case ast_enumt.IF3: return [3, 33];
-                            case ast_enumt.IF4: return [3, 34];
-                            case ast_enumt.INCLUDE: return [3, 35];
-                            case ast_enumt.NAMESPACE1: return [3, 36];
-                            case ast_enumt.NAMESPACE2: return [3, 37];
-                            case ast_enumt.RETURN: return [3, 38];
-                            case ast_enumt.USING: return [3, 42];
-                            case ast_enumt.VAR: return [3, 43];
-                            case ast_enumt.EVAL: return [3, 49];
-                            case ast_enumt.LABEL: return [3, 51];
+                            case ast_enumt.BREAK: return [3 /*break*/, 1];
+                            case ast_enumt.CONTINUE: return [3 /*break*/, 2];
+                            case ast_enumt.DECLARE: return [3 /*break*/, 3];
+                            case ast_enumt.DEF1: return [3 /*break*/, 4];
+                            case ast_enumt.DEF2: return [3 /*break*/, 11];
+                            case ast_enumt.DOWHILE1: return [3 /*break*/, 12];
+                            case ast_enumt.DOWHILE2: return [3 /*break*/, 13];
+                            case ast_enumt.DOWHILE3: return [3 /*break*/, 16];
+                            case ast_enumt.ENUM: return [3 /*break*/, 17];
+                            case ast_enumt.FOR1: return [3 /*break*/, 18];
+                            case ast_enumt.FOR2: return [3 /*break*/, 26];
+                            case ast_enumt.LOOP1: return [3 /*break*/, 27];
+                            case ast_enumt.LOOP2: return [3 /*break*/, 28];
+                            case ast_enumt.GOTO: return [3 /*break*/, 29];
+                            case ast_enumt.IF1: return [3 /*break*/, 30];
+                            case ast_enumt.IF2: return [3 /*break*/, 31];
+                            case ast_enumt.IF3: return [3 /*break*/, 33];
+                            case ast_enumt.IF4: return [3 /*break*/, 34];
+                            case ast_enumt.INCLUDE: return [3 /*break*/, 35];
+                            case ast_enumt.NAMESPACE1: return [3 /*break*/, 36];
+                            case ast_enumt.NAMESPACE2: return [3 /*break*/, 37];
+                            case ast_enumt.RETURN: return [3 /*break*/, 38];
+                            case ast_enumt.USING: return [3 /*break*/, 42];
+                            case ast_enumt.VAR: return [3 /*break*/, 43];
+                            case ast_enumt.EVAL: return [3 /*break*/, 49];
+                            case ast_enumt.LABEL: return [3 /*break*/, 51];
                         }
-                        return [3, 52];
+                        return [3 /*break*/, 52];
                     case 1:
                         {
                             if (sym.sc.lblBreak === null)
-                                return [2, pgr_error(stmt.flp, 'Invalid `break`')];
+                                return [2 /*return*/, pgr_error(stmt.flp, 'Invalid `break`')];
                             label_jump(sym.sc.lblBreak, prg.ops);
-                            return [2, pgr_ok()];
+                            return [2 /*return*/, pgr_ok()];
                         }
                         _b.label = 2;
                     case 2:
                         {
                             if (sym.sc.lblContinue === null)
-                                return [2, pgr_error(stmt.flp, 'Invalid `continue`')];
+                                return [2 /*return*/, pgr_error(stmt.flp, 'Invalid `continue`')];
                             label_jump(sym.sc.lblContinue, prg.ops);
-                            return [2, pgr_ok()];
+                            return [2 /*return*/, pgr_ok()];
                         }
                         _b.label = 3;
                     case 3:
@@ -6237,17 +6511,17 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 sym.fr.lbls.push(lbl);
                                 smsg = symtbl_addCmdLocal(sym, dc.names, lbl);
                                 if (smsg !== null)
-                                    return [2, pgr_error(dc.flp, smsg)];
+                                    return [2 /*return*/, pgr_error(dc.flp, smsg)];
                                 scope_addDeclare(sym.sc, stmt.flp, dc.names, lbl);
                             }
-                            else {
+                            else { // native
                                 if (dc.key === null)
                                     throw new Error('Expecting native declaration to have key');
                                 smsg = symtbl_addCmdNative(sym, dc.names, native_hash(dc.key));
                                 if (smsg !== null)
-                                    return [2, pgr_error(dc.flp, smsg)];
+                                    return [2 /*return*/, pgr_error(dc.flp, smsg)];
                             }
-                            return [2, pgr_ok()];
+                            return [2 /*return*/, pgr_ok()];
                         }
                         _b.label = 4;
                     case 4:
@@ -6257,25 +6531,26 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             lbl = n.nsn.lbl;
                             if (lbl.pos < 0)
                                 scope_removeDeclare(sym.sc, lbl);
-                            else if (!sym.repl)
-                                return [2, pgr_error(stmt.flpN, 'Cannot redefine: ' + stmt.names.join('.'))];
+                            else if (!sym.repl) // if already defined, error
+                                return [2 /*return*/, pgr_error(stmt.flpN, 'Cannot redefine: ' + stmt.names.join('.'))];
                         }
                         else {
                             lbl = label_new('^def');
                             sym.fr.lbls.push(lbl);
                             smsg = symtbl_addCmdLocal(sym, stmt.names, lbl);
                             if (smsg !== null)
-                                return [2, pgr_error(stmt.flpN, smsg)];
+                                return [2 /*return*/, pgr_error(stmt.flpN, smsg)];
                         }
                         level = sym.fr.level + 1;
                         if (level > 255)
-                            return [2, pgr_error(stmt.flp, 'Too many nested commands')];
+                            return [2 /*return*/, pgr_error(stmt.flp, 'Too many nested commands')];
                         rest = 0xFF;
                         lvs = stmt.lvalues.length;
                         if (lvs > 255)
-                            return [2, pgr_error(stmt.flp, 'Too many parameters')];
+                            return [2 /*return*/, pgr_error(stmt.flp, 'Too many parameters')];
                         if (lvs > 0) {
                             last_ex = stmt.lvalues[lvs - 1];
+                            // is the last expression a `...rest`?
                             if (last_ex.type === expr_enum.PREFIX && last_ex.k === ks_enum.PERIOD3)
                                 rest = lvs - 1;
                         }
@@ -6285,39 +6560,41 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                         symtbl_pushFrame(sym);
                         program_cmdhint(prg, stmt.names);
                         op_cmdhead(prg.ops, level, rest);
+                        // reserve our argument registers as explicit registers 0 to lvs-1
                         symtbl_reserveVars(sym, lvs);
                         i = 0;
                         _b.label = 5;
                     case 5:
-                        if (!(i < lvs)) return [3, 10];
+                        if (!(i < lvs)) return [3 /*break*/, 10];
                         ex = stmt.lvalues[i];
-                        if (!(ex.type === expr_enum.INFIX)) return [3, 8];
+                        if (!(ex.type === expr_enum.INFIX)) return [3 /*break*/, 8];
                         arg = varloc_new(level, i);
-                        if (!(ex.right !== null)) return [3, 7];
+                        if (!(ex.right !== null)) return [3 /*break*/, 7];
                         argset = label_new('^argset');
                         label_jumptrue(argset, prg.ops, arg);
-                        return [4, program_eval(pgen, pem_enum.INTO, arg, ex.right)];
+                        return [4 /*yield*/, program_eval(pgen, pem_enum.INTO, arg, ex.right)];
                     case 6:
                         pr = _b.sent();
                         if (!pr.ok)
-                            return [2, pgr_error(pr.flp, pr.msg)];
+                            return [2 /*return*/, pgr_error(pr.flp, pr.msg)];
                         label_declare(argset, prg.ops);
                         _b.label = 7;
                     case 7:
+                        // now we can add the param symbols
                         if (ex.type !== expr_enum.INFIX)
                             throw new Error('Expecting parameter expression to be infix');
                         lr = lval_addVars(sym, ex.left, i);
                         if (!lr.ok)
-                            return [2, pgr_error(lr.flp, lr.msg)];
+                            return [2 /*return*/, pgr_error(lr.flp, lr.msg)];
                         pe = program_evalLval(pgen, pem_enum.EMPTY, VARLOC_NULL, lr.lv, op_enum.INVALID, arg, true);
                         if (!pe.ok)
-                            return [2, pgr_error(pe.flp, pe.msg)];
-                        return [3, 9];
+                            return [2 /*return*/, pgr_error(pe.flp, pe.msg)];
+                        return [3 /*break*/, 9];
                     case 8:
                         if (i === lvs - 1 && ex.type === expr_enum.PREFIX && ex.k === ks_enum.PERIOD3) {
                             lr = lval_addVars(sym, ex.ex, i);
                             if (!lr.ok)
-                                return [2, pgr_error(lr.flp, lr.msg)];
+                                return [2 /*return*/, pgr_error(lr.flp, lr.msg)];
                             if (lr.lv.type !== lvr_enum.VAR)
                                 throw new Error('Assertion failed: `...rest` parameter must be identifier');
                         }
@@ -6326,20 +6603,20 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                         _b.label = 9;
                     case 9:
                         i++;
-                        return [3, 5];
-                    case 10: return [2, pgr_push(skip)];
+                        return [3 /*break*/, 5];
+                    case 10: return [2 /*return*/, pgr_push(skip)];
                     case 11:
                         {
                             program_cmdhint(prg, null);
                             op_cmdtail(prg.ops);
                             err = symtbl_popFrame(sym);
                             if (err !== null)
-                                return [2, pgr_error(stmt.flp, err)];
+                                return [2 /*return*/, pgr_error(stmt.flp, err)];
                             if (!label_check(state))
                                 throw new Error('Expecting state to be a label');
                             skip = state;
                             label_declare(skip, prg.ops);
-                            return [2, pgr_pop()];
+                            return [2 /*return*/, pgr_pop()];
                         }
                         _b.label = 12;
                     case 12:
@@ -6351,7 +6628,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             sym.sc.lblBreak = finish;
                             sym.sc.lblContinue = cond;
                             label_declare(top_1, prg.ops);
-                            return [2, pgr_push(pgs_dowhile_new(top_1, cond, finish))];
+                            return [2 /*return*/, pgr_push(pgs_dowhile_new(top_1, cond, finish))];
                         }
                         _b.label = 13;
                     case 13:
@@ -6359,21 +6636,22 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             throw new Error('Expecting state to be do-while structure');
                         pst = state;
                         label_declare(pst.cond, prg.ops);
-                        if (!(stmt.cond === null)) return [3, 14];
+                        if (!(stmt.cond === null)) return [3 /*break*/, 14];
+                        // do end
                         pst.top = null;
-                        return [2, pgr_ok()];
-                    case 14: return [4, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, stmt.cond)];
+                        return [2 /*return*/, pgr_ok()];
+                    case 14: return [4 /*yield*/, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, stmt.cond)];
                     case 15:
                         pe = _b.sent();
                         if (!pgs_dowhile_check(state))
                             throw new Error('Expecting state to be do-while structure');
                         pst_1 = state;
                         if (!pe.ok)
-                            return [2, pgr_error(pe.flp, pe.msg)];
+                            return [2 /*return*/, pgr_error(pe.flp, pe.msg)];
                         label_jumpfalse(pst_1.finish, prg.ops, pe.vlc);
                         symtbl_clearTemp(sym, pe.vlc);
                         sym.sc.lblContinue = pst_1.top;
-                        return [2, pgr_ok()];
+                        return [2 /*return*/, pgr_ok()];
                     case 16:
                         {
                             if (!pgs_dowhile_check(state))
@@ -6384,8 +6662,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             label_declare(pst.finish, prg.ops);
                             err = symtbl_popScope(sym);
                             if (err !== null)
-                                return [2, pgr_error(stmt.flp, err)];
-                            return [2, pgr_pop()];
+                                return [2 /*return*/, pgr_error(stmt.flp, err)];
+                            return [2 /*return*/, pgr_pop()];
                         }
                         _b.label = 17;
                     case 17:
@@ -6399,64 +6677,64 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 if (ex.right !== null) {
                                     n = program_exprToNum(pgen, ex.right);
                                     if (!n.ok)
-                                        return [2, pgr_error(stmt.flp, n.msg)];
+                                        return [2 /*return*/, pgr_error(stmt.flp, n.msg)];
                                     v = n.value;
                                 }
                                 if (ex.left.type !== expr_enum.NAMES)
-                                    return [2, pgr_error(stmt.flp, 'Enum name must only consist of identifiers')];
+                                    return [2 /*return*/, pgr_error(stmt.flp, 'Enum name must only consist of identifiers')];
                                 last_val = v;
                                 smsg = symtbl_addEnum(sym, ex.left.names, v);
                                 if (smsg !== null)
-                                    return [2, pgr_error(stmt.flp, smsg)];
+                                    return [2 /*return*/, pgr_error(stmt.flp, smsg)];
                             }
-                            return [2, pgr_ok()];
+                            return [2 /*return*/, pgr_ok()];
                         }
                         _b.label = 18;
                     case 18:
-                        if (!(stmt.ex.type === expr_enum.CALL)) return [3, 25];
+                        if (!(stmt.ex.type === expr_enum.CALL)) return [3 /*break*/, 25];
                         c = stmt.ex;
-                        if (!(c.cmd.type === expr_enum.NAMES)) return [3, 25];
+                        if (!(c.cmd.type === expr_enum.NAMES)) return [3 /*break*/, 25];
                         n = c.cmd;
                         sl = symtbl_lookup(sym, n.names);
                         if (!sl.ok)
-                            return [2, pgr_error(stmt.flp, sl.msg)];
+                            return [2 /*return*/, pgr_error(stmt.flp, sl.msg)];
                         nsn = sl.nsn;
-                        if (!(nsn.type === nsname_enumt.CMD_OPCODE && nsn.opcode === op_enum.RANGE)) return [3, 25];
+                        if (!(nsn.type === nsname_enumt.CMD_OPCODE && nsn.opcode === op_enum.RANGE)) return [3 /*break*/, 25];
                         p = c.params;
                         rp = [VARLOC_NULL, VARLOC_NULL, VARLOC_NULL];
-                        if (!(p.type !== expr_enum.GROUP)) return [3, 20];
+                        if (!(p.type !== expr_enum.GROUP)) return [3 /*break*/, 20];
                         ts = symtbl_addTemp(sym);
                         if (!ts.ok)
-                            return [2, pgr_error(stmt.flp, ts.msg)];
+                            return [2 /*return*/, pgr_error(stmt.flp, ts.msg)];
                         rp[0] = ts.vlc;
-                        return [4, program_eval(pgen, pem_enum.INTO, rp[0], p)];
+                        return [4 /*yield*/, program_eval(pgen, pem_enum.INTO, rp[0], p)];
                     case 19:
                         pe = _b.sent();
                         if (!pe.ok)
-                            return [2, pgr_error(pe.flp, pe.msg)];
-                        return [3, 24];
+                            return [2 /*return*/, pgr_error(pe.flp, pe.msg)];
+                        return [3 /*break*/, 24];
                     case 20:
                         i = 0;
                         _b.label = 21;
                     case 21:
-                        if (!(i < p.group.length)) return [3, 24];
+                        if (!(i < p.group.length)) return [3 /*break*/, 24];
                         if (i < 3) {
                             ts = symtbl_addTemp(sym);
                             if (!ts.ok)
-                                return [2, pgr_error(stmt.flp, ts.msg)];
+                                return [2 /*return*/, pgr_error(stmt.flp, ts.msg)];
                             rp[i] = ts.vlc;
                         }
-                        return [4, program_eval(pgen, i < 3 ? pem_enum.INTO : pem_enum.EMPTY, i < 3 ? rp[i] : VARLOC_NULL, p.group[i])];
+                        return [4 /*yield*/, program_eval(pgen, i < 3 ? pem_enum.INTO : pem_enum.EMPTY, i < 3 ? rp[i] : VARLOC_NULL, p.group[i])];
                     case 22:
                         pe = _b.sent();
                         if (!pe.ok)
-                            return [2, pgr_error(pe.flp, pe.msg)];
+                            return [2 /*return*/, pgr_error(pe.flp, pe.msg)];
                         _b.label = 23;
                     case 23:
                         i++;
-                        return [3, 21];
-                    case 24: return [2, program_genForRange(pgen, stmt, rp[0], rp[1], rp[2])];
-                    case 25: return [2, program_genForGeneric(pgen, stmt)];
+                        return [3 /*break*/, 21];
+                    case 24: return [2 /*return*/, program_genForRange(pgen, stmt, rp[0], rp[1], rp[2])];
+                    case 25: return [2 /*return*/, program_genForGeneric(pgen, stmt)];
                     case 26:
                         {
                             if (!pgs_for_check(state))
@@ -6477,8 +6755,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             symtbl_clearTemp(sym, pst.idx_vlc);
                             err = symtbl_popScope(sym);
                             if (err !== null)
-                                return [2, pgr_error(stmt.flp, err)];
-                            return [2, pgr_pop()];
+                                return [2 /*return*/, pgr_error(stmt.flp, err)];
+                            return [2 /*return*/, pgr_pop()];
                         }
                         _b.label = 27;
                     case 27:
@@ -6489,7 +6767,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             sym.sc.lblContinue = lcont;
                             sym.sc.lblBreak = lbrk;
                             label_declare(lcont, prg.ops);
-                            return [2, pgr_push(pgs_loop_new(lcont, lbrk))];
+                            return [2 /*return*/, pgr_push(pgs_loop_new(lcont, lbrk))];
                         }
                         _b.label = 28;
                     case 28:
@@ -6501,8 +6779,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             label_declare(pst.lbrk, prg.ops);
                             err = symtbl_popScope(sym);
                             if (err !== null)
-                                return [2, pgr_error(stmt.flp, err)];
-                            return [2, pgr_pop()];
+                                return [2 /*return*/, pgr_error(stmt.flp, err)];
+                            return [2 /*return*/, pgr_pop()];
                         }
                         _b.label = 29;
                     case 29:
@@ -6511,18 +6789,18 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 lbl_1 = sym.fr.lbls[i];
                                 if (lbl_1.name !== null && lbl_1.name === stmt.ident) {
                                     label_jump(lbl_1, prg.ops);
-                                    return [2, pgr_ok()];
+                                    return [2 /*return*/, pgr_ok()];
                                 }
                             }
                             lbl = label_new(stmt.ident);
                             label_jump(lbl, prg.ops);
                             sym.fr.lbls.push(lbl);
-                            return [2, pgr_ok()];
+                            return [2 /*return*/, pgr_ok()];
                         }
                         _b.label = 30;
                     case 30:
                         {
-                            return [2, pgr_push(pgs_if_new(null, label_new('^ifdone')))];
+                            return [2 /*return*/, pgr_push(pgs_if_new(null, label_new('^ifdone')))];
                         }
                         _b.label = 31;
                     case 31:
@@ -6532,24 +6810,24 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                         if (pst.nextcond !== null) {
                             err = symtbl_popScope(sym);
                             if (err !== null)
-                                return [2, pgr_error(stmt.flp, err)];
+                                return [2 /*return*/, pgr_error(stmt.flp, err)];
                             label_jump(pst.ifdone, prg.ops);
                             label_declare(pst.nextcond, prg.ops);
                         }
                         pst.nextcond = label_new('^nextcond');
-                        return [4, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, stmt.cond)];
+                        return [4 /*yield*/, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, stmt.cond)];
                     case 32:
                         pr = _b.sent();
                         if (!pgs_if_check(state))
                             throw new Error('Expecting state to be if struture');
                         if (!pr.ok)
-                            return [2, pgr_error(pr.flp, pr.msg)];
+                            return [2 /*return*/, pgr_error(pr.flp, pr.msg)];
                         if (pst.nextcond === null)
                             throw new Error('If2 nextcond must not be null');
                         label_jumpfalse(pst.nextcond, prg.ops, pr.vlc);
                         symtbl_clearTemp(sym, pr.vlc);
                         symtbl_pushScope(sym);
-                        return [2, pgr_ok()];
+                        return [2 /*return*/, pgr_ok()];
                     case 33:
                         {
                             if (!pgs_if_check(state))
@@ -6557,13 +6835,13 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             pst = state;
                             err = symtbl_popScope(sym);
                             if (err !== null)
-                                return [2, pgr_error(stmt.flp, err)];
+                                return [2 /*return*/, pgr_error(stmt.flp, err)];
                             label_jump(pst.ifdone, prg.ops);
                             if (pst.nextcond === null)
                                 throw new Error('Next condition label must exist');
                             label_declare(pst.nextcond, prg.ops);
                             symtbl_pushScope(sym);
-                            return [2, pgr_ok()];
+                            return [2 /*return*/, pgr_ok()];
                         }
                         _b.label = 34;
                     case 34:
@@ -6573,9 +6851,9 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             pst = state;
                             err = symtbl_popScope(sym);
                             if (err !== null)
-                                return [2, pgr_error(stmt.flp, err)];
+                                return [2 /*return*/, pgr_error(stmt.flp, err)];
                             label_declare(pst.ifdone, prg.ops);
-                            return [2, pgr_pop()];
+                            return [2 /*return*/, pgr_pop()];
                         }
                         _b.label = 35;
                     case 35:
@@ -6587,110 +6865,111 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                         {
                             smsg = symtbl_pushNamespace(sym, stmt.names);
                             if (smsg !== null)
-                                return [2, pgr_error(stmt.flp, smsg)];
-                            return [2, pgr_push(null)];
+                                return [2 /*return*/, pgr_error(stmt.flp, smsg)];
+                            return [2 /*return*/, pgr_push(null)];
                         }
                         _b.label = 37;
                     case 37:
                         {
                             symtbl_popNamespace(sym);
-                            return [2, pgr_pop()];
+                            return [2 /*return*/, pgr_pop()];
                         }
                         _b.label = 38;
                     case 38:
                         nsn = null;
                         params = null;
                         ex = stmt.ex;
+                        // check for tail call
                         if (ex.type === expr_enum.CALL) {
                             if (ex.cmd.type !== expr_enum.NAMES)
-                                return [2, pgr_error(ex.flp, 'Invalid call')];
+                                return [2 /*return*/, pgr_error(ex.flp, 'Invalid call')];
                             sl = symtbl_lookup(sym, ex.cmd.names);
                             if (!sl.ok)
-                                return [2, pgr_error(ex.flp, sl.msg)];
+                                return [2 /*return*/, pgr_error(ex.flp, sl.msg)];
                             nsn = sl.nsn;
                             params = ex.params;
                         }
                         else if (ex.type === expr_enum.NAMES) {
                             sl = symtbl_lookup(sym, ex.names);
                             if (!sl.ok)
-                                return [2, pgr_error(ex.flp, sl.msg)];
+                                return [2 /*return*/, pgr_error(ex.flp, sl.msg)];
                             nsn = sl.nsn;
                         }
                         if (!(nsn !== null && nsn.type === nsname_enumt.CMD_LOCAL &&
-                            nsn.fr.level + 1 === sym.fr.level)) return [3, 40];
+                            nsn.fr.level + 1 === sym.fr.level)) return [3 /*break*/, 40];
                         argcount = [];
                         pe = [];
                         p = [];
                         nsn_lbl = nsn.lbl;
-                        return [4, program_evalCallArgcount(pgen, params, argcount, pe, p)];
+                        return [4 /*yield*/, program_evalCallArgcount(pgen, params, argcount, pe, p)];
                     case 39:
                         eb = _b.sent();
                         if (!eb) {
                             pe0 = pe[0];
                             if (pe0.ok)
                                 throw new Error('Expecting error message from evalCallArgcount');
-                            return [2, pgr_error(pe0.flp, pe0.msg)];
+                            return [2 /*return*/, pgr_error(pe0.flp, pe0.msg)];
                         }
                         label_returntail(nsn_lbl, prg.ops, argcount[0]);
                         for (i = 0; i < argcount[0]; i++) {
                             op_arg(prg.ops, p[i]);
                             symtbl_clearTemp(sym, p[i]);
                         }
-                        return [2, pgr_ok()];
-                    case 40: return [4, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex)];
+                        return [2 /*return*/, pgr_ok()];
+                    case 40: return [4 /*yield*/, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex)];
                     case 41:
                         pr = _b.sent();
                         if (!pr.ok)
-                            return [2, pgr_error(pr.flp, pr.msg)];
+                            return [2 /*return*/, pgr_error(pr.flp, pr.msg)];
                         symtbl_clearTemp(sym, pr.vlc);
                         op_return(prg.ops, pr.vlc);
-                        return [2, pgr_ok()];
+                        return [2 /*return*/, pgr_ok()];
                     case 42:
                         {
                             sl = symtbl_lookupfast(sym, stmt.names);
                             ns = void 0;
-                            if (!sl.ok) {
+                            if (!sl.ok) { // not found, so create it
                                 sf = symtbl_findNamespace(sym, stmt.names, stmt.names.length);
                                 if (!sf.ok)
-                                    return [2, pgr_error(stmt.flp, sf.msg)];
+                                    return [2 /*return*/, pgr_error(stmt.flp, sf.msg)];
                                 ns = sf.ns;
                             }
                             else {
                                 if (sl.nsn.type !== nsname_enumt.NAMESPACE)
-                                    return [2, pgr_error(stmt.flp, 'Expecting namespace')];
+                                    return [2 /*return*/, pgr_error(stmt.flp, 'Expecting namespace')];
                                 ns = sl.nsn.ns;
                             }
                             if (sym.sc.ns.usings.indexOf(ns) < 0)
                                 sym.sc.ns.usings.push(ns);
-                            return [2, pgr_ok()];
+                            return [2 /*return*/, pgr_ok()];
                         }
                         _b.label = 43;
                     case 43:
                         i = 0;
                         _b.label = 44;
                     case 44:
-                        if (!(i < stmt.lvalues.length)) return [3, 48];
+                        if (!(i < stmt.lvalues.length)) return [3 /*break*/, 48];
                         ex1 = stmt.lvalues[i];
                         if (ex1.type !== expr_enum.INFIX)
                             throw new Error('Var expressions must be infix');
                         ex = ex1;
                         pr_vlc = VARLOC_NULL;
-                        if (!(ex.right !== null)) return [3, 46];
-                        return [4, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.right)];
+                        if (!(ex.right !== null)) return [3 /*break*/, 46];
+                        return [4 /*yield*/, program_eval(pgen, pem_enum.CREATE, VARLOC_NULL, ex.right)];
                     case 45:
                         pr = _b.sent();
                         if (!pr.ok)
-                            return [2, pgr_error(pr.flp, pr.msg)];
+                            return [2 /*return*/, pgr_error(pr.flp, pr.msg)];
                         pr_vlc = pr.vlc;
                         _b.label = 46;
                     case 46:
                         lr = lval_addVars(sym, ex.left, -1);
                         if (!lr.ok)
-                            return [2, pgr_error(lr.flp, lr.msg)];
+                            return [2 /*return*/, pgr_error(lr.flp, lr.msg)];
                         if (ex.right !== null) {
                             pe = program_evalLval(pgen, pem_enum.EMPTY, VARLOC_NULL, lr.lv, op_enum.INVALID, pr_vlc, true);
                             if (!pe.ok)
-                                return [2, pgr_error(pe.flp, pe.msg)];
+                                return [2 /*return*/, pgr_error(pe.flp, pe.msg)];
                             symtbl_clearTemp(sym, pr_vlc);
                         }
                         else
@@ -6698,23 +6977,23 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                         _b.label = 47;
                     case 47:
                         i++;
-                        return [3, 44];
-                    case 48: return [2, pgr_ok()];
-                    case 49: return [4, program_eval(pgen, sayexpr ? pem_enum.CREATE : pem_enum.EMPTY, VARLOC_NULL, stmt.ex)];
+                        return [3 /*break*/, 44];
+                    case 48: return [2 /*return*/, pgr_ok()];
+                    case 49: return [4 /*yield*/, program_eval(pgen, sayexpr ? pem_enum.CREATE : pem_enum.EMPTY, VARLOC_NULL, stmt.ex)];
                     case 50:
                         pr = _b.sent();
                         if (!pr.ok)
-                            return [2, pgr_error(pr.flp, pr.msg)];
+                            return [2 /*return*/, pgr_error(pr.flp, pr.msg)];
                         if (sayexpr) {
                             ts = symtbl_addTemp(sym);
                             if (!ts.ok)
-                                return [2, pgr_error(stmt.flp, ts.msg)];
+                                return [2 /*return*/, pgr_error(stmt.flp, ts.msg)];
                             op_parama(prg.ops, op_enum.SAY, ts.vlc, 1);
                             op_arg(prg.ops, pr.vlc);
                             symtbl_clearTemp(sym, pr.vlc);
                             symtbl_clearTemp(sym, ts.vlc);
                         }
-                        return [2, pgr_ok()];
+                        return [2 /*return*/, pgr_ok()];
                     case 51:
                         {
                             lbl = null;
@@ -6723,7 +7002,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 lbl = sym.fr.lbls[i];
                                 if (lbl.name !== null && lbl.name === stmt.ident) {
                                     if (lbl.pos >= 0)
-                                        return [2, pgr_error(stmt.flp, 'Cannot redeclare label "' + stmt.ident + '"')];
+                                        return [2 /*return*/, pgr_error(stmt.flp, 'Cannot redeclare label "' + stmt.ident + '"')];
                                     found = true;
                                     break;
                                 }
@@ -6735,7 +7014,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             if (lbl === null)
                                 throw new Error('Label cannot be null');
                             label_declare(lbl, prg.ops);
-                            return [2, pgr_ok()];
+                            return [2 /*return*/, pgr_ok()];
                         }
                         _b.label = 52;
                     case 52: throw new Error('Invalid AST type');
@@ -6756,6 +7035,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         return { natuser: natuser, hash: hash, f_native: f_native };
     }
     function lxs_get(ctx, args, next) {
+        // TODO: speed test to see if lxs_avail is a speed boost
         if (ctx.lxs_avail.length > 0) {
             var ls = ctx.lxs_avail.pop();
             if (typeof ls === 'undefined')
@@ -6795,6 +7075,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                 var nat = ctx.natives[i];
                 if (u64_equ(nat.hash, hash)) {
                     if (nat.f_native !== null) {
+                        // already defined, hash collision
                         throw new Error('Hash collision; cannot redefine native command ' +
                             '(did you call sink.ctx_native twice for the same command?)');
                     }
@@ -6829,6 +7110,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             async: false,
             gc_level: gc_level.DEFAULT
         };
+        // if not a REPL, then natives can be built now
         if (!prg.repl) {
             for (var i = 0; i < prg.keyTable.length; i++)
                 ctx.natives.push(native_new(prg.keyTable[i], null, null));
@@ -6837,6 +7119,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         return ctx;
     }
     function context_reset(ctx) {
+        // return to the top level
         while (ctx.call_stk.length > 0) {
             var s = ctx.call_stk.pop();
             if (typeof s === 'undefined')
@@ -6850,15 +7133,18 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             ctx.pc = s.pc;
             ccs_release(ctx, s);
         }
+        // reset variables and fast-forward to the end of the current program
         ctx.passed = false;
         ctx.failed = false;
         ctx.pc = ctx.prg.ops.length;
         ctx.timeout_left = ctx.timeout;
     }
     function var_get(ctx, frame, index) {
+        // TODO: look at inlining this manually
         return ctx.lex_stk[frame].vals[index];
     }
     function var_set(ctx, frame, index, val) {
+        // TODO: look at inlining this manually
         ctx.lex_stk[frame].vals[index] = val;
     }
     function arget(ar, index) {
@@ -7025,12 +7311,10 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             rand_int(ctx);
         ctx.rand_i = 0;
     }
-    exports.rand_seedauto = rand_seedauto;
     function rand_seed(ctx, n) {
         ctx.rand_seed = n | 0;
         ctx.rand_i = 0;
     }
-    exports.rand_seed = rand_seed;
     function rand_int(ctx) {
         var m = 0x5bd1e995;
         var k = Math.imul(ctx.rand_i, m);
@@ -7041,7 +7325,6 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             return res + 0x100000000;
         return res;
     }
-    exports.rand_int = rand_int;
     function rand_num(ctx) {
         var M1 = rand_int(ctx);
         var M2 = rand_int(ctx);
@@ -7050,7 +7333,6 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         view.setInt32(4, 0x3FF00000 | (M1 >>> 12), true);
         return view.getFloat64(0, true) - 1;
     }
-    exports.rand_num = rand_num;
     function rand_range(ctx, start, stop, step) {
         if (start === stop)
             return exports.NIL;
@@ -7063,8 +7345,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             return exports.NIL;
         return start + Math.floor(rand_num(ctx) * count) * step;
     }
-    exports.rand_range = rand_range;
     function rand_getstate(ctx) {
+        // slight goofy logic to convert int32 to uint32
         if (ctx.rand_i < 0) {
             if (ctx.rand_seed < 0)
                 return new list(ctx.rand_seed + 0x100000000, ctx.rand_i + 0x100000000);
@@ -7074,7 +7356,6 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             return new list(ctx.rand_seed + 0x100000000, ctx.rand_i);
         return new list(ctx.rand_seed, ctx.rand_i);
     }
-    exports.rand_getstate = rand_getstate;
     function rand_setstate(ctx, a) {
         if (!islist(a) || a.length < 2) {
             opi_abort(ctx, 'Expecting list of two integers');
@@ -7089,7 +7370,6 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         ctx.rand_seed = A | 0;
         ctx.rand_i = B | 0;
     }
-    exports.rand_setstate = rand_setstate;
     function rand_pick(ctx, a) {
         if (!islist(a)) {
             opi_abort(ctx, 'Expecting list');
@@ -7099,7 +7379,6 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             return exports.NIL;
         return a[Math.floor(rand_num(ctx) * a.length)];
     }
-    exports.rand_pick = rand_pick;
     function rand_shuffle(ctx, a) {
         if (!islist(a)) {
             opi_abort(ctx, 'Expecting list');
@@ -7116,11 +7395,9 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             }
         }
     }
-    exports.rand_shuffle = rand_shuffle;
     function str_new(ctx, vals) {
         return list_joinplain(vals, ' ');
     }
-    exports.str_new = str_new;
     function str_split(ctx, a, b) {
         if ((!isstr(a) && !isnum(a)) || (!isstr(b) && !isnum(b))) {
             opi_abort(ctx, 'Expecting strings');
@@ -7132,14 +7409,12 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         result.push.apply(result, haystack.split(needle));
         return result;
     }
-    exports.str_split = str_split;
     function str_replace(ctx, a, b, c) {
         var ls = str_split(ctx, a, b);
         if (ctx.failed)
             return exports.NIL;
         return list_join(ctx, ls, c);
     }
-    exports.str_replace = str_replace;
     function str_find(ctx, a, b, c) {
         var hx = 0;
         if (isnil(c))
@@ -7165,7 +7440,6 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             return pos;
         return exports.NIL;
     }
-    exports.str_find = str_find;
     function str_rfind(ctx, a, b, c) {
         var hx = 0;
         if (isnum(c))
@@ -7191,7 +7465,6 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             return pos;
         return exports.NIL;
     }
-    exports.str_rfind = str_rfind;
     function str_begins(ctx, a, b) {
         if ((!isstr(a) && !isnum(a)) || (!isstr(b) && !isnum(b))) {
             opi_abort(ctx, 'Expecting strings');
@@ -7201,7 +7474,6 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         var s2 = tostr(b);
         return s2.length == 0 || (s1.length >= s2.length && s1.substr(0, s2.length) === s2);
     }
-    exports.str_begins = str_begins;
     function str_ends(ctx, a, b) {
         if ((!isstr(a) && !isnum(a)) || (!isstr(b) && !isnum(b))) {
             opi_abort(ctx, 'Expecting strings');
@@ -7211,7 +7483,6 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         var s2 = tostr(b);
         return s2.length === 0 || (s1.length >= s2.length && s1.substr(-s2.length) === s2);
     }
-    exports.str_ends = str_ends;
     function str_pad(ctx, a, b) {
         if (!isstr(a) && !isnum(a)) {
             opi_abort(ctx, 'Expecting string');
@@ -7219,19 +7490,18 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         }
         var s = tostr(a);
         b |= 0;
-        if (b < 0) {
+        if (b < 0) { // left pad
             b = -b;
             if (s.length >= b)
                 return s;
             return (new Array(b - s.length + 1)).join(' ') + s;
         }
-        else {
+        else { // right pad
             if (s.length >= b)
                 return s;
             return s + (new Array(b - s.length + 1)).join(' ');
         }
     }
-    exports.str_pad = str_pad;
     function opihelp_str_lower(ctx, a) {
         if (!isstr(a) && !isnum(a)) {
             opi_abort(ctx, 'Expecting string');
@@ -7275,22 +7545,19 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         }
         return single(ctx, a);
     }
+    // allow unary string commands to work on lists too
     function str_lower(ctx, a) {
         return opi_str_unop(ctx, a, opihelp_str_lower);
     }
-    exports.str_lower = str_lower;
     function str_upper(ctx, a) {
         return opi_str_unop(ctx, a, opihelp_str_upper);
     }
-    exports.str_upper = str_upper;
     function str_trim(ctx, a) {
         return opi_str_unop(ctx, a, opihelp_str_trim);
     }
-    exports.str_trim = str_trim;
     function str_rev(ctx, a) {
         return opi_str_unop(ctx, a, opihelp_str_rev);
     }
-    exports.str_rev = str_rev;
     function str_rep(ctx, a, rep) {
         if (!isstr(a) && !isnum(a)) {
             opi_abort(ctx, 'Expecting string');
@@ -7310,7 +7577,6 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         }
         return (new Array(rep + 1)).join(s);
     }
-    exports.str_rep = str_rep;
     function str_list(ctx, a) {
         if (!isstr(a) && !isnum(a)) {
             opi_abort(ctx, 'Expecting string');
@@ -7322,7 +7588,6 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             r.push(s.charCodeAt(i));
         return r;
     }
-    exports.str_list = str_list;
     function str_byte(ctx, a, b) {
         if (!isstr(a)) {
             opi_abort(ctx, 'Expecting string');
@@ -7334,7 +7599,6 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             return exports.NIL;
         return a.charCodeAt(b);
     }
-    exports.str_byte = str_byte;
     function str_hash(ctx, a, seed) {
         if (!isstr(a) && !isnum(a)) {
             opi_abort(ctx, 'Expecting string');
@@ -7344,12 +7608,15 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         var out = str_hashplain(s, seed);
         return new list(out[0], out[1], out[2], out[3]);
     }
-    exports.str_hash = str_hash;
+    // 1   7  U+00000  U+00007F  0xxxxxxx
+    // 2  11  U+00080  U+0007FF  110xxxxx  10xxxxxx
+    // 3  16  U+00800  U+00FFFF  1110xxxx  10xxxxxx  10xxxxxx
+    // 4  21  U+10000  U+10FFFF  11110xxx  10xxxxxx  10xxxxxx  10xxxxxx
     function opihelp_codepoint(b) {
-        return isnum(b) &&
-            Math.floor(b) == b &&
-            b >= 0 && b < 0x110000 &&
-            (b < 0xD800 || b >= 0xE000);
+        return isnum(b) && // must be a number
+            Math.floor(b) == b && // must be an integer
+            b >= 0 && b < 0x110000 && // must be within total range
+            (b < 0xD800 || b >= 0xE000); // must not be a surrogate
     }
     function utf8_valid(ctx, a) {
         if (isstr(a)) {
@@ -7359,21 +7626,21 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             for (var i = 0; i < a.length; i++) {
                 var b = a.charCodeAt(i);
                 if (state == 0) {
-                    if (b < 0x80)
+                    if (b < 0x80) // 0x00 to 0x7F
                         continue;
-                    else if (b < 0xC0)
+                    else if (b < 0xC0) // 0x80 to 0xBF
                         return false;
-                    else if (b < 0xE0) {
+                    else if (b < 0xE0) { // 0xC0 to 0xDF
                         codepoint = b & 0x1F;
                         min = 0x80;
                         state = 1;
                     }
-                    else if (b < 0xF0) {
+                    else if (b < 0xF0) { // 0xE0 to 0xEF
                         codepoint = b & 0x0F;
                         min = 0x800;
                         state = 2;
                     }
-                    else if (b < 0xF8) {
+                    else if (b < 0xF8) { // 0xF0 to 0xF7
                         codepoint = b & 0x07;
                         min = 0x10000;
                         state = 3;
@@ -7386,10 +7653,10 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                         return false;
                     codepoint = (codepoint << 6) | (b & 0x3F);
                     state--;
-                    if (state == 0) {
-                        if (codepoint < min ||
-                            codepoint >= 0x110000 ||
-                            (codepoint >= 0xD800 && codepoint < 0xE000))
+                    if (state == 0) { // codepoint finished, check if invalid
+                        if (codepoint < min || // no overlong
+                            codepoint >= 0x110000 || // no huge
+                            (codepoint >= 0xD800 && codepoint < 0xE000)) // no surrogates
                             return false;
                     }
                 }
@@ -7405,7 +7672,6 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         }
         return false;
     }
-    exports.utf8_valid = utf8_valid;
     function utf8_list(ctx, a) {
         if (!isstr(a)) {
             opi_abort(ctx, 'Expecting string');
@@ -7418,23 +7684,23 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         for (var i = 0; i < a.length; i++) {
             var b = a.charCodeAt(i);
             if (state == 0) {
-                if (b < 0x80)
+                if (b < 0x80) // 0x00 to 0x7F
                     res.push(b);
-                else if (b < 0xC0) {
+                else if (b < 0xC0) { // 0x80 to 0xBF
                     opi_abort(ctx, 'Invalid UTF-8 string');
                     return exports.NIL;
                 }
-                else if (b < 0xE0) {
+                else if (b < 0xE0) { // 0xC0 to 0xDF
                     codepoint = b & 0x1F;
                     min = 0x80;
                     state = 1;
                 }
-                else if (b < 0xF0) {
+                else if (b < 0xF0) { // 0xE0 to 0xEF
                     codepoint = b & 0x0F;
                     min = 0x800;
                     state = 2;
                 }
-                else if (b < 0xF8) {
+                else if (b < 0xF8) { // 0xF0 to 0xF7
                     codepoint = b & 0x07;
                     min = 0x10000;
                     state = 3;
@@ -7451,10 +7717,10 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                 }
                 codepoint = (codepoint << 6) | (b & 0x3F);
                 state--;
-                if (state == 0) {
-                    if (codepoint < min ||
-                        codepoint >= 0x110000 ||
-                        (codepoint >= 0xD800 && codepoint < 0xE000)) {
+                if (state == 0) { // codepoint finished, check if invalid
+                    if (codepoint < min || // no overlong
+                        codepoint >= 0x110000 || // no huge
+                        (codepoint >= 0xD800 && codepoint < 0xE000)) { // no surrogates
                         opi_abort(ctx, 'Invalid UTF-8 string');
                         return exports.NIL;
                     }
@@ -7464,7 +7730,6 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         }
         return res;
     }
-    exports.utf8_list = utf8_list;
     function utf8_str(ctx, a) {
         if (!islist(a)) {
             opi_abort(ctx, "Expecting list");
@@ -7499,7 +7764,6 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         }
         return bytes;
     }
-    exports.utf8_str = utf8_str;
     function struct_size(ctx, a) {
         if (!islist(a))
             return exports.NIL;
@@ -7575,7 +7839,6 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         }
         return tot <= 0 ? exports.NIL : tot;
     }
-    exports.struct_size = struct_size;
     var LE = (function () {
         var b = new ArrayBuffer(2);
         (new DataView(b)).setInt16(0, 1, true);
@@ -7674,7 +7937,6 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         }
         return res;
     }
-    exports.struct_str = struct_str;
     function struct_list(ctx, a, b) {
         if (!isstr(a)) {
             opi_abort(ctx, 'Expecting string');
@@ -7798,11 +8060,10 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         }
         return res;
     }
-    exports.struct_list = struct_list;
     function struct_isLE() {
         return LE;
     }
-    exports.struct_isLE = struct_isLE;
+    // operators
     function unop_num_neg(a) {
         return -a;
     }
@@ -7880,6 +8141,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                     else if (ch === 'e' || ch === 'E')
                         state = tonum_enum.EXP;
                     else if (isNum(ch)) {
+                        // number has a leading zero, so just ignore it
+                        // (not valid in sink, but valid at runtime for flexibility)
                         npi.val = toHex(ch);
                         state = tonum_enum.BODY;
                     }
@@ -8078,7 +8341,6 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         opi_abort(ctx, "Expecting string or list for size");
         return 0;
     }
-    exports.size = size;
     function tonum(ctx, a) {
         if (!oper_typelist(a, LT_ALLOWNIL | LT_ALLOWNUM | LT_ALLOWSTR)) {
             opi_abort(ctx, 'Expecting string when converting to number');
@@ -8086,40 +8348,36 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         }
         return oper_un(a, unop_tonum);
     }
-    exports.tonum = tonum;
     function say(ctx, vals) {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
                 if (ctx.io.f_say) {
-                    return [2, ctx.io.f_say(ctx, list_joinplain(vals, ' '), ctx.io.user)];
+                    return [2 /*return*/, ctx.io.f_say(ctx, list_joinplain(vals, ' '), ctx.io.user)];
                 }
-                return [2, exports.NIL];
+                return [2 /*return*/, exports.NIL];
             });
         });
     }
-    exports.say = say;
     function warn(ctx, vals) {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
                 if (ctx.io.f_warn) {
-                    return [2, ctx.io.f_warn(ctx, list_joinplain(vals, ' '), ctx.io.user)];
+                    return [2 /*return*/, ctx.io.f_warn(ctx, list_joinplain(vals, ' '), ctx.io.user)];
                 }
-                return [2, exports.NIL];
+                return [2 /*return*/, exports.NIL];
             });
         });
     }
-    exports.warn = warn;
     function ask(ctx, vals) {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
                 if (ctx.io.f_ask) {
-                    return [2, ctx.io.f_ask(ctx, list_joinplain(vals, ' '), ctx.io.user)];
+                    return [2 /*return*/, ctx.io.f_ask(ctx, list_joinplain(vals, ' '), ctx.io.user)];
                 }
-                return [2, exports.NIL];
+                return [2 /*return*/, exports.NIL];
             });
         });
     }
-    exports.ask = ask;
     function opi_exit(ctx) {
         ctx.passed = true;
         return run.PASS;
@@ -8143,6 +8401,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         for (var i = 0; i < ctx.prg.cmdTable.length; i++) {
             var p = ctx.prg.cmdTable[i];
             if (p.pc > pc) {
+                // start working backwards
                 var nest = 0;
                 for (var j = i - 1; j >= 0; j--) {
                     p = ctx.prg.cmdTable[j];
@@ -8210,7 +8469,6 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         }
         return ls;
     }
-    exports.stacktrace = stacktrace;
     function opi_unop(ctx, a, f_unary, erop) {
         if (!oper_typelist(a, LT_ALLOWNUM))
             return opi_abort(ctx, 'Expecting number or list of numbers when ' + erop);
@@ -8250,6 +8508,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                 return opi_abort(ctx, 'Expecting number or list of numbers when ' + erop);
         }
         if (listsize < 0) {
+            // no lists, so just combine
             for (var i = 1; i < vals.length; i++)
                 vals[0] = f_binary(vals[0], vals[i]);
             return vals[0];
@@ -8264,12 +8523,12 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             }
             return ret;
         }
+        // otherwise, listsize === 0
         return new list();
     }
     function str_cat(ctx, vals) {
         return list_joinplain(vals, '');
     }
-    exports.str_cat = str_cat;
     function fix_slice(startv, lenv, objsize) {
         var start = Math.round(startv);
         if (lenv === null) {
@@ -8318,7 +8577,6 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             return '';
         return a.substr(sl.start, sl.len);
     }
-    exports.str_slice = str_slice;
     function str_splice(ctx, a, b, c, d) {
         if (!isstr(a)) {
             opi_abort(ctx, 'Expecting list or string when splicing');
@@ -8348,7 +8606,6 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             return a.substr(0, sl.start) + d + a.substr(sl.start + sl.len);
         }
     }
-    exports.str_splice = str_splice;
     function list_new(ctx, a, b) {
         if (!isnil(a) && !isnum(a)) {
             opi_abort(ctx, 'Expecting number for list.new');
@@ -8360,7 +8617,6 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             ret.push(b);
         return ret;
     }
-    exports.list_new = list_new;
     function opi_list_cat(ctx, vals) {
         var res = new list();
         for (var i = 0; i < vals.length; i++)
@@ -8384,7 +8640,6 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             res.push(a[sl.start + i]);
         return res;
     }
-    exports.list_slice = list_slice;
     function list_splice(ctx, a, b, c, d) {
         if (!islist(a)) {
             opi_abort(ctx, 'Expecting list or string when splicing');
@@ -8406,10 +8661,9 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         }
         else {
             var t = d.concat();
-            a.splice.apply(a, [sl.start, sl.len].concat(t));
+            a.splice.apply(a, __spreadArray([sl.start, sl.len], t, true));
         }
     }
-    exports.list_splice = list_splice;
     function list_shift(ctx, a) {
         if (!islist(a)) {
             opi_abort(ctx, 'Expecting list when shifting');
@@ -8419,7 +8673,6 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             return exports.NIL;
         return a.shift();
     }
-    exports.list_shift = list_shift;
     function list_pop(ctx, a) {
         if (!islist(a)) {
             opi_abort(ctx, 'Expecting list when popping');
@@ -8429,7 +8682,6 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             return exports.NIL;
         return a.pop();
     }
-    exports.list_pop = list_pop;
     function list_push(ctx, a, b) {
         if (!islist(a)) {
             opi_abort(ctx, 'Expecting list when pushing');
@@ -8438,7 +8690,6 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         a.push(b);
         return a;
     }
-    exports.list_push = list_push;
     function list_unshift(ctx, a, b) {
         if (!islist(a)) {
             opi_abort(ctx, 'Expecting list when unshifting');
@@ -8447,7 +8698,6 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         a.unshift(b);
         return a;
     }
-    exports.list_unshift = list_unshift;
     function list_append(ctx, a, b) {
         if (!islist(a) || !islist(b)) {
             opi_abort(ctx, 'Expecting list when appending');
@@ -8457,7 +8707,6 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             a.push.apply(a, b);
         return a;
     }
-    exports.list_append = list_append;
     function list_prepend(ctx, a, b) {
         if (!islist(a) || !islist(b)) {
             opi_abort(ctx, 'Expecting list when prepending');
@@ -8467,7 +8716,6 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             a.unshift.apply(a, b);
         return a;
     }
-    exports.list_prepend = list_prepend;
     function list_find(ctx, a, b, c) {
         if (!islist(a)) {
             opi_abort(ctx, 'Expecting list for list.find');
@@ -8485,7 +8733,6 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             return res;
         return exports.NIL;
     }
-    exports.list_find = list_find;
     function list_rfind(ctx, a, b, c) {
         if (!islist(a)) {
             opi_abort(ctx, 'Expecting list for list.rfind');
@@ -8503,7 +8750,6 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             return res;
         return exports.NIL;
     }
-    exports.list_rfind = list_rfind;
     function list_join(ctx, a, b) {
         if (!islist(a)) {
             opi_abort(ctx, 'Expecting list for list.join');
@@ -8511,7 +8757,6 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         }
         return list_joinplain(a, isnil(b) ? '' : tostr(b));
     }
-    exports.list_join = list_join;
     function list_rev(ctx, a) {
         if (!islist(a)) {
             opi_abort(ctx, 'Expecting list for list.rev');
@@ -8520,7 +8765,6 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         a.reverse();
         return a;
     }
-    exports.list_rev = list_rev;
     function list_str(ctx, a) {
         if (!islist(a)) {
             opi_abort(ctx, 'Expecting list for list.str');
@@ -8541,7 +8785,6 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         }
         return res;
     }
-    exports.list_str = list_str;
     function sortboth(ctx, li, a, b) {
         var atype = sink_typeof(a);
         var btype = sink_typeof(b);
@@ -8568,6 +8811,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         }
         else if (atype === type.STR)
             return a < b ? -1 : 1;
+        // otherwise, comparing two lists
         if (li.indexOf(a) >= 0 || li.indexOf(b) >= 0) {
             opi_abort(ctx, 'Cannot sort circular lists');
             return -1;
@@ -8614,7 +8858,6 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             return sortboth(ctx, li, a, b);
         });
     }
-    exports.list_sort = list_sort;
     function list_rsort(ctx, a) {
         if (!islist(a)) {
             opi_abort(ctx, 'Expecting list for list.rsort');
@@ -8625,11 +8868,9 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             return -sortboth(ctx, li, a, b);
         });
     }
-    exports.list_rsort = list_rsort;
     function order(ctx, a, b) {
         return sortboth(ctx, [], a, b);
     }
-    exports.order = order;
     function range(ctx, start, stop, step) {
         if (start === stop)
             return new list();
@@ -8647,7 +8888,6 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             ret.push(start + i * step);
         return ret;
     }
-    exports.range = range;
     function numtostr(num) {
         if (isNaN(num))
             return 'nan';
@@ -8686,7 +8926,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             var b = s.charAt(i);
             var nb = i < s.length - 1 ? s.charAt(i + 1) : '';
             switch (state) {
-                case pkv_enum.START:
+                case pkv_enum.START: // start state
                     if (b === 'n') {
                         if (nb !== 'u')
                             return false;
@@ -8910,7 +9150,6 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         }
         return res;
     }
-    exports.pickle_json = pickle_json;
     function pk_tobin_vint(body, i) {
         if (i < 128)
             body.push(i);
@@ -8954,6 +9193,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             }
         }
         else if (typeof a === 'string') {
+            // search for a previous string
             var sidx = 0;
             var found = false;
             for (; sidx < strs.length; sidx++) {
@@ -8999,11 +9239,9 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         }
         return out + String.fromCharCode.apply(null, body);
     }
-    exports.pickle_binstr = pickle_binstr;
     function pickle_bin(ctx, a) {
         return pickle_binstr(a);
     }
-    exports.pickle_bin = pickle_bin;
     function pk_fmbin_vint(sp) {
         if (sp.s.length <= sp.pos)
             return -1;
@@ -9279,13 +9517,12 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         }
         return pk_fmbin(sp, strs, []);
     }
-    exports.pickle_valstr = pickle_valstr;
     function pickle_val(ctx, a) {
         if (!isstr(a) || a.length < 1) {
             opi_abort(ctx, 'Invalid pickle data');
             return exports.NIL;
         }
-        if (a.charCodeAt(0) === 0x01) {
+        if (a.charCodeAt(0) === 0x01) { // binary decode
             var res_1 = pickle_valstr(a);
             if (res_1 === false) {
                 opi_abort(ctx, 'Invalid pickle data');
@@ -9293,6 +9530,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             }
             return res_1;
         }
+        // otherwise, json decode
         var sp = { s: a, pos: 0 };
         var res = pk_fmjson(sp);
         if (res === false) {
@@ -9308,7 +9546,6 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         }
         return res;
     }
-    exports.pickle_val = pickle_val;
     function pk_isbin_adv(sp, amt) {
         sp.pos += amt;
         return sp.pos <= sp.s.length;
@@ -9358,7 +9595,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             return 0;
         if (a.length === 0)
             return 0;
-        if (a.charCodeAt(0) === 0x01) {
+        if (a.charCodeAt(0) === 0x01) { // binary validation
             var sp = { s: a, pos: 1 };
             var str_table_size = pk_fmbin_vint(sp);
             if (str_table_size < 0)
@@ -9367,7 +9604,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                 var str_size = pk_fmbin_vint(sp);
                 if (str_size < 0)
                     return 0;
-                sp.pos += str_size;
+                sp.pos += str_size; // skip over string's raw bytes
             }
             if (!pk_isbin(sp, [0], str_table_size))
                 return 0;
@@ -9375,9 +9612,9 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                 return 0;
             return 2;
         }
+        // otherwise, json validation
         return pk_isjson(a) ? 1 : 0;
     }
-    exports.pickle_valid = pickle_valid;
     function pk_sib(a, all, parents) {
         if (parents.indexOf(a) >= 0)
             return false;
@@ -9400,7 +9637,6 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             return false;
         return pk_sib(a, [], []);
     }
-    exports.pickle_sibling = pickle_sibling;
     function pk_cir(a, li) {
         if (li.indexOf(a) >= 0)
             return true;
@@ -9420,12 +9656,11 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             return false;
         return pk_cir(a, []);
     }
-    exports.pickle_circular = pickle_circular;
     function pk_copy(a, li_src, li_tgt) {
         if (a === null || typeof a === 'number' || typeof a === 'string')
             return a;
         var idxat = li_src.indexOf(a);
-        if (idxat >= 0)
+        if (idxat >= 0) // use the last generated list
             return li_tgt[idxat];
         var res = new list();
         li_src.push(a);
@@ -9437,7 +9672,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     function pickle_copy(ctx, a) {
         return pk_copy(a, [], []);
     }
-    exports.pickle_copy = pickle_copy;
+    // op descriptions for error messages
     var txt_num_neg = 'negating';
     var txt_num_add = 'adding';
     var txt_num_sub = 'subtracting';
@@ -9588,14 +9823,14 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                 switch (_b.label) {
                     case 0:
                         if (ctx.passed)
-                            return [2, RUNDONE(run.PASS)];
+                            return [2 /*return*/, RUNDONE(run.PASS)];
                         if (ctx.failed)
-                            return [2, RUNDONE(run.FAIL)];
+                            return [2 /*return*/, RUNDONE(run.FAIL)];
                         if (ctx.async)
-                            return [2, RUNDONE(run.ASYNC)];
+                            return [2 /*return*/, RUNDONE(run.ASYNC)];
                         if (ctx.timeout > 0 && ctx.timeout_left <= 0) {
                             ctx.timeout_left = ctx.timeout;
-                            return [2, RUNDONE(run.TIMEOUT)];
+                            return [2 /*return*/, RUNDONE(run.TIMEOUT)];
                         }
                         A = 0, B = 0, C = 0, D = 0, E = 0;
                         F = 0, G = 0, H = 0, I = 0, J = 0;
@@ -9603,234 +9838,234 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                         ops = ctx.prg.ops;
                         _b.label = 1;
                     case 1:
-                        if (!(ctx.pc < ops.length)) return [3, 165];
+                        if (!(ctx.pc < ops.length)) return [3 /*break*/, 165];
                         ctx.lastpc = ctx.pc;
                         _a = ops[ctx.pc];
                         switch (_a) {
-                            case op_enum.NOP: return [3, 2];
-                            case op_enum.MOVE: return [3, 3];
-                            case op_enum.INC: return [3, 4];
-                            case op_enum.NIL: return [3, 5];
-                            case op_enum.NUMP8: return [3, 6];
-                            case op_enum.NUMN8: return [3, 7];
-                            case op_enum.NUMP16: return [3, 8];
-                            case op_enum.NUMN16: return [3, 9];
-                            case op_enum.NUMP32: return [3, 10];
-                            case op_enum.NUMN32: return [3, 11];
-                            case op_enum.NUMDBL: return [3, 12];
-                            case op_enum.STR: return [3, 13];
-                            case op_enum.LIST: return [3, 14];
-                            case op_enum.ISNUM: return [3, 15];
-                            case op_enum.ISSTR: return [3, 16];
-                            case op_enum.ISLIST: return [3, 17];
-                            case op_enum.NOT: return [3, 18];
-                            case op_enum.SIZE: return [3, 19];
-                            case op_enum.TONUM: return [3, 20];
-                            case op_enum.CAT: return [3, 21];
-                            case op_enum.LT: return [3, 22];
-                            case op_enum.LTE: return [3, 23];
-                            case op_enum.NEQ: return [3, 24];
-                            case op_enum.EQU: return [3, 25];
-                            case op_enum.GETAT: return [3, 26];
-                            case op_enum.SLICE: return [3, 27];
-                            case op_enum.SETAT: return [3, 28];
-                            case op_enum.SPLICE: return [3, 29];
-                            case op_enum.JUMP: return [3, 30];
-                            case op_enum.JUMPTRUE: return [3, 31];
-                            case op_enum.JUMPFALSE: return [3, 32];
-                            case op_enum.CMDTAIL: return [3, 33];
-                            case op_enum.CALL: return [3, 34];
-                            case op_enum.ISNATIVE: return [3, 35];
-                            case op_enum.NATIVE: return [3, 36];
-                            case op_enum.RETURN: return [3, 41];
-                            case op_enum.RETURNTAIL: return [3, 42];
-                            case op_enum.RANGE: return [3, 43];
-                            case op_enum.ORDER: return [3, 44];
-                            case op_enum.SAY: return [3, 45];
-                            case op_enum.WARN: return [3, 47];
-                            case op_enum.ASK: return [3, 49];
-                            case op_enum.EXIT: return [3, 51];
-                            case op_enum.ABORT: return [3, 54];
-                            case op_enum.STACKTRACE: return [3, 55];
-                            case op_enum.NUM_NEG: return [3, 56];
-                            case op_enum.NUM_ADD: return [3, 57];
-                            case op_enum.NUM_SUB: return [3, 58];
-                            case op_enum.NUM_MUL: return [3, 59];
-                            case op_enum.NUM_DIV: return [3, 60];
-                            case op_enum.NUM_MOD: return [3, 61];
-                            case op_enum.NUM_POW: return [3, 62];
-                            case op_enum.NUM_ABS: return [3, 63];
-                            case op_enum.NUM_SIGN: return [3, 64];
-                            case op_enum.NUM_MAX: return [3, 65];
-                            case op_enum.NUM_MIN: return [3, 66];
-                            case op_enum.NUM_CLAMP: return [3, 67];
-                            case op_enum.NUM_FLOOR: return [3, 68];
-                            case op_enum.NUM_CEIL: return [3, 69];
-                            case op_enum.NUM_ROUND: return [3, 70];
-                            case op_enum.NUM_TRUNC: return [3, 71];
-                            case op_enum.NUM_NAN: return [3, 72];
-                            case op_enum.NUM_INF: return [3, 73];
-                            case op_enum.NUM_ISNAN: return [3, 74];
-                            case op_enum.NUM_ISFINITE: return [3, 75];
-                            case op_enum.NUM_SIN: return [3, 76];
-                            case op_enum.NUM_COS: return [3, 77];
-                            case op_enum.NUM_TAN: return [3, 78];
-                            case op_enum.NUM_ASIN: return [3, 79];
-                            case op_enum.NUM_ACOS: return [3, 80];
-                            case op_enum.NUM_ATAN: return [3, 81];
-                            case op_enum.NUM_ATAN2: return [3, 82];
-                            case op_enum.NUM_LOG: return [3, 83];
-                            case op_enum.NUM_LOG2: return [3, 84];
-                            case op_enum.NUM_LOG10: return [3, 85];
-                            case op_enum.NUM_EXP: return [3, 86];
-                            case op_enum.NUM_LERP: return [3, 87];
-                            case op_enum.NUM_HEX: return [3, 88];
-                            case op_enum.NUM_OCT: return [3, 89];
-                            case op_enum.NUM_BIN: return [3, 90];
-                            case op_enum.INT_NEW: return [3, 91];
-                            case op_enum.INT_NOT: return [3, 92];
-                            case op_enum.INT_AND: return [3, 93];
-                            case op_enum.INT_OR: return [3, 94];
-                            case op_enum.INT_XOR: return [3, 95];
-                            case op_enum.INT_SHL: return [3, 96];
-                            case op_enum.INT_SHR: return [3, 97];
-                            case op_enum.INT_SAR: return [3, 98];
-                            case op_enum.INT_ADD: return [3, 99];
-                            case op_enum.INT_SUB: return [3, 100];
-                            case op_enum.INT_MUL: return [3, 101];
-                            case op_enum.INT_DIV: return [3, 102];
-                            case op_enum.INT_MOD: return [3, 103];
-                            case op_enum.INT_CLZ: return [3, 104];
-                            case op_enum.INT_POP: return [3, 105];
-                            case op_enum.INT_BSWAP: return [3, 106];
-                            case op_enum.RAND_SEED: return [3, 107];
-                            case op_enum.RAND_SEEDAUTO: return [3, 108];
-                            case op_enum.RAND_INT: return [3, 109];
-                            case op_enum.RAND_NUM: return [3, 110];
-                            case op_enum.RAND_RANGE: return [3, 111];
-                            case op_enum.RAND_GETSTATE: return [3, 112];
-                            case op_enum.RAND_SETSTATE: return [3, 113];
-                            case op_enum.RAND_PICK: return [3, 114];
-                            case op_enum.RAND_SHUFFLE: return [3, 115];
-                            case op_enum.STR_NEW: return [3, 116];
-                            case op_enum.STR_SPLIT: return [3, 117];
-                            case op_enum.STR_REPLACE: return [3, 118];
-                            case op_enum.STR_BEGINS: return [3, 119];
-                            case op_enum.STR_ENDS: return [3, 120];
-                            case op_enum.STR_PAD: return [3, 121];
-                            case op_enum.STR_FIND: return [3, 122];
-                            case op_enum.STR_RFIND: return [3, 123];
-                            case op_enum.STR_LOWER: return [3, 124];
-                            case op_enum.STR_UPPER: return [3, 125];
-                            case op_enum.STR_TRIM: return [3, 126];
-                            case op_enum.STR_REV: return [3, 127];
-                            case op_enum.STR_REP: return [3, 128];
-                            case op_enum.STR_LIST: return [3, 129];
-                            case op_enum.STR_BYTE: return [3, 130];
-                            case op_enum.STR_HASH: return [3, 131];
-                            case op_enum.UTF8_VALID: return [3, 132];
-                            case op_enum.UTF8_LIST: return [3, 133];
-                            case op_enum.UTF8_STR: return [3, 134];
-                            case op_enum.STRUCT_SIZE: return [3, 135];
-                            case op_enum.STRUCT_STR: return [3, 136];
-                            case op_enum.STRUCT_LIST: return [3, 137];
-                            case op_enum.STRUCT_ISLE: return [3, 138];
-                            case op_enum.LIST_NEW: return [3, 139];
-                            case op_enum.LIST_SHIFT: return [3, 140];
-                            case op_enum.LIST_POP: return [3, 141];
-                            case op_enum.LIST_PUSH: return [3, 142];
-                            case op_enum.LIST_UNSHIFT: return [3, 143];
-                            case op_enum.LIST_APPEND: return [3, 144];
-                            case op_enum.LIST_PREPEND: return [3, 145];
-                            case op_enum.LIST_FIND: return [3, 146];
-                            case op_enum.LIST_RFIND: return [3, 147];
-                            case op_enum.LIST_JOIN: return [3, 148];
-                            case op_enum.LIST_REV: return [3, 149];
-                            case op_enum.LIST_STR: return [3, 150];
-                            case op_enum.LIST_SORT: return [3, 151];
-                            case op_enum.LIST_RSORT: return [3, 152];
-                            case op_enum.PICKLE_JSON: return [3, 153];
-                            case op_enum.PICKLE_BIN: return [3, 154];
-                            case op_enum.PICKLE_VAL: return [3, 155];
-                            case op_enum.PICKLE_VALID: return [3, 156];
-                            case op_enum.PICKLE_SIBLING: return [3, 157];
-                            case op_enum.PICKLE_CIRCULAR: return [3, 158];
-                            case op_enum.PICKLE_COPY: return [3, 159];
-                            case op_enum.GC_GETLEVEL: return [3, 160];
-                            case op_enum.GC_SETLEVEL: return [3, 161];
-                            case op_enum.GC_RUN: return [3, 162];
+                            case op_enum.NOP: return [3 /*break*/, 2];
+                            case op_enum.MOVE: return [3 /*break*/, 3];
+                            case op_enum.INC: return [3 /*break*/, 4];
+                            case op_enum.NIL: return [3 /*break*/, 5];
+                            case op_enum.NUMP8: return [3 /*break*/, 6];
+                            case op_enum.NUMN8: return [3 /*break*/, 7];
+                            case op_enum.NUMP16: return [3 /*break*/, 8];
+                            case op_enum.NUMN16: return [3 /*break*/, 9];
+                            case op_enum.NUMP32: return [3 /*break*/, 10];
+                            case op_enum.NUMN32: return [3 /*break*/, 11];
+                            case op_enum.NUMDBL: return [3 /*break*/, 12];
+                            case op_enum.STR: return [3 /*break*/, 13];
+                            case op_enum.LIST: return [3 /*break*/, 14];
+                            case op_enum.ISNUM: return [3 /*break*/, 15];
+                            case op_enum.ISSTR: return [3 /*break*/, 16];
+                            case op_enum.ISLIST: return [3 /*break*/, 17];
+                            case op_enum.NOT: return [3 /*break*/, 18];
+                            case op_enum.SIZE: return [3 /*break*/, 19];
+                            case op_enum.TONUM: return [3 /*break*/, 20];
+                            case op_enum.CAT: return [3 /*break*/, 21];
+                            case op_enum.LT: return [3 /*break*/, 22];
+                            case op_enum.LTE: return [3 /*break*/, 23];
+                            case op_enum.NEQ: return [3 /*break*/, 24];
+                            case op_enum.EQU: return [3 /*break*/, 25];
+                            case op_enum.GETAT: return [3 /*break*/, 26];
+                            case op_enum.SLICE: return [3 /*break*/, 27];
+                            case op_enum.SETAT: return [3 /*break*/, 28];
+                            case op_enum.SPLICE: return [3 /*break*/, 29];
+                            case op_enum.JUMP: return [3 /*break*/, 30];
+                            case op_enum.JUMPTRUE: return [3 /*break*/, 31];
+                            case op_enum.JUMPFALSE: return [3 /*break*/, 32];
+                            case op_enum.CMDTAIL: return [3 /*break*/, 33];
+                            case op_enum.CALL: return [3 /*break*/, 34];
+                            case op_enum.ISNATIVE: return [3 /*break*/, 35];
+                            case op_enum.NATIVE: return [3 /*break*/, 36];
+                            case op_enum.RETURN: return [3 /*break*/, 41];
+                            case op_enum.RETURNTAIL: return [3 /*break*/, 42];
+                            case op_enum.RANGE: return [3 /*break*/, 43];
+                            case op_enum.ORDER: return [3 /*break*/, 44];
+                            case op_enum.SAY: return [3 /*break*/, 45];
+                            case op_enum.WARN: return [3 /*break*/, 47];
+                            case op_enum.ASK: return [3 /*break*/, 49];
+                            case op_enum.EXIT: return [3 /*break*/, 51];
+                            case op_enum.ABORT: return [3 /*break*/, 54];
+                            case op_enum.STACKTRACE: return [3 /*break*/, 55];
+                            case op_enum.NUM_NEG: return [3 /*break*/, 56];
+                            case op_enum.NUM_ADD: return [3 /*break*/, 57];
+                            case op_enum.NUM_SUB: return [3 /*break*/, 58];
+                            case op_enum.NUM_MUL: return [3 /*break*/, 59];
+                            case op_enum.NUM_DIV: return [3 /*break*/, 60];
+                            case op_enum.NUM_MOD: return [3 /*break*/, 61];
+                            case op_enum.NUM_POW: return [3 /*break*/, 62];
+                            case op_enum.NUM_ABS: return [3 /*break*/, 63];
+                            case op_enum.NUM_SIGN: return [3 /*break*/, 64];
+                            case op_enum.NUM_MAX: return [3 /*break*/, 65];
+                            case op_enum.NUM_MIN: return [3 /*break*/, 66];
+                            case op_enum.NUM_CLAMP: return [3 /*break*/, 67];
+                            case op_enum.NUM_FLOOR: return [3 /*break*/, 68];
+                            case op_enum.NUM_CEIL: return [3 /*break*/, 69];
+                            case op_enum.NUM_ROUND: return [3 /*break*/, 70];
+                            case op_enum.NUM_TRUNC: return [3 /*break*/, 71];
+                            case op_enum.NUM_NAN: return [3 /*break*/, 72];
+                            case op_enum.NUM_INF: return [3 /*break*/, 73];
+                            case op_enum.NUM_ISNAN: return [3 /*break*/, 74];
+                            case op_enum.NUM_ISFINITE: return [3 /*break*/, 75];
+                            case op_enum.NUM_SIN: return [3 /*break*/, 76];
+                            case op_enum.NUM_COS: return [3 /*break*/, 77];
+                            case op_enum.NUM_TAN: return [3 /*break*/, 78];
+                            case op_enum.NUM_ASIN: return [3 /*break*/, 79];
+                            case op_enum.NUM_ACOS: return [3 /*break*/, 80];
+                            case op_enum.NUM_ATAN: return [3 /*break*/, 81];
+                            case op_enum.NUM_ATAN2: return [3 /*break*/, 82];
+                            case op_enum.NUM_LOG: return [3 /*break*/, 83];
+                            case op_enum.NUM_LOG2: return [3 /*break*/, 84];
+                            case op_enum.NUM_LOG10: return [3 /*break*/, 85];
+                            case op_enum.NUM_EXP: return [3 /*break*/, 86];
+                            case op_enum.NUM_LERP: return [3 /*break*/, 87];
+                            case op_enum.NUM_HEX: return [3 /*break*/, 88];
+                            case op_enum.NUM_OCT: return [3 /*break*/, 89];
+                            case op_enum.NUM_BIN: return [3 /*break*/, 90];
+                            case op_enum.INT_NEW: return [3 /*break*/, 91];
+                            case op_enum.INT_NOT: return [3 /*break*/, 92];
+                            case op_enum.INT_AND: return [3 /*break*/, 93];
+                            case op_enum.INT_OR: return [3 /*break*/, 94];
+                            case op_enum.INT_XOR: return [3 /*break*/, 95];
+                            case op_enum.INT_SHL: return [3 /*break*/, 96];
+                            case op_enum.INT_SHR: return [3 /*break*/, 97];
+                            case op_enum.INT_SAR: return [3 /*break*/, 98];
+                            case op_enum.INT_ADD: return [3 /*break*/, 99];
+                            case op_enum.INT_SUB: return [3 /*break*/, 100];
+                            case op_enum.INT_MUL: return [3 /*break*/, 101];
+                            case op_enum.INT_DIV: return [3 /*break*/, 102];
+                            case op_enum.INT_MOD: return [3 /*break*/, 103];
+                            case op_enum.INT_CLZ: return [3 /*break*/, 104];
+                            case op_enum.INT_POP: return [3 /*break*/, 105];
+                            case op_enum.INT_BSWAP: return [3 /*break*/, 106];
+                            case op_enum.RAND_SEED: return [3 /*break*/, 107];
+                            case op_enum.RAND_SEEDAUTO: return [3 /*break*/, 108];
+                            case op_enum.RAND_INT: return [3 /*break*/, 109];
+                            case op_enum.RAND_NUM: return [3 /*break*/, 110];
+                            case op_enum.RAND_RANGE: return [3 /*break*/, 111];
+                            case op_enum.RAND_GETSTATE: return [3 /*break*/, 112];
+                            case op_enum.RAND_SETSTATE: return [3 /*break*/, 113];
+                            case op_enum.RAND_PICK: return [3 /*break*/, 114];
+                            case op_enum.RAND_SHUFFLE: return [3 /*break*/, 115];
+                            case op_enum.STR_NEW: return [3 /*break*/, 116];
+                            case op_enum.STR_SPLIT: return [3 /*break*/, 117];
+                            case op_enum.STR_REPLACE: return [3 /*break*/, 118];
+                            case op_enum.STR_BEGINS: return [3 /*break*/, 119];
+                            case op_enum.STR_ENDS: return [3 /*break*/, 120];
+                            case op_enum.STR_PAD: return [3 /*break*/, 121];
+                            case op_enum.STR_FIND: return [3 /*break*/, 122];
+                            case op_enum.STR_RFIND: return [3 /*break*/, 123];
+                            case op_enum.STR_LOWER: return [3 /*break*/, 124];
+                            case op_enum.STR_UPPER: return [3 /*break*/, 125];
+                            case op_enum.STR_TRIM: return [3 /*break*/, 126];
+                            case op_enum.STR_REV: return [3 /*break*/, 127];
+                            case op_enum.STR_REP: return [3 /*break*/, 128];
+                            case op_enum.STR_LIST: return [3 /*break*/, 129];
+                            case op_enum.STR_BYTE: return [3 /*break*/, 130];
+                            case op_enum.STR_HASH: return [3 /*break*/, 131];
+                            case op_enum.UTF8_VALID: return [3 /*break*/, 132];
+                            case op_enum.UTF8_LIST: return [3 /*break*/, 133];
+                            case op_enum.UTF8_STR: return [3 /*break*/, 134];
+                            case op_enum.STRUCT_SIZE: return [3 /*break*/, 135];
+                            case op_enum.STRUCT_STR: return [3 /*break*/, 136];
+                            case op_enum.STRUCT_LIST: return [3 /*break*/, 137];
+                            case op_enum.STRUCT_ISLE: return [3 /*break*/, 138];
+                            case op_enum.LIST_NEW: return [3 /*break*/, 139];
+                            case op_enum.LIST_SHIFT: return [3 /*break*/, 140];
+                            case op_enum.LIST_POP: return [3 /*break*/, 141];
+                            case op_enum.LIST_PUSH: return [3 /*break*/, 142];
+                            case op_enum.LIST_UNSHIFT: return [3 /*break*/, 143];
+                            case op_enum.LIST_APPEND: return [3 /*break*/, 144];
+                            case op_enum.LIST_PREPEND: return [3 /*break*/, 145];
+                            case op_enum.LIST_FIND: return [3 /*break*/, 146];
+                            case op_enum.LIST_RFIND: return [3 /*break*/, 147];
+                            case op_enum.LIST_JOIN: return [3 /*break*/, 148];
+                            case op_enum.LIST_REV: return [3 /*break*/, 149];
+                            case op_enum.LIST_STR: return [3 /*break*/, 150];
+                            case op_enum.LIST_SORT: return [3 /*break*/, 151];
+                            case op_enum.LIST_RSORT: return [3 /*break*/, 152];
+                            case op_enum.PICKLE_JSON: return [3 /*break*/, 153];
+                            case op_enum.PICKLE_BIN: return [3 /*break*/, 154];
+                            case op_enum.PICKLE_VAL: return [3 /*break*/, 155];
+                            case op_enum.PICKLE_VALID: return [3 /*break*/, 156];
+                            case op_enum.PICKLE_SIBLING: return [3 /*break*/, 157];
+                            case op_enum.PICKLE_CIRCULAR: return [3 /*break*/, 158];
+                            case op_enum.PICKLE_COPY: return [3 /*break*/, 159];
+                            case op_enum.GC_GETLEVEL: return [3 /*break*/, 160];
+                            case op_enum.GC_SETLEVEL: return [3 /*break*/, 161];
+                            case op_enum.GC_RUN: return [3 /*break*/, 162];
                         }
-                        return [3, 163];
+                        return [3 /*break*/, 163];
                     case 2:
-                        {
+                        { //
                             ctx.pc++;
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 3:
-                        {
+                        { // [TGT], [SRC]
                             LOAD_abcd();
                             var_set(ctx, A, B, var_get(ctx, C, D));
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 4:
-                        {
+                        { // [TGT/SRC]
                             LOAD_ab();
                             X = var_get(ctx, A, B);
                             if (!isnum(X))
-                                return [2, RUNDONE(opi_abort(ctx, 'Expecting number when incrementing'))];
+                                return [2 /*return*/, RUNDONE(opi_abort(ctx, 'Expecting number when incrementing'))];
                             var_set(ctx, A, B, X + 1);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 5:
-                        {
+                        { // [TGT]
                             LOAD_ab();
                             var_set(ctx, A, B, exports.NIL);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 6:
-                        {
+                        { // [TGT], VALUE
                             LOAD_abc();
                             var_set(ctx, A, B, C);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 7:
-                        {
+                        { // [TGT], VALUE
                             LOAD_abc();
                             var_set(ctx, A, B, C - 256);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 8:
-                        {
+                        { // [TGT], [VALUE]
                             LOAD_abcd();
                             var_set(ctx, A, B, C | (D << 8));
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 9:
-                        {
+                        { // [TGT], [VALUE]
                             LOAD_abcd();
                             var_set(ctx, A, B, (C | (D << 8)) - 65536);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 10:
-                        {
+                        { // [TGT], [[VALUE]]
                             LOAD_abcdef();
                             C |= (D << 8) | (E << 16) | (F << 24);
                             if (C < 0)
                                 C += 4294967296;
                             var_set(ctx, A, B, C);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 11:
-                        {
+                        { // [TGT], [[VALUE]]
                             LOAD_abcdef();
                             C |= (D << 8) | (E << 16) | (F << 24);
                             if (C < 0)
                                 C += 4294967296;
                             var_set(ctx, A, B, C - 4294967296);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 12:
-                        {
+                        { // [TGT], [[[VALUE]]]
                             LOAD_abcdefghij();
                             dview.setUint8(0, C);
                             dview.setUint8(1, D);
@@ -9842,66 +10077,66 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             dview.setUint8(7, J);
                             var_set(ctx, A, B, dview.getFloat64(0, true));
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 13:
-                        {
+                        { // [TGT], [[INDEX]]
                             LOAD_abcdef();
                             C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
                             var_set(ctx, A, B, ctx.prg.strTable[C]);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 14:
-                        {
+                        { // [TGT], HINT
                             LOAD_abc();
                             var_set(ctx, A, B, new list());
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 15:
-                        {
+                        { // [TGT], [SRC]
                             LOAD_abcd();
                             X = var_get(ctx, C, D);
                             var_set(ctx, A, B, bool(isnum(X)));
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 16:
-                        {
+                        { // [TGT], [SRC]
                             LOAD_abcd();
                             X = var_get(ctx, C, D);
                             var_set(ctx, A, B, bool(isstr(X)));
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 17:
-                        {
+                        { // [TGT], [SRC]
                             LOAD_abcd();
                             X = var_get(ctx, C, D);
                             var_set(ctx, A, B, bool(islist(X)));
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 18:
-                        {
+                        { // [TGT], [SRC]
                             LOAD_abcd();
                             X = var_get(ctx, C, D);
                             var_set(ctx, A, B, bool(isfalse(X)));
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 19:
-                        {
+                        { // [TGT], [SRC]
                             LOAD_abcd();
                             var_set(ctx, A, B, size(ctx, var_get(ctx, C, D)));
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 20:
-                        {
+                        { // [TGT], [SRC]
                             LOAD_abcd();
                             var_set(ctx, A, B, tonum(ctx, var_get(ctx, C, D)));
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 21:
-                        {
+                        { // [TGT], ARGCOUNT, [ARGS]...
                             LOAD_abc();
                             listcat = C > 0;
                             p = [];
@@ -9917,12 +10152,12 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             else {
                                 var_set(ctx, A, B, str_cat(ctx, p));
                                 if (ctx.failed)
-                                    return [2, RUNDONE(run.FAIL)];
+                                    return [2 /*return*/, RUNDONE(run.FAIL)];
                             }
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 22:
-                        {
+                        { // [TGT], [SRC1], [SRC2]
                             LOAD_abcdef();
                             X = var_get(ctx, C, D);
                             Y = var_get(ctx, E, F);
@@ -9930,11 +10165,11 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 (isnum(X) && isnum(Y)))
                                 var_set(ctx, A, B, bool(X < Y));
                             else
-                                return [2, RUNDONE(opi_abort(ctx, 'Expecting numbers or strings'))];
+                                return [2 /*return*/, RUNDONE(opi_abort(ctx, 'Expecting numbers or strings'))];
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 23:
-                        {
+                        { // [TGT], [SRC1], [SRC2]
                             LOAD_abcdef();
                             X = var_get(ctx, C, D);
                             Y = var_get(ctx, E, F);
@@ -9942,34 +10177,34 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 (isnum(X) && isnum(Y)))
                                 var_set(ctx, A, B, bool(X <= Y));
                             else
-                                return [2, RUNDONE(opi_abort(ctx, 'Expecting numbers or strings'))];
+                                return [2 /*return*/, RUNDONE(opi_abort(ctx, 'Expecting numbers or strings'))];
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 24:
-                        {
+                        { // [TGT], [SRC1], [SRC2]
                             LOAD_abcdef();
                             X = var_get(ctx, C, D);
                             Y = var_get(ctx, E, F);
                             var_set(ctx, A, B, bool(X !== Y));
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 25:
-                        {
+                        { // [TGT], [SRC1], [SRC2]
                             LOAD_abcdef();
                             X = var_get(ctx, C, D);
                             Y = var_get(ctx, E, F);
                             var_set(ctx, A, B, bool(X === Y));
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 26:
-                        {
+                        { // [TGT], [SRC1], [SRC2]
                             LOAD_abcdef();
                             X = var_get(ctx, C, D);
                             if (!islist(X) && !isstr(X))
-                                return [2, RUNDONE(opi_abort(ctx, 'Expecting list or string when indexing'))];
+                                return [2 /*return*/, RUNDONE(opi_abort(ctx, 'Expecting list or string when indexing'))];
                             Y = var_get(ctx, E, F);
                             if (!isnum(Y))
-                                return [2, RUNDONE(opi_abort(ctx, 'Expecting index to be number'))];
+                                return [2 /*return*/, RUNDONE(opi_abort(ctx, 'Expecting index to be number'))];
                             I = Y;
                             if (islist(X)) {
                                 ls = X;
@@ -9990,9 +10225,9 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                     var_set(ctx, A, B, str.charAt(I));
                             }
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 27:
-                        {
+                        { // [TGT], [SRC1], [SRC2], [SRC3]
                             LOAD_abcdefgh();
                             X = var_get(ctx, C, D);
                             Y = var_get(ctx, E, F);
@@ -10002,18 +10237,18 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             else
                                 var_set(ctx, A, B, str_slice(ctx, X, Y, Z));
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 28:
-                        {
+                        { // [SRC1], [SRC2], [SRC3]
                             LOAD_abcdef();
                             X = var_get(ctx, A, B);
                             if (!islist(X))
-                                return [2, RUNDONE(opi_abort(ctx, 'Expecting list when setting index'))];
+                                return [2 /*return*/, RUNDONE(opi_abort(ctx, 'Expecting list when setting index'))];
                             Y = var_get(ctx, C, D);
                             if (!isnum(Y))
-                                return [2, RUNDONE(opi_abort(ctx, 'Expecting index to be number'))];
+                                return [2 /*return*/, RUNDONE(opi_abort(ctx, 'Expecting index to be number'))];
                             ls = X;
                             A = Y;
                             if (A < 0)
@@ -10023,9 +10258,9 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             if (A >= 0 && A < ls.length)
                                 ls[A] = var_get(ctx, E, F);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 29:
-                        {
+                        { // [SRC1], [SRC2], [SRC3], [SRC4]
                             LOAD_abcdefgh();
                             X = var_get(ctx, A, B);
                             Y = var_get(ctx, C, D);
@@ -10036,48 +10271,48 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             else if (isstr(X))
                                 var_set(ctx, A, B, str_splice(ctx, X, Y, Z, W));
                             else
-                                return [2, RUNDONE(opi_abort(ctx, 'Expecting list or string when splicing'))];
+                                return [2 /*return*/, RUNDONE(opi_abort(ctx, 'Expecting list or string when splicing'))];
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 30:
-                        {
+                        { // [[LOCATION]]
                             LOAD_abcd();
                             A = A + (B << 8) + (C << 16) + ((D << 23) * 2);
                             if (ctx.prg.repl && A === 0xFFFFFFFF) {
                                 ctx.pc -= 5;
-                                return [2, RUNDONE(run.REPLMORE)];
+                                return [2 /*return*/, RUNDONE(run.REPLMORE)];
                             }
                             ctx.pc = A;
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 31:
-                        {
+                        { // [SRC], [[LOCATION]]
                             LOAD_abcdef();
                             C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
                             if (var_get(ctx, A, B) !== null) {
                                 if (ctx.prg.repl && C === 0xFFFFFFFF) {
                                     ctx.pc -= 7;
-                                    return [2, RUNDONE(run.REPLMORE)];
+                                    return [2 /*return*/, RUNDONE(run.REPLMORE)];
                                 }
                                 ctx.pc = C;
                             }
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 32:
-                        {
+                        { // [SRC], [[LOCATION]]
                             LOAD_abcdef();
                             C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
                             if (var_get(ctx, A, B) === null) {
                                 if (ctx.prg.repl && C === 0xFFFFFFFF) {
                                     ctx.pc -= 7;
-                                    return [2, RUNDONE(run.REPLMORE)];
+                                    return [2 /*return*/, RUNDONE(run.REPLMORE)];
                                 }
                                 ctx.pc = C;
                             }
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 33:
-                        {
+                        { //
                             s = ctx.call_stk.pop();
                             lx = ctx.lex_stk[ctx.lex_index];
                             ctx.lex_stk[ctx.lex_index] = lx.next;
@@ -10087,14 +10322,14 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             ctx.pc = s.pc;
                             ccs_release(ctx, s);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 34:
-                        {
+                        { // [TGT], [[LOCATION]], ARGCOUNT, [ARGS]...
                             LOAD_abcdefg();
                             C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
                             if (C === 0xFFFFFFFF) {
                                 ctx.pc -= 8;
-                                return [2, RUNDONE(run.REPLMORE)];
+                                return [2 /*return*/, RUNDONE(run.REPLMORE)];
                             }
                             p = [];
                             for (I = 0; I < G; I++) {
@@ -10105,6 +10340,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             ctx.call_stk.push(ccs_get(ctx, ctx.pc, A, B, ctx.lex_index));
                             ctx.pc = C - 1;
                             LOAD_abc();
+                            // A is op_enum.CMDHEAD
                             if (C !== 0xFF) {
                                 if (G <= C) {
                                     while (G < C)
@@ -10124,9 +10360,9 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 ctx.lex_stk.push(null);
                             ctx.lex_stk[ctx.lex_index] = lxs_get(ctx, p, ctx.lex_stk[ctx.lex_index]);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 35:
-                        {
+                        { // [TGT], [[INDEX]]
                             LOAD_abcdef();
                             C = C + (D << 8) + (E << 16) + ((F << 23) * 2);
                             nat = null;
@@ -10144,7 +10380,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 nat = ctx.natives[C];
                             var_set(ctx, A, B, bool(nat !== null && nat.f_native !== null));
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 36:
                         LOAD_abcdefg();
                         p = [];
@@ -10168,30 +10404,30 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                         else
                             nat = ctx.natives[C];
                         if (nat === null || nat.f_native === null)
-                            return [2, RUNDONE(opi_abort(ctx, 'Native call not implemented'))];
+                            return [2 /*return*/, RUNDONE(opi_abort(ctx, 'Native call not implemented'))];
                         ctx.async = true;
                         _b.label = 37;
                     case 37:
                         _b.trys.push([37, 39, , 40]);
-                        return [4, nat.f_native(ctx, p, nat.natuser)];
+                        return [4 /*yield*/, nat.f_native(ctx, p, nat.natuser)];
                     case 38:
                         X = _b.sent();
-                        return [3, 40];
+                        return [3 /*break*/, 40];
                     case 39:
                         e_1 = _b.sent();
                         ctx.async = false;
                         ctx.failed = true;
-                        return [2, RUNDONE(opi_abort(ctx, '' + e_1))];
+                        return [2 /*return*/, RUNDONE(opi_abort(ctx, '' + e_1))];
                     case 40:
                         ctx.async = false;
                         if (ctx.failed)
-                            return [2, RUNDONE(run.FAIL)];
+                            return [2 /*return*/, RUNDONE(run.FAIL)];
                         var_set(ctx, A, B, X);
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 41:
-                        {
+                        { // [SRC]
                             if (ctx.call_stk.length <= 0)
-                                return [2, RUNDONE(opi_exit(ctx))];
+                                return [2 /*return*/, RUNDONE(opi_exit(ctx))];
                             LOAD_ab();
                             X = var_get(ctx, A, B);
                             s = ctx.call_stk.pop();
@@ -10203,14 +10439,14 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             ctx.pc = s.pc;
                             ccs_release(ctx, s);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 42:
-                        {
+                        { // [[LOCATION]], ARGCOUNT, [ARGS]...
                             LOAD_abcde();
                             A = A + (B << 8) + (C << 16) + ((D << 23) * 2);
                             if (A === 0xFFFFFFFF) {
                                 ctx.pc -= 6;
-                                return [2, RUNDONE(run.REPLMORE)];
+                                return [2 /*return*/, RUNDONE(run.REPLMORE)];
                             }
                             p = [];
                             for (I = 0; I < E; I++) {
@@ -10239,42 +10475,42 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             lxs_release(ctx, lx);
                             ctx.lex_stk[ctx.lex_index] = lxs_get(ctx, p, lx2);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 43:
-                        {
+                        { // [TGT], [SRC1], [SRC2], [SRC3]
                             LOAD_abcdefgh();
                             X = var_get(ctx, C, D);
                             Y = var_get(ctx, E, F);
                             Z = var_get(ctx, G, H);
                             if (!isnum(X))
-                                return [2, RUNDONE(opi_abort(ctx, 'Expecting number for range'))];
+                                return [2 /*return*/, RUNDONE(opi_abort(ctx, 'Expecting number for range'))];
                             if (isnum(Y)) {
                                 if (isnil(Z))
                                     Z = 1;
                                 if (!isnum(Z))
-                                    return [2, RUNDONE(opi_abort(ctx, 'Expecting number for range step'))];
+                                    return [2 /*return*/, RUNDONE(opi_abort(ctx, 'Expecting number for range step'))];
                                 X = range(ctx, X, Y, Z);
                             }
                             else if (isnil(Y)) {
                                 if (!isnil(Z))
-                                    return [2, RUNDONE(opi_abort(ctx, 'Expecting number for range stop'))];
+                                    return [2 /*return*/, RUNDONE(opi_abort(ctx, 'Expecting number for range stop'))];
                                 X = range(ctx, 0, X, 1);
                             }
                             else
-                                return [2, RUNDONE(opi_abort(ctx, 'Expecting number for range stop'))];
+                                return [2 /*return*/, RUNDONE(opi_abort(ctx, 'Expecting number for range stop'))];
                             var_set(ctx, A, B, X);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 44:
-                        {
+                        { // [TGT], [SRC1], [SRC2]
                             LOAD_abcdef();
                             X = var_get(ctx, C, D);
                             Y = var_get(ctx, E, F);
                             var_set(ctx, A, B, order(ctx, X, Y));
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 45:
                         LOAD_abc();
                         p = [];
@@ -10284,17 +10520,17 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             p.push(var_get(ctx, E, F));
                         }
                         ctx.async = true;
-                        return [4, say(ctx, p)];
+                        return [4 /*yield*/, say(ctx, p)];
                     case 46:
                         X = _b.sent();
                         ctx.async = false;
                         if (ctx.failed) {
                             var_set(ctx, A, B, exports.NIL);
-                            return [2, RUNDONE(run.FAIL)];
+                            return [2 /*return*/, RUNDONE(run.FAIL)];
                         }
                         else
                             var_set(ctx, A, B, X);
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 47:
                         LOAD_abc();
                         p = [];
@@ -10304,17 +10540,17 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             p.push(var_get(ctx, E, F));
                         }
                         ctx.async = true;
-                        return [4, warn(ctx, p)];
+                        return [4 /*yield*/, warn(ctx, p)];
                     case 48:
                         X = _b.sent();
                         ctx.async = false;
                         if (ctx.failed) {
                             var_set(ctx, A, B, exports.NIL);
-                            return [2, RUNDONE(run.FAIL)];
+                            return [2 /*return*/, RUNDONE(run.FAIL)];
                         }
                         else
                             var_set(ctx, A, B, X);
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 49:
                         LOAD_abc();
                         p = [];
@@ -10324,20 +10560,20 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             p.push(var_get(ctx, E, F));
                         }
                         ctx.async = true;
-                        return [4, ask(ctx, p)];
+                        return [4 /*yield*/, ask(ctx, p)];
                     case 50:
                         X = _b.sent();
                         ctx.async = false;
                         if (ctx.failed) {
                             var_set(ctx, A, B, exports.NIL);
-                            return [2, RUNDONE(run.FAIL)];
+                            return [2 /*return*/, RUNDONE(run.FAIL)];
                         }
                         else
                             var_set(ctx, A, B, X);
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 51:
                         LOAD_abc();
-                        if (!(C > 0)) return [3, 53];
+                        if (!(C > 0)) return [3 /*break*/, 53];
                         p = [];
                         for (D = 0; D < C; D++) {
                             E = ops[ctx.pc++];
@@ -10345,16 +10581,16 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             p.push(var_get(ctx, E, F));
                         }
                         ctx.async = true;
-                        return [4, say(ctx, p)];
+                        return [4 /*yield*/, say(ctx, p)];
                     case 52:
                         _b.sent();
                         ctx.async = false;
                         if (ctx.failed)
-                            return [2, RUNDONE(run.FAIL)];
+                            return [2 /*return*/, RUNDONE(run.FAIL)];
                         _b.label = 53;
-                    case 53: return [2, RUNDONE(opi_exit(ctx))];
+                    case 53: return [2 /*return*/, RUNDONE(opi_exit(ctx))];
                     case 54:
-                        {
+                        { // [TGT], ARGCOUNT, [ARGS]...
                             LOAD_abc();
                             err = null;
                             if (C > 0) {
@@ -10366,80 +10602,80 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 }
                                 err = list_joinplain(p, ' ');
                             }
-                            return [2, RUNDONE(opi_abort(ctx, err))];
+                            return [2 /*return*/, RUNDONE(opi_abort(ctx, err))];
                         }
                         _b.label = 55;
                     case 55:
-                        {
+                        { // [TGT]
                             LOAD_ab();
                             var_set(ctx, A, B, stacktrace(ctx));
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 56:
-                        {
+                        { // [TGT], [SRC]
                             INLINE_UNOP(unop_num_neg, txt_num_neg);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 57:
-                        {
+                        { // [TGT], [SRC1], [SRC2]
                             INLINE_BINOP(binop_num_add, txt_num_add);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 58:
-                        {
+                        { // [TGT], [SRC1], [SRC2]
                             INLINE_BINOP(binop_num_sub, txt_num_sub);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 59:
-                        {
+                        { // [TGT], [SRC1], [SRC2]
                             INLINE_BINOP(binop_num_mul, txt_num_mul);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 60:
-                        {
+                        { // [TGT], [SRC1], [SRC2]
                             INLINE_BINOP(binop_num_div, txt_num_div);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 61:
-                        {
+                        { // [TGT], [SRC1], [SRC2]
                             INLINE_BINOP(binop_num_mod, txt_num_mod);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 62:
-                        {
+                        { // [TGT], [SRC1], [SRC2]
                             INLINE_BINOP(binop_num_pow, txt_num_pow);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 63:
-                        {
+                        { // [TGT], [SRC]
                             INLINE_UNOP(unop_num_abs, txt_num_abs);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 64:
-                        {
+                        { // [TGT], [SRC]
                             INLINE_UNOP(unop_num_sign, txt_num_sign);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 65:
-                        {
+                        { // [TGT], ARGCOUNT, [ARGS]...
                             LOAD_abc();
                             p = [];
                             for (D = 0; D < C; D++) {
@@ -10449,9 +10685,9 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             }
                             var_set(ctx, A, B, opi_num_max(p));
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 66:
-                        {
+                        { // [TGT], ARGCOUNT, [ARGS]...
                             LOAD_abc();
                             p = [];
                             for (D = 0; D < C; D++) {
@@ -10461,189 +10697,189 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             }
                             var_set(ctx, A, B, opi_num_min(p));
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 67:
-                        {
+                        { // [TGT], [SRC1], [SRC2], [SRC3]
                             INLINE_TRIOP(triop_num_clamp, txt_num_clamp);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 68:
-                        {
+                        { // [TGT], [SRC]
                             INLINE_UNOP(unop_num_floor, txt_num_floor);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 69:
-                        {
+                        { // [TGT], [SRC]
                             INLINE_UNOP(unop_num_ceil, txt_num_ceil);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 70:
-                        {
+                        { // [TGT], [SRC]
                             INLINE_UNOP(unop_num_round, txt_num_round);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 71:
-                        {
+                        { // [TGT], [SRC]
                             INLINE_UNOP(unop_num_trunc, txt_num_trunc);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 72:
-                        {
+                        { // [TGT]
                             LOAD_ab();
                             var_set(ctx, A, B, num_nan());
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 73:
-                        {
+                        { // [TGT]
                             LOAD_ab();
                             var_set(ctx, A, B, num_inf());
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 74:
-                        {
+                        { // [TGT], [SRC]
                             INLINE_UNOP(unop_num_isnan, txt_num_isnan);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 75:
-                        {
+                        { // [TGT], [SRC]
                             INLINE_UNOP(unop_num_isfinite, txt_num_isfinite);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 76:
-                        {
+                        { // [TGT], [SRC]
                             INLINE_UNOP(unop_num_sin, txt_num_sin);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 77:
-                        {
+                        { // [TGT], [SRC]
                             INLINE_UNOP(unop_num_cos, txt_num_cos);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 78:
-                        {
+                        { // [TGT], [SRC]
                             INLINE_UNOP(unop_num_tan, txt_num_tan);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 79:
-                        {
+                        { // [TGT], [SRC]
                             INLINE_UNOP(unop_num_asin, txt_num_asin);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 80:
-                        {
+                        { // [TGT], [SRC]
                             INLINE_UNOP(unop_num_acos, txt_num_acos);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 81:
-                        {
+                        { // [TGT], [SRC]
                             INLINE_UNOP(unop_num_atan, txt_num_atan);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 82:
-                        {
+                        { // [TGT], [SRC1], [SRC2]
                             INLINE_BINOP(binop_num_atan2, txt_num_atan);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 83:
-                        {
+                        { // [TGT], [SRC]
                             INLINE_UNOP(unop_num_log, txt_num_log);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 84:
-                        {
+                        { // [TGT], [SRC]
                             INLINE_UNOP(unop_num_log2, txt_num_log);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 85:
-                        {
+                        { // [TGT], [SRC]
                             INLINE_UNOP(unop_num_log10, txt_num_log);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 86:
-                        {
+                        { // [TGT], [SRC]
                             INLINE_UNOP(unop_num_exp, txt_num_pow);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 87:
-                        {
+                        { // [TGT], [SRC1], [SRC2], [SRC3]
                             INLINE_TRIOP(triop_num_lerp, txt_num_lerp);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 88:
-                        {
+                        { // [TGT], [SRC1], [SRC2]
                             INLINE_BINOP_T(binop_num_hex, txt_num_hex, LT_ALLOWNUM, LT_ALLOWNUM | LT_ALLOWNIL);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 89:
-                        {
+                        { // [TGT], [SRC1], [SRC2]
                             INLINE_BINOP_T(binop_num_oct, txt_num_oct, LT_ALLOWNUM, LT_ALLOWNUM | LT_ALLOWNIL);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 90:
-                        {
+                        { // [TGT], [SRC1], [SRC2]
                             INLINE_BINOP_T(binop_num_bin, txt_num_bin, LT_ALLOWNUM, LT_ALLOWNUM | LT_ALLOWNIL);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 91:
-                        {
+                        { // [TGT], [SRC]
                             INLINE_UNOP(unop_int_new, txt_int_new);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 92:
-                        {
+                        { // [TGT], [SRC]
                             INLINE_UNOP(unop_int_not, txt_int_not);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 93:
-                        {
+                        { // [TGT], ARGCOUNT, [ARGS]...
                             LOAD_abc();
                             p = [];
                             for (D = 0; D < C; D++) {
@@ -10653,12 +10889,12 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             }
                             X = opi_combop(ctx, p, binop_int_and, txt_int_and);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 94:
-                        {
+                        { // [TGT], ARGCOUNT, [ARGS]...
                             LOAD_abc();
                             p = [];
                             for (D = 0; D < C; D++) {
@@ -10668,12 +10904,12 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             }
                             X = opi_combop(ctx, p, binop_int_or, txt_int_or);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 95:
-                        {
+                        { // [TGT], ARGCOUNT, [ARGS]...
                             LOAD_abc();
                             p = [];
                             for (D = 0; D < C; D++) {
@@ -10683,181 +10919,181 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             }
                             X = opi_combop(ctx, p, binop_int_xor, txt_int_xor);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 96:
-                        {
+                        { // [TGT], [SRC1], [SRC2]
                             INLINE_BINOP(binop_int_shl, txt_int_shl);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 97:
-                        {
+                        { // [TGT], [SRC1], [SRC2]
                             INLINE_BINOP(binop_int_shr, txt_int_shr);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 98:
-                        {
+                        { // [TGT], [SRC1], [SRC2]
                             INLINE_BINOP(binop_int_sar, txt_int_shr);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 99:
-                        {
+                        { // [TGT], [SRC1], [SRC2]
                             INLINE_BINOP(binop_int_add, txt_num_add);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 100:
-                        {
+                        { // [TGT], [SRC1], [SRC2]
                             INLINE_BINOP(binop_int_sub, txt_num_sub);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 101:
-                        {
+                        { // [TGT], [SRC1], [SRC2]
                             INLINE_BINOP(binop_int_mul, txt_num_mul);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 102:
-                        {
+                        { // [TGT], [SRC1], [SRC2]
                             INLINE_BINOP(binop_int_div, txt_num_div);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 103:
-                        {
+                        { // [TGT], [SRC1], [SRC2]
                             INLINE_BINOP(binop_int_mod, txt_num_mod);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 104:
-                        {
+                        { // [TGT], [SRC]
                             INLINE_UNOP(unop_int_clz, txt_int_clz);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 105:
-                        {
+                        { // [TGT], [SRC]
                             INLINE_UNOP(unop_int_pop, txt_int_pop);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 106:
-                        {
+                        { // [TGT], [SRC]
                             INLINE_UNOP(unop_int_bswap, txt_int_bswap);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 107:
-                        {
+                        { // [TGT], [SRC]
                             LOAD_abcd();
                             X = var_get(ctx, C, D);
                             if (isnil(X))
                                 X = 0;
                             else if (!isnum(X))
-                                return [2, RUNDONE(opi_abort(ctx, 'Expecting number'))];
+                                return [2 /*return*/, RUNDONE(opi_abort(ctx, 'Expecting number'))];
                             rand_seed(ctx, X);
                             var_set(ctx, A, B, exports.NIL);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 108:
-                        {
+                        { // [TGT]
                             LOAD_ab();
                             rand_seedauto(ctx);
                             var_set(ctx, A, B, exports.NIL);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 109:
-                        {
+                        { // [TGT]
                             LOAD_ab();
                             var_set(ctx, A, B, rand_int(ctx));
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 110:
-                        {
+                        { // [TGT]
                             LOAD_ab();
                             var_set(ctx, A, B, rand_num(ctx));
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 111:
-                        {
+                        { // [TGT], [SRC1], [SRC2], [SRC3]
                             LOAD_abcdefgh();
                             X = var_get(ctx, C, D);
                             Y = var_get(ctx, E, F);
                             Z = var_get(ctx, G, H);
                             if (!isnum(X))
-                                return [2, RUNDONE(opi_abort(ctx, 'Expecting number for rand.range'))];
+                                return [2 /*return*/, RUNDONE(opi_abort(ctx, 'Expecting number for rand.range'))];
                             if (isnum(Y)) {
                                 if (isnil(Z))
                                     Z = 1;
                                 if (!isnum(Z))
-                                    return [2, RUNDONE(opi_abort(ctx, 'Expecting number for rand.range step'))];
+                                    return [2 /*return*/, RUNDONE(opi_abort(ctx, 'Expecting number for rand.range step'))];
                                 X = rand_range(ctx, X, Y, Z);
                             }
                             else if (isnil(Y)) {
                                 if (!isnil(Z))
-                                    return [2, RUNDONE(opi_abort(ctx, 'Expecting number for rand.range stop'))];
+                                    return [2 /*return*/, RUNDONE(opi_abort(ctx, 'Expecting number for rand.range stop'))];
                                 X = rand_range(ctx, 0, X, 1);
                             }
                             else
-                                return [2, RUNDONE(opi_abort(ctx, 'Expecting number for rand.range stop'))];
+                                return [2 /*return*/, RUNDONE(opi_abort(ctx, 'Expecting number for rand.range stop'))];
                             var_set(ctx, A, B, X);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 112:
-                        {
+                        { // [TGT]
                             LOAD_ab();
                             var_set(ctx, A, B, rand_getstate(ctx));
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 113:
-                        {
+                        { // [TGT], [SRC]
                             LOAD_abcd();
                             rand_setstate(ctx, var_get(ctx, C, D));
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, exports.NIL);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 114:
-                        {
+                        { // [TGT], [SRC]
                             LOAD_abcd();
                             X = rand_pick(ctx, var_get(ctx, C, D));
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 115:
-                        {
+                        { // [TGT], [SRC]
                             LOAD_abcd();
                             X = var_get(ctx, C, D);
                             rand_shuffle(ctx, X);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 116:
-                        {
+                        { // [TGT], ARGCOUNT, [ARGS]...
                             LOAD_abc();
                             p = [];
                             for (D = 0; D < C; D++) {
@@ -10867,492 +11103,492 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             }
                             var_set(ctx, A, B, str_new(ctx, p));
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 117:
-                        {
+                        { // [TGT], [SRC1], [SRC2]
                             LOAD_abcdef();
                             X = var_get(ctx, C, D);
                             Y = var_get(ctx, E, F);
                             X = str_split(ctx, X, Y);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 118:
-                        {
+                        { // [TGT], [SRC1], [SRC2], [SRC3]
                             LOAD_abcdefgh();
                             X = var_get(ctx, C, D);
                             Y = var_get(ctx, E, F);
                             Z = var_get(ctx, G, H);
                             X = str_replace(ctx, X, Y, Z);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 119:
-                        {
+                        { // [TGT], [SRC1], [SRC2]
                             LOAD_abcdef();
                             X = var_get(ctx, C, D);
                             Y = var_get(ctx, E, F);
                             X = bool(str_begins(ctx, X, Y));
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 120:
-                        {
+                        { // [TGT], [SRC1], [SRC2]
                             LOAD_abcdef();
                             X = var_get(ctx, C, D);
                             Y = var_get(ctx, E, F);
                             X = bool(str_ends(ctx, X, Y));
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 121:
-                        {
+                        { // [TGT], [SRC1], [SRC2]
                             LOAD_abcdef();
                             X = var_get(ctx, C, D);
                             Y = var_get(ctx, E, F);
                             if (isnil(Y))
                                 Y = 0;
                             else if (!isnum(Y))
-                                return [2, RUNDONE(opi_abort(ctx, 'Expecting number'))];
+                                return [2 /*return*/, RUNDONE(opi_abort(ctx, 'Expecting number'))];
                             X = str_pad(ctx, X, Y);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 122:
-                        {
+                        { // [TGT], [SRC1], [SRC2], [SRC3]
                             LOAD_abcdefgh();
                             X = var_get(ctx, C, D);
                             Y = var_get(ctx, E, F);
                             Z = var_get(ctx, G, H);
                             X = str_find(ctx, X, Y, Z);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 123:
-                        {
+                        { // [TGT], [SRC1], [SRC2], [SRC3]
                             LOAD_abcdefgh();
                             X = var_get(ctx, C, D);
                             Y = var_get(ctx, E, F);
                             Z = var_get(ctx, G, H);
                             X = str_rfind(ctx, X, Y, Z);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 124:
-                        {
+                        { // [TGT], [SRC]
                             LOAD_abcd();
                             X = var_get(ctx, C, D);
                             X = str_lower(ctx, X);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 125:
-                        {
+                        { // [TGT], [SRC]
                             LOAD_abcd();
                             X = var_get(ctx, C, D);
                             X = str_upper(ctx, X);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 126:
-                        {
+                        { // [TGT], [SRC]
                             LOAD_abcd();
                             X = var_get(ctx, C, D);
                             X = str_trim(ctx, X);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 127:
-                        {
+                        { // [TGT], [SRC]
                             LOAD_abcd();
                             X = var_get(ctx, C, D);
                             X = str_rev(ctx, X);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 128:
-                        {
+                        { // [TGT], [SRC1], [SRC2]
                             LOAD_abcdef();
                             X = var_get(ctx, C, D);
                             Y = var_get(ctx, E, F);
                             if (isnil(Y))
                                 Y = 0;
                             else if (!isnum(Y))
-                                return [2, RUNDONE(opi_abort(ctx, 'Expecting number'))];
+                                return [2 /*return*/, RUNDONE(opi_abort(ctx, 'Expecting number'))];
                             X = str_rep(ctx, X, Y);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 129:
-                        {
+                        { // [TGT], [SRC]
                             LOAD_abcd();
                             X = var_get(ctx, C, D);
                             X = str_list(ctx, X);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 130:
-                        {
+                        { // [TGT], [SRC1], [SRC2]
                             LOAD_abcdef();
                             X = var_get(ctx, C, D);
                             Y = var_get(ctx, E, F);
                             if (isnil(Y))
                                 Y = 0;
                             else if (!isnum(Y))
-                                return [2, RUNDONE(opi_abort(ctx, 'Expecting number'))];
+                                return [2 /*return*/, RUNDONE(opi_abort(ctx, 'Expecting number'))];
                             X = str_byte(ctx, X, Y);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 131:
-                        {
+                        { // [TGT], [SRC1], [SRC2]
                             LOAD_abcdef();
                             X = var_get(ctx, C, D);
                             Y = var_get(ctx, E, F);
                             if (isnil(Y))
                                 Y = 0;
                             else if (!isnum(Y))
-                                return [2, RUNDONE(opi_abort(ctx, 'Expecting number'))];
+                                return [2 /*return*/, RUNDONE(opi_abort(ctx, 'Expecting number'))];
                             X = str_hash(ctx, X, Y);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 132:
-                        {
+                        { // [TGT], [SRC]
                             LOAD_abcd();
                             X = var_get(ctx, C, D);
                             var_set(ctx, A, B, bool(utf8_valid(ctx, X)));
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 133:
-                        {
+                        { // [TGT], [SRC]
                             LOAD_abcd();
                             X = var_get(ctx, C, D);
                             X = utf8_list(ctx, X);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 134:
-                        {
+                        { // [TGT], [SRC]
                             LOAD_abcd();
                             X = var_get(ctx, C, D);
                             X = utf8_str(ctx, X);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 135:
-                        {
+                        { // [TGT], [SRC]
                             LOAD_abcd();
                             var_set(ctx, A, B, struct_size(ctx, var_get(ctx, C, D)));
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 136:
-                        {
+                        { // [TGT], [SRC1], [SRC2]
                             LOAD_abcdef();
                             X = var_get(ctx, C, D);
                             Y = var_get(ctx, E, F);
                             X = struct_str(ctx, X, Y);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 137:
-                        {
+                        { // [TGT], [SRC1], [SRC2]
                             LOAD_abcdef();
                             X = var_get(ctx, C, D);
                             Y = var_get(ctx, E, F);
                             X = struct_list(ctx, X, Y);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 138:
-                        {
+                        { // [TGT]
                             LOAD_ab();
                             var_set(ctx, A, B, bool(struct_isLE()));
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 139:
-                        {
+                        { // [TGT], [SRC1], [SRC2]
                             LOAD_abcdef();
                             X = var_get(ctx, C, D);
                             Y = var_get(ctx, E, F);
                             X = list_new(ctx, X, Y);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 140:
-                        {
+                        { // [TGT], [SRC]
                             LOAD_abcd();
                             X = var_get(ctx, C, D);
                             X = list_shift(ctx, X);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 141:
-                        {
+                        { // [TGT], [SRC]
                             LOAD_abcd();
                             X = var_get(ctx, C, D);
                             X = list_pop(ctx, X);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 142:
-                        {
+                        { // [TGT], [SRC1], [SRC2]
                             LOAD_abcdef();
                             X = var_get(ctx, C, D);
                             Y = var_get(ctx, E, F);
                             X = list_push(ctx, X, Y);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 143:
-                        {
+                        { // [TGT], [SRC1], [SRC2]
                             LOAD_abcdef();
                             X = var_get(ctx, C, D);
                             Y = var_get(ctx, E, F);
                             X = list_unshift(ctx, X, Y);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 144:
-                        {
+                        { // [TGT], [SRC1], [SRC2]
                             LOAD_abcdef();
                             X = var_get(ctx, C, D);
                             Y = var_get(ctx, E, F);
                             X = list_append(ctx, X, Y);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 145:
-                        {
+                        { // [TGT], [SRC1], [SRC2]
                             LOAD_abcdef();
                             X = var_get(ctx, C, D);
                             Y = var_get(ctx, E, F);
                             X = list_prepend(ctx, X, Y);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 146:
-                        {
+                        { // [TGT], [SRC1], [SRC2], [SRC3]
                             LOAD_abcdefgh();
                             X = var_get(ctx, C, D);
                             Y = var_get(ctx, E, F);
                             Z = var_get(ctx, G, H);
                             X = list_find(ctx, X, Y, Z);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 147:
-                        {
+                        { // [TGT], [SRC1], [SRC2], [SRC3]
                             LOAD_abcdefgh();
                             X = var_get(ctx, C, D);
                             Y = var_get(ctx, E, F);
                             Z = var_get(ctx, G, H);
                             X = list_rfind(ctx, X, Y, Z);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 148:
-                        {
+                        { // [TGT], [SRC1], [SRC2]
                             LOAD_abcdef();
                             X = var_get(ctx, C, D);
                             Y = var_get(ctx, E, F);
                             X = list_join(ctx, X, Y);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 149:
-                        {
+                        { // [TGT], [SRC]
                             LOAD_abcd();
                             X = var_get(ctx, C, D);
                             X = list_rev(ctx, X);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 150:
-                        {
+                        { // [TGT], [SRC]
                             LOAD_abcd();
                             X = var_get(ctx, C, D);
                             X = list_str(ctx, X);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 151:
-                        {
+                        { // [TGT], [SRC]
                             LOAD_abcd();
                             X = var_get(ctx, C, D);
                             list_sort(ctx, X);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 152:
-                        {
+                        { // [TGT], [SRC]
                             LOAD_abcd();
                             X = var_get(ctx, C, D);
                             list_rsort(ctx, X);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 153:
-                        {
+                        { // [TGT], [SRC]
                             LOAD_abcd();
                             X = var_get(ctx, C, D);
                             X = pickle_json(ctx, X);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 154:
-                        {
+                        { // [TGT], [SRC]
                             LOAD_abcd();
                             X = var_get(ctx, C, D);
                             X = pickle_bin(ctx, X);
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 155:
-                        {
+                        { // [TGT], [SRC]
                             LOAD_abcd();
                             X = var_get(ctx, C, D);
                             X = pickle_val(ctx, X);
                             if (ctx.failed)
-                                return [2, RUNDONE(run.FAIL)];
+                                return [2 /*return*/, RUNDONE(run.FAIL)];
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 156:
-                        {
+                        { // [TGT], [SRC]
                             LOAD_abcd();
                             X = var_get(ctx, C, D);
                             E = pickle_valid(ctx, X);
                             var_set(ctx, A, B, E === 0 ? exports.NIL : E);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 157:
-                        {
+                        { // [TGT], [SRC]
                             LOAD_abcd();
                             X = var_get(ctx, C, D);
                             var_set(ctx, A, B, bool(pickle_sibling(ctx, X)));
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 158:
-                        {
+                        { // [TGT], [SRC]
                             LOAD_abcd();
                             X = var_get(ctx, C, D);
                             var_set(ctx, A, B, bool(pickle_circular(ctx, X)));
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 159:
-                        {
+                        { // [TGT], [SRC]
                             LOAD_abcd();
                             X = var_get(ctx, C, D);
                             X = pickle_copy(ctx, X);
                             var_set(ctx, A, B, X);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 160:
-                        {
+                        { // [TGT]
                             LOAD_ab();
                             var_set(ctx, A, B, ctx.gc_level);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 161:
-                        {
+                        { // [TGT], [SRC]
                             LOAD_abcd();
                             X = var_get(ctx, C, D);
                             if (!isnum(X) ||
                                 (X !== gc_level.NONE && X !== gc_level.DEFAULT && X !== gc_level.LOWMEM))
-                                return [2, RUNDONE(opi_abort(ctx, 'Expecting one of gc.NONE, gc.DEFAULT, or gc.LOWMEM'))];
+                                return [2 /*return*/, RUNDONE(opi_abort(ctx, 'Expecting one of gc.NONE, gc.DEFAULT, or gc.LOWMEM'))];
                             ctx.gc_level = X;
                             var_set(ctx, A, B, exports.NIL);
                         }
-                        return [3, 164];
+                        return [3 /*break*/, 164];
                     case 162:
-                        {
+                        { // [TGT]
                             LOAD_ab();
                             var_set(ctx, A, B, exports.NIL);
                         }
-                        return [3, 164];
-                    case 163: return [3, 164];
+                        return [3 /*break*/, 164];
+                    case 163: return [3 /*break*/, 164];
                     case 164:
                         if (ctx.timeout > 0) {
                             ctx.timeout_left--;
                             if (ctx.timeout_left <= 0) {
                                 ctx.timeout_left = ctx.timeout;
-                                return [2, RUNDONE(run.TIMEOUT)];
+                                return [2 /*return*/, RUNDONE(run.TIMEOUT)];
                             }
                         }
-                        return [3, 1];
+                        return [3 /*break*/, 1];
                     case 165:
                         if (ctx.prg.repl)
-                            return [2, RUNDONE(run.REPLMORE)];
-                        return [2, RUNDONE(opi_exit(ctx))];
+                            return [2 /*return*/, RUNDONE(run.REPLMORE)];
+                        return [2 /*return*/, RUNDONE(opi_exit(ctx))];
                 }
             });
         });
@@ -11435,8 +11671,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        if (!success) return [3, 2];
-                        return [4, compiler_closeLexer(cfu.cmp)];
+                        if (!success) return [3 /*break*/, 2];
+                        return [4 /*yield*/, compiler_closeLexer(cfu.cmp)];
                     case 1:
                         _a.sent();
                         _a.label = 2;
@@ -11444,7 +11680,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                         compiler_endinc(cfu.cmp, cfu.names !== null);
                         if (!success && cfu.cmp.msg === null)
                             compiler_setmsg(cfu.cmp, 'Failed to read file: ' + file);
-                        return [2];
+                        return [2 /*return*/];
                 }
             });
         });
@@ -11456,21 +11692,21 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                 switch (_a.label) {
                     case 0:
                         if (!compiler_begininc(cmp, names, file))
-                            return [2, false];
-                        return [4, compiler_write(cmp, body)];
+                            return [2 /*return*/, false];
+                        return [4 /*yield*/, compiler_write(cmp, body)];
                     case 1:
                         err = _a.sent();
                         if (err) {
                             compiler_endinc(cmp, names !== null);
-                            return [2, false];
+                            return [2 /*return*/, false];
                         }
-                        return [4, compiler_closeLexer(cmp)];
+                        return [4 /*yield*/, compiler_closeLexer(cmp)];
                     case 2:
                         err = _a.sent();
                         compiler_endinc(cmp, names !== null);
                         if (err)
-                            return [2, false];
-                        return [2, true];
+                            return [2 /*return*/, false];
+                        return [2 /*return*/, true];
                 }
             });
         });
@@ -11480,7 +11716,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             var cfu;
             return __generator(this, function (_a) {
                 cfu = { cmp: cmp, names: names };
-                return [2, fileres_read(cmp.scr, true, file, cwd, compiler_begininc_cfu, compiler_endinc_cfu, cfu)];
+                return [2 /*return*/, fileres_read(cmp.scr, true, file, cwd, compiler_begininc_cfu, compiler_endinc_cfu, cfu)];
             });
         });
     }
@@ -11493,49 +11729,49 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                         stmts = [];
                         _a.label = 1;
                     case 1:
-                        if (!(cmp.flpn.tks.length > 0)) return [3, 18];
+                        if (!(cmp.flpn.tks.length > 0)) return [3 /*break*/, 18];
                         while (cmp.flpn.tks.length > 0) {
                             tk = cmp.flpn.tks.shift();
                             if (tk.type === tok_enum.ERROR) {
                                 compiler_setmsg(cmp, program_errormsg(cmp.prg, tk.flp, tk.msg));
-                                return [2, cmp.msg];
+                                return [2 /*return*/, cmp.msg];
                             }
                             pmsg = parser_add(cmp.pr, tk, stmts);
                             if (pmsg) {
                                 compiler_setmsg(cmp, program_errormsg(cmp.prg, tk.flp, pmsg));
-                                return [2, cmp.msg];
+                                return [2 /*return*/, cmp.msg];
                             }
                             if (stmts.length > 0 && stmts[stmts.length - 1].type === ast_enumt.INCLUDE)
                                 break;
                         }
                         _a.label = 2;
                     case 2:
-                        if (!(stmts.length > 0)) return [3, 17];
+                        if (!(stmts.length > 0)) return [3 /*break*/, 17];
                         stmt = stmts.shift();
-                        if (!(stmt.type === ast_enumt.INCLUDE)) return [3, 14];
+                        if (!(stmt.type === ast_enumt.INCLUDE)) return [3 /*break*/, 14];
                         ii = 0;
                         _a.label = 3;
                     case 3:
-                        if (!(ii < stmt.incls.length)) return [3, 13];
+                        if (!(ii < stmt.incls.length)) return [3 /*break*/, 13];
                         inc = stmt.incls[ii];
                         file = inc.file;
                         internal = false;
                         i = 0;
                         _a.label = 4;
                     case 4:
-                        if (!(i < cmp.sinc.name.length)) return [3, 10];
+                        if (!(i < cmp.sinc.name.length)) return [3 /*break*/, 10];
                         sinc_name = cmp.sinc.name[i];
-                        if (!(file === sinc_name)) return [3, 9];
+                        if (!(file === sinc_name)) return [3 /*break*/, 9];
                         internal = true;
                         sinc_content = cmp.sinc.content[i];
                         is_body = cmp.sinc.type[i] === 0;
                         success = void 0;
-                        if (!is_body) return [3, 6];
-                        return [4, compiler_staticinc(cmp, inc.names, file, sinc_content)];
+                        if (!is_body) return [3 /*break*/, 6];
+                        return [4 /*yield*/, compiler_staticinc(cmp, inc.names, file, sinc_content)];
                     case 5:
                         success = _a.sent();
-                        return [3, 8];
-                    case 6: return [4, compiler_dynamicinc(cmp, inc.names, sinc_content, cmp.scr.curdir)];
+                        return [3 /*break*/, 8];
+                    case 6: return [4 /*yield*/, compiler_dynamicinc(cmp, inc.names, sinc_content, cmp.scr.curdir)];
                     case 7:
                         found = _a.sent();
                         if (!found && cmp.msg === null)
@@ -11544,32 +11780,32 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                         _a.label = 8;
                     case 8:
                         if (!success)
-                            return [2, cmp.msg];
+                            return [2 /*return*/, cmp.msg];
                         _a.label = 9;
                     case 9:
                         i++;
-                        return [3, 4];
+                        return [3 /*break*/, 4];
                     case 10:
-                        if (!!internal) return [3, 12];
+                        if (!!internal) return [3 /*break*/, 12];
                         cwd = null;
                         from = script_getfile(cmp.scr, stmt.flp.fullfile);
                         if (from !== null)
                             cwd = pathjoin(from, '..', cmp.scr.posix);
-                        return [4, compiler_dynamicinc(cmp, inc.names, file, cwd)];
+                        return [4 /*yield*/, compiler_dynamicinc(cmp, inc.names, file, cwd)];
                     case 11:
                         found = _a.sent();
                         if (!found && cmp.msg === null)
                             compiler_setmsg(cmp, 'Failed to include: ' + file);
                         if (cmp.msg)
-                            return [2, cmp.msg];
+                            return [2 /*return*/, cmp.msg];
                         _a.label = 12;
                     case 12:
                         ii++;
-                        return [3, 3];
-                    case 13: return [3, 16];
+                        return [3 /*break*/, 3];
+                    case 13: return [3 /*break*/, 16];
                     case 14:
                         pgsl = cmp.flpn.pgstate;
-                        return [4, program_gen({
+                        return [4 /*yield*/, program_gen({
                                 prg: cmp.prg,
                                 sym: cmp.sym,
                                 scr: cmp.scr,
@@ -11588,14 +11824,15 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 break;
                             case pgr_enum.ERROR:
                                 compiler_setmsg(cmp, program_errormsg(cmp.prg, pg.flp, pg.msg));
-                                return [2, cmp.msg];
+                                return [2 /*return*/, cmp.msg];
                             case pgr_enum.FORVARS:
+                                // impossible
                                 throw new Error('Program generator can\'t return FORVARS');
                         }
                         _a.label = 16;
-                    case 16: return [3, 2];
-                    case 17: return [3, 1];
-                    case 18: return [2, null];
+                    case 16: return [3 /*break*/, 2];
+                    case 17: return [3 /*break*/, 1];
+                    case 18: return [2 /*return*/, null];
                 }
             });
         });
@@ -11625,7 +11862,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                         flpn.wascr = false;
                     }
                 }
-                return [2, compiler_process(cmp)];
+                return [2 /*return*/, compiler_process(cmp)];
             });
         });
     }
@@ -11633,7 +11870,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
                 lex_close(cmp.flpn.lx, cmp.flpn.flp, cmp.flpn.tks);
-                return [2, compiler_process(cmp)];
+                return [2 /*return*/, compiler_process(cmp)];
             });
         });
     }
@@ -11644,27 +11881,35 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                 switch (_a.label) {
                     case 0:
                         if (cmp.msg)
-                            return [2, cmp.msg];
-                        return [4, compiler_closeLexer(cmp)];
+                            return [2 /*return*/, cmp.msg];
+                        return [4 /*yield*/, compiler_closeLexer(cmp)];
                     case 1:
                         err = _a.sent();
                         if (err)
-                            return [2, err];
+                            return [2 /*return*/, err];
                         pmsg = parser_close(cmp.pr);
                         if (pmsg) {
                             compiler_setmsg(cmp, program_errormsg(cmp.prg, cmp.flpn.flp, pmsg));
-                            return [2, cmp.msg];
+                            return [2 /*return*/, cmp.msg];
                         }
                         err2 = symtbl_popFrame(cmp.sym);
                         if (err2 !== null) {
                             compiler_setmsg(cmp, program_errormsg(cmp.prg, cmp.flpn.flp, err2));
-                            return [2, cmp.msg];
+                            return [2 /*return*/, cmp.msg];
                         }
-                        return [2, null];
+                        return [2 /*return*/, null];
                 }
             });
         });
     }
+    ////////////////////////////////////////////////////////////////////////////////////////////////////
+    //
+    // API
+    //
+    ////////////////////////////////////////////////////////////////////////////////////////////////////
+    //
+    // script API
+    //
     function scr_new(inc, curdir, posix, repl) {
         var sc = {
             user: null,
@@ -11695,7 +11940,6 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         };
         return sc;
     }
-    exports.scr_new = scr_new;
     function script_addfile(scr, file) {
         if (file === null)
             return -1;
@@ -11714,15 +11958,12 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     function scr_addpath(scr, path) {
         scr.paths.push(path);
     }
-    exports.scr_addpath = scr_addpath;
     function scr_incbody(scr, name, body) {
         staticinc_addbody(scr.sinc, name, body);
     }
-    exports.scr_incbody = scr_incbody;
     function scr_incfile(scr, name, file) {
         staticinc_addfile(scr.sinc, name, file);
     }
-    exports.scr_incfile = scr_incfile;
     function sfr_begin(file, sc) {
         if (sc.file)
             sc.file = null;
@@ -11748,8 +11989,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                     case 0:
                         if (sc.err && sc.prg.repl)
                             compiler_reset(sc.cmp);
-                        if (!close) return [3, 2];
-                        return [4, compiler_close(sc.cmp)];
+                        if (!close) return [3 /*break*/, 2];
+                        return [4 /*yield*/, compiler_close(sc.cmp)];
                     case 1:
                         err2 = _a.sent();
                         if (err2)
@@ -11757,7 +11998,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                         if (resetonclose)
                             compiler_reset(sc.cmp);
                         _a.label = 2;
-                    case 2: return [2];
+                    case 2: return [2 /*return*/];
                 }
             });
         });
@@ -11768,29 +12009,31 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             return __generator(this, function (_b) {
                 switch (_b.label) {
                     case 0:
-                        if (!!success) return [3, 1];
+                        if (!!success) return [3 /*break*/, 1];
                         if (sc.cmp && sc.cmp.msg)
                             sc.err = 'Error: ' + sc.cmp.msg;
                         else
                             sc.err = 'Error: Failed to read file: ' + file;
-                        return [3, 6];
+                        return [3 /*break*/, 6];
                     case 1:
                         _a = sc.mode;
                         switch (_a) {
-                            case scriptmode_enum.UNKNOWN: return [3, 2];
-                            case scriptmode_enum.BINARY: return [3, 3];
-                            case scriptmode_enum.TEXT: return [3, 4];
+                            case scriptmode_enum.UNKNOWN: return [3 /*break*/, 2];
+                            case scriptmode_enum.BINARY: return [3 /*break*/, 3];
+                            case scriptmode_enum.TEXT: return [3 /*break*/, 4];
                         }
-                        return [3, 6];
-                    case 2: return [3, 6];
+                        return [3 /*break*/, 6];
+                    case 2: 
+                    // empty file, do nothing
+                    return [3 /*break*/, 6];
                     case 3:
                         binary_validate(sc);
-                        return [3, 6];
-                    case 4: return [4, text_validate(sc, true, false)];
+                        return [3 /*break*/, 6];
+                    case 4: return [4 /*yield*/, text_validate(sc, true, false)];
                     case 5:
                         _b.sent();
-                        return [3, 6];
-                    case 6: return [2];
+                        return [3 /*break*/, 6];
+                    case 6: return [2 /*return*/];
                 }
             });
         });
@@ -11804,25 +12047,23 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                         sc = scr;
                         if (sc.err)
                             sc.err = null;
-                        return [4, fileres_read(sc, true, file, null, sfr_begin, sfr_end, sc)];
+                        return [4 /*yield*/, fileres_read(sc, true, file, null, sfr_begin, sfr_end, sc)];
                     case 1:
                         read = _a.sent();
                         if (!read && sc.err === null)
                             sc.err = 'Error: Failed to read file: ' + file;
-                        return [2, sc.err === null];
+                        return [2 /*return*/, sc.err === null];
                 }
             });
         });
     }
-    exports.scr_loadfile = scr_loadfile;
     function scr_getfile(scr) {
         return scr.file;
     }
-    exports.scr_getfile = scr_getfile;
     function scr_getcwd(scr) {
         return scr.curdir;
     }
-    exports.scr_getcwd = scr_getcwd;
+    // byte size of each section of the binary file
     var BSZ_HEADER = 28;
     var BSZ_STR_HEAD = 4;
     var BSZ_KEY = 8;
@@ -11831,19 +12072,23 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     var BSZ_CMD = 8;
     function scr_write(scr, bytes) {
         return __awaiter(this, void 0, void 0, function () {
+            // read a 4 byte integer (LE)
             function GETINT(i) {
                 return ((bs.buf.charCodeAt(i + 0)) +
                     (bs.buf.charCodeAt(i + 1) << 8) +
                     (bs.buf.charCodeAt(i + 2) << 16) +
                     ((bs.buf.charCodeAt(i + 3) << 23) * 2));
             }
+            // write to the buffer up to a certain total bytes (bs.left)
             function WRITE() {
                 if (bytes.length > bs.left) {
+                    // partial write to buf
                     bs.buf += bytes.substr(0, bs.left);
                     bytes = bytes.substr(bs.left);
                     bs.left = 0;
                 }
                 else {
+                    // full write to buf
                     bs.buf += bytes;
                     bs.left -= bytes.length;
                     bytes = '';
@@ -11854,12 +12099,16 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                 switch (_a.label) {
                     case 0:
                         if (bytes.length <= 0)
-                            return [2, true];
+                            return [2 /*return*/, true];
                         sc = scr;
                         if (sc.capture_write !== null) {
+                            // the write operation is being captured by an embed, so append to the string, and
+                            // return immediately
                             sc.capture_write += bytes;
-                            return [2, true];
+                            return [2 /*return*/, true];
                         }
+                        // sink binary files start with 0xFC (invalid UTF8 start byte), so we can tell if we're binary
+                        // just by looking at the first byte
                         if (sc.mode === scriptmode_enum.UNKNOWN) {
                             if (bytes.charCodeAt(0) === 0xFC) {
                                 sc.mode = scriptmode_enum.BINARY;
@@ -11874,7 +12123,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                         }
                         bs = sc.binstate;
                         prg = sc.prg;
-                        if (!(sc.mode === scriptmode_enum.BINARY)) return [3, 1];
+                        if (!(sc.mode === scriptmode_enum.BINARY)) return [3 /*break*/, 1];
                         if (sc.err)
                             sc.err = null;
                         while (bytes.length > 0) {
@@ -11891,7 +12140,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                         bs.ops_size = GETINT(24);
                                         if (magic !== 0x016B53FC) {
                                             sc.err = 'Error: Invalid binary header';
-                                            return [2, false];
+                                            return [2 /*return*/, false];
                                         }
                                         bs.state = bis_enum.STR_HEAD;
                                         bs.left = BSZ_STR_HEAD;
@@ -11913,7 +12162,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                         bs.buf = '';
                                     }
                                     break;
-                                case bis_enum.STR_BODY:
+                                case bis_enum.STR_BODY: // variable
                                     WRITE();
                                     if (bs.left === 0) {
                                         prg.strTable.push(bs.buf);
@@ -11955,7 +12204,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                         bs.buf = '';
                                     }
                                     break;
-                                case bis_enum.DEBUG_BODY:
+                                case bis_enum.DEBUG_BODY: // variable
                                     WRITE();
                                     if (bs.left === 0) {
                                         prg.debugTable.push(bs.buf);
@@ -11987,6 +12236,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                         bs.buf = '';
                                         bs.left = BSZ_POS;
                                         bs.item++;
+                                        // silently validate basefile
                                         if (p.flp.basefile >= bs.dbg_size)
                                             p.flp.basefile = -1;
                                     }
@@ -11994,7 +12244,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 case bis_enum.CMD:
                                     if (bs.item >= bs.cmd_size) {
                                         bs.state = bis_enum.OPS;
-                                        bs.left = bs.ops_size + 1;
+                                        bs.left = bs.ops_size + 1; // add 1 to read the terminating byte
                                         break;
                                     }
                                     WRITE();
@@ -12007,18 +12257,20 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                         bs.buf = '';
                                         bs.left = BSZ_CMD;
                                         bs.item++;
+                                        // silently validate cmdhint
                                         if (p.cmdhint >= bs.dbg_size)
                                             p.cmdhint = -1;
                                     }
                                     break;
-                                case bis_enum.OPS:
+                                case bis_enum.OPS: // variable
                                     WRITE();
                                     if (bs.left === 0) {
+                                        // validate terminating byte
                                         if (bs.buf.charCodeAt(bs.buf.length - 1) !== 0xFD) {
                                             sc.err = 'Error: Invalid binary file';
-                                            return [2, false];
+                                            return [2 /*return*/, false];
                                         }
-                                        for (i = 0; i < bs.buf.length - 1; i++)
+                                        for (i = 0; i < bs.buf.length - 1; i++) // trim off terminating byte
                                             prg.ops.push(bs.buf.charCodeAt(i));
                                         bs.buf = '';
                                         bs.state = bis_enum.DONE;
@@ -12026,41 +12278,47 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                     break;
                                 case bis_enum.DONE:
                                     sc.err = 'Error: Invalid data at end of file';
-                                    return [2, false];
+                                    return [2 /*return*/, false];
                             }
                         }
                         is_eval = !sc.prg.repl && sc.file === null;
-                        if (is_eval)
+                        if (is_eval) // if we're evaling, then we're at the end of file right now
                             binary_validate(sc);
-                        return [2, sc.err === null];
+                        return [2 /*return*/, sc.err === null];
                     case 1:
                         if (sc.err)
                             sc.err = null;
-                        return [4, compiler_write(sc.cmp, bytes)];
+                        return [4 /*yield*/, compiler_write(sc.cmp, bytes)];
                     case 2:
                         err = _a.sent();
                         if (err)
                             sc.err = 'Error: ' + err;
                         is_eval = !sc.prg.repl && sc.file === null;
                         text_validate(sc, is_eval, true);
-                        return [2, sc.err === null];
+                        return [2 /*return*/, sc.err === null];
                 }
             });
         });
     }
-    exports.scr_write = scr_write;
     function scr_geterr(scr) {
         return scr.err;
     }
-    exports.scr_geterr = scr_geterr;
     function scr_level(scr) {
         if (scr.mode !== scriptmode_enum.TEXT)
             return 0;
         return scr.cmp.pr.level;
     }
-    exports.scr_level = scr_level;
     function scr_dump(scr, debug, user, f_dump) {
+        // all integer values are little endian
         var prg = scr.prg;
+        // output header
+        // 4 bytes: header: 0xFC, 'S', 'k', file format version (always 0x01)
+        // 4 bytes: string table size
+        // 4 bytes: key table size
+        // 4 bytes: debug string table size
+        // 4 bytes: pos table size
+        // 4 bytes: cmd table size
+        // 4 bytes: opcode size
         var header = '' +
             String.fromCharCode(0xFC) +
             String.fromCharCode(0x53) +
@@ -12091,6 +12349,9 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             String.fromCharCode((prg.ops.length >> 16) & 0xFF) +
             String.fromCharCode((prg.ops.length >> 24) & 0xFF);
         f_dump(header, user);
+        // output strTable
+        // 4 bytes: string size
+        // N bytes: raw string bytes
         for (var i = 0; i < prg.strTable.length; i++) {
             var str = prg.strTable[i];
             var sizeb = '' +
@@ -12102,6 +12363,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             if (str.length > 0)
                 f_dump(str, user);
         }
+        // output keyTable
+        // 8 bytes: hash identifier
         for (var i = 0; i < prg.keyTable.length; i++) {
             var id = prg.keyTable[i];
             var idb = '' +
@@ -12116,6 +12379,9 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             f_dump(idb, user);
         }
         if (debug) {
+            // output debug strings
+            // 4 bytes: string length
+            // N bytes: string raw bytes
             for (var i = 0; i < prg.debugTable.length; i++) {
                 var str = prg.debugTable[i];
                 var slen = str === null ? 4 : str.length;
@@ -12130,8 +12396,14 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                 else if (slen > 0)
                     f_dump(str, user);
             }
+            // output pos table
+            // 4 bytes: start PC
+            // 4 bytes: line number
+            // 4 bytes: character number
+            // 4 bytes: filename debug string index
             for (var i = 0; i < prg.posTable.length; i++) {
                 var p = prg.posTable[i];
+                // find unique filename entry
                 var plcb = '' +
                     String.fromCharCode((p.pc) & 0xFF) +
                     String.fromCharCode((p.pc >> 8) & 0xFF) +
@@ -12151,6 +12423,9 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                     String.fromCharCode((p.flp.basefile >> 24) & 0xFF);
                 f_dump(plcb, user);
             }
+            // output cmd table
+            // 4 bytes: return PC
+            // 4 bytes: hint debug string index
             for (var i = 0; i < prg.cmdTable.length; i++) {
                 var p = prg.cmdTable[i];
                 var plcb = '' +
@@ -12165,19 +12440,24 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                 f_dump(plcb, user);
             }
         }
+        // output ops
+        // just the raw bytecode
         if (prg.ops.length > 0) {
             var out = '';
             for (var i = 0; i < prg.ops.length; i++)
                 out += String.fromCharCode(prg.ops[i]);
             f_dump(out, user);
         }
+        // output terminating byte
+        // single 0xFD byte which is an invalid op
         f_dump(String.fromCharCode(0xFD), user);
     }
-    exports.scr_dump = scr_dump;
+    //
+    // context API
+    //
     function ctx_new(scr, io) {
         return context_new(scr.prg, io);
     }
-    exports.ctx_new = ctx_new;
     function ctx_getstatus(ctx) {
         var ctx2 = ctx;
         if (ctx2.passed)
@@ -12188,42 +12468,33 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             return status.WAITING;
         return status.READY;
     }
-    exports.ctx_getstatus = ctx_getstatus;
     function ctx_native(ctx, name, natuser, f_native) {
         context_native(ctx, native_hash(name), natuser, f_native);
     }
-    exports.ctx_native = ctx_native;
     function ctx_nativehash(ctx, hash, natuser, f_native) {
         context_native(ctx, hash, natuser, f_native);
     }
-    exports.ctx_nativehash = ctx_nativehash;
     function ctx_setuser(ctx, user) {
         ctx.user = user;
     }
-    exports.ctx_setuser = ctx_setuser;
     function ctx_getuser(ctx) {
         return ctx.user;
     }
-    exports.ctx_getuser = ctx_getuser;
     function ctx_addusertype(ctx, hint) {
         ctx.user_hint.push(hint);
         return ctx.user_hint.length - 1;
     }
-    exports.ctx_addusertype = ctx_addusertype;
     function ctx_getuserhint(ctx, usertype) {
         return ctx.user_hint[usertype];
     }
-    exports.ctx_getuserhint = ctx_getuserhint;
     function ctx_settimeout(ctx, timeout) {
         var ctx2 = ctx;
         ctx2.timeout = timeout;
         ctx2.timeout_left = timeout;
     }
-    exports.ctx_settimeout = ctx_settimeout;
     function ctx_gettimeout(ctx) {
         return ctx.timeout;
     }
-    exports.ctx_gettimeout = ctx_gettimeout;
     function ctx_consumeticks(ctx, amount) {
         var ctx2 = ctx;
         if (amount > ctx2.timeout_left)
@@ -12234,11 +12505,9 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (ctx2.timeout_left > ctx2.timeout)
             ctx2.timeout_left = ctx2.timeout;
     }
-    exports.ctx_consumeticks = ctx_consumeticks;
     function ctx_forcetimeout(ctx) {
         ctx.timeout_left = 0;
     }
-    exports.ctx_forcetimeout = ctx_forcetimeout;
     function ctx_run(ctx) {
         return __awaiter(this, void 0, void 0, function () {
             var ctx2;
@@ -12246,21 +12515,18 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                 ctx2 = ctx;
                 if (ctx2.prg.repl && ctx2.err)
                     ctx2.err = null;
-                return [2, context_run(ctx2)];
+                return [2 /*return*/, context_run(ctx2)];
             });
         });
     }
-    exports.ctx_run = ctx_run;
     function ctx_geterr(ctx) {
         return ctx.err;
     }
-    exports.ctx_geterr = ctx_geterr;
     function arg_bool(args, index) {
         if (index < 0 || index >= args.length)
             return false;
         return istrue(args[index]);
     }
-    exports.arg_bool = arg_bool;
     function arg_num(ctx, args, index) {
         if (index < 0 || index >= args.length)
             return 0;
@@ -12269,19 +12535,16 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             return a;
         throw new Error('Expecting number for item ' + (index + 1));
     }
-    exports.arg_num = arg_num;
     function arg_str(ctx, args, index) {
         if (index < 0 || index >= args.length || !isstr(args[index]))
             throw new Error('Expecting string for item ' + (index + 1));
         return args[index];
     }
-    exports.arg_str = arg_str;
     function arg_list(ctx, args, index) {
         if (index < 0 || index >= args.length || !islist(args[index]))
             throw new Error('Expecting list for item ' + (index + 1));
         return args[index];
     }
-    exports.arg_list = arg_list;
     function arg_user(ctx, args, index, usertype) {
         var ctx2 = ctx;
         var hint = ctx2.user_hint[usertype];
@@ -12298,7 +12561,6 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             throw new Error(err);
         }
     }
-    exports.arg_user = arg_user;
     function sinkhelp_tostr(li, v) {
         if (v === null)
             return 'nil';
@@ -12311,7 +12573,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         }
         else if (typeof v === 'string')
             return '\'' + v.replace(/'/g, '\'\'') + '\'';
-        else {
+        else { // v is a list
             if (li.indexOf(v) >= 0)
                 return '{circular}';
             var ret = '';
@@ -12327,38 +12589,33 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             return v;
         return sinkhelp_tostr([], v);
     }
-    exports.tostr = tostr;
     function exit(ctx, vals) {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
                 if (vals.length > 0)
                     say(ctx, vals);
                 opi_exit(ctx);
-                return [2];
+                return [2 /*return*/];
             });
         });
     }
-    exports.exit = exit;
     function abort(ctx, vals) {
         var bytes = null;
         if (vals.length > 0)
             bytes = list_joinplain(vals, ' ');
         opi_abort(ctx, bytes);
     }
-    exports.abort = abort;
     function abortstr(ctx, str) {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
                 opi_abort(ctx, str);
-                return [2, Promise.resolve(exports.NIL)];
+                return [2 /*return*/, Promise.resolve(exports.NIL)];
             });
         });
     }
-    exports.abortstr = abortstr;
     function isnative(ctx, name) {
         return isnativehash(ctx, native_hash(name));
     }
-    exports.isnative = isnative;
     function isnativehash(ctx, hash) {
         var ctx2 = ctx;
         for (var i = 0; i < ctx2.natives.length; i++) {
@@ -12368,201 +12625,160 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         }
         return false;
     }
-    exports.isnativehash = isnativehash;
+    // numbers
     function num_neg(ctx, a) {
         return opi_unop(ctx, a, unop_num_neg, txt_num_neg);
     }
-    exports.num_neg = num_neg;
     function num_add(ctx, a, b) {
         return opi_binop(ctx, a, b, binop_num_add, txt_num_add, LT_ALLOWNUM, LT_ALLOWNUM);
     }
-    exports.num_add = num_add;
     function num_sub(ctx, a, b) {
         return opi_binop(ctx, a, b, binop_num_sub, txt_num_sub, LT_ALLOWNUM, LT_ALLOWNUM);
     }
-    exports.num_sub = num_sub;
     function num_mul(ctx, a, b) {
         return opi_binop(ctx, a, b, binop_num_mul, txt_num_mul, LT_ALLOWNUM, LT_ALLOWNUM);
     }
-    exports.num_mul = num_mul;
     function num_div(ctx, a, b) {
         return opi_binop(ctx, a, b, binop_num_div, txt_num_div, LT_ALLOWNUM, LT_ALLOWNUM);
     }
-    exports.num_div = num_div;
     function num_mod(ctx, a, b) {
         return opi_binop(ctx, a, b, binop_num_mod, txt_num_mod, LT_ALLOWNUM, LT_ALLOWNUM);
     }
-    exports.num_mod = num_mod;
     function num_pow(ctx, a, b) {
         return opi_binop(ctx, a, b, binop_num_pow, txt_num_pow, LT_ALLOWNUM, LT_ALLOWNUM);
     }
-    exports.num_pow = num_pow;
     function num_abs(ctx, a) {
         return opi_unop(ctx, a, unop_num_abs, txt_num_abs);
     }
-    exports.num_abs = num_abs;
     function num_sign(ctx, a) {
         return opi_unop(ctx, a, unop_num_sign, txt_num_sign);
     }
-    exports.num_sign = num_sign;
     function num_max(ctx, vals) {
         return opi_num_max(vals);
     }
-    exports.num_max = num_max;
     function num_min(ctx, vals) {
         return opi_num_min(vals);
     }
-    exports.num_min = num_min;
     function num_clamp(ctx, a, b, c) {
         return opi_triop(ctx, a, b, c, triop_num_clamp, txt_num_clamp);
     }
-    exports.num_clamp = num_clamp;
     function num_floor(ctx, a) {
         return opi_unop(ctx, a, unop_num_floor, txt_num_floor);
     }
-    exports.num_floor = num_floor;
     function num_ceil(ctx, a) {
         return opi_unop(ctx, a, unop_num_ceil, txt_num_ceil);
     }
-    exports.num_ceil = num_ceil;
     function num_round(ctx, a) {
         return opi_unop(ctx, a, unop_num_round, txt_num_round);
     }
-    exports.num_round = num_round;
     function num_trunc(ctx, a) {
         return opi_unop(ctx, a, unop_num_trunc, txt_num_trunc);
     }
-    exports.num_trunc = num_trunc;
     function num_sin(ctx, a) {
         return opi_unop(ctx, a, unop_num_sin, txt_num_sin);
     }
-    exports.num_sin = num_sin;
     function num_cos(ctx, a) {
         return opi_unop(ctx, a, unop_num_cos, txt_num_cos);
     }
-    exports.num_cos = num_cos;
     function num_tan(ctx, a) {
         return opi_unop(ctx, a, unop_num_tan, txt_num_tan);
     }
-    exports.num_tan = num_tan;
     function num_asin(ctx, a) {
         return opi_unop(ctx, a, unop_num_asin, txt_num_asin);
     }
-    exports.num_asin = num_asin;
     function num_acos(ctx, a) {
         return opi_unop(ctx, a, unop_num_acos, txt_num_acos);
     }
-    exports.num_acos = num_acos;
     function num_atan(ctx, a) {
         return opi_unop(ctx, a, unop_num_atan, txt_num_atan);
     }
-    exports.num_atan = num_atan;
     function num_atan2(ctx, a, b) {
         return opi_binop(ctx, a, b, binop_num_atan2, txt_num_atan, LT_ALLOWNUM, LT_ALLOWNUM);
     }
-    exports.num_atan2 = num_atan2;
     function num_log(ctx, a) {
         return opi_unop(ctx, a, unop_num_log, txt_num_log);
     }
-    exports.num_log = num_log;
     function num_log2(ctx, a) {
         return opi_unop(ctx, a, unop_num_log2, txt_num_log);
     }
-    exports.num_log2 = num_log2;
     function num_log10(ctx, a) {
         return opi_unop(ctx, a, unop_num_log10, txt_num_log);
     }
-    exports.num_log10 = num_log10;
     function num_exp(ctx, a) {
         return opi_unop(ctx, a, unop_num_exp, txt_num_pow);
     }
-    exports.num_exp = num_exp;
     function num_lerp(ctx, a, b, t) {
         return opi_triop(ctx, a, b, t, triop_num_lerp, txt_num_lerp);
     }
-    exports.num_lerp = num_lerp;
     function num_hex(ctx, a, b) {
         return opi_binop(ctx, a, b, binop_num_hex, txt_num_hex, LT_ALLOWNUM, LT_ALLOWNUM | LT_ALLOWNIL);
     }
-    exports.num_hex = num_hex;
     function num_oct(ctx, a, b) {
         return opi_binop(ctx, a, b, binop_num_oct, txt_num_oct, LT_ALLOWNUM, LT_ALLOWNUM | LT_ALLOWNIL);
     }
-    exports.num_oct = num_oct;
     function num_bin(ctx, a, b) {
         return opi_binop(ctx, a, b, binop_num_bin, txt_num_bin, LT_ALLOWNUM, LT_ALLOWNUM | LT_ALLOWNIL);
     }
-    exports.num_bin = num_bin;
+    // integers
     function int_new(ctx, a) {
         return opi_unop(ctx, a, unop_int_new, txt_int_new);
     }
-    exports.int_new = int_new;
     function int_not(ctx, a) {
         return opi_unop(ctx, a, unop_int_not, txt_int_not);
     }
-    exports.int_not = int_not;
     function int_and(ctx, vals) {
         return opi_combop(ctx, vals, binop_int_and, txt_int_and);
     }
-    exports.int_and = int_and;
     function int_or(ctx, vals) {
         return opi_combop(ctx, vals, binop_int_or, txt_int_or);
     }
-    exports.int_or = int_or;
     function int_xor(ctx, vals) {
         return opi_combop(ctx, vals, binop_int_xor, txt_int_xor);
     }
-    exports.int_xor = int_xor;
     function int_shl(ctx, a, b) {
         return opi_binop(ctx, a, b, binop_int_shl, txt_int_shl, LT_ALLOWNUM, LT_ALLOWNUM);
     }
-    exports.int_shl = int_shl;
     function int_shr(ctx, a, b) {
         return opi_binop(ctx, a, b, binop_int_shr, txt_int_shr, LT_ALLOWNUM, LT_ALLOWNUM);
     }
-    exports.int_shr = int_shr;
     function int_sar(ctx, a, b) {
         return opi_binop(ctx, a, b, binop_int_sar, txt_int_shr, LT_ALLOWNUM, LT_ALLOWNUM);
     }
-    exports.int_sar = int_sar;
     function int_add(ctx, a, b) {
         return opi_binop(ctx, a, b, binop_int_add, txt_num_add, LT_ALLOWNUM, LT_ALLOWNUM);
     }
-    exports.int_add = int_add;
     function int_sub(ctx, a, b) {
         return opi_binop(ctx, a, b, binop_int_sub, txt_num_sub, LT_ALLOWNUM, LT_ALLOWNUM);
     }
-    exports.int_sub = int_sub;
     function int_mul(ctx, a, b) {
         return opi_binop(ctx, a, b, binop_int_mul, txt_num_mul, LT_ALLOWNUM, LT_ALLOWNUM);
     }
-    exports.int_mul = int_mul;
     function int_div(ctx, a, b) {
         return opi_binop(ctx, a, b, binop_int_div, txt_num_div, LT_ALLOWNUM, LT_ALLOWNUM);
     }
-    exports.int_div = int_div;
     function int_mod(ctx, a, b) {
         return opi_binop(ctx, a, b, binop_int_mod, txt_num_mod, LT_ALLOWNUM, LT_ALLOWNUM);
     }
-    exports.int_mod = int_mod;
     function int_clz(ctx, a) {
         return opi_unop(ctx, a, unop_int_clz, txt_int_clz);
     }
-    exports.int_clz = int_clz;
     function int_pop(ctx, a) {
         return opi_unop(ctx, a, unop_int_pop, txt_int_pop);
     }
-    exports.int_pop = int_pop;
     function int_bswap(ctx, a) {
         return opi_unop(ctx, a, unop_int_bswap, txt_int_bswap);
     }
-    exports.int_bswap = int_bswap;
+    // strings
     function str_hashplain(bytes, seed) {
+        // MurmurHash3 was written by Austin Appleby, and is placed in the public
+        // domain. The author hereby disclaims copyright to this source code.
+        // https://github.com/aappleby/smhasher
+        // 64-bit operations store numbers as [low int32_t, high int32_t]
         function x64_add(a, b) {
-            var A0 = a[0] & 0xFFFF;
-            var A1 = a[0] >>> 16;
-            var A2 = a[1] & 0xFFFF;
-            var A3 = a[1] >>> 16;
+            var A0 = a[0] & 0xFFFF; // lowest 16 bits
+            var A1 = a[0] >>> 16; // ...
+            var A2 = a[1] & 0xFFFF; // ...
+            var A3 = a[1] >>> 16; // highest 16 bits
             var B0 = b[0] & 0xFFFF;
             var B1 = b[0] >>> 16;
             var B2 = b[1] & 0xFFFF;
@@ -12574,10 +12790,10 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             return [(R0 & 0xFFFF) | ((R1 & 0xFFFF) << 16), (R2 & 0xFFFF) | ((R3 & 0xFFFF) << 16)];
         }
         function x64_mul(a, b) {
-            var A0 = a[0] & 0xFFFF;
-            var A1 = a[0] >>> 16;
-            var A2 = a[1] & 0xFFFF;
-            var A3 = a[1] >>> 16;
+            var A0 = a[0] & 0xFFFF; // lowest 16 bits
+            var A1 = a[0] >>> 16; // ...
+            var A2 = a[1] & 0xFFFF; // ...
+            var A3 = a[1] >>> 16; // highest 16 bits
             var B0 = b[0] & 0xFFFF;
             var B1 = b[0] >>> 16;
             var B2 = b[1] & 0xFFFF;
@@ -12661,6 +12877,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                     (bytes.charCodeAt(i + 7) << 24)
             ];
         }
+        // hash code
         var nblocks = bytes.length >>> 4;
         var h1 = [seed, 0];
         var h2 = [seed, 0];
@@ -12722,27 +12939,25 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         h2 = x64_fmix(h2);
         h1 = x64_add(h1, h2);
         h2 = x64_add(h2, h1);
+        // make number unsigned
         function uns(n) {
             return (n < 0 ? 4294967296 : 0) + n;
         }
         return [uns(h1[0]), uns(h1[1]), uns(h2[0]), uns(h2[1])];
     }
-    exports.str_hashplain = str_hashplain;
+    // lists
     function list_setuser(ctx, ls, usertype, user) {
         if (!islist(ls))
             throw new Error('Expecting list for sink.list_setuser');
         ls.usertype = usertype;
         ls.user = user;
     }
-    exports.list_setuser = list_setuser;
     function list_hasuser(ctx, ls, usertype) {
         return islist(ls) && ls.usertype === usertype;
     }
-    exports.list_hasuser = list_hasuser;
     function list_getuser(ctx, ls) {
         return islist(ls) ? ls.user : null;
     }
-    exports.list_getuser = list_getuser;
     function list_cat(ctx, vals) {
         for (var i = 0; i < vals.length; i++) {
             if (!islist(vals[i])) {
@@ -12752,20 +12967,17 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         }
         return opi_list_cat(ctx, vals);
     }
-    exports.list_cat = list_cat;
     function list_joinplain(vals, sep) {
         var out = '';
         for (var i = 0; i < vals.length; i++)
             out += (i > 0 ? sep : '') + tostr(vals[i]);
         return out;
     }
-    exports.list_joinplain = list_joinplain;
+    // gc
     function gc_getlevel(ctx) {
         return ctx.gc_level;
     }
-    exports.gc_getlevel = gc_getlevel;
     function gc_setlevel(ctx, level) {
         ctx.gc_level = level;
     }
-    exports.gc_setlevel = gc_setlevel;
 });

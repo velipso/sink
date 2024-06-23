@@ -1,6 +1,9 @@
-// (c) Copyright 2018, Sean Connelly (@velipso), sean.cm
-// MIT License
+//
+// sink - Minimal programming language for embedding small scripts in larger programs
+// by Sean Connelly (@velipso), https://sean.fun
 // Project Home: https://github.com/velipso/sink
+// SPDX-License-Identifier: 0BSD
+//
 
 import sink = require('./sink.js');
 

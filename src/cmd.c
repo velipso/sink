@@ -1,6 +1,9 @@
-// (c) Copyright 2016-2020, Sean Connelly (@velipso), sean.cm
-// MIT License
+//
+// sink - Minimal programming language for embedding small scripts in larger programs
+// by Sean Connelly (@velipso), https://sean.fun
 // Project Home: https://github.com/velipso/sink
+// SPDX-License-Identifier: 0BSD
+//
 
 #include "sink.h"
 #include "sink_shell.h"
@@ -385,8 +388,9 @@ static int main_compile_eval(sink_scr scr, const char *eval, bool debug){
 static void print_version(){
 	printf(
 		"Sink v1.0\n"
-		"Copyright (c) 2016-2020 Sean Connelly (@velipso), MIT License\n"
-		"https://github.com/velipso/sink  https://sean.cm\n");
+		"by Sean Connelly (@velipso), 0BSD License\n"
+		"https://github.com/velipso/sink  https://sean.fun\n"
+	);
 }
 
 static void print_help(){

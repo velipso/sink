@@ -4,19 +4,19 @@ export declare enum type {
     STR = 2,
     LIST = 3
 }
-export declare type str = string;
-export declare type strnil = string | null;
-export declare type valtrue = number | str | list;
-export declare type val = null | valtrue;
-export declare type user = number;
+export type str = string;
+export type strnil = string | null;
+export type valtrue = number | str | list;
+export type val = null | valtrue;
+export type user = number;
 export declare class list extends Array<val> {
     usertype: user;
     user: any;
     constructor(...args: val[]);
 }
-export declare type u64 = [number, number];
-export declare type ctx = any;
-export declare type scr = any;
+export type u64 = [number, number];
+export type ctx = any;
+export type scr = any;
 export declare enum fstype {
     NONE = 0,
     FILE = 1,
@@ -40,11 +40,11 @@ export declare enum status {
     PASSED = 2,
     FAILED = 3
 }
-export declare type fstype_f = (scr: scr, file: string, incuser: any) => Promise<fstype>;
-export declare type fsread_f = (scr: scr, file: string, incuser: any) => Promise<boolean>;
-export declare type io_f = (ctx: ctx, str: str, iouser: any) => Promise<val>;
-export declare type native_f = (ctx: ctx, args: val[], natuser: any) => Promise<val>;
-export declare type dump_f = (data: string, dumpuser: any) => void;
+export type fstype_f = (scr: scr, file: string, incuser: any) => Promise<fstype>;
+export type fsread_f = (scr: scr, file: string, incuser: any) => Promise<boolean>;
+export type io_f = (ctx: ctx, str: str, iouser: any) => Promise<val>;
+export type native_f = (ctx: ctx, args: val[], natuser: any) => Promise<val>;
+export type dump_f = (data: string, dumpuser: any) => void;
 export interface io_st {
     f_say?: io_f;
     f_warn?: io_f;

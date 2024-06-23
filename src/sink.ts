@@ -1,6 +1,9 @@
-// (c) Copyright 2016-2018, Sean Connelly (@velipso), sean.cm
-// MIT License
+//
+// sink - Minimal programming language for embedding small scripts in larger programs
+// by Sean Connelly (@velipso), https://sean.fun
 // Project Home: https://github.com/velipso/sink
+// SPDX-License-Identifier: 0BSD
+//
 
 export enum type {
 	NIL,
@@ -7926,8 +7929,8 @@ function str_cmp(a: str, b: str): number {
 	return a === b ? 0 : (a < b ? -1 : 1);
 }
 
-function opihelp_num_max(vals: list | val[], li: list[]): val {
-	let max: val = NIL;
+function opihelp_num_max(vals: list | val[], li: list[]): number | null {
+	let max: number | null = NIL;
 	for (let i = 0; i < vals.length; i++){
 		let v = vals[i];
 		if (isnum(v)){
@@ -7953,8 +7956,8 @@ function opi_num_max(vals: list | val[]): val {
 	return opihelp_num_max(vals, []);
 }
 
-function opihelp_num_min(vals: list | val[], li: list[]): val {
-	let min: val = NIL;
+function opihelp_num_min(vals: list | val[], li: list[]): number | null {
+	let min: number | null = NIL;
 	for (let i = 0; i < vals.length; i++){
 		let v = vals[i];
 		if (isnum(v)){

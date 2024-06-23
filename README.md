@@ -1,4 +1,3 @@
-
 sink
 ====
 
@@ -12,7 +11,7 @@ embeddable, with support for a REPL as used in debug consoles.
 
 * [Crash Course](https://github.com/velipso/sink/blob/master/docs/crash-course.md) (Tutorial)
 &larr; Read This
-* [Online Demo](https://sean.cm/m/sink/dist/repl.html)
+* [Online Demo](https://sean.fun/m/sink/dist/repl.html)
 * [Standard Library](https://github.com/velipso/sink/blob/master/docs/lib.md)
 
 ### Sink for Embedding

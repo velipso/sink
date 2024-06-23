@@ -1,4 +1,3 @@
-
 Technical Information
 =====================
 
@@ -26,7 +25,7 @@ Both implementations:
 
 C99 implementation:
 
-* Values are stored via [NaN-boxing](http://sean.cm/a/nan-boxing)
+* Values are stored via [NaN-boxing](https://sean.fun/a/nan-boxing)
 * Simple stop-the-world mark sweep garbage collector
 * Easy to build, just two files: `sink.h` and `sink.c`
 * Asynchronous commands via simplified Promise-like objects `sink_wait`

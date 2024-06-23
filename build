@@ -97,31 +97,18 @@ EXIT=0
 if [ "$BUILD_TS" = "1" ]; then
 	echo Building TypeScript...
 	mkdir -p $TGT_DIR
-	if which tsc > /dev/null; then
-		pushd "$SRC_DIR" > /dev/null
-		set +e
-		tsc
-		status=$?
-		set -e
-		popd > /dev/null
-		if [ "$status" != "0" ]; then
-			echo 'TypeScript errors'
-			exit 1
-		fi
-		cp $SRC_DIR/driver.js $TGT_DIR/driver.js
-		chmod +x $TGT_DIR/driver.js
-	else
-		echo ''
-		echo 'ERROR:'
-		echo 'Missing "tsc" which is required for building.'
-		echo ''
-		echo 'Skipping TypeScript build.'
-		echo ''
-		echo 'You can install "tsc" by visiting:'
-		echo '  https://www.typescriptlang.org/'
-		echo ''
-		EXIT=1
+	pushd "$SRC_DIR" > /dev/null
+	set +e
+	npm run tsc
+	status=$?
+	set -e
+	popd > /dev/null
+	if [ "$status" != "0" ]; then
+		echo 'TypeScript errors'
+		exit 1
 	fi
+	cp $SRC_DIR/driver.js $TGT_DIR/driver.js
+	chmod +x $TGT_DIR/driver.js
 fi
 
 #

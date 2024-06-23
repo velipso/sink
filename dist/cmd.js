@@ -1,8 +1,15 @@
+//
+// sink - Minimal programming language for embedding small scripts in larger programs
+// by Sean Connelly (@velipso), https://sean.fun
+// Project Home: https://github.com/velipso/sink
+// SPDX-License-Identifier: 0BSD
+//
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
         function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
         function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
@@ -12,7 +19,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     function verb(n) { return function (v) { return step([n, v]); }; }
     function step(op) {
         if (f) throw new TypeError("Generator is already executing.");
-        while (_) try {
+        while (g && (g = 0, op[0] && (_ = 0)), _) try {
             if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
             if (y = 0, t) op = [op[0] & 2, t.value];
             switch (op[0]) {
@@ -44,6 +51,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 })(function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
+    exports.main = main;
     var sink = require("./sink.js");
     var sink_shell = require("./sink_shell.js");
     var fs = require("fs");
@@ -53,7 +61,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
                 console.log(str);
-                return [2, sink.NIL];
+                return [2 /*return*/, sink.NIL];
             });
         });
     }
@@ -61,7 +69,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
                 console.error(str);
-                return [2, sink.NIL];
+                return [2 /*return*/, sink.NIL];
             });
         });
     }
@@ -73,7 +81,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                     input: process.stdin,
                     output: process.stdout
                 });
-                return [2, new Promise(function (resolve, reject) {
+                return [2 /*return*/, new Promise(function (resolve, reject) {
                         rl.question(str, function (ans) {
                             rl.close();
                             resolve(ans);
@@ -90,7 +98,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     function nodeStat(file) {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
-                return [2, new Promise(function (resolve, reject) {
+                return [2 /*return*/, new Promise(function (resolve, reject) {
                         fs.stat(file, function (err, st) {
                             if (err) {
                                 if (err.code == 'ENOENT')
@@ -110,16 +118,16 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             var st;
             return __generator(this, function (_a) {
                 switch (_a.label) {
-                    case 0: return [4, nodeStat(file)];
+                    case 0: return [4 /*yield*/, nodeStat(file)];
                     case 1:
                         st = _a.sent();
                         if (st !== null) {
                             if (st.isFile())
-                                return [2, sink.fstype.FILE];
+                                return [2 /*return*/, sink.fstype.FILE];
                             else if (st.isDirectory())
-                                return [2, sink.fstype.DIR];
+                                return [2 /*return*/, sink.fstype.DIR];
                         }
-                        return [2, sink.fstype.NONE];
+                        return [2 /*return*/, sink.fstype.NONE];
                 }
             });
         });
@@ -127,7 +135,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     function nodeRead(file) {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
-                return [2, new Promise(function (resolve, reject) {
+                return [2 /*return*/, new Promise(function (resolve, reject) {
                         fs.readFile(file, 'binary', function (err, data) {
                             if (err) {
                                 console.error(err);
@@ -145,15 +153,15 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             var data;
             return __generator(this, function (_a) {
                 switch (_a.label) {
-                    case 0: return [4, nodeRead(file)];
+                    case 0: return [4 /*yield*/, nodeRead(file)];
                     case 1:
                         data = _a.sent();
                         if (data === null)
-                            return [2, false];
-                        return [4, sink.scr_write(scr, data)];
+                            return [2 /*return*/, false]; // `false` indicates the file couldn't be read
+                        return [4 /*yield*/, sink.scr_write(scr, data)];
                     case 2:
                         _a.sent();
-                        return [2, true];
+                        return [2 /*return*/, true]; // `true` indicates the file was read
                 }
             });
         });
@@ -172,8 +180,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     }
     function printctxerr(ctx) {
         var err = sink.ctx_geterr(ctx);
-        if (err === null)
-            return;
+        if (err === null) // context can error without an error message if script contains `abort`
+            return; // without any parameters
         console.error(err);
     }
     function readPrompt(p) {
@@ -184,7 +192,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                     input: process.stdin,
                     output: process.stdout
                 });
-                return [2, new Promise(function (resolve) {
+                return [2 /*return*/, new Promise(function (resolve) {
                         rl.question(p, function (ans) {
                             rl.close();
                             resolve(ans);
@@ -203,7 +211,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                         line = 1;
                         _a.label = 1;
                     case 1:
-                        if (!true) return [3, 6];
+                        if (!true) return [3 /*break*/, 6];
                         levels = sink.scr_level(scr);
                         p = ': ';
                         if (levels > 0)
@@ -212,36 +220,37 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                             p = ' ' + line + p;
                         else
                             p = line + p;
-                        return [4, readPrompt(p)];
+                        return [4 /*yield*/, readPrompt(p)];
                     case 2:
                         ans = _a.sent();
                         line++;
                         buf = ans + '\n';
-                        return [4, sink.scr_write(scr, buf)];
+                        return [4 /*yield*/, sink.scr_write(scr, buf)];
                     case 3:
                         if (!(_a.sent()))
                             printscrerr(scr);
-                        if (!(sink.scr_level(scr) <= 0)) return [3, 5];
-                        return [4, sink.ctx_run(ctx)];
+                        if (!(sink.scr_level(scr) <= 0)) return [3 /*break*/, 5];
+                        return [4 /*yield*/, sink.ctx_run(ctx)];
                     case 4:
                         switch (_a.sent()) {
                             case sink.run.PASS:
-                                return [2, true];
+                                return [2 /*return*/, true];
                             case sink.run.FAIL:
                                 printctxerr(ctx);
                                 break;
                             case sink.run.ASYNC:
                                 console.error('REPL returned async (impossible)');
-                                return [2, false];
+                                return [2 /*return*/, false];
                             case sink.run.TIMEOUT:
                                 console.error('REPL returned timeout (impossible)');
-                                return [2, false];
+                                return [2 /*return*/, false];
                             case sink.run.REPLMORE:
+                                // do nothing
                                 break;
                         }
                         _a.label = 5;
-                    case 5: return [3, 1];
-                    case 6: return [2];
+                    case 5: return [3 /*break*/, 1];
+                    case 6: return [2 /*return*/];
                 }
             });
         });
@@ -251,19 +260,19 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             var ctx, res;
             return __generator(this, function (_a) {
                 switch (_a.label) {
-                    case 0: return [4, sink.scr_loadfile(scr, file)];
+                    case 0: return [4 /*yield*/, sink.scr_loadfile(scr, file)];
                     case 1:
                         if (!(_a.sent())) {
                             printscrerr(scr);
-                            return [2, false];
+                            return [2 /*return*/, false];
                         }
                         ctx = newctx(scr, argv);
-                        return [4, sink.ctx_run(ctx)];
+                        return [4 /*yield*/, sink.ctx_run(ctx)];
                     case 2:
                         res = _a.sent();
                         if (res == sink.run.FAIL)
                             printctxerr(ctx);
-                        return [2, res == sink.run.PASS];
+                        return [2 /*return*/, res == sink.run.PASS];
                 }
             });
         });
@@ -273,24 +282,25 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             var ctx, res;
             return __generator(this, function (_a) {
                 switch (_a.label) {
-                    case 0: return [4, sink.scr_write(scr, ev)];
+                    case 0: return [4 /*yield*/, sink.scr_write(scr, ev)];
                     case 1:
                         if (!(_a.sent())) {
                             printscrerr(scr);
-                            return [2, false];
+                            return [2 /*return*/, false];
                         }
                         ctx = newctx(scr, argv);
-                        return [4, sink.ctx_run(ctx)];
+                        return [4 /*yield*/, sink.ctx_run(ctx)];
                     case 2:
                         res = _a.sent();
                         if (res == sink.run.FAIL)
                             printctxerr(ctx);
-                        return [2, res == sink.run.PASS];
+                        return [2 /*return*/, res == sink.run.PASS];
                 }
             });
         });
     }
     function perform_dump(scr, debug) {
+        // process.stdout.write isn't guaranteed to have synchronous writes (!!)
         var dump_data = '';
         function dump(data) {
             dump_data += data;
@@ -302,14 +312,14 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
                 switch (_a.label) {
-                    case 0: return [4, sink.scr_loadfile(scr, file)];
+                    case 0: return [4 /*yield*/, sink.scr_loadfile(scr, file)];
                     case 1:
                         if (!(_a.sent())) {
                             printscrerr(scr);
-                            return [2, false];
+                            return [2 /*return*/, false];
                         }
                         perform_dump(scr, debug);
-                        return [2, true];
+                        return [2 /*return*/, true];
                 }
             });
         });
@@ -318,22 +328,22 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
                 switch (_a.label) {
-                    case 0: return [4, sink.scr_write(scr, ev)];
+                    case 0: return [4 /*yield*/, sink.scr_write(scr, ev)];
                     case 1:
                         if (!(_a.sent())) {
                             printscrerr(scr);
-                            return [2, false];
+                            return [2 /*return*/, false];
                         }
                         perform_dump(scr, debug);
-                        return [2, true];
+                        return [2 /*return*/, true];
                 }
             });
         });
     }
     function print_version() {
         console.log('Sink v1.0\n' +
-            'Copyright (c) 2016-2020 Sean Connelly (@velipso), MIT License\n' +
-            'https://github.com/velipso/sink  https://sean.cm');
+            'by Sean Connelly (@velipso), 0BSD License\n' +
+            'https://github.com/velipso/sink  https://sean.fun');
     }
     function print_help() {
         print_version();
@@ -379,21 +389,21 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                     if (a === '-v') {
                         if (i + 1 < argc) {
                             print_help();
-                            return [2, false];
+                            return [2 /*return*/, false];
                         }
                         print_version();
-                        return [2, true];
+                        return [2 /*return*/, true];
                     }
                     else if (a === '-h' || a === '--help') {
                         print_help();
-                        return [2, i + 1 < argc ? false : true];
+                        return [2 /*return*/, i + 1 < argc ? false : true];
                     }
                     else if (a === '-I') {
                         if (i + 1 >= argc) {
                             print_help();
-                            return [2, false];
+                            return [2 /*return*/, false];
                         }
-                        i++;
+                        i++; // skip include path
                     }
                     else if (a === '-c')
                         compile = true;
@@ -402,17 +412,17 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                     else if (a === '-D') {
                         if (i + 2 >= argc) {
                             print_help();
-                            return [2, false];
+                            return [2 /*return*/, false];
                         }
-                        i += 2;
+                        i += 2; // skip declaration key/file
                     }
                     else if (a === '-e') {
                         if (i + 1 >= argc) {
                             print_help();
-                            return [2, false];
+                            return [2 /*return*/, false];
                         }
                         input_content = argv[i + 1];
-                        i += 2;
+                        i += 2; // skip over script
                         input_type = 'eval';
                         break;
                     }
@@ -422,24 +432,40 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                     }
                     else {
                         if (a.charAt(0) === '-') {
+                            // some unknown option
                             print_help();
-                            return [2, false];
+                            return [2 /*return*/, false];
                         }
                         input_content = a;
-                        i++;
+                        i++; // skip over file
                         input_type = 'file';
                         break;
                     }
                 }
                 if (compile && input_type == 'repl') {
                     print_help();
-                    return [2, false];
+                    return [2 /*return*/, false];
                 }
                 s_argv = argv.slice(i);
                 cwd = process.cwd();
                 scr = sink.scr_new(inc, cwd, path.sep === '/', input_type === 'repl');
+                // add the appropriate paths
                 sink.scr_addpath(scr, '.');
+                /*
+                TODO: this
+                const char *sp = getenv("SINK_PATH");
+                if (sp == NULL){
+                    // if no environment variable, then add a default path of the current directory
+                    sink_scr_addpath(scr, ".");
+                }
+                else{
+                    fprintf(stderr, "TODO: process SINK_PATH\n");
+                    abort();
+                }
+                */
+                // add any libraries
                 sink_shell.scr(scr);
+                // load include paths and declaration key/files
                 for (i = 1; argv[i] !== input_content && i < argv.length; i++) {
                     a = argv[i];
                     if (a === '-I') {
@@ -453,19 +479,19 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                 }
                 if (input_type === 'file') {
                     if (compile)
-                        return [2, main_compile_file(scr, input_content, compile_debug)];
-                    return [2, main_run(scr, input_content, s_argv)];
+                        return [2 /*return*/, main_compile_file(scr, input_content, compile_debug)];
+                    return [2 /*return*/, main_run(scr, input_content, s_argv)];
                 }
                 else if (input_type === 'repl')
-                    return [2, main_repl(scr, s_argv)];
+                    return [2 /*return*/, main_repl(scr, s_argv)];
                 else if (input_type === 'eval') {
                     if (compile)
-                        return [2, main_compile_eval(scr, input_content, compile_debug)];
-                    return [2, main_eval(scr, input_content, s_argv)];
+                        return [2 /*return*/, main_compile_eval(scr, input_content, compile_debug)];
+                    return [2 /*return*/, main_eval(scr, input_content, s_argv)];
                 }
+                // shouldn't happen
                 throw new Error('Bad input type');
             });
         });
     }
-    exports.main = main;
 });

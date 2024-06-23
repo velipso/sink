@@ -6,6 +6,9 @@
   "bin": {
     "sink": "./dist/sink/driver.js"
   },
+  "scripts": {
+    "tsc": "tsc"
+  },
   "repository": {
     "type": "git",
     "url": "git@github.com:velipso/sink.git"
@@ -16,8 +19,7 @@
   ],
   "author": {
     "name": "Sean",
-    "twitter": "velipso",
-    "url": "https://sean.cm"
+    "url": "https://sean.fun"
   },
   "license": "MIT",
   "bugs": {
@@ -25,7 +27,7 @@
   },
   "homepage": "https://github.com/velipso/sink",
   "devDependencies": {
-    "@types/es6-promise": "0.0.33",
-    "@types/node": "^8.10.48"
+    "@types/node": "^20.14.8",
+    "typescript": "^5.5.2"
   }
 }

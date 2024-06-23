@@ -1,7 +1,10 @@
 #!/usr/bin/env node
-// (c) Copyright 2018, Sean Connelly (@velipso), sean.cm
-// MIT License
+//
+// sink - Minimal programming language for embedding small scripts in larger programs
+// by Sean Connelly (@velipso), https://sean.fun
 // Project Home: https://github.com/velipso/sink
+// SPDX-License-Identifier: 0BSD
+//
 
 require('./cmd.js').main().then(
 	function(res){ process.exit(res ? 0 : 1); },

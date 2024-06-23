@@ -1,8 +1,15 @@
+//
+// sink - Minimal programming language for embedding small scripts in larger programs
+// by Sean Connelly (@velipso), https://sean.fun
+// Project Home: https://github.com/velipso/sink
+// SPDX-License-Identifier: 0BSD
+//
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
         function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
         function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
@@ -12,7 +19,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     function verb(n) { return function (v) { return step([n, v]); }; }
     function step(op) {
         if (f) throw new TypeError("Generator is already executing.");
-        while (_) try {
+        while (g && (g = 0, op[0] && (_ = 0)), _) try {
             if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
             if (y = 0, t) op = [op[0] & 2, t.value];
             switch (op[0]) {
@@ -44,6 +51,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 })(function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
+    exports.scr = scr;
+    exports.ctx = ctx;
     var sink = require("./sink.js");
     var VERSION_MAJ = 1;
     var VERSION_MIN = 0;
@@ -56,17 +65,17 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                 reqmaj = 0, reqmin = 0, reqpat = 0;
                 if (args.length >= 1) {
                     if (!sink.isnum(args[0]))
-                        return [2, sink.abortstr(ctx, 'Expecting number')];
+                        return [2 /*return*/, sink.abortstr(ctx, 'Expecting number')];
                     reqmaj = args[0] | 0;
                 }
                 if (args.length >= 2) {
                     if (!sink.isnum(args[1]))
-                        return [2, sink.abortstr(ctx, 'Expecting number')];
+                        return [2 /*return*/, sink.abortstr(ctx, 'Expecting number')];
                     reqmin = args[1] | 0;
                 }
                 if (args.length >= 3) {
                     if (!sink.isnum(args[2]))
-                        return [2, sink.abortstr(ctx, 'Expecting number')];
+                        return [2 /*return*/, sink.abortstr(ctx, 'Expecting number')];
                     reqpat = args[2] | 0;
                 }
                 while (true) {
@@ -80,9 +89,9 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                                 break;
                         }
                     }
-                    return [2, new sink.list(VERSION_MAJ, VERSION_MIN, VERSION_PAT)];
+                    return [2 /*return*/, new sink.list(VERSION_MAJ, VERSION_MIN, VERSION_PAT)];
                 }
-                return [2, sink.abortstr(ctx, 'Script requires version ' + reqmaj + '.' + reqmin + '.' + reqpat + ', but sink is ' +
+                return [2 /*return*/, sink.abortstr(ctx, 'Script requires version ' + reqmaj + '.' + reqmin + '.' + reqpat + ', but sink is ' +
                         'version ' + VERSION_MAJ + '.' + VERSION_MIN + '.' + VERSION_PAT)];
             });
         });
@@ -94,18 +103,18 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
                 v = new sink.list();
                 for (i = 0; i < pargs.length; i++)
                     v.push(pargs[i]);
-                return [2, v];
+                return [2 /*return*/, v];
             });
         });
     }
     function L_dir_work(ctx, args) {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
-                return [2, isBrowser ?
+                return [2 /*return*/, isBrowser ?
                         window.location.href
-                            .replace(/^.*:/, '')
-                            .replace(/\?.*$/, '')
-                            .replace(/\/[^\/]*$/, '') :
+                            .replace(/^.*:/, '') // remove protocol
+                            .replace(/\?.*$/, '') // remove query params
+                            .replace(/\/[^\/]*$/, '') : // remove trailing file and slash
                         process.cwd()];
             });
         });
@@ -115,11 +124,9 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
             "declare args     'sink.shell.args'    ;" +
             "declare dir.work 'sink.shell.dir.work';");
     }
-    exports.scr = scr;
     function ctx(ctx, args) {
         sink.ctx_native(ctx, 'sink.shell.version', null, L_version);
         sink.ctx_native(ctx, 'sink.shell.args', args, L_args);
         sink.ctx_native(ctx, 'sink.shell.dir.work', null, L_dir_work);
     }
-    exports.ctx = ctx;
 });
