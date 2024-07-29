@@ -25,6 +25,10 @@
 #	define BITSCAN_WIN
 #endif
 
+#ifndef __has_builtin
+#	define __has_builtin(...) 0
+#endif
+
 // internal representation of a string
 typedef struct {
 	uint8_t *bytes;
@@ -9228,7 +9232,7 @@ static inline int bmp_alloc(uint64_t *bmp, int count){
 		unsigned long pos;
 		_BitScanForward64(&pos, ~*bmp);
 	#else
-	#	error Don't know how to implement bmp_alloc
+	#	error "Don't know how to implement bmp_alloc"
 	#endif
 
 		*bmp |= UINT64_C(1) << pos;
@@ -11274,7 +11278,7 @@ static sink_val unop_int_not(context ctx, sink_val a){
 }
 
 static sink_val unop_int_clz(context ctx, sink_val a){
-	#if defined(__has_builtin) && __has_builtin(__builtin_clz)
+	#if __has_builtin(__builtin_clz)
 		int32_t i = toint(a);
 		if (i == 0)
 			return sink_num(32);
@@ -11289,7 +11293,7 @@ static sink_val unop_int_clz(context ctx, sink_val a){
 		_BitScanReverse(&pos, i);
 		return sink_num(31 - pos);
 	#else
-	#	error Don't know how to implement bmp_alloc
+	#	error "Don't know how to implement bmp_alloc"
 	#endif
 }
 
